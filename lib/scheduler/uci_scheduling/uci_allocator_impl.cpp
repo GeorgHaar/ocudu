@@ -26,7 +26,7 @@ uci_allocator_impl::uci_allocator_impl(const cell_configuration& cell_cfg_, pucc
 {
   // The ring must be at least 1 slot larger than the max. UL allocation delay, to take into account the current slot.
   const unsigned ring_size =
-      get_pow2_allocator_ring_size_gt_min(get_max_slot_ul_alloc_delay(cell_cfg_.ntn_cs_koffset) + 1);
+      get_pow2_allocator_ring_size_gt_min(get_max_slot_ul_alloc_delay(cell_cfg_.ntn_ul_alloc_delay_slots()) + 1);
   uci_alloc_grid.resize(ring_size);
 }
 

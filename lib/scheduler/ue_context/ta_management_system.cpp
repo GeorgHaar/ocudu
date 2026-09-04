@@ -77,7 +77,7 @@ ue_ta_manager ta_management_system::add_ue(time_alignment_group::id_t         pc
                                            subcarrier_spacing                 ul_scs,
                                            subcarrier_spacing                 dl_scs,
                                            ue_logical_channel_repository_view lc_ch_mgr,
-                                           unsigned                           ntn_koffset)
+                                           unsigned                           ntn_ul_alloc_delay_slots)
 {
   if (ta_cfg.ta_cmd_offset_threshold < 0) {
     // TA management disabled for this UE.
@@ -85,8 +85,9 @@ ue_ta_manager ta_management_system::add_ue(time_alignment_group::id_t         pc
   }
 
   // Create UE context.
-  // The UE applies a TA command in UL slot n + k + 1 + 2^mu * K_offset, as per TS 38.213, Section 4.2.
-  const unsigned ta_cmd_apply_delay = get_ta_cmd_processing_slots(ul_scs, dl_scs) + 1 + ntn_koffset;
+  // The UE applies a TA command in UL slot n + k + 1 + 2^mu * K_offset, as per TS 38.213, Section 4.2. The first
+  // uplink it sends with the new timing reaches the gNB k_mac slots later still.
+  const unsigned ta_cmd_apply_delay = get_ta_cmd_processing_slots(ul_scs, dl_scs) + 1 + ntn_ul_alloc_delay_slots;
   auto row_id = ues.insert(ue_ta_context{ul_scs, ta_cmd_apply_delay, std::move(lc_ch_mgr)}, wheel_list_node{});
   update_tags(row_id, std::array<time_alignment_group::id_t, 1>{pcell_tag_id});
 

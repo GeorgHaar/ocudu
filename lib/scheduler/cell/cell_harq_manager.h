@@ -212,7 +212,7 @@ struct cell_harq_repository {
                        unsigned                max_ack_wait_in_slots,
                        unsigned                harq_retx_timeout,
                        unsigned                max_harqs_per_ue,
-                       unsigned                ntn_cs_koffset,
+                       unsigned                ntn_ul_alloc_delay_slots,
                        bool                    harq_mode_b,
                        harq_timeout_notifier&  timeout_notifier_,
                        ocudulog::basic_logger& logger_);
@@ -234,7 +234,7 @@ struct cell_harq_repository {
   std::vector<ue_entity_pool_ptr>                                ues;
   intrusive_double_linked_list<harq_type, pending_retx_list_tag> harq_pending_retx_list;
   std::vector<intrusive_double_linked_list<harq_type>>           harq_timeout_wheel;
-  unsigned                                                       ntn_cs_koffset;
+  unsigned                                                       ntn_ul_alloc_delay_slots;
   std::unique_ptr<harq_alloc_history>                            alloc_hist;
 
   void slot_indication(slot_point sl_tx);
@@ -560,13 +560,13 @@ public:
   cell_harq_manager(unsigned                               max_nof_ue_indexes,
                     unsigned                               max_nof_ue_contexts,
                     unsigned                               max_harqs_per_ue,
-                    std::unique_ptr<harq_timeout_notifier> dl_notifier          = nullptr,
-                    std::unique_ptr<harq_timeout_notifier> ul_notifier          = nullptr,
-                    unsigned                               dl_harq_retx_timeout = DEFAULT_HARQ_RETX_TIMEOUT_SLOTS,
-                    unsigned                               ul_harq_retx_timeout = DEFAULT_HARQ_RETX_TIMEOUT_SLOTS,
-                    unsigned                               max_ack_wait_timeout = DEFAULT_ACK_TIMEOUT_SLOTS,
-                    unsigned                               ntn_cs_koffset       = 0,
-                    bool                                   ul_harq_mode_b       = false);
+                    std::unique_ptr<harq_timeout_notifier> dl_notifier              = nullptr,
+                    std::unique_ptr<harq_timeout_notifier> ul_notifier              = nullptr,
+                    unsigned                               dl_harq_retx_timeout     = DEFAULT_HARQ_RETX_TIMEOUT_SLOTS,
+                    unsigned                               ul_harq_retx_timeout     = DEFAULT_HARQ_RETX_TIMEOUT_SLOTS,
+                    unsigned                               max_ack_wait_timeout     = DEFAULT_ACK_TIMEOUT_SLOTS,
+                    unsigned                               ntn_ul_alloc_delay_slots = 0,
+                    bool                                   ul_harq_mode_b           = false);
 
   /// Update slot, and checks if there are HARQ processes that have reached maxReTx with no ACK
   void slot_indication(slot_point sl_tx);
@@ -671,13 +671,13 @@ public:
   /// Checks whether \c alloc_dl_harq() picks a free process by its mode, rather than taking any of them.
   bool is_dl_harq_mode_selective() const
   {
-    return cell_harq_mgr->dl.ntn_cs_koffset > 0 and get_dl_ue().feedback_disabled_or_mode_b_harq_present;
+    return cell_harq_mgr->dl.ntn_ul_alloc_delay_slots > 0 and get_dl_ue().feedback_disabled_or_mode_b_harq_present;
   }
 
   /// Checks whether \c alloc_ul_harq() picks a free process by its mode, rather than taking any of them.
   bool is_ul_harq_mode_selective() const
   {
-    return cell_harq_mgr->ul.ntn_cs_koffset > 0 and get_ul_ue().feedback_disabled_or_mode_b_harq_present;
+    return cell_harq_mgr->ul.ntn_ul_alloc_delay_slots > 0 and get_ul_ue().feedback_disabled_or_mode_b_harq_present;
   }
 
   /// \brief Checks whether there are free HARQ processes.

@@ -653,7 +653,7 @@ static std::optional<ul_sched_context> get_ul_sched_context(const slice_ue&     
                                                        pdcch_slot,
                                                        pusch_slot,
                                                        allowed_symbols,
-                                                       u.get_cc().ntn_koffset(),
+                                                       cell_cfg.ul_delay(u.get_cc().ntn_koffset()),
                                                        nof_repetitions,
                                                        retx_symbols);
   std::optional<uint8_t> pusch_td_index  = td_res_sel.selected;

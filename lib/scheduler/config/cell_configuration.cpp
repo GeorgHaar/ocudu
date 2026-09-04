@@ -6,6 +6,7 @@
 #include "cell_configuration.h"
 #include "time_domain_mapper.h"
 #include "ocudu/adt/format.h"
+#include "ocudu/ntn/ntn_cell_params.h"
 #include "ocudu/ran/band_helper.h"
 #include "ocudu/ran/resource_block.h"
 #include "ocudu/scheduler/config/csi_helper.h"
@@ -53,14 +54,8 @@ cell_configuration::cell_configuration(const scheduler_expert_config&           
   nzp_csi_rs_list(make_nzp_csi_rs_list(params)),
   init_bwp(init_bwp_),
   // NTN parameters.
-  ntn_cs_koffset(params.ntn_params.has_value()
-                     ? params.ntn_params->ntn_cfg.cell_specific_koffset.value_or(std::chrono::milliseconds{0}).count() *
-                           get_nof_slots_per_subframe(scs_common())
-                     : 0),
-  ntn_k_mac_slots(params.ntn_params.has_value()
-                      ? params.ntn_params->ntn_cfg.k_mac.value_or(std::chrono::milliseconds{0}).count() *
-                            get_nof_slots_per_subframe(scs_common())
-                      : 0),
+  ntn_cs_koffset(get_ntn_cs_koffset_slots(params.ntn_params, scs_common())),
+  ntn_k_mac_slots(get_ntn_k_mac_slots(params.ntn_params, scs_common())),
   ntn_ref_location_ul_ta(get_ref_location_ul_ta(params.ntn_params))
 {
   // Initialize BWP resources.

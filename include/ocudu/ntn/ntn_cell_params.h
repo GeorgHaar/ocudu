@@ -6,6 +6,7 @@
 #pragma once
 
 #include "ocudu/ran/ntn.h"
+#include "ocudu/ran/subcarrier_spacing.h"
 #include "ocudu/ran/tar_config.h"
 #include <chrono>
 #include <optional>
@@ -63,6 +64,42 @@ inline std::optional<std::chrono::microseconds> get_ref_location_ul_ta(const std
 inline std::optional<ue_koffset_config> get_ue_koffset_cfg(const std::optional<ntn_cell_params>& ntn_params)
 {
   return ntn_params.has_value() ? ntn_params->ue_koffset_cfg : std::nullopt;
+}
+
+/// \brief Returns the cell-specific K-offset of the cell in slots of \c scs, see \c ntn_config::cell_specific_koffset.
+///
+/// Zero in a terrestrial cell, and in an NTN cell that configures none.
+inline unsigned get_ntn_cs_koffset_slots(const std::optional<ntn_cell_params>& ntn_params, subcarrier_spacing scs)
+{
+  if (not ntn_params.has_value()) {
+    return 0;
+  }
+  return static_cast<unsigned>(
+             ntn_params->ntn_cfg.cell_specific_koffset.value_or(std::chrono::milliseconds{0}).count()) *
+         get_nof_slots_per_subframe(scs);
+}
+
+/// \brief Returns the k_mac of the cell in slots of \c scs, see \c ntn_config::k_mac.
+///
+/// Zero in a terrestrial cell, and in an NTN cell that configures none.
+inline unsigned get_ntn_k_mac_slots(const std::optional<ntn_cell_params>& ntn_params, subcarrier_spacing scs)
+{
+  if (not ntn_params.has_value()) {
+    return 0;
+  }
+  return static_cast<unsigned>(ntn_params->ntn_cfg.k_mac.value_or(std::chrono::milliseconds{0}).count()) *
+         get_nof_slots_per_subframe(scs);
+}
+
+/// \brief Returns the uplink allocation delay of the cell in slots of \c scs: the cell-specific K-offset the UE
+/// applies plus the k_mac the channel adds.
+///
+/// Zero in a terrestrial cell, and in an NTN cell that configures neither. The scheduler reads it from
+/// \c cell_configuration::ntn_ul_alloc_delay_slots; this is for the layers that hold the cell configuration request
+/// instead.
+inline unsigned get_ntn_ul_alloc_delay_slots(const std::optional<ntn_cell_params>& ntn_params, subcarrier_spacing scs)
+{
+  return get_ntn_cs_koffset_slots(ntn_params, scs) + get_ntn_k_mac_slots(ntn_params, scs);
 }
 
 } // namespace ocudu

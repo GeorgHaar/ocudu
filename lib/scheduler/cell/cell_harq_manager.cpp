@@ -35,11 +35,11 @@ class base_ntn_harq_history
   using harq_impl_type = std::conditional_t<IsDl, dl_harq_process_impl, ul_harq_process_impl>;
 
 public:
-  base_ntn_harq_history(cell_harq_repository<IsDl>& parent_, unsigned ntn_cs_koffset_) :
-    harq_pool(parent_), ntn_cs_koffset(ntn_cs_koffset_)
+  base_ntn_harq_history(cell_harq_repository<IsDl>& parent_, unsigned ntn_ul_alloc_delay_slots_) :
+    harq_pool(parent_), ntn_ul_alloc_delay_slots(ntn_ul_alloc_delay_slots_)
   {
-    ocudu_assert(ntn_cs_koffset > 0 and ntn_cs_koffset <= NTN_CELL_SPECIFIC_KOFFSET_MAX, "Invalid NTN koffset");
-    unsigned ring_size = get_allocator_ring_size_gt_min(ntn_cs_koffset * 2 + SCHEDULER_MAX_K1);
+    ocudu_assert(ntn_ul_alloc_delay_slots > 0, "NTN HARQ history requires a non-zero UL allocation delay");
+    unsigned ring_size = get_allocator_ring_size_gt_min(ntn_ul_alloc_delay_slots * 2 + SCHEDULER_MAX_K1);
     history.resize(ring_size);
   }
 
@@ -47,12 +47,12 @@ public:
   {
     last_sl_ind = sl_tx;
     // If there are no allocations for a long time, we may need to reset last_sl_ack.
-    if (last_sl_ack.valid() and last_sl_ack < sl_tx - ntn_cs_koffset - SCHEDULER_MAX_K1) {
+    if (last_sl_ack.valid() and last_sl_ack < sl_tx - ntn_ul_alloc_delay_slots - SCHEDULER_MAX_K1) {
       last_sl_ack.clear();
     }
 
     // Clear old entries.
-    unsigned idx = get_current_index(sl_tx - ntn_cs_koffset - SCHEDULER_MAX_K1);
+    unsigned idx = get_current_index(sl_tx - ntn_ul_alloc_delay_slots - SCHEDULER_MAX_K1);
     history[idx].clear();
   }
 
@@ -83,7 +83,7 @@ protected:
   unsigned mod(unsigned idx) const { return idx % history.size(); }
 
   cell_harq_repository<IsDl>&              harq_pool;
-  unsigned                                 ntn_cs_koffset;
+  unsigned                                 ntn_ul_alloc_delay_slots;
   std::vector<std::vector<harq_impl_type>> history;
 
   slot_point last_sl_ind;
@@ -168,7 +168,7 @@ cell_harq_repository<IsDl>::cell_harq_repository(unsigned                max_nof
                                                  unsigned                max_ack_wait_timeout,
                                                  unsigned                harq_retx_timeout_,
                                                  unsigned                max_harqs_per_ue_,
-                                                 unsigned                ntn_cs_koffset_,
+                                                 unsigned                ntn_ul_alloc_delay_slots_,
                                                  bool                    harq_mode_b_,
                                                  harq_timeout_notifier&  timeout_notifier_,
                                                  ocudulog::basic_logger& logger_) :
@@ -183,14 +183,15 @@ cell_harq_repository<IsDl>::cell_harq_repository(unsigned                max_nof
                    u.free_harq_ids.reserve(max_harqs_per_ue_);
                    u.harqs.reserve(max_harqs_per_ue_);
                  }),
-  ntn_cs_koffset(ntn_cs_koffset_),
-  alloc_hist(ntn_cs_koffset_ > 0 and harq_mode_b_ ? std::make_unique<harq_alloc_history>(*this, ntn_cs_koffset_)
-                                                  : nullptr)
+  ntn_ul_alloc_delay_slots(ntn_ul_alloc_delay_slots_),
+  alloc_hist(ntn_ul_alloc_delay_slots_ > 0 and harq_mode_b_
+                 ? std::make_unique<harq_alloc_history>(*this, ntn_ul_alloc_delay_slots_)
+                 : nullptr)
 {
   ues.resize(max_nof_ue_indexes);
 
   harq_timeout_wheel.resize(
-      get_allocator_ring_size_gt_min(max_ack_wait_timeout + get_max_slot_ul_alloc_delay(ntn_cs_koffset_)));
+      get_allocator_ring_size_gt_min(max_ack_wait_timeout + get_max_slot_ul_alloc_delay(ntn_ul_alloc_delay_slots_)));
 }
 
 template <bool IsDl>
@@ -304,7 +305,7 @@ cell_harq_repository<IsDl>::alloc_harq(du_ue_index_t                       ue_id
                "If a CG HARQ is requested, the HARQ timeout needs to be non-zero");
 
   // Allocation of free HARQ-id for the UE.
-  if (ntn_cs_koffset > 0 && ue_harq_entity.feedback_disabled_or_mode_b_harq_present) {
+  if (ntn_ul_alloc_delay_slots > 0 && ue_harq_entity.feedback_disabled_or_mode_b_harq_present) {
     auto rit = std::find_if(ue_harq_entity.free_harq_ids.rbegin(),
                             ue_harq_entity.free_harq_ids.rend(),
                             [&](const harq_id_t& h_id) { return ue_harq_entity.harqs[h_id].mode == mode; });
@@ -696,7 +697,7 @@ cell_harq_manager::cell_harq_manager(unsigned                               max_
                                      unsigned                               dl_harq_retx_timeout,
                                      unsigned                               ul_harq_retx_timeout,
                                      unsigned                               max_ack_wait_timeout,
-                                     unsigned                               ntn_cs_koffset,
+                                     unsigned                               ntn_ul_alloc_delay_slots,
                                      bool                                   ul_harq_mode_b) :
   max_harqs_per_ue(max_harqs_per_ue_),
   dl_timeout_notifier(dl_notifier != nullptr ? std::move(dl_notifier) : std::make_unique<noop_harq_timeout_notifier>()),
@@ -707,7 +708,7 @@ cell_harq_manager::cell_harq_manager(unsigned                               max_
      max_ack_wait_timeout,
      dl_harq_retx_timeout,
      max_harqs_per_ue,
-     ntn_cs_koffset,
+     ntn_ul_alloc_delay_slots,
      false,
      *dl_timeout_notifier,
      logger),
@@ -716,7 +717,7 @@ cell_harq_manager::cell_harq_manager(unsigned                               max_
      max_ack_wait_timeout,
      ul_harq_retx_timeout,
      max_harqs_per_ue,
-     ntn_cs_koffset,
+     ntn_ul_alloc_delay_slots,
      ul_harq_mode_b,
      ul_timeout_notifier != nullptr ? *ul_timeout_notifier : *dl_timeout_notifier,
      logger)
@@ -1028,7 +1029,7 @@ void unique_ue_harq_entity::reconfigure(unsigned                              ne
   first_non_reserved_harq_id             = to_harq_id(nof_cg_reserved_harqs);
   get_ul_ue().first_non_reserved_harq_id = first_non_reserved_harq_id;
 
-  if (cell_harq_mgr->ul.ntn_cs_koffset == 0) {
+  if (cell_harq_mgr->ul.ntn_ul_alloc_delay_slots == 0) {
     // Not NTN cell, do not set DL HARQ Feedback Disabled and UL HARQ mode B.
     return;
   }

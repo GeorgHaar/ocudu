@@ -2183,9 +2183,8 @@ ra_scheduler::alloc_msgb_harq_ack_pucch(cell_resource_allocator&    res_alloc,
                                         span<const uint8_t>         k1_candidates,
                                         const pdcch_dl_information& pdcch) const
 {
-  // TS 38.213, Section 8.2A: the successRAR's PUCCH slot is n + k + Delta + K_cell,offset, where Delta is the same
-  // processing delta already applied to Msg3 PUSCH timing, as per TS 38.214, Table 6.1.2.1.1-5. That section names
-  // the cell-specific Koffset, so no Differential Koffset applies here.
+  // TS 38.213, Section 8.2A: the successRAR's PUCCH is in the UE's uplink slot n + k + Delta + K_cell,offset, with
+  // the cell-specific Koffset and the Delta of Msg3 PUSCH timing, as per TS 38.214, Table 6.1.2.1.1-5.
   const unsigned delta = ra_helper::get_pusch_delay_delta(cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.scs);
   for (unsigned k1_idx = 0, sz = k1_candidates.size(); k1_idx != sz; ++k1_idx) {
     const std::optional<unsigned> delta_pri = pucch_alloc.alloc_common_harq_ack(

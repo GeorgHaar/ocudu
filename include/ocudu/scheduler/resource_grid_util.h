@@ -65,11 +65,11 @@ constexpr unsigned get_pow2_allocator_ring_size_gt_min(unsigned           minimu
 }
 
 /// \brief Retrieves how far in advance the scheduler can allocate resources in the UL resource grid.
-constexpr unsigned get_max_slot_ul_alloc_delay(unsigned ntn_cs_koffset)
+constexpr unsigned get_max_slot_ul_alloc_delay(unsigned ntn_ul_alloc_delay_slots)
 {
   return std::max(SCHEDULER_MAX_K0 + std::max(SCHEDULER_MAX_K1, SCHEDULER_MAX_K2 + MAX_MSG3_DELTA),
                   srs_constants::MAX_SRS_SLOT_OFFSET) +
-         ntn_cs_koffset;
+         ntn_ul_alloc_delay_slots;
 }
 
 } // namespace ocudu

@@ -338,7 +338,7 @@ void cell_slot_resource_allocator::clear()
 cell_resource_allocator::cell_resource_allocator(const cell_configuration& cfg_) :
   cfg(cfg_),
   max_dl_slot_alloc_delay(SCHEDULER_MAX_K0),
-  max_ul_slot_alloc_delay(get_max_slot_ul_alloc_delay(cfg_.ntn_cs_koffset)),
+  max_ul_slot_alloc_delay(get_max_slot_ul_alloc_delay(cfg_.ntn_ul_alloc_delay_slots())),
   results(sched_result_grid_config{
       get_allocator_ring_size_gt_min(RING_MAX_HISTORY_SIZE + max_ul_slot_alloc_delay),
       // A slot holds PDUs from when it is allocated, at most the max alloc delay ahead, until it leaves the history.

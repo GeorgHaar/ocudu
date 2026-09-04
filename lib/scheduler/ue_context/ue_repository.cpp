@@ -174,8 +174,8 @@ void ue_repository::add_ue(const ue_configuration& ue_cfg, const ue_creation_con
   // TA delays are counted in scheduler slots, which the UL slots must match.
   const subcarrier_spacing ul_scs = pcell_cmn.params.ul_cfg_common.init_ul_bwp.generic_params.scs;
   ocudu_sanity_check(ul_scs == pcell_cmn.scs_common(), "The UL SCS must match the common SCS");
-  auto ue_ta_mgr =
-      ta_mgr_sys.add_ue(ue_cfg.pcell_cfg().tag_id(), ul_scs, scs, ue_lc_mng.view(), pcell_cmn.ntn_cs_koffset);
+  auto ue_ta_mgr = ta_mgr_sys.add_ue(
+      ue_cfg.pcell_cfg().tag_id(), ul_scs, scs, ue_lc_mng.view(), pcell_cmn.ntn_ul_alloc_delay_slots());
 
   // Setup UE cells.
   ue_cell_lookups.emplace(ue_index);
@@ -311,7 +311,7 @@ void ue_repository::schedule_ue_rem(ue_config_delete_event ev)
     // grid ready to be sent to the PHY. Removing the UE earlier would mean that its PUCCH resources would become
     // available to a newly created UE and there could be a PUCCH collision.
     slot_point rem_slot =
-        last_sl_tx + get_max_slot_ul_alloc_delay(u.get_pcell().cfg().cell_cfg_common.ntn_cs_koffset) + 1;
+        last_sl_tx + get_max_slot_ul_alloc_delay(u.get_pcell().cfg().cell_cfg_common.ntn_ul_alloc_delay_slots()) + 1;
     ues_to_rem.push(std::make_pair(rem_slot, std::move(ev)));
   }
 }

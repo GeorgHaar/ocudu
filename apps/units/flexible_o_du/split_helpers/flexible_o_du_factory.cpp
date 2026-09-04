@@ -26,6 +26,7 @@
 #include "ocudu/fapi_adaptor/phy/p7/phy_fapi_p7_sector_fastpath_adaptor.h"
 #include "ocudu/fapi_adaptor/phy/phy_fapi_fastpath_adaptor.h"
 #include "ocudu/fapi_adaptor/phy/phy_fapi_sector_fastpath_adaptor.h"
+#include "ocudu/ntn/ntn_cell_params.h"
 #include "ocudu/ntn/ntn_configuration_manager.h"
 #include <algorithm>
 
@@ -47,17 +48,6 @@ static fapi::carrier_config generate_carrier_config_tlv(const odu::du_cell_confi
   fapi_config.num_rx_ant = du_cell.ran.ul_carrier.nof_ant;
 
   return fapi_config;
-}
-
-/// Returns the NTN k_mac of the cell in slots, or zero if not configured.
-static unsigned get_ntn_k_mac_slots(const odu::du_cell_config& cell)
-{
-  const auto& ntn_params = cell.ran.ntn_params;
-  if (!ntn_params.has_value() || !ntn_params->ntn_cfg.k_mac.has_value()) {
-    return 0;
-  }
-  return static_cast<unsigned>(ntn_params->ntn_cfg.k_mac->count()) *
-         get_nof_slots_per_subframe(cell.ran.dl_cfg_common.init_dl_bwp.generic_params.scs);
 }
 
 static o_du_low_unit_config generate_o_du_low_config(const du_low_unit_config&            du_low_unit_cfg,
@@ -89,7 +79,8 @@ static o_du_low_unit_config generate_o_du_low_config(const du_low_unit_config&  
         // applied (rx_gain_dB is 0).
         .dbfs_to_dbm_conversion_factor = du_low_unit_cfg.power_calibration.dbfs_to_dbm_conversion_factor - rx_gain_dB,
         .db_to_dbfs_conversion_factor  = du_low_unit_cfg.power_calibration.db_to_dbfs_conversion_factor,
-        .ntn_k_mac_slots               = get_ntn_k_mac_slots(cell)};
+        .ntn_k_mac_slots =
+            get_ntn_k_mac_slots(cell.ran.ntn_params, cell.ran.dl_cfg_common.init_dl_bwp.generic_params.scs)};
 
     odu_low_cfg.fapi_cfg.sectors.push_back({.p5_config = p5_cfg, .p7_config = p7_cfg});
 

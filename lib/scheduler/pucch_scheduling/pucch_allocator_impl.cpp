@@ -92,7 +92,7 @@ pucch_allocator_impl::pucch_allocator_impl(const cell_configuration& cell_cfg_,
 {
   // The ring must be at least 1 slot larger than the max. UL allocation delay, to take into account the current slot.
   const unsigned ring_size =
-      get_pow2_allocator_ring_size_gt_min(get_max_slot_ul_alloc_delay(cell_cfg.ntn_cs_koffset) + 1);
+      get_pow2_allocator_ring_size_gt_min(get_max_slot_ul_alloc_delay(cell_cfg.ntn_ul_alloc_delay_slots()) + 1);
   slots_ctx.resize(ring_size);
 }
 

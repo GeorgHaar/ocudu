@@ -23,7 +23,6 @@
 #include "ocudu/scheduler/config/pusch_td_resource_indices.h"
 #include "ocudu/scheduler/result/pusch_info.h"
 #include "ocudu/scheduler/support/rb_helper.h"
-#include "ocudu/support/format/custom_formattable.h"
 #include <algorithm>
 
 using namespace ocudu;
@@ -463,17 +462,15 @@ ue_fallback_scheduler::schedule_dl_srb(cell_resource_allocator&              res
     // care of removing the UE.
     if (u.get_pcell().get_pcell_state().conres_st == ue_conres_state::pending_conres_ce) {
       // The UE is still on its TC-RNTI here, which uses the cell-specific Koffset, as per TS 38.213, Section 9.
-      const auto ntn_cs_koffset_subframes =
-          cell_cfg.ntn_cs_koffset
-              ? divide_ceil<uint32_t, uint32_t>(cell_cfg.ntn_cs_koffset, pdsch_alloc.slot.nof_slots_per_subframe())
-              : 0;
-      const auto ra_conres_timer_subframes =
-          static_cast<uint32_t>(
-              u.get_pcell().cfg().init_bwp().ul.common().rach_cfg_common.value().ra_con_res_timer.count()) +
-          ntn_cs_koffset_subframes;
-      const int conres_prach_slot_diff = pdsch_alloc.slot - u.get_pcell().get_pcell_state().conres_win_start();
-      if (conres_prach_slot_diff < 0 or
-          divide_ceil<uint32_t, uint32_t>(static_cast<uint32_t>(conres_prach_slot_diff),
+      // Shifting the anchor by the whole uplink delay covers that Koffset and k_mac, so the configured timer is left
+      // at its nominal duration.
+      const slot_point conres_ref_slot =
+          u.get_pcell().get_pcell_state().conres_win_start(cell_cfg.ntn_ul_alloc_delay_slots());
+      const auto ra_conres_timer_subframes = static_cast<uint32_t>(
+          u.get_pcell().cfg().init_bwp().ul.common().rach_cfg_common.value().ra_con_res_timer.count());
+      const int conres_ref_slot_diff = conres_ref_slot.valid() ? pdsch_alloc.slot - conres_ref_slot : 0;
+      if (conres_ref_slot_diff < 0 or
+          divide_ceil<uint32_t, uint32_t>(static_cast<uint32_t>(conres_ref_slot_diff),
                                           pdsch_alloc.slot.nof_slots_per_subframe()) > ra_conres_timer_subframes) {
         // If the slot difference is larger than the RA ConRes timer, then it's too late to schedule the ConRes.
         logger.debug(
@@ -1496,14 +1493,13 @@ void ue_fallback_scheduler::store_harq_tx(du_ue_index_t ue_index, const dl_harq_
 
 bool ue_fallback_scheduler::handle_conres_expiry(ue& u, slot_point sl_tx)
 {
-  const unsigned ntn_cs_koffset = cell_cfg.ntn_cs_koffset;
-  auto&          ue_pcell       = u.get_pcell();
+  auto& ue_pcell = u.get_pcell();
 
   if (ue_pcell.get_pcell_state().conres_st != ue_conres_state::pending_conres_ce) {
     return false;
   }
 
-  const slot_point conres_ref_slot = ue_pcell.get_pcell_state().conres_win_start();
+  const slot_point conres_ref_slot = ue_pcell.get_pcell_state().conres_win_start(cell_cfg.ntn_ul_alloc_delay_slots());
   if (not conres_ref_slot.valid()) {
     logger.warning("ue={} rnti={}: attempting to compute ra-ContentionResolutionTimer with non-valid prach/msg3 rx "
                    "slot",
@@ -1513,7 +1509,7 @@ bool ue_fallback_scheduler::handle_conres_expiry(ue& u, slot_point sl_tx)
   }
 
   const auto conres_timer       = ue_pcell.cfg().init_bwp().ul.common().rach_cfg_common->ra_con_res_timer.count();
-  const auto conres_timer_slots = conres_timer * sl_tx.nof_slots_per_subframe() + ntn_cs_koffset;
+  const auto conres_timer_slots = conres_timer * sl_tx.nof_slots_per_subframe();
   const auto sl_conres          = conres_ref_slot + conres_timer_slots;
   if (sl_conres > sl_tx) {
     // ConRes window has not yet elapsed.
@@ -1522,18 +1518,12 @@ bool ue_fallback_scheduler::handle_conres_expiry(ue& u, slot_point sl_tx)
 
   // If the ConRes CE was never scheduled, then we deactivate the UE right away.
   if (u.logical_channels().is_con_res_id_pending()) {
-    const auto ntn_cs_koffset_ms =
-        ntn_cs_koffset ? divide_ceil<uint32_t, uint32_t>(ntn_cs_koffset, sl_tx.nof_slots_per_subframe()) : 0;
-    logger.warning(
-        "ue={} rnti={}: ra-ContentionResolutionTimer, for prach/msg3 rx at slot={}, expired ({}ms{}) before ConRes "
-        "CE was scheduled. UE will stop being scheduled",
-        u.ue_index,
-        u.crnti,
-        conres_ref_slot,
-        conres_timer,
-        make_formattable([k = ntn_cs_koffset_ms](auto& ctx) {
-          return k ? fmt::format_to(ctx.out(), " + RTT: {}ms", k) : ctx.out();
-        }));
+    logger.warning("ue={} rnti={}: ra-ContentionResolutionTimer, for msg3/prach rx at slot={}, expired ({}ms) before "
+                   "ConRes CE was scheduled. UE will stop being scheduled",
+                   u.ue_index,
+                   u.crnti,
+                   conres_ref_slot,
+                   conres_timer);
     metrics.handle_conres_timer_expired();
     ues.handle_conres_ce_outcome(u.ue_index, false);
     return true;
@@ -1556,14 +1546,11 @@ bool ue_fallback_scheduler::handle_conres_expiry(ue& u, slot_point sl_tx)
 
   // ConRes timer has expired, but there is a chance the UE received the ConRes CE but the ACK was not successful.
   // In this case, the scheduler will stop retransmitting the ConRes CE.
-  logger.info("ue={} rnti={}: ra-ContentionResolutionTimer ({}ms{}) expired, but the scheduler never got back a "
+  logger.info("ue={} rnti={}: ra-ContentionResolutionTimer ({}ms) expired, but the scheduler never got back a "
               "positive ACK. The scheduler will stop retransmitting the ConRes CE",
               u.ue_index,
               u.crnti,
-              conres_timer,
-              make_formattable([k = ntn_cs_koffset](auto& ctx) {
-                return k ? fmt::format_to(ctx.out(), " + RTT: {}ms", k) : ctx.out();
-              }));
+              conres_timer);
   metrics.handle_conres_ce_never_acked();
   ues.handle_conres_ce_outcome(u.ue_index, false);
   return true;

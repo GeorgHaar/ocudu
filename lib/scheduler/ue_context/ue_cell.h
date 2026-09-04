@@ -62,11 +62,16 @@ struct ue_pcell_state {
   /// Slot at which the PRACH preamble was received, set for RACH-created UEs tracked by the RA scheduler.
   slot_point prach_slot_rx;
 
-  /// \brief Reference slot for the start of the ra-ContentionResolutionTimer window.
+  /// \brief Reference slot for the start of the ra-ContentionResolutionTimer window, on the gNB DL clock.
+  ///
   /// \c prach_slot_rx precedes \c msg3_rx_slot and is therefore the more accurate reference, but it is only known
   /// if the RA scheduler still had a live entry for this UE by the time it was created; \c msg3_rx_slot is used as
-  /// a fallback otherwise.
-  slot_point conres_win_start() const { return prach_slot_rx.valid() ? prach_slot_rx : msg3_rx_slot; }
+  /// a fallback otherwise. \c ntn_ul_alloc_delay_slots makes up the part of the PRACH to Msg3 gap that an NTN cell
+  /// dominates; the RAR wait and the k2 of the Msg3 grant are left as margin, so the gNB gives up before the UE.
+  slot_point conres_win_start(unsigned ntn_ul_alloc_delay_slots) const
+  {
+    return prach_slot_rx.valid() ? prach_slot_rx + ntn_ul_alloc_delay_slots : msg3_rx_slot;
+  }
 };
 
 struct ue_cell_components {

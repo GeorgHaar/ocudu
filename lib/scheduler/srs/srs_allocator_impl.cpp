@@ -138,7 +138,7 @@ aperiodic_srs_alloc_info srs_allocator_impl::allocate_aperiodic_srs(cell_resourc
   const auto& aperiodic_srs_set = std::get<srs_config::srs_resource_set::aperiodic_resource_type>(srs_set.res_type);
   // NOTE: the presence of the optional slot_offset must have been validated at the moment the cfg is created.
   const unsigned   sl_offset          = aperiodic_srs_set.slot_offset.value();
-  const slot_point candidate_srs_slot = pdcch_slot + sl_offset + ntn_koffset;
+  const slot_point candidate_srs_slot = pdcch_slot + cell_cfg.ul_delay(sl_offset + ntn_koffset);
   const unsigned   srs_slot_idx       = get_slot_idx(candidate_srs_slot);
   ocudu_assert(srs_slot_idx < srs_slots.size(), "SRS slot index");
 
@@ -152,7 +152,7 @@ aperiodic_srs_alloc_info srs_allocator_impl::allocate_aperiodic_srs(cell_resourc
     return {};
   }
 
-  auto& srs_slot_res_alloc = res_alloc[sl_offset + ntn_koffset];
+  auto& srs_slot_res_alloc = res_alloc[cell_cfg.ul_delay(sl_offset + ntn_koffset)];
   if (srs_slot_res_alloc.result_builder().ul().srss().full()) {
     return {};
   }

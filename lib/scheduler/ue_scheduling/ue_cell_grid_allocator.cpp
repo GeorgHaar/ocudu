@@ -370,8 +370,9 @@ ue_cell_grid_allocator::setup_dl_grant_builder(const slice_ue&                  
   // k1 from the last repetition occasion, so \c last_occasion_offset must be added on top.
   // In the case of a multi-slot PUCCH repetition burst, the HARQ-ACK feedback can only be considered lost once the
   // last repetition has been transmitted.
-  const unsigned ack_delay      = last_occasion_offset + k1 + ue_cc.ntn_koffset();
-  const unsigned last_ack_delay = last_occasion_offset + uci.k1_last_rep + ue_cc.ntn_koffset();
+  const cell_configuration& cell_cfg  = ue_cell_cfg.cell_cfg_common;
+  const unsigned            ack_delay = cell_cfg.ul_delay(last_occasion_offset + k1 + ue_cc.ntn_koffset());
+  const unsigned last_ack_delay       = cell_cfg.ul_delay(last_occasion_offset + uci.k1_last_rep + ue_cc.ntn_koffset());
 
   // Allocate UE DL HARQ.
   // NOTE: With PDSCH repetitions, the HARQ-ACK is expected k1 slots after the last repetition occasion.
@@ -463,8 +464,8 @@ ue_cell_grid_allocator::set_pdsch_params(dl_grant_info& grant, const vrb_alloc& 
 
   // Compute TPC for PUCCH. With PDSCH repetitions, the PUCCH takes place k1 slots after the last occasion.
   const unsigned last_occasion_offset = grant.reps.has_value() ? grant.reps->nof_occasions - 1 : 0;
-  const uint8_t  tpc = ue_cc.get_pucch_power_controller().compute_tpc_command(pdsch_alloc.slot + last_occasion_offset +
-                                                                             k1 + ue_cc.ntn_koffset());
+  const uint8_t  tpc                  = ue_cc.get_pucch_power_controller().compute_tpc_command(
+      pdsch_alloc.slot + ue_cell_cfg.cell_cfg_common.ul_delay(last_occasion_offset + k1 + ue_cc.ntn_koffset()));
 
   // Check if is possible to allocate an aperiodic SRS.
   // NOTE: if the prohibit time is not set, the scheduler doesn't allocate any aperiodic SRS.
@@ -473,7 +474,8 @@ ue_cell_grid_allocator::set_pdsch_params(dl_grant_info& grant, const vrb_alloc& 
     const auto [srs_res_trigger, slot_offset] = srs_alloc.allocate_aperiodic_srs(
         cell_alloc, ue_cc.channel_state_manager().last_aperiodic_srs_slot, ue_cell_cfg, ue_cc.ntn_koffset());
     if (srs_res_trigger != 0) {
-      ue_cc.channel_state_manager().on_scheduled_aperiodic_srs(pdcch_alloc.slot + slot_offset + ue_cc.ntn_koffset());
+      ue_cc.channel_state_manager().on_scheduled_aperiodic_srs(pdcch_alloc.slot +
+                                                               cell_cfg.ul_delay(slot_offset + ue_cc.ntn_koffset()));
       aperiodic_srs_res_trigger = srs_res_trigger;
     }
   }
@@ -587,7 +589,8 @@ ue_cell_grid_allocator::set_pdsch_params(dl_grant_info& grant, const vrb_alloc& 
   // Only a cell deriving UE-specific Koffsets sends the MAC CE.
   if (get_ue_koffset_cfg(cell_cfg.params.ntn_params).has_value()) {
     // A Differential Koffset carried by this PDSCH applies from the first slot three subframes past its HARQ-ACK, as
-    // per TS 38.213, Section 9. The HARQ-ACK uses the current Koffset, so the slot is known now.
+    // per TS 38.213, Section 9. The HARQ-ACK uses the current Koffset, so the slot is known now. It is a frame number
+    // the UE and the gNB DL clock share, not an instant at the gNB antenna, so it carries no k_mac.
     const slot_point koffset_apply_slot =
         pdsch_alloc.slot + last_occasion_offset + k1 + ue_cc.ntn_koffset() +
         DIFFERENTIAL_KOFFSET_APPLY_DELAY_SUBFRAMES * get_nof_slots_per_subframe(cell_cfg.scs_common()) + 1;
@@ -760,7 +763,7 @@ vrb_bitmap ue_cell_grid_allocator::bundle_used_vrbs(const vrb_bitmap&           
   const pusch_time_domain_resource_allocation& td_res =
       ss_info.bwp->ul.td_mapper().pusch_td_resources(ss_info.get_ul_dci_format())[ctxt.pusch_td_res_index];
   const subcarrier_spacing scs      = ss_info.bwp->ul.common().generic_params.scs;
-  const unsigned           final_k2 = td_res.k2 + ue_cc.ntn_koffset();
+  const unsigned           final_k2 = cell_alloc.cfg.ul_delay(td_res.k2 + ue_cc.ntn_koffset());
 
   for (const uint8_t offset : reps.tx_offsets) {
     // An occasion spans the same symbols and CRB limits as the base grant, so the two bitmaps line up VRB by VRB.
@@ -802,7 +805,7 @@ ue_cell_grid_allocator::select_pusch_repetitions(const ue_cell&           ue_cc,
   const uint8_t                                nof_repetitions = *td_res.nof_repetitions;
 
   const cell_configuration& cell_cfg   = cell_alloc.cfg;
-  const unsigned            final_k2   = td_res.k2 + ue_cc.ntn_koffset();
+  const unsigned            final_k2   = cell_cfg.ul_delay(td_res.k2 + ue_cc.ntn_koffset());
   const slot_point          pusch_slot = cell_alloc[final_k2].slot;
 
   // As per TS 38.213 clause 9, the UE multiplexes in each slot of the bundle the HARQ-ACKs it would have reported on
@@ -1014,7 +1017,7 @@ ue_cell_grid_allocator::setup_ul_grant_builder(const slice_ue&                  
 
   // Fetch PDCCH and PUSCH resource grid allocators.
   cell_slot_resource_allocator& pdcch_alloc = cell_alloc[0];
-  const unsigned                final_k2    = pusch_td_cfg.k2 + ue_cc.ntn_koffset();
+  const unsigned                final_k2    = cell_alloc.cfg.ul_delay(pusch_td_cfg.k2 + ue_cc.ntn_koffset());
   cell_slot_resource_allocator& pusch_alloc = cell_alloc[final_k2];
   ocudu_sanity_check(not pdcch_alloc.result_builder().dl().ul_pdcchs().full(),
                      "Maximum number of UL PDCCH grants per slot reached");
@@ -1128,7 +1131,7 @@ ue_cell_grid_allocator::set_pusch_params(ul_grant_info& grant, const vrb_interva
 
   // Fetch PDCCH and PUSCH resource grid allocators.
   cell_slot_resource_allocator& pdcch_alloc = cell_alloc[0];
-  const unsigned                final_k2    = pusch_td_cfg.k2 + ue_cc.ntn_koffset();
+  const unsigned                final_k2    = cell_cfg.ul_delay(pusch_td_cfg.k2 + ue_cc.ntn_koffset());
   cell_slot_resource_allocator& pusch_alloc = cell_alloc[final_k2];
 
   if (vrbs.empty()) {
@@ -1246,8 +1249,8 @@ ue_cell_grid_allocator::set_pusch_params(ul_grant_info& grant, const vrb_interva
 
   // Compute TPC command before computing the nof_prbs adaptation based on PHR; this is because, when the TPC gets
   // computed, the channel state manager will update close-loop power control adjustment.
-  const uint8_t tpc_command =
-      ue_cc.get_pusch_power_controller().compute_tpc_command(pdcch_alloc.slot + pusch_td_cfg.k2 + ue_cc.ntn_koffset());
+  const uint8_t tpc_command = ue_cc.get_pusch_power_controller().compute_tpc_command(
+      pdcch_alloc.slot + cell_cfg.ul_delay(pusch_td_cfg.k2 + ue_cc.ntn_koffset()));
 
   // Check if is possible to allocate an aperiodic SRS.
   // NOTE: if the prohibit time is not set, the scheduler doesn't allocate any aperiodic SRS.
@@ -1256,7 +1259,8 @@ ue_cell_grid_allocator::set_pusch_params(ul_grant_info& grant, const vrb_interva
     const auto [srs_res_trigger, slot_offset] = srs_alloc.allocate_aperiodic_srs(
         cell_alloc, ue_cc.channel_state_manager().last_aperiodic_srs_slot, ue_cell_cfg, ue_cc.ntn_koffset());
     if (srs_res_trigger != 0) {
-      ue_cc.channel_state_manager().on_scheduled_aperiodic_srs(pdcch_alloc.slot + slot_offset + ue_cc.ntn_koffset());
+      ue_cc.channel_state_manager().on_scheduled_aperiodic_srs(pdcch_alloc.slot +
+                                                               cell_cfg.ul_delay(slot_offset + ue_cc.ntn_koffset()));
       aperiodic_srs_res_trigger = srs_res_trigger;
     }
   }

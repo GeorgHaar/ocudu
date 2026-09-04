@@ -517,7 +517,9 @@ ue_fallback_scheduler::schedule_dl_srb(cell_resource_allocator&              res
     if (last_slot_ack.valid() and last_slot_ack > most_recent_ack_slot) {
       most_recent_ack_slot = last_slot_ack;
     }
-    if (pdsch_alloc.slot + dci_1_0_k1_values.back() + ack_ntn_koffset <= most_recent_ack_slot) {
+    // \c most_recent_ack_slot comes from the HARQ, which waits for its feedback on the gNB DL clock, so the candidate
+    // PUCCH slot has to be converted onto it before the two are compared.
+    if (pdsch_alloc.slot + cell_cfg.ul_delay(dci_1_0_k1_values.back() + ack_ntn_koffset) <= most_recent_ack_slot) {
       continue;
     }
 
@@ -572,7 +574,8 @@ static std::optional<uci_allocation> allocate_ue_fallback_pucch(ue&             
     // PUSCH, as the gNB would expect.
     static_vector<uint8_t, pucch_td_helper::MAX_K1_CANDIDATES> filtered_k1;
     for (const uint8_t k1_candidate : k1_values) {
-      if (not u.get_pcell().get_conf_grant_state_manager().is_cg_slot(pdsch_slot + k1_candidate + ntn_koffset)) {
+      if (not u.get_pcell().get_conf_grant_state_manager().is_cg_slot(
+              pdsch_slot + res_alloc.cfg.ul_delay(k1_candidate + ntn_koffset))) {
         filtered_k1.push_back(k1_candidate);
       }
     }
@@ -582,7 +585,7 @@ static std::optional<uci_allocation> allocate_ue_fallback_pucch(ue&             
 
   std::optional<uint8_t> last_valid_k1;
   for (uint8_t k1_candidate : k1_values) {
-    slot_point uci_slot = pdsch_slot + k1_candidate + ntn_koffset;
+    const slot_point uci_slot = pdsch_slot + res_alloc.cfg.ul_delay(k1_candidate + ntn_koffset);
     if (uci_slot <= min_ack_slot) {
       // Skip k1 values that would result in a PUCCH transmission in a slot that is older than the most recent ACK slot.
       continue;
@@ -951,11 +954,14 @@ dl_harq_process_handle ue_fallback_scheduler::fill_dl_srb_grant(ue&             
   const unsigned ntn_koffset =
       dci_type == dci_dl_rnti_config_type::tc_rnti_f1_0 ? cell_cfg.ntn_cs_koffset : u.get_pcell().ntn_koffset();
   if (not is_retx) {
-    h_dl = u.get_pcell().harqs.alloc_dl_harq(
-        pdcch_slot, pdsch_slot, uci.k1 + ntn_koffset, expert_cfg.max_nof_dl_harq_retxs, uci.harq_bit_idx);
+    h_dl = u.get_pcell().harqs.alloc_dl_harq(pdcch_slot,
+                                             pdsch_slot,
+                                             cell_cfg.ul_delay(uci.k1 + ntn_koffset),
+                                             expert_cfg.max_nof_dl_harq_retxs,
+                                             uci.harq_bit_idx);
     ocudu_assert(h_dl.has_value(), "Failed to allocate DL HARQ");
   } else {
-    bool result = h_dl->new_retx(pdsch_slot, uci.k1 + ntn_koffset, uci.harq_bit_idx);
+    bool result = h_dl->new_retx(pdsch_slot, cell_cfg.ul_delay(uci.k1 + ntn_koffset), uci.harq_bit_idx);
     ocudu_sanity_check(result, "Unable to allocate HARQ retx");
   }
 
@@ -1111,7 +1117,7 @@ ue_fallback_scheduler::ul_srb_sched_outcome ue_fallback_scheduler::schedule_ul_u
   for (uint8_t pusch_td_res_idx : pusch_td_res_index_list) {
     const pusch_time_domain_resource_allocation& pusch_td =
         cell_cfg.init_bwp.ul.td_mapper().common_pusch_td_resources()[pusch_td_res_idx];
-    cell_slot_resource_allocator& pusch_alloc = res_alloc[pusch_td.k2 + u.get_pcell().ntn_koffset()];
+    cell_slot_resource_allocator& pusch_alloc = res_alloc[cell_cfg.ul_delay(pusch_td.k2 + u.get_pcell().ntn_koffset())];
     const slot_point              pusch_slot  = pusch_alloc.slot;
 
     // Skip PUSCH allocation if this is a Configured Grant slot, to avoid collision with CG PUSCH.
@@ -1208,7 +1214,7 @@ ue_fallback_scheduler::schedule_ul_srb(ue&                                      
 {
   ue_cell&                      ue_pcell    = u.get_pcell();
   cell_slot_resource_allocator& pdcch_alloc = res_alloc[0];
-  cell_slot_resource_allocator& pusch_alloc = res_alloc[pusch_td.k2 + ue_pcell.ntn_koffset()];
+  cell_slot_resource_allocator& pusch_alloc = res_alloc[cell_cfg.ul_delay(pusch_td.k2 + ue_pcell.ntn_koffset())];
 
   const crb_interval init_ul_bwp_crbs = cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.crbs;
 
@@ -1393,12 +1399,12 @@ void ue_fallback_scheduler::fill_ul_srb_grant(ue&                               
 {
   if (is_retx) {
     // It is a retx.
-    bool result = h_ul->new_retx(pdcch_slot + k2 + u.get_pcell().ntn_koffset());
+    bool result = h_ul->new_retx(pdcch_slot + cell_cfg.ul_delay(k2 + u.get_pcell().ntn_koffset()));
     ocudu_sanity_check(result, "Failed to setup HARQ retx");
   } else {
     // It is a new tx.
     h_ul = u.get_pcell().harqs.alloc_ul_harq(
-        pdcch_slot, pdcch_slot + k2 + u.get_pcell().ntn_koffset(), expert_cfg.max_nof_ul_harq_retxs);
+        pdcch_slot, pdcch_slot + cell_cfg.ul_delay(k2 + u.get_pcell().ntn_koffset()), expert_cfg.max_nof_ul_harq_retxs);
     ocudu_assert(h_ul.has_value(), "Failed to allocate UL HARQ");
   }
 

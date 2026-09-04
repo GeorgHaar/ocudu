@@ -129,7 +129,7 @@ std::optional<unsigned> pucch_allocator_impl::alloc_common_harq_ack(cell_resourc
                                                                     unsigned                    ntn_koffset)
 {
   // Get the slot allocation grid considering the PDSCH delay (k0) and the PUCCH delay wrt PDSCH (k1).
-  cell_slot_resource_allocator& pucch_slot_alloc = res_alloc[k0 + k1 + ntn_koffset];
+  cell_slot_resource_allocator& pucch_slot_alloc = res_alloc[cell_cfg.ul_delay(k0 + k1 + ntn_koffset)];
   auto&                         slot_ctx         = slots_ctx[pucch_slot_alloc.slot.count()];
   alloc_context                 alloc_ctx{alloc_context::alloc_type::common_harq_ack, tcrnti, pucch_slot_alloc.slot};
 
@@ -193,7 +193,7 @@ std::optional<unsigned> pucch_allocator_impl::alloc_common_and_ded_harq_ack(cell
                                                                             unsigned                     ntn_koffset)
 {
   // Get the slot allocation grid considering the PDSCH delay (k0) and the PUCCH delay wrt PDSCH (k1).
-  cell_slot_resource_allocator& pucch_slot_alloc = res_alloc[k0 + k1 + ntn_koffset];
+  cell_slot_resource_allocator& pucch_slot_alloc = res_alloc[cell_cfg.ul_delay(k0 + k1 + ntn_koffset)];
   auto&                         slot_ctx         = slots_ctx[pucch_slot_alloc.slot.count()];
   alloc_context alloc_ctx{alloc_context::alloc_type::common_and_ded_harq_ack, ue_cell_cfg.crnti, pucch_slot_alloc.slot};
 
@@ -254,7 +254,7 @@ std::optional<unsigned> pucch_allocator_impl::alloc_ded_harq_ack(cell_resource_a
   // be performed by the caller.
 
   // Get the slot allocation grid considering the PDSCH delay (k0) and the PUCCH delay wrt PDSCH (k1).
-  const unsigned                anchor_delay     = k0 + k1 + ntn_koffset;
+  const unsigned                anchor_delay     = res_alloc.cfg.ul_delay(k0 + k1 + ntn_koffset);
   cell_slot_resource_allocator& pucch_slot_alloc = res_alloc[anchor_delay];
   auto&                         slot_ctx         = slots_ctx[pucch_slot_alloc.slot.count()];
   alloc_context alloc_ctx{alloc_context::alloc_type::ded_harq_ack, ue_cell_cfg.crnti, pucch_slot_alloc.slot};

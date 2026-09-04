@@ -126,7 +126,7 @@ unsigned pdcch_cce_budget_tracker::nof_reserved_ul_cces(slot_point pusch_slot) c
   // slots are scheduled in increasing order, these are the ones after the given PUSCH slot.
   unsigned nof_pending = 0;
   for (uint8_t k2 : k2s(pdcch_slot)) {
-    const slot_point sl = pdcch_slot + k2 + cell_alloc.cfg.ntn_cs_koffset;
+    const slot_point sl = pdcch_slot + cell_alloc.cfg.ul_delay(k2 + cell_alloc.cfg.ntn_cs_koffset);
     if (not pusch_slot.valid() or sl > pusch_slot) {
       ++nof_pending;
     }

@@ -201,7 +201,7 @@ void inter_slice_scheduler::add_ul_slice_candidates(std::optional<unsigned>&    
                                                     const pusch_time_domain_resource_allocation& td_res,
                                                     unsigned                                     ntn_koffset)
 {
-  const unsigned                      pusch_delay = td_res.k2 + ntn_koffset;
+  const unsigned                      pusch_delay = cell_cfg.ul_delay(td_res.k2 + ntn_koffset);
   const cell_slot_resource_allocator& pusch_alloc = res_grid[pusch_delay];
   const slot_point                    pusch_slot  = slot_tx + pusch_delay;
 

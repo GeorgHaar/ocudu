@@ -121,15 +121,16 @@ uci_allocator_impl::slot_alloc_list::ue_uci* uci_allocator_impl::get_uci_alloc(s
   return it != ucis.end() ? it : nullptr;
 }
 
-unsigned uci_allocator_impl::get_min_pdsch_to_ack_slot_distance(slot_point pdsch_slot,
-                                                                rnti_t     rnti,
-                                                                unsigned   min_k1,
-                                                                unsigned   max_k1,
-                                                                unsigned   ntn_koffset)
+unsigned uci_allocator_impl::get_min_pdsch_to_ack_slot_distance(const cell_configuration& cell_cfg,
+                                                                slot_point                pdsch_slot,
+                                                                rnti_t                    rnti,
+                                                                unsigned                  min_k1,
+                                                                unsigned                  max_k1,
+                                                                unsigned                  ntn_koffset)
 {
   ocudu_assert(min_k1 <= max_k1, "Minimum k1 value must be greater than maximum k1 value");
   for (int sl_inc = max_k1; sl_inc >= static_cast<int>(min_k1); --sl_inc) {
-    const slot_point uci_slot = pdsch_slot + sl_inc + ntn_koffset;
+    const slot_point uci_slot = pdsch_slot + cell_cfg.ul_delay(sl_inc + ntn_koffset);
     if (get_uci_alloc(uci_slot, rnti) != nullptr) {
       return sl_inc;
     }
@@ -174,7 +175,8 @@ std::optional<uci_allocation> uci_allocator_impl::alloc_harq_ack(cell_resource_a
   const slot_point          pdsch_slot = res_alloc[k0].slot;
   const cell_configuration& cell_cfg   = ue_cell_cfg.cell_cfg_common;
   const unsigned            min_pdsch_to_ack_slot_distance =
-      get_min_pdsch_to_ack_slot_distance(pdsch_slot,
+      get_min_pdsch_to_ack_slot_distance(cell_cfg,
+                                         pdsch_slot,
                                          ue_cell_cfg.crnti,
                                          *std::min_element(k1_list.begin(), k1_list.end()),
                                          *std::max_element(k1_list.begin(), k1_list.end()),
@@ -192,7 +194,7 @@ std::optional<uci_allocation> uci_allocator_impl::alloc_harq_ack(cell_resource_a
     }
 
     // Retrieve the scheduling results for slot = k0 + k1;
-    cell_slot_resource_allocator& slot_alloc = res_alloc[k0 + k1_candidate + ue_cc.ntn_koffset()];
+    cell_slot_resource_allocator& slot_alloc = res_alloc[cell_cfg.ul_delay(k0 + k1_candidate + ue_cc.ntn_koffset())];
     const slot_point              uci_slot   = slot_alloc.slot;
 
     // Check whether UCI slot is UL enabled — O(1), runs before the PUSCH scan below.

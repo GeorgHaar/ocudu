@@ -1069,9 +1069,9 @@ bool ra_scheduler::is_slot_candidate_for_rar(cell_slot_resource_allocator& slot_
   bool       pusch_slots_available = false;
   const auto pusch_td_list         = get_pusch_td_list(cell_cfg);
   for (const auto& pusch_td_alloc : pusch_td_list) {
-    const unsigned msg3_delay =
+    const unsigned msg3_delay = cell_cfg.ul_delay(
         ra_helper::get_msg3_delay(cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.scs, pusch_td_alloc.k2) +
-        cell_cfg.ntn_cs_koffset;
+        cell_cfg.ntn_cs_koffset);
     const unsigned start_ul_symbols =
         NOF_OFDM_SYM_PER_SLOT_NORMAL_CP - cell_cfg.get_nof_ul_symbol_per_slot(pdcch_slot + msg3_delay);
     if (cell_cfg.is_ul_enabled(pdcch_slot + msg3_delay) and pusch_td_alloc.symbols.start() >= start_ul_symbols) {
@@ -1253,8 +1253,8 @@ auto ra_scheduler::schedule_rar(std::vector<pending_rar_alloc>::iterator rar_it,
       std::make_reverse_iterator(rar.tc_rntis.end()), std::make_reverse_iterator(rar.tc_rntis.begin()));
   for (unsigned pusch_idx = 0, sz = pusch_list.size(); pusch_idx != sz; ++pusch_idx) {
     // >> Verify if Msg3 delay provided by current PUSCH-TimeDomainResourceAllocation corresponds to an UL slot.
-    const unsigned msg3_delay =
-        ra_helper::get_msg3_delay(ul_bwp_cfg.scs, pusch_list[pusch_idx].k2) + cell_cfg.ntn_cs_koffset;
+    const unsigned msg3_delay = cell_cfg.ul_delay(ra_helper::get_msg3_delay(ul_bwp_cfg.scs, pusch_list[pusch_idx].k2) +
+                                                  cell_cfg.ntn_cs_koffset);
     cell_slot_resource_allocator& msg3_alloc = res_alloc[pdcch_slot + msg3_delay];
     const unsigned                start_ul_symbols =
         NOF_OFDM_SYM_PER_SLOT_NORMAL_CP - cell_cfg.get_nof_ul_symbol_per_slot(msg3_alloc.slot);
@@ -1465,8 +1465,8 @@ void ra_scheduler::fill_rar_grant(cell_resource_allocator&         res_alloc,
   for (unsigned i = 0; i < msg3_candidates.size(); ++i) {
     const auto&    msg3_candidate = msg3_candidates[i];
     const auto&    pusch_res      = pusch_td_alloc_list[msg3_candidate.pusch_td_res_index];
-    const unsigned msg3_delay =
-        ra_helper::get_msg3_delay(init_ul_bwp.generic_params.scs, pusch_res.k2) + cell_cfg.ntn_cs_koffset;
+    const unsigned msg3_delay     = cell_cfg.ul_delay(
+        ra_helper::get_msg3_delay(init_ul_bwp.generic_params.scs, pusch_res.k2) + cell_cfg.ntn_cs_koffset);
     cell_slot_resource_allocator& msg3_alloc = res_alloc[pdcch_slot + msg3_delay];
     const vrb_interval            vrbs       = ul_crb_to_vrb(cell_cfg, msg3_candidate.crbs);
 
@@ -1588,7 +1588,7 @@ void ra_scheduler::schedule_msg3_retx(cell_resource_allocator& res_alloc, ra_ue_
   for (unsigned pusch_td_res_index = 0; pusch_td_res_index != pusch_td_alloc_list.size(); ++pusch_td_res_index) {
     const auto&                   pusch_td_cfg = pusch_td_alloc_list[pusch_td_res_index];
     const unsigned                k2           = pusch_td_cfg.k2;
-    cell_slot_resource_allocator& pusch_alloc  = res_alloc[k2 + cell_cfg.ntn_cs_koffset];
+    cell_slot_resource_allocator& pusch_alloc  = res_alloc[cell_cfg.ul_delay(k2 + cell_cfg.ntn_cs_koffset)];
     const unsigned                start_ul_symbols =
         NOF_OFDM_SYM_PER_SLOT_NORMAL_CP - cell_cfg.get_nof_ul_symbol_per_slot(pusch_alloc.slot);
     // If it is a retx, we need to ensure we use a time_domain_resource with the same number of symbols as used for
@@ -1848,8 +1848,8 @@ void ra_scheduler::schedule_pending_msgbs(cell_resource_allocator& res_alloc, sl
           std::min(msg3_candidates.capacity() - msg3_candidates.size(), nof_fallback - msg3_candidates.size());
 
       const unsigned msg3_delay =
-          ra_helper::get_msg3_delay(init_ul_bwp.generic_params.scs, pusch_td_list[pusch_idx].k2) +
-          cell_cfg.ntn_cs_koffset;
+          cell_cfg.ul_delay(ra_helper::get_msg3_delay(init_ul_bwp.generic_params.scs, pusch_td_list[pusch_idx].k2) +
+                            cell_cfg.ntn_cs_koffset);
       cell_slot_resource_allocator& msg3_alloc = res_alloc[pdcch_slot + msg3_delay];
       const unsigned                start_ul_sym =
           NOF_OFDM_SYM_PER_SLOT_NORMAL_CP - cell_cfg.get_nof_ul_symbol_per_slot(msg3_alloc.slot);
@@ -2037,8 +2037,8 @@ void ra_scheduler::schedule_pending_msgbs(cell_resource_allocator& res_alloc, sl
 
       const msg3_alloc_candidate& msg3_candidate = msg3_candidates[fallback_count];
       const auto&                 pusch_res      = pusch_td_list[msg3_candidate.pusch_td_res_index];
-      const unsigned              msg3_delay =
-          ra_helper::get_msg3_delay(init_ul_bwp.generic_params.scs, pusch_res.k2) + cell_cfg.ntn_cs_koffset;
+      const unsigned              msg3_delay     = cell_cfg.ul_delay(
+          ra_helper::get_msg3_delay(init_ul_bwp.generic_params.scs, pusch_res.k2) + cell_cfg.ntn_cs_koffset);
       cell_slot_resource_allocator& msg3_alloc = res_alloc[pdcch_slot + msg3_delay];
       const vrb_interval            vrbs       = ul_crb_to_vrb(cell_cfg, msg3_candidate.crbs);
 
@@ -2199,7 +2199,9 @@ ra_scheduler::alloc_msgb_harq_ack_pucch(cell_resource_allocator&    res_alloc,
           get_pucch_default_resource_index(pdcch.ctx.cces.ncce, pdcch.ctx.coreset_cfg->get_nof_cces(), *delta_pri);
 
       const slot_point msgb_pdsch_slot = res_alloc.slot_tx() + pdsch_delay;
-      const slot_point harq_ack_slot   = msgb_pdsch_slot + k1_candidates[k1_idx] + delta;
+      // The PUCCH is received where alloc_common_harq_ack reserved it, on the gNB DL clock.
+      const slot_point harq_ack_slot =
+          cell_cfg.ue_ul_to_dl_slot(msgb_pdsch_slot + k1_candidates[k1_idx] + delta + cell_cfg.ntn_cs_koffset);
       if (not ra_ue_repo.set_msgb_scheduled(tc_rnti, msgb_pdsch_slot, harq_ack_slot)) {
         logger.warning("pci={} tc-rnti={}: Could not track successRAR completion. Cause: No pending entry found "
                        "for this TC-RNTI",

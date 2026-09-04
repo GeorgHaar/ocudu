@@ -4,6 +4,7 @@
 
 include:
   - local: .gitlab/ci-shared/docker.yml
+  - local: .gitlab/ci/rh-tool-cli/.gitlab-ci.yml
   - local: .gitlab/ci/deploy/image-matrix.yml
   - local: .gitlab/ci/deploy/image-build.yml
   - local: .gitlab/ci/deploy/image-build-rh.yml

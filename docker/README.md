@@ -194,7 +194,7 @@ images do not ship **`which`** by default, so the Fedora package lists in the in
 
 Use a UBI 10 base such as **`registry.access.redhat.com/ubi10:latest`** (or **`registry.redhat.io/ubi10:latest`** after
 a Red Hat Registry login). The image reports **`ID=rhel`** with **`PLATFORM_ID=platform:el10`**; the install scripts
-detect that via **`is_ubi10`** and enable el10 CRB/EPEL instead of the UBI 9 / RHEL 9 paths.
+detect that via **`is_ubi10`** and enable el10 CRB/EPEL. UBI 9 / RHEL 9 bases are not supported.
 
 **UBI minimal** (`registry.access.redhat.com/ubi10-minimal:latest`) is also supported. That image ships **`microdnf`**
 instead of **`dnf`** (see
@@ -234,7 +234,7 @@ OS=registry.access.redhat.com/ubi10 OS_VERSION=latest \
 
 The install scripts under `docker/scripts/` dispatch on `/etc/os-release` (for example `ID=debian`, `ID=ubuntu`,
 `ID=fedora`, `ID=rhel`, `ID=centos`, `ID=arch`). Choosing `OS`/`OS_VERSION` only selects the base image; the same script
-logic applies as long as the distribution is one of the supported families.
+logic applies as long as the distribution is one of the supported families. UBI 9 / RHEL 9 bases are not supported.
 
 ### Customizations
 

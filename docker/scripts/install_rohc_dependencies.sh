@@ -111,14 +111,15 @@ install_rohc_dependencies_centos() {
     fi
 }
 
-install_rohc_dependencies_ubi10() {
+install_rohc_dependencies_redhat() {
     local mode="${1:?}"
     local -a pkgs=()
 
     local -a build_pkgs=(
-        curl ca-certificates gcc gcc-c++ make which xz tar gzip diffutils
+        curl-minimal ca-certificates gcc gcc-c++ make which xz
         autoconf automake libtool libpcap-devel libcmocka-devel
     )
+    build_pkgs+=(tar gzip diffutils)
     local -a run_pkgs=()
 
     case "$mode" in
@@ -134,8 +135,10 @@ install_rohc_dependencies_ubi10() {
             ;;
     esac
 
-    install_rpm_pkgs "${pkgs[@]}"
+    install_redhat_pkgs "${pkgs[@]}"
 
+    # RPM autotools ship versioned binaries (e.g. aclocal-1.16) but ROHC autogen.sh
+    # expects unversioned aclocal/automake on PATH; link the first match when missing.
     if [[ "$mode" != "run" ]]; then
         local tool ver
         for tool in aclocal automake; do
@@ -174,46 +177,6 @@ install_rohc_dependencies_arch() {
     install_arch_pkgs "${pkgs[@]}"
 }
 
-install_rohc_dependencies_rhel() {
-    local mode="${1:?}"
-    local -a pkgs=()
-
-    local -a build_pkgs=(
-        ca-certificates gcc gcc-c++ make which xz autoconf automake libtool libpcap-devel libcmocka-devel
-    )
-    local -a run_pkgs=()
-
-    case "$mode" in
-        all|build)
-            pkgs+=( "${build_pkgs[@]}" )
-            ;;
-        run)
-            pkgs+=( "${run_pkgs[@]}" )
-            ;;
-        *)
-            echo >&2 "Unsupported mode: $mode"
-            exit 1
-            ;;
-    esac
-
-    # Some deps require RHEL CRB (subscription-only)
-    if [[ "$mode" != "run" ]]; then
-        dnf -y install dnf-plugins-core
-        dnf config-manager --enable "codeready-builder-for-rhel-9-$(uname -m)-rpms" 2>/dev/null || true
-    fi
-
-    install_rhel_pkgs "${pkgs[@]}"
-
-    if [[ "$mode" != "run" ]]; then
-        if ! command -v aclocal >/dev/null 2>&1 && command -v aclocal-1.18 >/dev/null 2>&1; then
-            ln -sf "$(command -v aclocal-1.18)" /usr/bin/aclocal
-        fi
-        if ! command -v automake >/dev/null 2>&1 && command -v automake-1.18 >/dev/null 2>&1; then
-            ln -sf "$(command -v automake-1.18)" /usr/bin/automake
-        fi
-    fi
-}
-
 main() {
 
     if [ $# != 0 ] && [ $# != 1 ]; then
@@ -235,12 +198,9 @@ main() {
         fedora)
             install_rohc_dependencies_fedora "$mode"
             ;;
+        # ID=rhel: UBI 10 / RHEL 10 container images (not Fedora or CentOS Stream).
         rhel)
-            if is_ubi10; then
-                install_rohc_dependencies_ubi10 "$mode"
-            else
-                install_rohc_dependencies_rhel "$mode"
-            fi
+            install_rohc_dependencies_redhat "$mode"
             ;;
         centos)
             install_rohc_dependencies_centos "$mode"

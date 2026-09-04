@@ -72,23 +72,6 @@ _set_dnf() {
 }
 _set_dnf
 
-install_rhel_pkgs() {
-    if ((${#@} == 0)); then
-        return 0
-    fi
-
-    local -a versioned_pkgs=()
-    local pkg
-    for pkg in "$@"; do
-        versioned_pkgs+=("$(_pkg_ver "$pkg")")
-    done
-
-    # shellcheck disable=SC2086
-    ${DNF} -y install "${versioned_pkgs[@]}"
-    # shellcheck disable=SC2086
-    ${DNF} clean all
-}
-
 _enable_centos_repos() {
     if ! rpm -q epel-release >/dev/null 2>&1; then
         # shellcheck disable=SC2086
@@ -101,7 +84,7 @@ _enable_centos_repos() {
 # True on RHEL/UBI 10 base images (registry.redhat.io/ubi10, ubi10-minimal, etc.).
 is_ubi10() {
     [[ "${PLATFORM_ID:-}" == "platform:el10" ]] \
-        || { [[ "${ID:-}" == "rhel" ]] && [[ "${VERSION_ID%%.*}" == "10" ]]; }
+        || { [[ "${ID:-}" == "rhel" ]] && [[ "${VERSION_ID%%.*}" == "10" ]]; } # UBI 10 / RHEL 10 (ID=rhel)
 }
 
 # Print all configured dnf/microdnf repository ids (one per line), including disabled.
@@ -141,6 +124,23 @@ _ubi10_pick_crb_repo() {
         fi
     done
     return 1
+}
+
+# Install RPMs on UBI 10 / RHEL 10 container images (ID=rhel, PLATFORM_ID=platform:el10).
+install_redhat_pkgs() {
+    if ! is_ubi10; then
+        echo >&2 "RHEL/UBI images are supported on UBI 10 / RHEL 10 only"
+        exit 1
+    fi
+    install_rpm_pkgs "$@"
+}
+
+# Copy catatonit to /usr/bin/catatonit (symlinks are rejected as "not found" by some runtimes).
+_install_catatonit_entrypoint() {
+    local src=/usr/libexec/catatonit/catatonit
+    if [[ -x "$src" ]]; then
+        install -m 0755 "$src" /usr/bin/catatonit
+    fi
 }
 
 # Enable CRB (and install EPEL when missing) for UBI10/RHEL 10 package installs.
@@ -211,7 +211,12 @@ install_rpm_pkgs() {
             centos)
                 _enable_centos_repos
                 ;;
+            # ID=rhel: UBI 10 / RHEL 10 container images (not Fedora or CentOS Stream).
             rhel)
+                if ! is_ubi10; then
+                    echo >&2 "RHEL/UBI images are supported on UBI 10 / RHEL 10 only"
+                    exit 1
+                fi
                 _enable_ubi10_repos
                 ;;
             fedora)

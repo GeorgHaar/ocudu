@@ -16,7 +16,7 @@ FROM ghcr.io/regclient/regctl:${REGCLIENT_VERSION} AS regclient
 FROM anchore/syft:${SYFT_VERSION} AS syft
 FROM anchore/grype:${GRYPE_VERSION} AS grype
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal
+FROM registry.access.redhat.com/ubi10-minimal
 
 ARG BUILDKIT_CLI_VERSION
 ARG PREFLIGHT_VERSION

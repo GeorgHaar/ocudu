@@ -92,6 +92,7 @@ trigger rh-tool-cli:
       changes:
         paths:
           - .gitlab/ci/rh-tool-cli/**/*
+          - .gitlab/ci-shared/docker.yml
   variables:
     OCUDU_RUNNER_TAG: $OCUDU_RUNNER_TAG
   trigger:

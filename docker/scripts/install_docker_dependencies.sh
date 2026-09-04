@@ -95,12 +95,13 @@ install_docker_dependencies_fedora() {
             ;;
     esac
 
-    # Fedora ships catatonit under /usr/libexec; link Ubuntu's path for a common entrypoint.
-    if [[ "$mode" == "run" ]]; then
-        ln -sf /usr/libexec/catatonit/catatonit /usr/bin/catatonit
-    fi
     update_rpm_pkgs
     install_rpm_pkgs "${pkgs[@]}"
+
+    # Fedora ships catatonit under /usr/libexec; install a real binary for K8s entrypoints.
+    if [[ "$mode" == "run" ]]; then
+        _install_catatonit_entrypoint
+    fi
 }
 
 install_docker_dependencies_centos() {
@@ -133,19 +134,20 @@ install_docker_dependencies_centos() {
         install_rpm_pkgs --no-repos "${pkgs[@]}"
     fi
 
-    # CentOS ships catatonit under /usr/libexec; link Ubuntu's path for a common entrypoint.
+    # CentOS ships catatonit under /usr/libexec; install a real binary for K8s entrypoints.
     if [[ "$mode" == "run" ]]; then
-        ln -sf /usr/libexec/catatonit/catatonit /usr/bin/catatonit
+        _install_catatonit_entrypoint
     fi
 }
 
-install_docker_dependencies_ubi10() {
+install_docker_dependencies_redhat() {
     local mode="${1:?}"
     local -a pkgs=()
 
     # tar/gzip are not in ubi-minimal; required by build_uhd.sh / build_dpdk.sh / build_rohc.sh.
-    local -a build_pkgs=(git ca-certificates make gcc gcc-c++ pkgconf-pkg-config which tar gzip)
-    local -a run_pkgs=(curl catatonit procps-ng findutils)
+    local -a build_pkgs=(git ca-certificates make gcc gcc-c++ pkgconf-pkg-config which)
+    build_pkgs+=(tar gzip)
+    local -a run_pkgs=(curl-minimal catatonit procps-ng findutils)
 
     case "$mode" in
         build)
@@ -161,44 +163,17 @@ install_docker_dependencies_ubi10() {
     esac
 
     # Update with repos enabled even for run (--no-repos install) so security
-    # fixes from UBI/RHEL/EPEL/CRB are applied to the base image packages.
+    # fixes from enabled repos are applied to the base image packages.
     update_rpm_pkgs
     if [[ "$mode" == "build" ]]; then
-        install_rpm_pkgs "${pkgs[@]}"
+        install_redhat_pkgs "${pkgs[@]}"
+    else
+        install_rpm_pkgs --no-repos "${pkgs[@]}"
     fi
 
     if [[ "$mode" == "run" ]]; then
-        install_rpm_pkgs --no-repos "${pkgs[@]}"
-        # Install driver runtime deps while RHSM/AppStream are still active.
-        /usr/local/etc/install_uhd_dependencies.sh run
-        /usr/local/etc/install_dpdk_dependencies.sh run
-        # UBI ships catatonit under /usr/libexec; link Ubuntu's path for a common entrypoint.
-	ln -sf /usr/libexec/catatonit/catatonit /usr/bin/catatonit
+        _install_catatonit_entrypoint
     fi
-}
-
-install_docker_dependencies_rhel() {
-    local mode="${1:?}"
-    local -a pkgs=()
-
-    local -a build_pkgs=(git ca-certificates make gcc gcc-c++ pkgconf-pkg-config which)
-    local -a run_pkgs=(chrony)
-
-    case "$mode" in
-        build)
-            pkgs+=( "${build_pkgs[@]}" )
-            ;;
-        run)
-            pkgs+=( "${run_pkgs[@]}" )
-            ;;
-        *)
-            echo >&2 "Unsupported mode: $mode"
-            exit 1
-            ;;
-    esac
-
-    update_rpm_pkgs
-    install_rhel_pkgs "${pkgs[@]}"
 }
 
 main() {
@@ -223,12 +198,9 @@ main() {
         arch)
             install_docker_dependencies_arch "$mode"
             ;;
+        # ID=rhel: UBI 10 / RHEL 10 container images (not Fedora or CentOS Stream).
         rhel)
-            if is_ubi10; then
-                install_docker_dependencies_ubi10 "$mode"
-            else
-                install_docker_dependencies_rhel "$mode"
-            fi
+            install_docker_dependencies_redhat "$mode"
             ;;
         fedora)
             install_docker_dependencies_fedora "$mode"

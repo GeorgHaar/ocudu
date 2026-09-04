@@ -118,6 +118,7 @@ install_dependencies_fedora() {
     )
     local -a run_pkgs=(
         fftw-libs-single lksctp-tools yaml-cpp mbedtls libcap
+        boost-program-options boost-test
     )
     local -a extra_pkgs=(
         boost-devel capnproto capnproto-devel cppzmq-devel dpdk-devel uhd-devel elfutils-devel elfutils-libelf-devel
@@ -156,6 +157,7 @@ install_dependencies_centos() {
     )
     local -a run_pkgs=(
         fftw-libs-single lksctp-tools yaml-cpp mbedtls
+        boost-program-options boost-test
     )
     local -a extra_pkgs=(
         boost-devel capnproto capnproto-devel cppzmq-devel dpdk-devel elfutils-devel elfutils-libelf-devel
@@ -184,7 +186,7 @@ install_dependencies_centos() {
     install_rpm_pkgs "${pkgs[@]}"
 }
 
-install_dependencies_ubi10() {
+install_dependencies_redhat() {
     local mode="${1:?}"
     local -a pkgs=()
 
@@ -192,7 +194,8 @@ install_dependencies_ubi10() {
         cmake make libatomic fftw-devel lksctp-tools-devel yaml-cpp-devel mbedtls-devel gtest-devel
     )
     local -a run_pkgs=(
-        fftw-libs-single lksctp-tools yaml-cpp mbedtls
+        fftw-libs-single lksctp-tools yaml-cpp mbedtls libcap libatomic
+        boost-program-options boost-test
     )
     local -a extra_pkgs=(
         boost-devel capnproto capnproto-devel cppzmq-devel dpdk-devel elfutils-devel elfutils-libelf-devel
@@ -218,7 +221,7 @@ install_dependencies_ubi10() {
             ;;
     esac
 
-    install_rpm_pkgs "${pkgs[@]}"
+    install_redhat_pkgs "${pkgs[@]}"
 }
 
 install_dependencies_arch() {
@@ -258,51 +261,6 @@ install_dependencies_arch() {
     install_arch_pkgs "${pkgs[@]}"
 }
 
-install_dependencies_rhel() {
-    local mode="${1:?}"
-    local -a pkgs=()
-
-    # gcc-toolset-11/12 are RHEL subscription-only and redundant on UBI9/RHEL9
-    # where GCC 11 is the default compiler. libatomic replaces gcc-toolset-12-libatomic-devel.
-    # yaml-cpp-devel and mbedtls-devel come from EPEL (installed below).
-    local -a build_pkgs=(
-        cmake fftw-devel lksctp-tools-devel
-        gcc gcc-c++ libatomic
-        yaml-cpp-devel mbedtls-devel
-    )
-    local -a run_pkgs=(
-        fftw-devel lksctp-tools
-        libatomic libcap
-        yaml-cpp-devel mbedtls-devel
-    )
-    local -a extra_pkgs=(
-        cppzmq-devel libusbx-devel boost-devel numactl-devel capnproto capnproto-devel eigen3-devel
-    )
-
-    case "$mode" in
-        all)
-            # run_pkgs ⊆ build_pkgs; "all" is build + extra
-            pkgs+=( "${build_pkgs[@]}" "${extra_pkgs[@]}" )
-            ;;
-        build)
-            pkgs+=( "${build_pkgs[@]}" )
-            ;;
-        run)
-            pkgs+=( "${run_pkgs[@]}" )
-            ;;
-        extra)
-            pkgs+=( "${extra_pkgs[@]}" )
-            ;;
-        *)
-            echo >&2 "Unsupported mode: $mode"
-            exit 1
-            ;;
-    esac
-
-    dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
-    install_rhel_pkgs "${pkgs[@]}"
-}
-
 main() {
 
     if [ $# != 0 ] && [ $# != 1 ]; then
@@ -326,12 +284,9 @@ main() {
         arch)
             install_dependencies_arch "$mode"
             ;;
+        # ID=rhel: UBI 10 / RHEL 10 container images (not Fedora or CentOS Stream).
         rhel)
-            if is_ubi10; then
-                install_dependencies_ubi10 "$mode"
-            else
-                install_dependencies_rhel "$mode"
-            fi
+            install_dependencies_redhat "$mode"
             ;;
         fedora)
             install_dependencies_fedora "$mode"

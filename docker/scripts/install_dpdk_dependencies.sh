@@ -133,7 +133,7 @@ install_dpdk_dependencies_centos() {
     install_rpm_pkgs "${pkgs[@]}"
 }
 
-install_dpdk_dependencies_ubi10() {
+install_dpdk_dependencies_redhat() {
     local mode="${1:?}"
 
     if [[ "$mode" == "run" ]] && rpm -q libfdt >/dev/null 2>&1; then
@@ -143,8 +143,9 @@ install_dpdk_dependencies_ubi10() {
     local -a pkgs=()
 
     local -a build_pkgs=(
-        curl ca-certificates xz tar gzip ninja-build make numactl-devel libfdt-devel pciutils python3-pyelftools meson
+        curl-minimal ca-certificates xz ninja-build make numactl-devel libfdt-devel pciutils python3-pyelftools meson
     )
+    build_pkgs+=(tar gzip)
     local -a extra_pkgs=(
         libatomic iproute
     )
@@ -168,7 +169,7 @@ install_dpdk_dependencies_ubi10() {
             ;;
     esac
 
-    install_rpm_pkgs "${pkgs[@]}"
+    install_redhat_pkgs "${pkgs[@]}"
 }
 
 install_dpdk_dependencies_arch() {
@@ -214,55 +215,6 @@ install_dpdk_dependencies_arch() {
     install_pip_pkgs --break-system-packages "${pip_pkgs[@]}"
 }
 
-install_dpdk_dependencies_rhel() {
-    local mode="${1:?}"
-    local -a pkgs=()
-    local -a pip_pkgs=()
-
-    local -a build_pkgs=(
-        ca-certificates xz
-        python3-pip ninja-build gcc gcc-c++ make pkgconf-pkg-config numactl-devel libfdt-devel pciutils
-        rdma-core-devel
-    )
-    local -a extra_pkgs=(
-        libatomic iproute
-    )
-    local -a run_pkgs=(
-        python3-pip numactl-libs pciutils libfdt libatomic iproute
-        libibverbs
-    )
-    local -a pip_build_pkgs=(meson pyelftools)
-    local -a pip_run_pkgs=(pyelftools)
-
-    case "$mode" in
-        all)
-            pkgs+=( "${build_pkgs[@]}" "${extra_pkgs[@]}" )
-            pip_pkgs+=( "${pip_build_pkgs[@]}" )
-            ;;
-        build)
-            pkgs+=( "${build_pkgs[@]}" )
-            pip_pkgs+=( "${pip_build_pkgs[@]}" )
-            ;;
-        run)
-            pkgs+=( "${run_pkgs[@]}" )
-            pip_pkgs+=( "${pip_run_pkgs[@]}" )
-            ;;
-        *)
-            echo >&2 "Unsupported mode: $mode"
-            exit 1
-            ;;
-    esac
-
-    # libfdt-devel is in RHEL CRB (subscription-only)
-    if [[ "$mode" != "run" ]]; then
-        dnf -y install dnf-plugins-core
-        dnf config-manager --enable "codeready-builder-for-rhel-9-$(uname -m)-rpms" 2>/dev/null || true
-    fi
-
-    install_rhel_pkgs "${pkgs[@]}"
-    install_pip_pkgs "${pip_pkgs[@]}"
-}
-
 main() {
     if [ $# != 0 ] && [ $# != 1 ]; then
         echo >&2 "Illegal number of parameters"
@@ -283,12 +235,9 @@ main() {
         fedora)
             install_dpdk_dependencies_fedora "$mode"
             ;;
+        # ID=rhel: UBI 10 / RHEL 10 container images (not Fedora or CentOS Stream).
         rhel)
-            if is_ubi10; then
-                install_dpdk_dependencies_ubi10 "$mode"
-            else
-                install_dpdk_dependencies_rhel "$mode"
-            fi
+            install_dpdk_dependencies_redhat "$mode"
             ;;
         centos)
             install_dpdk_dependencies_centos "$mode"

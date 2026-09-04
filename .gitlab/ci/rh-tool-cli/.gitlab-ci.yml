@@ -8,12 +8,16 @@ include:
 stages:
   - publish
 
-build-and-publish:
+rh-tool-cli build-and-publish:
   stage: publish
   extends: .docker-builder
   image: ${CI_REGISTRY_IMAGE}/buildkit-cli:latest
   rules:
     - if: $ON_MR
+    - if: $ON_WEB
+    - if: $ON_API
+    - if: $ON_MAIN
+    - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Nightly/
   variables: &image_variables
     NAME: rh-tool-cli
     CONTEXT: .gitlab/ci/rh-tool-cli
@@ -27,17 +31,23 @@ build-and-publish:
     matrix:
       - PLATFORM: ["arm64", "amd64"]
 
-docker manifest:
+rh-tool-cli manifest:
   extends: .docker manifest
   image: ${CI_REGISTRY_IMAGE}/buildkit-cli:latest
   variables:
     <<: *image_variables
+  rules:
+    - if: $ON_MR
+    - if: $ON_WEB
+    - if: $ON_API
+    - if: $ON_MAIN
+    - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Nightly/
   needs:
-    - job: build-and-publish
+    - job: rh-tool-cli build-and-publish
       optional: false
 
-docker manifest latest:
-  extends: docker manifest
+rh-tool-cli manifest latest:
+  extends: rh-tool-cli manifest
   script:
     - |
       docker manifest create \

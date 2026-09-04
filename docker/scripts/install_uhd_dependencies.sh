@@ -128,13 +128,13 @@ install_uhd_dependencies_arch() {
     fi
 }
 
-# Shared package lists for Fedora, CentOS Stream, and UBI10.
+# Shared package lists for Fedora, CentOS Stream, and UBI 10 / RHEL 10.
 install_uhd_dependencies_rpm() {
     local mode="${1:?}"
     local -a pkgs=()
 
     local -a build_pkgs=(
-        curl ca-certificates xz tar gzip cmake make boost-devel libusb1-devel
+        curl-minimal ca-certificates xz tar gzip cmake make boost-devel libusb1-devel
         python3-mako python3-numpy python3-setuptools python3-requests
     )
     local -a run_pkgs=(
@@ -162,52 +162,17 @@ install_uhd_dependencies_rpm() {
             ;;
     esac
 
-    install_rpm_pkgs "${pkgs[@]}"
+    # ID=rhel (UBI 10 images): CRB/EPEL via install_redhat_pkgs; Fedora/CentOS use install_rpm_pkgs.
+    if [[ "${ID:-}" == rhel ]]; then
+        install_redhat_pkgs "${pkgs[@]}"
+    else
+        install_rpm_pkgs "${pkgs[@]}"
+    fi
 
     if [[ "$mode" == "all" || "$mode" == "run" ]]; then
         if command -v uhd_images_downloader >/dev/null 2>&1; then
             uhd_images_downloader
         fi
-    fi
-}
-
-install_uhd_dependencies_rhel() {
-    local mode="${1:?}"
-    local -a pkgs=()
-
-    local -a build_pkgs=(
-        ca-certificates xz
-        cmake gcc gcc-c++ make pkgconf-pkg-config
-        boost-devel libusbx-devel
-        python3-mako python3-numpy python3-setuptools python3-requests
-    )
-    local -a run_pkgs=(
-        boost-devel libusbx libusbx-devel python3-devel python3-requests
-    )
-    local -a extra_pkgs=(
-        boost-devel libusbx libusbx-devel python3-devel
-    )
-
-    case "$mode" in
-        all)
-            pkgs+=( "${build_pkgs[@]}" "${extra_pkgs[@]}" )
-            ;;
-        build)
-            pkgs+=( "${build_pkgs[@]}" )
-            ;;
-        run)
-            pkgs+=( "${run_pkgs[@]}" )
-            ;;
-        *)
-            echo >&2 "Unsupported mode: $mode"
-            exit 1
-            ;;
-    esac
-
-    install_rhel_pkgs "${pkgs[@]}"
-
-    if [[ "$mode" == "all" || "$mode" == "run" ]]; then
-        uhd_images_downloader
     fi
 }
 
@@ -229,15 +194,9 @@ main() {
         debian|ubuntu)
             install_uhd_dependencies_debian_ubuntu "$mode"
             ;;
-        fedora|centos)
+        # rhel: UBI 10 / RHEL 10 images; fedora and centos use their own /etc/os-release IDs.
+        fedora|centos|rhel)
             install_uhd_dependencies_rpm "$mode"
-            ;;
-        rhel)
-            if is_ubi10; then
-                install_uhd_dependencies_rpm "$mode"
-            else
-                install_uhd_dependencies_rhel "$mode"
-            fi
             ;;
         arch)
             install_uhd_dependencies_arch "$mode"

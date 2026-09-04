@@ -63,6 +63,8 @@ struct test_bench_params {
   std::optional<meas_gap_config> meas_gap;
   // Cell-specific Koffset of an NTN cell. Zero for a TN cell.
   std::chrono::milliseconds ntn_cs_koffset{0};
+  // k_mac of an NTN cell. Zero when the Common TA covers the whole feeder link.
+  std::chrono::milliseconds ntn_k_mac{0};
 };
 
 class test_bench

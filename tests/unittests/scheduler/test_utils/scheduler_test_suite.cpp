@@ -492,13 +492,15 @@ static void assert_rar_grant_msg3_pusch_consistency(const cell_configuration&   
       }
 
       // 4-step RAR and 2-step FallbackRAR: a Msg3 PUSCH must be scheduled.
+      // For the initial Msg3 of an NTN cell the UE transmits at pdcch_slot + k2 + Koffset, counted in its own
+      // uplink frame, and that transmission reaches the gNB k_mac slots later, so the grid holds it at
+      // pdcch_slot + k2 + ntn_ul_alloc_delay_slots().
       ASSERT_LT(rar_grant.time_resource_assignment, pusch_td_list.size());
-      // In NTN, the Msg3 is further delayed by the cell-specific K_offset (TS 38.213, Section 8.3).
-      unsigned msg3_delay = ra_helper::get_msg3_delay(cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.scs,
-                                                      pusch_td_list[rar_grant.time_resource_assignment].k2) +
-                            cell_cfg.ntn_cs_koffset;
+      const unsigned k2_total = ra_helper::get_msg3_delay(cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.scs,
+                                                          pusch_td_list[rar_grant.time_resource_assignment].k2) +
+                                cell_cfg.ntn_ul_alloc_delay_slots();
 
-      pdu_span<ul_sched_info> ul_grants = res_grid[msg3_delay].result_reader().ul().puschs();
+      pdu_span<ul_sched_info> ul_grants = res_grid[k2_total].result_reader().ul().puschs();
       const auto              it = std::find_if(ul_grants.begin(), ul_grants.end(), [&rar_grant](const auto& ulgrant) {
         return ulgrant.pusch_cfg.rnti == rar_grant.temp_crnti;
       });
@@ -547,11 +549,15 @@ void ocudu::test_prach_opportunity_validity(const cell_configuration&       cell
                                                                 rach_cfg_common.rach_cfg_generic.prach_config_index);
 
   // PRACH can only occur on SFNs where n_SFN mod x == y. On all other SFNs no occasion may be allocated.
-  const bool valid_sfn =
-      std::any_of(prach_cfg.y.begin(), prach_cfg.y.end(), [&](uint8_t y) { return sl_tx.sfn() % prach_cfg.x == y; });
+  // The rule constrains the UL occasion at which the UE transmits. With NTN k_mac != 0 the PRACH PDU is written at
+  // the DL-time slot (UL occasion + k_mac, see prach_scheduler), so k_mac must be subtracted back out before
+  // checking the SFN. When k_mac == 0 this is a no-op.
+  const slot_point ul_occasion_slot = cell_cfg.dl_to_ue_ul_slot(sl_tx);
+  const bool       valid_sfn        = std::any_of(
+      prach_cfg.y.begin(), prach_cfg.y.end(), [&](uint8_t y) { return ul_occasion_slot.sfn() % prach_cfg.x == y; });
   ASSERT_TRUE(valid_sfn) << fmt::format(
       "PRACH occasions allocated on SFN={} which is not a valid PRACH SFN (x={}, y={})",
-      sl_tx.sfn(),
+      ul_occasion_slot.sfn(),
       prach_cfg.x,
       fmt::join(prach_cfg.y, ","));
 
@@ -729,7 +735,7 @@ static bool is_msg3_newtx_consistent_with_rar_ul_grant(const cell_configuration&
   const auto&    td_res = td_list[rargrant.time_resource_assignment];
   const unsigned expected_delay =
       ra_helper::get_msg3_delay(cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.scs, td_res.k2) +
-      cell_cfg.ntn_cs_koffset;
+      cell_cfg.ntn_ul_alloc_delay_slots();
   if (*ulgrant.context.msg3_delay != expected_delay or ulgrant.pusch_cfg.symbols != td_res.symbols) {
     return false;
   }
@@ -911,7 +917,7 @@ void test_helper::ra_scheduler_tracker::on_new_result(slot_point sl_tx, sched_sl
           p.first_msg3_slot =
               sl_tx +
               ra_helper::get_msg3_delay(cell_cfg.scs_common(), pusch_td_list[ul_grant.time_resource_assignment].k2) +
-              cell_cfg.ntn_cs_koffset;
+              cell_cfg.ntn_ul_alloc_delay_slots();
           p.first_grant = ul_grant;
         }
       } else {
@@ -930,7 +936,7 @@ void test_helper::ra_scheduler_tracker::on_new_result(slot_point sl_tx, sched_sl
         ctxt.first_msg3_slot =
             ctxt.rar_slot +
             ra_helper::get_msg3_delay(cell_cfg.scs_common(), pusch_td_list[ul_grant.time_resource_assignment].k2) +
-            cell_cfg.ntn_cs_koffset;
+            cell_cfg.ntn_ul_alloc_delay_slots();
         ctxt.first_grant = ul_grant;
       }
     }
@@ -954,7 +960,7 @@ void test_helper::ra_scheduler_tracker::on_new_result(slot_point sl_tx, sched_sl
     const auto& dci    = ul_pdcch.dci.as_tc_rnti_f0_0();
     const auto& td_res = pusch_td_list[dci.time_resource];
 
-    const slot_point pusch_slot      = sl_tx + td_res.k2 + cell_cfg.ntn_cs_koffset;
+    const slot_point pusch_slot      = sl_tx + td_res.k2 + cell_cfg.ntn_ul_alloc_delay_slots();
     auto             pending_msg3_it = std::find_if(pending_msg3_retxs.begin(),
                                         pending_msg3_retxs.end(),
                                         [&ul_pdcch, pusch_slot](const msg3_retx_context& pending_msg3) {

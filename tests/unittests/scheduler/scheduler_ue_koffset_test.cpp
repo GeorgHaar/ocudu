@@ -65,7 +65,8 @@ namespace {
 class scheduler_ue_koffset_tester : public scheduler_test_simulator, public ::testing::Test
 {
 protected:
-  explicit scheduler_ue_koffset_tester(std::chrono::milliseconds koffset_margin = margin) :
+  explicit scheduler_ue_koffset_tester(std::chrono::milliseconds koffset_margin = margin,
+                                       std::chrono::milliseconds k_mac          = std::chrono::milliseconds{0}) :
     scheduler_test_simulator(make_sim_config())
   {
     params = cell_config_builder_profiles::create(duplex_mode::FDD);
@@ -74,6 +75,9 @@ protected:
     cell_cfg_req.ran.ntn_params.emplace();
     cell_cfg_req.ran.ntn_params->ntn_cfg.cell_specific_koffset = cell_koffset;
     cell_cfg_req.ran.ntn_params->ue_koffset_cfg                = ue_koffset_config{koffset_margin};
+    if (k_mac.count() != 0) {
+      cell_cfg_req.ran.ntn_params->ntn_cfg.k_mac = k_mac;
+    }
     add_cell(cell_cfg_req);
 
     auto ue_req = sched_config_helper::create_default_sched_ue_creation_request(cell_cfg(to_du_cell_index(0)).params,
@@ -218,6 +222,19 @@ protected:
   rnti_t              crnti       = to_rnti(0x4601);
 
   cell_config_builder_params params;
+};
+
+/// \brief The same cell with a k_mac on top of its cell-specific Koffset.
+///
+/// The UE applies a Differential Koffset three subframes past the HARQ-ACK it sends for the MAC CE, as per TS 38.213,
+/// Section 9, and that uplink reaches the gNB k_mac slots later still.
+class scheduler_ue_koffset_kmac_tester : public scheduler_ue_koffset_tester
+{
+protected:
+  /// k_mac of the cell. The cell is at 15kHz, so one slot per subframe.
+  static constexpr std::chrono::milliseconds k_mac{19};
+
+  scheduler_ue_koffset_kmac_tester() : scheduler_ue_koffset_tester(margin, k_mac) {}
 };
 
 } // namespace
@@ -380,4 +397,74 @@ TEST_F(scheduler_ue_koffset_tester, a_moved_timing_advance_signals_a_new_koffset
   // The other way, where the UE only stands to gain a shorter uplink delay.
   report_timing_advance(shrunk_ul_ta);
   ASSERT_TRUE(run_until_koffset_ce_scheduled(max_slots_to_koffset_ce));
+}
+
+TEST_F(scheduler_ue_koffset_kmac_tester, uplink_moves_earlier_once_the_ue_applies_its_own_koffset)
+{
+  ASSERT_EQ(cell_cfg(to_du_cell_index(0)).ntn_k_mac_slots, static_cast<unsigned>(k_mac.count()));
+  // Every uplink of this cell lands k_mac slots later, the HARQ-ACK of the MAC CE among them, so each window below
+  // runs that much further than its counterpart in a cell without a k_mac.
+  const unsigned k_mac_slots = static_cast<unsigned>(k_mac.count());
+
+  // Let the uplink settle on the cell-specific Koffset.
+  const std::optional<unsigned> cell_koffset_delay =
+      run_and_measure_min_pusch_delay(nof_slots_at_cell_koffset + k_mac_slots);
+  ASSERT_TRUE(cell_koffset_delay.has_value()) << "No PUSCH was scheduled at the cell-specific Koffset";
+
+  report_timing_advance();
+  ASSERT_TRUE(run_until_koffset_ce_scheduled(max_slots_to_koffset_ce));
+
+  // Not applied yet, as the MAC CE is not even acknowledged.
+  const std::optional<unsigned> during_transition =
+      run_and_measure_min_pusch_delay(nof_slots_during_transition + k_mac_slots);
+  ASSERT_TRUE(during_transition.has_value()) << "No PUSCH was scheduled while the MAC CE was in flight";
+  ASSERT_EQ(during_transition.value(), cell_koffset_delay.value())
+      << "Uplink moved before the UE applies the new Koffset";
+
+  // Once the apply slot is past, the uplink moves earlier by the Differential Koffset. k_mac shifts both
+  // measurements equally and so cancels in the difference: what this pins is that a configured k_mac does not
+  // disturb the Koffset transition.
+  const std::optional<unsigned> ue_koffset_delay =
+      run_and_measure_min_pusch_delay(nof_slots_at_ue_koffset + k_mac_slots);
+  ASSERT_TRUE(ue_koffset_delay.has_value()) << "No PUSCH was scheduled after the UE applied its own Koffset";
+  ASSERT_EQ(ue_koffset_delay.value(), cell_koffset_delay.value() - expected_differential_slots);
+}
+
+/// \brief The apply slot of the Differential Koffset carries no k_mac, as per TS 38.213, Section 9.
+///
+/// The UE applies the value three subframes past the slot it transmits the HARQ-ACK of the MAC CE in, a slot it
+/// numbers in the frames the gNB downlink clock numbers too. An apply slot k_mac further out leaves the uplink at the
+/// previous Koffset for the first slots the UE is scheduled again in, where the UE is already on the new one.
+TEST_F(scheduler_ue_koffset_kmac_tester, uplink_moves_with_the_first_grant_after_the_mac_ce_is_acknowledged)
+{
+  const unsigned k_mac_slots = static_cast<unsigned>(k_mac.count());
+
+  const std::optional<unsigned> cell_koffset_delay =
+      run_and_measure_min_pusch_delay(nof_slots_at_cell_koffset + k_mac_slots);
+  ASSERT_TRUE(cell_koffset_delay.has_value()) << "No PUSCH was scheduled at the cell-specific Koffset";
+
+  report_timing_advance();
+  ASSERT_TRUE(run_until_koffset_ce_scheduled(max_slots_to_koffset_ce));
+  const slot_point ce_slot = last_result_slot();
+
+  // Nothing is granted to the UE between the MAC CE and its HARQ-ACK, so the first PUSCH granted past the MAC CE is
+  // the first one the UE receives at the new Koffset.
+  std::optional<unsigned> first_delay;
+  for (unsigned count = 0; count != nof_slots_at_ue_koffset + k_mac_slots and not first_delay.has_value(); ++count) {
+    run_slot();
+    refill_buffers();
+    const sched_result_copy* result = last_sched_result(to_du_cell_index(0));
+    if (result == nullptr) {
+      continue;
+    }
+    for (const ul_sched_info& ul_info : result->ul.puschs) {
+      if (last_result_slot() - ul_info.context.k2 > ce_slot) {
+        first_delay = ul_info.context.k2;
+        break;
+      }
+    }
+  }
+  ASSERT_TRUE(first_delay.has_value()) << "The UE was granted no PUSCH past the Differential Koffset MAC CE";
+  ASSERT_EQ(first_delay.value(), cell_koffset_delay.value() - expected_differential_slots)
+      << "The first PUSCH granted past the MAC CE was still placed at the previous Koffset";
 }

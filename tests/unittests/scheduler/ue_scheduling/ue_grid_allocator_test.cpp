@@ -37,6 +37,8 @@ struct test_params {
       ss2_dci_fmt = search_space_configuration::ue_specific_dci_format::f0_1_and_1_1;
   /// Cell-specific K-offset of the cell, which turns it into an NTN one when set.
   std::chrono::milliseconds ntn_cs_koffset{0};
+  /// k_mac of the cell, which turns it into an NTN one when set.
+  std::chrono::milliseconds ntn_k_mac{0};
 };
 
 class ue_grid_allocator_test : public ::testing::TestWithParam<duplex_mode>
@@ -47,9 +49,14 @@ class ue_grid_allocator_test : public ::testing::TestWithParam<duplex_mode>
     sched_cell_configuration_request_message req;
     req = sched_config_helper::make_default_sched_cell_configuration_request(builder_params);
     req.ran.init_bwp.pdcch_cfg->search_spaces[0].set_non_ss0_monitored_dci_formats(params.ss2_dci_fmt);
-    if (params.ntn_cs_koffset.count() > 0) {
+    if (params.ntn_cs_koffset.count() > 0 or params.ntn_k_mac.count() > 0) {
       req.ran.ntn_params.emplace();
-      req.ran.ntn_params->ntn_cfg.cell_specific_koffset = params.ntn_cs_koffset;
+      if (params.ntn_cs_koffset.count() > 0) {
+        req.ran.ntn_params->ntn_cfg.cell_specific_koffset = params.ntn_cs_koffset;
+      }
+      if (params.ntn_k_mac.count() > 0) {
+        req.ran.ntn_params->ntn_cfg.k_mac = params.ntn_k_mac;
+      }
       // A HARQ process of the cell is allowed to operate in UL HARQ mode B.
       req.ran.ntn_params->ul_harq_mode_b = true;
     }
@@ -81,8 +88,9 @@ protected:
 
   slot_point get_next_ul_slot(const slot_point starting_slot) const
   {
-    // The cell-specific K-offset delays every UL transmission the DCI grants, as per TS 38.213, Section 17.
-    slot_point next_slot = starting_slot + cfg_builder_params.min_k2 + cell_cfg.ntn_cs_koffset;
+    // The cell-specific K-offset delays every UL transmission the DCI grants, as per TS 38.213, Section 4.2, and the
+    // transmission reaches the gNB k_mac slots later still.
+    slot_point next_slot = starting_slot + cell_cfg.ul_delay(cfg_builder_params.min_k2 + cell_cfg.ntn_cs_koffset);
     while (not cell_cfg.is_fully_ul_enabled(next_slot)) {
       ++next_slot;
     }
@@ -1535,16 +1543,23 @@ protected:
 
   /// \param pusch_crb_limits CRB window the UE PUSCH is confined to.
   /// \param force_rep         Request repetitions regardless of the estimated SINR.
-  explicit ue_grid_allocator_pusch_repetition_test(crb_interval pusch_crb_limits, bool force_rep = false) :
-    ue_grid_allocator_test(test_params{[pusch_crb_limits, force_rep]() {
-      auto cfg                        = config_helpers::make_default_scheduler_expert_config();
-      cfg.ue.pusch_sinr_rep_threshold = 10.0F;
-      // Disable UL OLLA so the effective SNR equals the value set on the channel state manager.
-      cfg.ue.olla_ul_snr_inc  = 0;
-      cfg.ue.pusch_crb_limits = pusch_crb_limits;
-      cfg.ue.pusch_force_rep  = force_rep;
-      return cfg;
-    }()})
+  static test_params make_test_params(crb_interval pusch_crb_limits, bool force_rep, std::chrono::milliseconds k_mac)
+  {
+    test_params params;
+    params.sched_cfg                             = config_helpers::make_default_scheduler_expert_config();
+    params.sched_cfg.ue.pusch_sinr_rep_threshold = 10.0F;
+    // Disable UL OLLA so the effective SNR equals the value set on the channel state manager.
+    params.sched_cfg.ue.olla_ul_snr_inc  = 0;
+    params.sched_cfg.ue.pusch_crb_limits = pusch_crb_limits;
+    params.sched_cfg.ue.pusch_force_rep  = force_rep;
+    params.ntn_k_mac                     = k_mac;
+    return params;
+  }
+
+  explicit ue_grid_allocator_pusch_repetition_test(crb_interval              pusch_crb_limits,
+                                                   bool                      force_rep = false,
+                                                   std::chrono::milliseconds ntn_k_mac = std::chrono::milliseconds{0}) :
+    ue_grid_allocator_test(make_test_params(pusch_crb_limits, force_rep, ntn_k_mac))
   {
   }
 
@@ -1917,6 +1932,63 @@ TEST_P(ue_grid_allocator_pusch_repetition_test, bundle_whose_occasion_falls_on_a
   }
 }
 
+/// The repetition fixture in an NTN cell whose uplink reaches the gNB k_mac slots after the UE transmits it.
+class ue_grid_allocator_pusch_repetition_ntn_kmac_test : public ue_grid_allocator_pusch_repetition_test
+{
+protected:
+  /// k_mac of the cell. At the 15kHz of this suite, one slot per subframe.
+  static constexpr std::chrono::milliseconds ntn_k_mac{19};
+
+  ue_grid_allocator_pusch_repetition_ntn_kmac_test() :
+    ue_grid_allocator_pusch_repetition_test(crb_interval{10, 40}, /*force_rep=*/false, ntn_k_mac)
+  {
+  }
+};
+
+// The UE holds its Configured Grant occasions in its own uplink slot numbering, while the grid this scheduler fills is
+// on the gNB downlink clock: the occasion that collides with the UE's CG PUSCH is the one whose uplink slot the UE
+// holds, k_mac before the grid slot the bundle would occupy.
+TEST_P(ue_grid_allocator_pusch_repetition_ntn_kmac_test, bundle_whose_occasion_falls_on_a_cg_uplink_slot_gives_way)
+{
+  slot_indication();
+
+  // The repetition row of the UE carries the k2 of the first common resource, and the bundle it starts reaches the gNB
+  // k_mac slots later. The slot has to be known before the UE exists, because the CG occasion is registered with it.
+  constexpr unsigned target_occasion_offset = 3;
+  const uint8_t      common_k2 = cell_cfg.params.ul_cfg_common.init_ul_bwp.pusch_cfg_common->pusch_td_alloc_list[0].k2;
+  const slot_point   occasion_slot =
+      current_slot + cell_cfg.ul_delay(common_k2 + cell_cfg.ntn_cs_koffset) + target_occasion_offset;
+
+  // Hold the uplink slot the UE transmits that occasion in for a Configured Grant of this UE.
+  const ue& u     = add_cg_repetition_ue(cell_cfg.dl_to_ue_ul_slot(occasion_slot));
+  ue_cell&  ue_cc = ues[u.ue_index].get_pcell();
+
+  const slot_point pusch_slot = current_slot + cell_cfg.ul_delay(rep_k2 + cell_cfg.ntn_cs_koffset);
+  ASSERT_EQ(pusch_slot + target_occasion_offset, occasion_slot);
+  ASSERT_EQ(cell_cfg.ntn_k_mac_slots,
+            static_cast<unsigned>(ntn_k_mac.count()) * get_nof_slots_per_subframe(cell_cfg.scs_common()));
+  ASSERT_TRUE(ue_cc.get_conf_grant_state_manager().is_cg_slot(cell_cfg.dl_to_ue_ul_slot(occasion_slot)));
+  ASSERT_FALSE(ue_cc.get_conf_grant_state_manager().is_cg_slot(occasion_slot))
+      << "the grid slot of the occasion is a CG slot too, so the test cannot tell the two clocks apart";
+  ASSERT_FALSE(ue_cc.get_conf_grant_state_manager().is_cg_slot(cell_cfg.dl_to_ue_ul_slot(pusch_slot)))
+      << "the base slot itself is a CG slot, the test proves nothing";
+
+  set_pusch_snr(ue_cc, 0.0F);
+  ASSERT_EQ(allocate_ul_newtx_grant(pusch_slot, slice_ues[u.ue_index], units::bytes{1000}), alloc_status::success);
+
+  const std::optional<unsigned> time_resource = current_ul_dci_time_resource(u.crnti);
+  ASSERT_TRUE(time_resource.has_value());
+  ASSERT_NE(time_resource.value(), rep_time_resource)
+      << "a bundle was scheduled over an uplink slot the UE holds for a Configured Grant";
+
+  // A single transmission occupies its own slot alone, so no occasion reaches the grid.
+  ASSERT_NE(find_ue_pusch(u.crnti, res_grid[pusch_slot].result_reader().ul().puschs()), nullptr);
+  for (unsigned offset = 1; offset != nof_reps; ++offset) {
+    ASSERT_EQ(find_ue_pusch(u.crnti, res_grid[pusch_slot + offset].result_reader().ul().puschs()), nullptr)
+        << "Occasion at offset " << offset << " was scheduled for a grant downgraded to a single transmission";
+  }
+}
+
 // The reTx counterpart of the test above, and a stricter one: a reTx must repeat the original transmission's RB
 // count exactly, so it cannot shrink around the busy RBs the way a newTx can -- it has to move aside as a whole.
 TEST_P(ue_grid_allocator_pusch_repetition_test, retx_bundle_avoids_rbs_busy_in_an_occasion_slot)
@@ -2131,6 +2203,10 @@ INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
 
 INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
                          ue_grid_allocator_pusch_repetition_test,
+                         testing::Values(duplex_mode::FDD));
+
+INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
+                         ue_grid_allocator_pusch_repetition_ntn_kmac_test,
                          testing::Values(duplex_mode::FDD));
 
 INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,

@@ -4,8 +4,9 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 /// \file
-/// \brief Unit tests for the timing of the UE-dedicated UL transmissions in an NTN cell, which the cell-specific
-/// Koffset delays with respect to the DCI that schedules them (TS 38.213, Section 4.2).
+/// \brief Unit tests for the timing of the UE-dedicated UL transmissions in an NTN cell. The cell-specific Koffset
+/// delays them with respect to the DCI that schedules them (TS 38.213, Section 4.2), and k_mac delays their arrival
+/// at the gNB by a further offset (TS 38.300, Section 16.14.2.1).
 
 #include "test_utils/result_test_helpers.h"
 #include "test_utils/scheduler_test_simulator.h"
@@ -17,19 +18,37 @@
 
 using namespace ocudu;
 
-/// Cell-specific Koffset of the NTN cell, in milliseconds, i.e. in slots of 15 kHz.
-class scheduler_ntn_koffset_test : public scheduler_test_simulator, public ::testing::TestWithParam<unsigned>
+/// Cell-specific Koffset and k_mac of the NTN cell, in milliseconds, i.e. in slots of 15 kHz.
+struct ntn_ul_timing_params {
+  unsigned koffset_ms;
+  unsigned k_mac_ms;
+};
+
+/// Formatter for test params.
+void PrintTo(const ntn_ul_timing_params& value, ::std::ostream* os)
+{
+  *os << fmt::format("Cell-Specific-K-Offset={}, K-mac={}", value.koffset_ms, value.k_mac_ms);
+}
+
+class scheduler_ntn_koffset_test : public scheduler_test_simulator,
+                                   public ::testing::TestWithParam<ntn_ul_timing_params>
 {
 protected:
   scheduler_ntn_koffset_test() :
-    scheduler_test_simulator(scheduler_test_sim_config{.auto_uci       = true,
-                                                       .auto_crc       = true,
-                                                       .ntn_cs_koffset = std::chrono::milliseconds{GetParam()}})
+    scheduler_test_simulator(
+        scheduler_test_sim_config{.auto_uci       = true,
+                                  .auto_crc       = true,
+                                  .ntn_cs_koffset = std::chrono::milliseconds{GetParam().koffset_ms}})
   {
     auto cell_req = sched_config_helper::make_default_sched_cell_configuration_request(
         cell_config_builder_profiles::create(duplex_mode::FDD));
     cell_req.ran.ntn_params.emplace();
-    cell_req.ran.ntn_params->ntn_cfg.cell_specific_koffset = std::chrono::milliseconds{GetParam()};
+    if (GetParam().koffset_ms != 0) {
+      cell_req.ran.ntn_params->ntn_cfg.cell_specific_koffset = std::chrono::milliseconds{GetParam().koffset_ms};
+    }
+    if (GetParam().k_mac_ms != 0) {
+      cell_req.ran.ntn_params->ntn_cfg.k_mac = std::chrono::milliseconds{GetParam().k_mac_ms};
+    }
     this->add_cell(cell_req);
 
     auto ue_cfg     = sched_config_helper::create_default_sched_ue_creation_request(cell_req.ran, {ue_drb_lcid});
@@ -39,6 +58,8 @@ protected:
   }
 
   unsigned koffset() const { return cell_cfg().ntn_cs_koffset; }
+
+  unsigned k_mac() const { return cell_cfg().ntn_k_mac_slots; }
 
   /// Runs the scheduler until the results of \c target_slot are available, calling \c check_slot on every slot, and
   /// stops at the first slot that fails the check.
@@ -55,11 +76,12 @@ protected:
   const lcid_t        ue_drb_lcid = LCID_MIN_DRB;
 };
 
-TEST_P(scheduler_ntn_koffset_test, pusch_is_scheduled_k2_plus_koffset_slots_after_its_dci)
+TEST_P(scheduler_ntn_koffset_test, pusch_is_scheduled_k2_plus_koffset_plus_k_mac_slots_after_its_dci)
 {
   OCUDU_TEST_REQUIREMENTS("DU-NTN-TIM-1");
 
-  ASSERT_EQ(koffset(), GetParam());
+  ASSERT_EQ(koffset(), GetParam().koffset_ms);
+  ASSERT_EQ(k_mac(), GetParam().k_mac_ms);
   this->push_bsr(ul_bsr_indication_message{to_du_cell_index(0),
                                            ue_idx,
                                            ue_rnti,
@@ -74,27 +96,34 @@ TEST_P(scheduler_ntn_koffset_test, pusch_is_scheduled_k2_plus_koffset_slots_afte
   const unsigned              time_resource =
       is_f0_1 ? pdcch.dci.as_c_rnti_f0_1().time_resource : pdcch.dci.as_c_rnti_f0_0().time_resource;
 
-  // TS 38.214, Section 6.1.2.1: the PUSCH slot is the DCI slot plus k2 plus Koffset. The DCI carries k2 alone.
+  // TS 38.214, Section 6.1.2.1: the PUSCH slot is the DCI slot plus k2 plus Koffset, both counted in the UE uplink
+  // frame. The transmission reaches the gNB k_mac slots later, which is where the grid holds it. The DCI carries k2
+  // alone.
   const auto pusch_td_list =
       cell_cfg().init_bwp.ul.td_mapper().pusch_td_resources(is_f0_1 ? dci_ul_format::f0_1 : dci_ul_format::f0_0);
   ASSERT_LT(time_resource, pusch_td_list.size());
-  const slot_point expected_pusch_slot = pdcch_slot + pusch_td_list[time_resource].k2 + koffset();
+  if (k_mac() != 0) {
+    ASSERT_NE(k_mac(), pusch_td_list[time_resource].k2)
+        << "k_mac must differ from k2, or a k2 counted twice is indistinguishable from the k_mac shift";
+  }
+  const slot_point expected_pusch_slot = pdcch_slot + pusch_td_list[time_resource].k2 + koffset() + k_mac();
 
   run_until_slot(expected_pusch_slot, [this, expected_pusch_slot](slot_point sl) {
     const bool has_pusch = find_ue_pusch(ue_rnti, *this->last_sched_result()) != nullptr;
     if (sl < expected_pusch_slot) {
-      ASSERT_FALSE(has_pusch) << fmt::format("PUSCH at slot {}, before the Koffset delayed slot", sl);
+      ASSERT_FALSE(has_pusch) << fmt::format("PUSCH at slot {}, before the delayed slot", sl);
     } else {
-      ASSERT_TRUE(has_pusch) << fmt::format("No PUSCH at slot {}, k2 plus Koffset after its DCI", sl);
+      ASSERT_TRUE(has_pusch) << fmt::format("No PUSCH at slot {}, k2 plus Koffset plus k_mac after its DCI", sl);
     }
   });
 }
 
-TEST_P(scheduler_ntn_koffset_test, harq_ack_is_scheduled_k1_plus_koffset_slots_after_its_pdsch)
+TEST_P(scheduler_ntn_koffset_test, harq_ack_is_scheduled_k1_plus_koffset_plus_k_mac_slots_after_its_pdsch)
 {
   OCUDU_TEST_REQUIREMENTS("DU-NTN-TIM-1");
 
-  ASSERT_EQ(koffset(), GetParam());
+  ASSERT_EQ(koffset(), GetParam().koffset_ms);
+  ASSERT_EQ(k_mac(), GetParam().k_mac_ms);
   this->push_dl_buffer_state(dl_buffer_state_indication_message{ue_idx, ue_drb_lcid, 100000});
 
   // The first DL DCI of the UE schedules its first PDSCH.
@@ -105,13 +134,18 @@ TEST_P(scheduler_ntn_koffset_test, harq_ack_is_scheduled_k1_plus_koffset_slots_a
   const dci_1_1_configuration& dci = pdcch.dci.as_c_rnti_f1_1();
   ASSERT_TRUE(dci.pdsch_harq_fb_timing_indicator.has_value());
 
-  // TS 38.213, Section 9.2.3: the HARQ-ACK is reported k1 plus Koffset slots after the PDSCH. The DCI carries k1 alone.
+  // TS 38.213, Section 9.2.3: the HARQ-ACK is reported k1 plus Koffset slots after the PDSCH, counted in the UE
+  // uplink frame, and arrives at the gNB k_mac slots later. The DCI carries k1 alone.
   const auto pdsch_td_list = cell_cfg().init_bwp.dl.td_mapper().pdsch_td_resources(dci_dl_format::f1_1);
   ASSERT_LT(dci.time_resource, pdsch_td_list.size());
   const auto k1_list = cell_cfg().init_bwp.ul.td_mapper().dedicated_k1_candidates();
   ASSERT_LT(dci.pdsch_harq_fb_timing_indicator.value(), k1_list.size());
+  if (k_mac() != 0) {
+    ASSERT_NE(k_mac(), k1_list[dci.pdsch_harq_fb_timing_indicator.value()])
+        << "k_mac must differ from k1, or a k1 counted twice is indistinguishable from the k_mac shift";
+  }
   const slot_point expected_ack_slot = pdcch_slot + pdsch_td_list[dci.time_resource].k0 +
-                                       k1_list[dci.pdsch_harq_fb_timing_indicator.value()] + koffset();
+                                       k1_list[dci.pdsch_harq_fb_timing_indicator.value()] + koffset() + k_mac();
 
   // No UL data is pending, so the HARQ-ACK is reported on PUCCH.
   const auto has_harq_ack = [this]() {
@@ -124,12 +158,19 @@ TEST_P(scheduler_ntn_koffset_test, harq_ack_is_scheduled_k1_plus_koffset_slots_a
   };
   run_until_slot(expected_ack_slot, [expected_ack_slot, &has_harq_ack](slot_point sl) {
     if (sl < expected_ack_slot) {
-      ASSERT_FALSE(has_harq_ack()) << fmt::format("HARQ-ACK at slot {}, before the Koffset delayed slot", sl);
+      ASSERT_FALSE(has_harq_ack()) << fmt::format("HARQ-ACK at slot {}, before the delayed slot", sl);
     } else {
-      ASSERT_TRUE(has_harq_ack()) << fmt::format("No HARQ-ACK at slot {}, k1 plus Koffset after its PDSCH", sl);
+      ASSERT_TRUE(has_harq_ack()) << fmt::format("No HARQ-ACK at slot {}, k1 plus Koffset plus k_mac after its PDSCH",
+                                                 sl);
     }
   });
 }
 
-// Koffset of a LEO and a GEO cell.
-INSTANTIATE_TEST_SUITE_P(scheduler_ntn_koffset_test, scheduler_ntn_koffset_test, ::testing::Values(16U, 240U));
+// Koffset of a LEO and a GEO cell, each with and without k_mac, plus a cell where only k_mac is configured.
+INSTANTIATE_TEST_SUITE_P(scheduler_ntn_koffset_test,
+                         scheduler_ntn_koffset_test,
+                         ::testing::Values(ntn_ul_timing_params{16, 0},
+                                           ntn_ul_timing_params{240, 0},
+                                           ntn_ul_timing_params{0, 19},
+                                           ntn_ul_timing_params{16, 19},
+                                           ntn_ul_timing_params{240, 19}));

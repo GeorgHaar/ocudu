@@ -23,7 +23,9 @@ struct table_test_params {
 
 const cell_configuration& make_cell_cfg(test_helpers::test_sched_config_manager& cfg_mng,
                                         unsigned                                 min_k,
-                                        std::optional<tdd_ul_dl_config_common>   tdd_cfg)
+                                        std::optional<tdd_ul_dl_config_common>   tdd_cfg,
+                                        std::chrono::milliseconds                ntn_cs_koffset = {},
+                                        std::chrono::milliseconds                ntn_k_mac      = {})
 {
   cell_config_builder_params params =
       cell_config_builder_profiles::create(tdd_cfg.has_value() ? duplex_mode::TDD : duplex_mode::FDD);
@@ -31,7 +33,17 @@ const cell_configuration& make_cell_cfg(test_helpers::test_sched_config_manager&
   params.min_k1               = min_k;
   params.min_k2               = min_k;
   params.auto_derive_params();
-  return *cfg_mng.add_cell(sched_config_helper::make_default_sched_cell_configuration_request(params));
+  auto req = sched_config_helper::make_default_sched_cell_configuration_request(params);
+  if (ntn_cs_koffset.count() != 0 or ntn_k_mac.count() != 0) {
+    req.ran.ntn_params.emplace();
+    if (ntn_cs_koffset.count() != 0) {
+      req.ran.ntn_params->ntn_cfg.cell_specific_koffset = ntn_cs_koffset;
+    }
+    if (ntn_k_mac.count() != 0) {
+      req.ran.ntn_params->ntn_cfg.k_mac = ntn_k_mac;
+    }
+  }
+  return *cfg_mng.add_cell(req);
 }
 
 class nof_pusch_slots_per_pdcch_slot_test : public ::testing::TestWithParam<table_test_params>
@@ -98,9 +110,12 @@ INSTANTIATE_TEST_SUITE_P(
 class pdcch_cce_budget_test : public ::testing::Test
 {
 protected:
-  void setup(unsigned min_k, std::optional<tdd_ul_dl_config_common> tdd_cfg)
+  void setup(unsigned                               min_k,
+             std::optional<tdd_ul_dl_config_common> tdd_cfg,
+             std::chrono::milliseconds              ntn_cs_koffset = {},
+             std::chrono::milliseconds              ntn_k_mac      = {})
   {
-    cell_cfg = &make_cell_cfg(cfg_mng, min_k, tdd_cfg);
+    cell_cfg = &make_cell_cfg(cfg_mng, min_k, tdd_cfg, ntn_cs_koffset, ntn_k_mac);
     res_grid.emplace(*cell_cfg);
     distrib.emplace(*res_grid);
     table = compute_nof_pusch_slots_per_pdcch_slot(*cell_cfg);
@@ -291,6 +306,25 @@ TEST_F(pdcch_cce_budget_test, when_earlier_pusch_slots_are_skipped_then_later_pu
   // The first PUSCH slot keeps the shares of the later PUSCH slots, while the last PUSCH slot can use all CCEs.
   ASSERT_EQ(distrib->remaining_ul_cces(pusch_slot(2)), total - (n - 1) * share);
   ASSERT_EQ(distrib->remaining_ul_cces(pusch_slot(2 + n - 1)), total);
+}
+
+TEST_F(pdcch_cce_budget_test, when_ntn_then_the_ul_share_is_reserved_until_the_delayed_pusch_slot)
+{
+  static constexpr unsigned                  min_k = 4;
+  static constexpr std::chrono::milliseconds ntn_cs_koffset{8};
+  static constexpr std::chrono::milliseconds ntn_k_mac{19};
+  setup(min_k, std::nullopt, ntn_cs_koffset, ntn_k_mac);
+  run_until_slot_with(1);
+  const unsigned total = cs_cfg->get_nof_cces();
+  const unsigned share = total / 2;
+  ASSERT_EQ(cell_cfg->ntn_ul_alloc_delay_slots(),
+            static_cast<unsigned>((ntn_cs_koffset + ntn_k_mac).count()) *
+                get_nof_slots_per_subframe(cell_cfg->scs_common()));
+
+  // The PUSCH of a k2 grant lands k2 plus the Koffset plus k_mac after its PDCCH: the UL share stays reserved for
+  // every slot before that one, and is released at it.
+  ASSERT_EQ(distrib->remaining_ul_cces(pusch_slot(min_k)), total - share);
+  ASSERT_EQ(distrib->remaining_ul_cces(pusch_slot(cell_cfg->ul_delay(min_k + cell_cfg->ntn_cs_koffset))), total);
 }
 
 TEST_F(pdcch_cce_budget_test, when_no_ul_is_pending_then_dl_gets_all_cces)

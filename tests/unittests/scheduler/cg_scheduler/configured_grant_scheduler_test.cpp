@@ -22,6 +22,7 @@
 #include "ocudu/ran/resource_allocation/resource_allocation_frequency.h"
 #include "ocudu/scheduler/config/cg_builder_params.h"
 #include "ocudu/scheduler/resource_grid_util.h"
+#include <chrono>
 #include <gtest/gtest.h>
 
 using namespace ocudu;
@@ -89,7 +90,8 @@ protected:
   explicit configured_grant_scheduler_test(const cg_test_params&             params_         = {},
                                            const cell_config_builder_params& builder_params  = {},
                                            unsigned                          default_offset  = 0,
-                                           std::chrono::milliseconds         ntn_cs_koffset_ = {}) :
+                                           std::chrono::milliseconds         ntn_cs_koffset_ = {},
+                                           std::chrono::milliseconds         ntn_k_mac_      = {}) :
     scheduler_test_simulator(/*tx_rx_delay=*/4, builder_params.scs_common),
     cg_params(params_),
     default_cg_offset_(default_offset)
@@ -111,9 +113,12 @@ protected:
                                     .factors_per_res = std::vector<pucch_repetition_factor>(
                                         pucch_res.res_set_size.value(), pucch_repetition_factor::n4)};
     }
-    if (ntn_cs_koffset_.count() != 0) {
+    if (ntn_cs_koffset_.count() != 0 or ntn_k_mac_.count() != 0) {
       cell_req.ran.ntn_params.emplace();
       cell_req.ran.ntn_params->ntn_cfg.cell_specific_koffset = ntn_cs_koffset_;
+      if (ntn_k_mac_.count() != 0) {
+        cell_req.ran.ntn_params->ntn_cfg.k_mac = ntn_k_mac_;
+      }
     }
     add_cell(cell_req);
   }
@@ -173,7 +178,7 @@ protected:
     if (max_slots == 0) {
       // The CG PUSCH is booked max_ul_slot_alloc_delay slots ahead, so the first grant appears in last_sched_result()
       // max_ul_slot_alloc_delay + (period - 1) steps after UE creation. Add extra margin for safety.
-      constexpr unsigned ul_delay = get_max_slot_ul_alloc_delay(/*ntn_cs_koffset=*/0);
+      constexpr unsigned ul_delay = get_max_slot_ul_alloc_delay(/*ntn_ul_alloc_delay_slots=*/0);
       max_slots                   = ul_delay + cg_params.period_slots + 20;
     }
     for (unsigned i = 0; i != max_slots; ++i) {
@@ -657,6 +662,111 @@ INSTANTIATE_TEST_SUITE_P(
                                             5}),
     [](const auto& p) { return p.param.name; });
 
+/// Fixture for the NTN k_mac regression. A Type 1 CG occasion is timed by the UE against timeReferenceSFN, so with a
+/// non-zero k_mac it reaches the gNB k_mac slots after the configured offset. k_mac is deliberately not a multiple of
+/// the number of slots per frame, so an unshifted registration cannot pass by coincidence.
+class configured_grant_scheduler_ntn_kmac_test : public configured_grant_scheduler_test
+{
+protected:
+  static constexpr std::chrono::milliseconds K_MAC{19};
+  static constexpr unsigned                  CG_OFFSET = 7;
+
+  configured_grant_scheduler_ntn_kmac_test() :
+    configured_grant_scheduler_test(cg_test_params{},
+                                    cell_config_builder_profiles::create(duplex_mode::FDD),
+                                    /*default_offset=*/CG_OFFSET,
+                                    /*ntn_cs_koffset=*/{},
+                                    K_MAC)
+  {
+  }
+};
+
+/// Test: with a non-zero k_mac the CG PUSCH is reserved at (time_domain_offset + k_mac) modulo the CG periodicity.
+TEST_F(configured_grant_scheduler_ntn_kmac_test, cg_pusch_is_placed_at_offset_shifted_by_k_mac)
+{
+  const unsigned k_mac_slots = cell_cfg(to_du_cell_index(0)).ntn_k_mac_slots;
+  ASSERT_GT(k_mac_slots, 0U);
+  const unsigned expected_offset = (CG_OFFSET + k_mac_slots) % cg_params.period_slots;
+  ASSERT_NE(expected_offset, CG_OFFSET % cg_params.period_slots)
+      << "k_mac must shift the occasion, or the test cannot tell the two apart";
+
+  add_cg_ue();
+
+  const ul_sched_info* grant = run_until_next_cg_pusch();
+  ASSERT_NE(grant, nullptr) << "No CG PUSCH found in an NTN cell with k_mac=" << K_MAC.count();
+  EXPECT_EQ(last_result_slot().count() % cg_params.period_slots, expected_offset)
+      << "CG PUSCH was not shifted to the gNB DL clock";
+
+  // The next occasion must keep the same shifted position one period later.
+  const ul_sched_info* next_grant = run_until_next_cg_pusch();
+  ASSERT_NE(next_grant, nullptr) << "No second CG PUSCH found";
+  EXPECT_EQ(last_result_slot().count() % cg_params.period_slots, expected_offset);
+}
+
+/// Test: removal clears the shifted wheel entry, so no CG PUSCH survives it.
+TEST_F(configured_grant_scheduler_ntn_kmac_test, ue_removal_clears_the_shifted_wheel_entry)
+{
+  add_cg_ue();
+  ASSERT_NE(run_until_next_cg_pusch(), nullptr);
+
+  rem_ue(to_du_ue_index(0));
+
+  for (unsigned i = 0; i != 2 * cg_params.period_slots + 10; ++i) {
+    run_slot();
+    EXPECT_EQ(find_ue_pusch(cs_rnti, *last_sched_result()), nullptr)
+        << fmt::format("Unexpected CG PUSCH after UE removal at slot {}", last_result_slot());
+  }
+}
+
+/// \brief Fixture for the HARQ process the UE derives for its CG occasions, as per TS 38.321, Section 5.4.1.
+///
+/// The configured offset sits at the end of the CG period, so the k_mac shift carries the occasion into the next
+/// period on the gNB clock: the process derived from the uplink slot of the UE and the one the grid slot would give
+/// are then different, which is what tells the two clocks apart.
+class configured_grant_scheduler_ntn_kmac_harq_test : public configured_grant_scheduler_test
+{
+protected:
+  static constexpr std::chrono::milliseconds K_MAC{19};
+  static constexpr unsigned                  CG_OFFSET = 39;
+
+  configured_grant_scheduler_ntn_kmac_harq_test() :
+    configured_grant_scheduler_test(cg_test_params{},
+                                    cell_config_builder_profiles::create(duplex_mode::FDD),
+                                    /*default_offset=*/CG_OFFSET,
+                                    /*ntn_cs_koffset=*/{},
+                                    K_MAC)
+  {
+  }
+
+  /// HARQ process of a CG occasion whose first symbol is \c symbol of slot \c sl, as per TS 38.321, Section 5.4.1.
+  unsigned harq_id_of_occasion(slot_point sl, unsigned symbol) const
+  {
+    const unsigned current_symbol = static_cast<unsigned>(sl.system_slot()) * NOF_OFDM_SYM_PER_SLOT_NORMAL_CP + symbol;
+    const unsigned period_symbols = cg_params.period_slots * NOF_OFDM_SYM_PER_SLOT_NORMAL_CP;
+    return (current_symbol / period_symbols) % cg_params.nof_harq_procs;
+  }
+};
+
+/// Test: the CG PUSCH carries the HARQ process the UE derives from its own uplink slot, not the one the grid slot the
+/// gNB receives it in would give.
+TEST_F(configured_grant_scheduler_ntn_kmac_harq_test, cg_harq_process_follows_the_uplink_slot_of_the_ue)
+{
+  const cell_configuration& cell_configuration_ref = cell_cfg(to_du_cell_index(0));
+  ASSERT_GT(cell_configuration_ref.ntn_k_mac_slots, 0U);
+
+  add_cg_ue();
+
+  const ul_sched_info* grant = run_until_next_cg_pusch();
+  ASSERT_NE(grant, nullptr) << "No CG PUSCH found in an NTN cell with k_mac=" << K_MAC.count();
+
+  const slot_point grid_slot  = last_result_slot();
+  const slot_point ue_ul_slot = cell_configuration_ref.dl_to_ue_ul_slot(grid_slot);
+  const unsigned   symbol     = grant->pusch_cfg.symbols.start();
+  ASSERT_NE(harq_id_of_occasion(ue_ul_slot, symbol), harq_id_of_occasion(grid_slot, symbol))
+      << "the occasion does not straddle a CG period, so the test cannot tell the two clocks apart";
+  ASSERT_EQ(static_cast<unsigned>(grant->pusch_cfg.harq_id), harq_id_of_occasion(ue_ul_slot, symbol));
+}
+
 /// Fixture for the NTN cell-specific K-offset. A Type 1 CG occasion is self-timed by the UE against timeReferenceSFN
 /// as per TS 38.321, Section 5.8.2, so the K-offset the UE applies to granted transmissions leaves it where it is.
 /// The K-offset is deliberately not a multiple of the CG periodicity, so a wrongly shifted occasion cannot pass by
@@ -676,11 +786,12 @@ protected:
   }
 };
 
-/// Test: with a cell-specific K-offset the CG PUSCH stays at its configured time domain offset.
+/// Test: with a cell-specific K-offset and no k_mac the CG PUSCH stays at its configured time domain offset.
 TEST_F(configured_grant_scheduler_ntn_koffset_test, cg_pusch_is_not_shifted_by_the_cell_specific_koffset)
 {
   const auto& cfg = cell_cfg(to_du_cell_index(0));
   ASSERT_GT(cfg.ntn_cs_koffset, 0U);
+  ASSERT_EQ(cfg.ntn_k_mac_slots, 0U);
   ASSERT_NE(cfg.ntn_cs_koffset % cg_params.period_slots, 0U)
       << "the K-offset must be able to move the occasion, or the test cannot tell the two apart";
 
@@ -695,6 +806,43 @@ TEST_F(configured_grant_scheduler_ntn_koffset_test, cg_pusch_is_not_shifted_by_t
   const ul_sched_info* next_grant = run_until_next_cg_pusch();
   ASSERT_NE(next_grant, nullptr) << "No second CG PUSCH found";
   EXPECT_EQ(last_result_slot().count() % cg_params.period_slots, CG_OFFSET % cg_params.period_slots);
+}
+
+/// Fixture for an NTN cell carrying both a cell-specific K-offset and a k_mac.
+class configured_grant_scheduler_ntn_koffset_and_kmac_test : public configured_grant_scheduler_test
+{
+protected:
+  static constexpr std::chrono::milliseconds KOFFSET{5};
+  static constexpr std::chrono::milliseconds K_MAC{19};
+  static constexpr unsigned                  CG_OFFSET = 7;
+
+  configured_grant_scheduler_ntn_koffset_and_kmac_test() :
+    configured_grant_scheduler_test(cg_test_params{},
+                                    cell_config_builder_profiles::create(duplex_mode::FDD),
+                                    /*default_offset=*/CG_OFFSET,
+                                    KOFFSET,
+                                    K_MAC)
+  {
+  }
+};
+
+/// Test: with both offsets configured the CG PUSCH moves by k_mac alone.
+TEST_F(configured_grant_scheduler_ntn_koffset_and_kmac_test, cg_pusch_is_shifted_by_k_mac_only)
+{
+  const auto& cfg = cell_cfg(to_du_cell_index(0));
+  ASSERT_GT(cfg.ntn_cs_koffset, 0U);
+  ASSERT_GT(cfg.ntn_k_mac_slots, 0U);
+  const unsigned expected_offset = (CG_OFFSET + cfg.ntn_k_mac_slots) % cg_params.period_slots;
+  ASSERT_NE(expected_offset, (CG_OFFSET + cfg.ntn_ul_alloc_delay_slots()) % cg_params.period_slots)
+      << "k_mac and the total uplink delay must differ, or the test cannot tell the two apart";
+
+  add_cg_ue();
+
+  const ul_sched_info* grant = run_until_next_cg_pusch();
+  ASSERT_NE(grant, nullptr) << "No CG PUSCH found in an NTN cell with k_mac=" << K_MAC.count()
+                            << " and cell_specific_koffset=" << KOFFSET.count();
+  EXPECT_EQ(last_result_slot().count() % cg_params.period_slots, expected_offset)
+      << "CG PUSCH was not shifted by k_mac alone";
 }
 
 /// Fixture for multi-UE CG tests. Provides constants for a second CG UE.

@@ -134,13 +134,18 @@ std::ostream& operator<<(std::ostream& os, const srs_test_params& params)
 
 using namespace srs_periodicity_test;
 
-static sched_cell_configuration_request_message make_srs_cell_request(test_helpers::test_sched_config_manager& cfg_mng,
-                                                                      unsigned cs_koffset_ms)
+static sched_cell_configuration_request_message
+make_srs_cell_request(test_helpers::test_sched_config_manager& cfg_mng, unsigned k_mac_ms, unsigned cs_koffset_ms)
 {
   auto req = cfg_mng.get_default_cell_config_request();
-  if (cs_koffset_ms != 0) {
+  if (k_mac_ms != 0 or cs_koffset_ms != 0) {
     req.ran.ntn_params.emplace();
-    req.ran.ntn_params->ntn_cfg.cell_specific_koffset = std::chrono::milliseconds{cs_koffset_ms};
+    if (k_mac_ms != 0) {
+      req.ran.ntn_params->ntn_cfg.k_mac = std::chrono::milliseconds{k_mac_ms};
+    }
+    if (cs_koffset_ms != 0) {
+      req.ran.ntn_params->ntn_cfg.cell_specific_koffset = std::chrono::milliseconds{cs_koffset_ms};
+    }
   }
   return req;
 }
@@ -148,10 +153,10 @@ static sched_cell_configuration_request_message make_srs_cell_request(test_helpe
 class srs_sched_test_bench
 {
 public:
-  srs_sched_test_bench(const srs_test_params& params, unsigned cs_koffset_ms = 0) :
+  srs_sched_test_bench(const srs_test_params& params, unsigned k_mac_ms = 0, unsigned cs_koffset_ms = 0) :
     expert_cfg{config_helpers::make_default_scheduler_expert_config()},
     cfg_mng{cell_config_builder_profiles::create(params.is_tdd ? duplex_mode::TDD : duplex_mode::FDD), expert_cfg},
-    cell_cfg(*cfg_mng.add_cell(make_srs_cell_request(cfg_mng, cs_koffset_ms))),
+    cell_cfg(*cfg_mng.add_cell(make_srs_cell_request(cfg_mng, k_mac_ms, cs_koffset_ms))),
     cell_ues(cell_cfg, nullptr),
     ues(expert_cfg.ue),
     srs_sched(cell_cfg, cell_ues),
@@ -290,16 +295,58 @@ protected:
   srs_scheduler_tester() : srs_sched_test_bench(GetParam()) {}
 };
 
-/// Fixture for a periodic SRS occasion in an NTN cell configured with a cell-specific K-offset. The UE derives the
-/// occasion from its SRS resource configuration (TS 38.214, Section 6.2.1), so the K-offset it applies to granted
-/// transmissions leaves it where it is.
+class srs_scheduler_ntn_kmac_test : public ::testing::Test, public srs_sched_test_bench
+{
+protected:
+  static constexpr unsigned K_MAC_MS = 19;
+  static constexpr auto     PERIOD   = srs_periodicity::sl20;
+
+  srs_scheduler_ntn_kmac_test() : srs_sched_test_bench({false, PERIOD}, K_MAC_MS) {}
+};
+
+TEST_F(srs_scheduler_ntn_kmac_test, periodic_srs_uses_dl_time_slot_and_removal_clears_shifted_wheel_entry)
+{
+  add_ue(PERIOD);
+
+  const unsigned period_slots         = static_cast<unsigned>(PERIOD);
+  const unsigned shifted_offset       = (get_offset() + cell_cfg.ntn_k_mac_slots) % period_slots;
+  bool           observed_shifted_srs = false;
+
+  for (unsigned sl_cnt = 0; sl_cnt != res_grid.ring_size() * 2; ++sl_cnt) {
+    srs_sched.run_slot(res_grid);
+    if (sl_cnt >= SCHEDULER_MAX_K2) {
+      if (current_sl_tx.count() % period_slots == shifted_offset) {
+        ASSERT_EQ(res_grid[0].result_reader().ul().srss().size(), 1);
+        observed_shifted_srs = true;
+      } else {
+        ASSERT_TRUE(res_grid[0].result_reader().ul().srss().empty());
+      }
+    }
+    slot_indication(++current_sl_tx);
+  }
+  ASSERT_TRUE(observed_shifted_srs);
+
+  srs_sched.rem_ue(ues[to_du_ue_index(0)].get_pcell().cfg());
+  const unsigned preallocated_slots = res_grid.max_ul_slot_alloc_delay;
+  for (unsigned sl_cnt = 0; sl_cnt != preallocated_slots + period_slots; ++sl_cnt) {
+    srs_sched.run_slot(res_grid);
+    if (sl_cnt >= preallocated_slots) {
+      ASSERT_TRUE(res_grid[0].result_reader().ul().srss().empty());
+    }
+    slot_indication(++current_sl_tx);
+  }
+}
+
+/// Fixture for a periodic SRS occasion in an NTN cell configured with a cell-specific K-offset and no k_mac. The UE
+/// derives the occasion from its SRS resource configuration (TS 38.214, Section 6.2.1), so the K-offset it applies to
+/// granted transmissions leaves it where it is.
 class srs_scheduler_ntn_koffset_test : public ::testing::Test, public srs_sched_test_bench
 {
 protected:
   static constexpr unsigned KOFFSET_MS = 5;
   static constexpr auto     PERIOD     = srs_periodicity::sl20;
 
-  srs_scheduler_ntn_koffset_test() : srs_sched_test_bench({false, PERIOD}, KOFFSET_MS) {}
+  srs_scheduler_ntn_koffset_test() : srs_sched_test_bench({false, PERIOD}, /*k_mac_ms=*/0, KOFFSET_MS) {}
 };
 
 /// Verifies that the cell-specific K-offset leaves the periodic SRS occasion at its configured offset.
@@ -308,6 +355,7 @@ TEST_F(srs_scheduler_ntn_koffset_test, periodic_srs_is_not_shifted_by_the_cell_s
   add_ue(PERIOD);
 
   ASSERT_GT(cell_cfg.ntn_cs_koffset, 0U);
+  ASSERT_EQ(cell_cfg.ntn_k_mac_slots, 0U);
 
   const unsigned period_slots = static_cast<unsigned>(PERIOD);
   ASSERT_NE(cell_cfg.ntn_cs_koffset % period_slots, 0U)

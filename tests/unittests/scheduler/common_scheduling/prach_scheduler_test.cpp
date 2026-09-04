@@ -509,11 +509,92 @@ INSTANTIATE_TEST_SUITE_P(
       return fmt::format("tdd_fr2_scs_{}_prach_cfg_idx_{}", to_string(info_.param.scs), info_.param.prach_cfg_index);
     });
 
-/// Fixture for a PRACH occasion in an NTN cell configured with a cell-specific K-offset. The occasions follow from the
-/// PRACH configuration alone (TS 38.211, Section 6.3.3.2), so the K-offset does not move the occasion raster the
-/// scheduler places in the grid. The K-offset still reaches PRACH elsewhere: for a transmission triggered by a PDCCH
-/// order or an LTM cell switch command MAC CE, the UE takes an occasion after slot n + 2^mu * K_cell,offset as per
-/// TS 38.213, Section 8.1, which selects among the occasions rather than moving them.
+// ---- NTN k_mac PRACH placement test -------------------------------------------------------
+
+/// Test fixture for verifying that the PRACH scheduler places PDUs at the DL-time slot
+/// (UL_occasion + k_mac) rather than at the UL occasion slot itself, when k_mac != 0.
+///
+/// Uses FDD n3, which cell_config_builder_profiles::create() configures at 30 kHz SCS, with PRACH config index 0
+/// (Format 0, period = 16 subframes). k_mac is configured in milliseconds and scaled to slots at the cell SCS, so at
+/// 30 kHz k_mac_slots is twice K_MAC. Do not use the millisecond value as a slot count.
+class prach_scheduler_ntn_kmac_test : public sub_scheduler_test_environment, public ::testing::Test
+{
+public:
+  static constexpr unsigned K_MAC = 19;
+
+  prach_scheduler_ntn_kmac_test() : sub_scheduler_test_environment(make_ntn_cell_req()), prach_sch(cell_cfg) {}
+
+  void do_run_slot() override { prach_sch.run_slot(res_grid); }
+
+private:
+  static sched_cell_configuration_request_message make_ntn_cell_req()
+  {
+    auto req = sched_config_helper::make_default_sched_cell_configuration_request(
+        cell_config_builder_profiles::create(nr_band::n3));
+    req.ran.ntn_params.emplace();
+    req.ran.ntn_params->ntn_cfg.k_mac = std::chrono::milliseconds{K_MAC};
+    return req;
+  }
+
+  prach_scheduler prach_sch;
+};
+
+/// Verifies that with k_mac != 0 the PRACH scheduler places each detection PDU at the
+/// DL-time slot (UL_occasion + k_mac), not at the UL occasion slot itself.
+///
+/// After the first run_slot() pre-populates the grid, we find the first PRACH PDU in the
+/// grid (at some offset n >= k_mac) and assert that the UL occasion slot (offset n - k_mac)
+/// contains no PRACH PDU.
+TEST_F(prach_scheduler_ntn_kmac_test, prach_pdu_placed_at_dl_time_slot_not_ul_occasion)
+{
+  // First run_slot() triggers the one-shot grid pre-population: every PRACH occasion in the
+  // ring is scheduled at its DL-time slot (UL_occasion_offset + K_MAC).
+  run_slot();
+
+  // k_mac is configured in milliseconds and converted to slots at the cell SCS. This cell is 30 kHz, so the shift is
+  // 2 slots per millisecond, not K_MAC. Using the millisecond value as a slot count would make the check below land on
+  // an arbitrary slot that holds no PRACH occasion and pass for the wrong reason.
+  const unsigned k_mac_slots = cell_cfg.ntn_k_mac_slots;
+  ASSERT_EQ(k_mac_slots, K_MAC * get_nof_slots_per_subframe(cell_cfg.scs_common()))
+      << "k_mac must be scaled from milliseconds to slots at the cell SCS";
+  ASSERT_GT(k_mac_slots, K_MAC) << "This cell must not be 15 kHz, or the scaling is untested";
+
+  // Search for the first PRACH PDU in the grid.  It must appear at an offset >= k_mac_slots because
+  // the earliest UL occasion (offset 0) maps to DL slot offset k_mac_slots.
+  unsigned prach_dl_offset = UINT_MAX;
+  for (unsigned n = k_mac_slots; n < res_grid.max_ul_slot_alloc_delay; ++n) {
+    if (!res_grid[n].result_reader().ul().prachs().empty()) {
+      prach_dl_offset = n;
+      break;
+    }
+  }
+  ASSERT_NE(prach_dl_offset, UINT_MAX) << "Expected at least one PRACH PDU in the resource grid after pre-population";
+
+  // The UL occasion is K_MAC slots before the DL-time slot.
+  // The scheduler must NOT have placed a PRACH PDU at the UL occasion offset itself.
+  ASSERT_TRUE(res_grid[prach_dl_offset - k_mac_slots].result_reader().ul().prachs().empty())
+      << "PRACH PDU must not be at UL occasion slot (offset " << (prach_dl_offset - k_mac_slots)
+      << "); it must be at DL-time slot (offset " << prach_dl_offset << " = UL_occasion + k_mac=" << k_mac_slots
+      << " slots)";
+
+  // Derive the UE's occasions from the PRACH configuration rather than from the grid, so the check does not depend on
+  // how far apart the occasions happen to fall. The slot holding the PDU is a capture slot and must not itself be an
+  // occasion; the slot k_mac earlier must be.
+  const prach_helper::preamble_slot_mapping td_mapper{
+      cell_cfg.band(),
+      cell_cfg.init_bwp.ul.cfg().scs,
+      cell_cfg.init_bwp.ul.rach_common()->rach_cfg_generic.prach_config_index};
+  ASSERT_TRUE(td_mapper.has_prach_occasion(res_grid[prach_dl_offset - k_mac_slots].slot))
+      << "the slot k_mac before the PDU must be the UE's PRACH occasion";
+  ASSERT_FALSE(td_mapper.has_prach_occasion(res_grid[prach_dl_offset].slot))
+      << "the PDU sits on a PRACH occasion slot, so the k_mac shift was not applied";
+}
+
+/// Fixture for a PRACH occasion in an NTN cell configured with a cell-specific K-offset and no k_mac. The occasions
+/// follow from the PRACH configuration alone (TS 38.211, Section 6.3.3.2), so the K-offset does not move the occasion
+/// raster the scheduler places in the grid. The K-offset still reaches PRACH elsewhere: for a transmission triggered
+/// by a PDCCH order or an LTM cell switch command MAC CE, the UE takes an occasion after slot
+/// n + 2^mu * K_cell,offset as per TS 38.213, Section 8.1, which selects among the occasions rather than moving them.
 class prach_scheduler_ntn_koffset_test : public sub_scheduler_test_environment, public ::testing::Test
 {
 public:
@@ -543,6 +624,7 @@ TEST_F(prach_scheduler_ntn_koffset_test, prach_pdu_is_not_shifted_by_the_cell_sp
   run_slot();
 
   ASSERT_GT(cell_cfg.ntn_cs_koffset, 0U);
+  ASSERT_EQ(cell_cfg.ntn_k_mac_slots, 0U);
 
   // Search for the first PRACH PDU in the grid.
   unsigned prach_offset = UINT_MAX;

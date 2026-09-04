@@ -462,13 +462,15 @@ INSTANTIATE_TEST_SUITE_P(scheduler_con_res_msg4_test_with_different_srb,
 
 struct conres_expiry_params {
   subcarrier_spacing max_scs        = subcarrier_spacing::kHz15;
-  unsigned           ntn_cs_koffset = 0;
+  unsigned           ntn_cs_koffset = 0; // in ms (slots at 15 kHz)
+  unsigned           ntn_k_mac      = 0; // in ms (slots at 15 kHz)
 };
 
 /// Formatter for test params.
 void PrintTo(const conres_expiry_params& value, ::std::ostream* os)
 {
-  *os << fmt::format("SCS={}, Cell-Specific-K-Offset={}", to_string(value.max_scs), value.ntn_cs_koffset);
+  *os << fmt::format(
+      "SCS={}, Cell-Specific-K-Offset={}, K-mac={}", to_string(value.max_scs), value.ntn_cs_koffset, value.ntn_k_mac);
 }
 
 class scheduler_conres_expiry_test : public scheduler_test_simulator,
@@ -484,12 +486,18 @@ protected:
 
     // Create cell.
     auto cell_cfg_req = sched_config_helper::make_default_sched_cell_configuration_request(builder_params);
-    if (ntn_cs_koffset != std::chrono::milliseconds{0}) {
+    if (ntn_cs_koffset != std::chrono::milliseconds{0} || GetParam().ntn_k_mac != 0) {
       cell_cfg_req.ran.ntn_params.emplace();
-      cell_cfg_req.ran.ntn_params->ntn_cfg.cell_specific_koffset = ntn_cs_koffset;
+      if (ntn_cs_koffset != std::chrono::milliseconds{0}) {
+        cell_cfg_req.ran.ntn_params->ntn_cfg.cell_specific_koffset = ntn_cs_koffset;
+      }
+      if (GetParam().ntn_k_mac != 0) {
+        cell_cfg_req.ran.ntn_params->ntn_cfg.k_mac = std::chrono::milliseconds{GetParam().ntn_k_mac};
+      }
     }
     add_cell(cell_cfg_req);
-    nof_rtt_slots    = ntn_cs_koffset.count() * next_slot.nof_slots_per_subframe();
+    // No PRACH slot for this UE, so the window is anchored on the Msg3 reception slot, already on the gNB DL clock,
+    // and is the plain timer. With a PRACH slot it would move with the K-offset and k_mac.
     conres_win_slots = cell_cfg(cell_index).params.ul_cfg_common.init_ul_bwp.rach_cfg_common->ra_con_res_timer.count() *
                        next_slot.nof_slots_per_subframe();
   }
@@ -503,14 +511,13 @@ protected:
     ul_ccch_slot_rx           = next_slot.without_hyper_sfn() - ue_creation_delay_slots;
     ue_cfg.ul_ccch_slot_rx    = ul_ccch_slot_rx;
     scheduler_test_simulator::add_ue(ue_cfg, false);
-    conres_expiry_slot = ul_ccch_slot_rx + conres_win_slots + nof_rtt_slots;
+    conres_expiry_slot = ul_ccch_slot_rx + conres_win_slots;
   }
 
   cell_config_builder_params builder_params{cell_config_builder_profiles::create(duplex_mode::TDD)};
   const du_cell_index_t      cell_index = to_du_cell_index(0);
   const du_ue_index_t        ue_index   = to_du_ue_index(0);
   const rnti_t               rnti       = to_rnti(0x4601);
-  unsigned                   nof_rtt_slots;
   unsigned                   conres_win_slots;
   slot_point                 ul_ccch_slot_rx;
   slot_point                 conres_expiry_slot;
@@ -520,7 +527,7 @@ TEST_P(scheduler_conres_expiry_test, when_conres_ce_arrives_after_conres_timer_e
 {
   // Create UE with a delay large enough that the ConRes timer is already expired at creation time. The
   // auto-injected ConRes CE should be immediately discarded by the scheduler.
-  create_ue(conres_win_slots + nof_rtt_slots + test_rng::uniform_int<unsigned>(0, 10));
+  create_ue(conres_win_slots + test_rng::uniform_int<unsigned>(0, 10));
 
   // Ensure the ConRes CE is not scheduled.
   ASSERT_FALSE(this->run_slot_until(
@@ -530,7 +537,7 @@ TEST_P(scheduler_conres_expiry_test, when_conres_ce_arrives_after_conres_timer_e
 TEST_P(scheduler_conres_expiry_test, when_conres_retx_goes_after_conres_timer_expiry_it_is_not_scheduled)
 {
   // Create UE with a delay close to the ConRes window so the first newTx is scheduled near expiry.
-  create_ue(conres_win_slots + nof_rtt_slots - 10);
+  create_ue(conres_win_slots - 10);
   auto pdsch_is_sched = [this]() { return find_ue_pdsch(rnti, *this->last_sched_result(cell_index)) != nullptr; };
 
   // Get closer to the conRes expiry slot (0 iterations with the chosen delay).
@@ -563,12 +570,12 @@ TEST_P(scheduler_conres_expiry_test, when_conres_retx_goes_after_conres_timer_ex
   ASSERT_FALSE(this->run_slot_until(pdsch_is_sched, 100));
 }
 
-TEST_P(scheduler_conres_expiry_test, when_ntn_cell_conres_timer_extended_with_rtt)
+TEST_P(scheduler_conres_expiry_test, when_conres_ce_arrives_within_conres_timer_then_pdsch_is_scheduled)
 {
   OCUDU_TEST_REQUIREMENTS("DU-NTN-TIM-1");
 
-  // Create UE with a delay equal to conres_win_slots when NTN RTT extension is enabled.
-  create_ue(nof_rtt_slots > 0 ? conres_win_slots : 0);
+  // Create the UE with no delay, so the ConRes window is wide open in both terrestrial and NTN cells.
+  create_ue();
   static constexpr unsigned msg4_size = 128;
   auto pdsch_is_sched = [this]() { return find_ue_pdsch(rnti, *this->last_sched_result(cell_index)) != nullptr; };
 
@@ -580,9 +587,16 @@ TEST_P(scheduler_conres_expiry_test, when_ntn_cell_conres_timer_extended_with_rt
 
 INSTANTIATE_TEST_SUITE_P(scheduler_conres_expiry_test,
                          scheduler_conres_expiry_test,
-                         ::testing::Values(conres_expiry_params{subcarrier_spacing::kHz30, 0},
-                                           conres_expiry_params{subcarrier_spacing::kHz30, 240},
-                                           conres_expiry_params{subcarrier_spacing::kHz30, 480}));
+                         ::testing::Values(
+                             // Non-NTN baseline.
+                             conres_expiry_params{subcarrier_spacing::kHz30, 0, 0},
+                             // NTN with koffset only.
+                             conres_expiry_params{subcarrier_spacing::kHz30, 240, 0},
+                             conres_expiry_params{subcarrier_spacing::kHz30, 480, 0},
+                             // NTN with k_mac only (DL/UL timing offset at gNB, koffset absent).
+                             conres_expiry_params{subcarrier_spacing::kHz30, 0, 10},
+                             // NTN with both koffset and k_mac.
+                             conres_expiry_params{subcarrier_spacing::kHz30, 240, 10}));
 
 /// Fallback DL scheduling in an NTN cell, with HARQ-ACKs k1 + Koffset slots after the PDSCH, as per TS 38.213,
 /// Section 9.

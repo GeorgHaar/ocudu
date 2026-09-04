@@ -11,6 +11,7 @@
 #include "tests/test_doubles/scheduler/scheduler_config_helper.h"
 #include "tests/unittests/scheduler/test_utils/config_generators.h"
 #include "tests/unittests/scheduler/test_utils/dummy_test_components.h"
+#include "ocudu/mac/mac_pdu_format.h"
 #include "ocudu/scheduler/config/scheduler_expert_config_factory.h"
 #include "ocudu/scheduler/config/serving_cell_config_factory.h"
 #include <gtest/gtest.h>
@@ -292,4 +293,119 @@ TEST_F(cfra_ue_repository_test, cfra_msg3_acked_is_noop_when_not_in_pending_cfra
   ASSERT_EQ(ue_db[ue_idx].get_pcell().get_pcell_state().conres_st, ue_conres_state::conres_completed);
   ASSERT_FALSE(ue_db.cfra_msg3_acked(ue_idx));
   ASSERT_EQ(ue_db[ue_idx].get_pcell().get_pcell_state().conres_st, ue_conres_state::conres_completed);
+}
+
+/// \brief Test fixture of an NTN cell, where an uplink transmission of the UE reaches the gNB the cell-specific
+/// Koffset and k_mac after the downlink that granted it.
+class ntn_ue_repository_test : public ::testing::Test
+{
+protected:
+  /// Cell-specific Koffset, which the UE adds to its own uplink.
+  static constexpr std::chrono::milliseconds cell_koffset{30};
+  /// \brief Slots the uplink of the UE takes to reach the gNB on top of the Koffset.
+  ///
+  /// Larger than the processing time of a TA command, so that the slots it adds to the window of stale N_TA updates
+  /// are told apart from the ones the Koffset adds.
+  static constexpr std::chrono::milliseconds k_mac{20};
+  /// TA command the reported N_TA updates lead to, far enough from the zero offset of 31 to cross the threshold.
+  static constexpr uint8_t reported_ta_cmd = 33;
+
+  ntn_ue_repository_test() :
+    expert_cfg(config_helpers::make_default_scheduler_expert_config()),
+    cfg_mng(scheduler_config{expert_cfg, metric_notif}),
+    sched_cfg(make_ntn_sched_cfg()),
+    cell_cfg(*cfg_mng.add_cell(sched_cfg)),
+    ue_db(expert_cfg.ue),
+    next_sl_tx(cell_cfg.scs_common(), 0)
+  {
+    ue_db.register_cell(cell_ues);
+  }
+
+  static sched_cell_configuration_request_message make_ntn_sched_cfg()
+  {
+    cell_config_builder_params params;
+    auto                       req = sched_config_helper::make_default_sched_cell_configuration_request(params);
+    req.ran.ntn_params.emplace();
+    req.ran.ntn_params->ntn_cfg.cell_specific_koffset = cell_koffset;
+    req.ran.ntn_params->ntn_cfg.k_mac                 = k_mac;
+    return req;
+  }
+
+  du_ue_index_t add_ue()
+  {
+    sched_ue_creation_request_message ue_req = sched_config_helper::create_default_sched_ue_creation_request(
+        cell_cfg.params, std::array<lcid_t, 3>{lcid_t::LCID_SRB1, lcid_t::LCID_SRB2, lcid_t::LCID_MIN_DRB});
+    ue_config_update_event  ev     = cfg_mng.add_ue(ue_req);
+    const ue_configuration& ue_cfg = ev.next_config();
+    ue_db.add_ue(ue_cfg, {sched_config_helper::to_ue_creation_mode(ue_req), ue_req.ul_ccch_slot_rx});
+    ev.notify_completion();
+    return ue_req.ue_index;
+  }
+
+  void run_slot() { ue_db.slot_indication(++next_sl_tx); }
+
+  /// Reports an N_TA update of the UE that the TA manager turns into \c reported_ta_cmd.
+  void report_n_ta_update(du_ue_index_t ue_idx)
+  {
+    // N_TA update in T_C units, as per TS 38.213, Section 4.2, where 31 is the TA command leaving the offset in place.
+    const int64_t n_ta_diff = (static_cast<int64_t>(reported_ta_cmd) - 31) * 16 * 64 /
+                              static_cast<int64_t>(1U << to_numerology_value(cell_cfg.scs_common()));
+    ue_db[ue_idx].handle_ul_n_ta_update_indication(time_alignment_group::id_t{0},
+                                                   phy_time_unit::from_units_of_Tc(n_ta_diff),
+                                                   expert_cfg.ue.ta_control.update_measurement_ul_sinr_threshold + 10);
+  }
+
+  /// Returns whether the UE holds a TA command, which the call consumes.
+  bool fetch_ta_cmd(du_ue_index_t ue_idx)
+  {
+    const lcid_dl_sch_t lcid            = lcid_dl_sch_t::TA_CMD;
+    const unsigned      remaining_bytes = lcid.sizeof_ce() + FIXED_SIZED_MAC_CE_SUBHEADER_SIZE + 3;
+    dl_msg_lc_info      subpdu{};
+    return ue_db[ue_idx].logical_channels().allocate_mac_ce(subpdu, remaining_bytes) > 0;
+  }
+
+  scheduler_expert_config                  expert_cfg;
+  sched_cfg_dummy_notifier                 metric_notif;
+  sched_config_manager                     cfg_mng;
+  sched_cell_configuration_request_message sched_cfg;
+  const cell_configuration&                cell_cfg;
+  ue_cell_repository                       cell_ues{cell_cfg, nullptr};
+  ue_repository                            ue_db;
+  slot_point                               next_sl_tx;
+};
+
+/// \brief The measurements the TA manager discards after a TA command cover k_mac.
+///
+/// The UE applies a TA command in an uplink slot past its Koffset, as per TS 38.213, Section 4.2, and the first
+/// uplink it sends with the new timing reaches the gNB k_mac slots later still. Every N_TA update measured until
+/// then carries the timing the command already corrects, so acting on one corrects the same offset twice.
+TEST_F(ntn_ue_repository_test, n_ta_updates_are_discarded_until_an_uplink_with_the_new_timing_reaches_the_gnb)
+{
+  ASSERT_GT(cell_cfg.ntn_cs_koffset, 0U);
+  ASSERT_GT(cell_cfg.ntn_k_mac_slots, 0U);
+
+  const du_ue_index_t ue_idx = add_ue();
+  run_slot();
+
+  report_n_ta_update(ue_idx);
+  bool ta_cmd_sent = false;
+  for (unsigned count = 0; count != expert_cfg.ue.ta_control.measurement_period and not ta_cmd_sent; ++count) {
+    run_slot();
+    ta_cmd_sent = fetch_ta_cmd(ue_idx);
+  }
+  ASSERT_TRUE(ta_cmd_sent) << "No TA command was sent for the UE";
+
+  const unsigned stale_slots =
+      expert_cfg.ue.ta_control.measurement_prohibit_period + cell_cfg.ntn_cs_koffset + cell_cfg.ntn_k_mac_slots;
+  for (unsigned count = 0; count != stale_slots; ++count) {
+    report_n_ta_update(ue_idx);
+    run_slot();
+    ASSERT_FALSE(fetch_ta_cmd(ue_idx)) << "A TA command was sent for an N_TA update measured before the uplink of the "
+                                          "UE carried the previous one";
+  }
+  for (unsigned count = 0; count != expert_cfg.ue.ta_control.measurement_period; ++count) {
+    run_slot();
+    ASSERT_FALSE(fetch_ta_cmd(ue_idx))
+        << "N_TA updates measured before the uplink of the UE carried the previous TA command were not discarded";
+  }
 }

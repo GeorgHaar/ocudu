@@ -104,20 +104,23 @@ static void add_prach_occasion(cell_slot_resource_allocator& slot_alloc, const p
 
 void prach_scheduler::run_slot(cell_resource_allocator& res_grid)
 {
+  // The PDU for UL occasion sl is written at sl + k_mac, so stop the scan k_mac short of the ring end.
+  // NOTE: Min value of cell_resource_allocator.max_ul_slot_alloc_delay is 20, max value of prach_length_slots is 7.
+  const unsigned k_mac            = cell_cfg.ntn_k_mac_slots;
+  const unsigned last_prach_delay = res_grid.max_ul_slot_alloc_delay - td_mapper().prach_burst_length_slots() - k_mac;
+
   if (OCUDU_UNLIKELY(first_slot_ind)) {
     // If called for the first time, pre-allocates the PRACH PDUs over the entire grid, until the last
     // (farthest in the future) usable slot.
     first_slot_ind = false;
-    // NOTE: Min value of cell_resource_allocator.max_ul_slot_alloc_delay is 20, max value of prach_length_slots is 7.
-    for (unsigned sl = 0; sl < (res_grid.max_ul_slot_alloc_delay - td_mapper().prach_burst_length_slots() + 1); ++sl) {
+    for (unsigned sl = 0; sl <= last_prach_delay; ++sl) {
       allocate_slot_prach_pdus(res_grid, res_grid[sl].slot);
     }
     return;
   }
 
   // Pre-allocate PRACH PDU in the last slot.
-  allocate_slot_prach_pdus(res_grid,
-                           res_grid[res_grid.max_ul_slot_alloc_delay - td_mapper().prach_burst_length_slots()].slot);
+  allocate_slot_prach_pdus(res_grid, res_grid[last_prach_delay].slot);
 }
 
 void prach_scheduler::stop()
@@ -133,21 +136,26 @@ void prach_scheduler::allocate_slot_prach_pdus(cell_resource_allocator& res_grid
     return;
   }
 
+  // k_mac is the RP-to-gNB round trip (TS 38.300 Section 16.14.2.1), so a preamble sent in UE uplink slot sl is
+  // captured k_mac slots later on the gNB downlink clock this grid is indexed by. Place the detection PDU at that
+  // capture slot so the lower PHY finds it.
   for (const cached_prach_occasion& cached_prach : cached_prachs) {
     if (td_mapper().has_long_preamble()) {
       // Reserve RBs and symbols of the PRACH occasion in the resource grid for each grant (over multiple slots) of the
       // preamble.
       for (unsigned sl_idx = 0; sl_idx != td_mapper().prach_burst_length_slots(); ++sl_idx) {
-        res_grid[sl + sl_idx].ul_res_grid.fill(cached_prach.grant_list[sl_idx]);
+        res_grid[cell_cfg.ue_ul_to_dl_slot(sl + sl_idx)].ul_res_grid.fill(cached_prach.grant_list[sl_idx]);
       }
       // Add PRACH occasion to scheduler slot output (one PRACH PDU per preamble).
-      add_prach_occasion(res_grid[sl], cached_prach.occasion);
+      add_prach_occasion(res_grid[cell_cfg.ue_ul_to_dl_slot(sl)], cached_prach.occasion);
     } else {
       // Reserve RBs and symbols of the PRACH occasion in the resource grid for each grant (over 1 or 2 slots) of the
       // preamble and add the PRACH occasions to scheduler slot output (1 or 2 PRACH PDU per burst of PRACH
       // opportunities, depending on whether this burst repeats over 1 or 2 slots).
-      res_grid[sl].ul_res_grid.fill(cached_prach.grant_list[sl.slot_index() % td_mapper().prach_burst_length_slots()]);
-      add_prach_occasion(res_grid[sl], cached_prach.occasion);
+      // Grant selection uses the UL occasion slot sl, not sl + k_mac.
+      res_grid[cell_cfg.ue_ul_to_dl_slot(sl)].ul_res_grid.fill(
+          cached_prach.grant_list[sl.slot_index() % td_mapper().prach_burst_length_slots()]);
+      add_prach_occasion(res_grid[cell_cfg.ue_ul_to_dl_slot(sl)], cached_prach.occasion);
     }
   }
 }

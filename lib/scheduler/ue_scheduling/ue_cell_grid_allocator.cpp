@@ -862,8 +862,9 @@ ue_cell_grid_allocator::select_pusch_repetitions(const ue_cell&           ue_cc,
       return std::nullopt;
     }
 
-    // Then a Configured Grant occasion of this UE, which the dynamic grant would have it transmit on top of.
-    if (ue_cc.get_conf_grant_state_manager().is_cg_slot(occasion_slot)) {
+    // Then a Configured Grant occasion of this UE, which the dynamic grant would have it transmit on top of. The CG
+    // period and offset are in the UE uplink slot numbering, the occasion slot is on the gNB DL clock.
+    if (ue_cc.get_conf_grant_state_manager().is_cg_slot(cell_cfg.dl_to_ue_ul_slot(occasion_slot))) {
       if (logger.debug.enabled()) {
         logger.debug("ue={} rnti={}: PUSCH repetition bundle rejected at slot={}. Cause: occasion slot={} is a "
                      "Configured Grant occasion of this UE.",

@@ -45,8 +45,10 @@ void uci_scheduler_impl::stop()
 
 void uci_scheduler_impl::add_resource(rnti_t crnti, unsigned res_offset, unsigned res_period, bool is_sr)
 {
+  // The wheel is indexed by DL slot, the SR/CSI offsets by UE UL slot.
+  const unsigned wheel_start = cell_cfg.ue_ul_to_dl_slot_offset(res_offset, res_period);
   // For each offset in the periodic UCI slot wheel.
-  for (unsigned wheel_offset = res_offset; wheel_offset < periodic_uci_slot_wheel.size(); wheel_offset += res_period) {
+  for (unsigned wheel_offset = wheel_start; wheel_offset < periodic_uci_slot_wheel.size(); wheel_offset += res_period) {
     auto& slot_wheel = periodic_uci_slot_wheel[wheel_offset];
 
     // Check if the UE is already in the slot wheel.
@@ -77,7 +79,8 @@ void uci_scheduler_impl::rem_resource(rnti_t crnti, unsigned res_offset, unsigne
                  res_offset);
   };
 
-  for (unsigned wheel_offset = res_offset; wheel_offset < periodic_uci_slot_wheel.size(); wheel_offset += res_period) {
+  const unsigned wheel_start = cell_cfg.ue_ul_to_dl_slot_offset(res_offset, res_period);
+  for (unsigned wheel_offset = wheel_start; wheel_offset < periodic_uci_slot_wheel.size(); wheel_offset += res_period) {
     auto& slot_wheel = periodic_uci_slot_wheel[wheel_offset];
 
     auto* it = std::find_if(slot_wheel.begin(), slot_wheel.end(), [crnti](const auto& r) { return r.rnti == crnti; });

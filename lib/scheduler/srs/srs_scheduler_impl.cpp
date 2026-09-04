@@ -469,7 +469,9 @@ void srs_scheduler_impl::add_resource(rnti_t                 crnti,
 {
   // Add UE-SRS resource element for each offset in the periodic SRS slot wheel.
   auto srs_period = static_cast<unsigned>(res_period);
-  for (unsigned wheel_offset = res_offset, wheel_size = periodic_srs_slot_wheel.size(); wheel_offset < wheel_size;
+  // The wheel is indexed by DL slot, the SRS period/offset by UE UL slot.
+  const unsigned wheel_start = cell_cfg.ue_ul_to_dl_slot_offset(res_offset, srs_period);
+  for (unsigned wheel_offset = wheel_start, wheel_size = periodic_srs_slot_wheel.size(); wheel_offset < wheel_size;
        wheel_offset += srs_period) {
     auto& slot_wheel = periodic_srs_slot_wheel[wheel_offset];
 
@@ -485,7 +487,8 @@ void srs_scheduler_impl::add_resource(rnti_t                 crnti,
       logger.error("rnti={}: SRS resource id={} with period={} and offset={} already exists in the SRS slot wheel",
                    crnti,
                    fmt::underlying(res_id),
-                   fmt::underlying(res_period));
+                   fmt::underlying(res_period),
+                   res_offset);
     }
   }
 }
@@ -495,9 +498,10 @@ void srs_scheduler_impl::rem_resource(rnti_t                 crnti,
                                       unsigned               res_offset,
                                       srs_config::srs_res_id res_id)
 {
-  // For each offset in the periodic SRS slot wheel.
-  auto srs_period = static_cast<unsigned>(res_period);
-  for (unsigned wheel_offset = res_offset, wheel_size = periodic_srs_slot_wheel.size(); wheel_offset < wheel_size;
+  // For each offset in the periodic SRS slot wheel. The registration was shifted by k_mac in add_resource().
+  auto           srs_period  = static_cast<unsigned>(res_period);
+  const unsigned wheel_start = cell_cfg.ue_ul_to_dl_slot_offset(res_offset, srs_period);
+  for (unsigned wheel_offset = wheel_start, wheel_size = periodic_srs_slot_wheel.size(); wheel_offset < wheel_size;
        wheel_offset += srs_period) {
     auto& slot_wheel = periodic_srs_slot_wheel[wheel_offset];
 

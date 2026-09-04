@@ -575,7 +575,7 @@ static std::optional<uci_allocation> allocate_ue_fallback_pucch(ue&             
     static_vector<uint8_t, pucch_td_helper::MAX_K1_CANDIDATES> filtered_k1;
     for (const uint8_t k1_candidate : k1_values) {
       if (not u.get_pcell().get_conf_grant_state_manager().is_cg_slot(
-              pdsch_slot + res_alloc.cfg.ul_delay(k1_candidate + ntn_koffset))) {
+              res_alloc.cfg.dl_to_ue_ul_slot(pdsch_slot + res_alloc.cfg.ul_delay(k1_candidate + ntn_koffset)))) {
         filtered_k1.push_back(k1_candidate);
       }
     }
@@ -594,7 +594,7 @@ static std::optional<uci_allocation> allocate_ue_fallback_pucch(ue&             
       // If it is not UL-enabled slot.
       continue;
     }
-    if (u.get_pcell().get_conf_grant_state_manager().is_cg_slot(uci_slot)) {
+    if (u.get_pcell().get_conf_grant_state_manager().is_cg_slot(res_alloc.cfg.dl_to_ue_ul_slot(uci_slot))) {
       // TODO: This is only valid for CG type1, remove for type 2.
       // We do not allocate PUCCHs on slots that are for Configured Grant; if that were the case, we would need to
       // multiplex the UCI on the CG PUSCH. The problem with this is that we can't be sure that the UE decodes the PDSCH
@@ -1121,7 +1121,7 @@ ue_fallback_scheduler::ul_srb_sched_outcome ue_fallback_scheduler::schedule_ul_u
     const slot_point              pusch_slot  = pusch_alloc.slot;
 
     // Skip PUSCH allocation if this is a Configured Grant slot, to avoid collision with CG PUSCH.
-    if (u.get_pcell().get_conf_grant_state_manager().is_cg_slot(pusch_slot)) {
+    if (u.get_pcell().get_conf_grant_state_manager().is_cg_slot(cell_cfg.dl_to_ue_ul_slot(pusch_slot))) {
       continue;
     }
 

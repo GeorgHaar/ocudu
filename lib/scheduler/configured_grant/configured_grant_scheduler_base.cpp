@@ -221,8 +221,10 @@ bool configured_grant_scheduler_base::allocate_cg_opportunity(cell_slot_resource
                cg_cfg.nof_harq_processes);
 
   static constexpr unsigned nof_harq_retx = 0;
-  const harq_id_t           h_id =
-      get_cg_harq_id(pusch_slot, pusch_params.symbols.start(), cg_periodicity, cg_cfg.nof_harq_processes);
+  // TS 38.321 Section 5.4.1 derives the HARQ process from CURRENT_symbol, counted in the UE uplink frame; pusch_slot
+  // is the gNB grid slot, k_mac ahead of it. Undo k_mac so both ends pick the same process for the occasion.
+  const harq_id_t h_id = get_cg_harq_id(
+      cell_cfg.dl_to_ue_ul_slot(pusch_slot), pusch_params.symbols.start(), cg_periodicity, cg_cfg.nof_harq_processes);
   const unsigned cg_harq_timeout = cg_configuration::configured_grant_timer * static_cast<unsigned>(cg_periodicity);
   auto           h_ul =
       ue_cc->harqs.alloc_ul_harq(pusch_slot, pusch_slot, nof_harq_retx, cg_harq_alloc_params{h_id, cg_harq_timeout});

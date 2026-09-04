@@ -123,13 +123,17 @@ class ra_scheduler::cached_bwp_info
 {
 public:
   cached_bwp_info(const cell_configuration& cfg, const prach_helper::preamble_slot_mapping& preamble_td_mapper_) :
-    preamble_td_mapper(preamble_td_mapper_)
+    preamble_td_mapper(preamble_td_mapper_), cell_cfg(cfg)
   {
     fill_msga_pusch_info(cfg);
   }
 
   /// Whether a MsgA PUSCH can be scheduled in this slot.
-  bool is_msga_pusch_slot(slot_point sl) const { return preamble_td_mapper.has_prach_occasion(sl - msga_td_offset); }
+  /// \note \c sl is on the gNB DL clock, where the MsgA PUSCH lands at prach_slot_rx + td_offset; subtract k_mac.
+  bool is_msga_pusch_slot(slot_point sl) const
+  {
+    return preamble_td_mapper.has_prach_occasion(cell_cfg.dl_to_ue_ul_slot(sl) - msga_td_offset);
+  }
 
   /// Pre-reserved space in the resource grid for MsgA PUSCH.
   /// \note This space needs to pre-reserved in advance so that other PUSCH/PUCCH grants occupy it.
@@ -138,6 +142,7 @@ public:
 private:
   const prach_helper::preamble_slot_mapping& preamble_td_mapper;
   unsigned                                   msga_td_offset = 0;
+  const cell_configuration&                  cell_cfg;
 
   void fill_msga_pusch_info(const cell_configuration& cfg)
   {
@@ -359,7 +364,11 @@ ra_scheduler::get_preamble_ssb_index(slot_point prach_slot_rx, unsigned fd_occas
 {
   // The lower layers do not report the time-domain occasion index, so only the first occasion of the PRACH slot is
   // resolved. The configuration validator rejects time multiplexed occasions when more than one SSB beam is active.
-  return ssb_ro_map.get_ssb_index(prach_slot_rx, 0, fd_occasion_idx, preamble_id);
+  // PRACH occasions are located by the tables of TS 38.211 Section 6.3.3.2, keyed by frame, subframe and slot number
+  // in the uplink frame the UE transmits in (TS 38.211 Section 4.3.1); the SS/PBCH-to-RO association period built on
+  // them is anchored at frame 0 (TS 38.213 Section 8.1). prach_slot_rx is the slot the preamble was captured in, which
+  // this scheduler runs k_mac ahead of, so undo k_mac before indexing the association table.
+  return ssb_ro_map.get_ssb_index(cell_cfg.dl_to_ue_ul_slot(prach_slot_rx), 0, fd_occasion_idx, preamble_id);
 }
 
 void ra_scheduler::handle_msg1_occasion(const rach_indication_message::occasion&      occ,
@@ -1986,7 +1995,7 @@ void ra_scheduler::schedule_pending_msgbs(cell_resource_allocator& res_alloc, sl
                              pdsch_time_res_index,
                              sched_cfg.rar_mcs_index,
                              msgb_resp_window_ms,
-                             msgb.prach_slot_rx.sfn());
+                             cell_cfg.dl_to_ue_ul_slot(msgb.prach_slot_rx).sfn());
     pdsch_alloc.dl_res_grid.fill(grant_info{dl_scs, pdsch_td_list[pdsch_time_res_index].symbols, msgb_crbs});
 
     // Room was checked before the PDCCH and the MsgB HARQ-ACK PUCCHs were allocated.

@@ -59,8 +59,13 @@ public:
 
   ///@}
 
-  /// Cell-specific K-offset in slots defined by the cell subcarrier spacing.
+  /// Cell-specific K-offset in slots at the cell SCS (K_cell,offset, TS 38.213 Section 4.2), broadcast in SIB19 and
+  /// applied by the UE itself. Never add it to a delay without k_mac; use the conversions below.
   unsigned ntn_cs_koffset;
+
+  /// k_mac in slots at the cell SCS, non-zero when the Common TA does not cover the whole feeder link.
+  /// A clock skew, not a scheduling offset: the UE never adds it to a transmission time.
+  unsigned ntn_k_mac_slots;
 
   /// \brief Uplink timing advance T_TA of a UE at the cell reference location, see
   /// \c ntn_cell_params::ref_location_ul_ta. Absent in a terrestrial cell, and in an NTN cell that configures no
@@ -70,6 +75,44 @@ public:
   std::optional<std::chrono::microseconds> ntn_ref_location_ul_ta;
 
   subcarrier_spacing scs_common() const { return params.dl_cfg_common.init_dl_bwp.generic_params.scs; }
+
+  /// \name NTN clock conversions
+  ///
+  /// DL and UL frame timing are misaligned at the gNB by k_mac (TS 38.300 Section 16.14.2.1): a UE uplink
+  /// transmission at its UL slot p reaches the gNB antenna at DL clock slot p + k_mac. The scheduler runs on the gNB
+  /// DL clock, so anything expressed in the UE uplink frame numbering crosses through one of these. All of them are
+  /// the identity in a terrestrial cell.
+  ///
+  /// Which one to use follows from who derives the time:
+  /// - the UE derives it on its own - PRACH occasions, the periodic SR, CSI and SRS occasions, the Type 1 configured
+  ///   grant wheel, the RA-RNTI t_id: \c dl_to_ue_ul_slot, \c ue_ul_to_dl_slot and \c ue_ul_to_dl_slot_offset;
+  /// - the gNB schedules it, so TS 38.213 states the relation as k1 or k2 plus \c ntn_cs_koffset: \c ul_delay,
+  ///   which the caller indexes the grid with. k_mac is not part of the relation, only of the conversion;
+  /// - it is neither, but a depth that has to outlive an outstanding uplink allocation - a ring size, a staleness
+  ///   window: \c ntn_ul_alloc_delay_slots.
+  ///
+  /// MAC timers defined against the UE-gNB RTT need none of these. One anchored on an uplink reception does: see
+  /// \c conres_win_start for the ra-ContentionResolutionTimer.
+  /// @{
+
+  /// Converts a slot on the gNB DL clock into the UE UL slot whose transmission arrives there.
+  slot_point dl_to_ue_ul_slot(slot_point dl_sl) const { return dl_sl - ntn_k_mac_slots; }
+
+  /// Converts a UE UL slot into the slot on the gNB DL clock where that transmission arrives.
+  slot_point ue_ul_to_dl_slot(slot_point ue_ul_sl) const { return ue_ul_sl + ntn_k_mac_slots; }
+
+  /// As \c ue_ul_to_dl_slot, for a delay rather than a slot.
+  unsigned ul_delay(unsigned ue_ul_delay) const { return ue_ul_delay + ntn_k_mac_slots; }
+
+  /// As \c ue_ul_to_dl_slot, for the periodic slot wheels keyed by offset within \c period.
+  unsigned ue_ul_to_dl_slot_offset(unsigned ue_ul_offset, unsigned period) const
+  {
+    return ul_delay(ue_ul_offset) % period;
+  }
+
+  /// The whole UE-gNB round trip in slots: the K-offset the UE applies itself, converted to the gNB DL clock.
+  unsigned ntn_ul_alloc_delay_slots() const { return ntn_cs_koffset + ntn_k_mac_slots; }
+  /// @}
 
   /// Checks if the cell is configured in TDD mode.
   bool is_tdd() const { return params.tdd_cfg.has_value(); }

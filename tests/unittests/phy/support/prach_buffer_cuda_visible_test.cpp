@@ -31,12 +31,12 @@ protected:
   void SetUp() override
   {
     if (!has_cuda_device()) {
-      GTEST_SKIP() << "No CUDA device available";
+      FAIL() << "No CUDA device available";
     }
 
     buffer = create_prach_buffer_cuda_visible(nof_antennas, nof_td_occasions, nof_fd_occasions, true);
     if (buffer == nullptr) {
-      GTEST_SKIP() << "No CUDA device is available for a shared PRACH buffer";
+      FAIL() << "No CUDA device is available for a shared PRACH buffer";
     }
   }
 

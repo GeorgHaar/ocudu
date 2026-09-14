@@ -131,7 +131,7 @@ TEST_P(prach_detector_cuda_fixture, matches_cpu_detection_for_known_preamble)
 {
   detector_pair detectors = create_detectors(always_offload);
   if (detectors.gpu == nullptr) {
-    GTEST_SKIP() << "No CUDA device is available for the PRACH detector";
+    FAIL() << "No CUDA device is available for the PRACH detector";
   }
 
   test_case                     test   = GetParam();
@@ -167,7 +167,7 @@ TEST(prach_detector_cuda, zero_input_does_not_create_false_preamble)
 {
   detector_pair detectors = create_detectors(always_offload);
   if (detectors.gpu == nullptr) {
-    GTEST_SKIP() << "No CUDA device is available for the PRACH detector";
+    FAIL() << "No CUDA device is available for the PRACH detector";
   }
 
   test_case                     test{prach_format_type::B4, prach_subcarrier_spacing::kHz30, 14, 2, 20};
@@ -189,7 +189,7 @@ TEST(prach_detector_cuda, awgn_false_alarm_rate_matches_cpu)
 {
   detector_pair detectors = create_detectors(always_offload);
   if (detectors.gpu == nullptr) {
-    GTEST_SKIP() << "No CUDA device is available for the PRACH detector";
+    FAIL() << "No CUDA device is available for the PRACH detector";
   }
 
   test_case                     test{prach_format_type::zero, prach_subcarrier_spacing::kHz1_25, 0, 1, 0};
@@ -229,7 +229,7 @@ TEST(prach_detector_cuda, narrowed_preamble_range_regenerates_the_root_sequences
 {
   detector_pair detectors = create_detectors(always_offload);
   if (detectors.gpu == nullptr) {
-    GTEST_SKIP() << "No CUDA device is available for the PRACH detector";
+    FAIL() << "No CUDA device is available for the PRACH detector";
   }
 
   test_case                     test{prach_format_type::zero, prach_subcarrier_spacing::kHz1_25, 0, 1, 40};
@@ -262,7 +262,7 @@ TEST(prach_detector_cuda, occasion_below_the_offload_limit_matches_the_generic_d
   // Limits no occasion in this test can reach.
   detector_pair detectors = create_detectors({.min_short_preamble_work = 4096, .min_long_preamble_work = 4096});
   if (detectors.gpu == nullptr) {
-    GTEST_SKIP() << "No CUDA device is available for the PRACH detector";
+    FAIL() << "No CUDA device is available for the PRACH detector";
   }
 
   test_case                     test{prach_format_type::zero, prach_subcarrier_spacing::kHz1_25, 0, 1, 12, 8};

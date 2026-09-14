@@ -42,7 +42,7 @@ protected:
   void SetUp() override
   {
     if (!has_cuda_device()) {
-      GTEST_SKIP() << "No CUDA device available";
+      FAIL() << "No CUDA device available";
     }
 
     // The tables the checksum kernels index are populated once per process.

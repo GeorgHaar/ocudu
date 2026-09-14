@@ -32,7 +32,7 @@ protected:
   void SetUp() override
   {
     if (!has_cuda_device()) {
-      GTEST_SKIP() << "No CUDA device available";
+      FAIL() << "No CUDA device available";
     }
 
     host_factory = create_resource_grid_factory();
@@ -40,7 +40,7 @@ protected:
 
     factory = create_resource_grid_factory_cuda_visible(host_factory, {});
     if (factory == nullptr) {
-      GTEST_SKIP() << "No CUDA device is available for a shared resource grid";
+      FAIL() << "No CUDA device is available for a shared resource grid";
     }
 
     grid = factory->create(nof_ports, nof_symbols, nof_subc);

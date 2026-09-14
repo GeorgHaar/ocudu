@@ -42,7 +42,7 @@ protected:
   void SetUp() override
   {
     if (!has_cuda_device()) {
-      GTEST_SKIP() << "No CUDA device available";
+      FAIL() << "No CUDA device available";
     }
 
     cuda_expected<cuda_stream> created_stream = cuda_stream::create();

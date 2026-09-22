@@ -178,7 +178,7 @@ std::optional<uci_allocation> uci_allocator_impl::alloc_harq_ack(cell_resource_a
                                          ue_cell_cfg.crnti,
                                          *std::min_element(k1_list.begin(), k1_list.end()),
                                          *std::max_element(k1_list.begin(), k1_list.end()),
-                                         res_alloc.cfg.ntn_cs_koffset);
+                                         ue_cc.ntn_koffset());
 
   for (const uint8_t k1_candidate : k1_list) {
     // Step 1: Check for validity of the UCI slot and other restrictions.
@@ -192,7 +192,7 @@ std::optional<uci_allocation> uci_allocator_impl::alloc_harq_ack(cell_resource_a
     }
 
     // Retrieve the scheduling results for slot = k0 + k1;
-    cell_slot_resource_allocator& slot_alloc = res_alloc[k0 + k1_candidate + res_alloc.cfg.ntn_cs_koffset];
+    cell_slot_resource_allocator& slot_alloc = res_alloc[k0 + k1_candidate + ue_cc.ntn_koffset()];
     const slot_point              uci_slot   = slot_alloc.slot;
 
     // Check whether UCI slot is UL enabled — O(1), runs before the PUSCH scan below.

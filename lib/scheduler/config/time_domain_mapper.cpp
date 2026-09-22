@@ -240,7 +240,7 @@ ul_time_domain_mapper::find_pusch_td_res_indices(dci_ul_format          dci_form
                                                  slot_point             pdcch_slot,
                                                  slot_point             pusch_slot,
                                                  ofdm_symbol_range      usable_symbols,
-                                                 unsigned               ntn_cs_koffset,
+                                                 unsigned               ntn_koffset,
                                                  std::optional<uint8_t> nof_repetitions,
                                                  std::optional<uint8_t> retx_symbols) const
 {
@@ -259,7 +259,7 @@ ul_time_domain_mapper::find_pusch_td_res_indices(dci_ul_format          dci_form
   for (uint8_t idx : pusch_td_res_indices(dci_format, pdcch_slot.count())) {
     const pusch_time_domain_resource_allocation& pusch_td_res = pusch_td_res_list[idx];
 
-    if (pdcch_slot + pusch_td_res.k2 + ntn_cs_koffset != pusch_slot) {
+    if (pdcch_slot + pusch_td_res.k2 + ntn_koffset != pusch_slot) {
       continue;
     }
     if (not usable_symbols.contains(pusch_td_res.symbols)) {

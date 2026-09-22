@@ -304,8 +304,8 @@ ue_cell_grid_allocator::setup_dl_grant_builder(const slice_ue&                  
   // k1 from the last repetition occasion, so \c last_occasion_offset must be added on top.
   // In the case of a multi-slot PUCCH repetition burst, the HARQ-ACK feedback can only be considered lost once the
   // last repetition has been transmitted.
-  const unsigned ack_delay      = last_occasion_offset + k1 + ue_cell_cfg.cell_cfg_common.ntn_cs_koffset;
-  const unsigned last_ack_delay = last_occasion_offset + uci.k1_last_rep + ue_cell_cfg.cell_cfg_common.ntn_cs_koffset;
+  const unsigned ack_delay      = last_occasion_offset + k1 + ue_cc.ntn_koffset();
+  const unsigned last_ack_delay = last_occasion_offset + uci.k1_last_rep + ue_cc.ntn_koffset();
 
   // Allocate UE DL HARQ.
   // NOTE: With PDSCH repetitions, the HARQ-ACK is expected k1 slots after the last repetition occasion.
@@ -403,8 +403,8 @@ ue_cell_grid_allocator::set_pdsch_params(dl_grant_info&                        g
 
   // Compute TPC for PUCCH. With PDSCH repetitions, the PUCCH takes place k1 slots after the last occasion.
   const unsigned last_occasion_offset = grant.reps.has_value() ? grant.reps->nof_occasions - 1 : 0;
-  const uint8_t  tpc                  = ue_cc.get_pucch_power_controller().compute_tpc_command(
-      pdsch_alloc.slot + last_occasion_offset + k1 + ue_cell_cfg.cell_cfg_common.ntn_cs_koffset);
+  const uint8_t  tpc = ue_cc.get_pucch_power_controller().compute_tpc_command(pdsch_alloc.slot + last_occasion_offset +
+                                                                             k1 + ue_cc.ntn_koffset());
 
   // Check if is possible to allocate an aperiodic SRS.
   // NOTE: if the prohibit time is not set, the scheduler doesn't allocate any aperiodic SRS.
@@ -413,8 +413,7 @@ ue_cell_grid_allocator::set_pdsch_params(dl_grant_info&                        g
     const auto [srs_res_trigger, slot_offset] = srs_alloc.allocate_aperiodic_srs(
         cell_alloc, ue_cc.channel_state_manager().last_aperiodic_srs_slot, ue_cell_cfg);
     if (srs_res_trigger != 0) {
-      ue_cc.channel_state_manager().on_scheduled_aperiodic_srs(pdcch_alloc.slot + slot_offset +
-                                                               cell_cfg.ntn_cs_koffset);
+      ue_cc.channel_state_manager().on_scheduled_aperiodic_srs(pdcch_alloc.slot + slot_offset + ue_cc.ntn_koffset());
       aperiodic_srs_res_trigger = srs_res_trigger;
     }
   }
@@ -941,7 +940,7 @@ ue_cell_grid_allocator::setup_ul_grant_builder(const slice_ue&                  
 
   // Fetch PDCCH and PUSCH resource grid allocators.
   cell_slot_resource_allocator& pdcch_alloc = cell_alloc[0];
-  const unsigned                final_k2    = pusch_td_cfg.k2 + cell_alloc.cfg.ntn_cs_koffset;
+  const unsigned                final_k2    = pusch_td_cfg.k2 + ue_cc.ntn_koffset();
   cell_slot_resource_allocator& pusch_alloc = cell_alloc[final_k2];
   ocudu_sanity_check(not pdcch_alloc.result.dl.ul_pdcchs.full(), "Maximum number of UL PDCCH grants per slot reached");
   ocudu_sanity_check(not pusch_alloc.result.ul.puschs.full(), "No PUSCH space available in scheduler output list");
@@ -1052,7 +1051,7 @@ ue_cell_grid_allocator::set_pusch_params(ul_grant_info& grant, const vrb_interva
 
   // Fetch PDCCH and PUSCH resource grid allocators.
   cell_slot_resource_allocator& pdcch_alloc = cell_alloc[0];
-  const unsigned                final_k2    = pusch_td_cfg.k2 + cell_cfg.ntn_cs_koffset;
+  const unsigned                final_k2    = pusch_td_cfg.k2 + ue_cc.ntn_koffset();
   cell_slot_resource_allocator& pusch_alloc = cell_alloc[final_k2];
 
   if (vrbs.empty()) {
@@ -1170,8 +1169,8 @@ ue_cell_grid_allocator::set_pusch_params(ul_grant_info& grant, const vrb_interva
 
   // Compute TPC command before computing the nof_prbs adaptation based on PHR; this is because, when the TPC gets
   // computed, the channel state manager will update close-loop power control adjustment.
-  const uint8_t tpc_command = ue_cc.get_pusch_power_controller().compute_tpc_command(
-      pdcch_alloc.slot + pusch_td_cfg.k2 + cell_cfg.ntn_cs_koffset);
+  const uint8_t tpc_command =
+      ue_cc.get_pusch_power_controller().compute_tpc_command(pdcch_alloc.slot + pusch_td_cfg.k2 + ue_cc.ntn_koffset());
 
   // Check if is possible to allocate an aperiodic SRS.
   // NOTE: if the prohibit time is not set, the scheduler doesn't allocate any aperiodic SRS.
@@ -1180,8 +1179,7 @@ ue_cell_grid_allocator::set_pusch_params(ul_grant_info& grant, const vrb_interva
     const auto [srs_res_trigger, slot_offset] = srs_alloc.allocate_aperiodic_srs(
         cell_alloc, ue_cc.channel_state_manager().last_aperiodic_srs_slot, ue_cell_cfg);
     if (srs_res_trigger != 0) {
-      ue_cc.channel_state_manager().on_scheduled_aperiodic_srs(pdcch_alloc.slot + slot_offset +
-                                                               cell_cfg.ntn_cs_koffset);
+      ue_cc.channel_state_manager().on_scheduled_aperiodic_srs(pdcch_alloc.slot + slot_offset + ue_cc.ntn_koffset());
       aperiodic_srs_res_trigger = srs_res_trigger;
     }
   }

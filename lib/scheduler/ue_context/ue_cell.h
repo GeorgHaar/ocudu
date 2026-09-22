@@ -113,6 +113,12 @@ public:
   {
     return cfg().is_ul_enabled(ul_slot, shared_ctx.ta_report_tracker.last_reported_ul_ta());
   }
+
+  /// \brief Returns the Koffset in slots of the UE, as per TS 38.213, Section 4.2.
+  ///
+  /// RAR UL grants and TC-RNTI DCIs use the cell-specific Koffset instead, as per TS 38.213, Sections 8.3 and 9.
+  unsigned ntn_koffset() const { return cfg().cell_cfg_common.ntn_cs_koffset; }
+
   bool is_pdsch_enabled(slot_point pdcch_slot, slot_point pdsch_slot) const
   {
     // Verify that the DL is activated for the chosen slots (e.g. they are not UL slots in TDD or there is no measGap).

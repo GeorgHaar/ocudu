@@ -248,9 +248,10 @@ struct ul_time_domain_mapper {
   };
 
   /// \brief Get the index into \ref pusch_td_resources(dci_ul_format) const of the best-matching PUSCH TD resource
-  /// candidate for a PDCCH in \c pdcch_slot, whose k2 (plus \c ntn_cs_koffset) leads to \c pusch_slot and whose
+  /// candidate for a PDCCH in \c pdcch_slot, whose k2 (plus \c ntn_koffset) leads to \c pusch_slot and whose
   /// symbols fit within \c usable_symbols. "Best" is the longest qualifying \c symbols.length(); ties keep the first.
   /// \param dci_format Selects the common (0_0) or dedicated (0_1) TD resource list to search.
+  /// \param ntn_koffset Koffset in slots of the UE being scheduled, zero outside NTN, as per TS 38.213, Section 4.2.
   /// \param nof_repetitions Requested number of Rel-16 PUSCH repetitions (link-adaptation decision). When set, only
   /// the TDRA row carrying that numberOfRepetitions-r16 qualifies as \c selected; when unset, only
   /// single-transmission rows do.
@@ -261,7 +262,7 @@ struct ul_time_domain_mapper {
                                                    slot_point             pdcch_slot,
                                                    slot_point             pusch_slot,
                                                    ofdm_symbol_range      usable_symbols,
-                                                   unsigned               ntn_cs_koffset,
+                                                   unsigned               ntn_koffset,
                                                    std::optional<uint8_t> nof_repetitions,
                                                    std::optional<uint8_t> retx_symbols = std::nullopt) const;
 

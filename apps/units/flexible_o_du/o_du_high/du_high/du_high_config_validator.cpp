@@ -751,6 +751,23 @@ static bool validate_ntn_config(const du_high_unit_base_cell_config& cell_cfg, n
     valid = false;
   }
 
+  if (serving.ue_specific_koffset_enabled) {
+    if (not serving.ta_report_offset_threshold.has_value()) {
+      fmt::print("ntn.ue_specific_koffset_enabled requires ntn.ta_report_offset_threshold to be set.\n");
+      valid = false;
+    }
+    if (serving.ue_specific_koffset_margin >= serving.cell_specific_koffset) {
+      fmt::print("ntn.ue_specific_koffset_margin must be smaller than ntn.cell_specific_koffset.\n");
+      valid = false;
+    }
+    // T_TA may grow by the reporting threshold between reports, and the margin has to cover it.
+    if (serving.ta_report_offset_threshold.has_value() and
+        static_cast<float>(serving.ue_specific_koffset_margin.count()) < serving.ta_report_offset_threshold.value()) {
+      fmt::print("ntn.ue_specific_koffset_margin must be at least ntn.ta_report_offset_threshold.\n");
+      valid = false;
+    }
+  }
+
   if (serving.sat_switch_with_resync) {
     const auto& sw = *serving.sat_switch_with_resync;
     if (!sw.t_service_start.has_value()) {

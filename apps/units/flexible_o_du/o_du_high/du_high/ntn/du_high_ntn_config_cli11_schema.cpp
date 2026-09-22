@@ -224,6 +224,33 @@ static void configure_cli11_ntn_args(CLI::App&                             app,
              "Whether a triggered Timing Advance Report may issue a Scheduling Request")
       ->capture_default_str();
 
+  // UE-specific Koffset derived from the reported timing advance.
+  add_option(app,
+             "--ue_specific_koffset_enabled",
+             serv_cell_ntn_config.ue_specific_koffset_enabled,
+             "Whether each UE gets a Koffset derived from the timing advance it reports. Requires "
+             "ta_report_offset_threshold")
+      ->capture_default_str();
+  add_option_function<unsigned>(
+      app,
+      "--ue_specific_koffset_margin",
+      [&serv_cell_ntn_config](unsigned value) {
+        serv_cell_ntn_config.ue_specific_koffset_margin = std::chrono::milliseconds(value);
+      },
+      "Margin [ms] added to the reported T_TA when deriving a UE Koffset. Must be at least "
+      "ta_report_offset_threshold")
+      ->range(0U, 63U)
+      ->capture_default_str();
+  add_option_function<unsigned>(
+      app,
+      "--ue_specific_koffset_hysteresis",
+      [&serv_cell_ntn_config](unsigned value) {
+        serv_cell_ntn_config.ue_specific_koffset_hysteresis = std::chrono::milliseconds(value);
+      },
+      "Smallest Koffset change [ms] that triggers a new MAC CE")
+      ->range(1U, 63U)
+      ->capture_default_str();
+
   // Broadcast Ephemeris Info type in SIB19.
   add_option(app,
              "--use_state_vector",

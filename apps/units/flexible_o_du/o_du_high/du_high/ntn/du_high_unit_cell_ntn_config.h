@@ -115,6 +115,14 @@ struct du_high_unit_ntn_serving_cell_config {
   /// Lets a triggered Timing Advance Report raise a Scheduling Request when no UL grant is available
   /// (\c timingAdvanceSR). Requires the UE to support sr-TriggeredBy-TA-Report-r17.
   bool ta_report_sr_enabled = false;
+  /// \brief Whether each UE gets a Koffset derived from its reported T_TA, as per TS 38.321, Section 5.18.24.
+  ///
+  /// Requires \c ta_report_offset_threshold. Applies only to UEs indicating ue-specific-K-Offset-r17.
+  bool ue_specific_koffset_enabled = false;
+  /// Margin added to the reported T_TA. At least \c ta_report_offset_threshold.
+  std::chrono::milliseconds ue_specific_koffset_margin{2};
+  /// Smallest Koffset change that triggers a new MAC CE.
+  std::chrono::milliseconds ue_specific_koffset_hysteresis{2};
   /// Moving reference location for NTN Earth-moving cell (R18).
   std::optional<geodetic_coordinates_t> moving_ref_location;
   /// Satellite switch with resynchronization parameters (R18).

@@ -48,6 +48,13 @@ void ocudu::fill_ntn_config_in_yaml_schema(YAML::Node& node, const du_high_unit_
       ntn_node["ta_report_sr_enabled"]       = serving.ta_report_sr_enabled;
     }
 
+    ntn_node["ue_specific_koffset_enabled"] = serving.ue_specific_koffset_enabled;
+    if (serving.ue_specific_koffset_enabled) {
+      ntn_node["ue_specific_koffset_margin"] = static_cast<unsigned>(serving.ue_specific_koffset_margin.count());
+      ntn_node["ue_specific_koffset_hysteresis"] =
+          static_cast<unsigned>(serving.ue_specific_koffset_hysteresis.count());
+    }
+
     if (serving.reference_location) {
       ntn_node["reference_location"] = build_geodetic_yaml_node(*serving.reference_location, false);
     }

@@ -524,6 +524,10 @@ static ntn_cell_params make_ntn_cell_params(const du_high_unit_ntn_serving_cell_
         cfg.ta_report_sr_enabled};
   }
 
+  if (cfg.ue_specific_koffset_enabled) {
+    ntn.ue_koffset_cfg = ue_koffset_config{cfg.ue_specific_koffset_margin, cfg.ue_specific_koffset_hysteresis};
+  }
+
   // Derived from PUSCH config.
   ntn.ul_harq_mode_b = ul_harq_mode_b;
 

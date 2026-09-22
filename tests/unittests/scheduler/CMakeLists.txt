@@ -43,6 +43,7 @@ add_executable(scheduler_test
         scheduler_pusch_repetition_test.cpp
         scheduler_ue_fallback_mode_test.cpp
         scheduler_ta_cmd_test.cpp
+        scheduler_ue_koffset_test.cpp
 		scheduler_multi_cell_test.cpp
 		scheduler_multi_slice_test.cpp
         scheduler_qos_test.cpp

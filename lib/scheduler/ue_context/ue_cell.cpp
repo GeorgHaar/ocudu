@@ -103,6 +103,31 @@ std::optional<dl_harq_process_handle> ue_cell::handle_dl_ack_info(slot_point    
     return h_dl;
   }
 
+  // Only an ACK confirms the UE decoded a Differential Koffset MAC CE. Only an NTN cell signals one, and only the
+  // transport block it went out on settles it, so the scan runs for the few reports in between.
+  if (cell_cfg.ntn_cs_koffset != 0 and shared_ctx.koffset_tracker.has_pending_ce() and
+      carries_differential_koffset_ce(*h_dl)) {
+    if (ack_value == mac_harq_ack_report_status::ack) {
+      shared_ctx.koffset_tracker.handle_ce_acked();
+    } else if (not h_dl->has_pending_retx()) {
+      // No further transmission can carry the value to the UE.
+      logger.info("ue={} rnti={}: Giving up the Differential Koffset in flight. Cause: no transmission of it is left",
+                  ue_index,
+                  rnti());
+      shared_ctx.koffset_tracker.handle_ce_dropped();
+    } else if (ack_value == mac_harq_ack_report_status::nack) {
+      shared_ctx.koffset_tracker.handle_ce_nacked();
+    } else {
+      // TODO: nothing was detected where the HARQ-ACK was expected, so whether the UE decoded the MAC CE is unknown.
+      // A UE that decoded it answers the retransmission at the Koffset it now applies, which is not the one this
+      // scheduler allocates the PUCCH at, so the retransmission settles nothing either. Handle this case.
+      logger.info("ue={} rnti={}: The Differential Koffset in flight stays unsettled. Cause: no HARQ-ACK was "
+                  "detected where the MAC CE expected one",
+                  ue_index,
+                  rnti());
+    }
+  }
+
   // In case of NACK/DTX, extend DRX window, if needed. As per TS 38.321, Section 5.7, the drx-HARQ-RTT-TimerDL starts
   // after the end of the transmission carrying the DL HARQ feedback, which, for a PUCCH with repetitions, is the last
   // repetition of the burst.

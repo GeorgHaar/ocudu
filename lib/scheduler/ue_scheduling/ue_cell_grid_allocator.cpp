@@ -16,6 +16,19 @@ using namespace ocudu;
 /// Number of possible Downlink Assignment Indexes {0, ..., 3} as per TS 38.213 Section 9.1.3.
 static constexpr unsigned DAI_MOD = 4U;
 
+/// Returns the value of the Differential Koffset MAC CE the PDSCH carries, if any.
+static std::optional<std::chrono::milliseconds> find_differential_koffset_ce(const dl_msg_alloc& msg)
+{
+  for (const dl_msg_tb_info& tb : msg.tb_list) {
+    for (const dl_msg_lc_info& lc_info : tb.lc_chs_to_sched) {
+      if (lc_info.lcid == lcid_dl_sch_t::from_elcid(elcid_dl_sch_t::DIFFERENTIAL_KOFFSET)) {
+        return std::get<differential_koffset_ce_payload>(lc_info.ce_payload).koffset;
+      }
+    }
+  }
+  return std::nullopt;
+}
+
 ue_cell_grid_allocator::ue_cell_grid_allocator(const scheduler_ue_expert_config& expert_cfg_,
                                                ue_repository&                    ues_,
                                                pdcch_resource_allocator&         pdcch_sched_,
@@ -565,6 +578,25 @@ ue_cell_grid_allocator::set_pdsch_params(dl_grant_info& grant, const vrb_alloc& 
   if (not is_retx) {
     // Update context with buffer occupancy of the slice after the TB is built.
     msg.context.buffer_occupancy = grant.user->pending_dl_newtx_bytes();
+  }
+
+  // Only a cell deriving UE-specific Koffsets sends the MAC CE.
+  if (get_ue_koffset_cfg(cell_cfg.params.ntn_params).has_value()) {
+    // A Differential Koffset carried by this PDSCH applies from the first slot three subframes past its HARQ-ACK, as
+    // per TS 38.213, Section 9. The HARQ-ACK uses the current Koffset, so the slot is known now.
+    const slot_point koffset_apply_slot =
+        pdsch_alloc.slot + last_occasion_offset + k1 + ue_cc.ntn_koffset() +
+        DIFFERENTIAL_KOFFSET_APPLY_DELAY_SUBFRAMES * get_nof_slots_per_subframe(cell_cfg.scs_common()) + 1;
+    if (is_retx) {
+      // The UE acts on the first transmission it decodes, as per TS 38.321, Section 5.3.2.2, so a retransmission moves
+      // the apply slot.
+      if (u.koffset_tracker().has_pending_ce() and carries_differential_koffset_ce(grant.h_dl)) {
+        u.koffset_tracker().handle_ce_retx(koffset_apply_slot);
+      }
+    } else if (const std::optional<std::chrono::milliseconds> koffset = find_differential_koffset_ce(msg);
+               koffset.has_value()) {
+      u.koffset_tracker().handle_ce_sent(*koffset, koffset_apply_slot);
+    }
   }
 
   // Save PDSCH parameters in DL HARQ.

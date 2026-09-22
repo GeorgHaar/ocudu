@@ -164,6 +164,60 @@ bool cell_group_event_handler_impl::handle_ue_deletion(ue_config_delete_event ev
   return true;
 }
 
+/// \brief Signals a UE the Differential Koffset derived from its reported T_TA, as per TS 38.321, Section 5.18.24.
+///
+/// Nothing is signalled while a value is in flight, since the scheduler could not tell which one the UE applies.
+static void update_differential_koffset(ue& u, ocudulog::basic_logger& logger)
+{
+  const cell_configuration&              cell_cfg       = u.get_pcell().cfg().cell_cfg_common;
+  const std::optional<ue_koffset_config> ue_koffset_cfg = get_ue_koffset_cfg(cell_cfg.params.ntn_params);
+  if (not ue_koffset_cfg.has_value()) {
+    return;
+  }
+
+  const ue_configuration* ue_cfg = u.ue_cfg_dedicated();
+  if (ue_cfg == nullptr or not ue_cfg->supports_ue_specific_koffset()) {
+    logger.debug(
+        "ue={} rnti={}: No Differential Koffset derived. Cause: UE does not accept the MAC CE", u.ue_index, u.crnti);
+    return;
+  }
+
+  const std::optional<std::chrono::microseconds> reported_ul_ta = u.ta_report_tracker().last_reported_ul_ta();
+  if (not reported_ul_ta.has_value()) {
+    logger.debug(
+        "ue={} rnti={}: No Differential Koffset derived. Cause: UE has not reported its T_TA", u.ue_index, u.crnti);
+    return;
+  }
+
+  ue_koffset_tracker& tracker = u.koffset_tracker();
+  if (tracker.has_pending_ce()) {
+    logger.debug("ue={} rnti={}: No Differential Koffset derived. Cause: an earlier value has not reached the UE",
+                 u.ue_index,
+                 u.crnti);
+    return;
+  }
+
+  const std::chrono::milliseconds cell_koffset{cell_cfg.ntn_cs_koffset /
+                                               get_nof_slots_per_subframe(cell_cfg.scs_common())};
+  const std::chrono::milliseconds derived =
+      derive_differential_koffset(cell_koffset, *reported_ul_ta, ue_koffset_cfg->margin);
+  if (derived == tracker.applied_koffset()) {
+    logger.debug("ue={} rnti={}: Keeping Differential Koffset={}ms. Cause: the derived value has not changed",
+                 u.ue_index,
+                 u.crnti,
+                 tracker.applied_koffset().count());
+    return;
+  }
+
+  logger.info("ue={} rnti={}: Signalling Differential Koffset={}ms, derived from T_TA={}us",
+              u.ue_index,
+              u.crnti,
+              derived.count(),
+              reported_ul_ta->count());
+  u.logical_channels().handle_mac_ce_indication(
+      {lcid_dl_sch_t::from_elcid(elcid_dl_sch_t::DIFFERENTIAL_KOFFSET), differential_koffset_ce_payload{derived}});
+}
+
 bool cell_group_event_handler_impl::handle_ue_config_applied(du_ue_index_t ue_idx)
 {
   if (not ue_db.contains(ue_idx)) {
@@ -312,7 +366,9 @@ bool cell_group_event_handler_impl::handle_ul_ta_report_indication(const ul_ta_r
     return false;
   }
 
-  ue_db[ta_report.ue_index].ta_report_tracker().handle_ta_report(ta_report.ul_ta);
+  ue& u = ue_db[ta_report.ue_index];
+  u.ta_report_tracker().handle_ta_report(ta_report.ul_ta);
+  update_differential_koffset(u, logger);
 
   return true;
 }

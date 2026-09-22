@@ -445,6 +445,11 @@ ue_fallback_scheduler::schedule_dl_srb(cell_resource_allocator&              res
       continue;
     }
 
+    // The HARQ-ACK slot depends on the Koffset the UE applies to this PDCCH, as per TS 38.213, Section 9.
+    if (not u.koffset_tracker().is_known_at(pdcch_alloc.slot)) {
+      continue;
+    }
+
     // 2-step RACH: this candidate slot may be past the outer check above (the search window can extend beyond the
     // current slot), so re-check it isn't at or before the UE's still-pending successRAR HARQ-ACK PUCCH slot. The
     // UE's MsgB PDSCH implicitly uses DL HARQ id 0 (no harq-id field in its DCI), so no other PDSCH for this RNTI

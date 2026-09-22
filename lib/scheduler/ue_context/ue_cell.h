@@ -16,10 +16,12 @@
 #include "ue_koffset_tracker.h"
 #include "ue_link_adaptation_controller.h"
 #include "ue_ta_report_tracker.h"
+#include "ocudu/ran/logical_channel/lcid_dl_sch.h"
 #include "ocudu/ran/slot_point.h"
 #include "ocudu/scheduler/config/scheduler_expert_config.h"
 #include "ocudu/scheduler/scheduler_feedback_handler.h"
 #include "ocudu/support/memory_pool/free_list_memory_pool.h"
+#include <algorithm>
 
 namespace ocudu {
 
@@ -36,6 +38,17 @@ struct ue_shared_context {
   /// Tracker of the Differential Koffset the UE applies.
   ue_koffset_tracker& koffset_tracker;
 };
+
+/// \brief Returns whether the transport block of a DL HARQ process carried a Differential Koffset MAC CE.
+///
+/// A retransmission carries no logical channel list of its own, so the one the HARQ saved identifies the block.
+inline bool carries_differential_koffset_ce(const dl_harq_process_handle& h_dl)
+{
+  const auto& lc_sched_info = h_dl.get_grant_params().lc_sched_info;
+  return std::any_of(lc_sched_info.begin(), lc_sched_info.end(), [](const auto& lc) {
+    return lc.lcid == lcid_dl_sch_t::from_elcid(elcid_dl_sch_t::DIFFERENTIAL_KOFFSET);
+  });
+}
 
 /// State of the UE PCell.
 struct ue_pcell_state {

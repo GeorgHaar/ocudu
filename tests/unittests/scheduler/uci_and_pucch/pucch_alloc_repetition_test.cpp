@@ -191,8 +191,12 @@ TEST_F(pucch_alloc_repetition_test, harq_ack_bit_targeting_a_non_anchor_burst_sl
   // occasion that merely collides physically with the ongoing repetition burst; it isn't the same occasion as the
   // bit that started the burst (that one's k1 resolves to the anchor slot only), so it must be rejected rather than
   // merged into the burst.
-  const std::optional<unsigned> pri = t_bench.pucch_alloc.alloc_ded_harq_ack(
-      t_bench.res_grid, ue.get_pcell().cfg(), t_bench.k0, default_k1 + 1, pucch_repetition_factor::n4);
+  const std::optional<unsigned> pri = t_bench.pucch_alloc.alloc_ded_harq_ack(t_bench.res_grid,
+                                                                             ue.get_pcell().cfg(),
+                                                                             t_bench.k0,
+                                                                             default_k1 + 1,
+                                                                             ue.get_pcell().ntn_koffset(),
+                                                                             pucch_repetition_factor::n4);
   EXPECT_FALSE(pri.has_value());
 
   // The colliding slot must still only contain the original burst's grant, with its bit count unchanged.
@@ -440,8 +444,12 @@ TEST_F(pucch_alloc_repetition_tdd_partial_ul_test, promotion_re_derives_the_burs
   // Anchor on delay 7, the first full-UL slot of the TDD period.
   const unsigned anchor_delay = 7;
   auto           alloc_bit    = [&]() {
-    return t_bench.pucch_alloc.alloc_ded_harq_ack(
-        t_bench.res_grid, ue.get_pcell().cfg(), t_bench.k0, anchor_delay - t_bench.k0, pucch_repetition_factor::n4);
+    return t_bench.pucch_alloc.alloc_ded_harq_ack(t_bench.res_grid,
+                                                  ue.get_pcell().cfg(),
+                                                  t_bench.k0,
+                                                  anchor_delay - t_bench.k0,
+                                                  ue.get_pcell().ntn_koffset(),
+                                                  pucch_repetition_factor::n4);
   };
 
   // Delay 16 is the special slot: it has UL symbols, but not enough for a Format 1 resource.
@@ -483,8 +491,12 @@ TEST_F(pucch_alloc_repetition_tdd_test, burst_skips_dl_only_slots_to_reach_the_n
   const unsigned anchor_delay = 9;
   ASSERT_TRUE(t_bench.cell_cfg.is_ul_enabled(t_bench.res_grid[anchor_delay].slot));
 
-  const std::optional<unsigned> pri = t_bench.pucch_alloc.alloc_ded_harq_ack(
-      t_bench.res_grid, ue.get_pcell().cfg(), t_bench.k0, anchor_delay - t_bench.k0, pucch_repetition_factor::n2);
+  const std::optional<unsigned> pri = t_bench.pucch_alloc.alloc_ded_harq_ack(t_bench.res_grid,
+                                                                             ue.get_pcell().cfg(),
+                                                                             t_bench.k0,
+                                                                             anchor_delay - t_bench.k0,
+                                                                             ue.get_pcell().ntn_koffset(),
+                                                                             pucch_repetition_factor::n2);
   ASSERT_TRUE(pri.has_value());
 
   // The anchor (delay 9) must start the burst.

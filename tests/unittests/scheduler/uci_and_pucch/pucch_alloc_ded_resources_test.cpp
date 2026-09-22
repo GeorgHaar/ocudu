@@ -717,8 +717,11 @@ TEST_P(pucch_alloc_ded_resources_test, alloc_ded_harq_ack_over_multiple_slots_in
   unsigned k1 = 5;
 
   for (unsigned i = 0; i < 5; ++i) {
-    auto pri = t_bench.pucch_alloc.alloc_ded_harq_ack(
-        t_bench.res_grid, t_bench.get_main_ue().get_pcell().cfg(), t_bench.k0, k1);
+    auto pri = t_bench.pucch_alloc.alloc_ded_harq_ack(t_bench.res_grid,
+                                                      t_bench.get_main_ue().get_pcell().cfg(),
+                                                      t_bench.k0,
+                                                      k1,
+                                                      t_bench.get_main_ue().get_pcell().ntn_koffset());
     ASSERT_TRUE(pri.has_value());
     ASSERT_EQ(0U, pri.value());
 
@@ -766,8 +769,11 @@ TEST_P(pucch_alloc_ded_resources_test, test_for_private_fnc_retrieving_existing_
   // - 1 PUCCH Resource Set ID 0 - RNTI = UE1 - HARQ-BITS = 1.
   // - 1 PUCCH common HARQ-ACK   - RNTI = UE0 - HARQ-BITS = 1.
   // - 1 PUCCH Resource Set ID 0 - RNTI = UE2 - HARQ-BITS = 1.
-  auto pri_ue1 = t_bench.pucch_alloc.alloc_ded_harq_ack(
-      t_bench.res_grid, t_bench.get_ue(ue1_idx).get_pcell().cfg(), t_bench.k0, k1);
+  auto pri_ue1 = t_bench.pucch_alloc.alloc_ded_harq_ack(t_bench.res_grid,
+                                                        t_bench.get_ue(ue1_idx).get_pcell().cfg(),
+                                                        t_bench.k0,
+                                                        k1,
+                                                        t_bench.get_ue(ue1_idx).get_pcell().ntn_koffset());
 
   ASSERT_TRUE(pri_ue1.has_value());
   ASSERT_EQ(0U, pri_ue1.value());
@@ -789,8 +795,11 @@ TEST_P(pucch_alloc_ded_resources_test, test_for_private_fnc_retrieving_existing_
                                       pdu.uci_bits.harq_ack_nof_bits == 1U and pdu.res->res_id.is_cmn();
                              }));
 
-  auto pri_ue2 = t_bench.pucch_alloc.alloc_ded_harq_ack(
-      t_bench.res_grid, t_bench.get_ue(ue2_idx).get_pcell().cfg(), t_bench.k0, k1);
+  auto pri_ue2 = t_bench.pucch_alloc.alloc_ded_harq_ack(t_bench.res_grid,
+                                                        t_bench.get_ue(ue2_idx).get_pcell().cfg(),
+                                                        t_bench.k0,
+                                                        k1,
+                                                        t_bench.get_ue(ue2_idx).get_pcell().ntn_koffset());
   ASSERT_TRUE(pri_ue2.has_value());
   ASSERT_EQ(1U, pri_ue2.value());
   ASSERT_EQ(3U, slot_grid.result.ul.pucchs.size());
@@ -820,8 +829,11 @@ TEST_P(pucch_alloc_ded_resources_test, test_for_private_fnc_retrieving_existing_
   --k1;
   ASSERT_EQ(pucch_slot, slot_grid.slot);
 
-  pri_ue1 = t_bench.pucch_alloc.alloc_ded_harq_ack(
-      t_bench.res_grid, t_bench.get_ue(ue1_idx).get_pcell().cfg(), t_bench.k0, k1);
+  pri_ue1 = t_bench.pucch_alloc.alloc_ded_harq_ack(t_bench.res_grid,
+                                                   t_bench.get_ue(ue1_idx).get_pcell().cfg(),
+                                                   t_bench.k0,
+                                                   k1,
+                                                   t_bench.get_ue(ue1_idx).get_pcell().ntn_koffset());
   ASSERT_TRUE(pri_ue1.has_value());
   ASSERT_EQ(0U, pri_ue1.value());
   ASSERT_EQ(3U, slot_grid.result.ul.pucchs.size());
@@ -852,8 +864,11 @@ TEST_P(pucch_alloc_ded_resources_test, test_for_private_fnc_retrieving_existing_
   // t_bench.sl_tx = 1; k0 = 0; k1 = 4  =>  t_bench.sl_tx + k0 + k1 = 5.
   //  auto& slot_grid_3 = t_bench.res_grid[t_bench.k0 + --k1];
 
-  pri_ue1 = t_bench.pucch_alloc.alloc_ded_harq_ack(
-      t_bench.res_grid, t_bench.get_ue(ue1_idx).get_pcell().cfg(), t_bench.k0, k1);
+  pri_ue1 = t_bench.pucch_alloc.alloc_ded_harq_ack(t_bench.res_grid,
+                                                   t_bench.get_ue(ue1_idx).get_pcell().cfg(),
+                                                   t_bench.k0,
+                                                   k1,
+                                                   t_bench.get_ue(ue1_idx).get_pcell().ntn_koffset());
   ASSERT_TRUE(pri_ue1.has_value());
   ASSERT_EQ(0U, pri_ue1.value());
   ASSERT_EQ(3U, slot_grid.result.ul.pucchs.size());
@@ -885,8 +900,11 @@ TEST_P(pucch_alloc_ded_resources_test, test_for_private_fnc_retrieving_existing_
   // t_bench.sl_tx = 2; k0 = 0; k1 = 3  =>  t_bench.sl_tx + k0 + k1 = 5.
   //  auto& slot_grid_4 = t_bench.res_grid[t_bench.k0 + --k1];
 
-  pri_ue2 = t_bench.pucch_alloc.alloc_ded_harq_ack(
-      t_bench.res_grid, t_bench.get_ue(ue2_idx).get_pcell().cfg(), t_bench.k0, k1);
+  pri_ue2 = t_bench.pucch_alloc.alloc_ded_harq_ack(t_bench.res_grid,
+                                                   t_bench.get_ue(ue2_idx).get_pcell().cfg(),
+                                                   t_bench.k0,
+                                                   k1,
+                                                   t_bench.get_ue(ue2_idx).get_pcell().ntn_koffset());
   ASSERT_TRUE(pri_ue2.has_value());
   ASSERT_EQ(1U, pri_ue2.value());
   ASSERT_EQ(3U, slot_grid.result.ul.pucchs.size());

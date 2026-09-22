@@ -1496,7 +1496,7 @@ TEST_P(ue_grid_allocator_pusch_repetition_test, uci_colliding_with_repetition_oc
   // Pre-allocate a dedicated HARQ-ACK PUCCH there.
   constexpr unsigned            target_occasion_offset = 3;
   const std::optional<unsigned> pucch_res_ind =
-      pucch_alloc.alloc_ded_harq_ack(res_grid, ue_cell_cfg, 0, rep_k2 + target_occasion_offset);
+      pucch_alloc.alloc_ded_harq_ack(res_grid, ue_cell_cfg, 0, rep_k2 + target_occasion_offset, 0);
   ASSERT_TRUE(pucch_res_ind.has_value());
   const slot_point occasion_slot = current_slot + rep_k2 + target_occasion_offset;
   ASSERT_FALSE(res_grid[occasion_slot].result.ul.pucchs.empty());
@@ -1881,7 +1881,7 @@ TEST_P(ue_grid_allocator_pusch_repetition_wideband_test, pucch_in_an_occasion_sl
 
   constexpr unsigned            target_occasion_offset = 3;
   const std::optional<unsigned> pucch_res_ind =
-      pucch_alloc.alloc_ded_harq_ack(res_grid, ue_cell_cfg, 0, rep_k2 + target_occasion_offset);
+      pucch_alloc.alloc_ded_harq_ack(res_grid, ue_cell_cfg, 0, rep_k2 + target_occasion_offset, 0);
   ASSERT_TRUE(pucch_res_ind.has_value());
   const slot_point occasion_slot = current_slot + rep_k2 + target_occasion_offset;
   ASSERT_FALSE(res_grid[occasion_slot].result.ul.pucchs.empty());

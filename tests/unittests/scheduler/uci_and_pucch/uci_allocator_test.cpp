@@ -57,20 +57,32 @@ protected:
   void add_harq_grant_on_pucch(unsigned nof_harq_ack_bits = 1)
   {
     for (unsigned n = 0; n != nof_harq_ack_bits; ++n) {
-      t_bench.pucch_alloc.alloc_ded_harq_ack(
-          t_bench.res_grid, t_bench.get_main_ue().get_pcell().cfg(), t_bench.k0, default_k1);
+      t_bench.pucch_alloc.alloc_ded_harq_ack(t_bench.res_grid,
+                                             t_bench.get_main_ue().get_pcell().cfg(),
+                                             t_bench.k0,
+                                             default_k1,
+                                             t_bench.get_main_ue().get_pcell().ntn_koffset());
     }
   }
 
   void add_format2_grant_on_pucch(unsigned nof_harq_ack_bits = 3, sr_nof_bits sr_bits = ocudu::sr_nof_bits::no_sr)
   {
     ocudu_assert(nof_harq_ack_bits > 2, "At least 3 HARQ bits are required to trigger a Format 2 PUCCH grant.");
-    t_bench.pucch_alloc.alloc_ded_harq_ack(
-        t_bench.res_grid, t_bench.get_main_ue().get_pcell().cfg(), t_bench.k0, default_k1);
-    t_bench.pucch_alloc.alloc_ded_harq_ack(
-        t_bench.res_grid, t_bench.get_main_ue().get_pcell().cfg(), t_bench.k0, default_k1);
-    t_bench.pucch_alloc.alloc_ded_harq_ack(
-        t_bench.res_grid, t_bench.get_main_ue().get_pcell().cfg(), t_bench.k0, default_k1);
+    t_bench.pucch_alloc.alloc_ded_harq_ack(t_bench.res_grid,
+                                           t_bench.get_main_ue().get_pcell().cfg(),
+                                           t_bench.k0,
+                                           default_k1,
+                                           t_bench.get_main_ue().get_pcell().ntn_koffset());
+    t_bench.pucch_alloc.alloc_ded_harq_ack(t_bench.res_grid,
+                                           t_bench.get_main_ue().get_pcell().cfg(),
+                                           t_bench.k0,
+                                           default_k1,
+                                           t_bench.get_main_ue().get_pcell().ntn_koffset());
+    t_bench.pucch_alloc.alloc_ded_harq_ack(t_bench.res_grid,
+                                           t_bench.get_main_ue().get_pcell().cfg(),
+                                           t_bench.k0,
+                                           default_k1,
+                                           t_bench.get_main_ue().get_pcell().ntn_koffset());
     auto& pdu                      = *t_bench.res_grid[t_bench.k0 + default_k1].result.ul.pucchs.begin();
     pdu.uci_bits.harq_ack_nof_bits = nof_harq_ack_bits;
     pdu.uci_bits.sr_bits           = sr_bits;

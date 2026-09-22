@@ -315,7 +315,7 @@ TEST_P(srs_alloc_tester, with_only_1_ue_srs_is_allocated_every_time_prohibit_tim
       }
       // Attempt aperiodic SRS collision.
       const aperiodic_srs_alloc_info res =
-          srs_alloc.allocate_aperiodic_srs(res_grid, last_srs_slot, u.get_pcell().cfg());
+          srs_alloc.allocate_aperiodic_srs(res_grid, last_srs_slot, u.get_pcell().cfg(), u.get_pcell().ntn_koffset());
       // When the SRS is allocated, the aperiodic SRS trigger is different from 0.
       if (res.aperiodic_srs_res_trigger != 0) {
         if (last_srs_slot.valid()) {
@@ -415,9 +415,9 @@ TEST_P(srs_alloc_multi_ue_tester, multiple_ues_with_orthogonal_srs_res_is_alloca
       }
 
       for (auto& test_ue : test_ues) {
-        const auto&                    u = ues[test_ue.du_ue_idx];
-        const aperiodic_srs_alloc_info res =
-            srs_alloc.allocate_aperiodic_srs(res_grid, test_ue.last_srs_slot, u.get_pcell().cfg());
+        const auto&                    u   = ues[test_ue.du_ue_idx];
+        const aperiodic_srs_alloc_info res = srs_alloc.allocate_aperiodic_srs(
+            res_grid, test_ue.last_srs_slot, u.get_pcell().cfg(), u.get_pcell().ntn_koffset());
         // When the SRS is allocated, the aperiodic SRS trigger is different from 0.
         if (res.aperiodic_srs_res_trigger != 0) {
           if (test_ue.last_srs_slot.valid()) {

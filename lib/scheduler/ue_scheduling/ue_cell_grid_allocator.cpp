@@ -411,7 +411,7 @@ ue_cell_grid_allocator::set_pdsch_params(dl_grant_info&                        g
   unsigned aperiodic_srs_res_trigger = 0U;
   if (expert_cfg.srs_prohibit_time.has_value() and ss_info.get_dl_dci_format() == dci_dl_format::f1_1) {
     const auto [srs_res_trigger, slot_offset] = srs_alloc.allocate_aperiodic_srs(
-        cell_alloc, ue_cc.channel_state_manager().last_aperiodic_srs_slot, ue_cell_cfg);
+        cell_alloc, ue_cc.channel_state_manager().last_aperiodic_srs_slot, ue_cell_cfg, ue_cc.ntn_koffset());
     if (srs_res_trigger != 0) {
       ue_cc.channel_state_manager().on_scheduled_aperiodic_srs(pdcch_alloc.slot + slot_offset + ue_cc.ntn_koffset());
       aperiodic_srs_res_trigger = srs_res_trigger;
@@ -1177,7 +1177,7 @@ ue_cell_grid_allocator::set_pusch_params(ul_grant_info& grant, const vrb_interva
   unsigned aperiodic_srs_res_trigger = 0U;
   if (expert_cfg.srs_prohibit_time.has_value() and dci_type == dci_ul_rnti_config_type::c_rnti_f0_1) {
     const auto [srs_res_trigger, slot_offset] = srs_alloc.allocate_aperiodic_srs(
-        cell_alloc, ue_cc.channel_state_manager().last_aperiodic_srs_slot, ue_cell_cfg);
+        cell_alloc, ue_cc.channel_state_manager().last_aperiodic_srs_slot, ue_cell_cfg, ue_cc.ntn_koffset());
     if (srs_res_trigger != 0) {
       ue_cc.channel_state_manager().on_scheduled_aperiodic_srs(pdcch_alloc.slot + slot_offset + ue_cc.ntn_koffset());
       aperiodic_srs_res_trigger = srs_res_trigger;

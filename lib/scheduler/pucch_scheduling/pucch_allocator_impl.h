@@ -44,13 +44,15 @@ public:
                                                         const ue_cell_configuration& ue_cell_cfg,
                                                         unsigned                     k0,
                                                         unsigned                     k1,
-                                                        const pdcch_dl_information&  dci_info) override;
+                                                        const pdcch_dl_information&  dci_info,
+                                                        unsigned                     ntn_koffset) override;
 
   std::optional<unsigned>
   alloc_ded_harq_ack(cell_resource_allocator&     res_alloc,
                      const ue_cell_configuration& ue_cell_cfg,
                      unsigned                     k0,
                      unsigned                     k1,
+                     unsigned                     ntn_koffset,
                      pucch_repetition_factor      max_rep_factor = pucch_repetition_factor::n1) override;
 
   bool alloc_sr_opportunity(cell_slot_resource_allocator& slot_alloc,

@@ -594,7 +594,7 @@ static std::optional<uci_allocation> allocate_ue_fallback_pucch(ue&             
     std::optional<unsigned> pucch_res_indicator;
     if (ded_alloc) {
       pucch_res_indicator = pucch_alloc.alloc_common_and_ded_harq_ack(
-          res_alloc, u.get_pcell().cfg(), pdsch_delay, k1_candidate, pdcch_info);
+          res_alloc, u.get_pcell().cfg(), pdsch_delay, k1_candidate, pdcch_info, ntn_koffset);
     } else {
       pucch_res_indicator =
           pucch_alloc.alloc_common_harq_ack(res_alloc, u.crnti, pdsch_delay, k1_candidate, pdcch_info);

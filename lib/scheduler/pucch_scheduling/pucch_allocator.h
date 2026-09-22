@@ -43,6 +43,7 @@ public:
   /// \param[in] k0 k0 value, or delay (in slots) of PDSCH slot vs the corresponding PDCCH slot.
   /// \param[in] k1 delay in slots of the UE's PUCCH HARQ-ACK report with respect to the PDSCH.
   /// \param[in] dci_info information with DL DCI, needed for HARQ-(N)-ACK scheduling info.
+  /// \param[in] ntn_koffset UE Koffset in slots, as per TS 38.213, Section 4.2.
   /// \return The PUCCH resource indicator, if the allocation is successful; a \c std::nullopt otherwise.
   /// \remark \c pucch_res_indicator, or \f$\Delta_{PRI}\f$, is the <em>PUCCH resource indicator<\em> field for DCI 1_0
   /// and 1_1 as per TS 38.213, Section 9.2.1. It indicates the UE which PUCCH resource should be used for HACK-(N)ACK
@@ -51,7 +52,8 @@ public:
                                                                 const ue_cell_configuration& ue_cell_cfg,
                                                                 unsigned                     k0,
                                                                 unsigned                     k1,
-                                                                const pdcch_dl_information&  dci_info) = 0;
+                                                                const pdcch_dl_information&  dci_info,
+                                                                unsigned                     ntn_koffset) = 0;
 
   /// Allocate a PUCCH HARQ-ACK grant for a given UE using dedicated resources.
   ///
@@ -62,6 +64,7 @@ public:
   /// \param[in] ue_cell_cfg user configuration.
   /// \param[in] k0 k0 value, or delay (in slots) of PDSCH slot vs the corresponding PDCCH slot.
   /// \param[in] k1 delay in slots of the UE's PUCCH HARQ-ACK report with respect to the PDSCH.
+  /// \param[in] ntn_koffset UE Koffset in slots, as per TS 38.213, Section 4.2.
   /// \param[in] max_rep_factor Maximum PUCCH repetition factor to use for this grant. Defaults to n1 (no repetition).
   /// \return The PUCCH resource indicator, if the allocation is successful; a \c std::nullopt otherwise.
   virtual std::optional<unsigned>
@@ -69,6 +72,7 @@ public:
                      const ue_cell_configuration& ue_cell_cfg,
                      unsigned                     k0,
                      unsigned                     k1,
+                     unsigned                     ntn_koffset,
                      pucch_repetition_factor      max_rep_factor = pucch_repetition_factor::n1) = 0;
 
   /// Allocate the PUCCH resource for a UE's SR opportunity.

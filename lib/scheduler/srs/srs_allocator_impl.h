@@ -32,7 +32,8 @@ public:
 
   aperiodic_srs_alloc_info allocate_aperiodic_srs(cell_resource_allocator&     res_alloc,
                                                   slot_point                   last_srs_slot,
-                                                  const ue_cell_configuration& ue_cfg) override;
+                                                  const ue_cell_configuration& ue_cfg,
+                                                  unsigned                     ntn_koffset) override;
 
 private:
   static constexpr size_t RES_MANAGER_RING_BUFFER_SIZE = get_allocator_ring_size_gt_min(

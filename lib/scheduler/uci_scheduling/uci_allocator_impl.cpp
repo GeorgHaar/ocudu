@@ -250,7 +250,8 @@ std::optional<uci_allocation> uci_allocator_impl::alloc_harq_ack(cell_resource_a
     }
 
     // Step 2: Try to allocate UCI HARQ ACK for UE.
-    auto d_pri = pucch_alloc.alloc_ded_harq_ack(res_alloc, ue_cell_cfg, k0, k1_candidate, max_rep_factor);
+    auto d_pri =
+        pucch_alloc.alloc_ded_harq_ack(res_alloc, ue_cell_cfg, k0, k1_candidate, ue_cc.ntn_koffset(), max_rep_factor);
 
     // Register new UCI allocation in the respective grid slot entry and derive DAI.
     if (d_pri.has_value()) {

@@ -49,13 +49,13 @@ protected:
                                              pucch_repetition_factor max_rep_factor = pucch_repetition_factor::n1)
   {
     return t_bench.pucch_alloc.alloc_ded_harq_ack(
-        t_bench.res_grid, ue.get_pcell().cfg(), t_bench.k0, default_k1, max_rep_factor);
+        t_bench.res_grid, ue.get_pcell().cfg(), t_bench.k0, default_k1, ue.get_pcell().ntn_koffset(), max_rep_factor);
   }
 
   std::optional<unsigned> alloc_common_and_ded_harq_ack(const ue& ue)
   {
     return t_bench.pucch_alloc.alloc_common_and_ded_harq_ack(
-        t_bench.res_grid, ue.get_pcell().cfg(), t_bench.k0, default_k1, t_bench.dci_info);
+        t_bench.res_grid, ue.get_pcell().cfg(), t_bench.k0, default_k1, t_bench.dci_info, ue.get_pcell().ntn_koffset());
   }
 
   pucch_uci_bits remove_ue_uci_from_pucch(const ue& ue)

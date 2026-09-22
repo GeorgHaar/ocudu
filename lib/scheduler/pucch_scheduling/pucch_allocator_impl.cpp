@@ -189,10 +189,11 @@ std::optional<unsigned> pucch_allocator_impl::alloc_common_and_ded_harq_ack(cell
                                                                             const ue_cell_configuration& ue_cell_cfg,
                                                                             unsigned                     k0,
                                                                             unsigned                     k1,
-                                                                            const pdcch_dl_information&  dci_info)
+                                                                            const pdcch_dl_information&  dci_info,
+                                                                            unsigned                     ntn_koffset)
 {
   // Get the slot allocation grid considering the PDSCH delay (k0) and the PUCCH delay wrt PDSCH (k1).
-  cell_slot_resource_allocator& pucch_slot_alloc = res_alloc[k0 + k1 + res_alloc.cfg.ntn_cs_koffset];
+  cell_slot_resource_allocator& pucch_slot_alloc = res_alloc[k0 + k1 + ntn_koffset];
   auto&                         slot_ctx         = slots_ctx[pucch_slot_alloc.slot.count()];
   alloc_context alloc_ctx{alloc_context::alloc_type::common_and_ded_harq_ack, ue_cell_cfg.crnti, pucch_slot_alloc.slot};
 
@@ -246,13 +247,14 @@ std::optional<unsigned> pucch_allocator_impl::alloc_ded_harq_ack(cell_resource_a
                                                                  const ue_cell_configuration& ue_cell_cfg,
                                                                  unsigned                     k0,
                                                                  unsigned                     k1,
+                                                                 unsigned                     ntn_koffset,
                                                                  pucch_repetition_factor      max_rep_factor)
 {
   // NOTE: This function does not check whether there are PUSCH grants allocated for the same UE. The check needs to
   // be performed by the caller.
 
   // Get the slot allocation grid considering the PDSCH delay (k0) and the PUCCH delay wrt PDSCH (k1).
-  const unsigned                anchor_delay     = k0 + k1 + res_alloc.cfg.ntn_cs_koffset;
+  const unsigned                anchor_delay     = k0 + k1 + ntn_koffset;
   cell_slot_resource_allocator& pucch_slot_alloc = res_alloc[anchor_delay];
   auto&                         slot_ctx         = slots_ctx[pucch_slot_alloc.slot.count()];
   alloc_context alloc_ctx{alloc_context::alloc_type::ded_harq_ack, ue_cell_cfg.crnti, pucch_slot_alloc.slot};

@@ -33,11 +33,13 @@ public:
   /// \param[out,in] res_alloc struct with scheduling results.
   /// \param[in] last_srs_slot slot at which this UE has its last aperiodic SRS allocated.
   /// \param[in] ue_cfg user configuration.
+  /// \param[in] ntn_koffset UE Koffset in slots, as per TS 38.213, Section 4.2.
   /// \return Returns the SRS allocation result. \ref aperiodic_srs_alloc_info::aperiodic_srs_res_trigger is different
   /// from 0 if the allocation is successful, 0 otherwise.
   virtual aperiodic_srs_alloc_info allocate_aperiodic_srs(cell_resource_allocator&     res_alloc,
                                                           slot_point                   last_srs_slot,
-                                                          const ue_cell_configuration& ue_cfg) = 0;
+                                                          const ue_cell_configuration& ue_cfg,
+                                                          unsigned                     ntn_koffset) = 0;
 };
 
 } // namespace ocudu

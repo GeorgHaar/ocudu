@@ -13,8 +13,10 @@
 #include "ue_conf_grant_state_manager.h"
 #include "ue_drx_controller.h"
 #include "ue_fsm_states.h"
+#include "ue_koffset_tracker.h"
 #include "ue_link_adaptation_controller.h"
 #include "ue_ta_report_tracker.h"
+#include "ocudu/ran/slot_point.h"
 #include "ocudu/scheduler/config/scheduler_expert_config.h"
 #include "ocudu/scheduler/scheduler_feedback_handler.h"
 #include "ocudu/support/memory_pool/free_list_memory_pool.h"
@@ -31,6 +33,8 @@ struct ue_shared_context {
   ue_drx_controller& drx_ctrl;
   /// Tracker of the uplink timing advance reported by the UE.
   ue_ta_report_tracker& ta_report_tracker;
+  /// Tracker of the Differential Koffset the UE applies.
+  ue_koffset_tracker& koffset_tracker;
 };
 
 /// State of the UE PCell.
@@ -101,9 +105,13 @@ public:
 
   void handle_reconfiguration_request(const ue_cell_configuration& ue_cell_cfg);
 
+  /// \brief Determines whether a PDCCH for this UE is possible in the provided slot.
+  ///
+  /// Requires the Koffset the UE applies to the PDCCH to be known, see \c ue_koffset_tracker::is_known_at.
   bool is_pdcch_enabled(slot_point dl_slot) const
   {
-    return active and cfg().is_dl_enabled(dl_slot) and shared_ctx.drx_ctrl.is_pdcch_enabled();
+    return active and cfg().is_dl_enabled(dl_slot) and shared_ctx.drx_ctrl.is_pdcch_enabled() and
+           (cell_cfg.ntn_cs_koffset == 0 or shared_ctx.koffset_tracker.is_known_at(dl_slot));
   }
   /// \brief Determines whether UL allocations are possible in the provided slot.
   ///
@@ -117,7 +125,16 @@ public:
   /// \brief Returns the Koffset in slots of the UE, as per TS 38.213, Section 4.2.
   ///
   /// RAR UL grants and TC-RNTI DCIs use the cell-specific Koffset instead, as per TS 38.213, Sections 8.3 and 9.
-  unsigned ntn_koffset() const { return cfg().cell_cfg_common.ntn_cs_koffset; }
+  unsigned ntn_koffset() const
+  {
+    if (cell_cfg.ntn_cs_koffset == 0) {
+      return 0;
+    }
+    const unsigned ue_koffset_slots = static_cast<unsigned>(shared_ctx.koffset_tracker.applied_koffset().count()) *
+                                      get_nof_slots_per_subframe(cell_cfg.scs_common());
+    ocudu_assert(ue_koffset_slots <= cell_cfg.ntn_cs_koffset, "Differential Koffset exceeds the cell-specific one");
+    return ue_koffset_slots < cell_cfg.ntn_cs_koffset ? cell_cfg.ntn_cs_koffset - ue_koffset_slots : 0;
+  }
 
   bool is_pdsch_enabled(slot_point pdcch_slot, slot_point pdsch_slot) const
   {

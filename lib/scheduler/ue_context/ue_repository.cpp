@@ -170,6 +170,7 @@ void ue_repository::add_ue(const ue_configuration& ue_cfg, const ue_creation_con
                              creation_ctx.ul_ccch_slot_rx,
                              logger);
   ue_ta_report_trackers.emplace(ue_index);
+  ue_koffset_trackers.emplace(ue_index);
   // TA delays are counted in scheduler slots, which the UL slots must match.
   const subcarrier_spacing ul_scs = pcell_cmn.params.ul_cfg_common.init_ul_bwp.generic_params.scs;
   ocudu_sanity_check(ul_scs == pcell_cmn.scs_common(), "The UL SCS must match the common SCS");
@@ -182,11 +183,12 @@ void ue_repository::add_ue(const ue_configuration& ue_cfg, const ue_creation_con
   for (unsigned i = 0, sz = ue_cfg.nof_cells(); i != sz; ++i) {
     const auto&           cell_cfg   = ue_cfg.ue_cell_cfg(static_cast<serv_cell_index_t>(i));
     const du_cell_index_t cell_index = cell_cfg.cell_cfg_common.cell_index;
-    auto&                 ue_cc =
-        cell_ues[cell_index]->add_ue(ue_cfg,
-                                     static_cast<serv_cell_index_t>(i),
-                                     &ue_fsms[ue_index],
-                                     ue_shared_context{ue_drx_controllers[ue_index], ue_ta_report_trackers[ue_index]});
+    auto&                 ue_cc      = cell_ues[cell_index]->add_ue(ue_cfg,
+                                               static_cast<serv_cell_index_t>(i),
+                                               &ue_fsms[ue_index],
+                                               ue_shared_context{ue_drx_controllers[ue_index],
+                                                                 ue_ta_report_trackers[ue_index],
+                                                                 ue_koffset_trackers[ue_index]});
     cell_lookup.du_cells.emplace(cell_index, &ue_cc);
     cell_lookup.ue_cells.push_back(&ue_cc);
   }
@@ -197,6 +199,7 @@ void ue_repository::add_ue(const ue_configuration& ue_cfg, const ue_creation_con
               std::move(ue_lc_mng),
               ue_drx_controllers[ue_index],
               ue_ta_report_trackers[ue_index],
+              ue_koffset_trackers[ue_index],
               std::move(ue_ta_mgr),
               cell_lookup);
 
@@ -232,6 +235,7 @@ void ue_repository::reconfigure_ue(const ue_configuration& new_cfg, sched_ue_con
   // before it no longer describes the UE. Discarding it falls back to the cell estimate until the UE reports again.
   if (cause == sched_ue_config_request::causes::rrc_reconf_after_reest) {
     ue_ta_report_trackers[new_cfg.ue_index].reset();
+    ue_koffset_trackers[new_cfg.ue_index].reset();
   }
 
   // Update UE cells.
@@ -252,11 +256,12 @@ void ue_repository::reconfigure_ue(const ue_configuration& new_cfg, sched_ue_con
     const du_cell_index_t cell_index = ue_cc_cfg.cell_cfg_common.cell_index;
     if (not prev_cell_lookup.du_cells.contains(cell_index)) {
       // New cell being instantiated.
-      auto& ue_cc = cell_ues[cell_index]->add_ue(
-          new_cfg,
-          static_cast<serv_cell_index_t>(i),
-          i == 0 ? &ue_fsms[new_cfg.ue_index] : nullptr,
-          ue_shared_context{ue_drx_controllers[new_cfg.ue_index], ue_ta_report_trackers[new_cfg.ue_index]});
+      auto& ue_cc = cell_ues[cell_index]->add_ue(new_cfg,
+                                                 static_cast<serv_cell_index_t>(i),
+                                                 i == 0 ? &ue_fsms[new_cfg.ue_index] : nullptr,
+                                                 ue_shared_context{ue_drx_controllers[new_cfg.ue_index],
+                                                                   ue_ta_report_trackers[new_cfg.ue_index],
+                                                                   ue_koffset_trackers[new_cfg.ue_index]});
       new_lookup.du_cells.emplace(cell_index, &ue_cc);
       new_lookup.ue_cells.push_back(&ue_cc);
     } else {
@@ -353,6 +358,7 @@ void ue_repository::rem_ue(const ue& u)
   // Remove UE components.
   ue_drx_controllers.erase(ue_idx);
   ue_ta_report_trackers.erase(ue_idx);
+  ue_koffset_trackers.erase(ue_idx);
   ue_fsms.erase(ue_idx);
 
   // Remove UE from RNTI->UE lookup.

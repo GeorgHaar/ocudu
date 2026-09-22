@@ -978,8 +978,7 @@ void intra_slice_scheduler::update_used_ul_vrbs(const ul_ran_slice_candidate& sl
   // for PDSCH. This assumes that these resources are not colliding with SRS.
   const auto& init_ul_bwp = cell_alloc.cfg.params.ul_cfg_common.init_ul_bwp;
   ocudu_assert(slice.get_slot_tx() - cell_alloc[0].slot > 0, "PUSCH slot cannot precede its corresponding PDCCH slot");
-  // Note: In NTN mode, the slot offset includes ntn_cs_koffset, but td_res.k2 is the base k2.
-  const unsigned    slice_candidate_k2 = slice.get_slot_tx() - cell_alloc[0].slot - cell_alloc.cfg.ntn_cs_koffset;
+  const unsigned    slice_candidate_k2 = slice.get_k2();
   ofdm_symbol_range symbols_to_check   = {0, 0};
   // Find the max symbols such that symbols.stop() <= min_srs_symbol;
   for (const auto& td_res : init_ul_bwp.pusch_cfg_common->pusch_td_alloc_list) {

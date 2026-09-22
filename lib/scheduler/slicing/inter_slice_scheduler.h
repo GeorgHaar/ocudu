@@ -11,6 +11,11 @@
 
 namespace ocudu {
 
+/// \brief [Implementation-defined] Maximum number of distinct Koffsets a RAN slice generates UL candidates for.
+///
+/// UEs on other Koffsets are only scheduled in slots that a listed Koffset reaches.
+constexpr unsigned MAX_NOF_NTN_KOFFSETS_PER_SLICE = 4;
+
 struct cell_resource_allocator;
 
 /// Inter-slice Scheduler.
@@ -75,9 +80,15 @@ private:
     interval<unsigned> rb_lims;
     /// Slot at which PUSCH/PDSCH needs to be scheduled for this slice candidate.
     slot_point slot_tx;
+    /// k2 of the PUSCH TD resource this candidate was built from. Zero for downlink.
+    unsigned k2;
 
-    slice_candidate_context(ran_slice_id_t id_, priority_type prio_, interval<unsigned> rb_lims_, slot_point slot_tx_) :
-      id(id_), prio(prio_), rb_lims(rb_lims_), slot_tx(slot_tx_)
+    slice_candidate_context(ran_slice_id_t     id_,
+                            priority_type      prio_,
+                            interval<unsigned> rb_lims_,
+                            slot_point         slot_tx_,
+                            unsigned           k2_ = 0) :
+      id(id_), prio(prio_), rb_lims(rb_lims_), slot_tx(slot_tx_), k2(k2_)
     {
     }
 

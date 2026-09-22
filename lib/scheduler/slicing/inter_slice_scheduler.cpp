@@ -7,7 +7,9 @@
 #include "../config/time_domain_mapper.h"
 #include "../policy/scheduler_policy_factory.h"
 #include "../ue_scheduling/ue_cell_grid_allocator.h"
+#include "ocudu/adt/static_vector.h"
 #include "ocudu/ocudulog/ocudulog.h"
+#include <algorithm>
 
 using namespace ocudu;
 
@@ -120,66 +122,97 @@ void inter_slice_scheduler::slot_indication(slot_point slot_tx, const cell_resou
   // k2 set as the common one, and only k2 is read below.
   span<const pusch_time_domain_resource_allocation> pusch_time_domain_list =
       cell_cfg.params.ul_cfg_common.init_ul_bwp.pusch_cfg_common.value().pusch_td_alloc_list;
+  // Koffsets to offer candidates for. A UE-specific Koffset reaches slots the cell-specific one does not, so each
+  // Koffset in use needs its own candidates, and the list is rebuilt per slice.
+  const bool ue_koffsets_in_use = get_ue_koffset_cfg(cell_cfg.params.ntn_params).has_value();
+  static_vector<unsigned, MAX_NOF_NTN_KOFFSETS_PER_SLICE> koffsets{cell_cfg.ntn_cs_koffset};
+  // Last k2 given a candidate, per Koffset.
+  static_vector<std::optional<unsigned>, MAX_NOF_NTN_KOFFSETS_PER_SLICE> allocated_k2;
+
   for (const auto& slice : slices) {
-    std::optional<unsigned> allocated_k2;
+    if (ue_koffsets_in_use) {
+      // Drop the Koffsets of the previous slice, keeping the cell-specific one.
+      koffsets.resize(1);
+      for (const slice_ue& u : slice.inst.get_ues()) {
+        if (koffsets.full()) {
+          break;
+        }
+        // A UE without a PDCCH in this slot cannot be granted a PUSCH from it, so it needs no candidate of its own.
+        // That covers a UE whose Koffset is not known yet, whose uplink slot would be a guess.
+        if (not u.get_cc().is_pdcch_enabled(slot_tx)) {
+          continue;
+        }
+        const unsigned ue_koffset = u.get_cc().ntn_koffset();
+        if (std::find(koffsets.begin(), koffsets.end(), ue_koffset) == koffsets.end()) {
+          koffsets.push_back(ue_koffset);
+        }
+      }
+    }
+
+    allocated_k2.assign(koffsets.size(), std::nullopt);
     for (const uint8_t pusch_td_res_idx :
          cell_cfg.init_bwp.ul.td_mapper().common_pusch_td_res_indices(slot_tx.count())) {
-      unsigned pusch_delay = pusch_time_domain_list[pusch_td_res_idx].k2 + cell_cfg.ntn_cs_koffset;
-      const cell_slot_resource_allocator& pusch_alloc = res_grid[pusch_delay];
-      slot_point                          pusch_slot  = slot_tx + pusch_delay;
+      const pusch_time_domain_resource_allocation& td_res = pusch_time_domain_list[pusch_td_res_idx];
+      for (unsigned koffset_idx = 0, nof_koffsets = koffsets.size(); koffset_idx != nof_koffsets; ++koffset_idx) {
+        const unsigned                      pusch_delay = td_res.k2 + koffsets[koffset_idx];
+        const cell_slot_resource_allocator& pusch_alloc = res_grid[pusch_delay];
+        const slot_point                    pusch_slot  = slot_tx + pusch_delay;
 
-      unsigned pusch_rb_count = slice.inst.nof_pusch_rbs_allocated(pusch_slot);
-      if (pusch_rb_count >= slice.inst.cfg.rbs.max()) {
-        // Slice reached max RBs.
-        continue;
-      }
+        const unsigned pusch_rb_count = slice.inst.nof_pusch_rbs_allocated(pusch_slot);
+        if (pusch_rb_count >= slice.inst.cfg.rbs.max()) {
+          // Slice reached max RBs.
+          continue;
+        }
 
-      if (allocated_k2.has_value() and allocated_k2.value() == pusch_time_domain_list[pusch_td_res_idx].k2) {
-        // There is already a slice candidate for the same k2. Adding another candidate for the same k2 and different
-        // symbols would result in repeating the same slice candidates several times.
-        continue;
-      }
+        if (allocated_k2[koffset_idx].has_value() and allocated_k2[koffset_idx].value() == td_res.k2) {
+          // There is already a slice candidate for the same k2. Adding another candidate for the same k2 and different
+          // symbols would result in repeating the same slice candidates several times.
+          continue;
+        }
 
-      const crb_bitmap pusch_used_crbs =
-          pusch_alloc.ul_res_grid.used_crbs(cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.scs,
-                                            cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.crbs,
-                                            pusch_time_domain_list[pusch_td_res_idx].symbols);
-      if (pusch_used_crbs.all()) {
-        // No more RBs left to allocated so skip adding slice candidate.
-        continue;
-      }
+        const crb_bitmap pusch_used_crbs =
+            pusch_alloc.ul_res_grid.used_crbs(cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.scs,
+                                              cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.crbs,
+                                              td_res.symbols);
+        if (pusch_used_crbs.all()) {
+          // No more RBs left to allocated so skip adding slice candidate.
+          continue;
+        }
 
-      // Scale slice RB limits to account for RBs already occupied by other UL channels (e.g. PUCCH) before PUSCH
-      // scheduling. Without scaling, the overhead falls entirely on the last-scheduled slice, breaking the
-      // dedicated-PRB ratio between slices.
-      const unsigned cell_nof_rbs    = cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.crbs.length();
-      const unsigned pusch_avail_rbs = cell_nof_rbs - pusch_used_crbs.count();
-      // TODO: Refactor to use slice ratios from config to avoid conversation from ratio to PRBs and again to ratio.
-      const unsigned scaled_max = slice.inst.cfg.rbs.max() * pusch_avail_rbs / cell_nof_rbs;
-      if (scaled_max <= pusch_rb_count) {
-        // Slice already has at or above its proportional share of available RBs; skip.
-        continue;
-      }
+        // Scale slice RB limits to account for RBs already occupied by other UL channels (e.g. PUCCH) before PUSCH
+        // scheduling. Without scaling, the overhead falls entirely on the last-scheduled slice, breaking the
+        // dedicated-PRB ratio between slices.
+        const unsigned cell_nof_rbs    = cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.crbs.length();
+        const unsigned pusch_avail_rbs = cell_nof_rbs - pusch_used_crbs.count();
+        // TODO: Refactor to use slice ratios from config to avoid conversation from ratio to PRBs and again to ratio.
+        const unsigned scaled_max = slice.inst.cfg.rbs.max() * pusch_avail_rbs / cell_nof_rbs;
+        if (scaled_max <= pusch_rb_count) {
+          // Slice already has at or above its proportional share of available RBs; skip.
+          continue;
+        }
 
-      interval<unsigned> rb_lims;
-      // When minRB > 0, minRB != maxRB, sliceRBs < min_RB, we create two candidates. One with limit set to minRB
-      // with high priority, and another one with limit set to maxRB with normal priority.
-      if (slice.inst.cfg.rbs.min() > 0 and slice.inst.cfg.rbs.shared() > 0 and
-          pusch_rb_count < slice.inst.cfg.rbs.min()) {
-        // NOTE: keep pusch_rb_count in the rb_lims computation below; note that, after running slot_indication for
-        // each slice (see above), pusch_rb_count is 0 only for k2 = min_k2; but in UL, we have other k2 values for
-        // which pusch_rb_count wouldn't be 0.
-        const unsigned scaled_min = slice.inst.cfg.rbs.min() * pusch_avail_rbs / cell_nof_rbs;
-        rb_lims                   = {pusch_rb_count, scaled_min};
-        const auto prio           = slice.get_prio(false, slot_tx, pusch_slot, rb_lims.stop());
-        ul_prio_queue.push(slice_candidate_context{slice.inst.id, prio, rb_lims, pusch_slot});
-        rb_lims = {scaled_min, scaled_max};
-      } else {
-        rb_lims = {pusch_rb_count, scaled_max};
+        interval<unsigned> rb_lims;
+        // When minRB > 0, minRB != maxRB, sliceRBs < min_RB, we create two candidates. One with limit set to minRB
+        // with high priority, and another one with limit set to maxRB with normal priority.
+        if (slice.inst.cfg.rbs.min() > 0 and slice.inst.cfg.rbs.shared() > 0 and
+            pusch_rb_count < slice.inst.cfg.rbs.min()) {
+          // NOTE: keep pusch_rb_count in the rb_lims computation below; note that, after running slot_indication for
+          // each slice (see above), pusch_rb_count is 0 only for k2 = min_k2; but in UL, we have other k2 values for
+          // which pusch_rb_count wouldn't be 0.
+          const unsigned scaled_min = slice.inst.cfg.rbs.min() * pusch_avail_rbs / cell_nof_rbs;
+          rb_lims                   = {pusch_rb_count, scaled_min};
+          const auto prio           = slice.get_prio(false, slot_tx, pusch_slot, rb_lims.stop());
+          ul_prio_queue.push(slice_candidate_context{
+              slice.inst.id, prio, rb_lims, pusch_slot, pusch_time_domain_list[pusch_td_res_idx].k2});
+          rb_lims = {scaled_min, scaled_max};
+        } else {
+          rb_lims = {pusch_rb_count, scaled_max};
+        }
+        const auto prio = slice.get_prio(false, slot_tx, pusch_slot, rb_lims.stop());
+        allocated_k2[koffset_idx].emplace(pusch_time_domain_list[pusch_td_res_idx].k2);
+        ul_prio_queue.push(slice_candidate_context{
+            slice.inst.id, prio, rb_lims, pusch_slot, pusch_time_domain_list[pusch_td_res_idx].k2});
       }
-      const auto prio = slice.get_prio(false, slot_tx, pusch_slot, rb_lims.stop());
-      allocated_k2.emplace(pusch_time_domain_list[pusch_td_res_idx].k2);
-      ul_prio_queue.push(slice_candidate_context{slice.inst.id, prio, rb_lims, pusch_slot});
     }
   }
   ul_prio_queue.sort();
@@ -300,11 +333,14 @@ inter_slice_scheduler::get_next_candidate()
     ran_slice_sched_context& chosen_slice = slices[prio_queue.top().id.value()];
     interval<unsigned>       rb_lims      = prio_queue.top().rb_lims;
     slot_point               pxsch_slot   = prio_queue.top().slot_tx;
+    const unsigned           k2           = prio_queue.top().k2;
     prio_queue.pop();
 
     // Check if two consecutive candidates belong to the same slice. If so, we can combine them into a single candidate.
-    if (not prio_queue.empty() and prio_queue.top().id == chosen_slice.inst.id and
-        prio_queue.top().slot_tx == pxsch_slot) {
+    // The symbols of a candidate follow from its k2, and two Koffsets reach the same slot from different k2, so only
+    // candidates sharing a k2 are combined.
+    if (not prio_queue.empty() and prio_queue.top().id == chosen_slice.inst.id and prio_queue.top().slot_tx == pxsch_slot and
+        prio_queue.top().k2 == k2) {
       rb_lims = {std::min(rb_lims.start(), prio_queue.top().rb_lims.start()),
                  std::max(rb_lims.stop(), prio_queue.top().rb_lims.stop())};
       prio_queue.pop();
@@ -341,7 +377,7 @@ inter_slice_scheduler::get_next_candidate()
     }
 
     // Return the candidate.
-    return candidate_type{chosen_slice.inst, pxsch_slot, max_rbs_candidate};
+    return candidate_type{chosen_slice.inst, pxsch_slot, max_rbs_candidate, k2};
   }
   return std::nullopt;
 }

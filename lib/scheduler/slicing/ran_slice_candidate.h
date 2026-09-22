@@ -16,8 +16,11 @@ template <bool IsDl>
 class common_ran_slice_candidate
 {
 public:
-  common_ran_slice_candidate(ran_slice_instance& instance_, slot_point slot_tx_, unsigned max_rbs_ = 0) :
-    inst(&instance_), max_rbs(max_rbs_ == 0 ? inst->cfg.rbs.max() : max_rbs_), slot_tx(slot_tx_)
+  common_ran_slice_candidate(ran_slice_instance& instance_,
+                             slot_point          slot_tx_,
+                             unsigned            max_rbs_ = 0,
+                             unsigned            k2_      = 0) :
+    inst(&instance_), max_rbs(max_rbs_ == 0 ? inst->cfg.rbs.max() : max_rbs_), slot_tx(slot_tx_), pusch_k2(k2_)
   {
   }
 
@@ -64,6 +67,9 @@ public:
   /// Returns slot at which PUSCH/PDSCH needs to be scheduled for this slice candidate.
   slot_point get_slot_tx() const { return slot_tx; }
 
+  /// Returns the k2 of the PUSCH TD resource this candidate was built from. Zero in downlink.
+  unsigned get_k2() const { return pusch_k2; }
+
 protected:
   ran_slice_instance* inst    = nullptr;
   unsigned            max_rbs = 0;
@@ -71,6 +77,8 @@ protected:
   unsigned rb_count = 0;
   /// Slot at which PUSCH/PDSCH needs to be scheduled for this slice candidate.
   slot_point slot_tx;
+  /// k2 of the PUSCH TD resource this candidate was built from.
+  unsigned pusch_k2 = 0;
 };
 
 } // namespace detail

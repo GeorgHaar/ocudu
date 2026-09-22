@@ -235,6 +235,31 @@ protected:
   ue_repository                            ue_db;
 };
 
+TEST_F(cfra_ue_repository_test, reestablishment_returns_the_ue_to_the_cell_specific_koffset)
+{
+  const du_ue_index_t ue_idx = add_ue(false, false);
+  const slot_point    sl_tx{cell_cfg.scs_common(), 0};
+  ue_koffset_tracker& koffset = ue_db[ue_idx].koffset_tracker();
+
+  koffset.handle_ce_sent(std::chrono::milliseconds{7}, sl_tx);
+  koffset.handle_ce_acked();
+  koffset.slot_indication(sl_tx, {});
+  ASSERT_EQ(koffset.applied_koffset(), std::chrono::milliseconds{7});
+
+  // Reestablishment resets the UE MAC, which clears the Differential Koffset, as per TS 38.321, Section 5.12.
+  sched_ue_creation_request_message ue_req = sched_config_helper::create_default_sched_ue_creation_request(
+      cell_cfg.params, std::array<lcid_t, 3>{lcid_t::LCID_SRB1, lcid_t::LCID_SRB2, lcid_t::LCID_MIN_DRB});
+  ue_req.cfg.cause = sched_ue_config_request::causes::rrc_reconf_after_reest;
+
+  ue_config_update_event ev = cfg_mng.update_ue(sched_ue_reconfiguration_message{ue_idx, ue_req.crnti, ue_req.cfg});
+  ASSERT_TRUE(ev.valid());
+  ue_db.reconfigure_ue(ev.next_config(), sched_ue_config_request::causes::rrc_reconf_after_reest);
+  ev.notify_completion();
+
+  ASSERT_EQ(ue_db[ue_idx].koffset_tracker().applied_koffset(), std::chrono::milliseconds{0});
+  ASSERT_FALSE(ue_db[ue_idx].koffset_tracker().has_pending_ce());
+}
+
 TEST_F(cfra_ue_repository_test, cfra_ue_starts_in_pending_cfra_state)
 {
   du_ue_index_t         ue_idx   = add_ue(true, true);

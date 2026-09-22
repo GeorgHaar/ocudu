@@ -20,12 +20,6 @@ struct ue_koffset_config {
   std::chrono::milliseconds margin;
   /// Smallest change of the derived value that is signalled to the UE.
   std::chrono::milliseconds hysteresis;
-
-  bool operator==(const ue_koffset_config& other) const
-  {
-    return margin == other.margin and hysteresis == other.hysteresis;
-  }
-  bool operator!=(const ue_koffset_config& other) const { return !(*this == other); }
 };
 
 /// NTN cell-level configuration parameters.

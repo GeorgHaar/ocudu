@@ -147,6 +147,26 @@ du_ran_resource_manager_impl::du_ran_resource_manager_impl(span<const du_cell_co
   }
 }
 
+/// \brief Determines whether a UE may be sent a Differential Koffset, as per TS 38.321, Section 5.18.24.
+///
+/// Requires an NTN cell deriving a UE-specific Koffset and a UE declaring ue-specific-K-Offset-r17 for the band.
+static bool supports_ue_specific_koffset(const cell_group_config&     cell_grp_cfg,
+                                         span<const du_cell_config>   cell_cfg_list,
+                                         const ue_capability_summary& ue_caps)
+{
+  if (not cell_grp_cfg.cells.contains(SERVING_PCELL_IDX)) {
+    return false;
+  }
+
+  const du_cell_config& cell_cfg = cell_cfg_list[cell_grp_cfg.cells.at(SERVING_PCELL_IDX).serv_cell_cfg.cell_index];
+  if (not get_ue_koffset_cfg(cell_cfg.ran.ntn_params).has_value()) {
+    return false;
+  }
+
+  const auto band_it = ue_caps.bands.find(cell_cfg.ran.dl_carrier.band);
+  return band_it != ue_caps.bands.end() and band_it->second.ue_specific_k_offset_supported;
+}
+
 /// \brief Configures tar-Config for a UE, enabling variation-triggered Timing Advance reporting.
 ///
 /// Only an NTN cell configures it, and only for a UE that declares uplink-TA-Reporting-r17 for the band: signalling it
@@ -350,6 +370,8 @@ du_ran_resource_manager_impl::update_context(du_ue_index_t                      
       pucch_res_mng.update_resources(ue_mcg.cell_group.cells.at(SERVING_PCELL_IDX), *u.ue_cap_manager.summary());
     }
     update_tar_config(ue_mcg.cell_group, cell_cfg_list, *u.ue_cap_manager.summary(), ue_index, logger);
+    ue_mcg.ue_specific_koffset_supported =
+        supports_ue_specific_koffset(ue_mcg.cell_group, cell_cfg_list, *u.ue_cap_manager.summary());
     csi_res_mng.update_resources(ue_mcg.cell_group, *u.ue_cap_manager.summary(), ue_index);
   }
 

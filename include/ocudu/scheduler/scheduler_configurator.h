@@ -109,6 +109,8 @@ struct sched_ue_config_request {
   std::optional<drx_config> drx_cfg;
   /// measGapConfig.
   std::optional<meas_gap_config> meas_gap_cfg;
+  /// Whether the UE accepts a Differential Koffset MAC CE, as per TS 38.321, Section 5.18.24.
+  bool ue_specific_koffset_supported = false;
   /// Whether this configuration was triggered by RRC.
   causes cause = causes::other_rrc_proc;
 };

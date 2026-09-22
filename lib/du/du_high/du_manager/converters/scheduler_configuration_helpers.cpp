@@ -143,8 +143,9 @@ sched_ue_config_request ocudu::odu::create_scheduler_ue_config_request(const du_
       sched_lc_ch.qos->gbr_qos_info = drb.qos.gbr_qos_info;
     }
   }
-  sched_cfg.drx_cfg      = ue_res_cfg.cell_group.mcg_cfg.drx_cfg;
-  sched_cfg.meas_gap_cfg = ue_res_cfg.meas_gap;
+  sched_cfg.drx_cfg                       = ue_res_cfg.cell_group.mcg_cfg.drx_cfg;
+  sched_cfg.meas_gap_cfg                  = ue_res_cfg.meas_gap;
+  sched_cfg.ue_specific_koffset_supported = ue_res_cfg.ue_specific_koffset_supported;
 
   return sched_cfg;
 }

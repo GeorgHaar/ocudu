@@ -760,6 +760,8 @@ void ue_configuration::update(const cell_common_configuration_list& common_cells
   // Update DRX config.
   ue_drx_cfg = cfg_req.drx_cfg;
 
+  ue_specific_koffset_supported = cfg_req.ue_specific_koffset_supported;
+
   // Update UE dedicated cell configs.
   if (cfg_req.cells.has_value()) {
     // Check if any cell has been removed.

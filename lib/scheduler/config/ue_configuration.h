@@ -305,6 +305,9 @@ public:
   /// Get DRX configuration for the UE cell group.
   const std::optional<drx_config>& drx_cfg() const { return ue_drx_cfg; }
 
+  /// Whether the UE accepts a Differential Koffset MAC CE, as per TS 38.321, Section 5.18.24.
+  bool supports_ue_specific_koffset() const { return ue_specific_koffset_supported; }
+
 private:
   // List of configured logical channels
   logical_channel_config_list_ptr lc_list;
@@ -317,6 +320,9 @@ private:
 
   // DRX config for the UE cell group.
   std::optional<drx_config> ue_drx_cfg;
+
+  // Whether the UE accepts a Differential Koffset MAC CE.
+  bool ue_specific_koffset_supported = false;
 
   // CS-RNTI for Configured Grants
   std::optional<rnti_t> cs_rnti;

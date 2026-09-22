@@ -237,8 +237,8 @@ static void decode_advanced_ue_nr_ntn_caps(ue_capability_summary&           ue_c
     // UE indicating support of this feature shall also indicate support of uplinkPreCompensation-r17 for this band.
     band_cap.ul_ta_reporting_supported = band.ul_ta_report_r17_present && band_cap.ul_pre_compensation_supported;
 
-    // UE indicating support of this feature shall also indicate support of uplinkPreCompensation-r17 and
-    // uplink-TA-Reporting-r17 for this band.
+    // A UE indicating this feature also indicates uplinkPreCompensation-r17 and uplink-TA-Reporting-r17 for the band,
+    // as per TS 38.306, Section 4.2.7.1.
     band_cap.ue_specific_k_offset_supported =
         band.ue_specific_k_offset_r17_present && band_cap.ul_ta_reporting_supported;
   }

@@ -79,6 +79,8 @@ struct du_ue_resource_config {
   static_vector<meas_gap_config, MAX_NOF_PRS_FREQ_LAYERS> prs_meas_gaps;
   /// Resources allocated for contention-free random access (CFRA).
   std::optional<cfra_config> cfra;
+  /// Whether the UE accepts a Differential Koffset MAC CE, as per TS 38.321, Section 5.18.24.
+  bool ue_specific_koffset_supported = false;
 };
 
 } // namespace odu

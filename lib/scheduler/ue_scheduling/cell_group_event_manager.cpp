@@ -166,7 +166,9 @@ bool cell_group_event_handler_impl::handle_ue_deletion(ue_config_delete_event ev
 
 /// \brief Signals a UE the Differential Koffset derived from its reported T_TA, as per TS 38.321, Section 5.18.24.
 ///
-/// Nothing is signalled while a value is in flight, since the scheduler could not tell which one the UE applies.
+/// Runs on each T_TA report, and on the configuration that declares the UE accepts the MAC CE.
+///
+/// Nothing is signalled while a value is in flight, since the scheduler cannot tell which one the UE applies.
 static void update_differential_koffset(ue& u, ocudulog::basic_logger& logger)
 {
   const cell_configuration&              cell_cfg       = u.get_pcell().cfg().cell_cfg_common;
@@ -227,6 +229,9 @@ bool cell_group_event_handler_impl::handle_ue_config_applied(du_ue_index_t ue_id
 
   // Confirm that UE applied new config.
   ue_db.ue_config_applied(ue_idx);
+
+  // The applied configuration declares whether the UE accepts a Differential Koffset.
+  update_differential_koffset(ue_db[ue_idx], logger);
 
   // Notify slice scheduler only when the UE fully exits fallback (conres also done).
   if (not ue_db[ue_idx].get_pcell().is_in_fallback_mode()) {

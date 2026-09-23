@@ -1556,6 +1556,34 @@ TEST_F(single_ntn_ue_harq_dl_feedback_disabled_process_test, release_dl_harq_aft
   }
 }
 
+TEST_F(single_ntn_ue_harq_dl_feedback_disabled_process_test, release_follows_the_transmission_not_the_koffset)
+{
+  // No HARQ-ACK is reported for this process, so it is released shortly after its PDSCH, whatever Koffset placed the
+  // HARQ-ACK slot it never uses.
+  h_dl.cancel_unsent_tx();
+  h_dl = harq_ent
+             .alloc_dl_harq(current_slot,
+                            current_slot,
+                            k1 + ntn_cs_koffset,
+                            max_retxs,
+                            0,
+                            harq_utils::harq_mode_t::feedback_disabled_or_mode_b)
+             .value();
+  dl_harq_alloc_context harq_ctxt{dci_dl_rnti_config_type::c_rnti_f1_0};
+  ue_pdsch.pdsch_cfg.harq_id = h_dl.id();
+  h_dl.save_grant_params(harq_ctxt, ue_pdsch);
+
+  // A single PDSCH occasion in the current slot, so neither k1 nor the Koffset delays the release.
+  const slot_point slot_dl_timeout = current_slot + ntn_ack_wait_timeout;
+
+  while (current_slot != slot_dl_timeout) {
+    ASSERT_TRUE(h_dl.is_waiting_ack()) << "HARQ released before the delay its transmission implies";
+    run_slot();
+  }
+  run_slot();
+  ASSERT_TRUE(h_dl.empty()) << "HARQ outlived the delay its transmission implies";
+}
+
 // Tests for HARQ count based on NTN mode.
 
 class non_ntn_harq_count_test : public base_harq_manager_test, public ::testing::Test

@@ -270,6 +270,16 @@ struct ul_ta_report_indication_message {
   std::chrono::microseconds ul_ta;
 };
 
+/// Information and context relative to CG Confirmation forwarded by MAC.
+/// \remark This information is associated with the reception of a MAC-CE Configured Grant Confirmation (TS 38.321,
+/// Section 6.1.3.7).
+struct cg_confirmation_indication_message {
+  du_cell_index_t cell_index;
+  du_ue_index_t   ue_index;
+  rnti_t          rnti;
+  slot_point      slot_rx;
+};
+
 /// Interface used to push the feedback that is directed at a UE of a cell.
 class ue_feedback_handler
 {
@@ -286,6 +296,11 @@ public:
   ///
   /// The reported T_TA places this UE's uplink measurement gap window when the cell has no estimate of its own.
   virtual void handle_ul_ta_report_indication(const ul_ta_report_indication_message& ta_report_ind) = 0;
+
+  /// \brief Handles a Configured Grant Confirmation indication sent by MAC.
+  ///
+  /// This indication comes from the reception of a MAC-CE Configured Grant Confirmation.
+  virtual void handle_cg_confirmation_message(const cg_confirmation_indication_message& cg_conf_ind) = 0;
 
   /// \brief Command scheduling of DL MAC CE for a given UE.
   ///

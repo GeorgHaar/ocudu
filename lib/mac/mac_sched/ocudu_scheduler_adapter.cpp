@@ -284,6 +284,17 @@ void ocudu_scheduler_adapter::handle_ul_ta_report_indication(const mac_ta_report
   sched_impl->handle_ul_ta_report_indication(ind);
 }
 
+void ocudu_scheduler_adapter::handle_cg_confirmation_indication(const mac_cg_confirmation_ce_info& cg_conf)
+{
+  // Forward the CG Confirmation to the scheduler.
+  cg_confirmation_indication_message ind{};
+  ind.cell_index = cg_conf.cell_index;
+  ind.ue_index   = cg_conf.ue_index;
+  ind.rnti       = cg_conf.rnti;
+  ind.slot_rx    = cg_conf.slot_rx;
+  sched_impl->handle_cg_confirmation_message(ind);
+}
+
 void ocudu_scheduler_adapter::handle_crnti_ce_indication(du_ue_index_t old_ue_index, du_cell_index_t cell_index)
 {
   rlf_handler.handle_crnti_ce(old_ue_index);

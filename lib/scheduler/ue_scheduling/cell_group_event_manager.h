@@ -67,6 +67,8 @@ public:
                              time_alignment_group::id_t tag_id,
                              phy_time_unit              n_ta_diff,
                              float                      ul_sinr) override;
+  void handle_cg_activation_indication(du_ue_index_t ue_index) override;
+  void handle_error_indication(slot_point sl_tx, scheduler_slot_handler::error_outcome event) override;
 
 private:
   /// Log event with invalid UE index.

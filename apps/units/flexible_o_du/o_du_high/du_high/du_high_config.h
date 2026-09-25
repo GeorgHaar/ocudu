@@ -622,6 +622,8 @@ struct du_high_configured_grants {
   /// For 12 symbol slots, all values above except {1014, 5120}.
   /// \remark Only 14-symbol slot is currently supported.
   std::optional<unsigned> periodicity_slots;
+  /// True if Configured Grant is set as type 2.
+  bool type2 = false;
   /// Configured Grant grant size in bytes.
   /// When \ref requested_bitrate is set, \c grant_size gets ignored.
   /// \remark The default of 120 bytes results in 10 PRBs at the default MCS 5, which fits within the default

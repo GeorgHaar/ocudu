@@ -497,6 +497,8 @@ static dci_payload encode_dci(const pdcch_ul_information& pdcch)
       return dci_0_0_tc_rnti_pack(pdcch.dci.as_tc_rnti_f0_0());
     case dci_ul_rnti_config_type::c_rnti_f0_1:
       return dci_0_1_pack(pdcch.dci.as_c_rnti_f0_1());
+    case dci_ul_rnti_config_type::cs_rnti_f0_1:
+      return dci_0_1_cs_rnti_pack(pdcch.dci.as_cs_rnti_f0_1());
     default:
       ocudu_terminate("Invalid DCI format");
   }

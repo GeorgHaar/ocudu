@@ -10,6 +10,7 @@
 #include "ue_drx_controller.h"
 #include "ocudu/ran/sch/tbs_calculator.h"
 #include "ocudu/scheduler/scheduler_feedback_handler.h"
+#include <cmath>
 
 using namespace ocudu;
 
@@ -121,8 +122,8 @@ std::optional<dl_harq_process_handle> ue_cell::handle_dl_ack_info(slot_point    
   return h_dl;
 }
 
-expected<std::pair<units::bytes, bool>, ue_cell::crc_not_concluded>
-ue_cell::handle_crc_pdu(slot_point pusch_slot, const ul_crc_pdu_indication& crc_pdu)
+expected<ue_cell::crc_outcome, ue_cell::crc_not_concluded> ue_cell::handle_crc_pdu(slot_point pusch_slot,
+                                                                                   const ul_crc_pdu_indication& crc_pdu)
 {
   // Find UL HARQ with matching PUSCH slot.
   std::optional<ul_harq_process_handle> h_ul = harqs.find_ul_harq_waiting_ack(pusch_slot);
@@ -165,17 +166,21 @@ ue_cell::handle_crc_pdu(slot_point pusch_slot, const ul_crc_pdu_indication& crc_
 
   // HARQ with matching ID and UCI slot was found.
 
-  // With CG, if a CRC KO is found with SINR below threshold, we assume it's a DTX (PUSCH wasn't transmitted).
-  bool pusch_transmitted = true;
-
-  if (h_ul->is_cg() and not combined_crc_success and crc_pdu.ul_sinr_dB.has_value() and
-      crc_pdu.ul_sinr_dB.value() < expert_cfg.cg_pusch_sinr_threshold_dB) {
-    pusch_transmitted = false;
-    return std::make_pair(units::bytes(0U), pusch_transmitted);
+  // With CG, a CRC KO is assumed to be a DTX (PUSCH wasn't transmitted) when the SINR measurement says so: either it
+  // is below cg_pusch_sinr_threshold_dB, or it is non-finite, as an occasion the UE did not transmit on can yield an
+  // infinite SINR from a degenerate noise estimate, which would otherwise sail past the threshold and read as a
+  // transmission. A CRC KO carrying no SINR at all is instead taken at face value, as a KO: with no measurement to
+  // contradict it, the UE is assumed to have transmitted, since re-activating a UE that did receive the activation
+  // DCI is worse than leaving a missed activation undetected.
+  const bool is_cg = h_ul->is_cg();
+  if (is_cg and not combined_crc_success and crc_pdu.ul_sinr_dB.has_value() and
+      (not std::isfinite(crc_pdu.ul_sinr_dB.value()) or
+       crc_pdu.ul_sinr_dB.value() < expert_cfg.cg_pusch_sinr_threshold_dB)) {
+    return crc_outcome{.tbs = units::bytes(0U), .pusch_transmitted = false, .is_cg = is_cg};
   }
 
   // With CG, MCS is fixed, thus we don't want to update OLLA or channel state.
-  if (not h_ul->is_cg()) {
+  if (not is_cg) {
     // Update link adaptation controller.
     components.ue_mcs_calculator->handle_ul_crc_info(combined_crc_success,
                                                      h_ul->get_grant_params().mcs,
@@ -189,7 +194,7 @@ ue_cell::handle_crc_pdu(slot_point pusch_slot, const ul_crc_pdu_indication& crc_
     }
   }
 
-  return std::make_pair(tbs_ret.value(), pusch_transmitted);
+  return crc_outcome{.tbs = tbs_ret.value(), .pusch_transmitted = true, .is_cg = is_cg};
 }
 
 void ue_cell::handle_srs_channel_matrix(const srs_channel_matrix& channel_matrix)

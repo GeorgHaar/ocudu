@@ -221,6 +221,19 @@ void pdu_rx_handler::forward_ta_report(du_ue_index_t             ue_index,
   sched.handle_ul_ta_report_indication(ta_report_ind);
 }
 
+void pdu_rx_handler::forward_cg_confirmation(du_ue_index_t   ue_index,
+                                             du_cell_index_t cell_index,
+                                             rnti_t          rnti,
+                                             slot_point      slot_rx)
+{
+  mac_cg_confirmation_ce_info cg_conf_ind{};
+  cg_conf_ind.cell_index = cell_index;
+  cg_conf_ind.ue_index   = ue_index;
+  cg_conf_ind.rnti       = rnti;
+  cg_conf_ind.slot_rx    = slot_rx;
+  sched.handle_cg_confirmation_indication(cg_conf_ind);
+}
+
 bool pdu_rx_handler::handle_mac_ce(const decoded_mac_rx_pdu& ctx, const mac_ul_sch_subpdu& subpdu)
 {
   // Handle MAC CEs
@@ -307,6 +320,14 @@ bool pdu_rx_handler::handle_mac_ce(const decoded_mac_rx_pdu& ctx, const mac_ul_s
       }
       forward_ta_report(
           ctx.ue_index, ctx.cell_index_rx, ctx.pdu_rx.rnti, ctx.slot_rx, decode_ta_report(subpdu.payload()));
+    } break;
+    case lcid_ul_sch_t::CG_CONFIRMATION: {
+      if (not is_du_ue_index_valid(ctx.ue_index)) {
+        logger.warning("{}: Discarding MAC CE. Cause: C-RNTI is not associated with any existing UE",
+                       create_prefix(ctx, subpdu));
+        return false;
+      }
+      forward_cg_confirmation(ctx.ue_index, ctx.cell_index_rx, ctx.pdu_rx.rnti, ctx.slot_rx);
     } break;
     case lcid_ul_sch_t::PADDING:
       break;

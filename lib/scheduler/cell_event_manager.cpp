@@ -52,6 +52,8 @@ class ocudu::cell_event_dispatcher
   static constexpr size_t MAC_REPORT_POOL_SIZE = MAX_PUSCH_PDUS_PER_SLOT * 8;
   // [Implementation defined] Slice reconfigurations are rare, so only a few can be in flight at any moment.
   static constexpr size_t SLICE_RECONF_POOL_SIZE = 4;
+  // TODO: define proper size
+  static constexpr size_t CG_CONFIRMATIONS_POOL_SIZE = 4;
 
   /// \brief Capacity of the queue of pending events.
   ///
@@ -68,18 +70,19 @@ class ocudu::cell_event_dispatcher
                                              3 * MAC_REPORT_POOL_SIZE + // BSR, PHR and TA reports
                                              SLICE_RECONF_POOL_SIZE;    // slice reconfigurations
 
-  using paging_pool       = bounded_object_pool<sched_paging_information>;
-  using si_pool           = bounded_object_pool<si_scheduling_update_request>;
-  using pws_si_pool       = bounded_object_pool<pws_si_scheduling_update_request>;
-  using rach_pool         = bounded_object_pool<rach_indication_message>;
-  using crc_pool          = bounded_object_pool<ul_crc_indication>;
-  using pos_req_pool      = bounded_object_pool<positioning_measurement_request::cell_info>;
-  using srs_pool          = bounded_object_pool<srs_indication::srs_indication_pdu>;
-  using uci_pool          = bounded_object_pool<uci_indication::uci_pdu>;
-  using bsr_pool          = bounded_object_pool<ul_bsr_indication_message>;
-  using phr_pool          = bounded_object_pool<ul_phr_indication_message>;
-  using ta_report_pool    = bounded_object_pool<ul_ta_report_indication_message>;
-  using slice_reconf_pool = bounded_object_pool<du_cell_slice_reconfig_request>;
+  using paging_pool          = bounded_object_pool<sched_paging_information>;
+  using si_pool              = bounded_object_pool<si_scheduling_update_request>;
+  using pws_si_pool          = bounded_object_pool<pws_si_scheduling_update_request>;
+  using rach_pool            = bounded_object_pool<rach_indication_message>;
+  using crc_pool             = bounded_object_pool<ul_crc_indication>;
+  using pos_req_pool         = bounded_object_pool<positioning_measurement_request::cell_info>;
+  using srs_pool             = bounded_object_pool<srs_indication::srs_indication_pdu>;
+  using uci_pool             = bounded_object_pool<uci_indication::uci_pdu>;
+  using bsr_pool             = bounded_object_pool<ul_bsr_indication_message>;
+  using phr_pool             = bounded_object_pool<ul_phr_indication_message>;
+  using ta_report_pool       = bounded_object_pool<ul_ta_report_indication_message>;
+  using slice_reconf_pool    = bounded_object_pool<du_cell_slice_reconfig_request>;
+  using cg_confirmation_pool = bounded_object_pool<cg_confirmation_indication_message>;
 
   /// Event enqueued and dispatched by this class.
   struct event_t {
@@ -114,6 +117,7 @@ public:
     pending_phrs(MAC_REPORT_POOL_SIZE),
     pending_ta_reports(MAC_REPORT_POOL_SIZE),
     pending_slice_reconfs(SLICE_RECONF_POOL_SIZE),
+    pending_cg_confirmations(CG_CONFIRMATIONS_POOL_SIZE),
     pending_events(EVENT_QUEUE_SIZE)
   {
   }
@@ -200,6 +204,8 @@ private:
       return "TA report";
     } else if constexpr (std::is_same_v<PDUType, du_cell_slice_reconfig_request>) {
       return "slice reconfiguration";
+    } else if constexpr (std::is_same_v<PDUType, cg_confirmation_indication_message>) {
+      return "CG confirmation";
     } else {
       return "unknown";
     }
@@ -208,18 +214,19 @@ private:
   const cell_configuration& cell_cfg;
   ocudulog::basic_logger&   logger;
 
-  paging_pool       pending_pagings;
-  si_pool           pending_si_reqs;
-  pws_si_pool       pending_pws_si_reqs;
-  rach_pool         pending_rachs;
-  crc_pool          pending_crcs;
-  pos_req_pool      pending_pos_reqs;
-  srs_pool          pending_srss;
-  uci_pool          pending_ucis;
-  bsr_pool          pending_bsrs;
-  phr_pool          pending_phrs;
-  ta_report_pool    pending_ta_reports;
-  slice_reconf_pool pending_slice_reconfs;
+  paging_pool          pending_pagings;
+  si_pool              pending_si_reqs;
+  pws_si_pool          pending_pws_si_reqs;
+  rach_pool            pending_rachs;
+  crc_pool             pending_crcs;
+  pos_req_pool         pending_pos_reqs;
+  srs_pool             pending_srss;
+  uci_pool             pending_ucis;
+  bsr_pool             pending_bsrs;
+  phr_pool             pending_phrs;
+  ta_report_pool       pending_ta_reports;
+  slice_reconf_pool    pending_slice_reconfs;
+  cg_confirmation_pool pending_cg_confirmations;
 
   std::tuple<paging_pool*,
              si_pool*,
@@ -232,7 +239,8 @@ private:
              bsr_pool*,
              phr_pool*,
              ta_report_pool*,
-             slice_reconf_pool*>
+             slice_reconf_pool*,
+             cg_confirmation_pool*>
       pools{&pending_pagings,
             &pending_si_reqs,
             &pending_pws_si_reqs,
@@ -244,7 +252,8 @@ private:
             &pending_bsrs,
             &pending_phrs,
             &pending_ta_reports,
-            &pending_slice_reconfs};
+            &pending_slice_reconfs,
+            &pending_cg_confirmations};
 
   event_queue pending_events;
 
@@ -478,9 +487,8 @@ void cell_event_manager::handle_ue_crc(slot_point sl_rx, const ul_crc_pdu_indica
     return;
   }
 
-  // \ref pusch_transmitted is true if the gnb detected that the PUSCH was transmitted, false if it was DTX.
-  auto [tbs, pusch_transmitted] = crc_process_res.value();
-  if (not pusch_transmitted) {
+  const ue_cell::crc_outcome& outcome = crc_process_res.value();
+  if (not outcome.pusch_transmitted) {
     ev_logger.enqueue(scheduler_event_logger::crc_event{crc.ue_index,
                                                         crc.rnti,
                                                         cell_cfg.cell_index,
@@ -489,6 +497,14 @@ void cell_event_manager::handle_ue_crc(slot_point sl_rx, const ul_crc_pdu_indica
                                                         scheduler_event_logger::crc_event::crc_res_t::dtx,
                                                         crc.ul_sinr_dB});
     return;
+  }
+
+  // Notify the CG scheduler that a CRC PDU (that wasn't DTX) has been received for a CG PUSCH of this UE. Only a CG
+  // PUSCH confirms a CG activation; a CRC for a dynamic grant says nothing about whether the UE received the activation
+  // DCI. Type 1 CG has no activation, so its CRCs are not forwarded.
+  // NOTE: a CG PUSCH implies that the cell has a CG configured.
+  if (outcome.is_cg and cell_cfg.params.init_bwp.cg_cfg->is_type2()) {
+    ue_ev_handler.handle_cg_activation_indication(crc.ue_index);
   }
 
   // Process Timing Advance Offset.
@@ -509,7 +525,7 @@ void cell_event_manager::handle_ue_crc(slot_point sl_rx, const ul_crc_pdu_indica
                                                       crc.ul_sinr_dB});
 
   // Notify metrics handler.
-  metrics.handle_crc_indication(sl_rx, crc, tbs);
+  metrics.handle_crc_indication(sl_rx, crc, outcome.tbs);
 }
 
 void cell_event_manager::handle_positioning_measurement_request(const positioning_measurement_request::cell_info& req)
@@ -874,6 +890,18 @@ void cell_event_manager::handle_csi(ue_cell& ue_cc, slot_point sl_rx, const csi_
   ev_logger.enqueue(event);
 }
 
+void cell_event_manager::handle_cg_confirmation_message(const cg_confirmation_indication_message& cg_conf_ind)
+{
+  auto cg_ptr = dispatcher->create_pdu(cg_conf_ind);
+  if (cg_ptr == nullptr) {
+    return;
+  }
+  dispatcher->push("CG confirmation", [this, ue_idx = cg_conf_ind.ue_index, cg_ptr = std::move(cg_ptr)]() {
+    ue_ev_handler.handle_cg_activation_indication(ue_idx);
+    ev_logger.enqueue(*cg_ptr);
+  });
+}
+
 void cell_event_manager::handle_uci_indication_timeout(slot_point uci_slot, rnti_t crnti, const uci_action& action)
 {
   // Notify respective DL HARQ that the UCI went missing.
@@ -938,6 +966,13 @@ void cell_event_manager::handle_error_indication(slot_point sl_tx, scheduler_slo
 {
   auto handle_error_impl = [this, sl_tx, event]() {
     // Handle Error Indication.
+
+    // Forward to the cell group, so that the configured grant scheduler can drop the CRCs it was expecting for a
+    // discarded CG PUSCH and retry an activation whose PDCCH was discarded. Passed unconditionally, as those are two
+    // distinct outcomes of the error indication. This is done before the slot history lookup below, as the configured
+    // grant scheduler does not need the slot result and must also learn about an error indication that arrives after
+    // the slot has left the history.
+    ue_ev_handler.handle_error_indication(sl_tx, event);
 
     const cell_slot_resource_allocator* prev_slot_result = res_grid.get_history(sl_tx);
     if (prev_slot_result == nullptr) {

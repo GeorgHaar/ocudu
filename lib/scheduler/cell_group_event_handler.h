@@ -12,6 +12,7 @@
 #include "ocudu/ran/time_alignment_config.h"
 #include "ocudu/scheduler/scheduler_dl_buffer_state_indication_handler.h"
 #include "ocudu/scheduler/scheduler_feedback_handler.h"
+#include "ocudu/scheduler/scheduler_slot_handler.h"
 
 namespace ocudu {
 
@@ -84,6 +85,17 @@ public:
                                      time_alignment_group::id_t tag_id,
                                      phy_time_unit              n_ta_diff,
                                      float                      ul_sinr) = 0;
+
+  /// Notify the scheduler of an acked Configured Grant activation of a UE of the cell group.
+  /// \remark This notification can be come either from a MAC-CE Configured Grant Confirmation, or from the reception of
+  /// a non-DTX CRC.
+  virtual void handle_cg_activation_indication(du_ue_index_t ue_index) = 0;
+
+  /// \brief Apply to the cell group an error indication that a cell received for one of its past slots.
+  ///
+  /// The configured grant scheduler needs it to tell apart a CG PUSCH that the UE did not transmit from one that never
+  /// reached the PHY, and to retry an activation whose PDCCH was discarded.
+  virtual void handle_error_indication(slot_point sl_tx, scheduler_slot_handler::error_outcome event) = 0;
 };
 
 /// Interface that a cell uses to hand over to its cell group the events that the cell group has to handle.

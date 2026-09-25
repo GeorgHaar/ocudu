@@ -115,6 +115,25 @@ pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_ue(cell_slot
       slot_alloc, rnti, bwp_cfg, *ss_cfg.coreset, *ss_cfg.cfg, aggr_lvl, candidates, std::nullopt);
 }
 
+pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_ue_cs_rnti(cell_slot_resource_allocator& slot_alloc,
+                                                                               rnti_t                        cs_rnti,
+                                                                               const ue_cell_configuration&  user,
+                                                                               search_space_id               ss_id,
+                                                                               aggregation_level             aggr_lvl)
+{
+  const search_space_info&         ss_cfg     = user.search_space(ss_id);
+  const bwp_configuration&         bwp_cfg    = ss_cfg.bwp->ul.cfg();
+  span<const pdcch_candidate_type> candidates = ss_cfg.get_cs_rnti_pdcch_candidates(aggr_lvl, slot_alloc.slot);
+  if (candidates.empty()) {
+    // No CS-RNTI candidates were generated for this UE, i.e. no CS-RNTI is configured.
+    ++slot_alloc.result.failed_attempts.ul_pdcch;
+    return nullptr;
+  }
+
+  return alloc_ul_pdcch_helper(
+      slot_alloc, cs_rnti, bwp_cfg, *ss_cfg.coreset, *ss_cfg.cfg, aggr_lvl, candidates, std::nullopt);
+}
+
 pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_helper(cell_slot_resource_allocator&     slot_alloc,
                                                                            rnti_t                            rnti,
                                                                            const bwp_configuration&          bwp_cfg,

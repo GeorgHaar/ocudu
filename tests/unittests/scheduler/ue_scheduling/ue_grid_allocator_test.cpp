@@ -1857,9 +1857,9 @@ TEST_P(ue_grid_allocator_pusch_repetition_test, bundle_whose_occasion_falls_on_a
 {
   OCUDU_TEST_REQUIREMENTS("MVP-FUNC-SVCS-16-8-d");
 
-  // Reach a known, ready slot first: every occasion's slot is then known in advance.
   slot_indication();
 
+  // Hold the slot of occasion 3 for a Configured Grant of this UE.
   constexpr unsigned target_occasion_offset = 3;
   const uint8_t      common_k2 = cell_cfg.params.ul_cfg_common.init_ul_bwp.pusch_cfg_common->pusch_td_alloc_list[0].k2;
   const slot_point   cg_slot   = current_slot + common_k2 + target_occasion_offset;
@@ -1868,6 +1868,7 @@ TEST_P(ue_grid_allocator_pusch_repetition_test, bundle_whose_occasion_falls_on_a
   ue_cell&         ue_cc      = ues[u.ue_index].get_pcell();
   const slot_point pusch_slot = current_slot + rep_k2;
   ASSERT_EQ(pusch_slot + target_occasion_offset, cg_slot);
+
   ASSERT_FALSE(ue_cc.get_conf_grant_state_manager().is_cg_slot(pusch_slot))
       << "the base slot itself is a CG slot, the test proves nothing";
   ASSERT_TRUE(ue_cc.get_conf_grant_state_manager().is_cg_slot(cg_slot));

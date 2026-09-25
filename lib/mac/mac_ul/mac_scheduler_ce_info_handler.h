@@ -60,6 +60,14 @@ struct mac_ta_report_ce_info {
   std::chrono::microseconds ul_ta;
 };
 
+/// Context of a decoded Configured Grant Confirmation MAC CE, as per TS 38.321, Section 6.1.3.7.
+struct mac_cg_confirmation_ce_info {
+  du_cell_index_t cell_index;
+  du_ue_index_t   ue_index;
+  rnti_t          rnti;
+  slot_point      slot_rx;
+};
+
 /// \brief Interface between MAC and scheduler that is used by MAC to forward MAC CE information and force UL grants.
 class mac_scheduler_ce_info_handler
 {
@@ -84,6 +92,9 @@ public:
 
   /// \brief Forward to scheduler any notification of a received MAC CRNTI CE.
   virtual void handle_crnti_ce_indication(du_ue_index_t old_ue_index, du_cell_index_t cell_index) = 0;
+
+  /// Forwards a decoded Configured Grant Confirmation MAC CE of a UE to the scheduler.
+  virtual void handle_cg_confirmation_indication(const mac_cg_confirmation_ce_info& cg_conf) = 0;
 
   /// \brief Resolves the TC-RNTI allocated to a 2-step RACH (MsgA) PUSCH transmission, given its RA-RNTI and RAPID.
   /// If resolved, also registers the UE Contention Resolution Identity decoded from the same CCCH SDU, so it is

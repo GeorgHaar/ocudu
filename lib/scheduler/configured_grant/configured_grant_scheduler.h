@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "ocudu/scheduler/scheduler_slot_handler.h"
+
 namespace ocudu {
 
 struct cell_resource_allocator;
@@ -32,6 +34,23 @@ public:
 
   /// Called on cell deactivation.
   virtual void stop() = 0;
+
+  /// Notifies the scheduler that it can proceed with UE CG type2 activation.
+  /// \remark No-op for type1 Configured Grant.
+  virtual void notify_ue_ready_for_activation(du_ue_index_t ue_idx) = 0;
+
+  /// Notifies the scheduler that the UE has acknowledged CG type2 activation, either via MAC-CE CG confirmation or via
+  /// a non-DTX CRC.
+  /// \remark No-op for type1 Configured Grant.
+  virtual void handle_cg_activation_indication(du_ue_index_t ue_idx) = 0;
+
+  /// \brief Notifies that the scheduler results for a given slot were partially or fully discarded by the lower layers.
+  ///
+  /// A CG PUSCH that never reached the PHY will not produce a CRC indication, so any expectation of one for that slot
+  /// must be dropped; otherwise it would be mistaken for a UE that did not receive the activation.
+  /// \param[in] sl_tx Slot whose results were discarded.
+  /// \param[in] event Which parts of the slot result were discarded.
+  virtual void handle_error_indication(slot_point sl_tx, scheduler_slot_handler::error_outcome event) = 0;
 };
 
 } // namespace ocudu

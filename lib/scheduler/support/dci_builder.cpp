@@ -463,3 +463,69 @@ void ocudu::build_dci_f0_1_c_rnti(dci_ul_info&                  dci,
 
   f0_1.srs_request = srs_request;
 }
+
+void ocudu::build_dci_f0_1_cg_activation(dci_ul_info&                 dci,
+                                         const ue_cell_configuration& ue_cell_cfg,
+                                         search_space_id              ss_id,
+                                         const vrb_interval&          vrbs,
+                                         unsigned                     time_resource,
+                                         sch_mcs_index                mcs_index)
+{
+  const search_space_info& ss_info = ue_cell_cfg.search_space(ss_id);
+  ocudu_assert(not ss_info.cfg->is_common_search_space(), "SearchSpace must be of type UE-Specific SearchSpace");
+
+  const bwp_configuration& active_ul_bwp = ss_info.bwp->ul.cfg();
+
+  // The CG Type 2 activation DCI has its CRC scrambled with the CS-RNTI, as per TS 38.213, Section 10.2.
+  dci_0_1_cs_rnti_configuration& f0_1 = dci.set_cs_rnti_f0_1();
+
+  const dci_sizes& dci_sz = ss_info.dci_sz;
+
+  f0_1.payload_size = dci_sz.format0_1_ue_size.value();
+
+  f0_1.ul_sul_indicator                           = {};
+  static constexpr uint8_t default_tpc            = 1;
+  f0_1.tpc_command                                = default_tpc;
+  f0_1.dmrs_seq_initialization                    = 0;
+  bool                     use_transform_precoder = false;
+  static constexpr uint8_t nof_layers             = 1;
+  f0_1.antenna_ports                              = get_pusch_antenna_port_mapping_row_index(
+      nof_layers, use_transform_precoder, dmrs_config_type::type1, dmrs_max_length::len1);
+  // TODO: adapt this to more than 1 antenna.
+  constexpr unsigned default_tpmi = 0U;
+  f0_1.precoding_info_nof_layers  = get_pusch_precoding_info_row_index(
+      nof_layers,
+      ue_cell_cfg.get_pusch_codebook_config().max_rank.value(),
+      static_cast<srs_resource_configuration::one_two_four_enum>(ue_cell_cfg.get_srs_nof_ports()),
+      default_tpmi);
+
+  // See 38.212, clause 7.3.1.1.2 - N^{UL,BWP}_RB for C-RNTI.
+  f0_1.frequency_resource = ra_frequency_type1_get_riv(
+      ra_frequency_type1_configuration{active_ul_bwp.crbs.length(), vrbs.start(), vrbs.length()});
+  f0_1.time_resource = time_resource;
+
+  f0_1.modulation_coding_scheme = mcs_index.value();
+
+  // Values set to 0U as per TS for CG type 2 activation.
+  static constexpr uint8_t cg_activation_fields = 0U;
+  f0_1.harq_process_number                      = cg_activation_fields;
+  f0_1.new_data_indicator                       = false;
+  f0_1.redundancy_version                       = cg_activation_fields;
+
+  // TODO: Set values for -
+  //  - srs_resource_indicator
+  //  - precoding_info_nof_layers
+  //  - beta_offset_indicator
+  //  - ptrs_dmrs_association
+  //  - cbg_transmission_info
+
+  // The CG PUSCH carries UL-SCH, so this must be set. A value of 0 tells the UE not to transmit UL-SCH on the PUSCH
+  // and, combined with an all-zero CSI request and SRS request, forms a field combination that a UE "is not expected to
+  // receive" and may discard outright, as per TS 38.212, Section 7.3.1.1.2.
+  f0_1.ul_sch_indicator = 1;
+
+  // Not applicable for CG activation.
+  f0_1.first_dl_assignment_index = 0;
+  f0_1.csi_request               = std::nullopt;
+  f0_1.srs_request               = 0U;
+}

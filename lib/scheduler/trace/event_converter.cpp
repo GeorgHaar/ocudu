@@ -1146,6 +1146,15 @@ fbs::UlPdcch schedtrace::convert_ul_pdcch_to_fb(const pdcch_ul_information& pdcc
       rv              = static_cast<uint8_t>(dci.redundancy_version);
       mcs             = static_cast<uint8_t>(dci.modulation_coding_scheme);
     } break;
+    case dci_ul_rnti_config_type::cs_rnti_f0_1: {
+      // Carries the same fields as the C-RNTI variant; only the RNTI scrambling the CRC differs, and that is already
+      // conveyed by the DCI type stored alongside.
+      const auto& dci = pdcch.dci.as_cs_rnti_f0_1();
+      harq_id         = static_cast<uint8_t>(dci.harq_process_number);
+      ndi             = dci.new_data_indicator;
+      rv              = static_cast<uint8_t>(dci.redundancy_version);
+      mcs             = static_cast<uint8_t>(dci.modulation_coding_scheme);
+    } break;
   }
   return {to_underlying(pdcch.ctx.rnti),
           static_cast<uint8_t>(pdcch.dci.type()),
@@ -1183,6 +1192,13 @@ void schedtrace::convert_fb_to_ul_pdcch(pdcch_ul_information&             pdcch,
     } break;
     case dci_ul_rnti_config_type::c_rnti_f0_1: {
       auto& dci_cfg                    = pdcch.dci.set_c_rnti_f0_1();
+      dci_cfg.harq_process_number      = fb.harq_id();
+      dci_cfg.new_data_indicator       = fb.ndi();
+      dci_cfg.redundancy_version       = fb.rv();
+      dci_cfg.modulation_coding_scheme = fb.mcs();
+    } break;
+    case dci_ul_rnti_config_type::cs_rnti_f0_1: {
+      auto& dci_cfg                    = pdcch.dci.set_cs_rnti_f0_1();
       dci_cfg.harq_process_number      = fb.harq_id();
       dci_cfg.new_data_indicator       = fb.ndi();
       dci_cfg.redundancy_version       = fb.rv();

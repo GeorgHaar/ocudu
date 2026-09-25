@@ -119,6 +119,9 @@ private:
                          slot_point                slot_rx,
                          std::chrono::microseconds ul_ta);
 
+  /// Forward an already decoded CG confirmation to the scheduler.
+  void forward_cg_confirmation(du_ue_index_t ue_index, du_cell_index_t cell_index, rnti_t rnti, slot_point slot_rx);
+
   /// Handle UL CCCH Message
   /// \param pdu MAC UL PDU being processed.
   /// \param subpdu subPDU of PDU where CRNTI CE was detected.

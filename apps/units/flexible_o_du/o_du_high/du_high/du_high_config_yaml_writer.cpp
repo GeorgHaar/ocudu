@@ -748,6 +748,26 @@ static YAML::Node build_du_high_drx_section(const du_high_unit_drx_config& confi
   return node;
 }
 
+static YAML::Node build_du_high_cg_section(const du_high_configured_grants& config)
+{
+  YAML::Node node;
+
+  if (config.periodicity_slots.has_value()) {
+    node["periodicity_slots"] = config.periodicity_slots.value();
+  }
+  node["type2"]              = config.type2;
+  node["mcs"]                = config.mcs;
+  node["nof_harq_processes"] = config.nof_harq_processes;
+  node["max_nof_cg_rbs"]     = config.max_nof_cell_cg_rbs;
+  node["grant_size"]         = config.grant_size;
+  if (config.requested_bitrate.has_value()) {
+    node["requested_bitrate"] = config.requested_bitrate.value();
+  }
+  node["sinr_threshold"] = config.sinr_threshold_dB;
+
+  return node;
+}
+
 static YAML::Node build_du_high_slice(const du_high_unit_cell_slice_config& config)
 {
   YAML::Node node;
@@ -866,6 +886,7 @@ static YAML::Node build_cell_entry(const du_high_unit_base_cell_config& config)
   if (config.drx_cfg.long_cycle != 0) {
     node["drx"] = build_du_high_drx_section(config.drx_cfg);
   }
+  node["cg"] = build_du_high_cg_section(config.cg_cfg);
   fill_du_high_sched_expert_section(node, config.scheduler_cfg);
 
   if (config.ntn_cfg) {

@@ -152,6 +152,9 @@ struct formatter<ocudu::mac_ul_sch_subpdu> {
       case lcid_ul_sch_t::TIMING_ADVANCE_REPORT:
         format_to(ctx.out(), "TA_REPORT: t_ta={}us", decode_ta_report(subpdu.payload()).count());
         break;
+      case lcid_ul_sch_t::CG_CONFIRMATION:
+        format_to(ctx.out(), "CG_CONF");
+        break;
       case lcid_ul_sch_t::PADDING:
         format_to(ctx.out(), "PAD: len={}", subpdu.sdu_length());
         break;

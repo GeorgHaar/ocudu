@@ -177,6 +177,9 @@ bool cell_group_event_handler_impl::handle_ue_config_applied(du_ue_index_t ue_id
   // Notify slice scheduler only when the UE fully exits fallback (conres also done).
   if (not ue_db[ue_idx].get_pcell().is_in_fallback_mode()) {
     slice_sched.config_applied(ue_idx);
+    if (cg_sched != nullptr) {
+      cg_sched->notify_ue_ready_for_activation(ue_idx);
+    }
   }
 
   return true;
@@ -357,6 +360,13 @@ bool cell_group_event_handler_impl::handle_crnti_ce_received(du_ue_index_t ue_in
     // Notify slice scheduler only when the UE fully exits fallback (config also applied).
     if (not ue_cc.is_in_fallback_mode()) {
       slice_sched.config_applied(ue_index);
+      if (cg_sched != nullptr) {
+        // A CG Type 2 UE is queued for activation by the configuration-applied indication, which is skipped while the
+        // UE is still in fallback. When the configuration was applied before the C-RNTI CE arrived, this is the only
+        // chance to catch that up: nothing would send the indication a second time, and the UE would be left with a
+        // CG that is never activated. No-op for CG Type 1, which needs no activation.
+        cg_sched->notify_ue_ready_for_activation(ue_index);
+      }
     }
   }
 
@@ -384,6 +394,28 @@ bool cell_group_event_handler_impl::handle_dl_buffer_state_indication(const dl_b
 void cell_group_event_handler_impl::handle_slice_reconfiguration(const du_cell_slice_reconfig_request& req)
 {
   slice_sched.handle_slice_reconfiguration_request(req);
+}
+
+void cell_group_event_handler_impl::handle_cg_activation_indication(du_ue_index_t ue_index)
+{
+  if (cg_sched == nullptr) {
+    // CG Confirmation received in a cell with no configured grants configured.
+    logger.warning("ue={}: Discarding CG confirmation. Cause: No CG configured in this cell",
+                   fmt::underlying(ue_index));
+    return;
+  }
+  cg_sched->handle_cg_activation_indication(ue_index);
+}
+
+void cell_group_event_handler_impl::handle_error_indication(slot_point                            sl_tx,
+                                                            scheduler_slot_handler::error_outcome event)
+{
+  if (cg_sched == nullptr) {
+    // No configured grants in this cell. Unlike the CG confirmation, error indications are a normal occurrence in any
+    // cell, so this is not worth logging.
+    return;
+  }
+  cg_sched->handle_error_indication(sl_tx, event);
 }
 
 void cell_group_event_handler_impl::log_invalid_ue_index(du_ue_index_t ue_index,

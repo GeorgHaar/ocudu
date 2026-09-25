@@ -41,6 +41,7 @@ using slot_event_buffer = type_list_buffer_stream<cell_creation_event,
                                                   dl_mac_ce_indication,
                                                   dl_buffer_state_indication_message,
                                                   ul_phr_indication_message,
+                                                  cg_confirmation_indication_message,
                                                   sel::srs_indication_event,
                                                   sel::slice_reconfiguration_event>;
 
@@ -233,6 +234,8 @@ void format_debug_level(FormatContext& ctx, const Event& ev)
         fmt::format_to(ctx.out(), " p_cmax={}dBm", cell_phr.p_cmax.value());
       }
     }
+  } else if constexpr (std::is_same_v<Event, cg_confirmation_indication_message>) {
+    fmt::format_to(ctx.out(), "\n- CG conf: ue={} rnti={}", fmt::underlying(ev.ue_index), ev.rnti);
   } else if constexpr (std::is_same_v<Event, sel::srs_indication_event>) {
     fmt::format_to(ctx.out(), "\n- SRS: ue={} rnti={}", ev.ue_index, ev.rnti);
     if (ev.tpmi_info.has_value()) {
@@ -423,6 +426,13 @@ void scheduler_event_logger::enqueue_impl(const csi_report_event& csi)
 void scheduler_event_logger::enqueue_impl(const ul_bsr_indication_message& bsr)
 {
   if (not slot_buffer_writer->push(bsr)) {
+    logger.error("Scheduler event log entry exceeded segment size and was dropped");
+  }
+}
+
+void scheduler_event_logger::enqueue_impl(const cg_confirmation_indication_message& cg_conf_ind)
+{
+  if (not slot_buffer_writer->push(cg_conf_ind)) {
     logger.error("Scheduler event log entry exceeded segment size and was dropped");
   }
 }

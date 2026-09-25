@@ -73,6 +73,8 @@ public:
 
   void handle_ul_ta_report_indication(const mac_ta_report_ce_info& ta_report) override;
 
+  void handle_cg_confirmation_indication(const mac_cg_confirmation_ce_info& cg_conf) override;
+
   void handle_crnti_ce_indication(du_ue_index_t old_ue_index, du_cell_index_t cell_index) override;
 
   std::optional<rnti_t> handle_msga_ccch_sdu(du_cell_index_t        cell_index,

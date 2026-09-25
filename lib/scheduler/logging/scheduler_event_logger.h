@@ -127,6 +127,7 @@ private:
   void enqueue_impl(const ul_phr_indication_message& phr_ind);
   void enqueue_impl(const srs_indication_event& srs_ev);
   void enqueue_impl(const slice_reconfiguration_event& slice_reconf_ev);
+  void enqueue_impl(const cg_confirmation_indication_message& cg_conf_ind);
 
   const du_cell_index_t   cell_index;
   const pci_t             pci;

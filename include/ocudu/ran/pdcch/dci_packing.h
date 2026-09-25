@@ -953,6 +953,21 @@ struct dci_0_1_configuration {
 /// Packs a DCI format 0_1 scrambled by C-RNTI, CS-RNTI, SP-CSI-RNTI or MCS-C-RNTI.
 dci_payload dci_0_1_pack(const dci_0_1_configuration& config);
 
+/// \brief Required parameters for packing a DCI format 0_1 scrambled by CS-RNTI.
+///
+/// Used by Configured Grant Type 2 to activate and deactivate the configured grant, as per TS38.213 Section 10.2. The
+/// payload carries the very same fields as the C-RNTI variant and takes its size, as per TS38.212 Section 7.3.1.1.2, so
+/// it derives from \ref dci_0_1_configuration and is packed by \ref dci_0_1_pack. It exists as a separate type only so
+/// that the scheduler output can express which RNTI scrambles the DCI CRC, which is what tells a UE that the PDCCH is a
+/// configured grant activation rather than a dynamic UL grant.
+struct dci_0_1_cs_rnti_configuration : public dci_0_1_configuration {};
+
+/// Packs a DCI format 0_1 scrambled by CS-RNTI.
+inline dci_payload dci_0_1_cs_rnti_pack(const dci_0_1_cs_rnti_configuration& config)
+{
+  return dci_0_1_pack(config);
+}
+
 /// \brief Required parameters for packing a DCI format 1_1 scrambled by C-RNTI, CS-RNTI, SP-CSI-RNTI or MCS-C-RNTI.
 /// \remark Defined in TS38.212 Section 7.3.1.2.2.
 struct dci_1_1_configuration {

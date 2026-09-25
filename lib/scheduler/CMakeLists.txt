@@ -39,7 +39,8 @@ set(SOURCES
         srs/srs_allocator_impl.cpp
         configured_grant/cg_sched_helpers.cpp
         configured_grant/configured_grant_scheduler_base.cpp
-        configured_grant/configured_grant_type1_sched_impl.cpp)
+        configured_grant/configured_grant_type1_sched_impl.cpp
+        configured_grant/cg_type2_resource_manager.cpp)
 
 add_library(ocudu_sched STATIC ${SOURCES}
         $<TARGET_OBJECTS:sched_config_manager>

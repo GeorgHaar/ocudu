@@ -183,6 +183,18 @@ static auto make_ul_dci_log_entry(const dci_ul_info& dci)
       ant                = dci0_1.antenna_ports;
       csi_request        = dci0_1.csi_request;
     } break;
+    case dci_ul_rnti_config_type::cs_rnti_f0_1: {
+      const auto& dci0_1 = dci.as_cs_rnti_f0_1();
+      h_id               = dci0_1.harq_process_number;
+      ndi                = dci0_1.new_data_indicator;
+      rv                 = dci0_1.redundancy_version;
+      mcs                = dci0_1.modulation_coding_scheme;
+      tpc_cmd            = dci0_1.tpc_command;
+      dai                = dci0_1.first_dl_assignment_index;
+      nof_layers         = dci0_1.precoding_info_nof_layers;
+      ant                = dci0_1.antenna_ports;
+      csi_request        = dci0_1.csi_request;
+    } break;
     default:
       report_fatal_error("Invalid UL DCI format");
   }

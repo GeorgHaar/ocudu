@@ -32,7 +32,7 @@ inline const char* dci_dl_rnti_config_rnti_type(dci_dl_rnti_config_type type)
 {
   static constexpr std::array<const char*, 6> rnti_types = {
       "si-rnti", "ra-rnti", "c-rnti", "tc-rnti", "p-rnti", "c-rnti"};
-  return (unsigned)type < rnti_types.size() ? rnti_types[(unsigned)type] : "invalid";
+  return static_cast<unsigned>(type) < rnti_types.size() ? rnti_types[static_cast<unsigned>(type)] : "invalid";
 }
 
 inline const char* dci_dl_rnti_config_format(dci_dl_rnti_config_type type)
@@ -89,19 +89,24 @@ struct dci_dl_info {
   payload_type payload;
 };
 
-/// Defines which fields are stored in the DCI payload, based on the chosen DCI format and RNTI type.
-enum class dci_ul_rnti_config_type : uint8_t { tc_rnti_f0_0, c_rnti_f0_0, c_rnti_f0_1 };
+/// \brief Defines which fields are stored in the DCI payload, based on the chosen DCI format and RNTI type.
+/// \remark The enumerators must be kept in the same order as the alternatives of \ref dci_ul_info::payload_type, as
+/// \ref dci_ul_info::type() derives the type from the variant index.
+enum class dci_ul_rnti_config_type : uint8_t { tc_rnti_f0_0, c_rnti_f0_0, c_rnti_f0_1, cs_rnti_f0_1 };
 
 inline const char* dci_ul_rnti_config_rnti_type(dci_ul_rnti_config_type type)
 {
-  std::array<const char*, 3> rnti_types = {"tc-rnti", "c-rnti", "c-rnti"};
-  return (unsigned)type < rnti_types.size() ? rnti_types[(unsigned)type] : "invalid";
+  constexpr std::array<const char*, 4> rnti_types = {"tc-rnti", "c-rnti", "c-rnti", "cs-rnti"};
+  return static_cast<unsigned>(type) < rnti_types.size() ? rnti_types[static_cast<unsigned>(type)] : "invalid";
 }
 
 /// Retrieve DCI format from DCI UL payload format.
 inline dci_ul_format get_dci_format(dci_ul_rnti_config_type rnti_dci_type)
 {
-  return rnti_dci_type == dci_ul_rnti_config_type::c_rnti_f0_1 ? dci_ul_format::f0_1 : dci_ul_format::f0_0;
+  return (rnti_dci_type == dci_ul_rnti_config_type::c_rnti_f0_1 or
+          rnti_dci_type == dci_ul_rnti_config_type::cs_rnti_f0_1)
+             ? dci_ul_format::f0_1
+             : dci_ul_format::f0_0;
 }
 
 inline const char* dci_ul_rnti_config_format(dci_ul_rnti_config_type type)
@@ -110,7 +115,12 @@ inline const char* dci_ul_rnti_config_format(dci_ul_rnti_config_type type)
 }
 
 struct dci_ul_info {
-  using payload_type = std::variant<dci_0_0_tc_rnti_configuration, dci_0_0_c_rnti_configuration, dci_0_1_configuration>;
+  /// \remark The alternatives must be kept in the same order as \ref dci_ul_rnti_config_type, which \ref type()
+  /// derives from the variant index. New alternatives are therefore appended, never inserted.
+  using payload_type = std::variant<dci_0_0_tc_rnti_configuration,
+                                    dci_0_0_c_rnti_configuration,
+                                    dci_0_1_configuration,
+                                    dci_0_1_cs_rnti_configuration>;
 
   dci_ul_rnti_config_type type() const { return static_cast<dci_ul_rnti_config_type>(payload.index()); }
 
@@ -128,6 +138,14 @@ struct dci_ul_info {
   const dci_0_1_configuration& as_c_rnti_f0_1() const { return std::get<dci_0_1_configuration>(payload); }
   dci_0_1_configuration&       as_c_rnti_f0_1() { return std::get<dci_0_1_configuration>(payload); }
   dci_0_1_configuration&       set_c_rnti_f0_1() { return payload.emplace<dci_0_1_configuration>(); }
+
+  /// DCI format 0_1 scrambled by CS-RNTI, used to activate and deactivate a Configured Grant Type 2.
+  const dci_0_1_cs_rnti_configuration& as_cs_rnti_f0_1() const
+  {
+    return std::get<dci_0_1_cs_rnti_configuration>(payload);
+  }
+  dci_0_1_cs_rnti_configuration& as_cs_rnti_f0_1() { return std::get<dci_0_1_cs_rnti_configuration>(payload); }
+  dci_0_1_cs_rnti_configuration& set_cs_rnti_f0_1() { return payload.emplace<dci_0_1_cs_rnti_configuration>(); }
 
   /// \brief Unpacked DCI content, as the alternative selected by \ref type().
   payload_type payload;

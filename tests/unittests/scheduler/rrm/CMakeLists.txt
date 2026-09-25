@@ -19,6 +19,21 @@ target_include_directories(configured_grant_type1_rrm_test PRIVATE ${CMAKE_SOURC
 target_link_libraries(configured_grant_type1_rrm_test sched_rrm sched_config du_manager_test_helpers sched_test_doubles gtest ocudu_gtest_main)
 gtest_discover_tests(configured_grant_type1_rrm_test)
 
+add_executable(configured_grant_type2_rrm_test configured_grant_type2_rrm_test.cpp)
+target_include_directories(configured_grant_type2_rrm_test PRIVATE ${CMAKE_SOURCE_DIR})
+target_link_libraries(configured_grant_type2_rrm_test
+        ocudu_sched
+        ocudulog
+        mac_configuration_helpers
+        sched_rrm
+        sched_config
+        scheduler_test_suite
+        sched_test_doubles
+        scheduler_test_utils
+        gtest
+        ocudu_gtest_main)
+gtest_discover_tests(configured_grant_type2_rrm_test)
+
 add_executable(srs_resource_generator_test srs_resource_generator_test.cpp)
 target_include_directories(srs_resource_generator_test PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(srs_resource_generator_test sched_rrm sched_config du_manager_test_helpers gtest ocudu_gtest_main)

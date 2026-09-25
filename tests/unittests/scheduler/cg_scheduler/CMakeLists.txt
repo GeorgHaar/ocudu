@@ -19,3 +19,17 @@ add_executable(cg_slot_wheel_test cg_slot_wheel_test.cpp)
 target_include_directories(cg_slot_wheel_test PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(cg_slot_wheel_test ocudu_sched ocudulog gtest ocudu_gtest_main)
 gtest_discover_tests(cg_slot_wheel_test)
+
+add_executable(cg_type2_resource_manager_test cg_type2_resource_manager_test.cpp)
+target_include_directories(cg_type2_resource_manager_test PRIVATE ${CMAKE_SOURCE_DIR})
+target_link_libraries(cg_type2_resource_manager_test
+        ocudu_sched
+        ocudulog
+        mac_configuration_helpers
+        sched_config
+        scheduler_test_suite
+        sched_test_doubles
+        scheduler_test_utils
+        gtest
+        ocudu_gtest_main)
+gtest_discover_tests(cg_type2_resource_manager_test)

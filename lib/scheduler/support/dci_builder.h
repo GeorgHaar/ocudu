@@ -133,4 +133,12 @@ void build_dci_f0_1_c_rnti(dci_ul_info&                  dci,
                            std::optional<bool>           csi_request,
                            unsigned                      srs_request);
 
+/// Builds DCI f0_1 for CS-RNTI.
+void build_dci_f0_1_cg_activation(dci_ul_info&                 dci,
+                                  const ue_cell_configuration& ue_cell_cfg,
+                                  search_space_id              ss_id,
+                                  const vrb_interval&          vrbs,
+                                  unsigned                     time_resource,
+                                  sch_mcs_index                mcs_index);
+
 } // namespace ocudu

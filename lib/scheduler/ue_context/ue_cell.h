@@ -175,17 +175,25 @@ public:
     held_for_bundle
   };
 
+  /// Outcome of a CRC PDU that concluded an UL HARQ transmission of this UE cell.
+  struct crc_outcome {
+    /// TBS that was (N)ACKed, or 0 if the PUSCH was not detected (DTX).
+    units::bytes tbs;
+    /// Whether the PUSCH was detected as transmitted (false if DTX).
+    bool pusch_transmitted;
+    /// Whether the PUSCH was a Configured Grant PUSCH.
+    bool is_cg;
+  };
+
   /// \brief Handle CRC PDU indication.
   ///
   /// Dynamic PUSCH CRC always yields a "detected" outcome (i.e., ACK or NACK); whereas, the Configured Grant PUSCH CRC
   /// can yield a not-detected outcome, e.g., when the SINR associated with its PUSCH is below the detection threshold.
   /// When PUSCH repetitions are scheduled, the concluded crc is returned only in last slot occasion.
   ///
-  /// \return A pair with the TBS that was (N)ACKed or not detected (DTX) and boolean indicating whether the PDU was
-  /// detected as transmitted (True if detected, false if not detected). Return unexpected, when the transmission was
-  /// not concluded for PUSCH repetition bundle; see \ref crc_not_concluded.
-  expected<std::pair<units::bytes, bool>, crc_not_concluded> handle_crc_pdu(slot_point                   pusch_slot,
-                                                                            const ul_crc_pdu_indication& crc_pdu);
+  /// \return The outcome of the concluded transmission; see \ref crc_outcome. Return unexpected, when the CRC did not
+  /// conclude a transmission; see \ref crc_not_concluded.
+  expected<crc_outcome, crc_not_concluded> handle_crc_pdu(slot_point pusch_slot, const ul_crc_pdu_indication& crc_pdu);
 
   /// \brief Handle Sounding Reference Signal (SRS) channel matrix.
   void handle_srs_channel_matrix(const srs_channel_matrix& channel_matrix);

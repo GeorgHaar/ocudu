@@ -487,6 +487,36 @@ TEST(mac_ul_subpdu, decode_timing_advance_report_boundary_values)
   }
 }
 
+// Test the unpacking function for MAC subPDU with MAC CE (Configured Grant Confirmation).
+TEST(mac_ul_subpdu, decode_cg_confirmation)
+{
+  const lcid_ul_sch_t cg_conf{lcid_ul_sch_t::CG_CONFIRMATION};
+  ASSERT_TRUE(cg_conf.is_valid_lcid());
+  ASSERT_TRUE(cg_conf.is_ce());
+  // The CE has a fixed size of zero (TS 38.321, 6.1.3.7), so the subheader carries no length field.
+  ASSERT_FALSE(cg_conf.has_length_field());
+  ASSERT_FALSE(cg_conf.is_var_len_ce());
+  ASSERT_EQ(0, cg_conf.sizeof_ce());
+
+  mac_ul_sch_subpdu subpdu;
+
+  // MAC subPDU with:
+  // - 8-bit R/LCID MAC subheader.
+  // - Configured Grant Confirmation MAC CE, which has zero size.
+  //
+  // |   |   |   |   |   |   |   |   |
+  // | R | R |         LCID          |  Octet 1
+
+  // R/LCID MAC subheader = R|R|LCID = 0x37 or LCID=55
+  byte_buffer msg = byte_buffer::create({0x37}).value();
+  ASSERT_TRUE(subpdu.unpack(msg));
+
+  // Test expected length.
+  ASSERT_EQ(0, subpdu.sdu_length()) << "Wrong SDU length for MAC CE CG Confirmation (0 bytes)";
+  ASSERT_EQ(1, subpdu.total_length()) << "Wrong subPDU length for MAC CE CG Confirmation (1 B header + 0B SDU)";
+  fmt::print("subPDU: {}\n", subpdu);
+}
+
 // Test the unpacking function for MAC subPDU with padding.
 TEST(mac_ul_subpdu, decode_subpdu_padding)
 {

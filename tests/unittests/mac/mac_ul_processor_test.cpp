@@ -22,12 +22,13 @@ using namespace test_helpers;
 class dummy_sched_ce_info_handler : public mac_scheduler_ce_info_handler
 {
 public:
-  std::optional<mac_phr_ce_info>           last_phr_msg;
-  std::optional<mac_ta_report_ce_info>     last_ta_report_msg;
-  std::optional<mac_bsr_ce_info>           last_bsr_msg;
-  std::optional<mac_ul_scheduling_command> last_sched_cmd;
-  std::optional<mac_ce_scheduling_command> last_ce_cmd;
-  std::optional<du_ue_index_t>             last_crnti_ce;
+  std::optional<mac_phr_ce_info>             last_phr_msg;
+  std::optional<mac_ta_report_ce_info>       last_ta_report_msg;
+  std::optional<mac_cg_confirmation_ce_info> last_cg_conf_msg;
+  std::optional<mac_bsr_ce_info>             last_bsr_msg;
+  std::optional<mac_ul_scheduling_command>   last_sched_cmd;
+  std::optional<mac_ce_scheduling_command>   last_ce_cmd;
+  std::optional<du_ue_index_t>               last_crnti_ce;
 
   /// \brief Forward to scheduler any decoded UL BSRs for a given UE.
   void handle_ul_bsr_indication(const mac_bsr_ce_info& bsr) override { last_bsr_msg = bsr; }
@@ -73,6 +74,11 @@ public:
   void handle_crnti_ce_indication(du_ue_index_t old_ue_index, du_cell_index_t cell_index) override
   {
     last_crnti_ce = old_ue_index;
+  }
+
+  void handle_cg_confirmation_indication(const mac_cg_confirmation_ce_info& cg_conf) override
+  {
+    last_cg_conf_msg = cg_conf;
   }
 
   std::optional<rnti_t> handle_msga_ccch_sdu(du_cell_index_t        cell_index,
@@ -582,6 +588,33 @@ TEST(mac_ul_processor, verify_timing_advance_report)
   ASSERT_EQ(ue1_idx, ta_report->ue_index);
   ASSERT_EQ(ue1_rnti, ta_report->rnti);
   ASSERT_EQ(std::chrono::microseconds{7000}, ta_report->ul_ta);
+}
+
+TEST(mac_ul_processor, verify_cg_confirmation)
+{
+  // Define UE and create test_bench.
+  const rnti_t          ue1_rnti = to_rnti(0x4601);
+  const du_ue_index_t   ue1_idx  = to_du_ue_index(1U);
+  const du_cell_index_t cell_idx = to_du_cell_index(1U);
+  test_bench            t_bench(ue1_rnti, ue1_idx, cell_idx);
+
+  // Create PDU content.
+  // MAC subPDU with:
+  // - 8-bit R/LCID MAC subheader, LCID=55.
+  // - Configured Grant Confirmation MAC CE, which has zero size.
+  //
+  // R/LCID MAC subheader = R|R|LCID = 0x37
+  byte_buffer pdu = byte_buffer::create({0x37}).value();
+
+  // Send RX data indication to MAC UL
+  t_bench.send_rx_indication_msg(ue1_rnti, pdu);
+
+  // Test if the notification sent to the scheduler has been received and it is correct.
+  const std::optional<mac_cg_confirmation_ce_info>& cg_conf = t_bench.sched_ce_notifier().last_cg_conf_msg;
+  ASSERT_TRUE(cg_conf.has_value());
+  ASSERT_EQ(cell_idx, cg_conf->cell_index);
+  ASSERT_EQ(ue1_idx, cg_conf->ue_index);
+  ASSERT_EQ(ue1_rnti, cg_conf->rnti);
 }
 
 // Test UL MAC processing of RX indication message with MAC PDU with UL-CCCH CE and Single Entry PHR CE.

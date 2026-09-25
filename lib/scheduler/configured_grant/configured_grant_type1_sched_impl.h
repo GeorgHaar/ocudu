@@ -26,6 +26,21 @@ public:
 
   void add_reconf_ue(const ue_cell_configuration& new_ue_cfg, const ue_cell_configuration* old_ue_cfg) override;
 
+  void notify_ue_ready_for_activation(du_ue_index_t ue_idx) override
+  {
+    // No-op, only used for CG type2.
+  }
+
+  void handle_cg_activation_indication(du_ue_index_t ue_idx) override
+  {
+    // No-op, only used for CG type2.
+  }
+
+  void handle_error_indication(slot_point sl_tx, scheduler_slot_handler::error_outcome event) override
+  {
+    // No-op: CG type1 needs no activation, so it does not track expected CRC indications.
+  }
+
 private:
   bool has_cg_grant_cfg(const ue_cell_configuration& ue_cfg) const override;
 

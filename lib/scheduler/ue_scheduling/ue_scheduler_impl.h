@@ -20,7 +20,7 @@
 
 namespace ocudu {
 
-class configured_grant_scheduler_impl;
+class configured_grant_type1_sched_impl;
 
 /// \brief Interface of data scheduler that is used to allocate UE DL and UL grants in a given slot.
 /// The data_scheduler object will be common to all cells and slots.
@@ -61,7 +61,7 @@ private:
     intra_slice_scheduler intra_slice_sched;
 
     /// Configured Grant scheduler.
-    std::unique_ptr<configured_grant_scheduler_impl> cg_sched;
+    std::unique_ptr<configured_grant_scheduler> cg_sched;
 
     /// Triggered UL grant sub-scheduler.
     triggered_ul_grant_scheduler trig_ul_sched;

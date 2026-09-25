@@ -4,7 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "ue_scheduler_impl.h"
-#include "../configured_grant/configured_grant_scheduler_impl.h"
+#include "../configured_grant/configured_grant_type1_sched_impl.h"
 #include "../logging/cell_metrics_handler.h"
 
 using namespace ocudu;
@@ -206,9 +206,9 @@ ue_scheduler_impl::cell_context::cell_context(ue_scheduler_impl&                
                     *params.cell_metrics,
                     ocudulog::fetch_basic_logger("SCHED")),
   cg_sched(params.cell_res_alloc->cfg.params.init_bwp.cg_cfg.has_value()
-               ? std::make_unique<configured_grant_scheduler_impl>(params.cell_res_alloc->cfg,
-                                                                   *params.uci_alloc,
-                                                                   parent.ue_db)
+               ? std::make_unique<configured_grant_type1_sched_impl>(params.cell_res_alloc->cfg,
+                                                                     *params.uci_alloc,
+                                                                     parent.ue_db)
                : nullptr),
   trig_ul_sched(parent.ue_db, params.cell_res_alloc->cfg.cell_index, params.cell_res_alloc->cfg.scs_common())
 {

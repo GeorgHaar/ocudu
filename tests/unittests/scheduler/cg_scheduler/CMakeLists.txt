@@ -14,3 +14,8 @@ target_link_libraries(cg_scheduler_test
         gtest
         ocudu_gtest_main)
 gtest_discover_tests(cg_scheduler_test)
+
+add_executable(cg_slot_wheel_test cg_slot_wheel_test.cpp)
+target_include_directories(cg_slot_wheel_test PRIVATE ${CMAKE_SOURCE_DIR})
+target_link_libraries(cg_slot_wheel_test ocudu_sched ocudulog gtest ocudu_gtest_main)
+gtest_discover_tests(cg_slot_wheel_test)

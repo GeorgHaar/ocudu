@@ -86,9 +86,10 @@ protected:
   sched_cell_configuration_request_message cell_req;
   unsigned                                 default_cg_offset_;
 
-  explicit configured_grant_scheduler_test(const cg_test_params&             params_        = {},
-                                           const cell_config_builder_params& builder_params = {},
-                                           unsigned                          default_offset = 0) :
+  explicit configured_grant_scheduler_test(const cg_test_params&             params_         = {},
+                                           const cell_config_builder_params& builder_params  = {},
+                                           unsigned                          default_offset  = 0,
+                                           std::chrono::milliseconds         ntn_cs_koffset_ = {}) :
     scheduler_test_simulator(/*tx_rx_delay=*/4, builder_params.scs_common),
     cg_params(params_),
     default_cg_offset_(default_offset)
@@ -109,6 +110,10 @@ protected:
           pucch_harq_ack_rep_params{.sinr_thresholds = {1000.0F, 1000.0F},
                                     .factors_per_res = std::vector<pucch_repetition_factor>(
                                         pucch_res.res_set_size.value(), pucch_repetition_factor::n4)};
+    }
+    if (ntn_cs_koffset_.count() != 0) {
+      cell_req.ran.ntn_params.emplace();
+      cell_req.ran.ntn_params->ntn_cfg.cell_specific_koffset = ntn_cs_koffset_;
     }
     add_cell(cell_req);
   }
@@ -651,6 +656,46 @@ INSTANTIATE_TEST_SUITE_P(
                                             tdd_ul_dl_config_common{subcarrier_spacing::kHz30, {10, 3, 10, 6, 0}},
                                             5}),
     [](const auto& p) { return p.param.name; });
+
+/// Fixture for the NTN cell-specific K-offset. A Type 1 CG occasion is self-timed by the UE against timeReferenceSFN
+/// as per TS 38.321, Section 5.8.2, so the K-offset the UE applies to granted transmissions leaves it where it is.
+/// The K-offset is deliberately not a multiple of the CG periodicity, so a wrongly shifted occasion cannot pass by
+/// coincidence.
+class configured_grant_scheduler_ntn_koffset_test : public configured_grant_scheduler_test
+{
+protected:
+  static constexpr std::chrono::milliseconds KOFFSET{5};
+  static constexpr unsigned                  CG_OFFSET = 7;
+
+  configured_grant_scheduler_ntn_koffset_test() :
+    configured_grant_scheduler_test(cg_test_params{},
+                                    cell_config_builder_profiles::create(duplex_mode::FDD),
+                                    /*default_offset=*/CG_OFFSET,
+                                    KOFFSET)
+  {
+  }
+};
+
+/// Test: with a cell-specific K-offset the CG PUSCH stays at its configured time domain offset.
+TEST_F(configured_grant_scheduler_ntn_koffset_test, cg_pusch_is_not_shifted_by_the_cell_specific_koffset)
+{
+  const auto& cfg = cell_cfg(to_du_cell_index(0));
+  ASSERT_GT(cfg.ntn_cs_koffset, 0U);
+  ASSERT_NE(cfg.ntn_cs_koffset % cg_params.period_slots, 0U)
+      << "the K-offset must be able to move the occasion, or the test cannot tell the two apart";
+
+  add_cg_ue();
+
+  const ul_sched_info* grant = run_until_next_cg_pusch();
+  ASSERT_NE(grant, nullptr) << "No CG PUSCH found in an NTN cell with cell_specific_koffset=" << KOFFSET.count();
+  EXPECT_EQ(last_result_slot().count() % cg_params.period_slots, CG_OFFSET % cg_params.period_slots)
+      << "CG PUSCH was moved by the cell-specific K-offset";
+
+  // The next occasion must keep the same position one period later.
+  const ul_sched_info* next_grant = run_until_next_cg_pusch();
+  ASSERT_NE(next_grant, nullptr) << "No second CG PUSCH found";
+  EXPECT_EQ(last_result_slot().count() % cg_params.period_slots, CG_OFFSET % cg_params.period_slots);
+}
 
 /// Fixture for multi-UE CG tests. Provides constants for a second CG UE.
 class cg_multi_ue_test : public configured_grant_scheduler_test

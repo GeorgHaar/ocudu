@@ -85,17 +85,28 @@ std::ostream& operator<<(std::ostream& os, const srs_params& params)
 template <>
 struct fmt::formatter<srs_params> : ostream_formatter {};
 
+static sched_cell_configuration_request_message
+make_srs_alloc_cell_request(test_helpers::test_sched_config_manager& cfg_mng, unsigned cs_koffset_ms)
+{
+  auto req = cfg_mng.get_default_cell_config_request();
+  if (cs_koffset_ms != 0) {
+    req.ran.ntn_params.emplace();
+    req.ran.ntn_params->ntn_cfg.cell_specific_koffset = std::chrono::milliseconds{cs_koffset_ms};
+  }
+  return req;
+}
+
 class srs_alloc_test_bench
 {
 public:
-  srs_alloc_test_bench(const srs_params& params) :
+  srs_alloc_test_bench(const srs_params& params, unsigned cs_koffset_ms = 0) :
     expert_cfg{[](srs_periodicity srs_prohib_time) {
       auto cfg                 = config_helpers::make_default_scheduler_expert_config();
       cfg.ue.srs_prohibit_time = srs_prohib_time;
       return cfg;
     }(params.srs_prohib_time)},
     cfg_mng{cell_config_builder_profiles::create(params.is_tdd ? duplex_mode::TDD : duplex_mode::FDD), expert_cfg},
-    cell_cfg(*cfg_mng.add_cell(cfg_mng.get_default_cell_config_request())),
+    cell_cfg(*cfg_mng.add_cell(make_srs_alloc_cell_request(cfg_mng, cs_koffset_ms))),
     cell_ues(cell_cfg, nullptr),
     ues(expert_cfg.ue),
     srs_alloc(cell_cfg, expert_cfg.ue.srs_prohibit_time.value()),
@@ -354,6 +365,38 @@ INSTANTIATE_TEST_SUITE_P(
                     srs_params{.is_tdd = true, .slot_offset = 11, .srs_prohib_time = srs_periodicity::sl80},
                     srs_params{.is_tdd = true, .slot_offset = 11, .srs_prohib_time = srs_periodicity::sl160}),
     [](const testing::TestParamInfo<srs_params>& params_item) { return fmt::format("{}", params_item.param); });
+
+/// Fixture for an aperiodic SRS in an NTN cell configured with a cell-specific K-offset. A DCI triggers the SRS, so
+/// the UE delays it by the K-offset as per TS 38.213, Section 9, in the same way as a scheduled PUSCH or PUCCH.
+class srs_alloc_ntn_koffset_test : public ::testing::Test, public srs_alloc_test_bench
+{
+protected:
+  static constexpr unsigned   KOFFSET_MS = 5;
+  static constexpr srs_params PARAMS{.is_tdd = false, .slot_offset = 5, .srs_prohib_time = srs_periodicity::sl40};
+
+  srs_alloc_ntn_koffset_test() : srs_alloc_test_bench(PARAMS, KOFFSET_MS) {}
+};
+
+/// Verifies that the aperiodic SRS is placed the cell-specific K-offset after its configured slot offset.
+TEST_F(srs_alloc_ntn_koffset_test, aperiodic_srs_is_placed_the_cell_specific_koffset_after_its_slot_offset)
+{
+  const du_ue_index_t ue_idx = add_ue(PARAMS);
+
+  ASSERT_GT(cell_cfg.ntn_cs_koffset, 0U);
+
+  const slot_point pdcch_slot         = res_grid[0].slot;
+  const slot_point expected_srs_slot  = pdcch_slot + PARAMS.slot_offset + cell_cfg.ntn_cs_koffset;
+  const slot_point unshifted_srs_slot = pdcch_slot + PARAMS.slot_offset;
+
+  const aperiodic_srs_alloc_info info = srs_alloc.allocate_aperiodic_srs(
+      res_grid, slot_point{}, ues[ue_idx].get_pcell().cfg(), ues[ue_idx].get_pcell().ntn_koffset());
+  ASSERT_NE(info.aperiodic_srs_res_trigger, 0U) << "No aperiodic SRS was allocated";
+
+  ASSERT_EQ(res_grid[expected_srs_slot].result_reader().ul().srss().size(), 1)
+      << "Aperiodic SRS must be placed K_offset slots after its slot offset";
+  ASSERT_TRUE(res_grid[unshifted_srs_slot].result_reader().ul().srss().empty())
+      << "Aperiodic SRS must not be placed at the terrestrial slot offset";
+}
 
 class srs_alloc_multi_ue_tester : public ::testing::TestWithParam<srs_params>, public srs_alloc_test_bench
 {

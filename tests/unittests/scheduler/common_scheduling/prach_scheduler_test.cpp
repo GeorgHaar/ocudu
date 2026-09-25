@@ -11,6 +11,7 @@
 #include "tests/unittests/scheduler/test_utils/scheduler_test_suite.h"
 #include "ocudu/ran/prach/prach_frequency_mapping.h"
 #include "ocudu/ran/prach/prach_preamble_information.h"
+#include "ocudu/ran/prach/prach_time_mapping.h"
 #include "ocudu/scheduler/config/scheduler_cell_config_validator.h"
 #include "ocudu/scheduler/config/scheduler_expert_config_factory.h"
 #include <gtest/gtest.h>
@@ -507,3 +508,56 @@ INSTANTIATE_TEST_SUITE_P(
     [](const testing::TestParamInfo<prach_scheduler_test::ParamType>& info_) {
       return fmt::format("tdd_fr2_scs_{}_prach_cfg_idx_{}", to_string(info_.param.scs), info_.param.prach_cfg_index);
     });
+
+/// Fixture for a PRACH occasion in an NTN cell configured with a cell-specific K-offset. The occasions follow from the
+/// PRACH configuration alone (TS 38.211, Section 6.3.3.2), so the K-offset does not move the occasion raster the
+/// scheduler places in the grid. The K-offset still reaches PRACH elsewhere: for a transmission triggered by a PDCCH
+/// order or an LTM cell switch command MAC CE, the UE takes an occasion after slot n + 2^mu * K_cell,offset as per
+/// TS 38.213, Section 8.1, which selects among the occasions rather than moving them.
+class prach_scheduler_ntn_koffset_test : public sub_scheduler_test_environment, public ::testing::Test
+{
+public:
+  /// Cell-specific K-offset in ms (= slots at 15 kHz SCS).
+  static constexpr unsigned KOFFSET = 5;
+
+  prach_scheduler_ntn_koffset_test() : sub_scheduler_test_environment(make_ntn_cell_req()), prach_sch(cell_cfg) {}
+
+  void do_run_slot() override { prach_sch.run_slot(res_grid); }
+
+private:
+  static sched_cell_configuration_request_message make_ntn_cell_req()
+  {
+    auto req = sched_config_helper::make_default_sched_cell_configuration_request(
+        cell_config_builder_profiles::create(nr_band::n3));
+    req.ran.ntn_params.emplace();
+    req.ran.ntn_params->ntn_cfg.cell_specific_koffset = std::chrono::milliseconds{KOFFSET};
+    return req;
+  }
+
+  prach_scheduler prach_sch;
+};
+
+/// Verifies that the cell-specific K-offset leaves each PRACH detection PDU on its UL occasion slot.
+TEST_F(prach_scheduler_ntn_koffset_test, prach_pdu_is_not_shifted_by_the_cell_specific_koffset)
+{
+  run_slot();
+
+  ASSERT_GT(cell_cfg.ntn_cs_koffset, 0U);
+
+  // Search for the first PRACH PDU in the grid.
+  unsigned prach_offset = UINT_MAX;
+  for (unsigned n = 0; n != res_grid.max_ul_slot_alloc_delay; ++n) {
+    if (not res_grid[n].result_reader().ul().prachs().empty()) {
+      prach_offset = n;
+      break;
+    }
+  }
+  ASSERT_NE(prach_offset, UINT_MAX) << "Expected at least one PRACH PDU in the resource grid after pre-population";
+
+  const prach_helper::preamble_slot_mapping td_mapper{
+      cell_cfg.band(),
+      cell_cfg.init_bwp.ul.cfg().scs,
+      cell_cfg.init_bwp.ul.rach_common()->rach_cfg_generic.prach_config_index};
+  ASSERT_TRUE(td_mapper.has_prach_occasion(res_grid[prach_offset].slot))
+      << "the PDU must sit on a PRACH occasion slot, so the K-offset was wrongly applied";
+}

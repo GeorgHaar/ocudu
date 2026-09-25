@@ -106,6 +106,77 @@ INSTANTIATE_TEST_SUITE_P(test_sr_sched_different_periods_offsets,
                                          sr_periodicity::sl_320,
                                          sr_periodicity::sl_640));
 
+/////////////  Test SR scheduling in an NTN cell   /////////////
+
+/// \brief Base fixture for the periodic SR occasion of an NTN cell. The UE derives the occasion from its SR
+/// configuration (TS 38.331, Information Element \e SchedulingRequestResourceConfig). CSI reporting is disabled, so
+/// every PUCCH in the grid belongs to an SR occasion.
+class uci_sched_ntn_test_base : public ::testing::Test
+{
+public:
+  static constexpr sr_periodicity sr_period = sr_periodicity::sl_40;
+  static constexpr unsigned       sr_offset = 7;
+
+  explicit uci_sched_ntn_test_base(unsigned cs_koffset_ms) :
+    t_bench{test_bench_params{.sr_period      = sr_period,
+                              .sr_offset      = sr_offset,
+                              .csi_period     = std::nullopt,
+                              .ntn_cs_koffset = std::chrono::milliseconds{cs_koffset_ms}}}
+  {
+  }
+
+protected:
+  /// Runs the scheduler over several SR periods and returns whether an SR occasion was seen, failing the test on any
+  /// PUCCH that falls outside \c expected_offset.
+  void run_and_check_sr_offset(unsigned expected_offset)
+  {
+    const unsigned period_slots      = sr_periodicity_to_slot(sr_period);
+    const unsigned nof_slots_to_test = std::max(period_slots * 4, t_bench.res_grid.ring_size() * 2);
+    bool           observed_sr       = false;
+
+    for (unsigned sl_cnt = 0; sl_cnt != nof_slots_to_test; ++sl_cnt) {
+      t_bench.uci_sched.run_slot(t_bench.res_grid);
+      const bool is_sr_slot = t_bench.sl_tx.count() % period_slots == expected_offset;
+      if (is_sr_slot) {
+        ASSERT_EQ(t_bench.res_grid[0].result_reader().ul().pucchs().size(), 1)
+            << fmt::format("No SR at slot {}, the expected occasion", t_bench.sl_tx);
+        observed_sr = true;
+      } else {
+        ASSERT_TRUE(t_bench.res_grid[0].result_reader().ul().pucchs().empty())
+            << fmt::format("SR at slot {}, away from the expected occasion", t_bench.sl_tx);
+      }
+      t_bench.slot_indication(++t_bench.sl_tx);
+    }
+    ASSERT_TRUE(observed_sr);
+  }
+
+  test_bench t_bench;
+};
+
+/// Fixture for an NTN cell carrying a cell-specific K-offset.
+class uci_sched_ntn_koffset_test : public uci_sched_ntn_test_base
+{
+public:
+  static constexpr unsigned KOFFSET_MS = 5;
+
+  uci_sched_ntn_koffset_test() : uci_sched_ntn_test_base(KOFFSET_MS) {}
+};
+
+/// \brief Verifies that the cell-specific K-offset leaves the SR occasion at its configured offset.
+///
+/// The occasion follows from an SFN and slot modulo condition on SR_PERIODICITY and SR_OFFSET (TS 38.213,
+/// Section 9.2.4), so there is no "slot n+k" relation for a K-offset to enter.
+TEST_F(uci_sched_ntn_koffset_test, periodic_sr_is_not_shifted_by_the_cell_specific_koffset)
+{
+  ASSERT_GT(t_bench.cell_cfg.ntn_cs_koffset, 0U);
+
+  const unsigned period_slots = sr_periodicity_to_slot(sr_period);
+  ASSERT_NE(t_bench.cell_cfg.ntn_cs_koffset % period_slots, 0U)
+      << "the K-offset must be able to move the occasion, or the test cannot tell the two apart";
+
+  run_and_check_sr_offset(sr_offset % period_slots);
+}
+
 /////////////  Test SR scheduling with a UE measurement gap   /////////////
 
 /// \brief A UE does not transmit on an SR occasion that overlaps its measurement gap (TS 38.321, Section 5.4.4), so the

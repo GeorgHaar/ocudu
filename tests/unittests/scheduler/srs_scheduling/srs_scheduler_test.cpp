@@ -134,13 +134,24 @@ std::ostream& operator<<(std::ostream& os, const srs_test_params& params)
 
 using namespace srs_periodicity_test;
 
+static sched_cell_configuration_request_message make_srs_cell_request(test_helpers::test_sched_config_manager& cfg_mng,
+                                                                      unsigned cs_koffset_ms)
+{
+  auto req = cfg_mng.get_default_cell_config_request();
+  if (cs_koffset_ms != 0) {
+    req.ran.ntn_params.emplace();
+    req.ran.ntn_params->ntn_cfg.cell_specific_koffset = std::chrono::milliseconds{cs_koffset_ms};
+  }
+  return req;
+}
+
 class srs_sched_test_bench
 {
 public:
-  srs_sched_test_bench(const srs_test_params& params) :
+  srs_sched_test_bench(const srs_test_params& params, unsigned cs_koffset_ms = 0) :
     expert_cfg{config_helpers::make_default_scheduler_expert_config()},
     cfg_mng{cell_config_builder_profiles::create(params.is_tdd ? duplex_mode::TDD : duplex_mode::FDD), expert_cfg},
-    cell_cfg(*cfg_mng.add_cell(cfg_mng.get_default_cell_config_request())),
+    cell_cfg(*cfg_mng.add_cell(make_srs_cell_request(cfg_mng, cs_koffset_ms))),
     cell_ues(cell_cfg, nullptr),
     ues(expert_cfg.ue),
     srs_sched(cell_cfg, cell_ues),
@@ -278,6 +289,47 @@ class srs_scheduler_tester : public ::testing::TestWithParam<srs_test_params>, p
 protected:
   srs_scheduler_tester() : srs_sched_test_bench(GetParam()) {}
 };
+
+/// Fixture for a periodic SRS occasion in an NTN cell configured with a cell-specific K-offset. The UE derives the
+/// occasion from its SRS resource configuration (TS 38.214, Section 6.2.1), so the K-offset it applies to granted
+/// transmissions leaves it where it is.
+class srs_scheduler_ntn_koffset_test : public ::testing::Test, public srs_sched_test_bench
+{
+protected:
+  static constexpr unsigned KOFFSET_MS = 5;
+  static constexpr auto     PERIOD     = srs_periodicity::sl20;
+
+  srs_scheduler_ntn_koffset_test() : srs_sched_test_bench({false, PERIOD}, KOFFSET_MS) {}
+};
+
+/// Verifies that the cell-specific K-offset leaves the periodic SRS occasion at its configured offset.
+TEST_F(srs_scheduler_ntn_koffset_test, periodic_srs_is_not_shifted_by_the_cell_specific_koffset)
+{
+  add_ue(PERIOD);
+
+  ASSERT_GT(cell_cfg.ntn_cs_koffset, 0U);
+
+  const unsigned period_slots = static_cast<unsigned>(PERIOD);
+  ASSERT_NE(cell_cfg.ntn_cs_koffset % period_slots, 0U)
+      << "the K-offset must be able to move the occasion, or the test cannot tell the two apart";
+
+  const unsigned expected_offset       = get_offset() % period_slots;
+  bool           observed_periodic_srs = false;
+
+  for (unsigned sl_cnt = 0; sl_cnt != res_grid.ring_size() * 2; ++sl_cnt) {
+    srs_sched.run_slot(res_grid);
+    if (sl_cnt >= SCHEDULER_MAX_K2) {
+      if (current_sl_tx.count() % period_slots == expected_offset) {
+        ASSERT_EQ(res_grid[0].result_reader().ul().srss().size(), 1) << "SRS moved off its configured offset";
+        observed_periodic_srs = true;
+      } else {
+        ASSERT_TRUE(res_grid[0].result_reader().ul().srss().empty()) << "SRS was moved by the cell-specific K-offset";
+      }
+    }
+    slot_indication(++current_sl_tx);
+  }
+  ASSERT_TRUE(observed_periodic_srs);
+}
 
 TEST_P(srs_scheduler_tester, test_different_periods)
 {

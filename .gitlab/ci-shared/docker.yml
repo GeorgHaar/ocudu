@@ -28,6 +28,7 @@ variables:
     ATTESTATION_EXPECTED_FILES: ""
     GRYPE_SKIP: "false"
     BUILDKITD_FLAGS: "--root ${CI_BUILDS_DIR}/.buildkit-${CI_CONCURRENT_ID}" # Non-overlay root so BuildKit can use the overlayfs snapshotter
+    CONTAINER_SPDX_MAX_BYTES: "10000000"
     COSIGN_YES: "true" # Used by Cosign to skip confirmation prompts for non-destructive operations
     REGISTRY_URI: ${CI_REGISTRY_IMAGE}
     REGISTRY_AUTH_SERVER: ${CI_REGISTRY}
@@ -40,6 +41,8 @@ variables:
   artifacts:
     paths:
       - grype-report.json
+      - container.spdx.json
+      - build.spdx
     expire_in: 7 days
     when: always
   after_script:
@@ -138,16 +141,22 @@ variables:
     # Attestation functions
     - |
       generate_container_spdx() {
-        # Catalog OS packages only. Skip package-owned file entries: dpkg file lists inflate the
-        # SPDX beyond 19MB, which breaks cosign attest. JSON because cosign v3 rejects non-JSON predicates.
+        # Skip package-owned file entries: dpkg file lists inflate the SPDX beyond 19MB, which
+        # breaks cosign attest. The syft JSON is kept so grype can scan the same inventory.
         SYFT_REGISTRY_AUTH_USERNAME="${REGISTRY_AUTH_USERNAME}" \
           SYFT_REGISTRY_AUTH_PASSWORD="${REGISTRY_AUTH_PASSWORD}" \
           SYFT_REGISTRY_AUTH_AUTHORITY="${REGISTRY_AUTH_SERVER}" \
           SYFT_FILE_METADATA_SELECTION=none \
           SYFT_RELATIONSHIPS_PACKAGE_FILE_OWNERSHIP=false \
           syft registry:${IMAGE_DIGEST} \
-          --select-catalogers "os,-file-metadata-cataloger,-file-executable-cataloger" \
+          -o syft-json=container.syft.json \
           -o spdx-json=container.spdx.json
+
+        [ -s container.spdx.json ] || { echo "syft produced an empty container.spdx.json" >&2; exit 1; }
+        if [ "$(wc -c < container.spdx.json)" -gt "${CONTAINER_SPDX_MAX_BYTES}" ]; then
+          echo "container.spdx.json exceeds ${CONTAINER_SPDX_MAX_BYTES} bytes" >&2
+          exit 1
+        fi
       }
 
       attest_spdx() {
@@ -201,12 +210,8 @@ variables:
 
         echo "=== Generating container SPDX ==="
         generate_container_spdx
-        if [ -s container.spdx.json ]; then
-          echo "=== Attesting container SPDX ==="
-          attest_spdx container.spdx.json spdxjson
-        else
-          echo "WARNING: syft produced an empty container.spdx.json, skipping container attestation"
-        fi
+        echo "=== Attesting container SPDX ==="
+        attest_spdx container.spdx.json spdxjson
 
         if [ -n "$ATTESTATION_FILE" ]; then
           echo "=== Attesting ${ATTESTATION_FILE} ==="

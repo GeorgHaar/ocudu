@@ -220,18 +220,15 @@ variables:
         fi
 
         if [ "${GRYPE_SKIP}" != "true" ]; then
-          # syft (above) already cached a full copy of the image under /tmp/stereoscope-*; grype
-          # caches its own on top instead of reusing it, so back-to-back they need ~2x the image
-          # size in temp space. Drop syft's copy first so large images don't run out of disk here.
-          rm -rf /tmp/stereoscope-*
+          # Scan the syft inventory instead of pulling the image again, so the report matches the attested SBOM
           echo "=== Running grype CVE scan on ${IMAGE_DIGEST} ==="
           case ",${CI_MERGE_REQUEST_LABELS:-}," in
             *",ci-ignore-vulnerabilities,"*)
               echo "WARNING: Vulnerability failure threshold disabled by ci-ignore-vulnerabilities label"
-              grype registry:${IMAGE_DIGEST} -o json > grype-report.json
+              grype sbom:container.syft.json -o json > grype-report.json
               ;;
             *)
-              grype registry:${IMAGE_DIGEST} --fail-on critical --ignore-states wont-fix,not-fixed -o json > grype-report.json
+              grype sbom:container.syft.json --fail-on critical --ignore-states wont-fix,not-fixed -o json > grype-report.json
               ;;
           esac
           echo "=== Vulnerability summary ==="

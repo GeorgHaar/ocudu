@@ -160,6 +160,24 @@ variables:
         fi
       }
 
+      # Keyless signatures are always created; protected refs also sign with the published cosign key
+      sign_image() {
+        cosign sign ${IMAGE_DIGEST}
+        if [ -n "${COSIGN_KEY_FILE}" ]; then
+          cosign sign --key "${COSIGN_KEY_FILE}" ${IMAGE_DIGEST}
+        fi
+      }
+
+      attest_image() {
+        local predicate=$1
+        local type=$2
+        shift 2
+        cosign attest "$@" --predicate "${predicate}" --type "${type}" ${IMAGE_DIGEST}
+        if [ -n "${COSIGN_KEY_FILE}" ]; then
+          cosign attest "$@" --key "${COSIGN_KEY_FILE}" --predicate "${predicate}" --type "${type}" ${IMAGE_DIGEST}
+        fi
+      }
+
       attest_spdx() {
         local predicate=$1
         local type=$2
@@ -167,7 +185,7 @@ variables:
         local base_url="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${NAME}/${VERSION}"
 
         echo "Attesting ${predicate} ($(wc -c < ${predicate}) bytes)"
-        cosign attest "$@" --predicate "${predicate}" --type "${type}" ${IMAGE_DIGEST}
+        attest_image "${predicate}" "${type}" "$@"
 
         if [ -n "${COSIGN_KEY_FILE}" ]; then
           echo "Signing ${predicate} as detached blob signature"
@@ -227,7 +245,7 @@ variables:
         cosign clean --type=all --force ${IMAGE_DIGEST}
 
         echo "=== Signing image ==="
-        cosign sign ${IMAGE_DIGEST}
+        sign_image
 
         echo "=== Generating container SPDX ==="
         generate_container_spdx
@@ -251,7 +269,7 @@ variables:
           echo "  Total: $(jq '.matches | length' grype-report.json)"
           echo "=== Attesting grype report ==="
           generate_vuln_predicate "${SCAN_STARTED}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          cosign attest --predicate vuln-predicate.json --type vuln ${IMAGE_DIGEST}
+          attest_image vuln-predicate.json vuln
 
           echo "=== Checking fixable critical vulnerabilities ==="
           FIXABLE_CRITICAL=$(jq '[.matches[] | select(.vulnerability.severity == "Critical" and .vulnerability.fix.state == "fixed")]' grype-report.json)

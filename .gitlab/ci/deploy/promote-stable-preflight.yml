@@ -13,6 +13,43 @@
 .promote-stable:
   extends: .docker copy
   stage: promote-stable
+  variables:
+    COSIGN_YES: "true"
+  script:
+    - !reference [.docker copy, script]
+    - |
+      echo "=== Verifying ${DESTINATION_IMAGE} ==="
+      [ "$(regctl image digest "${SOURCE_IMAGE}")" = "$(regctl image digest "${DESTINATION_IMAGE}")" ] ||
+        { echo "Digest of ${DESTINATION_IMAGE} does not match ${SOURCE_IMAGE}" >&2; exit 1; }
+
+      VERIFY_OPTS="--certificate-identity-regexp ^${CI_SERVER_URL}/${CI_PROJECT_PATH}// --certificate-oidc-issuer ${CI_SERVER_URL}"
+      verify_image() {
+        cosign verify "$@" "${DESTINATION_IMAGE}" > /dev/null
+        # spdx and spdxjson share a predicate type, skip the tag-value vendor SBOM (a string predicate)
+        cosign verify-attestation "$@" --type spdxjson "${DESTINATION_IMAGE}" |
+          jq -s -e 'map(.payload | @base64d | fromjson | .predicate | select(type == "object"))
+            | length > 0 and all(.packages | length > 0)' > /dev/null ||
+          { echo "Missing or empty SPDX attestation" >&2; exit 1; }
+        cosign verify-attestation "$@" --type vuln "${DESTINATION_IMAGE}" |
+          jq -s -e 'length > 0 and all(.payload | @base64d | fromjson | .predicate.scanner.result.matches | type == "array")' > /dev/null ||
+          { echo "Missing or empty vulnerability attestation" >&2; exit 1; }
+      }
+
+      echo "Verifying keyless signature and attestations"
+      verify_image ${VERIFY_OPTS}
+
+      if [ "${CI_COMMIT_REF_PROTECTED}" = "true" ]; then
+        [ -z "${COSIGN_PRIVATE_KEY_B64}" ] && echo "COSIGN_PRIVATE_KEY_B64 is mandatory on protected pipelines" && exit 1
+        COSIGN_KEY_FILE=/tmp/cosign.key
+        install -m 600 /dev/null "${COSIGN_KEY_FILE}"
+        trap 'rm -f "${COSIGN_KEY_FILE}"' EXIT
+        printf '%s' "${COSIGN_PRIVATE_KEY_B64}" | base64 --decode > "${COSIGN_KEY_FILE}"
+        cosign public-key --key "${COSIGN_KEY_FILE}" > cosign.pub
+        rm -f "${COSIGN_KEY_FILE}"
+        echo "Verifying cosign key signature and attestations"
+        verify_image --key cosign.pub
+      fi
+      echo "${DESTINATION_IMAGE} verified"
   rules: &promote_rules
     - if: $ON_MR
       when: manual

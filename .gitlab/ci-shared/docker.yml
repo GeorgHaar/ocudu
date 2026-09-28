@@ -160,6 +160,14 @@ variables:
         fi
       }
 
+      image_is_signed() {
+        if [ -n "${COSIGN_PUBLIC_KEY_FILE}" ]; then
+          cosign verify --key "${COSIGN_PUBLIC_KEY_FILE}" ${IMAGE_DIGEST} > /dev/null 2>&1
+        else
+          regctl manifest head "${IMAGE_NAME}:$(echo "${IMAGE_DIGEST##*@}" | tr ':' '-').sig" > /dev/null 2>&1
+        fi
+      }
+
       # Keyless signatures are always created; protected refs also sign with the published cosign key
       sign_image() {
         cosign sign ${IMAGE_DIGEST}
@@ -244,16 +252,20 @@ variables:
           syft convert build.spdx -o spdx-json=build.spdx.json
         fi
 
-        # If we don't clean the attestation, every iteration amends the signature/sbom/grype_report and it can grow unbounded
-        # We clean up the attested files and then re-push everything again
-        echo "=== Cleaning previous signature/attestations ==="
-        cosign clean --type=all --force ${IMAGE_DIGEST}
-
-        echo "=== Signing image ==="
-        sign_image
-        if [ -n "${COSIGN_PUBLIC_KEY_FILE}" ]; then
-          upload_package_file "${COSIGN_PUBLIC_KEY_FILE}" cosign.pub
+        # Re-runs on an existing image (retries, promote tags) would otherwise stack duplicate signatures
+        if [ "${SKIP_IMAGE_BUILD}" = "true" ] && image_is_signed; then
+          echo "=== Image ${IMAGE_DIGEST} is already signed, skipping signing ==="
+        else
+          echo "=== Signing image ==="
+          sign_image
+          if [ -n "${COSIGN_PUBLIC_KEY_FILE}" ]; then
+            upload_package_file "${COSIGN_PUBLIC_KEY_FILE}" cosign.pub
+          fi
         fi
+
+        # Re-runs replace attestations so SBOM and vulnerability records do not accumulate
+        echo "=== Cleaning previous attestations ==="
+        cosign clean --type=attestation --force ${IMAGE_DIGEST}
 
         echo "=== Generating container SPDX ==="
         generate_container_spdx

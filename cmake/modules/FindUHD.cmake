@@ -40,6 +40,24 @@ IF(UHD_FOUND)
   # UHD library directory
   get_filename_component(UHD_LIBRARY_DIR ${UHD_LIBRARIES} DIRECTORY)
 
+  # UHD version, encoded in uhd/version.hpp as major * 1000000 + API * 10000 + ABI * 100 + patch
+  if(EXISTS "${UHD_INCLUDE_DIRS}/uhd/version.hpp")
+    file(STRINGS "${UHD_INCLUDE_DIRS}/uhd/version.hpp" _uhd_version_line REGEX "^#define UHD_VERSION [0-9]+$")
+  endif()
+  if(_uhd_version_line MATCHES "UHD_VERSION ([0-9]+)")
+    math(EXPR _uhd_major "${CMAKE_MATCH_1} / 1000000")
+    math(EXPR _uhd_api "(${CMAKE_MATCH_1} / 10000) % 100")
+    math(EXPR _uhd_abi "(${CMAKE_MATCH_1} / 100) % 100")
+    math(EXPR _uhd_patch "${CMAKE_MATCH_1} % 100")
+    set(UHD_VERSION "${_uhd_major}.${_uhd_api}.${_uhd_abi}.${_uhd_patch}")
+    message(STATUS "UHD VERSION " ${UHD_VERSION})
+  endif()
+  unset(_uhd_version_line)
+  unset(_uhd_major)
+  unset(_uhd_api)
+  unset(_uhd_abi)
+  unset(_uhd_patch)
+
   # Save current required variables
   set(_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
   set(_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})

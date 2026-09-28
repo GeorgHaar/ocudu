@@ -178,30 +178,35 @@ variables:
         fi
       }
 
+      upload_package_file() {
+        local file=$1
+        local name=$2
+        local base_url="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${NAME}/${VERSION}"
+        echo "Publishing ${name} to package registry (${base_url})"
+        curl --fail --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          --upload-file "${file}" "${base_url}/${name}"
+      }
+
+      publish_signed_file() {
+        local file=$1
+        if [ -n "${COSIGN_KEY_FILE}" ]; then
+          echo "Signing ${file} as detached blob signature"
+          cosign sign-blob --key "${COSIGN_KEY_FILE}" \
+            --bundle "${file}.bundle" "${file}"
+          upload_package_file "${file}" "${file}"
+          upload_package_file "${file}.bundle" "${file}.bundle"
+        else
+          echo "Skipping detached blob signature on unprotected pipeline"
+        fi
+      }
+
       attest_spdx() {
         local predicate=$1
         local type=$2
         shift 2
-        local base_url="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${NAME}/${VERSION}"
-
         echo "Attesting ${predicate} ($(wc -c < ${predicate}) bytes)"
         attest_image "${predicate}" "${type}" "$@"
-
-        if [ -n "${COSIGN_KEY_FILE}" ]; then
-          echo "Signing ${predicate} as detached blob signature"
-          cosign sign-blob --key "${COSIGN_KEY_FILE}" \
-            --bundle "${predicate}.bundle" "${predicate}"
-
-          echo "Publishing ${predicate}, ${predicate}.bundle and cosign.pub to package registry (${base_url})"
-          curl --fail --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-            --upload-file "${predicate}" "${base_url}/${predicate}"
-          curl --fail --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-            --upload-file "${predicate}.bundle" "${base_url}/${predicate}.bundle"
-          curl --fail --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-            --upload-file "${COSIGN_PUBLIC_KEY_FILE}" "${base_url}/cosign.pub"
-        else
-          echo "Skipping detached blob signature on unprotected pipeline"
-        fi
+        publish_signed_file "${predicate}"
       }
 
       generate_vuln_predicate() {
@@ -246,6 +251,9 @@ variables:
 
         echo "=== Signing image ==="
         sign_image
+        if [ -n "${COSIGN_PUBLIC_KEY_FILE}" ]; then
+          upload_package_file "${COSIGN_PUBLIC_KEY_FILE}" cosign.pub
+        fi
 
         echo "=== Generating container SPDX ==="
         generate_container_spdx
@@ -270,6 +278,7 @@ variables:
           echo "=== Attesting grype report ==="
           generate_vuln_predicate "${SCAN_STARTED}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           attest_image vuln-predicate.json vuln
+          publish_signed_file grype-report.json
 
           echo "=== Checking fixable critical vulnerabilities ==="
           FIXABLE_CRITICAL=$(jq '[.matches[] | select(.vulnerability.severity == "Critical" and .vulnerability.fix.state == "fixed")]' grype-report.json)

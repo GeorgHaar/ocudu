@@ -11,7 +11,17 @@
 #  ROHC_LIBRARIES    - The ROHC library
 
 find_package(PkgConfig REQUIRED)
+
+# Let pkg-config also look in ROHC_DIR, it provides the version reported in the SBOM
+set(_rohc_prefix_path ${CMAKE_PREFIX_PATH})
+if (DEFINED ENV{ROHC_DIR})
+    file(TO_CMAKE_PATH "$ENV{ROHC_DIR}" _rohc_dir)
+    list(APPEND CMAKE_PREFIX_PATH "${_rohc_dir}")
+endif (DEFINED ENV{ROHC_DIR})
 pkg_check_modules(PC_ROHC rohc>=2.3.1)
+set(CMAKE_PREFIX_PATH ${_rohc_prefix_path})
+unset(_rohc_prefix_path)
+unset(_rohc_dir)
 
 #find Mbedtls
 find_path(

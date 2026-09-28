@@ -20,19 +20,19 @@ class ue_manager;
 
 /// DU processor configuration.
 struct du_processor_config {
-  cu_cp_du_index_t                         du_index = cu_cp_du_index_t::invalid;
-  gnb_id_t                                 gnb_id;
-  std::string                              ran_node_name;
-  srb_pdcp_config                          srb2_cfg;
-  std::map<five_qi_t, cu_cp_qos_config>    drb_config;
-  security::preferred_integrity_algorithms int_algo_pref_list;
-  security::preferred_ciphering_algorithms enc_algo_pref_list;
-  bool                                     force_reestablishment_fallback;
-  bool                                     force_resume_fallback;
-  std::chrono::milliseconds                rrc_procedure_guard_time_ms;
-  std::chrono::seconds                     rrc_reject_wait_time;
-  unsigned                                 rrc_version;
-  f1ap_configuration                       f1ap;
+  cu_cp_du_index_t                                du_index = cu_cp_du_index_t::invalid;
+  gnb_id_t                                        gnb_id;
+  std::string                                     ran_node_name;
+  srb_pdcp_config                                 srb2_cfg;
+  std::unordered_map<five_qi_t, cu_cp_qos_config> drb_config;
+  security::preferred_integrity_algorithms        int_algo_pref_list;
+  security::preferred_ciphering_algorithms        enc_algo_pref_list;
+  bool                                            force_reestablishment_fallback;
+  bool                                            force_resume_fallback;
+  std::chrono::milliseconds                       rrc_procedure_guard_time_ms;
+  std::chrono::seconds                            rrc_reject_wait_time;
+  unsigned                                        rrc_version;
+  f1ap_configuration                              f1ap;
 };
 
 /// DU processor dependencies.

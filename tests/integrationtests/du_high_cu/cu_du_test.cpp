@@ -48,18 +48,27 @@ protected:
     ocudulog::fetch_basic_logger("TEST").set_level(ocudulog::basic_levels::debug);
     ocudulog::init();
 
-    // create CU-CP config
-    ocucp::cu_cp_configuration cu_cfg = config_helpers::make_default_cu_cp_config();
-    cu_cfg.services.cu_cp_executor    = &workers.exec_mapper->du_control_executor(); // reuse du-high ctrl exec
-    cu_cfg.services.timers            = &timers;
-    cu_cfg.ngap.n2_gws.push_back(&*amf);
-    cu_cfg.ngap.ngaps.push_back(
-        ocucp::cu_cp_configuration::ngap_config{{{7, {{plmn_identity::test_value(), {{slice_service_type{1}}}}}}}});
+    // Create CU-CP config.
+    ocucp::cu_cp_configuration cu_cfg;
+
+    cu_cfg.ngap.amfs.push_back(ocucp::cu_cp_configuration::amf_configuration{
+        {{7, {{plmn_identity::test_value(), {{slice_service_type{1}}}}}}}});
     cu_cfg.metrics.layers_cfg.enable_ngap_metrics = true;
     cu_cfg.metrics.layers_cfg.enable_rrc_metrics  = true;
 
+    std::vector<ocucp::n2_connection_client*> n2_gws;
+    n2_gws.push_back(&*amf);
+
+    // Create CU-CP dependencies.
+    ocucp::cu_cp_dependencies cu_deps{.n2_gws            = std::move(n2_gws),
+                                      .ng_setup_notifier = nullptr,
+                                      .xnc_gws           = {},
+                                      .cu_cp_executor    = workers.exec_mapper->du_control_executor(),
+                                      .timers            = timers,
+                                      .metrics_notifier  = nullptr};
+
     // create CU-CP.
-    cu_cp_obj = create_cu_cp(cu_cfg);
+    cu_cp_obj = create_cu_cp(cu_cfg, cu_deps);
 
     // Create AMF response to NG Setup.
     amf->enqueue_next_tx_pdu(ocucp::generate_ng_setup_response());

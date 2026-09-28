@@ -47,13 +47,8 @@ public:
     ue_mng(ue_cfg, ue_dependencies),
     // Drive the XNAPs from the fixture's own manual worker, so that procedures run inline and can be stepped
     // deterministically from the test.
-    local_cu_cp_cfg([this]() {
-      cu_cp_configuration cfg     = get_cu_cp_cfg();
-      cfg.services.timers         = &timers;
-      cfg.services.cu_cp_executor = &ctrl_worker;
-      return cfg;
-    }()),
-    xnap_db(xnap_repository_config{.number_of_xnaps = static_cast<unsigned>(local_cu_cp_cfg.xnap.xnaps.size())},
+    local_cu_cp_cfg(get_cu_cp_cfg()),
+    xnap_db(xnap_repository_config{.number_of_xnaps = static_cast<unsigned>(local_cu_cp_cfg.xnap.peers.size())},
             xnap_repository_dependencies{.cu_cp_notifier = cu_cp_xnap_handler,
                                          .timers         = timers,
                                          .cu_cp_executor = ctrl_worker,

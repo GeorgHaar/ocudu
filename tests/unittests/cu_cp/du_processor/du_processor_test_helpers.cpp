@@ -142,12 +142,10 @@ private:
 } // namespace
 
 du_processor_test::du_processor_test() :
-  cu_cp_cfg([this]() {
-    cu_cp_configuration cucfg     = config_helpers::make_default_cu_cp_config();
-    cucfg.services.timers         = &timers;
-    cucfg.services.cu_cp_executor = &ctrl_worker;
-    cucfg.ngap.ngaps.push_back(
-        cu_cp_configuration::ngap_config{{{7, {{plmn_identity::test_value(), {{slice_service_type{1}}}}}}}});
+  cu_cp_cfg([]() {
+    cu_cp_configuration cucfg;
+    cucfg.ngap.amfs.push_back(
+        cu_cp_configuration::amf_configuration{{{7, {{plmn_identity::test_value(), {{slice_service_type{1}}}}}}}});
     return cucfg;
   }()),
   ue_cfg([this]() {
@@ -166,7 +164,7 @@ du_processor_test::du_processor_test() :
   }()),
   common_task_sched(std::make_unique<dummy_task_sched>()),
 
-  du_cfg_mgr{cu_cp_cfg.node.gnb_id, config_helpers::get_supported_plmns(cu_cp_cfg.ngap.ngaps)}
+  du_cfg_mgr{cu_cp_cfg.node.gnb_id, config_helpers::get_supported_plmns(cu_cp_cfg.ngap.amfs)}
 {
   OCUDU_TEST_REQUIREMENTS("MVP-ARCH-INTF-9");
 

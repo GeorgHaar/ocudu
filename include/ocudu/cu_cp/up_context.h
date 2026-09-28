@@ -19,8 +19,8 @@ namespace ocudu::ocucp {
 /// List of all supported 5QIs and their corresponding PDCP/SDAP configs.
 struct up_resource_manager_cfg {
   /// Configuration for available 5QI.
-  std::map<five_qi_t, cu_cp_qos_config> five_qi_config;
-  uint8_t                               max_nof_drbs_per_ue;
+  std::unordered_map<five_qi_t, cu_cp_qos_config> five_qi_config;
+  uint8_t                                         max_nof_drbs_per_ue;
 };
 
 struct up_qos_flow_context {

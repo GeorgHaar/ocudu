@@ -57,7 +57,6 @@
 #include "ocudu/ran/plmn_identity.h"
 #include "ocudu/ran/time/radio_frame.h"
 #include "ocudu/support/async/async_no_op_task.h"
-#include "ocudu/support/async/async_timer.h"
 #include "ocudu/support/async/coroutine.h"
 #include "ocudu/support/synchronization/sync_event.h"
 #include "ocudu/xnap/xnap.h"
@@ -71,22 +70,25 @@ using namespace ocucp;
 
 static void assert_cu_cp_configuration_valid(const cu_cp_configuration& cfg)
 {
-  ocudu_assert(cfg.services.cu_cp_executor != nullptr, "Invalid CU-CP executor");
-  ocudu_assert(!cfg.ngap.ngaps.empty(), "No NGAPs configured");
-  for (const auto* n2_gw : cfg.ngap.n2_gws) {
-    ocudu_assert(n2_gw != nullptr, "Invalid N2 GW client handler");
-  }
-  if (!cfg.xnap.xnaps.empty()) {
-    ocudu_assert(!cfg.xnap.xnc_gws.empty(), "No Xn-C gateways configured for XNAP peers");
-  }
-  ocudu_assert(cfg.services.timers != nullptr, "Invalid timers");
-
+  ocudu_assert(!cfg.ngap.amfs.empty(), "No NGAPs configured");
   report_error_if_not(cfg.admission.max_nof_dus <= CU_CP_MAX_NOF_DUS, "Invalid max number of DUs");
   report_error_if_not(cfg.admission.max_nof_cu_ups <= CU_CP_MAX_NOF_CU_UPS, "Invalid max number of CU-UPs");
 }
 
+static void assert_cu_cp_dependencies_valid(const cu_cp_configuration& cfg, const cu_cp_dependencies& dependencies)
+{
+  ocudu_assert(std::all_of(dependencies.n2_gws.begin(),
+                           dependencies.n2_gws.end(),
+                           [](const auto* n2_gw) { return n2_gw != nullptr; }),
+               "Invalid N2 GW client handler");
+
+  if (!cfg.xnap.peers.empty()) {
+    ocudu_assert(!dependencies.xnc_gws.empty(), "No Xn-C gateways configured for XNAP peers");
+  }
+}
+
 static std::vector<supported_tracking_area>
-extract_supported_tas(const std::vector<cu_cp_configuration::ngap_config>& ngap_cfgs)
+extract_supported_tas(const std::vector<cu_cp_configuration::amf_configuration>& ngap_cfgs)
 {
   std::vector<supported_tracking_area> supported_tas;
   for (const auto& ngap_cfg : ngap_cfgs) {
@@ -114,10 +116,12 @@ create_nr_cell_identities(const std::optional<ocudu_ntn::ntn_configuration_manag
   return ntn_cell_ids;
 }
 
-cu_cp_impl::cu_cp_impl(const cu_cp_configuration& config_) :
+cu_cp_impl::cu_cp_impl(const cu_cp_configuration& config_, const cu_cp_dependencies& dependencies) :
   cfg(config_),
-  cu_cp_executor(*cfg.services.cu_cp_executor),
-  timers(*cfg.services.timers),
+  xnc_gws(dependencies.xnc_gws),
+  cu_cp_executor(dependencies.cu_cp_executor),
+  timers(dependencies.timers),
+  metrics_notifier(dependencies.metrics_notifier),
   ue_mng(ue_manager_config{.gnb_id              = cfg.node.gnb_id,
                            .max_nof_ues         = cfg.admission.max_nof_ues,
                            .drb_config          = cfg.bearers.drb_config,
@@ -126,16 +130,16 @@ cu_cp_impl::cu_cp_impl(const cu_cp_configuration& config_) :
                            .enc_algo_pref_list  = cfg.security.enc_algo_pref_list,
                            .enable_rrc_metrics  = cfg.metrics.layers_cfg.enable_rrc_metrics,
                            .ue                  = cfg.ue},
-         ue_manager_dependencies{.timers         = *cfg.services.timers,
-                                 .cu_cp_executor = *cfg.services.cu_cp_executor,
+         ue_manager_dependencies{.timers         = dependencies.timers,
+                                 .cu_cp_executor = dependencies.cu_cp_executor,
                                  .logger         = ocudulog::fetch_basic_logger("CU-UEMNG")}),
   cell_ctrl(logical_cell_controller_configuration{.ran_node_name = cfg.node.ran_node_name, .cells = cfg.cells},
             logical_cell_controller_dependencies{.du_db              = du_db,
                                                  .ue_mng             = ue_mng,
                                                  .common_task_sched  = common_task_sched,
                                                  .ue_release_handler = *this,
-                                                 .cu_cp_executor     = *cfg.services.cu_cp_executor,
-                                                 .timers             = *cfg.services.timers}),
+                                                 .cu_cp_executor     = dependencies.cu_cp_executor,
+                                                 .timers             = dependencies.timers}),
 
   cell_meas_mng(cfg.mobility.meas_mgr_config,
                 cell_meas_manager_dependencies{.mobility_mng_notifier = cell_meas_mobility_notifier,
@@ -144,7 +148,7 @@ cu_cp_impl::cu_cp_impl(const cu_cp_configuration& config_) :
   ntn_ref_time_store(create_nr_cell_identities(cfg.ntn)),
   du_db(du_repository_config{.gnb_id                         = cfg.node.gnb_id,
                              .ran_node_name                  = cfg.node.ran_node_name,
-                             .ngaps                          = cfg.ngap.ngaps,
+                             .ngaps                          = cfg.ngap.amfs,
                              .max_nof_dus                    = cfg.admission.max_nof_dus,
                              .srb2_cfg                       = cfg.bearers.srb2_cfg,
                              .drb_config                     = cfg.bearers.drb_config,
@@ -158,8 +162,8 @@ cu_cp_impl::cu_cp_impl(const cu_cp_configuration& config_) :
                              .enable_rrc_metrics             = cfg.metrics.layers_cfg.enable_rrc_metrics,
                              .f1ap                           = cfg.f1ap,
                              .ntn_location_mappings          = cfg.ntn_location_mappings},
-        du_repository_dependencies{.cu_cp_executor           = *cfg.services.cu_cp_executor,
-                                   .timers                   = *cfg.services.timers,
+        du_repository_dependencies{.cu_cp_executor           = dependencies.cu_cp_executor,
+                                   .timers                   = dependencies.timers,
                                    .cu_cp_du_handler         = *this,
                                    .meas_config_handler      = get_cu_cp_measurement_config_handler(),
                                    .ue_removal_handler       = get_cu_cp_ue_removal_handler(),
@@ -172,8 +176,8 @@ cu_cp_impl::cu_cp_impl(const cu_cp_configuration& config_) :
   cu_up_db(cu_up_repository_config{.e1ap           = cfg.e1ap,
                                    .max_nof_cu_ups = cfg.admission.max_nof_cu_ups,
                                    .max_nof_ues    = cfg.admission.max_nof_ues},
-           cu_up_repository_dependencies{.cu_cp_executor    = *cfg.services.cu_cp_executor,
-                                         .timers            = *cfg.services.timers,
+           cu_up_repository_dependencies{.cu_cp_executor    = dependencies.cu_cp_executor,
+                                         .timers            = dependencies.timers,
                                          .e1ap_ev_notifier  = e1ap_ev_notifier,
                                          .common_task_sched = common_task_sched,
                                          .logger            = logger}),
@@ -182,18 +186,18 @@ cu_cp_impl::cu_cp_impl(const cu_cp_configuration& config_) :
                                  .ran_node_name               = cfg.node.ran_node_name,
                                  .procedure_timeout           = cfg.ngap.procedure_timeout,
                                  .request_pdu_session_timeout = cfg.ue.request_pdu_session_timeout,
-                                 .ngaps                       = cfg.ngap.ngaps,
+                                 .ngaps                       = cfg.ngap.amfs,
                                  .enable_ngap_metrics         = cfg.metrics.layers_cfg.enable_ngap_metrics},
           ngap_repository_dependencies{.cu_cp_executor = cu_cp_executor,
                                        .timers         = timers,
-                                       .n2_gws         = cfg.ngap.n2_gws,
+                                       .n2_gws         = dependencies.n2_gws,
                                        .logger         = logger,
                                        .cu_cp_notifier = get_cu_cp_ngap_handler(),
                                        .paging_handler = paging_handler}),
-  xnap_db(xnap_repository_config{.number_of_xnaps = static_cast<unsigned>(cfg.xnap.xnaps.size())},
+  xnap_db(xnap_repository_config{.number_of_xnaps = static_cast<unsigned>(cfg.xnap.peers.size())},
           xnap_repository_dependencies{.cu_cp_notifier = get_cu_cp_xnap_handler(),
-                                       .timers         = *cfg.services.timers,
-                                       .cu_cp_executor = *cfg.services.cu_cp_executor,
+                                       .timers         = dependencies.timers,
+                                       .cu_cp_executor = dependencies.cu_cp_executor,
                                        .logger         = ocudulog::fetch_basic_logger("CU-CP")}),
   mobility_mng(cfg.mobility.mobility_mgr_config,
                mobility_manager_dependencies{.cu_cp_notifier = mobility_manager_ev_notifier,
@@ -211,11 +215,11 @@ cu_cp_impl::cu_cp_impl(const cu_cp_configuration& config_) :
                                     .cu_ups            = cu_up_db,
                                     .dus               = du_db,
                                     .xncs              = xnap_db,
-                                    .xnc_gws           = cfg.xnap.xnc_gws,
-                                    .ctrl_exec         = *cfg.services.cu_cp_executor,
+                                    .xnc_gws           = xnc_gws,
+                                    .ctrl_exec         = dependencies.cu_cp_executor,
                                     .timers            = timers,
                                     .logger            = logger,
-                                    .ng_setup_notifier = cfg.ngap.ng_setup_notifier}),
+                                    .ng_setup_notifier = dependencies.ng_setup_notifier}),
   metrics_hdlr(metrics_handler_impl_dependencies{.cu_cp_exec       = cu_cp_executor,
                                                  .timers           = timers,
                                                  .ue_handler       = ue_mng,
@@ -226,12 +230,10 @@ cu_cp_impl::cu_cp_impl(const cu_cp_configuration& config_) :
   cu_cp_cfgtr(mobility_manager_ev_notifier, du_db, ngap_db, ue_mng)
 {
   assert_cu_cp_configuration_valid(cfg);
+  assert_cu_cp_dependencies_valid(cfg, dependencies);
 
-  nrppa_entity = create_nrppa(extract_supported_tas(cfg.ngap.ngaps),
-                              nrppa_cu_cp_ev_notifier,
-                              common_task_sched,
-                              *cfg.services.timers,
-                              *cfg.services.cu_cp_executor);
+  nrppa_entity = create_nrppa(
+      extract_supported_tas(cfg.ngap.amfs), nrppa_cu_cp_ev_notifier, common_task_sched, timers, cu_cp_executor);
 
   // Connect event notifiers to layers.
   nrppa_cu_cp_ev_notifier.connect_cu_cp(get_cu_cp_nrppa_handler());
@@ -243,7 +245,7 @@ cu_cp_impl::cu_cp_impl(const cu_cp_configuration& config_) :
 
   // Create the NTN components when the configuration carries NTN cells. The reference time store is wired as the
   // CU-CP reference time notifier (read by the DU processors when a DU reports Reference Time Information), and the
-  // configuration manager periodically refreshes the NTN neighbour cell info of the measurement configuration.
+  // configuration manager periodically refreshes the NTN neighbor cell info of the measurement configuration.
   if (cfg.ntn.has_value() && !cfg.ntn->cells.empty()) {
     std::vector<nr_cell_identity> ntn_cell_ids;
     ntn_cell_ids.reserve(cfg.ntn->cells.size());
@@ -266,14 +268,15 @@ void cu_cp_impl::start()
   std::promise<void> p;
   std::future<void>  fut = p.get_future();
 
-  if (not cfg.services.cu_cp_executor->execute([this, &p]() {
+  if (!cu_cp_executor.execute([this, &p]() {
         // Start statistics report timer.
-        statistics_report_timer = cfg.services.timers->create_unique_timer(*cfg.services.cu_cp_executor);
+        statistics_report_timer = timers.create_unique_timer(cu_cp_executor);
         statistics_report_timer.set(cfg.metrics.statistics_report_period,
                                     [this]() { on_statistics_report_timer_expired(); });
         statistics_report_timer.run();
-        if (cfg.metrics_notifier != nullptr and cfg.metrics.metrics_report_period.count() != 0) {
-          periodic_metric_report_request metric_cfg{cfg.metrics.metrics_report_period, cfg.metrics_notifier};
+        if (metrics_notifier && cfg.metrics.metrics_report_period.count() != 0) {
+          periodic_metric_report_request metric_cfg{.period          = cfg.metrics.metrics_report_period,
+                                                    .report_notifier = metrics_notifier};
           metrics_session = metrics_hdlr.create_periodic_report_session(metric_cfg);
         }
 
@@ -292,7 +295,7 @@ void cu_cp_impl::start()
   }
 
   // Setup succeeded, add XNAPs and try to connect to peers.
-  if (not cfg.services.cu_cp_executor->execute([this]() {
+  if (!cu_cp_executor.execute([this]() {
         xnap_configuration xnc_cfg{.procedure_timeout  = cfg.xnap.procedure_timeout,
                                    .reconnect_timer    = cfg.xnap.reconnect_timer,
                                    .gnb_id             = cfg.node.gnb_id,
@@ -301,7 +304,7 @@ void cu_cp_impl::start()
                                    .no_connection_init = cfg.xnap.no_connection_init};
 
         uint32_t xnc_idx = 0;
-        for (const auto& xnap : cfg.xnap.xnaps) {
+        for (const auto& xnap : cfg.xnap.peers) {
           const auto      peer_idx    = uint_to_xnc_peer_index(xnc_idx);
           xnap_interface* xnap_entity = xnap_db.add_xnap(peer_idx, xnap.peer_addrs, xnc_cfg);
           if (xnap_entity == nullptr) {
@@ -309,8 +312,7 @@ void cu_cp_impl::start()
                                xnap.peer_addrs.empty() ? transport_layer_address{} : xnap.peer_addrs.front());
           }
           auto gw_it = cfg.xnap.peer_to_gateway.find(peer_idx);
-          if (gw_it != cfg.xnap.peer_to_gateway.end() &&
-              xnc_gateway_index_to_uint(gw_it->second) < cfg.xnap.xnc_gws.size()) {
+          if (gw_it != cfg.xnap.peer_to_gateway.end() && xnc_gateway_index_to_uint(gw_it->second) < xnc_gws.size()) {
             controller.xnc_connection_handler().register_peer_gateway(peer_idx, gw_it->second);
           }
           ++xnc_idx;
@@ -339,7 +341,7 @@ void cu_cp_impl::stop()
 
   // Shut down components from within CU-CP executor.
   sync_event ev;
-  while (not cfg.services.cu_cp_executor->execute([this, token = ev.get_token()]() {
+  while (!cu_cp_executor.execute([this, token = ev.get_token()]() {
     // Stop statistics gathering.
     statistics_report_timer.stop();
     if (metrics_session != nullptr) {
@@ -366,13 +368,10 @@ bool cu_cp_impl::amfs_are_connected()
     return true;
   }
 
-  for (const auto& [amf_index, ngap] : ngap_db.get_ngaps()) {
-    if (not controller.amf_connection_handler().is_amf_connected(amf_index)) {
-      return false;
-    }
-  }
-
-  return true;
+  const auto ngaps = ngap_db.get_ngaps();
+  return std::all_of(ngaps.begin(), ngaps.end(), [this](const auto& entry) {
+    return controller.amf_connection_handler().is_amf_connected(entry.first);
+  });
 }
 
 void cu_cp_impl::handle_bearer_context_release_request(const cu_cp_bearer_context_release_request& msg)
@@ -561,7 +560,7 @@ cu_cp_impl::handle_rrc_reestablishment_request(pci_t old_pci, rnti_t old_c_rnti,
     old_ue->get_cho_context()->clear();
   }
 
-  // Check if a DRB and SRB2 were setup.
+  // Check if a DRB and SRB2 were set up.
   if (old_ue->get_up_resource_manager().get_drbs().empty()) {
     logger.debug("ue={}: No DRB setup for this UE - rejecting RRC reestablishment", old_ue_index);
     reest_context.ue_index = old_ue_index;
@@ -1452,7 +1451,7 @@ void cu_cp_impl::handle_handover_cancel_received(cu_cp_ue_index_t ue_index)
   if (ue->get_rrc_ue() != nullptr) {
     // Cancel the pending RRC reconfiguration transaction so the target execution routine unblocks
     // immediately. Both immediate-HO and CHO routines handle their own UE release after the
-    // transaction is cancelled.
+    // transaction is canceled.
     ue->get_rrc_ue()->cancel_handover_reconfiguration_transaction(0);
   } else {
     // If no RRC UE, release directly.
@@ -1500,7 +1499,7 @@ void cu_cp_impl::handle_xnap_handover_success_received(cu_cp_ue_index_t         
   }
 
   // Only now: the UE has executed CHO and the completion routine takes over. Stopping earlier would disarm the
-  // guard timer on the paths above that bail out, leaving the CHO neither completed nor cancelled.
+  // guard timer on the paths above that bail out, leaving the CHO neither completed nor canceled.
   ue->get_cho_context()->cho_execution_timer.stop();
 
   ue->get_task_sched().schedule_async_task(launch_async<inter_cu_conditional_handover_source_completion_routine>(
@@ -2396,7 +2395,7 @@ bool cu_cp_impl::trigger_handover(pci_t         source_pci,
 {
   // The mobility manager walks the UE manager and the cell measurement configuration, so the trigger runs on the
   // CU-CP executor like every other command, whether it comes from the console or from a remote command.
-  return dispatch_bounded<bool>(*cfg.services.cu_cp_executor,
+  return dispatch_bounded<bool>(cu_cp_executor,
                                 logger,
                                 "trigger_handover",
                                 [this, source_pci, rnti, target_pci, target_plmn, target_tac]() {
@@ -2413,7 +2412,7 @@ bool cu_cp_impl::trigger_conditional_handover(pci_t                             
                                               std::optional<std::chrono::system_clock::time_point> t1_thres_override)
 {
   // Captured by value: see update_mobility_cell. The candidate list is copied for the same reason.
-  return dispatch_bounded<bool>(*cfg.services.cu_cp_executor,
+  return dispatch_bounded<bool>(cu_cp_executor,
                                 logger,
                                 "trigger_conditional_handover",
                                 [this,
@@ -2432,7 +2431,7 @@ bool cu_cp_impl::update_mobility_cell(const serving_cell_meas_config& cell_cfg)
 {
   // Captured by value: the dispatch wait is bounded, so a task that runs after a timed-out dispatch must not
   // reference the caller's frame.
-  return dispatch_bounded<bool>(*cfg.services.cu_cp_executor,
+  return dispatch_bounded<bool>(cu_cp_executor,
                                 logger,
                                 "update_mobility_cell",
                                 [this, cell_cfg]() { return cell_meas_mng.update_cell_config(cell_cfg.nci, cell_cfg); })
@@ -2441,7 +2440,7 @@ bool cu_cp_impl::update_mobility_cell(const serving_cell_meas_config& cell_cfg)
 
 bool cu_cp_impl::remove_mobility_cell(nr_cell_identity nci)
 {
-  return dispatch_bounded<bool>(*cfg.services.cu_cp_executor,
+  return dispatch_bounded<bool>(cu_cp_executor,
                                 logger,
                                 "remove_mobility_cell",
                                 [this, nci]() { return cell_meas_mng.remove_cell_config(nci); })
@@ -2452,7 +2451,7 @@ bool cu_cp_impl::update_neighbor(nr_cell_identity             serving_nci,
                                  nr_cell_identity             neighbor_nci,
                                  std::vector<report_cfg_id_t> report_cfg_ids)
 {
-  return dispatch_bounded<bool>(*cfg.services.cu_cp_executor,
+  return dispatch_bounded<bool>(cu_cp_executor,
                                 logger,
                                 "update_neighbor",
                                 [this, serving_nci, neighbor_nci, ids = std::move(report_cfg_ids)]() mutable {
@@ -2465,7 +2464,7 @@ bool cu_cp_impl::update_neighbor(nr_cell_identity             serving_nci,
 bool cu_cp_impl::remove_neighbor(nr_cell_identity serving_nci, nr_cell_identity neighbor_nci)
 {
   return dispatch_bounded<bool>(
-             *cfg.services.cu_cp_executor,
+             cu_cp_executor,
              logger,
              "remove_neighbor",
              [this, serving_nci, neighbor_nci]() { return cell_meas_mng.remove_neighbor(serving_nci, neighbor_nci); })
@@ -2475,7 +2474,7 @@ bool cu_cp_impl::remove_neighbor(nr_cell_identity serving_nci, nr_cell_identity 
 bool cu_cp_impl::update_report_config(report_cfg_id_t report_cfg_id, const rrc_report_cfg_nr& report_cfg)
 {
   // Captured by value: see update_mobility_cell.
-  return dispatch_bounded<bool>(*cfg.services.cu_cp_executor,
+  return dispatch_bounded<bool>(cu_cp_executor,
                                 logger,
                                 "update_report_config",
                                 [this, report_cfg_id, report_cfg]() {
@@ -2486,7 +2485,7 @@ bool cu_cp_impl::update_report_config(report_cfg_id_t report_cfg_id, const rrc_r
 
 bool cu_cp_impl::remove_report_config(report_cfg_id_t report_cfg_id)
 {
-  return dispatch_bounded<bool>(*cfg.services.cu_cp_executor,
+  return dispatch_bounded<bool>(cu_cp_executor,
                                 logger,
                                 "remove_report_config",
                                 [this, report_cfg_id]() { return cell_meas_mng.remove_report_config(report_cfg_id); })
@@ -2496,7 +2495,7 @@ bool cu_cp_impl::remove_report_config(report_cfg_id_t report_cfg_id)
 bool cu_cp_impl::set_periodic_report(nr_cell_identity nci, std::optional<report_cfg_id_t> report_cfg_id)
 {
   return dispatch_bounded<bool>(
-             *cfg.services.cu_cp_executor,
+             cu_cp_executor,
              logger,
              "set_periodic_report",
              [this, nci, report_cfg_id]() { return cell_meas_mng.set_periodic_report_config(nci, report_cfg_id); })

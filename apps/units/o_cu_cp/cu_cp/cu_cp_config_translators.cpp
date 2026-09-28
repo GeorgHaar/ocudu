@@ -74,13 +74,14 @@ static std::optional<rohc_config> get_header_compression(const cu_cp_unit_pdcp_r
 }
 
 /// Generates the CU-CP QoS configuration.
-static std::map<five_qi_t, ocucp::cu_cp_qos_config> generate_cu_cp_qos_config(span<const cu_cp_unit_qos_config> qos_cfg)
+static std::unordered_map<five_qi_t, ocucp::cu_cp_qos_config>
+generate_cu_cp_qos_config(span<const cu_cp_unit_qos_config> qos_cfg)
 {
   if (qos_cfg.empty()) {
     return config_helpers::make_default_cu_cp_qos_config_list();
   }
 
-  std::map<five_qi_t, ocucp::cu_cp_qos_config> out_cfg;
+  std::unordered_map<five_qi_t, ocucp::cu_cp_qos_config> out_cfg;
 
   for (const auto& qos : qos_cfg) {
     if (out_cfg.find(qos.five_qi) != out_cfg.end()) {
@@ -346,12 +347,12 @@ static ocucp::rrc_report_cfg_nr generate_cu_cp_trigger_report_config(const cu_cp
 }
 
 /// Generates the admission configuration and returns it.
-static ocucp::cu_cp_configuration::admission_params generate_admission_conf(const cu_cp_unit_config& cu_cfg)
+static ocucp::cu_cp_configuration::admission_configuration generate_admission_conf(const cu_cp_unit_config& cu_cfg)
 {
-  return ocucp::cu_cp_configuration::admission_params{.max_nof_dus         = cu_cfg.max_nof_dus,
-                                                      .max_nof_cu_ups      = cu_cfg.max_nof_cu_ups,
-                                                      .max_nof_ues         = cu_cfg.max_nof_ues,
-                                                      .max_nof_drbs_per_ue = cu_cfg.max_nof_drbs_per_ue};
+  return ocucp::cu_cp_configuration::admission_configuration{.max_nof_dus         = cu_cfg.max_nof_dus,
+                                                             .max_nof_cu_ups      = cu_cfg.max_nof_cu_ups,
+                                                             .max_nof_ues         = cu_cfg.max_nof_ues,
+                                                             .max_nof_drbs_per_ue = cu_cfg.max_nof_drbs_per_ue};
 }
 
 /// Generates the node configuration and returns it.
@@ -404,37 +405,36 @@ static transport_layer_address get_amf_address(const cu_cp_unit_amf_config_item&
 }
 
 /// Generates the NGAP configuration and returns it.
-static ocucp::cu_cp_configuration::ngap_params generate_ngap_conf(const cu_cp_unit_config& cu_cfg)
+static ocucp::cu_cp_configuration::ngap_configuration generate_ngap_conf(const cu_cp_unit_config& cu_cfg)
 {
   const std::vector<ocucp::supported_tracking_area> amf_supported_tas =
       get_supported_tas(cu_cfg.amf_config.amf.supported_tas);
 
-  std::vector<ocucp::cu_cp_configuration::ngap_config> ngaps{
-      ocucp::cu_cp_configuration::ngap_config{amf_supported_tas, get_amf_address(cu_cfg.amf_config.amf)}};
+  std::vector<ocucp::cu_cp_configuration::amf_configuration> ngaps{
+      ocucp::cu_cp_configuration::amf_configuration{amf_supported_tas, get_amf_address(cu_cfg.amf_config.amf)}};
 
   for (const auto& cfg : cu_cfg.extra_amfs) {
     ngaps.push_back(
-        ocucp::cu_cp_configuration::ngap_config{get_supported_tas(cfg.supported_tas), get_amf_address(cfg)});
+        ocucp::cu_cp_configuration::amf_configuration{get_supported_tas(cfg.supported_tas), get_amf_address(cfg)});
   }
 
-  return ocucp::cu_cp_configuration::ngap_params{
-      .ngaps                       = std::move(ngaps),
+  return ocucp::cu_cp_configuration::ngap_configuration{
+      .amfs                        = std::move(ngaps),
       .amf_reconnection_retry_time = std::chrono::milliseconds{cu_cfg.amf_config.amf_reconnection_retry_time},
       .procedure_timeout           = std::chrono::milliseconds{cu_cfg.amf_config.procedure_timeout},
-      .no_core                     = cu_cfg.amf_config.no_core,
-      .ng_setup_notifier           = nullptr};
+      .no_core                     = cu_cfg.amf_config.no_core};
 }
 
 /// Generates the XNAP configuration and returns it.
-static ocucp::cu_cp_configuration::xnap_params generate_xnap_conf(const cu_cp_unit_xnap_config& xnap_cfg)
+static ocucp::cu_cp_configuration::xnap_configuration generate_xnap_conf(const cu_cp_unit_xnap_config& xnap_cfg)
 {
-  std::vector<ocucp::cu_cp_configuration::xnap_config> xnaps;
-  std::map<xnc_peer_index_t, xnc_gateway_index_t>      peer_to_gateway;
+  std::vector<ocucp::cu_cp_configuration::xnc_peer_configuration> xnaps;
+  std::map<xnc_peer_index_t, xnc_gateway_index_t>                 peer_to_gateway;
 
   unsigned peer_idx = 0;
   for (unsigned gw_idx = 0, gw_e = xnap_cfg.gateways.size(); gw_idx != gw_e; ++gw_idx) {
     for (const auto& conn : xnap_cfg.gateways[gw_idx].connections) {
-      ocucp::cu_cp_configuration::xnap_config xn_config;
+      ocucp::cu_cp_configuration::xnc_peer_configuration xn_config;
       for (const auto& addr_str : conn.peer_addrs) {
         transport_layer_address addr = transport_layer_address::create_from_string(addr_str);
         addr.set_port(XNAP_PORT);
@@ -446,19 +446,18 @@ static ocucp::cu_cp_configuration::xnap_params generate_xnap_conf(const cu_cp_un
     }
   }
 
-  return ocucp::cu_cp_configuration::xnap_params{.procedure_timeout =
-                                                     std::chrono::milliseconds{xnap_cfg.procedure_timeout},
-                                                 .reconnect_timer = std::chrono::milliseconds{xnap_cfg.reconnect_timer},
-                                                 .no_connection_init = xnap_cfg.no_connection_init,
-                                                 .xnaps              = xnaps,
-                                                 .xnc_gws            = {},
-                                                 .peer_to_gateway    = peer_to_gateway};
+  return ocucp::cu_cp_configuration::xnap_configuration{
+      .procedure_timeout  = std::chrono::milliseconds{xnap_cfg.procedure_timeout},
+      .reconnect_timer    = std::chrono::milliseconds{xnap_cfg.reconnect_timer},
+      .no_connection_init = xnap_cfg.no_connection_init,
+      .peers              = xnaps,
+      .peer_to_gateway    = peer_to_gateway};
 }
 
 /// Generates the RRC configuration and returns it.
-static ocucp::cu_cp_configuration::rrc_params generate_rrc_conf(const cu_cp_unit_rrc_config& rrc_cfg)
+static ocucp::cu_cp_configuration::rrc_configuration generate_rrc_conf(const cu_cp_unit_rrc_config& rrc_cfg)
 {
-  return ocucp::cu_cp_configuration::rrc_params{
+  return ocucp::cu_cp_configuration::rrc_configuration{
       .force_reestablishment_fallback = rrc_cfg.force_reestablishment_fallback,
       .force_resume_fallback          = rrc_cfg.force_resume_fallback,
       .rrc_procedure_guard_time_ms    = std::chrono::milliseconds{rrc_cfg.rrc_procedure_guard_time_ms},
@@ -467,18 +466,18 @@ static ocucp::cu_cp_configuration::rrc_params generate_rrc_conf(const cu_cp_unit
 }
 
 /// Generates the bearers configuration and returns it.
-static ocucp::cu_cp_configuration::bearer_params generate_bearers_conf(span<const cu_cp_unit_qos_config> qos_cfg)
+static ocucp::cu_cp_configuration::bearer_configuration generate_bearers_conf(span<const cu_cp_unit_qos_config> qos_cfg)
 {
-  return ocucp::cu_cp_configuration::bearer_params{
+  return ocucp::cu_cp_configuration::bearer_configuration{
       .srb2_cfg   = ocucp::srb_pdcp_config{.t_reordering = pdcp_t_reordering::infinity},
       .drb_config = generate_cu_cp_qos_config(qos_cfg)};
 }
 
 /// Generates the security configuration and returns it.
-static ocucp::cu_cp_configuration::security_params
+static ocucp::cu_cp_configuration::security_configuration
 generate_security_conf(const cu_cp_unit_security_config& security_config)
 {
-  return ocucp::cu_cp_configuration::security_params{
+  return ocucp::cu_cp_configuration::security_configuration{
       .int_algo_pref_list = security_config.nia_preference_list,
       .enc_algo_pref_list = security_config.nea_preference_list,
       .default_security_indication =
@@ -507,12 +506,13 @@ static ocucp::ue_configuration generate_ue_conf(const cu_cp_unit_config& cu_cfg)
 }
 
 /// Generates the metrics configuration and returns it.
-static ocucp::cu_cp_configuration::metrics_params generate_metrics_conf(const cu_cp_unit_metrics_config& metrics_cfg)
+static ocucp::cu_cp_configuration::metrics_configuration
+generate_metrics_conf(const cu_cp_unit_metrics_config& metrics_cfg)
 {
-  return ocucp::cu_cp_configuration::metrics_params{
+  return ocucp::cu_cp_configuration::metrics_configuration{
       .statistics_report_period = std::chrono::seconds{metrics_cfg.cu_cp_report_period},
       .metrics_report_period    = std::chrono::milliseconds(metrics_cfg.cu_cp_report_period),
-      .layers_cfg               = ocucp::cu_cp_configuration::metrics_layers_config{
+      .layers_cfg               = ocucp::cu_cp_configuration::metrics_layers_configuration{
                         .enable_ngap_metrics = metrics_cfg.layers_cfg.enable_ngap_metrics,
                         .enable_rrc_metrics  = metrics_cfg.layers_cfg.enable_rrc_metrics}};
 }
@@ -672,34 +672,25 @@ static std::vector<ntn_cell_location_mapping> generate_ntn_location_mappings(con
   return mappings;
 }
 
-/// Generates the services configuration and returns it.
-static ocucp::cu_cp_configuration::service_params generate_services_conf()
-{
-  return ocucp::cu_cp_configuration::service_params{
-      .cu_cp_executor = nullptr, .cu_cp_e2_exec = nullptr, .timers = nullptr};
-}
-
 ocucp::cu_cp_configuration ocudu::generate_cu_cp_config(const cu_cp_unit_config& cu_cfg)
 {
-  auto out_cfg = ocucp::cu_cp_configuration{.node             = generate_node_conf(cu_cfg),
-                                            .admission        = generate_admission_conf(cu_cfg),
-                                            .ngap             = generate_ngap_conf(cu_cfg),
-                                            .xnap             = generate_xnap_conf(cu_cfg.xnap_config),
-                                            .rrc              = generate_rrc_conf(cu_cfg.rrc_config),
-                                            .f1ap             = generate_f1ap_conf(cu_cfg),
-                                            .e1ap             = generate_e1ap_conf(cu_cfg),
-                                            .security         = generate_security_conf(cu_cfg.security_config),
-                                            .bearers          = generate_bearers_conf(cu_cfg.qos_cfg),
-                                            .ue               = generate_ue_conf(cu_cfg),
-                                            .mobility         = generate_mobility_conf(cu_cfg),
-                                            .metrics          = generate_metrics_conf(cu_cfg.metrics),
-                                            .services         = generate_services_conf(),
-                                            .metrics_notifier = nullptr};
+  auto out_cfg = ocucp::cu_cp_configuration{.node      = generate_node_conf(cu_cfg),
+                                            .admission = generate_admission_conf(cu_cfg),
+                                            .ngap      = generate_ngap_conf(cu_cfg),
+                                            .xnap      = generate_xnap_conf(cu_cfg.xnap_config),
+                                            .rrc       = generate_rrc_conf(cu_cfg.rrc_config),
+                                            .f1ap      = generate_f1ap_conf(cu_cfg),
+                                            .e1ap      = generate_e1ap_conf(cu_cfg),
+                                            .security  = generate_security_conf(cu_cfg.security_config),
+                                            .bearers   = generate_bearers_conf(cu_cfg.qos_cfg),
+                                            .ue        = generate_ue_conf(cu_cfg),
+                                            .mobility  = generate_mobility_conf(cu_cfg),
+                                            .metrics   = generate_metrics_conf(cu_cfg.metrics)};
 
   // Logical cells: derive the NCI from the gNB Id and the sector ID, matching the DU's NCI derivation, so
   // the entry addresses the DU cell with the same sector ID.
   for (const cu_cp_unit_logical_cell_config& cell : cu_cfg.cells_cfg) {
-    ocucp::cu_cp_logical_cell_config out_cell;
+    ocucp::cu_cp_logical_cell_configuration out_cell;
     out_cell.nci         = nr_cell_identity::create(cu_cfg.gnb_id, cell.sector_id).value();
     out_cell.admin_state = cell.admin_state;
     out_cell.barred      = cell.cell_barred;

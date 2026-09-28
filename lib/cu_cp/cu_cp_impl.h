@@ -65,7 +65,7 @@ class cu_cp_impl final : public cu_cp,
                          public cu_cp_mobility_command_handler
 {
 public:
-  explicit cu_cp_impl(const cu_cp_configuration& config_);
+  cu_cp_impl(const cu_cp_configuration& config_, const cu_cp_dependencies& dependencies);
   ~cu_cp_impl() override;
 
   void start() override;
@@ -309,11 +309,14 @@ private:
 
   cu_cp_configuration cfg;
 
+  std::vector<xnc_connection_gateway*> xnc_gws;
+
   // Logger.
   ocudulog::basic_logger& logger = ocudulog::fetch_basic_logger("CU-CP");
 
-  task_executor& cu_cp_executor;
-  timer_manager& timers;
+  task_executor&                 cu_cp_executor;
+  timer_manager&                 timers;
+  cu_cp_metrics_report_notifier* metrics_notifier = nullptr;
 
   // Components.
   // UE manager.

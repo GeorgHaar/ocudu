@@ -7,11 +7,11 @@
 
 #include "ocudu/cu_cp/cu_cp.h"
 #include "ocudu/cu_cp/cu_cp_configuration.h"
-#include <memory>
 
 namespace ocudu {
 
 /// Creates an instance of an CU-CP.
-std::unique_ptr<ocucp::cu_cp> create_cu_cp(const ocucp::cu_cp_configuration& cfg);
+std::unique_ptr<ocucp::cu_cp> create_cu_cp(const ocucp::cu_cp_configuration& cfg,
+                                           const ocucp::cu_cp_dependencies&  dependencies);
 
 } // namespace ocudu

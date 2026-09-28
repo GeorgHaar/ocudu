@@ -16,13 +16,13 @@ class logical_cell_manager_test : public ::testing::Test
 {
 protected:
   logical_cell_manager_test() :
-    declared_cells({cu_cp_logical_cell_config{declared_nci, cell_admin_state::unlocked, /* barred = */ false}}),
+    declared_cells({cu_cp_logical_cell_configuration{declared_nci, cell_admin_state::unlocked, /* barred = */ false}}),
     mng(declared_cells)
   {
   }
 
-  std::vector<cu_cp_logical_cell_config> declared_cells;
-  logical_cell_manager                   mng;
+  std::vector<cu_cp_logical_cell_configuration> declared_cells;
+  logical_cell_manager                          mng;
 };
 
 TEST_F(logical_cell_manager_test, when_nci_is_unknown_then_transitions_report_failure_and_registry_is_unchanged)
@@ -178,8 +178,8 @@ TEST_F(logical_cell_manager_test, when_cells_are_declared_then_undeclared_realiz
 
 TEST(logical_cell_manager_seed_test, when_cell_is_declared_locked_then_it_seeds_locked)
 {
-  std::vector<cu_cp_logical_cell_config> declared = {
-      cu_cp_logical_cell_config{declared_nci, cell_admin_state::locked, /* barred = */ true}};
+  std::vector<cu_cp_logical_cell_configuration> declared = {
+      cu_cp_logical_cell_configuration{declared_nci, cell_admin_state::locked, /* barred = */ true}};
   logical_cell_manager mng(declared);
 
   const logical_cell* cell = mng.find_cell(declared_nci);

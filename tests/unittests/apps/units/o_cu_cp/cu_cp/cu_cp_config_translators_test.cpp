@@ -332,8 +332,8 @@ TEST(cu_cp_config_translators_test, satellite_rat_type_of_a_tracking_area_is_pro
 
   const ocucp::cu_cp_configuration out_cfg = generate_cu_cp_config(cfg);
 
-  ASSERT_EQ(out_cfg.ngap.ngaps.size(), 1);
-  const auto& supported_tas = out_cfg.ngap.ngaps.front().supported_tas;
+  ASSERT_EQ(out_cfg.ngap.amfs.size(), 1);
+  const auto& supported_tas = out_cfg.ngap.amfs.front().supported_tas;
   ASSERT_EQ(supported_tas.size(), 2);
   ASSERT_EQ(supported_tas[0].satellite_rat, ocucp::satellite_rat_type::nr_leo);
   ASSERT_FALSE(supported_tas[1].satellite_rat.has_value()) << "A terrestrial tracking area must carry no satellite RAT";
@@ -348,8 +348,8 @@ TEST(cu_cp_config_translators_test, tracking_areas_carry_no_satellite_rat_type_w
 
   const ocucp::cu_cp_configuration out_cfg = generate_cu_cp_config(cfg);
 
-  ASSERT_EQ(out_cfg.ngap.ngaps.size(), 1);
-  const auto& supported_tas = out_cfg.ngap.ngaps.front().supported_tas;
+  ASSERT_EQ(out_cfg.ngap.amfs.size(), 1);
+  const auto& supported_tas = out_cfg.ngap.amfs.front().supported_tas;
   ASSERT_EQ(supported_tas.size(), 2);
   for (const auto& ta : supported_tas) {
     ASSERT_FALSE(ta.satellite_rat.has_value()) << "TAC " << ta.tac << " must carry no satellite RAT";

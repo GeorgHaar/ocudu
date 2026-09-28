@@ -120,19 +120,10 @@ log_i_rnti_node_identifiers(gnb_id_t gnb_id, full_i_rnti_profile full_profile, s
 
 o_cu_cp_unit ocudu::build_o_cu_cp(const o_cu_cp_unit_config& unit_cfg, const o_cu_cp_unit_dependencies& dependencies)
 {
-  ocudu_assert(dependencies.executor_mapper, "Invalid CU-CP executor mapper");
-  ocudu_assert(dependencies.ngap_pcap, "Invalid NGAP PCAP");
-  ocudu_assert(dependencies.broker, "Invalid IO broker");
-  ocudu_assert(dependencies.metrics_notifier, "Invalid metrics notifier");
-
   ocucp::o_cu_cp_config       o_cu_cp_cfg;
   const cu_cp_unit_config&    cucp_unit_cfg = unit_cfg.cucp_cfg;
   ocucp::cu_cp_configuration& cu_cp_cfg     = o_cu_cp_cfg.cu_cp_config;
   cu_cp_cfg                                 = generate_cu_cp_config(cucp_unit_cfg);
-  cu_cp_cfg.services.cu_cp_executor         = &dependencies.executor_mapper->ctrl_executor();
-  cu_cp_cfg.services.cu_cp_e2_exec          = &dependencies.executor_mapper->e2_executor();
-  cu_cp_cfg.services.timers                 = dependencies.timers;
-  cu_cp_cfg.xnap.xnc_gws                    = dependencies.xnc_gws;
 
   // Only a peer over Xn resolves the I-RNTIs this node allocates.
   if (!cucp_unit_cfg.xnap_config.gateways.empty()) {
@@ -142,38 +133,47 @@ o_cu_cp_unit ocudu::build_o_cu_cp(const o_cu_cp_unit_config& unit_cfg, const o_c
   o_cu_cp_unit ocucp;
   auto         e2_metric_connectors = std::make_unique<e2_cu_metrics_connector_manager>();
 
-  cu_cp_cfg.metrics_notifier = build_cu_cp_metrics_config(ocucp.metrics,
-                                                          *dependencies.metrics_notifier,
-                                                          dependencies.remote_metrics_gateway,
-                                                          unit_cfg.cucp_cfg.metrics,
-                                                          unit_cfg.e2_cfg.base_config.enable_unit_e2,
-                                                          e2_metric_connectors->get_e2_metric_notifier(0));
-
   // Create N2 Client Gateways.
   std::vector<std::unique_ptr<ocucp::n2_connection_client>> n2_clients;
 
   n2_clients.push_back(
       ocucp::create_n2_connection_client(generate_n2_client_config(cucp_unit_cfg.amf_config.no_core,
                                                                    cucp_unit_cfg.amf_config.amf,
-                                                                   *dependencies.ngap_pcap,
-                                                                   *dependencies.broker,
-                                                                   dependencies.executor_mapper->n2_rx_executor())));
+                                                                   dependencies.ngap_pcap,
+                                                                   dependencies.broker,
+                                                                   dependencies.executor_mapper.n2_rx_executor())));
 
   for (const auto& amf : cucp_unit_cfg.extra_amfs) {
     n2_clients.push_back(
         ocucp::create_n2_connection_client(generate_n2_client_config(cucp_unit_cfg.amf_config.no_core,
                                                                      amf,
-                                                                     *dependencies.ngap_pcap,
-                                                                     *dependencies.broker,
-                                                                     dependencies.executor_mapper->n2_rx_executor())));
+                                                                     dependencies.ngap_pcap,
+                                                                     dependencies.broker,
+                                                                     dependencies.executor_mapper.n2_rx_executor())));
   }
 
-  cu_cp_cfg.ngap.n2_gws.reserve(n2_clients.size());
+  std::vector<ocucp::n2_connection_client*> n2_gws;
+  n2_gws.reserve(n2_clients.size());
   for (const auto& n2_client : n2_clients) {
-    cu_cp_cfg.ngap.n2_gws.push_back(n2_client.get());
+    n2_gws.push_back(n2_client.get());
   }
 
-  ocucp::o_cu_cp_dependencies ocu_dependencies;
+  ocucp::cu_cp_dependencies cu_cp_deps{.n2_gws            = std::move(n2_gws),
+                                       .ng_setup_notifier = nullptr,
+                                       .xnc_gws           = dependencies.xnc_gws,
+                                       .cu_cp_executor    = dependencies.executor_mapper.ctrl_executor(),
+                                       .timers            = dependencies.timers,
+                                       .metrics_notifier =
+                                           build_cu_cp_metrics_config(ocucp.metrics,
+                                                                      dependencies.metrics_notifier,
+                                                                      dependencies.remote_metrics_gateway,
+                                                                      unit_cfg.cucp_cfg.metrics,
+                                                                      unit_cfg.e2_cfg.base_config.enable_unit_e2,
+                                                                      e2_metric_connectors->get_e2_metric_notifier(0))};
+
+  e2_connection_client*    e2_client          = nullptr;
+  e2_cu_metrics_interface* e2_cu_metric_iface = nullptr;
+
   if (unit_cfg.e2_cfg.base_config.enable_unit_e2) {
     ocudu_assert(!cucp_unit_cfg.amf_config.amf.supported_tas.empty() &&
                      !cucp_unit_cfg.amf_config.amf.supported_tas.front().plmn_list.empty(),
@@ -182,9 +182,14 @@ o_cu_cp_unit ocudu::build_o_cu_cp(const o_cu_cp_unit_config& unit_cfg, const o_c
         generate_e2_config(unit_cfg.e2_cfg,
                            cucp_unit_cfg.gnb_id,
                            cucp_unit_cfg.amf_config.amf.supported_tas.front().plmn_list.front().plmn_id);
-    ocu_dependencies.e2_client          = dependencies.e2_gw;
-    ocu_dependencies.e2_cu_metric_iface = &e2_metric_connectors->get_e2_metrics_interface(0);
+    e2_client          = dependencies.e2_gw;
+    e2_cu_metric_iface = &e2_metric_connectors->get_e2_metrics_interface(0);
   }
+
+  ocucp::o_cu_cp_dependencies ocu_dependencies{.e2_client          = e2_client,
+                                               .e2_cu_metric_iface = e2_cu_metric_iface,
+                                               .cu_cfg             = nullptr,
+                                               .cu_cp_deps         = std::move(cu_cp_deps)};
 
   ocucp.unit = std::make_unique<o_cu_cp_unit_impl>(
       std::move(n2_clients), std::move(e2_metric_connectors), ocucp::create_o_cu_cp(o_cu_cp_cfg, ocu_dependencies));

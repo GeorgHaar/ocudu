@@ -20,8 +20,8 @@ namespace ocudu::ocucp {
 
 /// Holds the logical cell controller configuration parameters.
 struct logical_cell_controller_configuration {
-  std::string                            ran_node_name;
-  std::vector<cu_cp_logical_cell_config> cells;
+  std::string                                   ran_node_name;
+  std::vector<cu_cp_logical_cell_configuration> cells;
 };
 
 /// Holds the logical cell controller dependencies.

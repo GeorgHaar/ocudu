@@ -142,22 +142,23 @@ class cu_cp_xn_locked_cell_test : public cu_cp_test_environment, public ::testin
 {
 public:
   cu_cp_xn_locked_cell_test() :
-    cu_cp_test_environment({/* max nof cu-ups */ 8,
-                            /* max nof dus */ 8,
-                            /* max nof ues */ 8192,
-                            /* max nof drbs per ue */ 8,
-                            /* amf config */ {{default_supported_tracking_area}},
-                            /* trigger ho from measurements */ true,
-                            /* enable rrc inactive */ false,
-                            /* enable xnc peer */ true,
-                            /* rrc reject wait time */ std::chrono::seconds{1},
-                            /* logical cells */
-                            {ocucp::cu_cp_logical_cell_config{nr_cell_identity::create(gnb_id_t{411, 22}, 0).value(),
-                                                              ocucp::cell_admin_state::unlocked,
-                                                              /* barred = */ false},
-                             ocucp::cu_cp_logical_cell_config{nr_cell_identity::create(gnb_id_t{411, 22}, 1).value(),
-                                                              ocucp::cell_admin_state::locked,
-                                                              /* barred = */ false}}})
+    cu_cp_test_environment(
+        {/* max nof cu-ups */ 8,
+         /* max nof dus */ 8,
+         /* max nof ues */ 8192,
+         /* max nof drbs per ue */ 8,
+         /* amf config */ {{default_supported_tracking_area}},
+         /* trigger ho from measurements */ true,
+         /* enable rrc inactive */ false,
+         /* enable xnc peer */ true,
+         /* rrc reject wait time */ std::chrono::seconds{1},
+         /* logical cells */
+         {ocucp::cu_cp_logical_cell_configuration{nr_cell_identity::create(gnb_id_t{411, 22}, 0).value(),
+                                                  ocucp::cell_admin_state::unlocked,
+                                                  /* barred = */ false},
+          ocucp::cu_cp_logical_cell_configuration{nr_cell_identity::create(gnb_id_t{411, 22}, 1).value(),
+                                                  ocucp::cell_admin_state::locked,
+                                                  /* barred = */ false}}})
   {
     run_ng_setup();
     run_xn_setup();

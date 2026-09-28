@@ -26,12 +26,12 @@ public:
 
 /// NGAP repository configuration.
 struct ngap_repository_config {
-  gnb_id_t                                      gnb_id;
-  std::string                                   ran_node_name;
-  std::chrono::milliseconds                     procedure_timeout;
-  std::chrono::seconds                          request_pdu_session_timeout;
-  std::vector<cu_cp_configuration::ngap_config> ngaps;
-  bool                                          enable_ngap_metrics;
+  gnb_id_t                                            gnb_id;
+  std::string                                         ran_node_name;
+  std::chrono::milliseconds                           procedure_timeout;
+  std::chrono::seconds                                request_pdu_session_timeout;
+  std::vector<cu_cp_configuration::amf_configuration> ngaps;
+  bool                                                enable_ngap_metrics;
 };
 
 /// NGAP repository dependencies.

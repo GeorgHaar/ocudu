@@ -8,10 +8,10 @@
 using namespace ocudu;
 using namespace ocudu::ocucp;
 
-logical_cell_manager::logical_cell_manager(span<const cu_cp_logical_cell_config> declared_cells) :
+logical_cell_manager::logical_cell_manager(span<const cu_cp_logical_cell_configuration> declared_cells) :
   any_cells_declared(not declared_cells.empty()), logger(ocudulog::fetch_basic_logger("CU-CP"))
 {
-  for (const cu_cp_logical_cell_config& cell_cfg : declared_cells) {
+  for (const cu_cp_logical_cell_configuration& cell_cfg : declared_cells) {
     logical_cell& cell = cells[cell_cfg.nci];
     cell.nci           = cell_cfg.nci;
     cell.admin_state   = cell_cfg.admin_state;

@@ -8,6 +8,7 @@
 #include "tests/unittests/ngap/test_helpers.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/asn1/ngap/ngap_pdu_contents.h"
+#include "ocudu/cu_cp/cu_cp_configuration.h"
 #include "ocudu/cu_cp/cu_cp_configuration_helpers.h"
 #include "ocudu/ngap/ngap_configuration.h"
 #include "ocudu/ngap/ngap_factory.h"
@@ -21,12 +22,9 @@ using namespace ocudu;
 using namespace ocucp;
 
 ngap_test::ngap_test() :
-  cu_cp_cfg([this]() {
-    cu_cp_configuration conf     = config_helpers::make_default_cu_cp_config();
-    conf.services.timers         = &timers;
-    conf.services.cu_cp_executor = &ctrl_worker;
-    conf.ngap.n2_gws.push_back(&n2_gw);
-    conf.ngap.ngaps.push_back(cu_cp_configuration::ngap_config{{supported_tracking_area{
+  cu_cp_cfg([]() {
+    cu_cp_configuration conf;
+    conf.ngap.amfs.push_back(cu_cp_configuration::amf_configuration{{supported_tracking_area{
         7,
         {plmn_item{plmn_identity::test_value(),
                    std::vector<s_nssai_t>{s_nssai_t{slice_service_type{1}, slice_differentiator{}}}}}}}});
@@ -42,6 +40,17 @@ ngap_test::ngap_test() :
                              .enable_rrc_metrics  = cu_cp_cfg.metrics.layers_cfg.enable_rrc_metrics,
                              .ue                  = cu_cp_cfg.ue};
   }()),
+  cu_cp_deps([this]() {
+    std::vector<n2_connection_client*> n2_gws;
+    n2_gws.push_back(&n2_gw);
+
+    return cu_cp_dependencies{.n2_gws            = std::move(n2_gws),
+                              .ng_setup_notifier = nullptr,
+                              .xnc_gws           = {},
+                              .cu_cp_executor    = ctrl_worker,
+                              .timers            = timers,
+                              .metrics_notifier  = nullptr};
+  }()),
   ue_dependencies([this]() {
     return ue_manager_dependencies{
         .timers = timers, .cu_cp_executor = ctrl_worker, .logger = ocudulog::fetch_basic_logger("CU-CP")};
@@ -54,9 +63,9 @@ ngap_test::ngap_test() :
   ngap_configuration ngap_cfg{};
   ngap_cfg.gnb_id                      = cu_cp_cfg.node.gnb_id;
   ngap_cfg.ran_node_name               = cu_cp_cfg.node.ran_node_name;
-  ngap_cfg.supported_tas               = cu_cp_cfg.ngap.ngaps.front().supported_tas;
+  ngap_cfg.supported_tas               = cu_cp_cfg.ngap.amfs.front().supported_tas;
   ngap_cfg.request_pdu_session_timeout = cu_cp_cfg.ue.request_pdu_session_timeout;
-  ngap = create_ngap(ngap_cfg, cu_cp_notifier, *cu_cp_cfg.ngap.n2_gws.front(), ran_ue_ids, timers, ctrl_worker);
+  ngap = create_ngap(ngap_cfg, cu_cp_notifier, *cu_cp_deps.n2_gws.front(), ran_ue_ids, timers, ctrl_worker);
 
   cu_cp_notifier.connect_ngap(ngap->get_ngap_ue_context_removal_handler());
   n2_gw.attach_handler(&dummy_amf);

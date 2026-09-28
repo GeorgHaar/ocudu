@@ -52,7 +52,7 @@ struct logical_cell {
 class logical_cell_manager
 {
 public:
-  explicit logical_cell_manager(span<const cu_cp_logical_cell_config> declared_cells);
+  explicit logical_cell_manager(span<const cu_cp_logical_cell_configuration> declared_cells);
 
   /// Find the logical cell with the given NCI. Returns nullptr if unknown.
   const logical_cell* find_cell(nr_cell_identity nci) const;

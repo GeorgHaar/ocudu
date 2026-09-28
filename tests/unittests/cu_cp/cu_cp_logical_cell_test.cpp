@@ -142,12 +142,12 @@ public:
     cu_cp_logical_cell_test_base([]() {
       cu_cp_test_env_params env_params{};
       env_params.logical_cells = {
-          ocucp::cu_cp_logical_cell_config{nr_cell_identity::create(gnb_id_t{411, 22}, 0).value(),
-                                           ocucp::cell_admin_state::unlocked,
-                                           /* barred = */ false},
-          ocucp::cu_cp_logical_cell_config{nr_cell_identity::create(gnb_id_t{411, 22}, 1).value(),
-                                           ocucp::cell_admin_state::locked,
-                                           /* barred = */ false}};
+          ocucp::cu_cp_logical_cell_configuration{nr_cell_identity::create(gnb_id_t{411, 22}, 0).value(),
+                                                  ocucp::cell_admin_state::unlocked,
+                                                  /* barred = */ false},
+          ocucp::cu_cp_logical_cell_configuration{nr_cell_identity::create(gnb_id_t{411, 22}, 1).value(),
+                                                  ocucp::cell_admin_state::locked,
+                                                  /* barred = */ false}};
       return env_params;
     }())
   {
@@ -162,12 +162,12 @@ public:
     cu_cp_logical_cell_test_base([]() {
       cu_cp_test_env_params env_params{};
       env_params.logical_cells = {
-          ocucp::cu_cp_logical_cell_config{nr_cell_identity::create(gnb_id_t{411, 22}, 0).value(),
-                                           ocucp::cell_admin_state::unlocked,
-                                           /* barred = */ true},
-          ocucp::cu_cp_logical_cell_config{nr_cell_identity::create(gnb_id_t{411, 22}, 1).value(),
-                                           ocucp::cell_admin_state::unlocked,
-                                           /* barred = */ false}};
+          ocucp::cu_cp_logical_cell_configuration{nr_cell_identity::create(gnb_id_t{411, 22}, 0).value(),
+                                                  ocucp::cell_admin_state::unlocked,
+                                                  /* barred = */ true},
+          ocucp::cu_cp_logical_cell_configuration{nr_cell_identity::create(gnb_id_t{411, 22}, 1).value(),
+                                                  ocucp::cell_admin_state::unlocked,
+                                                  /* barred = */ false}};
       return env_params;
     }())
   {
@@ -183,9 +183,9 @@ public:
     cu_cp_logical_cell_test_base([]() {
       cu_cp_test_env_params env_params{};
       env_params.logical_cells = {
-          ocucp::cu_cp_logical_cell_config{nr_cell_identity::create(gnb_id_t{411, 22}, 0).value(),
-                                           ocucp::cell_admin_state::unlocked,
-                                           /* barred = */ false}};
+          ocucp::cu_cp_logical_cell_configuration{nr_cell_identity::create(gnb_id_t{411, 22}, 0).value(),
+                                                  ocucp::cell_admin_state::unlocked,
+                                                  /* barred = */ false}};
       return env_params;
     }())
   {

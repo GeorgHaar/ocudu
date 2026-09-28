@@ -24,6 +24,7 @@ struct cu_cp_metrics_report {
     /// RRC connection state of the UE.
     ocucp::rrc_state rrc_connection_state;
   };
+
   struct cell_info {
     nr_cell_global_id_t cgi;
     pci_t               pci;

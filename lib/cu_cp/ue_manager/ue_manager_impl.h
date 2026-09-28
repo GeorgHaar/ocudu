@@ -14,14 +14,14 @@ namespace ocudu::ocucp {
 
 /// Configuration of the UE manager.
 struct ue_manager_config {
-  gnb_id_t                                 gnb_id;
-  uint32_t                                 max_nof_ues;
-  std::map<five_qi_t, cu_cp_qos_config>    drb_config;
-  uint8_t                                  max_nof_drbs_per_ue;
-  security::preferred_integrity_algorithms int_algo_pref_list;
-  security::preferred_ciphering_algorithms enc_algo_pref_list;
-  bool                                     enable_rrc_metrics;
-  ue_configuration                         ue;
+  gnb_id_t                                        gnb_id;
+  uint32_t                                        max_nof_ues;
+  std::unordered_map<five_qi_t, cu_cp_qos_config> drb_config;
+  uint8_t                                         max_nof_drbs_per_ue;
+  security::preferred_integrity_algorithms        int_algo_pref_list;
+  security::preferred_ciphering_algorithms        enc_algo_pref_list;
+  bool                                            enable_rrc_metrics;
+  ue_configuration                                ue;
 };
 
 /// Dependencies of the UE manager.

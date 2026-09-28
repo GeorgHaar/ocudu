@@ -33,12 +33,12 @@ class e2_connection_client;
 
 /// O-RAN CU-CP build dependencies.
 struct o_cu_cp_unit_dependencies {
-  ocucp::cu_cp_executor_mapper*                executor_mapper        = nullptr;
-  timer_manager*                               timers                 = nullptr;
-  dlt_pcap*                                    ngap_pcap              = nullptr;
-  io_broker*                                   broker                 = nullptr;
+  ocucp::cu_cp_executor_mapper&                executor_mapper;
+  timer_manager&                               timers;
+  dlt_pcap&                                    ngap_pcap;
+  io_broker&                                   broker;
+  app_services::metrics_notifier&              metrics_notifier;
   e2_connection_client*                        e2_gw                  = nullptr;
-  app_services::metrics_notifier*              metrics_notifier       = nullptr;
   app_services::remote_server_metrics_gateway* remote_metrics_gateway = nullptr;
   std::vector<ocucp::xnc_connection_gateway*>  xnc_gws;
 };

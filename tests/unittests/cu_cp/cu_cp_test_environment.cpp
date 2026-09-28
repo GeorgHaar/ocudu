@@ -22,6 +22,7 @@
 #include "ocudu/asn1/f1ap/f1ap_pdu_contents_ue.h"
 #include "ocudu/asn1/ngap/ngap_pdu_contents.h"
 #include "ocudu/cu_cp/cell_meas_manager_config.h"
+#include "ocudu/cu_cp/cu_cp_configuration.h"
 #include "ocudu/cu_cp/cu_cp_configuration_helpers.h"
 #include "ocudu/cu_cp/cu_cp_factory.h"
 #include "ocudu/e1ap/common/e1ap_message.h"
@@ -53,6 +54,14 @@ cu_cp_test_environment::cu_cp_test_environment(cu_cp_test_env_params params_) :
   params(std::move(params_)),
   cu_cp_workers(std::make_unique<worker_manager>()),
   timers(64),
+  cu_cp_deps([this]() {
+    return cu_cp_dependencies{.n2_gws            = {},
+                              .ng_setup_notifier = nullptr,
+                              .xnc_gws           = {},
+                              .cu_cp_executor    = *cu_cp_workers->exec,
+                              .timers            = timers,
+                              .metrics_notifier  = nullptr};
+  }()),
   amf_configs(std::move(params.amf_configs)),
   xnc_peers(std::move(params.peer_xnc_configs))
 {
@@ -67,40 +76,30 @@ cu_cp_test_environment::cu_cp_test_environment(cu_cp_test_env_params params_) :
   ocudulog::init();
 
   // Create CU-CP config.
-  cu_cp_cfg                               = config_helpers::make_default_cu_cp_config();
-  cu_cp_cfg.services.cu_cp_executor       = cu_cp_workers->exec.get();
-  cu_cp_cfg.services.timers               = &timers;
   cu_cp_cfg.admission.max_nof_dus         = params.max_nof_dus;
   cu_cp_cfg.admission.max_nof_cu_ups      = params.max_nof_cu_ups;
   cu_cp_cfg.admission.max_nof_ues         = params.max_nof_ues;
   cu_cp_cfg.admission.max_nof_drbs_per_ue = params.max_nof_drbs_per_ue;
-  cu_cp_cfg.bearers.drb_config            = config_helpers::make_default_cu_cp_qos_config_list();
   cu_cp_cfg.ntn_location_mappings         = params.ntn_location_mappings;
+
   // Fill NGAP config.
+  std::vector<n2_connection_client*> n2_gws;
   for (const auto& [amf_index, amf_config] : amf_configs) {
-    cu_cp_cfg.ngap.n2_gws.push_back(&*amf_config.amf_stub);
-    cu_cp_cfg.ngap.ngaps.push_back(cu_cp_configuration::ngap_config{amf_config.supported_tas, amf_addr});
-  }
-  // Fill XNAP config. Each peer test stub becomes its own XnAP gateway; record the peer-gateway mapping.
-  for (const auto& [_, peer] : xnc_peers) {
-    const auto peer_idx = uint_to_xnc_peer_index(cu_cp_cfg.xnap.xnaps.size());
-    const auto gw_idx   = uint_to_xnc_gateway_index(cu_cp_cfg.xnap.xnc_gws.size());
-    cu_cp_cfg.xnap.xnc_gws.push_back(peer.get());
-    cu_cp_cfg.xnap.peer_to_gateway[peer_idx] = gw_idx;
-    cu_cp_cfg.xnap.xnaps.push_back(
-        cu_cp_configuration::xnap_config{.peer_addrs = {transport_layer_address::create_from_string("127.0.0.1")}});
-    next_xnc_peer_idx++;
+    n2_gws.push_back(&*amf_config.amf_stub);
+    cu_cp_cfg.ngap.amfs.push_back(cu_cp_configuration::amf_configuration{amf_config.supported_tas, amf_addr});
   }
 
-  // Fill Security config.
-  cu_cp_cfg.security.int_algo_pref_list = {security::integrity_algorithm::nia2,
-                                           security::integrity_algorithm::nia1,
-                                           security::integrity_algorithm::nia3,
-                                           security::integrity_algorithm::nia0};
-  cu_cp_cfg.security.enc_algo_pref_list = {security::ciphering_algorithm::nea0,
-                                           security::ciphering_algorithm::nea2,
-                                           security::ciphering_algorithm::nea1,
-                                           security::ciphering_algorithm::nea3};
+  // Fill XNAP config. Each peer test stub becomes its own XnAP gateway; record the peer-gateway mapping.
+  std::vector<xnc_connection_gateway*> xnc_gws;
+  for (const auto& [_, peer] : xnc_peers) {
+    const auto peer_idx = uint_to_xnc_peer_index(cu_cp_cfg.xnap.peers.size());
+    const auto gw_idx   = uint_to_xnc_gateway_index(xnc_gws.size());
+    xnc_gws.push_back(peer.get());
+    cu_cp_cfg.xnap.peer_to_gateway[peer_idx] = gw_idx;
+    cu_cp_cfg.xnap.peers.push_back(cu_cp_configuration::xnc_peer_configuration{
+        .peer_addrs = {transport_layer_address::create_from_string("127.0.0.1")}});
+    next_xnc_peer_idx++;
+  }
 
   // Fill PWS config.
   cu_cp_cfg.pws.max_warning_message_segment_size = params.pws_max_warning_message_segment_size;
@@ -282,8 +281,12 @@ cu_cp_test_environment::cu_cp_test_environment(cu_cp_test_env_params params_) :
   // Fill declared logical cells.
   cu_cp_cfg.cells = params.logical_cells;
 
+  // Fill CU-CP dependencies.
+  cu_cp_deps.n2_gws  = std::move(n2_gws);
+  cu_cp_deps.xnc_gws = std::move(xnc_gws);
+
   // Create CU-CP instance.
-  cu_cp_inst = create_cu_cp(cu_cp_cfg);
+  cu_cp_inst = create_cu_cp(cu_cp_cfg, cu_cp_deps);
 }
 
 cu_cp_test_environment::~cu_cp_test_environment()
@@ -445,7 +448,7 @@ void cu_cp_test_environment::enqueue_procedure_outcome_pdus_and_start_cu_cp()
   }
 
   // Attach Xn-C handler before starting CU-CP (matching real app startup order).
-  for (auto* gateway : cu_cp_cfg.xnap.xnc_gws) {
+  for (auto* gateway : cu_cp_deps.xnc_gws) {
     gateway->attach_cu_cp(get_cu_cp().get_xnc_handler());
   }
 

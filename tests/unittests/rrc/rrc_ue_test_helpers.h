@@ -68,7 +68,7 @@ class rrc_ue_test_helper
 protected:
   rrc_ue_test_helper() :
     cu_cp_cfg([]() {
-      cu_cp_configuration cucfg             = config_helpers::make_default_cu_cp_config();
+      cu_cp_configuration cucfg;
       cucfg.rrc.rrc_procedure_guard_time_ms = std::chrono::milliseconds{10000};
       return cucfg;
     }()),

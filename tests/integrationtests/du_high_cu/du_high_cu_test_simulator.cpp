@@ -74,15 +74,23 @@ du_high_cu_test_simulator::du_high_cu_test_simulator(const du_high_cu_cp_test_si
   timer_ctrl(odu::create_du_high_clock_controller(timers, *broker, workers.dus[0]->timer_executor()))
 {
   // Prepare CU-CP config.
-  ocucp::cu_cp_configuration cu_cfg = config_helpers::make_default_cu_cp_config();
-  cu_cfg.services.cu_cp_executor    = workers.cu_cp_exec;
-  cu_cfg.services.timers            = &timers;
-  cu_cfg.ngap.n2_gws.push_back(&n2_gw);
-  cu_cfg.ngap.ngaps.push_back(
-      ocucp::cu_cp_configuration::ngap_config{{{7, {{plmn_identity::test_value(), {{slice_service_type{1}}}}}}}});
+  ocucp::cu_cp_configuration cu_cfg;
+  cu_cfg.ngap.amfs.push_back(
+      ocucp::cu_cp_configuration::amf_configuration{{{7, {{plmn_identity::test_value(), {{slice_service_type{1}}}}}}}});
+
+  std::vector<ocucp::n2_connection_client*> n2_gws;
+  n2_gws.push_back(&n2_gw);
+
+  // Prepare CU-CP dependencies.
+  ocucp::cu_cp_dependencies cu_deps{.n2_gws            = std::move(n2_gws),
+                                    .ng_setup_notifier = nullptr,
+                                    .xnc_gws           = {},
+                                    .cu_cp_executor    = *workers.cu_cp_exec,
+                                    .timers            = timers,
+                                    .metrics_notifier  = nullptr};
 
   // Instantiate CU-CP.
-  cu_cp_inst = create_cu_cp(cu_cfg);
+  cu_cp_inst = create_cu_cp(cu_cfg, cu_deps);
 
   // Start CU-CP.
   cu_cp_inst->start();

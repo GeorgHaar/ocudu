@@ -406,35 +406,32 @@ struct fuzz_state {
 
   fuzz_state()
   {
-    cu_cp_configuration cfg = config_helpers::make_default_cu_cp_config();
+    cu_cp_configuration cfg;
 
     // Keep the UE pool small: the harness holds at most one UE at a time, so a pool this size also
     // makes a UE that is not released show up immediately as a failure to create the next one.
     cfg.admission.max_nof_ues = 8;
 
-    cfg.services.cu_cp_executor = exec.get();
-    cfg.services.timers         = &timers;
-
     // Attach the stub AMF as the only NGAP peer.
     s_nssai_t               nssai{slice_service_type{1}, slice_differentiator{}};
     plmn_item               plmn{plmn_identity::test_value(), {nssai}};
     supported_tracking_area ta{7, {plmn}};
-    cfg.ngap.n2_gws.push_back(&amf);
+
     cfg.ngap.ngaps.push_back(cu_cp_configuration::ngap_config{{ta}});
 
-    cfg.xnap.xnc_gws.push_back(&xnc_gw);
+    std::vector<n2_connection_client*> n2_gws;
+    n2_gws.push_back(&amf);
 
-    cfg.security.int_algo_pref_list = {security::integrity_algorithm::nia2,
-                                       security::integrity_algorithm::nia1,
-                                       security::integrity_algorithm::nia3,
-                                       security::integrity_algorithm::nia0};
-    cfg.security.enc_algo_pref_list = {security::ciphering_algorithm::nea0,
-                                       security::ciphering_algorithm::nea2,
-                                       security::ciphering_algorithm::nea1,
-                                       security::ciphering_algorithm::nea3};
-    cfg.bearers.drb_config          = config_helpers::make_default_cu_cp_qos_config_list();
+    std::vector<xnc_connection_gateway*> xnc_gws;
+    xnc_gws.push_back(&xnc_gw);
 
-    cu_cp_inst = create_cu_cp(cfg);
+    cu_cp_dependencies deps{.n2_gws            = std::move(n2_gws),
+                            .ng_setup_notifier = nullptr,
+                            .xnc_gws           = std::move(xnc_gws),
+                            .services = cu_cp_dependencies::service_params{.cu_cp_executor = *exec, .timers = timers},
+                            .metrics_notifier = nullptr};
+
+    cu_cp_inst = create_cu_cp(cfg, deps);
 
     // Pre-queue the NGSetupResponse so cu_cp->start() can complete the NG setup handshake.
     amf.enqueue_auto_response(generate_ng_setup_response());

@@ -7,6 +7,7 @@
 
 #include "../adapters/du_processor_adapters.h"
 #include "du_configuration_manager.h"
+#include "ocudu/cu_cp/cu_cp_ref_time_report_notifier.h"
 
 namespace ocudu::ocucp {
 
@@ -14,21 +15,21 @@ struct cu_cp_configuration;
 
 /// DU processor repository configuration.
 struct du_repository_config {
-  gnb_id_t                                      gnb_id;
-  std::string                                   ran_node_name;
-  std::vector<cu_cp_configuration::ngap_config> ngaps;
-  unsigned                                      max_nof_dus;
-  srb_pdcp_config                               srb2_cfg;
-  std::map<five_qi_t, cu_cp_qos_config>         drb_config;
-  security::preferred_integrity_algorithms      int_algo_pref_list;
-  security::preferred_ciphering_algorithms      enc_algo_pref_list;
-  bool                                          force_reestablishment_fallback;
-  bool                                          force_resume_fallback;
-  std::chrono::milliseconds                     rrc_procedure_guard_time_ms;
-  std::chrono::seconds                          rrc_reject_wait_time;
-  unsigned                                      rrc_version;
-  bool                                          enable_rrc_metrics;
-  f1ap_configuration                            f1ap;
+  gnb_id_t                                            gnb_id;
+  std::string                                         ran_node_name;
+  std::vector<cu_cp_configuration::amf_configuration> ngaps;
+  unsigned                                            max_nof_dus;
+  srb_pdcp_config                                     srb2_cfg;
+  std::unordered_map<five_qi_t, cu_cp_qos_config>     drb_config;
+  security::preferred_integrity_algorithms            int_algo_pref_list;
+  security::preferred_ciphering_algorithms            enc_algo_pref_list;
+  bool                                                force_reestablishment_fallback;
+  bool                                                force_resume_fallback;
+  std::chrono::milliseconds                           rrc_procedure_guard_time_ms;
+  std::chrono::seconds                                rrc_reject_wait_time;
+  unsigned                                            rrc_version;
+  bool                                                enable_rrc_metrics;
+  f1ap_configuration                                  f1ap;
   /// Coarse UE location to TAC mappings, one entry per NTN cell.
   std::vector<ntn_cell_location_mapping> ntn_location_mappings;
 };

@@ -39,12 +39,6 @@ cell_meas_config make_cell_config(const gnb_id_t&    gnb_id,
 } // namespace
 
 cell_meas_manager_test::cell_meas_manager_test() :
-  cu_cp_cfg([this]() {
-    cu_cp_configuration cucfg     = config_helpers::make_default_cu_cp_config();
-    cucfg.services.timers         = &timers;
-    cucfg.services.cu_cp_executor = &ctrl_worker;
-    return cucfg;
-  }()),
   ue_cfg([this]() {
     return ue_manager_config{.gnb_id              = cu_cp_cfg.node.gnb_id,
                              .max_nof_ues         = cu_cp_cfg.admission.max_nof_ues,

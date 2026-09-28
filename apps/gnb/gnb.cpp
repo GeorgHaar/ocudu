@@ -513,18 +513,20 @@ int main(int argc, char** argv)
                                         *cu_up_dlt_pcaps.e2ap,
                                         E2_UP_PPID));
 
-  // Create O-CU-CP dependencies.
-  o_cu_cp_unit_dependencies o_cucp_deps;
-  o_cucp_deps.executor_mapper = &workers.get_cu_cp_executor_mapper();
-  o_cucp_deps.timers          = cu_timers;
-  o_cucp_deps.ngap_pcap       = cu_cp_dlt_pcaps.ngap.get();
-  o_cucp_deps.broker          = epoll_broker.get();
+  std::vector<ocucp::xnc_connection_gateway*> o_cucp_xnc_gws;
   for (auto& gw : xnc_gws) {
-    o_cucp_deps.xnc_gws.push_back(gw.get());
+    o_cucp_xnc_gws.push_back(gw.get());
   }
-  o_cucp_deps.metrics_notifier       = &metrics_notifier_forwarder;
-  o_cucp_deps.e2_gw                  = e2_gw_cu_cp.get();
-  o_cucp_deps.remote_metrics_gateway = remote_server_gateway;
+
+  // Create O-CU-CP dependencies.
+  o_cu_cp_unit_dependencies o_cucp_deps{.executor_mapper        = workers.get_cu_cp_executor_mapper(),
+                                        .timers                 = *cu_timers,
+                                        .ngap_pcap              = *cu_cp_dlt_pcaps.ngap,
+                                        .broker                 = *epoll_broker,
+                                        .metrics_notifier       = metrics_notifier_forwarder,
+                                        .e2_gw                  = e2_gw_cu_cp.get(),
+                                        .remote_metrics_gateway = remote_server_gateway,
+                                        .xnc_gws                = std::move(o_cucp_xnc_gws)};
 
   // Create O-CU-CP.
   auto            o_cucp_unit = o_cu_cp_app_unit->create_o_cu_cp(o_cucp_deps);

@@ -35,8 +35,8 @@ ngap_repository::ngap_repository(const ngap_repository_config& cfg_, const ngap_
 
 ngap_interface* ngap_repository::add_ngap(cu_cp_amf_index_t amf_index)
 {
-  n2_connection_client&             n2_gw  = *n2_gws[static_cast<uint16_t>(amf_index)];
-  cu_cp_configuration::ngap_config& config = cfg.ngaps[static_cast<uint16_t>(amf_index)];
+  n2_connection_client&                   n2_gw  = *n2_gws[static_cast<uint16_t>(amf_index)];
+  cu_cp_configuration::amf_configuration& config = cfg.ngaps[static_cast<uint16_t>(amf_index)];
 
   // Create NGAP object
   auto it = ngap_db.insert(std::make_pair(amf_index, ngap_context{}));

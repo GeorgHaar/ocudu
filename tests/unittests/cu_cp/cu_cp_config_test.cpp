@@ -13,6 +13,5 @@ using namespace config_helpers;
 
 TEST(cu_cp_config_test, default_config_is_valid)
 {
-  ocudu::ocucp::cu_cp_configuration cfg = make_default_cu_cp_config();
-  ASSERT_TRUE(is_valid_configuration(cfg));
+  ASSERT_TRUE(is_valid_configuration(ocudu::ocucp::cu_cp_configuration{}));
 }

@@ -76,10 +76,12 @@ protected:
 
   std::unordered_map<cu_cp_ue_index_t, test_ue> test_ues;
 
-  timer_manager           timers;
-  manual_task_worker      ctrl_worker{128};
-  cu_cp_configuration     cu_cp_cfg;
-  ue_manager_config       ue_cfg;
+  timer_manager       timers;
+  manual_task_worker  ctrl_worker{128};
+  cu_cp_configuration cu_cp_cfg;
+  ue_manager_config   ue_cfg;
+
+  cu_cp_dependencies      cu_cp_deps;
   ue_manager_dependencies ue_dependencies;
 
   ue_manager                      ue_mng{ue_cfg, ue_dependencies};

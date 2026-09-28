@@ -131,7 +131,8 @@ struct fuzz_state {
 private:
   static cu_cp_configuration make_cfg()
   {
-    cu_cp_configuration cfg = config_helpers::make_default_cu_cp_config();
+    cu_cp_configuration cfg;
+
     // Keep the UE pool small: the harness holds at most one UE at a time.
     cfg.admission.max_nof_ues = 4;
     return cfg;

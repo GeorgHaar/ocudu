@@ -20,7 +20,7 @@ struct rrc_cfg_t {
   /// PDCP config to use when UE SRB2 are configured.
   srb_pdcp_config srb2_cfg;
   /// Configuration for available 5QI.
-  std::map<five_qi_t, cu_cp_qos_config> drb_config;
+  std::unordered_map<five_qi_t, cu_cp_qos_config> drb_config;
   /// Integrity protection algorithms preference list
   security::preferred_integrity_algorithms int_algo_pref_list{security::integrity_algorithm::nia0};
   /// Encryption algorithms preference list

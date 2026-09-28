@@ -5,12 +5,11 @@
 
 #include "ocudu/cu_cp/cu_cp_factory.h"
 #include "cu_cp_impl.h"
-#include "ocudu/adt/format.h"
-#include "ocudu/support/error_handling.h"
 
 using namespace ocudu;
 
-std::unique_ptr<ocucp::cu_cp> ocudu::create_cu_cp(const ocucp::cu_cp_configuration& cfg)
+std::unique_ptr<ocucp::cu_cp> ocudu::create_cu_cp(const ocucp::cu_cp_configuration& cfg,
+                                                  const ocucp::cu_cp_dependencies&  dependencies)
 {
-  return std::make_unique<ocucp::cu_cp_impl>(cfg);
+  return std::make_unique<ocucp::cu_cp_impl>(cfg, dependencies);
 }

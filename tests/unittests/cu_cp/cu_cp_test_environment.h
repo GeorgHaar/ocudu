@@ -46,7 +46,7 @@ struct cu_cp_test_env_params {
       bool                                                     enable_rrc_inactive_          = false,
       bool                                                     enable_xnc_peer_              = false,
       std::chrono::seconds                                     rrc_reject_wait_time_         = std::chrono::seconds{1},
-      std::vector<ocucp::cu_cp_logical_cell_config>            logical_cells_                = {},
+      std::vector<ocucp::cu_cp_logical_cell_configuration>     logical_cells_                = {},
       bool                                                     add_cho_cond_trigger_         = false) :
     max_nof_cu_ups(max_nof_cu_ups_),
     max_nof_dus(max_nof_dus_),
@@ -82,7 +82,7 @@ struct cu_cp_test_env_params {
   bool     add_cho_cond_trigger;
   uint32_t pws_max_warning_message_segment_size = 150;
   /// Operator-declared logical cells passed to the CU-CP configuration.
-  std::vector<ocucp::cu_cp_logical_cell_config> logical_cells;
+  std::vector<ocucp::cu_cp_logical_cell_configuration> logical_cells;
   /// Coarse UE location to TAC and Mapped Cell ID mapping, per NTN cell.
   std::vector<ntn_cell_location_mapping> ntn_location_mappings;
 };
@@ -138,8 +138,10 @@ public:
 
   /// Start CU-CP connection to AMF and run NG setup procedure to completion.
   void run_ng_setup();
+
   /// Drop TNL connection between the AMF and the CU-CP.
   bool drop_amf_connection(unsigned amf_idx);
+
   /// Simulate AMF becoming reachable again and complete the NG Setup procedure.
   /// Returns true if the AMF is successfully reconnected.
   bool reconnect_amf(unsigned amf_idx);
@@ -153,8 +155,10 @@ public:
 
   /// Establish a TNL connection between a DU and the CU-CP.
   std::optional<unsigned> connect_new_du();
+
   /// Drop TNL connection between a DU and the CU-CP.
   bool drop_du_connection(unsigned du_idx);
+
   /// Run F1 setup procedure to completion.
   bool run_f1_setup(unsigned                                                du_idx,
                     gnb_du_id_t                                             gnb_du_id = int_to_gnb_du_id(0x11),
@@ -163,8 +167,10 @@ public:
 
   /// Establish a TNL connection between a CU-UP and the CU-CP.
   std::optional<unsigned> connect_new_cu_up();
+
   /// Drop TNL connection between a CU-UP and the CU-CP.
   bool drop_cu_up_connection(unsigned cu_up_idx);
+
   /// Run E1 setup procedure to completion
   bool run_e1_setup(unsigned cu_up_idx);
 
@@ -175,8 +181,10 @@ public:
       rnti_t              crnti,
       plmn_identity       plmn       = plmn_identity::test_value(),
       byte_buffer rrc_setup_complete = test_helpers::pack_ul_dcch_msg(test_helpers::create_rrc_setup_complete()));
+
   /// Runs the NAS Authentication for a given UE.
   [[nodiscard]] bool authenticate_ue(unsigned du_idx, gnb_du_ue_f1ap_id_t du_ue_id, amf_ue_id_t amf_ue_id);
+
   /// Runs the Security Mode procedure for a given UE.
   [[nodiscard]] bool setup_ue_security_and_ue_capabilities(
       unsigned                                                   du_idx,
@@ -184,11 +192,14 @@ public:
       std::optional<cu_cp_core_network_assist_info_for_inactive> cn_assist_info_for_inactive = std::nullopt,
       bool                                                       rrc_inactive_supported      = true,
       std::optional<location_report_request>                     location_reporting_request  = std::nullopt);
+
   /// Get a Location Report, if one is awaited for.
   std::optional<ngap_message>
   get_location_report_if_required(const std::optional<location_report_request>& location_reporting_request);
+
   /// Finishes the registration for a given UE.
   [[nodiscard]] bool finish_ue_registration(unsigned du_idx, unsigned cu_up_idx, gnb_du_ue_f1ap_id_t du_ue_id);
+
   /// Requests PDU Session Resource Setup
   [[nodiscard]] bool
   request_pdu_session_resource_setup(unsigned du_idx, unsigned cu_up_idx, gnb_du_ue_f1ap_id_t du_ue_id);
@@ -205,8 +216,8 @@ public:
                     byte_buffer            rrc_reconfiguration_complete = make_byte_buffer("00070e00cc6fcda5").value(),
                     bool                   is_initial_session           = true,
                     std::optional<security_indication_t> security_indication = std::nullopt);
-  /// Runs RRC setup, authentication, security, RRC Reconfiguration, PDU session setup for a given UE.
 
+  /// Runs RRC setup, authentication, security, RRC Reconfiguration, PDU session setup for a given UE.
   [[nodiscard]] bool
   attach_ue(unsigned               du_idx,
             unsigned               cu_up_idx,
@@ -223,6 +234,7 @@ public:
             bool                                                       rrc_inactive_supported      = true,
             std::optional<location_report_request>                     location_reporting_request  = std::nullopt,
             std::optional<security_indication_t>                       security_indication         = std::nullopt);
+
   /// Reestablishes a UE connection, including RRC Reestablishment and RRC Reconfiguration procedures.
   /// \return True if the reestablishment was successful, false if RRC Setup/Reject was performed instead.
   [[nodiscard]] bool reestablish_ue(unsigned            du_idx,
@@ -393,13 +405,15 @@ private:
   class worker_manager;
 
   cu_cp_test_env_params params;
-  cu_cp_configuration   cu_cp_cfg{};
+  cu_cp_configuration   cu_cp_cfg;
 
   /// Workers for CU-CP.
   std::unique_ptr<worker_manager> cu_cp_workers;
 
   /// Timers for CU-CP.
   timer_manager timers;
+
+  cu_cp_dependencies cu_cp_deps;
 
   /// Notifiers for the CU-CP interface.
   std::map<unsigned, cu_cp_test_amf_config> amf_configs;

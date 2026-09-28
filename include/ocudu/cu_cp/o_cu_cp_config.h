@@ -29,6 +29,8 @@ struct o_cu_cp_dependencies {
   e2_cu_metrics_interface* e2_cu_metric_iface = nullptr;
   // E2 CU configurator.
   cu_configurator* cu_cfg = nullptr;
+  /// CU-CP dependencies.
+  cu_cp_dependencies cu_cp_deps;
 };
 
 } // namespace ocucp

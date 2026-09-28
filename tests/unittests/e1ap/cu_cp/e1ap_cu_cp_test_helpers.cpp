@@ -16,12 +16,6 @@ using namespace ocudu;
 using namespace ocucp;
 
 e1ap_cu_cp_test::e1ap_cu_cp_test() :
-  cu_cp_cfg([this]() {
-    cu_cp_configuration cucfg     = config_helpers::make_default_cu_cp_config();
-    cucfg.services.timers         = &timers;
-    cucfg.services.cu_cp_executor = &ctrl_worker;
-    return cucfg;
-  }()),
   ue_cfg([this]() {
     return ue_manager_config{.gnb_id              = cu_cp_cfg.node.gnb_id,
                              .max_nof_ues         = cu_cp_cfg.admission.max_nof_ues,

@@ -329,8 +329,7 @@ int main(int argc, char** argv)
   check_drm_kms_polling(cu_logger);
 
   // Create manager of timers for CU-CP and CU-UP, which will be driven by the system timer slot ticks.
-  timer_manager  app_timers{256};
-  timer_manager* cu_timers = &app_timers;
+  timer_manager app_timers{256};
 
   app_services::metrics_notifier_proxy_impl    metrics_notifier_forwarder;
   std::unique_ptr<app_services::remote_server> remote_control_server =
@@ -409,7 +408,7 @@ int main(int argc, char** argv)
   gtpu_allocator_creation_request cu_f1u_alloc_msg = {
       .max_nof_teids = o_cu_up_app_unit->get_o_cu_up_unit_config().cu_up_cfg.max_nof_ues * MAX_NOF_PDU_SESSIONS,
       .teid_release_linger_time = GTPU_DEFAULT_TEID_RELEASE_LINGER_TIME,
-      .timers                   = *cu_timers};
+      .timers                   = app_timers};
   std::unique_ptr<gtpu_teid_pool> cu_f1u_teid_allocator = create_gtpu_allocator(cu_f1u_alloc_msg);
 
   // > Create GTP-U Demux.
@@ -475,18 +474,20 @@ int main(int argc, char** argv)
   buffer_pool_service.add_metrics_to_metrics_service(
       metrics_configs, cu_cfg.buffer_pool_config.metrics_config, metrics_notifier_forwarder, remote_server_gateway);
 
-  // Create O-CU-CP dependencies.
-  o_cu_cp_unit_dependencies o_cucp_deps;
-  o_cucp_deps.executor_mapper = &workers.get_cu_cp_executor_mapper();
-  o_cucp_deps.timers          = cu_timers;
-  o_cucp_deps.ngap_pcap       = cu_cp_dlt_pcaps.ngap.get();
-  o_cucp_deps.broker          = epoll_broker.get();
+  std::vector<ocucp::xnc_connection_gateway*> o_cucp_xnc_gws;
   for (auto& gw : xnc_gws) {
-    o_cucp_deps.xnc_gws.push_back(gw.get());
+    o_cucp_xnc_gws.push_back(gw.get());
   }
-  o_cucp_deps.e2_gw                  = e2_gw_cu_cp.get();
-  o_cucp_deps.metrics_notifier       = &metrics_notifier_forwarder;
-  o_cucp_deps.remote_metrics_gateway = remote_server_gateway;
+
+  // Create O-CU-CP dependencies.
+  o_cu_cp_unit_dependencies o_cucp_deps{.executor_mapper        = workers.get_cu_cp_executor_mapper(),
+                                        .timers                 = app_timers,
+                                        .ngap_pcap              = *cu_cp_dlt_pcaps.ngap,
+                                        .broker                 = *epoll_broker,
+                                        .metrics_notifier       = metrics_notifier_forwarder,
+                                        .e2_gw                  = e2_gw_cu_cp.get(),
+                                        .remote_metrics_gateway = remote_server_gateway,
+                                        .xnc_gws                = std::move(o_cucp_xnc_gws)};
 
   // Create O-CU-CP.
   auto            o_cucp_unit = o_cu_cp_app_unit->create_o_cu_cp(o_cucp_deps);
@@ -505,7 +506,7 @@ int main(int argc, char** argv)
                                                              .f1u_teid_allocator     = *cu_f1u_teid_allocator,
                                                              .f1u_gateway            = *cu_f1u_conn,
                                                              .gtpu_pcap              = *cu_up_dlt_pcaps.ngu,
-                                                             .timers                 = *cu_timers,
+                                                             .timers                 = app_timers,
                                                              .io_brk                 = *epoll_broker};
 
   // Create O-CU-UP.

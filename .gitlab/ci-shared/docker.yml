@@ -244,21 +244,29 @@ variables:
           # Scan the syft inventory instead of pulling the image again, so the report matches the attested SBOM
           echo "=== Running grype CVE scan on ${IMAGE_DIGEST} ==="
           SCAN_STARTED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          case ",${CI_MERGE_REQUEST_LABELS:-}," in
-            *",ci-ignore-vulnerabilities,"*)
-              echo "WARNING: Vulnerability failure threshold disabled by ci-ignore-vulnerabilities label"
-              grype sbom:container.syft.json -o json > grype-report.json
-              ;;
-            *)
-              grype sbom:container.syft.json --fail-on critical --ignore-states wont-fix,not-fixed -o json > grype-report.json
-              ;;
-          esac
+          # Keep every finding in the report, the failure threshold is applied after attesting it
+          grype sbom:container.syft.json -o json > grype-report.json
           echo "=== Vulnerability summary ==="
           jq -r '.matches[] | .vulnerability.severity' grype-report.json | sort | uniq -c | awk '{printf "  %s: %d\n", $2, $1}'
           echo "  Total: $(jq '.matches | length' grype-report.json)"
           echo "=== Attesting grype report ==="
           generate_vuln_predicate "${SCAN_STARTED}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           cosign attest --predicate vuln-predicate.json --type vuln ${IMAGE_DIGEST}
+
+          echo "=== Checking fixable critical vulnerabilities ==="
+          FIXABLE_CRITICAL=$(jq '[.matches[] | select(.vulnerability.severity == "Critical" and .vulnerability.fix.state == "fixed")]' grype-report.json)
+          if [ "$(echo "${FIXABLE_CRITICAL}" | jq 'length')" -gt 0 ]; then
+            echo "${FIXABLE_CRITICAL}" | jq -r '.[] | "  \(.vulnerability.id) \(.artifact.name) \(.artifact.version) -> \(.vulnerability.fix.versions | join(","))"'
+            case ",${CI_MERGE_REQUEST_LABELS:-}," in
+              *",ci-ignore-vulnerabilities,"*)
+                echo "WARNING: Vulnerability failure threshold disabled by ci-ignore-vulnerabilities label"
+                ;;
+              *)
+                echo "Fixable critical vulnerabilities found" >&2
+                exit 1
+                ;;
+            esac
+          fi
         fi
       fi
 

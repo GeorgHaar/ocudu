@@ -41,6 +41,7 @@ variables:
   artifacts:
     paths:
       - grype-report.json
+      - vuln-predicate.json
       - container.spdx.json
       - build.spdx
     expire_in: 7 days
@@ -185,6 +186,26 @@ variables:
         fi
       }
 
+      generate_vuln_predicate() {
+        # cosign --type vuln expects the CosignVulnPredicate schema, raw grype JSON is silently dropped
+        jq -c -n \
+          --slurpfile report grype-report.json \
+          --arg job_url "${CI_JOB_URL}" \
+          --arg pipeline_id "${CI_PIPELINE_ID}" \
+          --arg started "$1" \
+          --arg finished "$2" \
+          '{
+            invocation: {parameters: null, uri: $job_url, event_id: $pipeline_id, "builder.id": "gitlab-ci"},
+            scanner: {
+              uri: ("pkg:github/anchore/grype@" + $report[0].descriptor.version),
+              version: $report[0].descriptor.version,
+              db: {uri: ($report[0].descriptor.db.status.from // ""), version: ($report[0].descriptor.db.status.schemaVersion // "")},
+              result: $report[0]
+            },
+            metadata: {scanStartedOn: $started, scanFinishedOn: $finished}
+          }' > vuln-predicate.json
+      }
+
     # Attestation functions
     - |
       if [ ${MODE} = "publish" ]; then
@@ -222,6 +243,7 @@ variables:
         if [ "${GRYPE_SKIP}" != "true" ]; then
           # Scan the syft inventory instead of pulling the image again, so the report matches the attested SBOM
           echo "=== Running grype CVE scan on ${IMAGE_DIGEST} ==="
+          SCAN_STARTED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           case ",${CI_MERGE_REQUEST_LABELS:-}," in
             *",ci-ignore-vulnerabilities,"*)
               echo "WARNING: Vulnerability failure threshold disabled by ci-ignore-vulnerabilities label"
@@ -235,7 +257,8 @@ variables:
           jq -r '.matches[] | .vulnerability.severity' grype-report.json | sort | uniq -c | awk '{printf "  %s: %d\n", $2, $1}'
           echo "  Total: $(jq '.matches | length' grype-report.json)"
           echo "=== Attesting grype report ==="
-          cosign attest --predicate grype-report.json --type vuln ${IMAGE_DIGEST}
+          generate_vuln_predicate "${SCAN_STARTED}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          cosign attest --predicate vuln-predicate.json --type vuln ${IMAGE_DIGEST}
         fi
       fi
 

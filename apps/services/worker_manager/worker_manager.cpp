@@ -256,11 +256,12 @@ void worker_manager::create_du_high_executors(const worker_manager_config::du_hi
   cfg.ue_executors.pdu_queue_size      = du_hi.ue_data_tasks_queue_size;
   cfg.ue_executors.pool_executor       = non_rt_medium_prio_exec;
   cfg.ue_executors.f1u_reader_executor = non_rt_low_prio_exec;
-  cfg.ctrl_executors.task_queue_size   = task_worker_queue_size;
-  cfg.ctrl_executors.pool_executor     = non_rt_hi_prio_exec;
-  cfg.is_rt_mode_enabled               = du_hi.is_rt_mode_enabled;
-  cfg.trace_exec_tasks                 = du_hi.executor_tracing_enable;
-  cfg.exec_metrics_channel_registry    = exec_metrics_channel_registry;
+  cfg.ue_executors.rlc_shared_low_prio_executor = non_rt_low_prio_exec;
+  cfg.ctrl_executors.task_queue_size            = task_worker_queue_size;
+  cfg.ctrl_executors.pool_executor              = non_rt_hi_prio_exec;
+  cfg.is_rt_mode_enabled                        = du_hi.is_rt_mode_enabled;
+  cfg.trace_exec_tasks                          = du_hi.executor_tracing_enable;
+  cfg.exec_metrics_channel_registry             = exec_metrics_channel_registry;
 
   du_high_exec_mapper = create_du_high_executor_mapper(cfg);
 }

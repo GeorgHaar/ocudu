@@ -22,6 +22,8 @@ du_high_worker_manager::du_high_worker_manager()
                             nof_ue_strands,
                             task_worker_queue_size,
                             task_worker_queue_size,
+                            &low_prio_exec,
+                            nullptr,
                             &low_prio_exec};
   cfg.ctrl_executors     = {task_worker_queue_size, &high_prio_exec};
   cfg.is_rt_mode_enabled = true;

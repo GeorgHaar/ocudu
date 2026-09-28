@@ -40,6 +40,9 @@ public:
   /// \return task executor of the UE with given UE Index.
   virtual task_executor& f1u_dl_pdu_executor(du_ue_index_t ue_index) = 0;
 
+  /// \brief Returns the shared low-priority executor for RLC cleanup tasks, serialized across all UEs.
+  virtual task_executor& rlc_shared_low_prio_exec() = 0;
+
   /// Method to return the default executor with no associated UE index.
   /// \return task executor.
   task_executor& executor() { return mac_ue_executor_mapper::ctrl_executor(INVALID_DU_UE_INDEX); }
@@ -116,6 +119,8 @@ struct du_high_executor_config {
     task_executor* pool_executor;
     /// Executor used to read the F1-U UDP socket.
     task_executor* f1u_reader_executor;
+    /// Executor used for low-priority RLC cleanup tasks, shared and serialized across all UEs.
+    task_executor* rlc_shared_low_prio_executor = nullptr;
   };
   /// \brief Configuration of strand for control-plane tasks of the DU-high.
   struct control_executor_config {

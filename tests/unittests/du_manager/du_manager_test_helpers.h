@@ -58,6 +58,7 @@ public:
   task_executor& f1u_dl_pdu_executor(du_ue_index_t ue_index) override { return exec; }
   task_executor& f1c_dl_sdu_executor(du_ue_index_t ue_index) override { return exec; }
   task_executor& mac_ul_pdu_executor(du_ue_index_t ue_index) override { return exec; }
+  task_executor& rlc_shared_low_prio_exec() override { return exec; }
 
   task_executor& exec;
 };

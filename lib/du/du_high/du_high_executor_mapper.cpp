@@ -187,7 +187,8 @@ create_du_high_cell_executor_mapper(const du_high_executor_config& config)
 class common_ue_executor_mapper : public du_high_ue_executor_mapper
 {
 protected:
-  using strand_type = priority_task_strand<task_executor*>;
+  using strand_type          = priority_task_strand<task_executor*>;
+  using low_prio_strand_type = task_strand<task_executor*, concurrent_queue_policy::lockfree_mpmc>;
   struct strand_context {
     std::unique_ptr<strand_type> strand;
     task_executor*               ctrl_exec;
@@ -195,12 +196,15 @@ protected:
     task_executor*               dl_exec;
   };
 
-  common_ue_executor_mapper(unsigned initial_capacity)
+  common_ue_executor_mapper(unsigned initial_capacity, task_executor& rlc_low_prio_exec, unsigned queue_size) :
+    rlc_low_prio_strand(&rlc_low_prio_exec, queue_size)
   {
     ocudu_assert(initial_capacity > 0, "Invalid number of max strands");
 
     strands.reserve(initial_capacity);
   }
+
+  task_executor& rlc_shared_low_prio_exec() override { return rlc_low_prio_strand; }
 
   void add_strand(task_executor&                     pool_exec,
                   unsigned                           ctrl_queue_size,
@@ -246,6 +250,7 @@ protected:
 
   std::vector<strand_context> strands;
   executor_decorator          decorator;
+  low_prio_strand_type        rlc_low_prio_strand;
 };
 
 /// L2 UL executor mapper that maps UEs based on their RNTI.
@@ -253,12 +258,13 @@ class index_based_ue_executor_mapper final : public common_ue_executor_mapper
 {
 public:
   index_based_ue_executor_mapper(task_executor&                     pool_executor,
+                                 task_executor&                     rlc_low_prio_exec,
                                  unsigned                           max_strands,
                                  unsigned                           ctrl_queue_size,
                                  unsigned                           pdu_queue_size,
                                  bool                               trace_enabled,
                                  executor_metrics_channel_registry* metric_channel_registry) :
-    common_ue_executor_mapper(max_strands)
+    common_ue_executor_mapper(max_strands, rlc_low_prio_exec, ctrl_queue_size)
   {
     for (unsigned i = 0; i != max_strands; ++i) {
       add_strand(pool_executor, ctrl_queue_size, pdu_queue_size, trace_enabled, metric_channel_registry);
@@ -296,12 +302,13 @@ class pcell_ue_executor_mapper final : public common_ue_executor_mapper
 {
 public:
   explicit pcell_ue_executor_mapper(task_executor&                     pool_executor,
+                                    task_executor&                     rlc_low_prio_exec,
                                     unsigned                           max_strands_,
                                     unsigned                           ctrl_queue_size_,
                                     unsigned                           pdu_queue_size_,
                                     bool                               trace_enabled_,
                                     executor_metrics_channel_registry* metric_channel_registry) :
-    common_ue_executor_mapper(max_strands_),
+    common_ue_executor_mapper(max_strands_, rlc_low_prio_exec, ctrl_queue_size_),
     pool_exec(pool_executor),
     max_strands(max_strands_),
     ctrl_queue_size(ctrl_queue_size_),
@@ -362,9 +369,11 @@ private:
 static std::unique_ptr<du_high_ue_executor_mapper>
 create_du_high_ue_executor_mapper(const du_high_executor_config& config)
 {
+  ocudu_assert(config.ue_executors.rlc_shared_low_prio_executor != nullptr, "rlc_shared_low_prio_executor must be set");
   std::unique_ptr<du_high_ue_executor_mapper> ue_mapper;
   if (config.ue_executors.policy == du_high_executor_config::ue_executor_config::map_policy::per_cell) {
     ue_mapper = std::make_unique<pcell_ue_executor_mapper>(*config.ue_executors.pool_executor,
+                                                           *config.ue_executors.rlc_shared_low_prio_executor,
                                                            config.ue_executors.max_nof_strands,
                                                            config.ue_executors.ctrl_queue_size,
                                                            config.ue_executors.pdu_queue_size,
@@ -372,6 +381,7 @@ create_du_high_ue_executor_mapper(const du_high_executor_config& config)
                                                            config.exec_metrics_channel_registry);
   } else {
     ue_mapper = std::make_unique<index_based_ue_executor_mapper>(*config.ue_executors.pool_executor,
+                                                                 *config.ue_executors.rlc_shared_low_prio_executor,
                                                                  config.ue_executors.max_nof_strands,
                                                                  config.ue_executors.ctrl_queue_size,
                                                                  config.ue_executors.pdu_queue_size,

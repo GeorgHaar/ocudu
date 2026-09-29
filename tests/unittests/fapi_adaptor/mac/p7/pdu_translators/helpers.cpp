@@ -380,7 +380,7 @@ mac_dl_sched_result_test_helper unittests::build_valid_mac_dl_sched_result()
   }
 
   result.slot   = slot_point(4, generate_sfn(), generate_slot());
-  result.dl_res = &helper.sched_result;
+  result.dl_res = helper.sched_result;
 
   // Add DL PDCCH PDUs.
   add_dl_pdcch_pdus_to_result(helper);
@@ -436,7 +436,7 @@ mac_dl_sched_result_test_helper unittests::build_valid_mac_dl_sched_result_with_
   }
 
   result.slot   = slot_point(4, generate_sfn(), generate_slot());
-  result.dl_res = &helper.sched_result;
+  result.dl_res = helper.sched_result;
 
   // Add DL PDCCH PDUs.
   add_all_dl_pdcch_pdus_to_result(helper);
@@ -741,7 +741,7 @@ mac_ul_sched_result_test_helper ocudu::unittests::build_valid_mac_ul_sched_resul
   helper.srs                  = build_valid_srs_pdu();
   mac_ul_sched_result& result = helper.result;
   result.slot                 = slot_point(4, generate_sfn(), generate_slot());
-  result.ul_res               = &helper.sched_result;
+  result.ul_res               = helper.sched_result;
 
   // Add PUCCH PDUs.
   helper.pucch_f1              = build_valid_pucch_format_1_pdu();
@@ -770,7 +770,7 @@ mac_ul_sched_result_test_helper unittests::build_valid_mac_ul_sched_result_with_
   helper.srs                  = build_valid_srs_pdu();
   mac_ul_sched_result& result = helper.result;
   result.slot                 = slot_point(4, generate_sfn(), generate_slot());
-  result.ul_res               = &helper.sched_result;
+  result.ul_res               = helper.sched_result;
 
   // Add PUCCH PDUs.
   for (unsigned i = 0; i != MAX_PUCCH_PDUS_PER_SLOT; ++i) {

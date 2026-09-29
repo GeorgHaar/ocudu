@@ -167,7 +167,7 @@ protected:
 
     bench->fallback_sched.run_slot(bench->res_grid);
 
-    result_logger.on_scheduler_result(bench->res_grid.result_of(0));
+    result_logger.on_scheduler_result(bench->res_grid[0].result_reader());
 
     // Check sched result consistency.
     test_scheduler_result_consistency(bench->cell_cfg, bench->res_grid);

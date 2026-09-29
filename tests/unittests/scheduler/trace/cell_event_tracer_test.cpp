@@ -61,7 +61,7 @@ protected:
 };
 
 /// Serializes \p result into a standalone SlotDecision buffer.
-static std::vector<uint8_t> decision_to_bytes(const sched_result& result)
+static std::vector<uint8_t> decision_to_bytes(sched_slot_result_reader result)
 {
   flatbuffers::FlatBufferBuilder fbb;
   fbb.Finish(convert_decision_to_fb(fbb, result));
@@ -70,20 +70,20 @@ static std::vector<uint8_t> decision_to_bytes(const sched_result& result)
 
 /// Asserts that \p actual matches \p result: converts \p actual back to a sched_result and compares the deterministic
 /// re-serialization of both.
-static void check_slot_decision(const fbs::SlotDecision* actual, const ocudu::sched_result& result)
+static void check_slot_decision(const fbs::SlotDecision* actual, ocudu::sched_slot_result_reader result)
 {
   ASSERT_NE(actual, nullptr);
   sched_result_grid actual_grid{sched_result_grid_config{1}};
   convert_fb_to_decision(actual_grid.get_builder(0), *actual, make_test_schedtrace_cell_cfg());
-  EXPECT_EQ(decision_to_bytes(actual_grid.slot_storage(0)), decision_to_bytes(result));
+  EXPECT_EQ(decision_to_bytes(actual_grid.get_reader(0)), decision_to_bytes(result));
 }
 
 TEST(custom_cell_event_tracer_test, when_disabled_tracer_receives_slot_result_then_no_event_is_emitted)
 {
   cell_event_tracer disabled_tracer;
 
-  full_sched_result   full;
-  const sched_result& result = full.result();
+  full_sched_result full;
+  const auto        result = full.result();
   disabled_tracer.on_scheduler_result(slot_point{0, 0}, result, std::chrono::microseconds(50));
 }
 
@@ -138,9 +138,9 @@ TEST_F(cell_event_tracer_test, when_slot_result_is_pushed_to_tracer_then_a_slot_
   ASSERT_TRUE(qs.ev_queue.empty());
 
   // Push slot result.
-  const slot_point    sl_tx{0, 5};
-  full_sched_result   full;
-  const sched_result& result = full.result();
+  const slot_point  sl_tx{0, 5};
+  full_sched_result full;
+  const auto        result = full.result();
   tracer.on_scheduler_result(sl_tx, result, std::chrono::milliseconds(100));
 
   bool popped = qs.pop_and_process([&sl_tx, &result](const fbs::CellEvent& ev) {

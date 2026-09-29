@@ -203,7 +203,7 @@ void convert_fb_to_failed_attempts(failed_alloc_attempts& failed_attempts, const
 
 /// Convert a scheduler decision to the respective flatbuffer table.
 flatbuffers::Offset<fbs::SlotDecision> convert_decision_to_fb(flatbuffers::FlatBufferBuilder& fbb,
-                                                              const sched_result&             result);
+                                                              sched_slot_result_reader        result);
 
 /// \brief Convert a flatbuffer SlotDecision into the original scheduler decision.
 ///

@@ -206,10 +206,9 @@ bool du_high_env_simulator::add_ue(rnti_t rnti, du_cell_index_t cell_index)
     }
     phy_cell_test_dummy& phy_cell = phy.cells[cell_index];
     if (phy_cell.last_dl_res.has_value()) {
-      const auto& dl_res = *phy_cell.last_dl_res.value().dl_res;
-      if (find_ue_pdsch(rnti, dl_res.ue_grants) != nullptr) {
-        report_fatal_error_if_not(find_ue_pdsch_with_lcid(rnti, lcid_dl_sch_t::UE_CON_RES_ID, dl_res.ue_grants) !=
-                                      nullptr,
+      const auto ue_grants = phy_cell.last_dl_res->dl_res.ue_grants();
+      if (find_ue_pdsch(rnti, ue_grants) != nullptr) {
+        report_fatal_error_if_not(find_ue_pdsch_with_lcid(rnti, lcid_dl_sch_t::UE_CON_RES_ID, ue_grants) != nullptr,
                                   "UE ConRes not scheduled");
         conres_sent = true;
       }
@@ -315,9 +314,8 @@ bool du_high_env_simulator::await_dl_msg_sched(const ue_sim_context&   u,
 
   bool ret = run_until(
       [&]() {
-        if (phy_cell.last_dl_res.has_value() and phy_cell.last_dl_res.value().dl_res != nullptr) {
-          const auto& dl_res = *phy_cell.last_dl_res.value().dl_res;
-          return find_ue_pdsch_with_lcid(u.rnti, lcid, dl_res.ue_grants) != nullptr;
+        if (phy_cell.last_dl_res.has_value()) {
+          return find_ue_pdsch_with_lcid(u.rnti, lcid, phy_cell.last_dl_res->dl_res.ue_grants()) != nullptr;
         }
         return false;
       },
@@ -401,10 +399,14 @@ bool du_high_env_simulator::run_ue_context_setup(rnti_t rnti)
        ++i) {
     run_slot();
 
+    const du_cell_index_t cell_idx = it->second.pcell_index;
+    if (not phy.cells[cell_idx].last_dl_res.has_value()) {
+      continue;
+    }
+
     // Sum all the bytes scheduled for SRB1.
-    du_cell_index_t     cell_idx = it->second.pcell_index;
     const dl_msg_alloc* pdsch =
-        find_ue_pdsch_with_lcid(rnti, LCID_SRB1, phy.cells[cell_idx].last_dl_res.value().dl_res->ue_grants);
+        find_ue_pdsch_with_lcid(rnti, LCID_SRB1, phy.cells[cell_idx].last_dl_res->dl_res.ue_grants());
     if (pdsch != nullptr) {
       for (const dl_msg_lc_info& lc_grant : pdsch->tb_list[0].lc_chs_to_sched) {
         if (lc_grant.lcid == LCID_SRB1) {
@@ -580,40 +582,45 @@ void du_high_env_simulator::handle_slot_results(du_cell_index_t cell_index)
   auto& phy_cell = phy.cells[cell_index];
 
   // Auto-generate UCI indications.
-  if (phy_cell.last_ul_res.has_value() and phy_cell.last_ul_res->ul_res != nullptr) {
-    const ul_sched_result& ul_res = *phy_cell.last_ul_res->ul_res;
-    slot_point             sl_rx  = phy_cell.last_ul_res->slot;
+  if (phy_cell.last_ul_res.has_value()) {
+    const auto       ul_res = phy_cell.last_ul_res->ul_res;
+    const slot_point sl_rx  = phy_cell.last_ul_res->slot;
 
-    if (not ul_res.pucchs.empty()) {
-      mac_uci_indication_message uci_ind = test_helpers::create_uci_indication(sl_rx, ul_res.pucchs.unsorted(), false);
+    if (not ul_res.pucchs().empty()) {
+      mac_uci_indication_message uci_ind =
+          test_helpers::create_uci_indication(sl_rx, ul_res.pucchs().unsorted(), false);
       this->du_hi->get_control_info_handler(cell_index).handle_uci(uci_ind);
     }
 
-    if (not ul_res.puschs.empty()) {
-      mac_crc_indication_message crc_ind = test_helpers::create_crc_indication(sl_rx, ul_res.puschs);
+    const auto pusch_list = ul_res.puschs();
+    if (not pusch_list.empty()) {
+      // The PUSCH grants are not contiguous in memory, so they are gathered before the indications are built.
+      const static_vector<ul_sched_info, MAX_PUSCH_PDUS_PER_SLOT> puschs(pusch_list.begin(), pusch_list.end());
+
+      mac_crc_indication_message crc_ind = test_helpers::create_crc_indication(sl_rx, puschs);
       this->du_hi->get_control_info_handler(cell_index).handle_crc(crc_ind);
 
-      std::optional<mac_uci_indication_message> uci_ind = create_pusch_uci_indication(sl_rx, ul_res.puschs);
+      std::optional<mac_uci_indication_message> uci_ind = create_pusch_uci_indication(sl_rx, puschs);
       if (uci_ind.has_value()) {
         this->du_hi->get_control_info_handler(cell_index).handle_uci(uci_ind.value());
       }
     }
 
-    if (not ul_res.srss.empty()) {
-      mac_srs_indication_message srs_ind = test_helpers::create_srs_indication(sl_rx, ul_res.srss, srs_pos_aoa);
+    if (not ul_res.srss().empty()) {
+      mac_srs_indication_message srs_ind = test_helpers::create_srs_indication(sl_rx, ul_res.srss(), srs_pos_aoa);
       this->du_hi->get_control_info_handler(cell_index).handle_srs(srs_ind);
     }
   }
 
   // Forward PDU data to the simulated UEs.
-  if (phy_cell.last_dl_res.has_value() and phy_cell.last_dl_res->dl_res != nullptr) {
-    const dl_sched_result& dl_res = *phy_cell.last_dl_res->dl_res;
+  if (phy_cell.last_dl_res.has_value()) {
+    const auto ue_grants = phy_cell.last_dl_res->dl_res.ue_grants();
 
     if (phy_cell.last_dl_data.has_value()) {
       const auto& ue_pdus = phy_cell.last_dl_data->ue_pdus;
       for (unsigned pdu_idx = 0, sz = ue_pdus.size(); pdu_idx < sz; ++pdu_idx) {
         const mac_dl_data_result::dl_pdu& pdu   = ue_pdus[pdu_idx];
-        const auto&                       grant = dl_res.ue_grants[pdu_idx];
+        const auto&                       grant = ue_grants[pdu_idx];
         auto                              ue_it = ues.find(grant.pdsch_cfg.rnti);
         if (ue_it == ues.end()) {
           test_logger.warning("rnti={}: Received DL PDUs for unknown UE", grant.pdsch_cfg.rnti);
@@ -723,10 +730,9 @@ du_high_env_simulator::launch_ue_creation_task(rnti_t rnti, du_cell_index_t cell
       if (not conres_sent) {
         phy_cell_test_dummy& phy_cell = phy.cells[cell_index];
         if (phy_cell.last_dl_res.has_value()) {
-          const auto& dl_res = *phy_cell.last_dl_res.value().dl_res;
-          if (find_ue_pdsch(rnti, dl_res.ue_grants) != nullptr) {
-            report_fatal_error_if_not(find_ue_pdsch_with_lcid(rnti, lcid_dl_sch_t::UE_CON_RES_ID, dl_res.ue_grants) !=
-                                          nullptr,
+          const auto ue_grants = phy_cell.last_dl_res->dl_res.ue_grants();
+          if (find_ue_pdsch(rnti, ue_grants) != nullptr) {
+            report_fatal_error_if_not(find_ue_pdsch_with_lcid(rnti, lcid_dl_sch_t::UE_CON_RES_ID, ue_grants) != nullptr,
                                       "rnti={}: UE ConRes not scheduled",
                                       rnti);
             conres_sent = true;
@@ -874,9 +880,8 @@ async_task<bool> du_high_env_simulator::launch_await_dl_msg_sched_task(const ue_
 
         for (count = 0U; count < max_count; ++count) {
           // Check LCID was scheduled for the given UE.
-          if (phy_cell->last_dl_res.has_value() and phy_cell->last_dl_res->dl_res != nullptr) {
-            const auto& dl_res = *phy_cell->last_dl_res.value().dl_res;
-            if (find_ue_pdsch_with_lcid(u.rnti, lcid, dl_res.ue_grants) != nullptr) {
+          if (phy_cell->last_dl_res.has_value()) {
+            if (find_ue_pdsch_with_lcid(u.rnti, lcid, phy_cell->last_dl_res->dl_res.ue_grants()) != nullptr) {
               CORO_EARLY_RETURN(true);
             }
           }
@@ -999,9 +1004,8 @@ async_task<void> du_high_env_simulator::launch_rach_attempts_task(unsigned      
       const phy_cell_test_dummy& phy_cell = phy.cells[cell_index];
 
       // Detect one contention-based preamble in the PRACH occasions of this slot.
-      if (result.nof_attempts != nof_attempts and phy_cell.last_ul_res.has_value() and
-          phy_cell.last_ul_res->ul_res != nullptr) {
-        for (const prach_occasion_info& occasion : phy_cell.last_ul_res->ul_res->prachs) {
+      if (result.nof_attempts != nof_attempts and phy_cell.last_ul_res.has_value()) {
+        for (const prach_occasion_info& occasion : phy_cell.last_ul_res->ul_res.prachs()) {
           rach_attempt_context& attempt = attempts.emplace_back();
           attempt.ind     = test_helpers::create_rach_indication(phy_cell.last_ul_res->slot, occasion, msg1_scs);
           const auto& occ = attempt.ind.occasions.front();
@@ -1024,8 +1028,8 @@ async_task<void> du_high_env_simulator::launch_rach_attempts_task(unsigned      
       }
 
       // Resolve the attempts whose RAR the scheduler has sent.
-      if (phy_cell.last_dl_res.has_value() and phy_cell.last_dl_res->dl_res != nullptr) {
-        for (const rar_information& rar : phy_cell.last_dl_res->dl_res->rar_grants) {
+      if (phy_cell.last_dl_res.has_value()) {
+        for (const rar_information& rar : phy_cell.last_dl_res->dl_res.rar_grants()) {
           auto it = std::find_if(attempts.begin(), attempts.end(), [&rar](const rach_attempt_context& attempt) {
             return attempt.sent and attempt.ra_rnti == rar.pdsch_cfg.rnti;
           });

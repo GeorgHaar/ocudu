@@ -99,12 +99,13 @@ std::pair<grant_info, grant_info> ocudu::get_pdsch_grant_info(const bwp_downlink
   };
 }
 
-std::vector<test_grant_info> ocudu::get_dl_grants(const cell_configuration& cell_cfg, const dl_sched_result& dl_res)
+std::vector<test_grant_info> ocudu::get_dl_grants(const cell_configuration&   cell_cfg,
+                                                  sched_slot_dl_result_reader dl_res)
 {
   std::vector<test_grant_info> grants;
 
   // Fill SSB.
-  for (const ssb_information& ssb : dl_res.bc.ssb_info) {
+  for (const ssb_information& ssb : dl_res.ssb_info()) {
     grants.emplace_back();
     grants.back().type  = test_grant_info::SSB;
     grants.back().rnti  = rnti_t::INVALID_RNTI;
@@ -112,7 +113,7 @@ std::vector<test_grant_info> ocudu::get_dl_grants(const cell_configuration& cell
   }
 
   // Fill DL PDCCHs.
-  for (const pdcch_dl_information& pdcch : dl_res.dl_pdcchs) {
+  for (const pdcch_dl_information& pdcch : dl_res.dl_pdcchs()) {
     std::vector<grant_info> grant_res_list = get_pdcch_grant_info(cell_cfg.params.pci, pdcch);
     for (const grant_info& grant : grant_res_list) {
       grants.emplace_back();
@@ -123,7 +124,7 @@ std::vector<test_grant_info> ocudu::get_dl_grants(const cell_configuration& cell
   }
 
   // Fill UL PDCCHs.
-  for (const pdcch_ul_information& pdcch : dl_res.ul_pdcchs) {
+  for (const pdcch_ul_information& pdcch : dl_res.ul_pdcchs()) {
     std::vector<grant_info> grant_res_list = get_pdcch_grant_info(cell_cfg.params.pci, pdcch);
     for (const grant_info& grant : grant_res_list) {
       grants.emplace_back();
@@ -134,7 +135,7 @@ std::vector<test_grant_info> ocudu::get_dl_grants(const cell_configuration& cell
   }
 
   // Fill SIB1 PDSCH.
-  for (const sib_information& sib : dl_res.bc.sibs) {
+  for (const sib_information& sib : dl_res.sibs()) {
     grants.emplace_back();
     grants.back().type  = test_grant_info::SIB;
     grants.back().rnti  = sib.pdsch_cfg.rnti;
@@ -142,7 +143,7 @@ std::vector<test_grant_info> ocudu::get_dl_grants(const cell_configuration& cell
   }
 
   // Register RAR PDSCHs.
-  for (const rar_information& rar : dl_res.rar_grants) {
+  for (const rar_information& rar : dl_res.rar_grants()) {
     grants.emplace_back();
     grants.back().type  = test_grant_info::RAR;
     grants.back().rnti  = rar.pdsch_cfg.rnti;
@@ -150,7 +151,7 @@ std::vector<test_grant_info> ocudu::get_dl_grants(const cell_configuration& cell
   }
 
   // Register UE PDSCHs.
-  for (const dl_msg_alloc& ue_pdsch : dl_res.ue_grants) {
+  for (const dl_msg_alloc& ue_pdsch : dl_res.ue_grants()) {
     const auto pdsch_grants = get_pdsch_grant_info(
         cell_cfg.params.dl_cfg_common.init_dl_bwp, ue_pdsch, cell_cfg.expert_cfg.ue.pdsch_interleaving_bundle_size);
     grants.emplace_back();
@@ -165,7 +166,7 @@ std::vector<test_grant_info> ocudu::get_dl_grants(const cell_configuration& cell
     }
   }
 
-  for (const dl_paging_allocation& pg : dl_res.paging_grants) {
+  for (const dl_paging_allocation& pg : dl_res.paging_grants()) {
     grants.emplace_back();
     grants.back().type  = test_grant_info::PAGING;
     grants.back().rnti  = pg.pdsch_cfg.rnti;
@@ -174,7 +175,7 @@ std::vector<test_grant_info> ocudu::get_dl_grants(const cell_configuration& cell
 
   // Register DL-PRS resources. The resource grid is RB-granular, so the whole PRS bandwidth is reserved even though the
   // resource only uses one subcarrier out of every comb size.
-  for (const prs_info& prs : dl_res.prs) {
+  for (const prs_info& prs : dl_res.prs()) {
     grants.emplace_back();
     grants.back().type  = test_grant_info::PRS;
     grants.back().rnti  = rnti_t::INVALID_RNTI;
@@ -184,12 +185,13 @@ std::vector<test_grant_info> ocudu::get_dl_grants(const cell_configuration& cell
   return grants;
 }
 
-std::vector<test_grant_info> ocudu::get_ul_grants(const cell_configuration& cell_cfg, const ul_sched_result& ul_res)
+std::vector<test_grant_info> ocudu::get_ul_grants(const cell_configuration&   cell_cfg,
+                                                  sched_slot_ul_result_reader ul_res)
 {
   std::vector<test_grant_info> grants;
 
   // Fill PUSCHs.
-  for (const ul_sched_info& pusch : ul_res.puschs) {
+  for (const ul_sched_info& pusch : ul_res.puschs()) {
     const bool is_msga_pusch = pusch.context.ue_index == INVALID_DU_UE_INDEX and
                                not pusch.context.msg3_delay.has_value() and pusch.context.nof_retxs == 0;
     grants.emplace_back();
@@ -199,8 +201,8 @@ std::vector<test_grant_info> ocudu::get_ul_grants(const cell_configuration& cell
   }
 
   // Fill PRACHs.
-  if (not ul_res.prachs.empty()) {
-    for (const grant_info& grant : get_prach_grant_info(cell_cfg, ul_res.prachs)) {
+  if (not ul_res.prachs().empty()) {
+    for (const grant_info& grant : get_prach_grant_info(cell_cfg, ul_res.prachs())) {
       grants.emplace_back();
       grants.back().type  = test_grant_info::PRACH;
       grants.back().rnti  = rnti_t::INVALID_RNTI;
@@ -209,7 +211,7 @@ std::vector<test_grant_info> ocudu::get_ul_grants(const cell_configuration& cell
   }
 
   // Fill PUCCHs.
-  for (const pucch_info& pucch : ul_res.pucchs) {
+  for (const pucch_info& pucch : ul_res.pucchs()) {
     const auto pucch_grants = get_pucch_grant_info(pucch);
     grants.emplace_back();
     grants.back().type  = test_grant_info::PUCCH;
@@ -225,7 +227,7 @@ std::vector<test_grant_info> ocudu::get_ul_grants(const cell_configuration& cell
   }
 
   // Fill SRSs.
-  for (const srs_info& srs : ul_res.srss) {
+  for (const srs_info& srs : ul_res.srss()) {
     grants.emplace_back();
     grants.back().type                                = test_grant_info::SRS;
     grants.back().rnti                                = srs.crnti;

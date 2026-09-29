@@ -7,6 +7,7 @@
 
 #include "ocudu/adt/stable_id_map.h"
 #include "ocudu/scheduler/result/csi_rs_info.h"
+#include "ocudu/scheduler/result/detail/sched_pdu_types.h"
 #include "ocudu/scheduler/result/pdcch_info.h"
 #include "ocudu/scheduler/result/pdsch_info.h"
 #include "ocudu/scheduler/result/prach_info.h"

@@ -36,9 +36,9 @@ public:
 
   bool is_pdsch_scheduled() const
   {
-    const auto& dl_res = *phy_notifier.last_sched_res->dl_res;
-    return not dl_res.rar_grants.empty() or not dl_res.bc.sibs.empty() or not dl_res.ue_grants.empty() or
-           not dl_res.paging_grants.empty();
+    const auto dl_res = phy_notifier.last_sched_res->dl_res;
+    return not dl_res.rar_grants().empty() or not dl_res.sibs().empty() or not dl_res.ue_grants().empty() or
+           not dl_res.paging_grants().empty();
   }
 
   test_helpers::dummy_mac_scheduler_adapter    sched_adapter;
@@ -122,9 +122,9 @@ TEST_P(mac_cell_processor_tester, when_cell_is_active_then_slot_indication_trigg
   ASSERT_TRUE(phy_notifier.is_complete);
 
   auto test_params = GetParam();
-  ASSERT_EQ(phy_notifier.last_sched_res->dl_res->bc.sibs.size(), test_params.nof_sib_allocated);
-  ASSERT_EQ(phy_notifier.last_sched_res->dl_res->rar_grants.size(), test_params.nof_rar_allocated);
-  ASSERT_EQ(phy_notifier.last_sched_res->dl_res->ue_grants.size(), test_params.nof_ue_allocated);
+  ASSERT_EQ(phy_notifier.last_sched_res->dl_res.sibs().size(), test_params.nof_sib_allocated);
+  ASSERT_EQ(phy_notifier.last_sched_res->dl_res.rar_grants().size(), test_params.nof_rar_allocated);
+  ASSERT_EQ(phy_notifier.last_sched_res->dl_res.ue_grants().size(), test_params.nof_ue_allocated);
 }
 
 TEST_P(mac_cell_processor_tester, when_cell_is_deactivated_then_scheduler_gets_notified)

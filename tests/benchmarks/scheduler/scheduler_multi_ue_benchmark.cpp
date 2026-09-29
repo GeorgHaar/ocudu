@@ -125,7 +125,7 @@ public:
     }
   }
 
-  void run_slot() { result = &sch->slot_indication(next_sl_tx, to_du_cell_index(0)); }
+  void run_slot() { result = sch->slot_indication(next_sl_tx, to_du_cell_index(0)); }
 
   void process_results()
   {
@@ -133,8 +133,8 @@ public:
     ++next_sl_tx;
 
     // Store previous results if any.
-    if (result != nullptr) {
-      copy_result(sched_slot_result_reader{*result}, sched_results[result_sl_tx.count()]);
+    if (result.valid()) {
+      copy_result(result, sched_results[result_sl_tx.count()]);
     }
 
     // Process past UCI results.
@@ -230,9 +230,9 @@ private:
 
   std::unique_ptr<mac_scheduler> sch;
 
-  unsigned            ue_count = 0;
-  slot_point_extended next_sl_tx;
-  const sched_result* result = nullptr;
+  unsigned                 ue_count = 0;
+  slot_point_extended      next_sl_tx;
+  sched_slot_result_reader result;
 
   static constexpr size_t                  nof_stored_sched_results = 64;
   circular_vector<sched_result_copy, true> sched_results{nof_stored_sched_results};

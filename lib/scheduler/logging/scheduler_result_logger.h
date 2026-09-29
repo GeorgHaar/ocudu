@@ -7,10 +7,9 @@
 
 #include "ocudu/ocudulog/logger.h"
 #include "ocudu/ran/pci.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 
 namespace ocudu {
-
-struct sched_result;
 
 class scheduler_result_logger
 {
@@ -20,13 +19,13 @@ public:
   /// Log scheduler result for a specific cell and slot.
   /// \param[in] result Scheduling result for this slot.
   /// \param[in] slot_latency Latency that it took for the scheduler to make the decision for the slot.
-  void on_scheduler_result(const sched_result&       result,
+  void on_scheduler_result(sched_slot_result_reader  result,
                            std::chrono::microseconds slot_latency = std::chrono::microseconds{0});
 
 private:
-  void log_debug(const sched_result& result, std::chrono::microseconds slot_latency);
+  void log_debug(sched_slot_result_reader result, std::chrono::microseconds slot_latency);
 
-  void log_info(const sched_result& result, std::chrono::microseconds slot_latency);
+  void log_info(sched_slot_result_reader result, std::chrono::microseconds slot_latency);
 
   ocudulog::basic_logger& logger;
   bool                    log_broadcast;

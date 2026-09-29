@@ -248,11 +248,11 @@ protected:
   const dl_msg_alloc* find_ue_pdsch(rnti_t rnti) const
   {
     const auto& last_dl_res = phy.cells[0].last_dl_res;
-    if (not last_dl_res.has_value() or (last_dl_res->dl_res == nullptr)) {
+    if (not last_dl_res.has_value()) {
       return nullptr;
     }
 
-    for (const dl_msg_alloc& grant : last_dl_res->dl_res->ue_grants) {
+    for (const dl_msg_alloc& grant : last_dl_res->dl_res.ue_grants()) {
       if (grant.pdsch_cfg.rnti == rnti) {
         return &grant;
       }

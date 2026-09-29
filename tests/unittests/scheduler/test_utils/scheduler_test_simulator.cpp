@@ -125,13 +125,16 @@ void scheduler_test_simulator::run_slot(std::optional<du_cell_index_t> cell_idx)
 
   auto advance_slot = [this](du_cell_index_t cidx) {
     // Run scheduler for the cell.
-    sim_cells[cidx]->last_res = &sched->slot_indication(next_slot, cidx);
+    const auto res = sched->slot_indication(next_slot, cidx);
 
     // Ensure the scheduler result is consistent with the cell configuration and there are no collisions.
-    test_scheduler_result_consistency(cell_cfg(cidx), next_slot.without_hyper_sfn(), *last_sched_result(cidx));
+    test_scheduler_result_consistency(cell_cfg(cidx), next_slot.without_hyper_sfn(), res);
 
     // Verify HARQ NDI and TBS consistency across retransmissions.
-    sim_cells[cidx]->harq_tracker.on_new_result(next_slot.without_hyper_sfn(), *last_sched_result(cidx));
+    sim_cells[cidx]->harq_tracker.on_new_result(next_slot.without_hyper_sfn(), res);
+
+    // The result lives in the slot of the scheduler grid, so it is copied out before the slot is reused.
+    sim_cells[cidx]->store_result(res);
 
     // In case auto-feedback is enabled, handle it.
     handle_auto_feedback(cidx);

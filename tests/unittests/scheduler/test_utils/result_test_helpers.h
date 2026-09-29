@@ -5,27 +5,28 @@
 
 #pragma once
 
+#include "tests/test_doubles/scheduler/sched_result_copy.h"
 #include "tests/test_doubles/scheduler/scheduler_result_finder.h"
 #include "ocudu/scheduler/scheduler_feedback_handler.h"
 
 namespace ocudu {
 
-inline const pdcch_dl_information* find_ue_dl_pdcch(rnti_t rnti, const sched_result& res)
+inline const pdcch_dl_information* find_ue_dl_pdcch(rnti_t rnti, const sched_result_copy& res)
 {
   return find_ue_dl_pdcch(rnti, res.dl);
 }
 
-inline const pdcch_ul_information* find_ue_ul_pdcch(rnti_t rnti, const sched_result& res)
+inline const pdcch_ul_information* find_ue_ul_pdcch(rnti_t rnti, const sched_result_copy& res)
 {
   return find_ue_ul_pdcch(rnti, res.dl);
 }
 
-inline const ul_sched_info* find_ue_pusch(rnti_t rnti, const sched_result& res)
+inline const ul_sched_info* find_ue_pusch(rnti_t rnti, const sched_result_copy& res)
 {
   return find_ue_pusch(rnti, res.ul.puschs);
 }
 
-inline const ul_sched_info* find_ue_pusch_with_harq_ack(rnti_t rnti, const sched_result& res)
+inline const ul_sched_info* find_ue_pusch_with_harq_ack(rnti_t rnti, const sched_result_copy& res)
 {
   const ul_sched_info* pusch = find_ue_pusch(rnti, res);
   if (pusch != nullptr) {
@@ -36,12 +37,12 @@ inline const ul_sched_info* find_ue_pusch_with_harq_ack(rnti_t rnti, const sched
   return nullptr;
 }
 
-inline const dl_msg_alloc* find_ue_pdsch(rnti_t rnti, const sched_result& res)
+inline const dl_msg_alloc* find_ue_pdsch(rnti_t rnti, const sched_result_copy& res)
 {
   return find_ue_pdsch(rnti, res.dl.ue_grants);
 }
 
-inline const dl_msg_alloc* find_ue_pdsch_with_lcid(rnti_t rnti, lcid_dl_sch_t lcid, const sched_result& res)
+inline const dl_msg_alloc* find_ue_pdsch_with_lcid(rnti_t rnti, lcid_dl_sch_t lcid, const sched_result_copy& res)
 {
   const dl_msg_alloc* pdsch = find_ue_pdsch(rnti, res.dl.ue_grants);
   if (pdsch == nullptr) {
@@ -57,14 +58,14 @@ inline const dl_msg_alloc* find_ue_pdsch_with_lcid(rnti_t rnti, lcid_dl_sch_t lc
   return nullptr;
 }
 
-inline const pucch_info* find_ue_pucch(rnti_t rnti, const sched_result& res)
+inline const pucch_info* find_ue_pucch(rnti_t rnti, const sched_result_copy& res)
 {
-  return find_ue_pucch(rnti, res.ul.pucchs.unsorted());
+  return find_ue_pucch(rnti, span<const pucch_info>{res.ul.pucchs});
 }
 
-inline const pucch_info* find_ue_pucch_with_harq_ack(rnti_t rnti, const sched_result& res)
+inline const pucch_info* find_ue_pucch_with_harq_ack(rnti_t rnti, const sched_result_copy& res)
 {
-  return find_ue_pucch_with_harq_ack(rnti, res.ul.pucchs.unsorted());
+  return find_ue_pucch_with_harq_ack(rnti, span<const pucch_info>{res.ul.pucchs});
 }
 
 inline uci_indication::uci_pdu create_uci_pdu_with_harq_ack(du_ue_index_t ue_index, const pucch_info& pucch_pdu)

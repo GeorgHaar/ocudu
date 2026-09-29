@@ -57,6 +57,16 @@ void copy_pdu_list(const View& src, std::vector<T>& dst)
   dst.assign(src.begin(), src.end());
 }
 
+/// Copies the PDUs of a vector into the list a builder fills.
+template <typename T, typename Builder>
+void fill_pdu_list(const std::vector<T>& src, Builder dst)
+{
+  for (const T& pdu : src) {
+    [[maybe_unused]] const T* added = dst.emplace_back(pdu);
+    ocudu_assert(added != nullptr, "Slot result list is too small to hold the copy");
+  }
+}
+
 } // namespace detail
 
 /// Copies the downlink result a reader points at.
@@ -83,6 +93,31 @@ inline void copy_result(const sched_slot_ul_result_reader& src, ul_sched_result_
   detail::copy_pdu_list(src.srss(), dst.srss);
   const span<const pucch_info> pucchs = src.pucchs().unsorted();
   dst.pucchs.assign(pucchs.begin(), pucchs.end());
+}
+
+/// Fills the downlink result of a slot with a copy held in plain vectors.
+inline void copy_result(const dl_sched_result_copy& src, sched_slot_dl_result_builder dst)
+{
+  detail::fill_pdu_list(src.dl_pdcchs, dst.dl_pdcchs());
+  detail::fill_pdu_list(src.ul_pdcchs, dst.ul_pdcchs());
+  detail::fill_pdu_list(src.bc.ssb_info, dst.ssb_info());
+  detail::fill_pdu_list(src.bc.sibs, dst.sibs());
+  detail::fill_pdu_list(src.rar_grants, dst.rar_grants());
+  detail::fill_pdu_list(src.paging_grants, dst.paging_grants());
+  detail::fill_pdu_list(src.ue_grants, dst.ue_grants());
+  detail::fill_pdu_list(src.csi_rs, dst.csi_rs());
+  detail::fill_pdu_list(src.prs, dst.prs());
+}
+
+/// Fills the uplink result of a slot with a copy held in plain vectors.
+inline void copy_result(const ul_sched_result_copy& src, sched_slot_ul_result_builder dst)
+{
+  detail::fill_pdu_list(src.puschs, dst.puschs());
+  detail::fill_pdu_list(src.prachs, dst.prachs());
+  detail::fill_pdu_list(src.srss, dst.srss());
+  for (const pucch_info& pucch : src.pucchs) {
+    dst.pucchs().emplace(pucch);
+  }
 }
 
 /// Copies the result a reader points at.

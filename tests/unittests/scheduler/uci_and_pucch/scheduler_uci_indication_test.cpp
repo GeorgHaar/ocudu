@@ -46,9 +46,9 @@ protected:
 
   void run_slot()
   {
-    last_sched_res = &sched->slot_indication(next_slot, to_du_cell_index(0));
-    ASSERT_TRUE(last_sched_res->success);
-    test_scheduler_result_consistency(*cell_cfg, next_slot.without_hyper_sfn(), *last_sched_res);
+    last_sched_res = sched->slot_indication(next_slot, to_du_cell_index(0));
+    ASSERT_TRUE(last_sched_res.success());
+    test_scheduler_result_consistency(*cell_cfg, next_slot.without_hyper_sfn(), last_sched_res);
     ++next_slot;
   }
 
@@ -97,21 +97,21 @@ protected:
 
   bool ue_pdsch_scheduled() const
   {
-    return std::any_of(last_sched_res->dl.ue_grants.begin(),
-                       last_sched_res->dl.ue_grants.end(),
-                       [ue_rnti = ue_rnti](const auto& pdsch) { return pdsch.pdsch_cfg.rnti == ue_rnti; });
+    const auto ue_grants = last_sched_res.dl().ue_grants();
+    return std::any_of(ue_grants.begin(), ue_grants.end(), [ue_rnti = ue_rnti](const auto& pdsch) {
+      return pdsch.pdsch_cfg.rnti == ue_rnti;
+    });
   }
 
   bool ue_pusch_scheduled() const
   {
-    return std::any_of(last_sched_res->ul.puschs.begin(), last_sched_res->ul.puschs.end(), [](const auto& pusch) {
-      return pusch.pusch_cfg.rnti == ue_rnti;
-    });
+    const auto puschs = last_sched_res.ul().puschs();
+    return std::any_of(puschs.begin(), puschs.end(), [](const auto& pusch) { return pusch.pusch_cfg.rnti == ue_rnti; });
   }
 
   bool ue_pucch_harq_ack_grant_scheduled() const
   {
-    span<const pucch_info> pucchs = last_sched_res->ul.pucchs.unsorted();
+    const span<const pucch_info> pucchs = last_sched_res.ul().pucchs().unsorted();
     return std::any_of(pucchs.begin(), pucchs.end(), [](const pucch_info& pucch) {
       bool is_harq_ack = pucch.uci_bits.harq_ack_nof_bits > 0;
       return pucch.crnti == ue_rnti and is_harq_ack;
@@ -129,8 +129,8 @@ protected:
   const cell_configuration*               cell_cfg = nullptr;
   std::unique_ptr<mac_scheduler>          sched;
 
-  slot_point_extended next_slot;
-  const sched_result* last_sched_res = nullptr;
+  slot_point_extended      next_slot;
+  sched_slot_result_reader last_sched_res;
 };
 
 TEST_F(sched_uci_indication_test, no_retx_after_harq_ack)

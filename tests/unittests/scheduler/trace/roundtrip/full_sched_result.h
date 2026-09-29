@@ -70,7 +70,7 @@ class full_sched_result
 public:
   full_sched_result() { fill_full_sched_result(results); }
 
-  const sched_result& result() { return results.slot_storage(0); }
+  sched_slot_result_reader result() { return results.get_reader(0); }
 
 private:
   sched_result_grid results{sched_result_grid_config{1}};

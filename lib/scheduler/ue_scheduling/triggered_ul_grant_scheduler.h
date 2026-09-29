@@ -11,7 +11,7 @@
 #include "ocudu/ran/slot_point.h"
 #include "ocudu/ran/subcarrier_spacing.h"
 #include "ocudu/scheduler/config/logical_channel_group.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/scheduler/sched_consts.h"
 #include "ocudu/support/units.h"
 
@@ -32,7 +32,7 @@ public:
 
   /// Scans finalized DL grants and enqueues triggered UL grants for UEs whose DL grant included a LCID configured
   /// with triggered_ul_grant. \p pdsch_slot must be valid.
-  void process_dl_results(slot_point sl_tx, const sched_result& sched_result);
+  void process_dl_results(slot_point sl_tx, sched_slot_result_reader sched_result);
 
   /// Fires triggered UL grants due by \p pdcch_slot by injecting a synthetic BSR into the affected UEs.
   void run_slot(slot_point pdcch_slot);

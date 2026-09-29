@@ -481,8 +481,8 @@ public:
     slot_dl_data_result.si_pdus.clear();
     slot_dl_data_result.paging_pdus.clear();
     slot_dl_data_result.ue_pdus.clear();
-    slot_dl_result.dl_res = nullptr;
-    slot_ul_result.ul_res = nullptr;
+    slot_dl_result.dl_res = {};
+    slot_ul_result.ul_res = {};
   }
 
   mac_cell_result_notifier& get_cell(du_cell_index_t cell_index) override { return *this; }
@@ -526,7 +526,7 @@ public:
 private:
   void process_dl_results()
   {
-    if (slot_dl_result.dl_res == nullptr or slot_dl_result.dl_res->nof_dl_symbols == 0) {
+    if (not slot_dl_result.dl_res.valid() or slot_dl_result.dl_res.nof_dl_symbols() == 0) {
       // Early return.
       return;
     }
@@ -540,14 +540,15 @@ private:
 
   void process_ul_results()
   {
-    if (slot_ul_result.ul_res == nullptr or slot_ul_result.ul_res->nof_ul_symbols == 0) {
+    if (not slot_ul_result.ul_res.valid() or slot_ul_result.ul_res.nof_ul_symbols() == 0) {
       // Early return.
       return;
     }
 
+    const auto puschs = slot_ul_result.ul_res.puschs();
     metrics.slot_ul_count++;
-    metrics.nof_ul_grants += slot_ul_result.ul_res->puschs.size();
-    for (const ul_sched_info& pusch : slot_ul_result.ul_res->puschs) {
+    metrics.nof_ul_grants += puschs.size();
+    for (const ul_sched_info& pusch : puschs) {
       metrics.nof_ul_bytes += pusch.pusch_cfg.tb_size_bytes.value();
     }
   }
@@ -768,8 +769,8 @@ public:
       // Synchronization point to avoid that the upper layer executors get starved.
       this->workers->wait_pending_tasks();
 
-      if (sim_phy.slot_dl_result.dl_res != nullptr) {
-        return find_ue_pdsch_with_lcid(rnti, LCID_SRB0, sim_phy.slot_dl_result.dl_res->ue_grants) != nullptr;
+      if (sim_phy.slot_dl_result.dl_res.valid()) {
+        return find_ue_pdsch_with_lcid(rnti, LCID_SRB0, sim_phy.slot_dl_result.dl_res.ue_grants()) != nullptr;
       }
       return false;
     };
@@ -779,9 +780,9 @@ public:
     // Wait until the HARQ-ACK for the Msg4 PDSCH is scheduled on PUCCH and its UCI indication is processed by the DU.
     slot_point msg4_ack_slot;
     auto       msg4_ack_sched = [this, rnti, &msg4_ack_slot]() {
-      if (sim_phy.slot_ul_result.ul_res != nullptr) {
-        const auto& pucchs = sim_phy.slot_ul_result.ul_res->pucchs.unsorted();
-        auto        it     = std::find_if(pucchs.begin(), pucchs.end(), [rnti](const pucch_info& pucch) {
+      if (sim_phy.slot_ul_result.ul_res.valid()) {
+        const auto pucchs = sim_phy.slot_ul_result.ul_res.pucchs().unsorted();
+        auto       it     = std::find_if(pucchs.begin(), pucchs.end(), [rnti](const pucch_info& pucch) {
           return pucch.crnti == rnti and pucch.uci_bits.harq_ack_nof_bits > 0;
         });
         if (it != pucchs.end()) {
@@ -857,8 +858,8 @@ public:
 
     // Wait for RRC Reconf Complete to arrive to F1AP and that the RLC sends status report.
     auto dl_pdu_sched_srb1 = [this, rnti]() {
-      if (sim_phy.slot_dl_result.dl_res != nullptr) {
-        return find_ue_pdsch_with_lcid(rnti, LCID_SRB1, sim_phy.slot_dl_result.dl_res->ue_grants) != nullptr;
+      if (sim_phy.slot_dl_result.dl_res.valid()) {
+        return find_ue_pdsch_with_lcid(rnti, LCID_SRB1, sim_phy.slot_dl_result.dl_res.ue_grants()) != nullptr;
       }
       return false;
     };
@@ -949,14 +950,15 @@ public:
   void process_pucch_grants()
   {
     // Early return.
-    if (sim_phy.slot_ul_result.ul_res == nullptr) {
+    if (not sim_phy.slot_ul_result.ul_res.valid()) {
       return;
     }
 
     // Forwards HARQ-ACKs to the DU-High given the scheduled PUCCHs.
+    const auto                 nof_puschs = sim_phy.slot_ul_result.ul_res.puschs().size();
     mac_uci_indication_message uci{};
     uci.sl_rx = sim_phy.slot_ul_result.slot;
-    for (const pucch_info& pucch : sim_phy.slot_ul_result.ul_res->pucchs) {
+    for (const pucch_info& pucch : sim_phy.slot_ul_result.ul_res.pucchs()) {
       mac_uci_pdu& uci_pdu = uci.ucis.emplace_back();
       uci_pdu.rnti         = pucch.crnti;
       switch (pucch.format()) {
@@ -974,8 +976,7 @@ public:
           // UL grants is 0 or scheduler stops allocating UL grants.
           if (ul_bsr_bytes != 0 and pucch.uci_bits.sr_bits != sr_nof_bits::no_sr and
               (sim_phy.metrics.nof_ul_grants == 0 or
-               (sim_phy.metrics.nof_ul_grants ==
-                sim_phy.metrics.nof_ul_grants + sim_phy.slot_ul_result.ul_res->puschs.size()))) {
+               (sim_phy.metrics.nof_ul_grants == sim_phy.metrics.nof_ul_grants + nof_puschs))) {
             f1.sr_info.emplace();
             f1.sr_info->detected = true;
           }
@@ -993,8 +994,7 @@ public:
           // UL grants is 0 or scheduler stops allocating UL grants.
           if (ul_bsr_bytes != 0 and pucch.uci_bits.sr_bits != sr_nof_bits::no_sr and
               (sim_phy.metrics.nof_ul_grants == 0 or
-               (sim_phy.metrics.nof_ul_grants ==
-                sim_phy.metrics.nof_ul_grants + sim_phy.slot_ul_result.ul_res->puschs.size()))) {
+               (sim_phy.metrics.nof_ul_grants == sim_phy.metrics.nof_ul_grants + nof_puschs))) {
             f2.sr_info.emplace();
             f2.sr_info->resize(to_underlying(pucch.uci_bits.sr_bits));
             f2.sr_info->fill(0, to_underlying(pucch.uci_bits.sr_bits), true);
@@ -1025,7 +1025,7 @@ public:
     }
 
     // Early return.
-    if (sim_phy.slot_ul_result.ul_res == nullptr) {
+    if (not sim_phy.slot_ul_result.ul_res.valid()) {
       return;
     }
 
@@ -1036,7 +1036,7 @@ public:
     mac_rx_data_indication rx_ind{};
     rx_ind.sl_rx      = sim_phy.slot_ul_result.slot;
     rx_ind.cell_index = to_du_cell_index(0);
-    for (const ul_sched_info& pusch : sim_phy.slot_ul_result.ul_res->puschs) {
+    for (const ul_sched_info& pusch : sim_phy.slot_ul_result.ul_res.puschs()) {
       unsigned payload_len = std::min(mac_pdu.length(), static_cast<size_t>(pusch.pusch_cfg.tb_size_bytes.value()));
 
       // 1 Byte for LCID and other fields and 1/2 Byte(s) for payload length.
@@ -1133,20 +1133,21 @@ public:
     }
 
     // Early return.
-    if (sim_phy.slot_ul_result.ul_res == nullptr) {
+    if (not sim_phy.slot_ul_result.ul_res.valid()) {
       return;
     }
 
+    const auto                 puschs = sim_phy.slot_ul_result.ul_res.puschs();
     mac_crc_indication_message crc{};
     crc.sl_rx = sim_phy.slot_ul_result.slot;
-    for (const ul_sched_info& pusch : sim_phy.slot_ul_result.ul_res->puschs) {
+    for (const ul_sched_info& pusch : puschs) {
       mac_crc_pdu& crc_pdu   = crc.crcs.emplace_back();
       crc_pdu.rnti           = pusch.pusch_cfg.rnti;
       crc_pdu.harq_id        = pusch.pusch_cfg.harq_id;
       crc_pdu.tb_crc_success = true;
       crc_pdu.ul_sinr_dB     = 21.0;
     }
-    if (not sim_phy.slot_ul_result.ul_res->puschs.empty()) {
+    if (not puschs.empty()) {
       pending_crc.push_back(std::move(crc));
     }
   }

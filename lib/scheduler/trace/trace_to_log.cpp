@@ -12,7 +12,7 @@
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/ran/bwp/bwp_configuration.h"
 #include "ocudu/ran/pdcch/coreset.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/scheduler/scheduler_rach_handler.h"
 #include "ocudu/support/format/fmt_to_c_str.h"
 #include "fmt/ranges.h"
@@ -154,8 +154,8 @@ bool schedtrace::trace_to_log(std::istream& input, ocudulog::basic_logger& logge
         if (slot_ev.decision() != nullptr) {
           convert_fb_to_decision(results.get_builder(0), *slot_ev.decision(), cell_cfg, coresets);
         }
-        const sched_result& result = results.slot_storage(0);
-        slot_point          sl_tx  = {dl_scs, slot_ev.slot_tx()};
+        const auto slot_result = results.get_reader(0);
+        slot_point sl_tx       = {dl_scs, slot_ev.slot_tx()};
         logger.set_context(sl_tx.sfn(), sl_tx.slot_index());
         const unsigned nof_inputs = slot_ev.inputs() != nullptr ? slot_ev.inputs()->size() : 0;
         for (unsigned i = 0; i != nof_inputs; ++i) {
@@ -196,7 +196,7 @@ bool schedtrace::trace_to_log(std::istream& input, ocudulog::basic_logger& logge
           }
         }
         event_logger.log();
-        result_logger.on_scheduler_result(result, std::chrono::microseconds(slot_ev.latency_us()));
+        result_logger.on_scheduler_result(slot_result, std::chrono::microseconds(slot_ev.latency_us()));
       } break;
       case fbs::CellEventValue::CellStopEvent: {
         logger.info("pci={}: Cell stopped", cell_cfg.pci);

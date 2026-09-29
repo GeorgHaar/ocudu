@@ -248,8 +248,8 @@ void scheduler_impl::handle_crnti_ce_received(du_ue_index_t ue_index)
   cells[pcell_idx]->get_feedback_handler().handle_crnti_ce_received(ue_index);
 }
 
-const sched_result& scheduler_impl::slot_indication(slot_point_extended sl_tx,
-                                                    du_cell_index_t     cell_index) noexcept OCUDU_RTSAN_NONBLOCKING
+sched_slot_result_reader scheduler_impl::slot_indication(slot_point_extended sl_tx,
+                                                         du_cell_index_t cell_index) noexcept OCUDU_RTSAN_NONBLOCKING
 {
   ocudu_assert(cells.contains(cell_index), "cell={} does not exist", cell_index);
   cell_scheduler& cell = *cells[cell_index];
@@ -259,11 +259,8 @@ const sched_result& scheduler_impl::slot_indication(slot_point_extended sl_tx,
     logger.set_context(sl_tx.sfn(), sl_tx.slot_index());
   }
 
-  // > Run scheduler for the given slot and cell.
-  cell.run_slot(sl_tx);
-
-  // Return result for the slot.
-  return cell.last_result();
+  // > Run scheduler for the given slot and cell and return the result for the slot.
+  return cell.run_slot(sl_tx);
 }
 
 void scheduler_impl::handle_error_indication(slot_point sl_tx, du_cell_index_t cell_index, error_outcome event)

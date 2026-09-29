@@ -526,7 +526,7 @@ void cell_metrics_handler::report_metrics()
 }
 
 void cell_metrics_handler::handle_slot_result(slot_point_extended       sl_tx,
-                                              const sched_result&       slot_result,
+                                              sched_slot_result_reader  slot_result,
                                               std::chrono::microseconds slot_decision_latency)
 {
   if (OCUDU_UNLIKELY(not last_slot_tx.valid())) {
@@ -536,8 +536,11 @@ void cell_metrics_handler::handle_slot_result(slot_point_extended       sl_tx,
   }
   last_slot_tx = sl_tx;
 
-  data.nof_ue_pdsch_grants += slot_result.dl.ue_grants.size();
-  for (const dl_msg_alloc& dl_grant : slot_result.dl.ue_grants) {
+  const auto dl_result = slot_result.dl();
+  const auto ul_result = slot_result.ul();
+
+  data.nof_ue_pdsch_grants += dl_result.ue_grants().size();
+  for (const dl_msg_alloc& dl_grant : dl_result.ue_grants()) {
     auto it = rnti_to_ue_index_lookup.find(dl_grant.pdsch_cfg.rnti);
     if (it == rnti_to_ue_index_lookup.end()) {
       // UE not found.
@@ -563,8 +566,8 @@ void cell_metrics_handler::handle_slot_result(slot_point_extended       sl_tx,
     u.data.last_pdsch_slot = last_slot_tx.without_hyper_sfn();
   }
 
-  data.nof_ue_pusch_grants += slot_result.ul.puschs.size();
-  for (const ul_sched_info& ul_grant : slot_result.ul.puschs) {
+  data.nof_ue_pusch_grants += ul_result.puschs().size();
+  for (const ul_sched_info& ul_grant : ul_result.puschs()) {
     auto it = rnti_to_ue_index_lookup.find(ul_grant.pusch_cfg.rnti);
     if (it == rnti_to_ue_index_lookup.end()) {
       // UE not found.
@@ -596,7 +599,7 @@ void cell_metrics_handler::handle_slot_result(slot_point_extended       sl_tx,
 
   // PUCCH resource usage.
   prb_bitmap pucch_prbs(cell_cfg.nof_ul_prbs);
-  for (const auto& pucch : slot_result.ul.pucchs) {
+  for (const auto& pucch : ul_result.pucchs()) {
     // Mark the PRBs used by this PUCCH.
     const prb_interval prbs = pucch.grant_prbs();
     pucch_prbs.fill(prbs.start(), prbs.stop());
@@ -607,8 +610,8 @@ void cell_metrics_handler::handle_slot_result(slot_point_extended       sl_tx,
   data.pucch_rbs_used += pucch_prbs.count();
 
   // Count DL and UL slots.
-  data.nof_dl_slots += slot_result.dl.nof_dl_symbols > 0;
-  data.nof_ul_slots += slot_result.ul.nof_ul_symbols > 0;
+  data.nof_dl_slots += dl_result.nof_dl_symbols() > 0;
+  data.nof_ul_slots += ul_result.nof_ul_symbols() > 0;
 
   // Process latency.
   data.decision_latency_sum += slot_decision_latency;
@@ -621,23 +624,24 @@ void cell_metrics_handler::handle_slot_result(slot_point_extended       sl_tx,
   ++data.decision_latency_hist[bin_idx];
 
   // Failed allocation attempts.
-  data.failed_dl_pdcch += slot_result.failed_attempts.dl_pdcch;
-  data.failed_ul_pdcch += slot_result.failed_attempts.ul_pdcch;
-  data.failed_common_dl_pdcch += slot_result.failed_attempts.common_dl_pdcch;
-  data.failed_common_ul_pdcch += slot_result.failed_attempts.common_ul_pdcch;
-  data.nof_failed_uci_allocs += slot_result.failed_attempts.uci;
-  data.failed_fallback_uci_allocs += slot_result.failed_attempts.fallback_uci_allocs;
+  const failed_alloc_attempts& attempts = slot_result.failed_attempts();
+  data.failed_dl_pdcch += attempts.dl_pdcch;
+  data.failed_ul_pdcch += attempts.ul_pdcch;
+  data.failed_common_dl_pdcch += attempts.common_dl_pdcch;
+  data.failed_common_ul_pdcch += attempts.common_ul_pdcch;
+  data.nof_failed_uci_allocs += attempts.uci;
+  data.failed_fallback_uci_allocs += attempts.fallback_uci_allocs;
 }
 
 void cell_metrics_handler::handle_skipped_slot(slot_point_extended sl_tx)
 {
   // A skipped slot scheduled nothing and took no time to decide.
   static const sched_result empty_result{};
-  push_result(sl_tx, empty_result, std::chrono::microseconds{0});
+  push_result(sl_tx, sched_slot_result_reader{empty_result}, std::chrono::microseconds{0});
 }
 
 void cell_metrics_handler::push_result(slot_point_extended       sl_tx,
-                                       const sched_result&       slot_result,
+                                       sched_slot_result_reader  slot_result,
                                        std::chrono::microseconds slot_decision_latency)
 {
   if (not enabled()) {

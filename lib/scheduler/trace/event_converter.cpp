@@ -1247,79 +1247,82 @@ void schedtrace::convert_fb_to_failed_attempts(failed_alloc_attempts& failed_att
 }
 
 flatbuffers::Offset<fbs::SlotDecision> schedtrace::convert_decision_to_fb(flatbuffers::FlatBufferBuilder& fbb,
-                                                                          const sched_result&             result)
+                                                                          sched_slot_result_reader        result)
 {
+  const auto dl = result.dl();
+  const auto ul = result.ul();
+
   static_vector<flatbuffers::Offset<fbs::SibPdsch>, MAX_SI_PDUS_PER_SLOT> sib_offs;
-  for (const auto& sib : result.dl.bc.sibs) {
+  for (const auto& sib : dl.sibs()) {
     sib_offs.push_back(convert_sib_pdsch_to_fb(fbb, sib));
   }
 
   static_vector<flatbuffers::Offset<fbs::RarPdsch>, MAX_RAR_PDUS_PER_SLOT> rar_offs;
-  for (const auto& rar : result.dl.rar_grants) {
+  for (const auto& rar : dl.rar_grants()) {
     rar_offs.push_back(convert_rar_pdsch_to_fb(fbb, rar));
   }
 
   static_vector<flatbuffers::Offset<fbs::PagingPdsch>, MAX_PAGING_PDUS_PER_SLOT> paging_offs;
-  for (const auto& pg : result.dl.paging_grants) {
+  for (const auto& pg : dl.paging_grants()) {
     paging_offs.push_back(convert_paging_pdsch_to_fb(fbb, pg));
   }
 
   static_vector<flatbuffers::Offset<fbs::Pdsch>, MAX_UE_PDUS_PER_SLOT> pdsch_offs;
-  for (const auto& pdsch_alloc : result.dl.ue_grants) {
+  for (const auto& pdsch_alloc : dl.ue_grants()) {
     pdsch_offs.push_back(convert_pdsch_to_fb(fbb, pdsch_alloc));
   }
 
   static_vector<flatbuffers::Offset<fbs::Pusch>, MAX_PUSCH_PDUS_PER_SLOT> pusch_offs;
-  for (const auto& pusch : result.ul.puschs) {
+  for (const auto& pusch : ul.puschs()) {
     pusch_offs.push_back(convert_pusch_to_fb(fbb, pusch));
   }
 
   static_vector<flatbuffers::Offset<fbs::Pucch>, MAX_PUCCH_PDUS_PER_SLOT> pucch_offs;
-  for (const auto& pucch : result.ul.pucchs) {
+  for (const auto& pucch : ul.pucchs()) {
     pucch_offs.push_back(convert_pucch_info_to_fb(fbb, pucch));
   }
 
   std::array<fbs::DlPdcch, MAX_DL_PDCCH_PDUS_PER_SLOT> dl_pdcchs;
   unsigned                                             nof_dl_pdcchs = 0;
-  for (const auto& pdcch : result.dl.dl_pdcchs) {
+  for (const auto& pdcch : dl.dl_pdcchs()) {
     dl_pdcchs[nof_dl_pdcchs++] = convert_dl_pdcch_to_fb(pdcch);
   }
 
   std::array<fbs::UlPdcch, MAX_UL_PDCCH_PDUS_PER_SLOT> ul_pdcchs;
   unsigned                                             nof_ul_pdcchs = 0;
-  for (const auto& pdcch : result.dl.ul_pdcchs) {
+  for (const auto& pdcch : dl.ul_pdcchs()) {
     ul_pdcchs[nof_ul_pdcchs++] = convert_ul_pdcch_to_fb(pdcch);
   }
 
   std::array<fbs::Ssb, MAX_SSB_PER_SLOT> ssbs;
   unsigned                               nof_ssbs = 0;
-  for (const auto& ssb : result.dl.bc.ssb_info) {
+  for (const auto& ssb : dl.ssb_info()) {
     ssbs[nof_ssbs++] = convert_ssb_to_fb(ssb);
   }
 
   std::array<fbs::CsiRs, MAX_CSI_RS_PDUS_PER_SLOT> csi_rss;
   unsigned                                         nof_csi_rss = 0;
-  for (const auto& csi : result.dl.csi_rs) {
+  for (const auto& csi : dl.csi_rs()) {
     csi_rss[nof_csi_rss++] = convert_csi_rs_to_fb(csi);
   }
 
   std::array<fbs::Prach, MAX_PRACH_OCCASIONS_PER_SLOT> prachs;
   unsigned                                             nof_prachs = 0;
-  for (const auto& prach : result.ul.prachs) {
+  for (const auto& prach : ul.prachs()) {
     prachs[nof_prachs++] = convert_prach_to_fb(prach);
   }
 
   std::array<fbs::Srs, MAX_SRS_PDUS_PER_SLOT> srss;
   unsigned                                    nof_srss = 0;
-  for (const auto& srs : result.ul.srss) {
+  for (const auto& srs : ul.srss()) {
     srss[nof_srss++] = convert_srs_to_fb(srs);
   }
 
-  const bool any_failed_attempts = result.failed_attempts.dl_pdcch != 0 || result.failed_attempts.ul_pdcch != 0 ||
-                                   result.failed_attempts.common_dl_pdcch != 0 ||
-                                   result.failed_attempts.common_ul_pdcch != 0 || result.failed_attempts.uci != 0 ||
-                                   result.failed_attempts.fallback_uci_allocs != 0;
-  const fbs::FailedAttempts failed_attempts = convert_failed_attempts_to_fb(result.failed_attempts);
+  const failed_alloc_attempts& attempts = result.failed_attempts();
+  const bool any_failed_attempts = attempts.dl_pdcch != 0 || attempts.ul_pdcch != 0 || attempts.common_dl_pdcch != 0 ||
+                                   attempts.common_ul_pdcch != 0 || attempts.uci != 0 ||
+                                   attempts.fallback_uci_allocs != 0;
+  const fbs::FailedAttempts failed_attempts = convert_failed_attempts_to_fb(attempts);
 
   // All child tables are built; create the vectors and then the decision table.
   const auto dl_pdcchs_vec = nof_dl_pdcchs == 0 ? 0 : fbb.CreateVectorOfStructs(dl_pdcchs.data(), nof_dl_pdcchs);

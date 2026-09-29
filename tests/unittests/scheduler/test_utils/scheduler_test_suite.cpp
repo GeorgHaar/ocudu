@@ -30,67 +30,69 @@ using namespace ocudu;
 
 void ocudu::assert_tdd_pattern_consistency(const cell_configuration& cell_cfg,
                                            slot_point                sl_tx,
-                                           const sched_result&       result)
+                                           sched_slot_result_reader  result)
 {
   if (not cell_cfg.is_tdd()) {
     return;
   }
+  const auto        dl         = result.dl();
+  const auto        ul         = result.ul();
   ofdm_symbol_range dl_symbols = get_active_tdd_dl_symbols(
       *cell_cfg.params.tdd_cfg, sl_tx.slot_index(), cell_cfg.params.dl_cfg_common.init_dl_bwp.generic_params.cp);
-  ASSERT_EQ(dl_symbols.length(), result.dl.nof_dl_symbols);
+  ASSERT_EQ(dl_symbols.length(), dl.nof_dl_symbols());
 
   if (dl_symbols.empty()) {
-    ASSERT_TRUE(result.dl.dl_pdcchs.empty());
-    ASSERT_TRUE(result.dl.ul_pdcchs.empty());
-    ASSERT_TRUE(result.dl.bc.ssb_info.empty());
-    ASSERT_TRUE(result.dl.bc.sibs.empty());
-    ASSERT_TRUE(result.dl.rar_grants.empty());
-    ASSERT_TRUE(result.dl.paging_grants.empty());
-    ASSERT_TRUE(result.dl.ue_grants.empty());
-    ASSERT_TRUE(result.dl.csi_rs.empty());
+    ASSERT_TRUE(dl.dl_pdcchs().empty());
+    ASSERT_TRUE(dl.ul_pdcchs().empty());
+    ASSERT_TRUE(dl.ssb_info().empty());
+    ASSERT_TRUE(dl.sibs().empty());
+    ASSERT_TRUE(dl.rar_grants().empty());
+    ASSERT_TRUE(dl.paging_grants().empty());
+    ASSERT_TRUE(dl.ue_grants().empty());
+    ASSERT_TRUE(dl.csi_rs().empty());
   } else if (dl_symbols.length() != get_nsymb_per_slot(cell_cfg.params.dl_cfg_common.init_dl_bwp.generic_params.cp)) {
     // Partial slot case.
-    for (const auto& ssb : result.dl.bc.ssb_info) {
+    for (const auto& ssb : dl.ssb_info()) {
       ASSERT_TRUE(dl_symbols.contains(ssb.symbols));
     }
-    for (const auto& sib : result.dl.bc.sibs) {
+    for (const auto& sib : dl.sibs()) {
       ASSERT_TRUE(dl_symbols.contains(sib.pdsch_cfg.symbols));
     }
-    for (const auto& rar : result.dl.rar_grants) {
+    for (const auto& rar : dl.rar_grants()) {
       ASSERT_TRUE(dl_symbols.contains(rar.pdsch_cfg.symbols));
     }
-    for (const auto& paging_grant : result.dl.paging_grants) {
+    for (const auto& paging_grant : dl.paging_grants()) {
       ASSERT_TRUE(dl_symbols.contains(paging_grant.pdsch_cfg.symbols));
     }
-    for (const auto& ue_grant : result.dl.ue_grants) {
+    for (const auto& ue_grant : dl.ue_grants()) {
       ASSERT_TRUE(dl_symbols.contains(ue_grant.pdsch_cfg.symbols));
     }
-    for (const auto& csi_rs : result.dl.csi_rs) {
+    for (const auto& csi_rs : dl.csi_rs()) {
       ASSERT_TRUE(dl_symbols.contains(csi_rs.symbol0));
     }
   }
 
   ofdm_symbol_range ul_symbols = get_active_tdd_ul_symbols(
       *cell_cfg.params.tdd_cfg, sl_tx.count(), cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.cp);
-  ASSERT_EQ(ul_symbols.length(), result.ul.nof_ul_symbols);
+  ASSERT_EQ(ul_symbols.length(), ul.nof_ul_symbols());
 
   if (ul_symbols.empty()) {
-    ASSERT_TRUE(result.ul.puschs.empty());
-    ASSERT_TRUE(result.ul.prachs.empty());
-    ASSERT_TRUE(result.ul.pucchs.empty());
-    ASSERT_TRUE(result.ul.srss.empty());
+    ASSERT_TRUE(ul.puschs().empty());
+    ASSERT_TRUE(ul.prachs().empty());
+    ASSERT_TRUE(ul.pucchs().empty());
+    ASSERT_TRUE(ul.srss().empty());
   } else if (dl_symbols.length() != get_nsymb_per_slot(cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.cp)) {
-    for (const auto& ue_grant : result.ul.puschs) {
+    for (const auto& ue_grant : ul.puschs()) {
       ASSERT_TRUE(ul_symbols.contains(ue_grant.pusch_cfg.symbols));
     }
-    for (const auto& prach : result.ul.prachs) {
+    for (const auto& prach : ul.prachs()) {
       ofdm_symbol_range prach_symbols = {prach.start_symbol, prach.start_symbol + get_preamble_duration(prach.format)};
       ASSERT_TRUE(ul_symbols.contains(prach_symbols));
     }
-    for (const auto& pucch : result.ul.pucchs) {
+    for (const auto& pucch : ul.pucchs()) {
       ASSERT_TRUE(ul_symbols.contains(pucch.res->syms));
     }
-    for (const auto& srs : result.ul.srss) {
+    for (const auto& srs : ul.srss()) {
       ASSERT_TRUE(ul_symbols.contains(srs.symbols));
     }
   }
@@ -329,13 +331,13 @@ void ocudu::test_pdsch_ue_consistency(const cell_configuration& cell_cfg, pdu_sp
 }
 
 static void
-test_pdsch_cross_consistency(const cell_configuration& cell_cfg, slot_point sl_tx, const dl_sched_result& result)
+test_pdsch_cross_consistency(const cell_configuration& cell_cfg, slot_point sl_tx, sched_slot_dl_result_reader result)
 {
-  if (not result.csi_rs.empty()) {
+  if (not result.csi_rs().empty()) {
     // If CSI-RS is scheduled, it should not collide with common grants.
-    ASSERT_TRUE(result.bc.sibs.empty());
-    ASSERT_TRUE(result.rar_grants.empty());
-    ASSERT_TRUE(result.paging_grants.empty());
+    ASSERT_TRUE(result.sibs().empty());
+    ASSERT_TRUE(result.rar_grants().empty());
+    ASSERT_TRUE(result.paging_grants().empty());
   }
 }
 
@@ -507,7 +509,7 @@ static void assert_rar_grant_msg3_pusch_consistency(const cell_configuration&   
   }
 }
 
-void ocudu::test_dl_resource_grid_collisions(const cell_configuration& cell_cfg, const dl_sched_result& result)
+void ocudu::test_dl_resource_grid_collisions(const cell_configuration& cell_cfg, sched_slot_dl_result_reader result)
 {
   cell_slot_resource_grid grid(cell_cfg.params.dl_cfg_common.freq_info_dl.scs_carrier_list);
 
@@ -574,7 +576,7 @@ void ocudu::test_prach_opportunity_validity(const cell_configuration&       cell
   }
 }
 
-void ocudu::test_ul_resource_grid_collisions(const cell_configuration& cell_cfg, const ul_sched_result& result)
+void ocudu::test_ul_resource_grid_collisions(const cell_configuration& cell_cfg, sched_slot_ul_result_reader result)
 {
   cell_slot_resource_grid      grid(cell_cfg.params.ul_cfg_common.freq_info_ul.scs_carrier_list);
   std::vector<test_grant_info> ul_grants = get_ul_grants(cell_cfg, result);
@@ -623,43 +625,47 @@ void ocudu::test_ul_resource_grid_collisions(const cell_configuration& cell_cfg,
   }
 }
 
-void ocudu::test_ul_consistency(const cell_configuration& cell_cfg, slot_point sl_tx, const ul_sched_result& result)
+void ocudu::test_ul_consistency(const cell_configuration&   cell_cfg,
+                                slot_point                  sl_tx,
+                                sched_slot_ul_result_reader result)
 {
   // Check that UL grant limits are respected.
-  ASSERT_LE(result.pucchs.size() + result.puschs.size(), cell_cfg.expert_cfg.ue.max_ul_grants_per_slot);
+  ASSERT_LE(result.pucchs().size() + result.puschs().size(), cell_cfg.expert_cfg.ue.max_ul_grants_per_slot);
 
-  test_prach_opportunity_validity(cell_cfg, sl_tx, result.prachs);
-  test_pusch_ue_consistency(cell_cfg, result.puschs);
-  test_pucch_consistency(cell_cfg, result.pucchs.unsorted());
+  test_prach_opportunity_validity(cell_cfg, sl_tx, result.prachs());
+  test_pusch_ue_consistency(cell_cfg, result.puschs());
+  test_pucch_consistency(cell_cfg, result.pucchs().unsorted());
   test_ul_resource_grid_collisions(cell_cfg, result);
 }
 
-void ocudu::test_dl_consistency(const cell_configuration& cell_cfg, slot_point sl_tx, const dl_sched_result& result)
+void ocudu::test_dl_consistency(const cell_configuration&   cell_cfg,
+                                slot_point                  sl_tx,
+                                sched_slot_dl_result_reader result)
 {
-  test_pdsch_sib_consistency(cell_cfg, result.bc.sibs);
-  test_pdsch_rar_consistency(cell_cfg, result.rar_grants);
-  test_pdsch_ue_consistency(cell_cfg, result.ue_grants);
+  test_pdsch_sib_consistency(cell_cfg, result.sibs());
+  test_pdsch_rar_consistency(cell_cfg, result.rar_grants());
+  test_pdsch_ue_consistency(cell_cfg, result.ue_grants());
   test_pdsch_cross_consistency(cell_cfg, sl_tx, result);
-  test_pdcch_common_consistency(cell_cfg, sl_tx, result.dl_pdcchs);
-  test_ul_pdcch_consistency(cell_cfg, sl_tx, result.ul_pdcchs);
+  test_pdcch_common_consistency(cell_cfg, sl_tx, result.dl_pdcchs());
+  test_ul_pdcch_consistency(cell_cfg, sl_tx, result.ul_pdcchs());
   test_dl_resource_grid_collisions(cell_cfg, result);
 }
 
 void ocudu::test_scheduler_result_consistency(const cell_configuration& cell_cfg,
                                               slot_point                sl_tx,
-                                              const sched_result&       result)
+                                              sched_slot_result_reader  result)
 {
-  ASSERT_TRUE(result.success);
+  ASSERT_TRUE(result.success());
   assert_tdd_pattern_consistency(cell_cfg, sl_tx, result);
-  test_dl_consistency(cell_cfg, sl_tx, result.dl);
-  test_ul_consistency(cell_cfg, sl_tx, result.ul);
+  test_dl_consistency(cell_cfg, sl_tx, result.dl());
+  test_ul_consistency(cell_cfg, sl_tx, result.ul());
 }
 
 /// \brief Verifies that the cell resource grid PRBs and symbols was filled with the allocated PDSCHs.
 void ocudu::assert_dl_resource_grid_filled(const cell_configuration&      cell_cfg,
                                            const cell_resource_allocator& cell_res_grid)
 {
-  std::vector<test_grant_info> dl_grants = get_dl_grants(cell_cfg, cell_res_grid.result_of(0).dl);
+  std::vector<test_grant_info> dl_grants = get_dl_grants(cell_cfg, cell_res_grid[0].result_reader().dl());
   for (const test_grant_info& test_grant : dl_grants) {
     if (test_grant.type != ocudu::test_grant_info::DL_PDCCH and test_grant.type != ocudu::test_grant_info::UL_PDCCH) {
       ASSERT_TRUE(cell_res_grid[0].dl_res_grid.all_set(test_grant.grant))
@@ -674,7 +680,7 @@ void ocudu::assert_dl_resource_grid_filled(const cell_configuration&      cell_c
 void ocudu::test_scheduler_result_consistency(const cell_configuration&      cell_cfg,
                                               const cell_resource_allocator& cell_res_grid)
 {
-  test_scheduler_result_consistency(cell_cfg, cell_res_grid[0].slot, cell_res_grid.result_of(0));
+  test_scheduler_result_consistency(cell_cfg, cell_res_grid[0].slot, cell_res_grid[0].result_reader());
   assert_pdcch_pdsch_common_consistency(cell_cfg, cell_res_grid);
   assert_dl_resource_grid_filled(cell_cfg, cell_res_grid);
   assert_rar_grant_msg3_pusch_consistency(cell_cfg, cell_res_grid);
@@ -835,9 +841,9 @@ void test_helper::ra_scheduler_tracker::on_crc_indication(const ul_crc_indicatio
   }
 }
 
-void test_helper::ra_scheduler_tracker::on_new_result(slot_point sl_tx, const sched_result& result)
+void test_helper::ra_scheduler_tracker::on_new_result(slot_point sl_tx, sched_slot_result_reader result)
 {
-  for (auto& dl_pdcch : result.dl.dl_pdcchs) {
+  for (auto& dl_pdcch : result.dl().dl_pdcchs()) {
     if (dl_pdcch.dci.type() != dci_dl_rnti_config_type::ra_f1_0) {
       // Skip PDCCHs that are not for RAR or MsgB.
       continue;
@@ -866,7 +872,7 @@ void test_helper::ra_scheduler_tracker::on_new_result(slot_point sl_tx, const sc
     expected_rar.rar_slot   = sl_tx + td_res.k0;
   }
 
-  for (auto& rar : result.dl.rar_grants) {
+  for (auto& rar : result.dl().rar_grants()) {
     // Check if the DL PDCCH matches the RAR/MsgB content.
     auto expected_rar_it =
         std::find_if(pending_rars.begin(), pending_rars.end(), [&sl_tx, &rar](const rar_context& pending) {
@@ -933,7 +939,7 @@ void test_helper::ra_scheduler_tracker::on_new_result(slot_point sl_tx, const sc
   // Handle Msg3 reTxs.
   const auto& pusch_td_list =
       get_pusch_time_domain_resource_table(*cell_cfg.params.ul_cfg_common.init_ul_bwp.pusch_cfg_common);
-  for (auto& ul_pdcch : result.dl.ul_pdcchs) {
+  for (auto& ul_pdcch : result.dl().ul_pdcchs()) {
     if (ul_pdcch.dci.type() != dci_ul_rnti_config_type::tc_rnti_f0_0) {
       continue;
     }
@@ -963,7 +969,7 @@ void test_helper::ra_scheduler_tracker::on_new_result(slot_point sl_tx, const sc
     pending_msg3.pusch_slot = pusch_slot;
   }
 
-  for (auto& pusch : result.ul.puschs) {
+  for (auto& pusch : result.ul().puschs()) {
     if (pusch.context.ue_index != INVALID_DU_UE_INDEX) {
       continue;
     }
@@ -1083,11 +1089,11 @@ void test_helper::harq_tracker::on_ue_added(rnti_t rnti)
   erase_ue_harqs(pending_ul_dcis, rnti);
 }
 
-void test_helper::harq_tracker::on_new_result(slot_point /*sl_tx*/, const sched_result& result)
+void test_helper::harq_tracker::on_new_result(slot_point /*sl_tx*/, sched_slot_result_reader result)
 {
   // Build DL NDI map from DL PDCCHs (UE-specific formats with NDI).
   std::unordered_map<harq_key, bool, harq_key_hash> dl_ndi_map;
-  for (const pdcch_dl_information& pdcch : result.dl.dl_pdcchs) {
+  for (const pdcch_dl_information& pdcch : result.dl().dl_pdcchs()) {
     bool     ndi     = false;
     unsigned harq_id = 0;
     switch (pdcch.dci.type()) {
@@ -1109,7 +1115,7 @@ void test_helper::harq_tracker::on_new_result(slot_point /*sl_tx*/, const sched_
     dl_ndi_map[{pdcch.ctx.rnti, static_cast<harq_id_t>(harq_id)}] = ndi;
   }
 
-  for (const dl_msg_alloc& grant : result.dl.ue_grants) {
+  for (const dl_msg_alloc& grant : result.dl().ue_grants()) {
     const pdsch_information& pdsch  = grant.pdsch_cfg;
     const pdsch_codeword&    cw     = pdsch.codewords[0];
     const harq_key           key    = {pdsch.rnti, pdsch.harq_id};
@@ -1143,7 +1149,7 @@ void test_helper::harq_tracker::on_new_result(slot_point /*sl_tx*/, const sched_
   }
 
   // Save the NDI of the UL PDCCHs (C-RNTI formats with NDI; tc_rnti_f0_0 has none) until their PUSCH, k2 slots later.
-  for (const pdcch_ul_information& pdcch : result.dl.ul_pdcchs) {
+  for (const pdcch_ul_information& pdcch : result.dl().ul_pdcchs()) {
     bool     ndi     = false;
     unsigned harq_id = 0;
     switch (pdcch.dci.type()) {
@@ -1161,7 +1167,7 @@ void test_helper::harq_tracker::on_new_result(slot_point /*sl_tx*/, const sched_
     pending_ul_dcis[{pdcch.ctx.rnti, static_cast<harq_id_t>(harq_id)}] = ndi;
   }
 
-  for (const ul_sched_info& sched_info : result.ul.puschs) {
+  for (const ul_sched_info& sched_info : result.ul().puschs()) {
     const pusch_information& pusch  = sched_info.pusch_cfg;
     const harq_key           key    = {pusch.rnti, pusch.harq_id};
     const auto               ndi_it = pending_ul_dcis.find(key);

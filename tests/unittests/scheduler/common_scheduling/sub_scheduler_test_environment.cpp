@@ -84,7 +84,7 @@ void sub_scheduler_test_environment::run_slot()
   // Run slot for the derived class.
   do_run_slot();
 
-  result_logger.on_scheduler_result(res_grid.result_of(0));
+  result_logger.on_scheduler_result(res_grid[0].result_reader());
 
   // Check sched result consistency.
   ASSERT_NO_FATAL_FAILURE(test_scheduler_result_consistency(cell_cfg, res_grid));

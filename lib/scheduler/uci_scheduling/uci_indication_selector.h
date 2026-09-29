@@ -8,7 +8,7 @@
 #include "ocudu/adt/circular_vector.h"
 #include "ocudu/adt/stable_id_map.h"
 #include "ocudu/ocudulog/logger.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/scheduler/scheduler_feedback_handler.h"
 
 namespace ocudu {
@@ -74,7 +74,7 @@ public:
   std::optional<uci_action> handle_uci_ind_pdu(slot_point sl_rx, const uci_indication::uci_pdu& pdu);
 
   /// Called on every slot indication when a scheduler result is produced.
-  void handle_result(slot_point sl_tx, const sched_result& result);
+  void handle_result(slot_point sl_tx, sched_slot_result_reader result);
 
   /// \brief Called when an error indication is received for a given slot to reset all UCI grants with pending feedback.
   void handle_discarded_ucis(slot_point sl_tx);

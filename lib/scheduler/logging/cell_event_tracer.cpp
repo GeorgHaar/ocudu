@@ -30,7 +30,7 @@ cell_event_tracer::~cell_event_tracer() {}
 void cell_event_tracer::on_cell_start(const ocudu::cell_configuration& cell_cfg) {}
 
 void cell_event_tracer::on_scheduler_result_impl(slot_point                sl,
-                                                 const sched_result&       result,
+                                                 sched_slot_result_reader  result,
                                                  std::chrono::microseconds slot_latency)
 {
 }

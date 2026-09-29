@@ -88,7 +88,7 @@ public:
 
   void handle_paging_information(const paging_information& msg) override;
 
-  const sched_result& slot_indication(slot_point_extended slot_tx, du_cell_index_t cell_idx) override;
+  sched_slot_result_reader slot_indication(slot_point_extended slot_tx, du_cell_index_t cell_idx) override;
 
   void handle_error_indication(slot_point                         slot_tx,
                                du_cell_index_t                    cell_idx,

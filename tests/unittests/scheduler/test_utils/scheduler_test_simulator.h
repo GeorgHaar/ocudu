@@ -10,6 +10,7 @@
 #include "result_test_helpers.h"
 #include "scheduler_test_suite.h"
 #include "tests/test_doubles/scheduler/dummy_scheduler_ue_metric_notifier.h"
+#include "tests/test_doubles/scheduler/sched_result_copy.h"
 #include "ocudu/adt/unique_function.h"
 #include "ocudu/scheduler/config/scheduler_expert_config_factory.h"
 #include "ocudu/scheduler/mac_scheduler.h"
@@ -128,9 +129,10 @@ public:
   {
     return *sim_cells.at(cell_idx)->cfg;
   }
-  const sched_result* last_sched_result(du_cell_index_t cell_idx = to_du_cell_index(0)) const
+  /// Copy of the last result scheduled for a cell, or nullptr while no slot ran for it.
+  const sched_result_copy* last_sched_result(du_cell_index_t cell_idx = to_du_cell_index(0)) const
   {
-    return sim_cells.at(cell_idx)->last_res;
+    return sim_cells.at(cell_idx)->last_stored_result();
   }
   void request_metrics_on_next_slot(du_cell_index_t cell_idx = to_du_cell_index(0))
   {
@@ -148,11 +150,25 @@ public:
 private:
   struct sim_cell_context {
     dummy_scheduler_cell_metrics_notifier cell_metrics;
-    const cell_configuration*             cfg      = nullptr;
-    const sched_result*                   last_res = nullptr;
+    const cell_configuration*             cfg = nullptr;
     test_helper::harq_tracker             harq_tracker;
 
     explicit sim_cell_context(const cell_configuration* cfg_) : cfg(cfg_) {}
+
+    /// Stores a copy of the result of a slot, which outlives the slot it was built in.
+    void store_result(sched_slot_result_reader res)
+    {
+      copy_result(res, result);
+      result_stored = true;
+    }
+
+    /// Result of the last stored slot, or nullptr while no slot ran for the cell.
+    const sched_result_copy* last_stored_result() const { return result_stored ? &result : nullptr; }
+
+    /// Copy of the result of the last scheduled slot.
+    sched_result_copy result;
+    /// Whether a slot result has been stored for the cell.
+    bool result_stored = false;
   };
 
   /// Handle automatic feedback (UCI/CRC) if enabled.

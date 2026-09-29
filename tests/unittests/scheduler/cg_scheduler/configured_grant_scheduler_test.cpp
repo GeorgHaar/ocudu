@@ -425,8 +425,8 @@ TEST_P(cg_duplex_test, cg_pusch_absorbs_pucch_harq_ack)
     push_dl_buffer_state(dl_buffer_state_indication_message{to_du_ue_index(0), LCID_SRB1, 10000});
     run_slot();
 
-    const sched_result&  res      = *last_sched_result();
-    const ul_sched_info* cg_pusch = find_ue_pusch_with_harq_ack(cs_rnti, res);
+    const sched_result_copy& res      = *last_sched_result();
+    const ul_sched_info*     cg_pusch = find_ue_pusch_with_harq_ack(cs_rnti, res);
     if (cg_pusch == nullptr) {
       continue;
     }
@@ -686,12 +686,14 @@ TEST_F(cg_multi_ue_test, two_ues_with_different_offsets)
   constexpr unsigned   safety_margin = 10U;
   const ul_sched_info* g2_ue1        = run_until_next_cg_pusch(cg_params.period_slots + safety_margin, cs_rnti);
   ASSERT_NE(g2_ue1, nullptr) << "No second CG PUSCH for UE1";
+  // The search for UE2 below overwrites the stored result, so save UE1's RNTI while the grant is still reachable.
+  const rnti_t g2_ue1_rnti = g2_ue1->pusch_cfg.rnti;
 
   const ul_sched_info* g2_ue2 = run_until_next_cg_pusch(cg_params.period_slots + safety_margin, cs_rnti_2);
   ASSERT_NE(g2_ue2, nullptr) << "No second CG PUSCH for UE2";
 
   // Verify correct RNTI assignment.
-  EXPECT_EQ(g2_ue1->pusch_cfg.rnti, cs_rnti);
+  EXPECT_EQ(g2_ue1_rnti, cs_rnti);
   EXPECT_EQ(g2_ue2->pusch_cfg.rnti, cs_rnti_2);
 }
 
@@ -989,8 +991,8 @@ TEST_F(cg_csi_mux_test, cg_pusch_absorbs_pucch_csi)
     push_dl_buffer_state(dl_buffer_state_indication_message{to_du_ue_index(0), LCID_SRB1, 10000});
     run_slot();
 
-    const sched_result&  res      = *last_sched_result();
-    const ul_sched_info* cg_pusch = find_ue_pusch(cs_rnti, res);
+    const sched_result_copy& res      = *last_sched_result();
+    const ul_sched_info*     cg_pusch = find_ue_pusch(cs_rnti, res);
     if (cg_pusch == nullptr or not cg_pusch->uci.has_value()) {
       continue;
     }
@@ -1001,7 +1003,7 @@ TEST_F(cg_csi_mux_test, cg_pusch_absorbs_pucch_csi)
     // The PUSCH UCI should carry at least one CSI Part 1 bit.
     EXPECT_GT(cg_pusch->uci->csi->csi_part1_nof_bits, 0U);
     // The PUCCH carrying CSI for this UE must have been removed after the mux.
-    EXPECT_EQ(find_ue_pucch_with_csi(ue_crnti, res.ul.pucchs.unsorted()), nullptr)
+    EXPECT_EQ(find_ue_pucch_with_csi(ue_crnti, res.ul.pucchs), nullptr)
         << "PUCCH CSI should be absent after UCI mux onto CG PUSCH";
     break;
   }
@@ -1043,8 +1045,8 @@ TEST_F(cg_multi_harq_ack_mux_test, cg_pusch_absorbs_multiple_harq_ack_bits)
     push_dl_buffer_state(dl_buffer_state_indication_message{to_du_ue_index(0), LCID_SRB1, 10000});
     run_slot();
 
-    const sched_result&  res      = *last_sched_result();
-    const ul_sched_info* cg_pusch = find_ue_pusch_with_harq_ack(cs_rnti, res);
+    const sched_result_copy& res      = *last_sched_result();
+    const ul_sched_info*     cg_pusch = find_ue_pusch_with_harq_ack(cs_rnti, res);
     if (cg_pusch == nullptr or cg_pusch->uci->harq->harq_ack_nof_bits < 2) {
       continue;
     }
@@ -1088,9 +1090,9 @@ TEST_F(cg_pucch_rep_test, cg_occasion_skipped_in_pucch_repetition_slots)
     push_dl_buffer_state(dl_buffer_state_indication_message{to_du_ue_index(0), LCID_SRB1, 10000});
     run_slot();
 
-    const sched_result&    res           = *last_sched_result();
-    span<const pucch_info> pucchs        = res.ul.pucchs.unsorted();
-    const bool             has_pucch_rep = std::any_of(pucchs.begin(), pucchs.end(), [](const pucch_info& pucch) {
+    const sched_result_copy& res           = *last_sched_result();
+    span<const pucch_info>   pucchs        = res.ul.pucchs;
+    const bool               has_pucch_rep = std::any_of(pucchs.begin(), pucchs.end(), [](const pucch_info& pucch) {
       return pucch.crnti == ue_crnti and pucch.repetition.has_value();
     });
     ASSERT_FALSE(has_pucch_rep and find_ue_pusch(cs_rnti, res) != nullptr)

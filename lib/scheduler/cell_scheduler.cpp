@@ -92,7 +92,7 @@ void cell_scheduler::handle_crc_indication(const ul_crc_indication& crc_ind)
   ev_mng.handle_crc_indication(crc_ind);
 }
 
-void cell_scheduler::run_slot(slot_point_extended sl_tx_ext)
+sched_slot_result_reader cell_scheduler::run_slot(slot_point_extended sl_tx_ext)
 {
   // Mark the start of the slot.
   slot_point sl_tx         = sl_tx_ext.without_hyper_sfn();
@@ -153,7 +153,8 @@ void cell_scheduler::run_slot(slot_point_extended sl_tx_ext)
   ue_sched->run_slot(sl_tx);
 
   // > Update the UCI indication handler with the UCI grants of the finished slot.
-  uci_sel.handle_result(sl_tx, last_result());
+  const auto slot_result = res_grid[0].result_reader();
+  uci_sel.handle_result(sl_tx, slot_result);
 
   // > Mark stop of the slot processing
   auto slot_stop_tp = std::chrono::steady_clock::now();
@@ -163,11 +164,13 @@ void cell_scheduler::run_slot(slot_point_extended sl_tx_ext)
   event_logger.log();
 
   // > Log the scheduler results.
-  result_logger.on_scheduler_result(last_result(), slot_dur);
-  cell_tracer->on_scheduler_result(sl_tx, last_result(), slot_dur);
+  result_logger.on_scheduler_result(slot_result, slot_dur);
+  cell_tracer->on_scheduler_result(sl_tx, slot_result, slot_dur);
 
   // > Push the scheduler results to the metrics handler.
-  metrics.push_result(sl_tx_ext, last_result(), slot_dur);
+  metrics.push_result(sl_tx_ext, slot_result, slot_dur);
+
+  return slot_result;
 }
 
 void cell_scheduler::handle_error_indication(slot_point sl_tx, scheduler_slot_handler::error_outcome event)

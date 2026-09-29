@@ -102,7 +102,7 @@ protected:
     }
 
     // Log scheduler results.
-    res_logger.on_scheduler_result(res_grid.result_of(0));
+    res_logger.on_scheduler_result(res_grid[0].result_reader());
 
     ++next_slot;
   }

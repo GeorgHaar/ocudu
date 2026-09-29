@@ -119,7 +119,7 @@ protected:
     alloc.post_process_results();
 
     // Log scheduler results.
-    res_logger.on_scheduler_result(res_grid.result_of(0));
+    res_logger.on_scheduler_result(res_grid[0].result_reader());
   }
 
   bool run_until(const std::function<void()>& to_run, unique_function<bool()> until, unsigned max_slot_count = 1000)
@@ -955,7 +955,7 @@ protected:
   // Time-domain resource of the DL DCI (format 1_1) scheduled for the UE in the current slot, if any.
   std::optional<unsigned> current_dl_dci_time_resource(rnti_t rnti) const
   {
-    const pdcch_dl_information* pdcch = find_ue_dl_pdcch(rnti, res_grid.result_of(0).dl);
+    const pdcch_dl_information* pdcch = find_ue_dl_pdcch(rnti, res_grid[0].result_reader().dl());
     if (pdcch == nullptr or pdcch->dci.type() != dci_dl_rnti_config_type::c_rnti_f1_1) {
       return std::nullopt;
     }
@@ -1603,7 +1603,7 @@ protected:
   // Time-domain resource of the UL DCI (format 0_1) scheduled for the UE in the current slot, if any.
   std::optional<unsigned> current_ul_dci_time_resource(rnti_t rnti) const
   {
-    const pdcch_ul_information* pdcch = find_ue_ul_pdcch(rnti, res_grid.result_of(0).dl);
+    const pdcch_ul_information* pdcch = find_ue_ul_pdcch(rnti, res_grid[0].result_reader().dl());
     if (pdcch == nullptr or pdcch->dci.type() != dci_ul_rnti_config_type::c_rnti_f0_1) {
       return std::nullopt;
     }

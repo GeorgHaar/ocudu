@@ -134,7 +134,7 @@ protected:
     if (last_sched_result(to_du_cell_index(cell_idx)) == nullptr) {
       return {};
     }
-    span<const pucch_info> pucchs    = last_sched_result(to_du_cell_index(cell_idx))->ul.pucchs.unsorted();
+    span<const pucch_info> pucchs    = last_sched_result(to_du_cell_index(cell_idx))->ul.pucchs;
     const auto*            pucch_res = std::find_if(pucchs.begin(), pucchs.end(), [ue_idx](const pucch_info& pucch) {
       return pucch.crnti == get_ue_crnti(ue_idx);
     });

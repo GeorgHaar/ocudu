@@ -4,7 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "ocudu_scheduler_adapter.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/scheduler/scheduler_factory.h"
 #include "ocudu/support/async/async_timer.h"
 #include "ocudu/support/executors/execute_until_success.h"
@@ -301,7 +301,7 @@ void ocudu_scheduler_adapter::handle_crnti_ce_indication(du_ue_index_t old_ue_in
   sched_impl->handle_crnti_ce_received(old_ue_index);
 }
 
-const sched_result& ocudu_scheduler_adapter::slot_indication(slot_point_extended slot_tx, du_cell_index_t cell_idx)
+sched_slot_result_reader ocudu_scheduler_adapter::slot_indication(slot_point_extended slot_tx, du_cell_index_t cell_idx)
 {
   using namespace std::chrono;
 
@@ -311,11 +311,13 @@ const sched_result& ocudu_scheduler_adapter::slot_indication(slot_point_extended
     last_slot_tp.store(slot_tp, std::memory_order_relaxed);
   }
 
-  const sched_result& res = sched_impl->slot_indication(slot_tx, cell_idx);
+  const auto res = sched_impl->slot_indication(slot_tx, cell_idx);
 
-  if (res.success) {
+  if (res.success()) {
     // Store UCI PDUs for later decoding.
-    cell_handlers[cell_idx].uci_decoder.store_uci(slot_tx.without_hyper_sfn(), res.ul.pucchs.unsorted(), res.ul.puschs);
+    const auto ul_res = res.ul();
+    cell_handlers[cell_idx].uci_decoder.store_uci(
+        slot_tx.without_hyper_sfn(), ul_res.pucchs().unsorted(), ul_res.puschs());
   }
 
   return res;

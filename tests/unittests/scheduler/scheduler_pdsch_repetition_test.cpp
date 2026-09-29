@@ -80,9 +80,9 @@ protected:
   {
     for (unsigned i = 0; i != nof_slots; ++i) {
       this->run_slot();
-      last_collected_slot     = this->last_result_slot();
-      const slot_point    sl  = this->last_result_slot();
-      const sched_result* res = this->last_sched_result(to_du_cell_index(0));
+      last_collected_slot          = this->last_result_slot();
+      const slot_point         sl  = this->last_result_slot();
+      const sched_result_copy* res = this->last_sched_result(to_du_cell_index(0));
       for (const auto& pdcch : res->dl.dl_pdcchs) {
         if (pdcch.ctx.rnti == ue_rnti and pdcch.dci.type() == dci_dl_rnti_config_type::c_rnti_f1_1) {
           dcis[sl].push_back(pdcch.dci.as_c_rnti_f1_1());

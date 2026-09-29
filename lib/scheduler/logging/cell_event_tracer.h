@@ -9,13 +9,13 @@
 #include "ocudu/ran/slot_point.h"
 #include "ocudu/scheduler/input/crc_inputs.h"
 #include "ocudu/scheduler/input/uci_inputs.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/support/rtsan.h"
 
 namespace ocudu {
 
 class cell_configuration;
 struct rach_indication_message;
-struct sched_result;
 
 namespace schedtrace {
 
@@ -45,7 +45,7 @@ public:
 
   /// Called on each produced slot result by the scheduler cell.
   void on_scheduler_result(slot_point                sl,
-                           const sched_result&       result,
+                           sched_slot_result_reader  result,
                            std::chrono::microseconds slot_latency) noexcept OCUDU_RTSAN_NONBLOCKING
   {
     if (not enabled()) {
@@ -62,7 +62,7 @@ private:
   void on_cell_start(const ocudu::cell_configuration& cell_cfg);
 
   /// Called when the scheduler makes a decision for a given cell and slot.
-  void on_scheduler_result_impl(slot_point sl, const sched_result& result, std::chrono::microseconds slot_latency);
+  void on_scheduler_result_impl(slot_point sl, sched_slot_result_reader result, std::chrono::microseconds slot_latency);
 
   /// Called on every detected RACH indication.
   void on_event_impl(const rach_indication_message& msg);

@@ -49,11 +49,11 @@ TEST_F(sched_no_ue_tester, test_no_ues)
                             test_rng::uniform_int<unsigned>(0, NOF_HYPER_SFNS * NOF_SFNS * 10 - 1)};
 
   // Action 2: Run slot.
-  const sched_result& res = sch.slot_indication(sl_tx, to_du_cell_index(0));
-  ASSERT_TRUE(res.success);
+  const auto res = sch.slot_indication(sl_tx, to_du_cell_index(0));
+  ASSERT_TRUE(res.success());
   test_scheduler_result_consistency(cell_cfg, sl_tx.without_hyper_sfn(), res);
-  ASSERT_TRUE(res.dl.ue_grants.empty());
-  ASSERT_TRUE(res.ul.puschs.empty());
+  ASSERT_TRUE(res.dl().ue_grants().empty());
+  ASSERT_TRUE(res.ul().puschs().empty());
 }
 
 TEST_F(sched_no_ue_tester, test_rach_indication)
@@ -79,11 +79,11 @@ TEST_F(sched_no_ue_tester, test_rach_indication)
       cell_cfg, sl_rx.without_hyper_sfn(), {test_helper::create_preamble(0, to_rnti(0x4601))}));
 
   // Action 3: Run slot 0.
-  const sched_result& res = sch.slot_indication(sl_tx, to_du_cell_index(0));
+  const auto res = sch.slot_indication(sl_tx, to_du_cell_index(0));
 
   // TEST: Result exists. No Data allocated. A RAR has been allocated.
-  ASSERT_TRUE(res.success);
+  ASSERT_TRUE(res.success());
   test_scheduler_result_consistency(cell_cfg, sl_tx.without_hyper_sfn(), res);
-  ASSERT_TRUE(res.dl.ue_grants.empty());
-  ASSERT_TRUE(not res.dl.rar_grants.empty());
+  ASSERT_TRUE(res.dl().ue_grants().empty());
+  ASSERT_TRUE(not res.dl().rar_grants().empty());
 }

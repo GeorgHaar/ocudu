@@ -126,7 +126,10 @@ TEST_F(paging_tester, when_paging_message_is_received_its_relayed_to_ue)
   for (unsigned i = 0; i != MAX_COUNT; ++i) {
     this->run_slot();
 
-    for (const auto& pg_grant : this->phy.cells[0].last_dl_res->dl_res->paging_grants) {
+    if (not this->phy.cells[0].last_dl_res.has_value()) {
+      continue;
+    }
+    for (const auto& pg_grant : this->phy.cells[0].last_dl_res->dl_res.paging_grants()) {
       const auto& pg_ue_it =
           std::find_if(pg_grant.paging_ue_list.begin(), pg_grant.paging_ue_list.end(), [](const paging_ue_info& ue) {
             return ue.paging_type_indicator == ocudu::paging_ue_info::cn_ue_paging_identity and
@@ -173,8 +176,8 @@ TEST_F(edrx_paging_test, when_edrx_enabled_then_hypersfn_is_updated_in_sib1)
   for (unsigned i = 0; i != MAX_COUNT; ++i) {
     this->run_slot();
 
-    if (this->phy.cells[0].last_dl_res.has_value() and not this->phy.cells[0].last_dl_res->dl_res->bc.sibs.empty()) {
-      auto& sibs = this->phy.cells[0].last_dl_res->dl_res->bc.sibs;
+    if (this->phy.cells[0].last_dl_res.has_value() and not this->phy.cells[0].last_dl_res->dl_res.sibs().empty()) {
+      const auto sibs = this->phy.cells[0].last_dl_res->dl_res.sibs();
       for (const auto& sib : sibs) {
         if (sib.si_indicator == sib_information::sib1) {
           sib1_count++;
@@ -231,8 +234,8 @@ TEST_F(edrx_paging_test, when_f1_edrx_paging_is_received_then_it_is_sent_to_lowe
   for (unsigned i = 0; i != MAX_SLOT_COUNT and not found; ++i) {
     this->run_slot();
     if (this->phy.cells[0].last_dl_res.has_value() and
-        not this->phy.cells[0].last_dl_res->dl_res->paging_grants.empty()) {
-      for (const auto& grant : this->phy.cells[0].last_dl_res->dl_res->paging_grants) {
+        not this->phy.cells[0].last_dl_res->dl_res.paging_grants().empty()) {
+      for (const auto& grant : this->phy.cells[0].last_dl_res->dl_res.paging_grants()) {
         ASSERT_FALSE(grant.paging_ue_list.empty());
         for (const auto& ue_pg : grant.paging_ue_list) {
           ASSERT_EQ(ue_pg.paging_type_indicator, paging_ue_info::cn_ue_paging_identity);

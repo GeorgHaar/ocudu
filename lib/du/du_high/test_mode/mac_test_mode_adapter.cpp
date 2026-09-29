@@ -10,7 +10,6 @@
 #include "ocudu/mac/mac_cell_timing_context.h"
 #include "ocudu/mac/mac_factory.h"
 #include "ocudu/ran/harq_id.h"
-#include "ocudu/scheduler/result/sched_result.h"
 #include <functional>
 #include <utility>
 
@@ -417,7 +416,7 @@ void mac_test_mode_cell_adapter::on_new_downlink_scheduler_results(const mac_dl_
     last_slot_ind = dl_res.slot;
   }
 
-  for (auto& grant : dl_res.dl_res->ue_grants) {
+  for (const dl_msg_alloc& grant : dl_res.dl_res.ue_grants()) {
     rnti_t crnti = grant.pdsch_cfg.rnti;
     if (not ue_info_mgr.is_cell_test_ue(cell_index, crnti) or ue_info_mgr.is_msg4_rxed(crnti)) {
       // UE is not test mode or it has already received Msg4.
@@ -426,7 +425,7 @@ void mac_test_mode_cell_adapter::on_new_downlink_scheduler_results(const mac_dl_
 
     // In case of SRB PDU received, we assume that the Msg4 is received. At this point, we update the test UE with
     // positive DL buffer states and BSR.
-    auto& lchs = grant.tb_list[0].lc_chs_to_sched;
+    const auto& lchs = grant.tb_list[0].lc_chs_to_sched;
     if (std::any_of(
             lchs.begin(), lchs.end(), [](const auto& lc) { return lc.lcid.is_sdu() and is_srb(lc.lcid.to_lcid()); })) {
       if (test_ue_cfg.pdsch_active) {
@@ -474,12 +473,12 @@ void mac_test_mode_cell_adapter::on_new_uplink_scheduler_results(const mac_ul_sc
     auto entry = history.write(ul_res.slot);
     if (entry != nullptr) {
       // Fill the ring element with the scheduler decisions.
-      for (const pucch_info& pucch : ul_res.ul_res->pucchs) {
+      for (const pucch_info& pucch : ul_res.ul_res.pucchs()) {
         if (ue_info_mgr.is_cell_test_ue(cell_index, pucch.crnti)) {
           entry->pucchs.push_back(pucch);
         }
       }
-      for (const ul_sched_info& pusch : ul_res.ul_res->puschs) {
+      for (const ul_sched_info& pusch : ul_res.ul_res.puschs()) {
         if (ue_info_mgr.is_cell_test_ue(cell_index, pusch.pusch_cfg.rnti)) {
           entry->puschs.push_back(pusch);
         }

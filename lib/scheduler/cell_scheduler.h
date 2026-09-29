@@ -62,8 +62,8 @@ public:
                           const cell_configuration&                       cell_cfg,
                           ue_scheduler&                                   ue_sched);
 
-  /// Handle a slot indication for this cell.
-  void run_slot(slot_point_extended sl_tx);
+  /// Handles a slot indication for this cell and returns the result scheduled for it.
+  sched_slot_result_reader run_slot(slot_point_extended sl_tx);
 
   /// Handle an error indication for this cell.
   void handle_error_indication(slot_point sl_tx, scheduler_slot_handler::error_outcome event);
@@ -73,8 +73,6 @@ public:
 
   /// Deactivate cell.
   void stop();
-
-  const sched_result& last_result() const { return res_grid.result_of(0); }
 
   void handle_si_update_request(const si_scheduling_update_request& msg);
 

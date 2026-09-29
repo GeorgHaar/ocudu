@@ -63,10 +63,10 @@ std::pair<grant_info, grant_info> get_pdsch_grant_info(const bwp_downlink_common
                                                        vrb_to_prb::mapping_type   interleaving_bundle_size);
 
 /// \brief Creates a list with the grants allocated in a cell DL resource grid. This includes PDCCHs, PDSCHs and SSB.
-std::vector<test_grant_info> get_dl_grants(const cell_configuration& cell_cfg, const dl_sched_result& dl_res);
+std::vector<test_grant_info> get_dl_grants(const cell_configuration& cell_cfg, sched_slot_dl_result_reader dl_res);
 
 /// \brief Creates a list with the grants allocated in a cell UL resource grid. This includes PUSCHs, PUCCHs and PRACH
 /// PDUs.
-std::vector<test_grant_info> get_ul_grants(const cell_configuration& cell_cfg, const ul_sched_result& ul_res);
+std::vector<test_grant_info> get_ul_grants(const cell_configuration& cell_cfg, sched_slot_ul_result_reader ul_res);
 
 } // namespace ocudu

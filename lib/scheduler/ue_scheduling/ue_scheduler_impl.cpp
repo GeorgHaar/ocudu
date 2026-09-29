@@ -132,7 +132,7 @@ void ue_scheduler_impl::post_process_results(du_cell_index_t cell_index, slot_po
   }
 
   // Record UEs needing triggered UL grants based on the finalized DL grant list.
-  cell.trig_ul_sched.process_dl_results(sl_tx, cell.cell_res_alloc->result_of(0));
+  cell.trig_ul_sched.process_dl_results(sl_tx, (*cell.cell_res_alloc)[0].result_reader());
 
   ocudu_sanity_check(puxch_grant_sanitizer(*cell.cell_res_alloc, logger),
                      "PUCCH and PUSCH found for the same UE in the same slot");

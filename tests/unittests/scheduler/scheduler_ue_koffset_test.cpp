@@ -102,7 +102,7 @@ protected:
   /// Returns whether the last scheduling result carries a Differential Koffset MAC CE.
   bool is_koffset_ce_scheduled() const
   {
-    const sched_result* result = last_sched_result(to_du_cell_index(0));
+    const sched_result_copy* result = last_sched_result(to_du_cell_index(0));
     if (result == nullptr) {
       return false;
     }
@@ -142,7 +142,7 @@ protected:
     for (unsigned count = 0; count != nof_slots; ++count) {
       run_slot();
       refill_buffers();
-      const sched_result* result = last_sched_result(to_du_cell_index(0));
+      const sched_result_copy* result = last_sched_result(to_du_cell_index(0));
       if (result == nullptr) {
         continue;
       }
@@ -171,7 +171,7 @@ protected:
     std::optional<unsigned> ack_base;
     for (unsigned count = 0; count != nof_slots; ++count) {
       run_slot();
-      const sched_result* result = last_sched_result(to_du_cell_index(0));
+      const sched_result_copy* result = last_sched_result(to_du_cell_index(0));
       if (result == nullptr) {
         continue;
       }

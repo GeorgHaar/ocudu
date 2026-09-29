@@ -78,7 +78,7 @@ public:
       sib1_sch->run_slot(res_grid[res_grid.max_dl_slot_alloc_delay]);
     }
     ra_sch.run_slot(res_grid);
-    ASSERT_NO_FATAL_FAILURE(tracker.on_new_result(res_grid[0].slot, res_grid.result_of(0)));
+    ASSERT_NO_FATAL_FAILURE(tracker.on_new_result(res_grid[0].slot, res_grid[0].result_reader()));
   }
 
   /// \param occasion_slot_delay Slots between the PRACH occasion and the slot the lower layers report it in.

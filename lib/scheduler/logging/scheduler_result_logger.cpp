@@ -9,7 +9,7 @@
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/ran/csi_report/csi_report_formatters.h"
 #include "ocudu/ran/prach/ra_helper.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/support/format/custom_formattable.h"
 #include "ocudu/support/format/fmt_to_c_str.h"
 
@@ -380,7 +380,7 @@ static auto make_paging_info_log_entry(const dl_paging_allocation& pg_info)
   });
 }
 
-static auto make_info_log_entry(const sched_result& result, bool log_broadcast, bool& push_failed)
+static auto make_info_log_entry(sched_slot_result_reader result, bool log_broadcast, bool& push_failed)
 {
   using sib_entry_t    = decltype(make_sib_info_log_entry(std::declval<sib_information>()));
   using rar_entry_t    = decltype(make_rar_info_log_entry(std::declval<rar_information>()));
@@ -398,21 +398,24 @@ static auto make_info_log_entry(const sched_result& result, bool log_broadcast, 
     }
   };
 
+  const auto dl = result.dl();
+  const auto ul = result.ul();
+
   if (log_broadcast) {
-    for (const auto& sib : result.dl.bc.sibs) {
+    for (const auto& sib : dl.sibs()) {
       checked_push(make_sib_info_log_entry(sib));
     }
   }
-  for (const auto& rar : result.dl.rar_grants) {
+  for (const auto& rar : dl.rar_grants()) {
     checked_push(make_rar_info_log_entry(rar));
   }
-  for (const auto& ue_msg : result.dl.ue_grants) {
+  for (const auto& ue_msg : dl.ue_grants()) {
     checked_push(make_ue_dl_msg_info_log_entry(ue_msg));
   }
-  for (const auto& ue_msg : result.ul.puschs) {
+  for (const auto& ue_msg : ul.puschs()) {
     checked_push(make_ue_ul_msg_info_log_entry(ue_msg));
   }
-  for (const auto& pg : result.dl.paging_grants) {
+  for (const auto& pg : dl.paging_grants()) {
     checked_push(make_paging_info_log_entry(pg));
   }
 
@@ -836,7 +839,7 @@ static auto make_prach_debug_log_entry(const prach_occasion_info& prach)
   });
 }
 
-static auto make_debug_log_entry(const sched_result& result, bool log_broadcast, bool& push_failed)
+static auto make_debug_log_entry(sched_slot_result_reader result, bool log_broadcast, bool& push_failed)
 {
   using ssb_entry_t      = decltype(make_ssb_debug_log_entry(std::declval<ssb_information>()));
   using dl_pdcch_entry_t = decltype(make_dl_pdcch_log_entry(std::declval<pdcch_dl_information>()));
@@ -873,48 +876,51 @@ static auto make_debug_log_entry(const sched_result& result, bool log_broadcast,
     }
   };
 
+  const auto dl = result.dl();
+  const auto ul = result.ul();
+
   if (log_broadcast) {
-    for (const auto& ssb : result.dl.bc.ssb_info) {
+    for (const auto& ssb : dl.ssb_info()) {
       checked_push(make_ssb_debug_log_entry(ssb));
     }
-    for (const auto& csi : result.dl.csi_rs) {
+    for (const auto& csi : dl.csi_rs()) {
       checked_push(make_csi_rs_log_entry(csi));
     }
-    for (const auto& prs : result.dl.prs) {
+    for (const auto& prs : dl.prs()) {
       checked_push(make_prs_log_entry(prs));
     }
-    for (const auto& sib : result.dl.bc.sibs) {
+    for (const auto& sib : dl.sibs()) {
       checked_push(make_sib_debug_log_entry(sib));
     }
   }
-  for (const auto& pdcch : result.dl.dl_pdcchs) {
+  for (const auto& pdcch : dl.dl_pdcchs()) {
     if (log_broadcast or pdcch.ctx.rnti != rnti_t::SI_RNTI) {
       checked_push(make_dl_pdcch_log_entry(pdcch));
     }
   }
-  for (const auto& pdcch : result.dl.ul_pdcchs) {
+  for (const auto& pdcch : dl.ul_pdcchs()) {
     checked_push(make_ul_pdcch_log_entry(pdcch));
   }
-  for (const auto& rar : result.dl.rar_grants) {
+  for (const auto& rar : dl.rar_grants()) {
     checked_push(make_rar_debug_log_entry(rar));
   }
-  for (const auto& grant : result.dl.ue_grants) {
+  for (const auto& grant : dl.ue_grants()) {
     checked_push(make_ue_dl_msg_debug_log_entry(grant));
   }
-  for (const auto& pg : result.dl.paging_grants) {
+  for (const auto& pg : dl.paging_grants()) {
     checked_push(make_paging_debug_log_entry(pg));
   }
-  for (const auto& pusch : result.ul.puschs) {
+  for (const auto& pusch : ul.puschs()) {
     checked_push(make_pusch_debug_log_entry(pusch));
   }
-  for (const auto& pucch : result.ul.pucchs) {
+  for (const auto& pucch : ul.pucchs()) {
     checked_push(make_pucch_debug_log_entry(pucch));
   }
-  for (const auto& srs : result.ul.srss) {
+  for (const auto& srs : ul.srss()) {
     checked_push(make_srs_debug_log_entry(srs));
   }
   if (log_broadcast) {
-    for (const auto& prach : result.ul.prachs) {
+    for (const auto& prach : ul.prachs()) {
       checked_push(make_prach_debug_log_entry(prach));
     }
   }
@@ -933,32 +939,36 @@ scheduler_result_logger::scheduler_result_logger(bool log_broadcast_, pci_t pci_
 {
 }
 
-void scheduler_result_logger::log_debug(const sched_result& result, std::chrono::microseconds decision_latency)
+void scheduler_result_logger::log_debug(sched_slot_result_reader result, std::chrono::microseconds decision_latency)
 {
-  const bool broadcast_is_empty = result.dl.bc.ssb_info.empty() and result.dl.bc.sibs.empty() and
-                                  result.dl.csi_rs.empty() and result.dl.prs.empty() and result.ul.prachs.empty();
+  const auto dl = result.dl();
+  const auto ul = result.ul();
 
+  const bool broadcast_is_empty =
+      dl.ssb_info().empty() and dl.sibs().empty() and dl.csi_rs().empty() and dl.prs().empty() and ul.prachs().empty();
+
+  const auto dl_pdcchs = dl.dl_pdcchs();
   const bool non_broadcast_is_empty =
-      std::none_of(result.dl.dl_pdcchs.begin(),
-                   result.dl.dl_pdcchs.end(),
+      std::none_of(dl_pdcchs.begin(),
+                   dl_pdcchs.end(),
                    [](const pdcch_dl_information& pdcch) { return pdcch.ctx.rnti != rnti_t::SI_RNTI; }) and
-      result.dl.ul_pdcchs.empty() and result.dl.paging_grants.empty() and result.dl.rar_grants.empty() and
-      result.dl.ue_grants.empty() and result.ul.puschs.empty() and result.ul.pucchs.empty() and result.ul.srss.empty();
+      dl.ul_pdcchs().empty() and dl.paging_grants().empty() and dl.rar_grants().empty() and dl.ue_grants().empty() and
+      ul.puschs().empty() and ul.pucchs().empty() and ul.srss().empty();
 
-  const bool failed_attempts =
-      result.failed_attempts.dl_pdcch + result.failed_attempts.ul_pdcch + result.failed_attempts.uci > 0;
-  const bool slot_is_logged =
+  const failed_alloc_attempts& attempts        = result.failed_attempts();
+  const bool                   failed_attempts = attempts.dl_pdcch + attempts.ul_pdcch + attempts.uci > 0;
+  const bool                   slot_is_logged =
       (log_broadcast and not broadcast_is_empty) or not non_broadcast_is_empty or failed_attempts;
 
   if (slot_is_logged) {
-    unsigned nof_pdschs = result.dl.paging_grants.size() + result.dl.rar_grants.size() + result.dl.ue_grants.size();
+    unsigned nof_pdschs = dl.paging_grants().size() + dl.rar_grants().size() + dl.ue_grants().size();
     if (log_broadcast) {
-      nof_pdschs += result.dl.bc.sibs.size();
+      nof_pdschs += dl.sibs().size();
     }
-    const unsigned nof_puschs       = result.ul.puschs.size();
-    const unsigned nof_pucchs       = result.ul.pucchs.size();
-    const unsigned nof_failed_pdcch = result.failed_attempts.dl_pdcch + result.failed_attempts.ul_pdcch;
-    const unsigned nof_failed_uci   = result.failed_attempts.uci;
+    const unsigned nof_puschs       = ul.puschs().size();
+    const unsigned nof_pucchs       = ul.pucchs().size();
+    const unsigned nof_failed_pdcch = attempts.dl_pdcch + attempts.ul_pdcch;
+    const unsigned nof_failed_uci   = attempts.uci;
     bool           push_failed      = false;
     logger.debug("Slot decisions pci={} t={}us ({} PDSCH{}, {} PUSCH{}, {} PUCCH{}, {} attempted PDCCH{}, {} attempted "
                  "UCI{}):{}",
@@ -981,21 +991,24 @@ void scheduler_result_logger::log_debug(const sched_result& result, std::chrono:
   }
 }
 
-void scheduler_result_logger::log_info(const sched_result& result, std::chrono::microseconds decision_latency)
+void scheduler_result_logger::log_info(sched_slot_result_reader result, std::chrono::microseconds decision_latency)
 {
-  const bool failed_attempts =
-      result.failed_attempts.dl_pdcch + result.failed_attempts.ul_pdcch + result.failed_attempts.uci > 0;
-  bool slot_is_logged = (log_broadcast and not result.dl.bc.sibs.empty()) or not result.dl.rar_grants.empty() or
-                        not result.dl.ue_grants.empty() or not result.ul.puschs.empty() or
-                        not result.dl.paging_grants.empty() or failed_attempts;
+  const auto dl = result.dl();
+  const auto ul = result.ul();
+
+  const failed_alloc_attempts& attempts        = result.failed_attempts();
+  const bool                   failed_attempts = attempts.dl_pdcch + attempts.ul_pdcch + attempts.uci > 0;
+  bool slot_is_logged = (log_broadcast and not dl.sibs().empty()) or not dl.rar_grants().empty() or
+                        not dl.ue_grants().empty() or not ul.puschs().empty() or not dl.paging_grants().empty() or
+                        failed_attempts;
 
   if (slot_is_logged) {
-    unsigned nof_pdschs = result.dl.paging_grants.size() + result.dl.rar_grants.size() + result.dl.ue_grants.size();
+    unsigned nof_pdschs = dl.paging_grants().size() + dl.rar_grants().size() + dl.ue_grants().size();
     if (log_broadcast) {
-      nof_pdschs += result.dl.bc.sibs.size();
+      nof_pdschs += dl.sibs().size();
     }
-    const unsigned nof_puschs  = result.ul.puschs.size();
-    const unsigned nof_pucchs  = result.ul.pucchs.size();
+    const unsigned nof_puschs  = ul.puschs().size();
+    const unsigned nof_pucchs  = ul.pucchs().size();
     bool           push_failed = false;
     logger.info("Slot decisions pci={} t={}us ({} PDSCH{}, {} PUSCH{}, {} PUCCH{}): {}",
                 pci,
@@ -1013,7 +1026,7 @@ void scheduler_result_logger::log_info(const sched_result& result, std::chrono::
   }
 }
 
-void scheduler_result_logger::on_scheduler_result(const sched_result&       result,
+void scheduler_result_logger::on_scheduler_result(sched_slot_result_reader  result,
                                                   std::chrono::microseconds decision_latency)
 {
   if (not enabled) {

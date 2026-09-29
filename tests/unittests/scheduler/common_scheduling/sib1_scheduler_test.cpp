@@ -391,7 +391,7 @@ void test_ssb_sib1_collision(arfcn_t              freq_arfcn,
   for (size_t sl_idx = 0; sl_idx < test_length_slots; sl_idx++) {
     t_bench.run_slot();
 
-    test_dl_resource_grid_collisions(t_bench.cell_cfg, t_bench.res_grid.result_of(0).dl);
+    test_dl_resource_grid_collisions(t_bench.cell_cfg, t_bench.res_grid[0].result_reader().dl());
   }
 }
 

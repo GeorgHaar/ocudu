@@ -110,8 +110,9 @@ TEST_F(du_high_tester, when_ue_context_setup_completes_then_drb_is_active)
   while (bytes_sched < nof_pdcp_pdus * pdcp_pdu_size and this->run_until([this]() {
     return phy.cells[0].last_dl_data.has_value() and not phy.cells[0].last_dl_data.value().ue_pdus.empty();
   })) {
+    const auto ue_grants = phy.cells[0].last_dl_res->dl_res.ue_grants();
     for (unsigned i = 0; i != phy.cells[0].last_dl_data.value().ue_pdus.size(); ++i) {
-      if (phy.cells[0].last_dl_res.value().dl_res->ue_grants[i].pdsch_cfg.codewords[0].new_data) {
+      if (ue_grants[i].pdsch_cfg.codewords[0].new_data) {
         bytes_sched += phy.cells[0].last_dl_data.value().ue_pdus[i].pdu.get_buffer().size();
       }
     }
@@ -169,7 +170,8 @@ TEST_F(du_high_tester,
 
   // Sanity Check: Ensure DRB is active by verifying that some DRB PDUs are scheduled.
   EXPECT_TRUE(this->run_until([this, rnti1]() {
-    return find_ue_pdsch_with_lcid(rnti1, LCID_MIN_DRB, phy.cells[0].last_dl_res.value().dl_res->ue_grants) != nullptr;
+    return phy.cells[0].last_dl_res.has_value() and
+           find_ue_pdsch_with_lcid(rnti1, LCID_MIN_DRB, phy.cells[0].last_dl_res->dl_res.ue_grants()) != nullptr;
   }));
 
   // EVENT: DU receives F1AP UE Context Release Command (Containing RRC Release).
@@ -182,7 +184,10 @@ TEST_F(du_high_tester,
   this->test_logger.info("STATUS: UEContextReleaseCommand received by DU. Waiting for rrcRelease being transmitted...");
   unsigned srb1_bytes     = msg.pdu.init_msg().value.ue_context_release_cmd()->rrc_container.size();
   auto     srb1_scheduled = [this, rnti1, &srb1_bytes]() mutable {
-    auto* pdsch = find_ue_pdsch_with_lcid(rnti1, LCID_SRB1, phy.cells[0].last_dl_res.value().dl_res->ue_grants);
+    if (not phy.cells[0].last_dl_res.has_value()) {
+      return srb1_bytes == 0;
+    }
+    auto* pdsch = find_ue_pdsch_with_lcid(rnti1, LCID_SRB1, phy.cells[0].last_dl_res->dl_res.ue_grants());
     if (pdsch != nullptr) {
       for (auto& lc : pdsch->tb_list[0].lc_chs_to_sched) {
         if (lc.lcid == LCID_SRB1) {
@@ -209,22 +214,31 @@ TEST_F(du_high_tester,
   for (unsigned count = 0, max_count = 1000; count < max_count and cu_notifier.f1ap_ul_msgs.empty(); ++count) {
     run_slot();
 
-    // TEST CASE: Ensure no PDSCH/PUSCH grants are scheduled for UE1.
-    ASSERT_EQ(find_ue_dl_pdcch(rnti1, *phy.cells[0].last_dl_res.value().dl_res), nullptr)
-        << "New DL grants were scheduled for UE1 while its release was ongoing";
-    ASSERT_EQ(find_ue_ul_pdcch(rnti1, *phy.cells[0].last_dl_res->dl_res), nullptr)
-        << "New UL grants were scheduled for UE1 while its release was ongoing";
+    if (phy.cells[0].last_dl_res.has_value()) {
+      const auto dl_res = phy.cells[0].last_dl_res->dl_res;
 
-    // TEST CASE: Ensure that UE2 activity is unaffected.
-    if (find_ue_pdsch_with_lcid(rnti2, LCID_MIN_DRB, phy.cells[0].last_dl_res.value().dl_res->ue_grants) != nullptr) {
-      ue2_pdsch_count++;
+      // TEST CASE: Ensure no PDSCH/PUSCH grants are scheduled for UE1.
+      ASSERT_EQ(find_ue_dl_pdcch(rnti1, dl_res), nullptr)
+          << "New DL grants were scheduled for UE1 while its release was ongoing";
+      ASSERT_EQ(find_ue_ul_pdcch(rnti1, dl_res), nullptr)
+          << "New UL grants were scheduled for UE1 while its release was ongoing";
+
+      // TEST CASE: Ensure that UE2 activity is unaffected.
+      if (find_ue_pdsch_with_lcid(rnti2, LCID_MIN_DRB, dl_res.ue_grants()) != nullptr) {
+        ue2_pdsch_count++;
+      }
     }
+
+    if (not phy.cells[0].last_ul_res.has_value()) {
+      continue;
+    }
+    const span<const pucch_info> pucchs = phy.cells[0].last_ul_res->ul_res.pucchs().unsorted();
 
     // TEST CASE: Ensure UE1 UCI periodic resources are still scheduled.
-    if (find_ue_pucch_with_csi(rnti1, phy.cells[0].last_ul_res.value().ul_res->pucchs.unsorted()) != nullptr) {
+    if (find_ue_pucch_with_csi(rnti1, pucchs) != nullptr) {
       ue1_csi_count++;
     }
-    auto* pucch = find_ue_pucch_with_sr(rnti1, phy.cells[0].last_ul_res.value().ul_res->pucchs.unsorted());
+    auto* pucch = find_ue_pucch_with_sr(rnti1, pucchs);
     if (pucch != nullptr) {
       // Push SR indication to MAC. It should be ignored.
       mac_uci_indication_message uci;
@@ -268,7 +282,10 @@ TEST_F(du_high_tester, when_f1ap_reset_received_then_ues_are_removed)
   const unsigned nof_slots_check = 100;
   ASSERT_FALSE(this->run_until(
       [this, rnti]() {
-        const dl_msg_alloc* pdsch = find_ue_pdsch(rnti, phy.cells[0].last_dl_res.value().dl_res->ue_grants);
+        if (not phy.cells[0].last_dl_res.has_value()) {
+          return false;
+        }
+        const dl_msg_alloc* pdsch = find_ue_pdsch(rnti, phy.cells[0].last_dl_res->dl_res.ue_grants());
         return pdsch != nullptr;
       },
       nof_slots_check));
@@ -424,7 +441,10 @@ TEST_F(du_high_tester, when_dl_rrc_message_with_old_du_ue_id_received_then_old_u
 
   ASSERT_FALSE(this->run_until(
       [this, rnti]() {
-        const dl_msg_alloc* pdsch = find_ue_pdsch(rnti, phy.cells[0].last_dl_res.value().dl_res->ue_grants);
+        if (not phy.cells[0].last_dl_res.has_value()) {
+          return false;
+        }
+        const dl_msg_alloc* pdsch = find_ue_pdsch(rnti, phy.cells[0].last_dl_res->dl_res.ue_grants());
         if (pdsch != nullptr and pdsch->pdsch_cfg.codewords[0].new_data) {
           return true;
         }
@@ -457,8 +477,8 @@ TEST_F(du_high_tester, when_dl_rrc_message_with_old_du_ue_id_received_then_drbs_
   }
   ASSERT_TRUE(this->run_until(
       [this, rnti2]() {
-        return find_ue_pdsch_with_lcid(rnti2, LCID_MIN_DRB, phy.cells[0].last_dl_res.value().dl_res->ue_grants) !=
-               nullptr;
+        return phy.cells[0].last_dl_res.has_value() and
+               find_ue_pdsch_with_lcid(rnti2, LCID_MIN_DRB, phy.cells[0].last_dl_res->dl_res.ue_grants()) != nullptr;
       },
       100));
 }
@@ -489,8 +509,8 @@ TEST_F(du_high_tester,
   }
   ASSERT_TRUE(this->run_until(
       [this, rnti2]() {
-        return find_ue_pdsch_with_lcid(rnti2, LCID_MIN_DRB, phy.cells[0].last_dl_res.value().dl_res->ue_grants) !=
-               nullptr;
+        return phy.cells[0].last_dl_res.has_value() and
+               find_ue_pdsch_with_lcid(rnti2, LCID_MIN_DRB, phy.cells[0].last_dl_res->dl_res.ue_grants()) != nullptr;
       },
       100));
 }
@@ -513,7 +533,10 @@ TEST_F(du_high_tester, when_reestablishment_takes_place_then_previous_ue_capabil
   const unsigned nof_slots_test = 1000;
   ASSERT_TRUE(this->run_until(
       [this, rnti1]() {
-        auto* pdsch = find_ue_pdsch_with_lcid(rnti1, LCID_MIN_DRB, phy.cells[0].last_dl_res.value().dl_res->ue_grants);
+        if (not phy.cells[0].last_dl_res.has_value()) {
+          return false;
+        }
+        auto* pdsch = find_ue_pdsch_with_lcid(rnti1, LCID_MIN_DRB, phy.cells[0].last_dl_res->dl_res.ue_grants());
         return pdsch != nullptr and pdsch->pdsch_cfg.mcs_table == pdsch_mcs_table::qam256;
       },
       nof_slots_test));
@@ -532,7 +555,10 @@ TEST_F(du_high_tester, when_reestablishment_takes_place_then_previous_ue_capabil
   // Check QAM256 MCS table is used after RRC Reestablishment (the UE capabilities were not forgotten).
   ASSERT_TRUE(this->run_until(
       [this, rnti2]() {
-        auto* pdsch = find_ue_pdsch_with_lcid(rnti2, LCID_MIN_DRB, phy.cells[0].last_dl_res.value().dl_res->ue_grants);
+        if (not phy.cells[0].last_dl_res.has_value()) {
+          return false;
+        }
+        auto* pdsch = find_ue_pdsch_with_lcid(rnti2, LCID_MIN_DRB, phy.cells[0].last_dl_res->dl_res.ue_grants());
         return pdsch != nullptr and pdsch->pdsch_cfg.mcs_table == pdsch_mcs_table::qam256;
       },
       nof_slots_test));
@@ -599,12 +625,14 @@ TEST_F(du_high_rrm_policy_tester, when_rrm_policy_remote_command_is_received_the
     for (unsigned sl = 0; sl != nof_slots_to_assess_rrm_cfg; ++sl) {
       run_slot();
 
-      unsigned rbs       = 0;
-      auto&    ue_grants = phy.cells[0].last_dl_res.value().dl_res->ue_grants;
-      for (auto& ue_grant : ue_grants) {
-        rbs += ue_grant.pdsch_cfg.rbs.type1().length();
+      if (phy.cells[0].last_dl_res.has_value()) {
+        unsigned   rbs       = 0;
+        const auto ue_grants = phy.cells[0].last_dl_res->dl_res.ue_grants();
+        for (const auto& ue_grant : ue_grants) {
+          rbs += ue_grant.pdsch_cfg.rbs.type1().length();
+        }
+        ASSERT_LT(rbs, max_slice_rbs);
       }
-      ASSERT_LT(rbs, max_slice_rbs);
       phy.cells[0].last_dl_data.reset();
     }
   };
@@ -691,8 +719,10 @@ TEST_F(du_high_cg_tester, when_ue_context_setup_with_drb_and_cg_enabled_then_cs_
        ++i) {
     run_slot();
 
-    const dl_msg_alloc* pdsch =
-        find_ue_pdsch_with_lcid(rnti, LCID_SRB1, phy.cells[0].last_dl_res.value().dl_res->ue_grants);
+    if (not phy.cells[0].last_dl_res.has_value()) {
+      continue;
+    }
+    const dl_msg_alloc* pdsch = find_ue_pdsch_with_lcid(rnti, LCID_SRB1, phy.cells[0].last_dl_res->dl_res.ue_grants());
     if (pdsch != nullptr) {
       for (const dl_msg_lc_info& lc_grant : pdsch->tb_list[0].lc_chs_to_sched) {
         if (lc_grant.lcid == LCID_SRB1) {

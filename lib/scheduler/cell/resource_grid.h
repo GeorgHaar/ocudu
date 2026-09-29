@@ -394,15 +394,6 @@ struct cell_resource_allocator {
   /// \brief Returns the size of the circular ring of cell_slot_resource_grids (not counting the history).
   unsigned ring_size() const { return slots.size() - RING_MAX_HISTORY_SIZE; }
 
-  /// \brief Fetches the whole result of a slot, for the interfaces that carry one across a layer boundary.
-  ///
-  /// Within the scheduler, a slot result is reached through the builder and reader handles of its slot.
-  const sched_result& result_of(unsigned slot_delay) const
-  {
-    const cell_slot_resource_allocator& slot_res = (*this)[slot_delay];
-    return slot_res.results->slot_storage(slot_res.res_idx);
-  }
-
 private:
   /// Ensure we are not overflowing the ring.
   void assert_valid_sl(unsigned slot_delay) const

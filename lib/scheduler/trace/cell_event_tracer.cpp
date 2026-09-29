@@ -11,21 +11,22 @@
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/scheduler/input/crc_inputs.h"
 #include "ocudu/scheduler/input/uci_inputs.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 
 using namespace ocudu::schedtrace;
 
 /// Returns true if nothing was scheduled and no allocation attempt failed this slot, i.e. encoding a \c SlotDecision
 /// would produce an all-empty table.
-static bool is_decision_empty(const ocudu::sched_result& result)
+static bool is_decision_empty(ocudu::sched_slot_result_reader result)
 {
-  return result.dl.dl_pdcchs.empty() && result.dl.ul_pdcchs.empty() && result.dl.bc.sibs.empty() &&
-         result.dl.rar_grants.empty() && result.dl.paging_grants.empty() && result.dl.ue_grants.empty() &&
-         result.dl.csi_rs.empty() && result.dl.bc.ssb_info.empty() && result.ul.puschs.empty() &&
-         result.ul.pucchs.empty() && result.ul.prachs.empty() && result.ul.srss.empty() &&
-         result.failed_attempts.dl_pdcch == 0 && result.failed_attempts.ul_pdcch == 0 &&
-         result.failed_attempts.common_dl_pdcch == 0 && result.failed_attempts.common_ul_pdcch == 0 &&
-         result.failed_attempts.uci == 0;
+  const auto                          dl       = result.dl();
+  const auto                          ul       = result.ul();
+  const ocudu::failed_alloc_attempts& attempts = result.failed_attempts();
+  return dl.dl_pdcchs().empty() && dl.ul_pdcchs().empty() && dl.sibs().empty() && dl.rar_grants().empty() &&
+         dl.paging_grants().empty() && dl.ue_grants().empty() && dl.csi_rs().empty() && dl.ssb_info().empty() &&
+         ul.puschs().empty() && ul.pucchs().empty() && ul.prachs().empty() && ul.srss().empty() &&
+         attempts.dl_pdcch == 0 && attempts.ul_pdcch == 0 && attempts.common_dl_pdcch == 0 &&
+         attempts.common_ul_pdcch == 0 && attempts.uci == 0;
 }
 
 /// Finishes the size-prefixed CellEvent buffer wrapping the given union member, stamping the current time.
@@ -74,7 +75,7 @@ void cell_event_tracer::on_cell_start(const ocudu::cell_configuration& cell_cfg)
 }
 
 void cell_event_tracer::on_scheduler_result_impl(slot_point                sl,
-                                                 const sched_result&       result,
+                                                 sched_slot_result_reader  result,
                                                  std::chrono::microseconds slot_latency)
 {
   // Fill sched decision in slot event. The buffered inputs were already built into this builder.

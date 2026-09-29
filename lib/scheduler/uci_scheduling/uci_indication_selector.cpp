@@ -406,7 +406,7 @@ void uci_indication_selector::handle_timeouts(slot_point sl_tx)
   ocudu_sanity_check(short_timeout_wheel[sl_tx.count()].empty(), "Unexpected state for short UCI timeout wheel");
 }
 
-void uci_indication_selector::handle_result(slot_point sl_tx, const sched_result& result)
+void uci_indication_selector::handle_result(slot_point sl_tx, sched_slot_result_reader result)
 {
   // Handle UCI grant timeouts accounting for potential slot indication skips.
   unsigned skipped_slots = 1;
@@ -428,7 +428,7 @@ void uci_indication_selector::handle_result(slot_point sl_tx, const sched_result
   // Handle new PUCCH grants scheduled in this slot.
   ocudu_sanity_check(uci_wheel[sl_tx.count()].empty(), "The wheel should be empty for slot tx");
   auto uci_r = uci_wheel[sl_tx.count()].get_list(uci_pool);
-  for (const pucch_info& pucch : result.ul.pucchs) {
+  for (const pucch_info& pucch : result.ul().pucchs()) {
     if (pucch.uci_bits.harq_ack_nof_bits == 0) {
       // Only PUCCHs with HARQ-ACK bits need to be buffered for timeout handling.
       continue;
@@ -472,7 +472,7 @@ void uci_indication_selector::handle_result(slot_point sl_tx, const sched_result
   }
 
   // Handle new PUSCH with UCI grants scheduled in this slot.
-  for (const ul_sched_info& pusch : result.ul.puschs) {
+  for (const ul_sched_info& pusch : result.ul().puschs()) {
     if (not pusch.uci.has_value() or not pusch.uci->harq.has_value() or pusch.uci->harq->harq_ack_nof_bits == 0) {
       // Only UCI with HARQ-ACK bits need to be buffered for timeout handling.
       continue;

@@ -119,9 +119,9 @@ public:
   void handle_dl_mac_ce_indication(const dl_mac_ce_indication& mac_ce) override {}
   void handle_crnti_ce_received(du_ue_index_t ue_index) override {}
   void handle_paging_information(const sched_paging_information& pi) override {}
-  const sched_result& slot_indication(slot_point_extended sl_tx, du_cell_index_t cell_index) override
+  sched_slot_result_reader slot_indication(slot_point_extended sl_tx, du_cell_index_t cell_index) override
   {
-    return next_sched_result;
+    return sched_slot_result_reader{next_sched_result};
   }
   void handle_error_indication(slot_point sl_tx, du_cell_index_t cell_index, error_outcome event) override {}
   void handle_dl_buffer_state_indication(const dl_buffer_state_indication_message& bs) override {}
@@ -182,9 +182,9 @@ public:
 
   void handle_cell_deactivation(du_cell_index_t cell_idx) override { active = false; }
 
-  const sched_result& slot_indication(slot_point_extended slot_tx, du_cell_index_t cell_idx) override
+  sched_slot_result_reader slot_indication(slot_point_extended slot_tx, du_cell_index_t cell_idx) override
   {
-    return next_sched_result;
+    return sched_slot_result_reader{next_sched_result};
   }
   void handle_error_indication(slot_point                         slot_tx,
                                du_cell_index_t                    cell_idx,

@@ -20,6 +20,7 @@
 #include "ocudu/ran/harq_id.h"
 #include "ocudu/ran/prach/prach_time_mapping.h"
 #include "ocudu/scheduler/config/cg_builder_params.h"
+#include <algorithm>
 #include <functional>
 #include <gtest/gtest.h>
 
@@ -45,16 +46,21 @@ public:
     builder_params = cell_config_builder_profiles::create(duplx_mode);
   }
 
+  /// Runs slots until a common PUCCH with HARQ bits is scheduled for \c rnti_to_find. The returned pointer stays
+  /// valid until the next slot runs.
   const pucch_info* run_until_common_pucch_with_harq(rnti_t rnti_to_find)
   {
     const pucch_info* first_conres_msg4_pucch = nullptr;
     run_slot_until([this, &first_conres_msg4_pucch, rnti_to_find]() {
-      span<const pucch_info> pucchs = this->last_sched_result()->ul.pucchs.unsorted();
-      return std::any_of(
-          pucchs.begin(), pucchs.end(), [&first_conres_msg4_pucch, rnti_to_find](const pucch_info& pucch) mutable {
-            first_conres_msg4_pucch = &pucch;
-            return pucch.crnti == rnti_to_find and is_f1_pucch_with_harq_bits(pucch, true, false);
-          });
+      span<const pucch_info> pucchs = this->last_sched_result()->ul.pucchs;
+      auto                   it = std::find_if(pucchs.begin(), pucchs.end(), [rnti_to_find](const pucch_info& pucch) {
+        return pucch.crnti == rnti_to_find and is_f1_pucch_with_harq_bits(pucch, true, false);
+      });
+      if (it == pucchs.end()) {
+        return false;
+      }
+      first_conres_msg4_pucch = &*it;
+      return true;
     });
     return first_conres_msg4_pucch;
   }
@@ -341,7 +347,7 @@ TEST_P(scheduler_con_res_msg4_test, while_ue_is_in_fallback_then_common_pucch_is
     // - 1 PUCCH F1 ded. with 1 HARQ-ACK bit and NO SR and 1 PUCCH F1 ded. with 1 HARQ-ACK bit and SR.
     // - 1 PUCCH F2 ded. with 1 HARQ-ACK bit and CSI, with optional SR.
 
-    const auto& pucchs     = this->last_sched_result()->ul.pucchs.unsorted();
+    const auto& pucchs     = this->last_sched_result()->ul.pucchs;
     unsigned    nof_pucchs = pucchs.size();
 
     if (nof_pucchs == 1) {
@@ -629,7 +635,7 @@ TEST_F(scheduler_ntn_fallback_test, pdsch_is_not_held_back_by_the_koffset_of_the
        count != max_nof_slots and (pdsch_slots.size() != nof_pdschs or last_result_slot() < harq_ack_slots.back());
        ++count) {
     run_slot();
-    const auto pucchs = last_sched_result()->ul.pucchs.unsorted();
+    const auto& pucchs = last_sched_result()->ul.pucchs;
     if (std::any_of(pucchs.begin(), pucchs.end(), [this](const pucch_info& pucch) {
           return pucch.crnti == rnti and pucch.uci_bits.harq_ack_nof_bits > 0;
         })) {
@@ -733,7 +739,7 @@ protected:
   bool has_harq_ack() const
   {
     const auto& ul       = last_sched_result()->ul;
-    const auto  pucchs   = ul.pucchs.unsorted();
+    const auto& pucchs   = ul.pucchs;
     const bool  on_pucch = std::any_of(pucchs.begin(), pucchs.end(), [this](const pucch_info& pucch) {
       return pucch.crnti == rnti and pucch.uci_bits.harq_ack_nof_bits > 0;
     });
@@ -1016,7 +1022,7 @@ TEST_F(cfra_scheduler_test, no_pucch_in_msg3_slot_while_cfra_pending)
     const auto& puschs = last_sched_result()->ul.puschs;
     for (const auto& pusch : puschs) {
       if (pusch.pusch_cfg.rnti == cfra_tc_rnti) {
-        EXPECT_EQ(find_ue_pucch(cfra_tc_rnti, last_sched_result()->ul.pucchs.unsorted()), nullptr)
+        EXPECT_EQ(find_ue_pucch(cfra_tc_rnti, last_sched_result()->ul.pucchs), nullptr)
             << "PUCCH scheduled for CFRA UE in the same slot as Msg3 PUSCH";
         msg3_found = true;
         return true;
@@ -1133,14 +1139,14 @@ TEST_P(cfra_csi_collision_test, msg3_pusch_never_shares_slot_with_csi_pucch)
   for (unsigned i = 0; i != 40; ++i) {
     run_slot();
     const auto& res = *last_sched_result();
-    if (find_ue_pucch_with_csi(cfra_tc_rnti, res.ul.pucchs.unsorted()) != nullptr) {
+    if (find_ue_pucch_with_csi(cfra_tc_rnti, res.ul.pucchs) != nullptr) {
       csi_pucch_seen = true;
     }
     if (find_ue_pusch(cfra_tc_rnti, res.ul.puschs) != nullptr) {
       // While pending CFRA the only PUSCH for this RNTI is Msg3 (initial or retx). No PUCCH for the UE may
       // share its slot (a coincident CSI would otherwise be multiplexed onto the UCI-free Msg3 grant).
       msg3_seen = true;
-      EXPECT_EQ(find_ue_pucch(cfra_tc_rnti, res.ul.pucchs.unsorted()), nullptr)
+      EXPECT_EQ(find_ue_pucch(cfra_tc_rnti, res.ul.pucchs), nullptr)
           << "PUCCH coincides with Msg3 PUSCH (rach_lead=" << GetParam() << ")";
     }
   }
@@ -1180,7 +1186,7 @@ TEST_P(cfra_csi_collision_test, msg3_retx_never_shares_slot_with_pucch)
   ASSERT_TRUE(run_slot_until([this, &retx_found]() {
     const ul_sched_info* pusch = find_ue_pusch(cfra_tc_rnti, last_sched_result()->ul.puschs);
     if (pusch != nullptr and pusch->context.nof_retxs > 0) {
-      EXPECT_EQ(find_ue_pucch(cfra_tc_rnti, last_sched_result()->ul.pucchs.unsorted()), nullptr)
+      EXPECT_EQ(find_ue_pucch(cfra_tc_rnti, last_sched_result()->ul.pucchs), nullptr)
           << "PUCCH coincides with Msg3 retx (rach_lead=" << GetParam() << ")";
       retx_found = true;
       return true;
@@ -1250,7 +1256,7 @@ public:
     for (unsigned i = 0; i != 40; ++i) {
       run_slot();
       const auto& res            = *last_sched_result();
-      const bool  cfra_has_pucch = find_ue_pucch(cfra_tc_rnti, res.ul.pucchs.unsorted()) != nullptr;
+      const bool  cfra_has_pucch = find_ue_pucch(cfra_tc_rnti, res.ul.pucchs) != nullptr;
       if (find_ue_pusch(cfra_tc_rnti, res.ul.puschs) != nullptr) {
         cfra_msg3_seen = true;
         EXPECT_FALSE(cfra_has_pucch) << "CFRA Msg3 shares a slot with the CFRA UE's PUCCH (rach_lead=" << rach_lead

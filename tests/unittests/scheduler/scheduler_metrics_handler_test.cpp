@@ -61,7 +61,7 @@ protected:
     metrics.handle_ue_creation(test_ue_index, to_rnti(0x4601), pci_t{0});
   }
 
-  void run_slot(const sched_result& sched_res, std::chrono::microseconds latency = std::chrono::microseconds{0})
+  void run_slot(sched_slot_result_reader sched_res, std::chrono::microseconds latency = std::chrono::microseconds{0})
   {
     metrics.push_result(next_sl_tx, sched_res, latency);
     ++next_sl_tx;
@@ -266,10 +266,9 @@ TEST_F(scheduler_metrics_handler_tester, compute_mcs)
   metrics_notif.last_report = {};
 
   sched_result_grid results{sched_result_grid_config{1}};
-  sched_result&     res = results.slot_storage(0);
-  res.dl.nof_dl_symbols = 14;
-  res.ul.nof_ul_symbols = 14;
-  dl_msg_alloc* dl_msg  = results.get_builder(0).dl().ue_grants().emplace_back();
+  results.reset_slot(0, 14, 14);
+  const auto    res    = results.get_reader(0);
+  dl_msg_alloc* dl_msg = results.get_builder(0).dl().ue_grants().emplace_back();
   ASSERT_NE(dl_msg, nullptr);
   dl_msg->pdsch_cfg.rnti = to_rnti(0x4601);
   auto&          cw      = dl_msg->pdsch_cfg.codewords.emplace_back();

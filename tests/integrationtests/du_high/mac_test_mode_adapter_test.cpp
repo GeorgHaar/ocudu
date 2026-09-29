@@ -259,7 +259,7 @@ TEST_F(mac_test_mode_test, when_test_mode_ue_has_pucch_grants_then_uci_indicatio
 
     mac_events.next_ul_sched_res.emplace();
     mac_events.next_ul_sched_res->slot   = next_slot.without_hyper_sfn();
-    mac_events.next_ul_sched_res->ul_res = &ul_res;
+    mac_events.next_ul_sched_res->ul_res = ul_res;
 
     // Run the slot with PUCCH scheduled.
     slot_point_extended sl_rx = next_slot;
@@ -302,7 +302,7 @@ TEST_F(mac_test_mode_test, when_test_mode_ue_has_pusch_grants_then_crc_indicatio
   ulgrant->pusch_cfg.harq_id = to_harq_id(test_rng::uniform_int(0, 15));
   mac_events.next_ul_sched_res.emplace();
   mac_events.next_ul_sched_res->slot   = next_slot.without_hyper_sfn();
-  mac_events.next_ul_sched_res->ul_res = &ul_res;
+  mac_events.next_ul_sched_res->ul_res = ul_res;
 
   // Run the slot with PUSCH scheduled.
   slot_point sl_rx = next_slot.without_hyper_sfn();
@@ -375,7 +375,7 @@ TEST_P(mac_test_mode_auto_uci_test, when_test_mode_ue_has_pucch_grants_then_uci_
 
   mac_events.next_ul_sched_res.emplace();
   mac_events.next_ul_sched_res->slot   = next_slot.without_hyper_sfn();
-  mac_events.next_ul_sched_res->ul_res = &ul_res;
+  mac_events.next_ul_sched_res->ul_res = ul_res;
 
   // Run the slot with PUCCH scheduled.
   slot_point sl_rx = next_slot.without_hyper_sfn();
@@ -417,7 +417,7 @@ TEST_P(mac_test_mode_auto_uci_test, when_test_mode_ue_has_pusch_grants_then_crc_
   ulgrant->pusch_cfg.harq_id = to_harq_id(test_rng::uniform_int(0, 15));
   mac_events.next_ul_sched_res.emplace();
   mac_events.next_ul_sched_res->slot   = next_slot.without_hyper_sfn();
-  mac_events.next_ul_sched_res->ul_res = &ul_res;
+  mac_events.next_ul_sched_res->ul_res = ul_res;
 
   // Run the slot with PUSCH scheduled.
   slot_point sl_rx = next_slot.without_hyper_sfn();
@@ -471,7 +471,7 @@ TEST_P(mac_test_mode_auto_uci_test, when_uci_is_forwarded_to_mac_then_test_mode_
 
   mac_events.next_ul_sched_res.emplace();
   mac_events.next_ul_sched_res->slot   = next_slot.without_hyper_sfn();
-  mac_events.next_ul_sched_res->ul_res = &ul_res;
+  mac_events.next_ul_sched_res->ul_res = ul_res;
 
   // Run the slot with PUCCH scheduled.
   slot_point sl_rx = next_slot.without_hyper_sfn();

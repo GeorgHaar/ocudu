@@ -677,7 +677,7 @@ TEST_F(si_msg_scheduler_tdra_test, when_custom_pdsch_td_alloc_list_configured_th
       2 * DEFAULT_SI_SCHED_CFG.si_messages[0].period_radio_frames * next_slot.nof_slots_per_frame();
   for (unsigned i = 0; i != nof_test_slots; ++i) {
     run_slot();
-    for (const auto& sib : last_sched_result().dl.bc.sibs) {
+    for (const auto& sib : last_sched_result().dl().sibs()) {
       if (sib.si_indicator == sib_information::other_si) {
         EXPECT_EQ(sib.pdsch_cfg.symbols, expected_symbols);
         other_si_found = true;
@@ -734,9 +734,10 @@ TEST_F(si_msg_scheduler_activation_test, when_pws_epoch_is_applied_then_grants_u
 }
 
 /// Whether the slot carries the etwsAndCmasIndication short message, as per TS 38.331 Table 6.5-1.
-static bool has_pws_short_message(const dl_sched_result& result)
+static bool has_pws_short_message(sched_slot_dl_result_reader result)
 {
-  return std::any_of(result.dl_pdcchs.begin(), result.dl_pdcchs.end(), [](const pdcch_dl_information& pdcch) {
+  const auto dl_pdcchs = result.dl_pdcchs();
+  return std::any_of(dl_pdcchs.begin(), dl_pdcchs.end(), [](const pdcch_dl_information& pdcch) {
     if (pdcch.dci.type() != dci_dl_rnti_config_type::p_rnti_f1_0) {
       return false;
     }
@@ -772,7 +773,7 @@ TEST_F(si_msg_scheduler_activation_test, when_two_epochs_coalesce_then_the_warni
   bool notified = false;
   for (unsigned i = 0; i != nof_test_slots and not notified; ++i) {
     run_slot();
-    notified = has_pws_short_message(res_grid.result_of(0).dl);
+    notified = has_pws_short_message(res_grid[0].result_reader().dl());
   }
 
   ASSERT_TRUE(notified) << "The warning was never notified after both epochs coalesced";

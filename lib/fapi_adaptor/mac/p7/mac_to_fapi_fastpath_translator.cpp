@@ -19,7 +19,6 @@
 #include "ocudu/fapi/p7/builders/ul_tti_request_builder.h"
 #include "ocudu/fapi/p7/p7_last_request_notifier.h"
 #include "ocudu/fapi/p7/p7_requests_gateway.h"
-#include "ocudu/scheduler/result/sched_result.h"
 #include "ocudu/scheduler/result/sched_result_grid.h"
 
 using namespace ocudu;
@@ -148,29 +147,27 @@ void mac_to_fapi_fastpath_translator::on_new_downlink_scheduler_results(const ma
 
   builder.set_slot(dl_res.slot);
 
+  const auto csi_rs = dl_res.dl_res.csi_rs();
+
   // Add PDCCH PDUs to the DL_TTI.request message.
-  add_pdcch_pdus_to_builder(builder,
-                            pdu_span<pdcch_dl_information>(dl_res.dl_res->dl_pdcchs),
-                            dl_res.dl_pdcch_pdus,
-                            *pm_mapper,
-                            cell_nof_prbs);
+  add_pdcch_pdus_to_builder(builder, dl_res.dl_res.dl_pdcchs(), dl_res.dl_pdcch_pdus, *pm_mapper, cell_nof_prbs);
 
   // Add SSB PDUs to the DL_TTI.request message.
   add_ssb_pdus_to_dl_request(builder, dl_res.ssb_pdus, dl_res.slot, cell_nof_prbs);
 
   // Add CSI-RS PDUs to the DL_TTI.request message.
-  add_csi_rs_pdus_to_dl_request(builder, dl_res.dl_res->csi_rs);
+  add_csi_rs_pdus_to_dl_request(builder, csi_rs);
 
   // Add DL-PRS PDUs to the DL_TTI.request message.
-  add_prs_pdus_to_dl_request(builder, dl_res.dl_res->prs, *pm_mapper, cell_nof_prbs);
+  add_prs_pdus_to_dl_request(builder, dl_res.dl_res.prs(), *pm_mapper, cell_nof_prbs);
 
   // Add PDSCH PDUs to the DL_TTI.request message.
   add_pdsch_pdus_to_dl_request(builder,
-                               dl_res.dl_res->bc.sibs,
-                               dl_res.dl_res->rar_grants,
-                               dl_res.dl_res->ue_grants,
-                               dl_res.dl_res->paging_grants,
-                               dl_res.dl_res->csi_rs.size(),
+                               dl_res.dl_res.sibs(),
+                               dl_res.dl_res.rar_grants(),
+                               dl_res.dl_res.ue_grants(),
+                               dl_res.dl_res.paging_grants(),
+                               csi_rs.size(),
                                *pm_mapper,
                                cell_nof_prbs);
 
@@ -181,7 +178,7 @@ void mac_to_fapi_fastpath_translator::on_new_downlink_scheduler_results(const ma
   // Send the message.
   p7_gateway.send_dl_tti_request(msg);
 
-  handle_ul_dci_request(dl_res.dl_res->ul_pdcchs, dl_res.ul_pdcch_pdus, dl_res.slot);
+  handle_ul_dci_request(dl_res.dl_res.ul_pdcchs(), dl_res.ul_pdcch_pdus, dl_res.slot);
 }
 
 void mac_to_fapi_fastpath_translator::on_new_downlink_data(const mac_dl_data_result& dl_data)
@@ -262,23 +259,23 @@ void mac_to_fapi_fastpath_translator::on_new_uplink_scheduler_results(const mac_
   builder.set_slot(ul_res.slot);
 
   // Add PRACH PDUs to the UL_TTI.request message.
-  for (const auto& pdu : ul_res.ul_res->prachs) {
+  for (const auto& pdu : ul_res.ul_res.prachs()) {
     fapi::ul_prach_pdu_builder pdu_builder = builder.add_prach_pdu();
     convert_prach_mac_to_fapi(pdu_builder, pdu);
   }
 
   // Add PUSCH PDUs to the UL_TTI.request message.
-  for (const auto& pdu : ul_res.ul_res->puschs) {
+  for (const auto& pdu : ul_res.ul_res.puschs()) {
     fapi::ul_pusch_pdu_builder pdu_builder = builder.add_pusch_pdu();
     convert_pusch_mac_to_fapi(pdu_builder, pdu, *part2_mapper);
   }
 
-  for (const auto& pdu : ul_res.ul_res->pucchs) {
+  for (const auto& pdu : ul_res.ul_res.pucchs()) {
     fapi::ul_pucch_pdu_builder pdu_builder = builder.add_pucch_pdu(pdu.format());
     convert_pucch_mac_to_fapi(pdu_builder, pdu);
   }
 
-  for (const auto& pdu : ul_res.ul_res->srss) {
+  for (const auto& pdu : ul_res.ul_res.srss()) {
     fapi::ul_srs_pdu_builder pdu_builder = builder.add_srs_pdu();
     convert_srs_mac_to_fapi(pdu_builder, pdu);
   }

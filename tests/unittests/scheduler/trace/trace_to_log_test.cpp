@@ -11,7 +11,7 @@
 #include "tests/test_doubles/scheduler/trace/test_messages.h"
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/ocudulog/sink.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/scheduler/trace/trace_to_log.h"
 #include <algorithm>
 #include <gtest/gtest.h>
@@ -84,7 +84,7 @@ public:
     }
   }
 
-  void handle_slot(slot_point sl, const sched_result& result, std::chrono::microseconds latency)
+  void handle_slot(slot_point sl, sched_slot_result_reader result, std::chrono::microseconds latency)
   {
     flatbuffers::FlatBufferBuilder fbb;
     const auto                     decision = convert_decision_to_fb(fbb, result);
@@ -212,8 +212,8 @@ TEST_F(trace_to_log_test, when_cell_starts_then_log_contains_pci_and_bwp_info)
 TEST_F(trace_to_log_test, when_slot_results_are_in_stream_then_each_slot_produces_log_output)
 {
   // Any non-empty decision will do; what is under test is that each slot in the stream reaches the logger.
-  full_sched_result   full;
-  const sched_result& result = full.result();
+  full_sched_result full;
+  const auto        result = full.result();
 
   cell_trace_stream_builder builder{0, make_test_bwp_cfg(), make_test_bwp_cfg()};
   builder.handle_slot(slot_point{0, 1}, result, std::chrono::microseconds(10));
@@ -231,8 +231,8 @@ TEST_F(trace_to_log_test, when_slot_results_are_in_stream_then_each_slot_produce
 
 TEST_F(trace_to_log_test, logged_slot_decisions_survive_the_trace_roundtrip)
 {
-  full_sched_result   full;
-  const sched_result& result = full.result();
+  full_sched_result full;
+  const auto        result = full.result();
 
   // Log the decision directly, through the same "SCHED" logger trace_to_log replays into.
   scheduler_result_logger direct{true, 0};

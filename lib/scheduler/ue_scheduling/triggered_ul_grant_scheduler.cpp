@@ -8,7 +8,6 @@
 #include "../ue_context/ue.h"
 #include "ocudu/ran/logical_channel/lcid_dl_sch.h"
 #include "ocudu/scheduler/result/pdsch_info.h"
-#include "ocudu/scheduler/result/sched_result.h"
 
 using namespace ocudu;
 
@@ -20,9 +19,9 @@ triggered_ul_grant_scheduler::triggered_ul_grant_scheduler(ue_repository&     ue
   pending_grants.reserve(pending_grants_size);
 }
 
-void triggered_ul_grant_scheduler::process_dl_results(slot_point sl_tx, const sched_result& sched_result)
+void triggered_ul_grant_scheduler::process_dl_results(slot_point sl_tx, sched_slot_result_reader sched_result)
 {
-  for (const dl_msg_alloc& grant : sched_result.dl.ue_grants) {
+  for (const dl_msg_alloc& grant : sched_result.dl().ue_grants()) {
     ue* u = ues.find(grant.context.ue_index);
     ocudu_assert(u != nullptr, "No UE context found for triggered UL grant");
     const ue_configuration* ue_cfg  = u->ue_cfg_dedicated();

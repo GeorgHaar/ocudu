@@ -18,7 +18,7 @@ TEST(mac_fapi_pdcch_pdu_conversor_test, mac_to_fapi_conversion_is_valid)
   unsigned                               nof_prbs            = 51;
   const mac_dl_sched_result_test_helper& result_test         = build_valid_mac_dl_sched_result();
   const mac_dl_sched_result&             result              = result_test.result;
-  const dci_context_information          context_information = result.dl_res->dl_pdcchs.front().ctx;
+  const dci_context_information          context_information = result.dl_res.dl_pdcchs().front().ctx;
   const dci_payload                      payload             = result.dl_pdcch_pdus.front();
 
   fapi::dl_pdcch_pdu         fapi_pdu;
@@ -66,7 +66,7 @@ TEST(mac_fapi_pdcch_pdu_conversor_test, beamformed_dci_carries_its_beam)
   unsigned                               nof_prbs    = 51;
   const mac_dl_sched_result_test_helper& result_test = build_valid_mac_dl_sched_result();
   const mac_dl_sched_result&             result      = result_test.result;
-  dci_context_information                context     = result.dl_res->dl_pdcchs.front().ctx;
+  dci_context_information                context     = result.dl_res.dl_pdcchs().front().ctx;
   const dci_payload                      payload     = result.dl_pdcch_pdus.front();
 
   const beam_identifier beam_id     = to_beam_id(3);
@@ -85,7 +85,7 @@ TEST(mac_fapi_pdcch_pdu_conversor_test, dci_without_a_beam_selects_a_precoding_m
   unsigned                               nof_prbs    = 51;
   const mac_dl_sched_result_test_helper& result_test = build_valid_mac_dl_sched_result();
   const mac_dl_sched_result&             result      = result_test.result;
-  dci_context_information                context     = result.dl_res->dl_pdcchs.front().ctx;
+  dci_context_information                context     = result.dl_res.dl_pdcchs().front().ctx;
   const dci_payload                      payload     = result.dl_pdcch_pdus.front();
 
   context.precoding_and_beamforming = make_default_precoding();

@@ -10,7 +10,7 @@
 #include "ocudu/mac/mac_cell_timing_context.h"
 #include "ocudu/ran/band_helper.h"
 #include "ocudu/ran/pdsch/pdsch_constants.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/support/async/async_no_op_task.h"
 #include "ocudu/support/async/async_timer.h"
 #include "ocudu/support/async/execute_on_blocking.h"
@@ -384,17 +384,19 @@ void mac_cell_processor::handle_slot_indication_impl(slot_point_extended      sl
   pdu_pool.tick(sl_tx.count());
 
   // Generate DL scheduling result for provided slot and cell.
-  const sched_result& sl_res = sched.slot_indication(sl_tx_ext, cell_cfg.cell_index);
+  const auto sl_res = sched.slot_indication(sl_tx_ext, cell_cfg.cell_index);
+  const auto sl_dl  = sl_res.dl();
+  const auto sl_ul  = sl_res.ul();
   metrics_meas.on_sched();
-  if (not sl_res.success) {
+  if (not sl_res.success()) {
     logger.warning("Unable to compute scheduling result for slot={}, cell={}", sl_tx, cell_cfg.cell_index);
-    if (sl_res.dl.nof_dl_symbols > 0) {
+    if (sl_dl.nof_dl_symbols() > 0) {
       mac_dl_sched_result mac_dl_res{};
       mac_dl_res.slot = sl_tx;
       phy_cell.on_new_downlink_scheduler_results(mac_dl_res);
       metrics_meas.on_dl_tti_req();
     }
-    if (sl_res.ul.nof_ul_symbols > 0) {
+    if (sl_ul.nof_ul_symbols() > 0) {
       mac_ul_sched_result mac_ul_res{};
       mac_ul_res.slot = sl_tx;
       phy_cell.on_new_uplink_scheduler_results(mac_ul_res);
@@ -409,12 +411,12 @@ void mac_cell_processor::handle_slot_indication_impl(slot_point_extended      sl
   mac_dl_data_result data_res{};
 
   // If it is a DL slot, process results.
-  if (sl_res.dl.nof_dl_symbols > 0) {
+  if (sl_dl.nof_dl_symbols() > 0) {
     trace_point dl_tti_req_tp = l2_tracer.now();
 
     // Assemble MAC DL scheduling request that is going to be passed to the PHY.
     mac_dl_sched_result mac_dl_res{};
-    assemble_dl_sched_request(mac_dl_res, sl_tx, cell_cfg.cell_index, sl_res.dl);
+    assemble_dl_sched_request(mac_dl_res, sl_tx, cell_cfg.cell_index, sl_dl);
 
     // Send DL sched result to PHY.
     phy_cell.on_new_downlink_scheduler_results(mac_dl_res);
@@ -423,11 +425,11 @@ void mac_cell_processor::handle_slot_indication_impl(slot_point_extended      sl
     l2_tracer << trace_event{"mac_dl_tti_req", dl_tti_req_tp};
 
     // Start assembling Slot Data Result.
-    if (not sl_res.dl.ue_grants.empty() or not sl_res.dl.rar_grants.empty() or not sl_res.dl.bc.sibs.empty() or
-        not sl_res.dl.paging_grants.empty()) {
+    if (not sl_dl.ue_grants().empty() or not sl_dl.rar_grants().empty() or not sl_dl.sibs().empty() or
+        not sl_dl.paging_grants().empty()) {
       trace_point tx_data_req_tp = l2_tracer.now();
 
-      assemble_dl_data_request(data_res, sl_tx_ext, cell_cfg.cell_index, sl_res.dl);
+      assemble_dl_data_request(data_res, sl_tx_ext, cell_cfg.cell_index, sl_dl);
 
       // Send DL Data to PHY.
       phy_cell.on_new_downlink_data(data_res);
@@ -437,13 +439,13 @@ void mac_cell_processor::handle_slot_indication_impl(slot_point_extended      sl
     }
   }
 
-  if (sl_res.ul.nof_ul_symbols > 0) {
+  if (sl_ul.nof_ul_symbols() > 0) {
     trace_point ul_tti_req_tp = l2_tracer.now();
 
     // Send UL sched result to PHY.
     mac_ul_sched_result mac_ul_res{};
     mac_ul_res.slot   = sl_tx;
-    mac_ul_res.ul_res = &sl_res.ul;
+    mac_ul_res.ul_res = sl_ul;
     phy_cell.on_new_uplink_scheduler_results(mac_ul_res);
 
     metrics_meas.on_ul_tti_req();
@@ -458,7 +460,7 @@ void mac_cell_processor::handle_slot_indication_impl(slot_point_extended      sl
   trace_point cleanup_tp = l2_tracer.now();
 
   // Update DL buffer state for the allocated logical channels.
-  update_logical_channel_dl_buffer_states(sl_res.dl);
+  update_logical_channel_dl_buffer_states(sl_dl);
 
   // Write PCAP.
   pcap_writer.write_slot_result(sl_tx, sl_res, data_res);
@@ -504,50 +506,50 @@ static dci_payload encode_dci(const pdcch_ul_information& pdcch)
   }
 }
 
-void mac_cell_processor::assemble_dl_sched_request(mac_dl_sched_result&   mac_res,
-                                                   slot_point             sl_tx,
-                                                   du_cell_index_t        cell_index,
-                                                   const dl_sched_result& dl_res)
+void mac_cell_processor::assemble_dl_sched_request(mac_dl_sched_result&        mac_res,
+                                                   slot_point                  sl_tx,
+                                                   du_cell_index_t             cell_index,
+                                                   sched_slot_dl_result_reader dl_res)
 {
   // Pass scheduler output directly to PHY.
-  mac_res.dl_res = &dl_res;
+  mac_res.dl_res = dl_res;
   mac_res.slot   = sl_tx;
 
   // Assemble SSB scheduling info and additional SSB/MIB parameters to pass to PHY.
-  for (const ssb_information& ssb : dl_res.bc.ssb_info) {
+  for (const ssb_information& ssb : dl_res.ssb_info()) {
     ssb_helper.assemble_ssb(mac_res.ssb_pdus.emplace_back(), ssb);
   }
 
   // Encode DL PDCCH DCI payloads.
-  for (const pdcch_dl_information& pdcch : dl_res.dl_pdcchs) {
+  for (const pdcch_dl_information& pdcch : dl_res.dl_pdcchs()) {
     mac_res.dl_pdcch_pdus.push_back(encode_dci(pdcch));
   }
 
   // Encode UL PDCCH DCI payloads.
-  for (const pdcch_ul_information& pdcch : dl_res.ul_pdcchs) {
+  for (const pdcch_ul_information& pdcch : dl_res.ul_pdcchs()) {
     mac_res.ul_pdcch_pdus.push_back(encode_dci(pdcch));
   }
 }
 
-void mac_cell_processor::assemble_dl_data_request(mac_dl_data_result&    data_res,
-                                                  slot_point_extended    sl_tx,
-                                                  du_cell_index_t        cell_index,
-                                                  const dl_sched_result& dl_res)
+void mac_cell_processor::assemble_dl_data_request(mac_dl_data_result&         data_res,
+                                                  slot_point_extended         sl_tx,
+                                                  du_cell_index_t             cell_index,
+                                                  sched_slot_dl_result_reader dl_res)
 {
   data_res.slot = sl_tx.without_hyper_sfn();
   // Assemble scheduled BCCH-DL-SCH message containing SIBs' payload.
-  for (const sib_information& sib_info : dl_res.bc.sibs) {
+  for (const sib_information& sib_info : dl_res.sibs()) {
     ocudu_assert(not data_res.si_pdus.full(), "No SIB1 added as SIB1 list in MAC DL data results is already full");
     data_res.si_pdus.emplace_back(0, shared_transport_block(sib_assembler.encode_si_pdu(sl_tx, sib_info)));
   }
 
   // Assemble scheduled RARs' subheaders and payloads.
-  for (const rar_information& rar : dl_res.rar_grants) {
+  for (const rar_information& rar : dl_res.rar_grants()) {
     data_res.rar_pdus.emplace_back(0, shared_transport_block(rar_assembler.encode_rar_pdu(rar)));
   }
 
   // Assemble data grants.
-  for (const dl_msg_alloc& grant : dl_res.ue_grants) {
+  for (const dl_msg_alloc& grant : dl_res.ue_grants()) {
     for (unsigned cw_idx = 0, e = grant.pdsch_cfg.codewords.size(); cw_idx != e; ++cw_idx) {
       const pdsch_codeword& cw = grant.pdsch_cfg.codewords[cw_idx];
       if (cw.new_data) {
@@ -568,20 +570,20 @@ void mac_cell_processor::assemble_dl_data_request(mac_dl_data_result&    data_re
   }
 
   // Assemble scheduled Paging payloads.
-  for (const dl_paging_allocation& pg : dl_res.paging_grants) {
+  for (const dl_paging_allocation& pg : dl_res.paging_grants()) {
     for (unsigned cw_idx = 0, e = pg.pdsch_cfg.codewords.size(); cw_idx != e; ++cw_idx) {
       data_res.paging_pdus.emplace_back(cw_idx, shared_transport_block(paging_assembler.encode_paging_pdu(pg)));
     }
   }
 }
 
-void mac_cell_processor::update_logical_channel_dl_buffer_states(const dl_sched_result& dl_res)
+void mac_cell_processor::update_logical_channel_dl_buffer_states(sched_slot_dl_result_reader dl_res)
 {
-  if (dl_res.nof_dl_symbols == 0) {
+  if (dl_res.nof_dl_symbols() == 0) {
     return;
   }
 
-  for (const dl_msg_alloc& grant : dl_res.ue_grants) {
+  for (const dl_msg_alloc& grant : dl_res.ue_grants()) {
     for (const dl_msg_tb_info& tb_info : grant.tb_list) {
       for (const dl_msg_lc_info& lc_info : tb_info.lc_chs_to_sched) {
         if (not lc_info.lcid.is_sdu()) {

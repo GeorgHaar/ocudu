@@ -59,7 +59,7 @@ public:
   void do_run_slot() override { prs_sch.run_slot(res_grid); }
 
   /// DL-PRS PDUs scheduled in the slot that was last run.
-  span<const prs_info> last_prs_pdus() const { return last_sched_result().dl.prs; }
+  pdu_span<prs_info> last_prs_pdus() const { return last_sched_result().dl().prs(); }
 
   /// Slot that was last run, as a count of slots since SFN 0.
   unsigned last_slot_count() const { return last_slot_tx().count(); }

@@ -11,6 +11,7 @@
 #include "ocudu/adt/static_vector.h"
 #include "ocudu/mac/mac_cell_control_information_handler.h"
 #include "ocudu/ran/csi_report/csi_report_configuration.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/scheduler/scheduler_configurator.h"
 #include "ocudu/scheduler/scheduler_feedback_handler.h"
 
@@ -29,8 +30,7 @@ public:
                    rlf_detector&                                   rlf_hdlr_);
 
   /// \brief Store information relative to expected UCIs to be decoded.
-  void
-  store_uci(slot_point uci_sl, span<const pucch_info> scheduled_pucchs, span<const ul_sched_info> scheduled_puschs);
+  void store_uci(slot_point uci_sl, span<const pucch_info> scheduled_pucchs, pdu_span<ul_sched_info> scheduled_puschs);
 
   /// \brief Decode received MAC UCI indication and convert it to scheduler UCI indication.
   uci_indication decode_uci(const mac_uci_indication_message& msg);

@@ -177,12 +177,12 @@ void ocudu::assert_pdcch_pdsch_common_consistency(const cell_configuration&   ce
 void ocudu::assert_pdcch_pdsch_common_consistency(const cell_configuration&      cell_cfg,
                                                   const cell_resource_allocator& cell_res_grid)
 {
-  span<const pdcch_dl_information> pdcchs = cell_res_grid[0].result.dl.dl_pdcchs;
+  pdu_span<pdcch_dl_information> pdcchs = cell_res_grid[0].result_reader().dl().dl_pdcchs();
   for (const pdcch_dl_information& pdcch : pdcchs) {
     const pdsch_information* linked_pdsch = nullptr;
     switch (pdcch.dci.type()) {
       case dci_dl_rnti_config_type::si_f1_0: {
-        const auto&     sibs = cell_res_grid[0].result.dl.bc.sibs;
+        const auto      sibs = cell_res_grid[0].result_reader().dl().sibs();
         sib_information sib;
         const auto&     it = std::find_if(sibs.begin(), sibs.end(), [&pdcch](const auto& sib_) {
           unsigned pdsch_freq_resource =
@@ -199,8 +199,8 @@ void ocudu::assert_pdcch_pdsch_common_consistency(const cell_configuration&     
         uint8_t k0 = cell_cfg.params.dl_cfg_common.init_dl_bwp.pdsch_common
                          .pdsch_td_alloc_list[pdcch.dci.as_ra_rnti_f1_0().time_resource]
                          .k0;
-        const auto& rars = cell_res_grid[k0].result.dl.rar_grants;
-        const auto* it   = std::find_if(
+        const auto rars = cell_res_grid[k0].result_reader().dl().rar_grants();
+        auto       it   = std::find_if(
             rars.begin(), rars.end(), [&pdcch](const auto& rar) { return rar.pdsch_cfg.rnti == pdcch.ctx.rnti; });
         ASSERT_NE(it, rars.end());
         linked_pdsch = &it->pdsch_cfg;
@@ -209,8 +209,8 @@ void ocudu::assert_pdcch_pdsch_common_consistency(const cell_configuration&     
         uint8_t k0 = cell_cfg.params.dl_cfg_common.init_dl_bwp.pdsch_common
                          .pdsch_td_alloc_list[pdcch.dci.as_c_rnti_f1_0().time_resource]
                          .k0;
-        const auto& ue_grants = cell_res_grid[k0].result.dl.ue_grants;
-        const auto* it        = std::find_if(ue_grants.begin(), ue_grants.end(), [&pdcch](const auto& grant) {
+        const auto ue_grants = cell_res_grid[k0].result_reader().dl().ue_grants();
+        const auto it        = std::find_if(ue_grants.begin(), ue_grants.end(), [&pdcch](const auto& grant) {
           return grant.pdsch_cfg.rnti == pdcch.ctx.rnti;
         });
         ASSERT_NE(it, ue_grants.end());
@@ -220,8 +220,8 @@ void ocudu::assert_pdcch_pdsch_common_consistency(const cell_configuration&     
         uint8_t k0 = cell_cfg.params.dl_cfg_common.init_dl_bwp.pdsch_common
                          .pdsch_td_alloc_list[pdcch.dci.as_tc_rnti_f1_0().time_resource]
                          .k0;
-        const auto& ue_grants = cell_res_grid[k0].result.dl.ue_grants;
-        const auto* it        = std::find_if(ue_grants.begin(), ue_grants.end(), [&pdcch](const auto& grant) {
+        const auto ue_grants = cell_res_grid[k0].result_reader().dl().ue_grants();
+        const auto it        = std::find_if(ue_grants.begin(), ue_grants.end(), [&pdcch](const auto& grant) {
           return grant.pdsch_cfg.rnti == pdcch.ctx.rnti;
         });
         ASSERT_NE(it, ue_grants.end());
@@ -236,8 +236,8 @@ void ocudu::assert_pdcch_pdsch_common_consistency(const cell_configuration&     
         uint8_t k0 = cell_cfg.params.dl_cfg_common.init_dl_bwp.pdsch_common
                          .pdsch_td_alloc_list[pdcch.dci.as_p_rnti_f1_0().time_resource]
                          .k0;
-        const auto& pg_grants = cell_res_grid[k0].result.dl.paging_grants;
-        const auto* it        = std::find_if(pg_grants.begin(), pg_grants.end(), [&pdcch](const auto& grant) {
+        const auto pg_grants = cell_res_grid[k0].result_reader().dl().paging_grants();
+        const auto it        = std::find_if(pg_grants.begin(), pg_grants.end(), [&pdcch](const auto& grant) {
           return grant.pdsch_cfg.rnti == pdcch.ctx.rnti;
         });
         ASSERT_NE(it, pg_grants.end());
@@ -284,7 +284,7 @@ void ocudu::test_pdsch_sib_consistency(const cell_configuration& cell_cfg, span<
   }
 }
 
-void ocudu::test_pdsch_rar_consistency(const cell_configuration& cell_cfg, span<const rar_information> rars)
+void ocudu::test_pdsch_rar_consistency(const cell_configuration& cell_cfg, pdu_span<rar_information> rars)
 {
   std::set<rnti_t>                  ra_rntis;
   std::set<rnti_t>                  tc_rntis;
@@ -322,7 +322,7 @@ void ocudu::test_pdsch_rar_consistency(const cell_configuration& cell_cfg, span<
   }
 }
 
-void ocudu::test_pdsch_ue_consistency(const cell_configuration& cell_cfg, span<const dl_msg_alloc> grants)
+void ocudu::test_pdsch_ue_consistency(const cell_configuration& cell_cfg, pdu_span<dl_msg_alloc> grants)
 {
   ASSERT_TRUE(
       test_helper::is_valid_dl_msg_alloc_list(grants, cell_cfg.params.dl_cfg_common.init_dl_bwp.pdcch_common.coreset0));
@@ -339,7 +339,7 @@ test_pdsch_cross_consistency(const cell_configuration& cell_cfg, slot_point sl_t
   }
 }
 
-void ocudu::test_pusch_ue_consistency(const cell_configuration& cell_cfg, span<const ul_sched_info> grants)
+void ocudu::test_pusch_ue_consistency(const cell_configuration& cell_cfg, pdu_span<ul_sched_info> grants)
 {
   ASSERT_LE(grants.size(), cell_cfg.expert_cfg.ue.max_puschs_per_slot);
 
@@ -370,9 +370,9 @@ void ocudu::test_pucch_consistency(const cell_configuration& cell_cfg, span<cons
 /// \brief Tests the validity of the parameters chosen for the PDCCHs using common search spaces. Checks include:
 /// - PDSCH time resource chosen (k0 and symbols) fall in DL symbols
 /// - UCI delay chosen falls in an UL slot.
-static void test_pdcch_common_consistency(const cell_configuration&        cell_cfg,
-                                          slot_point                       pdcch_slot,
-                                          span<const pdcch_dl_information> dl_pdcchs)
+static void test_pdcch_common_consistency(const cell_configuration&      cell_cfg,
+                                          slot_point                     pdcch_slot,
+                                          pdu_span<pdcch_dl_information> dl_pdcchs)
 {
   if (not cell_cfg.is_tdd()) {
     return;
@@ -423,9 +423,9 @@ static void test_pdcch_common_consistency(const cell_configuration&        cell_
   }
 }
 
-static void test_ul_pdcch_consistency(const cell_configuration&        cell_cfg,
-                                      slot_point                       sl_tx,
-                                      span<const pdcch_ul_information> ul_pdcchs)
+static void test_ul_pdcch_consistency(const cell_configuration&      cell_cfg,
+                                      slot_point                     sl_tx,
+                                      pdu_span<pdcch_ul_information> ul_pdcchs)
 {
   const auto& pusch_td_list = cell_cfg.params.ul_cfg_common.init_ul_bwp.pusch_cfg_common->pusch_td_alloc_list;
   for (const pdcch_ul_information& pdcch : ul_pdcchs) {
@@ -459,7 +459,7 @@ static void assert_rar_grant_msg3_pusch_consistency(const cell_configuration&   
   std::set<rnti_t> tc_rntis;
   const auto&      pusch_td_list = cell_cfg.params.ul_cfg_common.init_ul_bwp.pusch_cfg_common->pusch_td_alloc_list;
 
-  span<const pdcch_dl_information> pdcchs = res_grid[0].result.dl.dl_pdcchs;
+  pdu_span<pdcch_dl_information> pdcchs = res_grid[0].result_reader().dl().dl_pdcchs();
   for (const pdcch_dl_information& pdcch : pdcchs) {
     if (pdcch.dci.type() != dci_dl_rnti_config_type::ra_f1_0) {
       continue;
@@ -469,8 +469,8 @@ static void assert_rar_grant_msg3_pusch_consistency(const cell_configuration&   
     uint8_t k0 = cell_cfg.params.dl_cfg_common.init_dl_bwp.pdsch_common
                      .pdsch_td_alloc_list[pdcch.dci.as_ra_rnti_f1_0().time_resource]
                      .k0;
-    span<const rar_information> rars   = res_grid[k0].result.dl.rar_grants;
-    const auto*                 rar_it = std::find_if(
+    const auto rars   = res_grid[k0].result_reader().dl().rar_grants();
+    auto       rar_it = std::find_if(
         rars.begin(), rars.end(), [&pdcch](const auto& rar) { return rar.pdsch_cfg.rnti == pdcch.ctx.rnti; });
     ASSERT_NE(rar_it, rars.end());
     const rar_information& rar = *rar_it;
@@ -496,8 +496,8 @@ static void assert_rar_grant_msg3_pusch_consistency(const cell_configuration&   
                                                       pusch_td_list[rar_grant.time_resource_assignment].k2) +
                             cell_cfg.ntn_cs_koffset;
 
-      span<const ul_sched_info> ul_grants = res_grid[msg3_delay].result.ul.puschs;
-      const auto* it = std::find_if(ul_grants.begin(), ul_grants.end(), [&rar_grant](const auto& ulgrant) {
+      pdu_span<ul_sched_info> ul_grants = res_grid[msg3_delay].result_reader().ul().puschs();
+      const auto              it = std::find_if(ul_grants.begin(), ul_grants.end(), [&rar_grant](const auto& ulgrant) {
         return ulgrant.pusch_cfg.rnti == rar_grant.temp_crnti;
       });
       ASSERT_NE(it, ul_grants.end()) << fmt::format("Msg3 was not found for the scheduled RAR grant with tc-rnti={}",
@@ -659,7 +659,7 @@ void ocudu::test_scheduler_result_consistency(const cell_configuration& cell_cfg
 void ocudu::assert_dl_resource_grid_filled(const cell_configuration&      cell_cfg,
                                            const cell_resource_allocator& cell_res_grid)
 {
-  std::vector<test_grant_info> dl_grants = get_dl_grants(cell_cfg, cell_res_grid[0].result.dl);
+  std::vector<test_grant_info> dl_grants = get_dl_grants(cell_cfg, cell_res_grid.result_of(0).dl);
   for (const test_grant_info& test_grant : dl_grants) {
     if (test_grant.type != ocudu::test_grant_info::DL_PDCCH and test_grant.type != ocudu::test_grant_info::UL_PDCCH) {
       ASSERT_TRUE(cell_res_grid[0].dl_res_grid.all_set(test_grant.grant))
@@ -674,7 +674,7 @@ void ocudu::assert_dl_resource_grid_filled(const cell_configuration&      cell_c
 void ocudu::test_scheduler_result_consistency(const cell_configuration&      cell_cfg,
                                               const cell_resource_allocator& cell_res_grid)
 {
-  test_scheduler_result_consistency(cell_cfg, cell_res_grid[0].slot, cell_res_grid[0].result);
+  test_scheduler_result_consistency(cell_cfg, cell_res_grid[0].slot, cell_res_grid.result_of(0));
   assert_pdcch_pdsch_common_consistency(cell_cfg, cell_res_grid);
   assert_dl_resource_grid_filled(cell_cfg, cell_res_grid);
   assert_rar_grant_msg3_pusch_consistency(cell_cfg, cell_res_grid);

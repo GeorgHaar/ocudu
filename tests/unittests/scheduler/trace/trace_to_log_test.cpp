@@ -212,7 +212,8 @@ TEST_F(trace_to_log_test, when_cell_starts_then_log_contains_pci_and_bwp_info)
 TEST_F(trace_to_log_test, when_slot_results_are_in_stream_then_each_slot_produces_log_output)
 {
   // Any non-empty decision will do; what is under test is that each slot in the stream reaches the logger.
-  const sched_result result = make_full_sched_result();
+  full_sched_result   full;
+  const sched_result& result = full.result();
 
   cell_trace_stream_builder builder{0, make_test_bwp_cfg(), make_test_bwp_cfg()};
   builder.handle_slot(slot_point{0, 1}, result, std::chrono::microseconds(10));
@@ -230,7 +231,8 @@ TEST_F(trace_to_log_test, when_slot_results_are_in_stream_then_each_slot_produce
 
 TEST_F(trace_to_log_test, logged_slot_decisions_survive_the_trace_roundtrip)
 {
-  const sched_result result = make_full_sched_result();
+  full_sched_result   full;
+  const sched_result& result = full.result();
 
   // Log the decision directly, through the same "SCHED" logger trace_to_log replays into.
   scheduler_result_logger direct{true, 0};

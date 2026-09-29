@@ -1351,7 +1351,7 @@ flatbuffers::Offset<fbs::SlotDecision> schedtrace::convert_decision_to_fb(flatbu
                                  any_failed_attempts ? &failed_attempts : nullptr);
 }
 
-void schedtrace::convert_fb_to_decision(sched_result&                     result,
+void schedtrace::convert_fb_to_decision(sched_slot_result_builder         result,
                                         const fbs::SlotDecision&          decision,
                                         const cell_configuration&         cell_cfg,
                                         span<const coreset_configuration> coresets)
@@ -1360,7 +1360,7 @@ void schedtrace::convert_fb_to_decision(sched_result&                     result
     for (const fbs::SibPdsch* sib_ev : *decision.sib_pdschs()) {
       sib_information sib{};
       convert_fb_to_sib_pdsch(sib, *sib_ev, &cell_cfg.init_dl_bwp.generic_params);
-      result.dl.bc.sibs.push_back(sib);
+      result.dl().sibs().emplace_back(sib);
     }
   }
 
@@ -1368,7 +1368,7 @@ void schedtrace::convert_fb_to_decision(sched_result&                     result
     for (const fbs::RarPdsch* rar_ev : *decision.rar_pdschs()) {
       rar_information rar{};
       convert_fb_to_rar_pdsch(rar, *rar_ev, &cell_cfg.init_dl_bwp.generic_params);
-      result.dl.rar_grants.push_back(rar);
+      result.dl().rar_grants().emplace_back(rar);
     }
   }
 
@@ -1376,7 +1376,7 @@ void schedtrace::convert_fb_to_decision(sched_result&                     result
     for (const fbs::PagingPdsch* pg_ev : *decision.paging_pdschs()) {
       dl_paging_allocation pg{};
       convert_fb_to_paging_pdsch(pg, *pg_ev, &cell_cfg.init_dl_bwp.generic_params);
-      result.dl.paging_grants.push_back(pg);
+      result.dl().paging_grants().emplace_back(pg);
     }
   }
 
@@ -1384,7 +1384,7 @@ void schedtrace::convert_fb_to_decision(sched_result&                     result
     for (const fbs::Pdsch* pdsch_ev : *decision.ue_pdschs()) {
       dl_msg_alloc alloc{};
       convert_fb_to_pdsch(alloc, *pdsch_ev, &cell_cfg.init_dl_bwp.generic_params);
-      result.dl.ue_grants.push_back(alloc);
+      result.dl().ue_grants().emplace_back(alloc);
     }
   }
 
@@ -1392,7 +1392,7 @@ void schedtrace::convert_fb_to_decision(sched_result&                     result
     for (const fbs::Pusch* pusch_ev : *decision.puschs()) {
       ul_sched_info alloc{};
       convert_fb_to_pusch(alloc, *pusch_ev, &cell_cfg.init_ul_bwp.generic_params);
-      result.ul.puschs.push_back(alloc);
+      result.ul().puschs().emplace_back(alloc);
     }
   }
 
@@ -1401,7 +1401,7 @@ void schedtrace::convert_fb_to_decision(sched_result&                     result
       pucch_info alloc{};
       convert_fb_to_pucch_info(
           alloc, *pucch_ev, &cell_cfg.init_ul_bwp.generic_params, cell_cfg.init_ul_bwp.pucch_resources);
-      result.ul.pucchs.emplace(alloc);
+      result.ul().pucchs().emplace(alloc);
     }
   }
 
@@ -1409,7 +1409,7 @@ void schedtrace::convert_fb_to_decision(sched_result&                     result
     for (const fbs::DlPdcch* pdcch_ev : *decision.dl_pdcchs()) {
       pdcch_dl_information pdcch{};
       convert_fb_to_dl_pdcch(pdcch, *pdcch_ev, coresets);
-      result.dl.dl_pdcchs.push_back(pdcch);
+      result.dl().dl_pdcchs().emplace_back(pdcch);
     }
   }
 
@@ -1417,19 +1417,19 @@ void schedtrace::convert_fb_to_decision(sched_result&                     result
     for (const fbs::UlPdcch* pdcch_ev : *decision.ul_pdcchs()) {
       pdcch_ul_information pdcch{};
       convert_fb_to_ul_pdcch(pdcch, *pdcch_ev, coresets);
-      result.dl.ul_pdcchs.push_back(pdcch);
+      result.dl().ul_pdcchs().emplace_back(pdcch);
     }
   }
 
   if (decision.failed_attempts() != nullptr) {
-    convert_fb_to_failed_attempts(result.failed_attempts, *decision.failed_attempts());
+    convert_fb_to_failed_attempts(result.failed_attempts(), *decision.failed_attempts());
   }
 
   if (decision.ssbs() != nullptr) {
     for (const fbs::Ssb* ssb_ev : *decision.ssbs()) {
       ssb_information ssb;
       convert_fb_to_ssb(ssb, *ssb_ev);
-      result.dl.bc.ssb_info.push_back(ssb);
+      result.dl().ssb_info().emplace_back(ssb);
     }
   }
 
@@ -1437,7 +1437,7 @@ void schedtrace::convert_fb_to_decision(sched_result&                     result
     for (const fbs::CsiRs* csi_ev : *decision.csi_rs()) {
       csi_rs_info csi;
       convert_fb_to_csi_rs(csi, *csi_ev, &cell_cfg.init_dl_bwp.generic_params);
-      result.dl.csi_rs.push_back(csi);
+      result.dl().csi_rs().emplace_back(csi);
     }
   }
 
@@ -1445,7 +1445,7 @@ void schedtrace::convert_fb_to_decision(sched_result&                     result
     for (const fbs::Prach* prach_ev : *decision.prachs()) {
       prach_occasion_info prach;
       convert_fb_to_prach(prach, *prach_ev);
-      result.ul.prachs.push_back(prach);
+      result.ul().prachs().emplace_back(prach);
     }
   }
 
@@ -1453,7 +1453,7 @@ void schedtrace::convert_fb_to_decision(sched_result&                     result
     for (const fbs::Srs* srs_ev : *decision.srss()) {
       srs_info srs;
       convert_fb_to_srs(srs, *srs_ev, &cell_cfg.init_ul_bwp.generic_params);
-      result.ul.srss.push_back(srs);
+      result.ul().srss().emplace_back(srs);
     }
   }
 }

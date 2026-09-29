@@ -74,7 +74,7 @@ public:
   /// Deactivate cell.
   void stop();
 
-  const sched_result& last_result() const { return res_grid[0].result; }
+  const sched_result& last_result() const { return res_grid.result_of(0); }
 
   void handle_si_update_request(const si_scheduling_update_request& msg);
 

@@ -6,7 +6,8 @@
 #pragma once
 
 #include "ocudu/mac/mac_cell_result.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
+#include <memory>
 
 namespace ocudu {
 namespace unittests {
@@ -63,8 +64,11 @@ struct mac_dl_sched_result_test_helper {
   rar_information_test_helper                               rar;
   dl_paging_allocation_test_helper                          dl_paging;
   dl_msg_allocation_test_helper                             dl_msg_alloc;
-  dl_sched_result                                           sched_result;
-  mac_dl_sched_result                                       result;
+  /// Grid that holds the result, so that its pooled PDUs come from a pool.
+  std::unique_ptr<sched_result_grid> grid         = std::make_unique<sched_result_grid>(sched_result_grid_config{1});
+  sched_slot_dl_result_builder       builder      = grid->get_builder(0).dl();
+  dl_sched_result&                   sched_result = grid->slot_storage(0).dl;
+  mac_dl_sched_result                result;
 };
 
 /// Helper struct to manage the pointer life cycle of a MAC DL scheduling result.
@@ -133,8 +137,11 @@ struct mac_ul_sched_result_test_helper {
   pucch_info_test_helper    pucch_f2;
   ul_sched_info_test_helper pusch;
   srs_info_helper           srs;
-  ul_sched_result           sched_result;
-  mac_ul_sched_result       result;
+  /// Grid that holds the result, so that its pooled PDUs come from a pool.
+  std::unique_ptr<sched_result_grid> grid         = std::make_unique<sched_result_grid>(sched_result_grid_config{1});
+  sched_slot_ul_result_builder       builder      = grid->get_builder(0).ul();
+  ul_sched_result&                   sched_result = grid->slot_storage(0).ul;
+  mac_ul_sched_result                result;
 };
 
 /// Builds and returns a valid MAC UL sched result.

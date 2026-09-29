@@ -110,7 +110,7 @@ std::optional<sch_mcs_tbs> ue_cell_grid_allocator::calculate_dl_mcs_tbs(const ce
   // REs.
   const auto&   pdsch_cfg = ss_info.get_pdsch_config(pdsch_td_res_index, nof_layers);
   sch_mcs_index adjusted_mcs{mcs};
-  if (not pdsch_alloc.result.dl.csi_rs.empty()) {
+  if (not pdsch_alloc.result_reader().dl().csi_rs().empty()) {
     // [Implementation-defined] The max MCS values below are set empirically and should avoid the effective code rate
     // to exceed 0.95 due to the overhead of CSI-RS REs.
     adjusted_mcs                = adjusted_mcs == 0 ? adjusted_mcs : adjusted_mcs - 1;
@@ -156,10 +156,10 @@ ue_cell_grid_allocator::alloc_dl_pdcch(const ue_cell& ue_cc, const search_space_
     // Note: (Implementation-defined) Assuming all UEs share the same CORESET, if there are no more CCEs left in the
     // CORESET, stop attempting to allocate new PDCCHs in the slot.
     unsigned nof_cces_left = ss_info.coreset->cfg().get_nof_cces();
-    for (const auto& dl_pdcch : pdcch_alloc.result.dl.dl_pdcchs) {
+    for (const auto& dl_pdcch : pdcch_alloc.result_builder().dl().dl_pdcchs()) {
       nof_cces_left -= std::min(nof_cces_left, to_nof_cces(dl_pdcch.ctx.cces.aggr_lvl));
     }
-    for (const auto& ul_pdcch : pdcch_alloc.result.dl.ul_pdcchs) {
+    for (const auto& ul_pdcch : pdcch_alloc.result_builder().dl().ul_pdcchs()) {
       nof_cces_left -= std::min(nof_cces_left, to_nof_cces(ul_pdcch.ctx.cces.aggr_lvl));
     }
     return make_unexpected(nof_cces_left == 0 ? alloc_status::skip_slot : alloc_status::skip_ue);
@@ -259,7 +259,7 @@ ue_cell_grid_allocator::select_pdsch_repetitions(const ue_cell&           ue_cc,
     // If the transmission of an occasion cannot be guaranteed (no space for more PDSCHs), the bundle cannot start in
     // this slot, as the UE would combine noise for the missing occasion. Note: an occasion slot cannot already carry
     // a PDSCH for this same UE.
-    if (cell_alloc[td_res.k0 + i].result.dl.ue_grants.full()) {
+    if (cell_alloc[td_res.k0 + i].result_builder().dl().ue_grants().full()) {
       if (logger.debug.enabled()) {
         logger.debug("ue={} rnti={}: PDSCH repetition deferred at slot={}. Cause: occasion slot={} is full.",
                      ue_cc.ue_index,
@@ -311,12 +311,15 @@ ue_cell_grid_allocator::setup_dl_grant_builder(const slice_ue&                  
   cell_slot_resource_allocator& pdcch_alloc = cell_alloc[0];
   cell_slot_resource_allocator& pdsch_alloc = cell_alloc[pdsch_td_cfg.k0];
 
-  ocudu_sanity_check(not pdcch_alloc.result.dl.dl_pdcchs.full(), "No space available for PDCCH");
-  ocudu_sanity_check(pdsch_alloc.result.dl.bc.sibs.size() + pdsch_alloc.result.dl.paging_grants.size() +
-                             pdsch_alloc.result.dl.rar_grants.size() + pdsch_alloc.result.dl.ue_grants.size() <
+  ocudu_sanity_check(not pdcch_alloc.result_builder().dl().dl_pdcchs().full(), "No space available for PDCCH");
+  ocudu_sanity_check(pdsch_alloc.result_reader().dl().sibs().size() +
+                             pdsch_alloc.result_reader().dl().paging_grants().size() +
+                             pdsch_alloc.result_reader().dl().rar_grants().size() +
+                             pdsch_alloc.result_builder().dl().ue_grants().size() <
                          expert_cfg.max_pdschs_per_slot,
                      "Max number of PDSCHs per slot was reached");
-  ocudu_sanity_check(not pdsch_alloc.result.dl.ue_grants.full(), "No space available in scheduler PDSCH outputs");
+  ocudu_sanity_check(not pdsch_alloc.result_builder().dl().ue_grants().full(),
+                     "No space available in scheduler PDSCH outputs");
 
   // Both the PUCCH below and the HARQ process after it follow this value, so they cannot disagree. Only a new tx still
   // picks a HARQ process; a retx is bound to the mode of the one it already holds.
@@ -350,7 +353,7 @@ ue_cell_grid_allocator::setup_dl_grant_builder(const slice_ue&                  
     // Allocate UCI.
     uci_result = alloc_uci(ue_cc, ss_info, pdsch_td_res_index, last_occasion_offset);
     if (not uci_result.has_value()) {
-      ++pdcch_alloc.result.failed_attempts.uci;
+      ++pdcch_alloc.result_builder().failed_attempts().uci;
       pdcch_sched.cancel_last_pdcch(pdcch_alloc);
       return make_unexpected(dl_alloc_failure_cause::uci_alloc_failed);
     }
@@ -390,7 +393,7 @@ ue_cell_grid_allocator::setup_dl_grant_builder(const slice_ue&                  
   }
 
   // Create PDSCH PDU.
-  auto& msg = pdsch_alloc.result.dl.ue_grants.emplace_back();
+  auto& msg = *pdsch_alloc.result_builder().dl().ue_grants().emplace_back();
 
   // Create a DL grant builder.
   return dl_grant_info{&user, params, h_dl.value(), pdcch, &msg, uci, reps};
@@ -608,9 +611,10 @@ ue_cell_grid_allocator::set_pdsch_params(dl_grant_info& grant, const vrb_alloc& 
   if (grant.reps.has_value()) {
     for (unsigned i = 0; i < grant.reps->tx_offsets.size(); ++i) {
       cell_slot_resource_allocator& rep_alloc = cell_alloc[pdsch_td_cfg.k0 + grant.reps->tx_offsets[i]];
-      const unsigned nof_other_grants = rep_alloc.result.dl.bc.sibs.size() + rep_alloc.result.dl.paging_grants.size() +
-                                        rep_alloc.result.dl.rar_grants.size() + rep_alloc.result.dl.ue_grants.size();
-      if (rep_alloc.result.dl.ue_grants.full() or nof_other_grants >= expert_cfg.max_pdschs_per_slot or
+      const unsigned                nof_other_grants =
+          rep_alloc.result_reader().dl().sibs().size() + rep_alloc.result_reader().dl().paging_grants().size() +
+          rep_alloc.result_reader().dl().rar_grants().size() + rep_alloc.result_builder().dl().ue_grants().size();
+      if (rep_alloc.result_builder().dl().ue_grants().full() or nof_other_grants >= expert_cfg.max_pdschs_per_slot or
           pdsch_collides(rep_alloc.dl_res_grid, ss_info, pdsch_td_cfg.symbols, prbs)) {
         logger.debug("ue={} rnti={}: Skipping PDSCH repetition occasion at slot={}. Cause: No space in the grid.",
                      u.ue_index,
@@ -619,7 +623,7 @@ ue_cell_grid_allocator::set_pdsch_params(dl_grant_info& grant, const vrb_alloc& 
         continue;
       }
       fill_pdsch_prbs(rep_alloc.dl_res_grid, ss_info, pdsch_td_cfg.symbols, prbs);
-      dl_msg_alloc& rep_msg                     = rep_alloc.result.dl.ue_grants.emplace_back();
+      dl_msg_alloc& rep_msg                     = *rep_alloc.result_builder().dl().ue_grants().emplace_back();
       rep_msg.context                           = msg.context;
       rep_msg.context.buffer_occupancy          = 0;
       rep_msg.pdsch_cfg                         = msg.pdsch_cfg;
@@ -821,7 +825,7 @@ ue_cell_grid_allocator::select_pusch_repetitions(const ue_cell&           ue_cc,
     const slot_point occasion_slot = cell_alloc[offset].slot;
 
     // No room for another PUSCH in the occasion's slot: the bundle cannot start here.
-    if (cell_alloc[offset].result.ul.puschs.full()) {
+    if (cell_alloc[offset].result_builder().ul().puschs().full()) {
       if (logger.debug.enabled()) {
         logger.debug("ue={} rnti={}: PUSCH repetition bundle rejected at slot={}. Cause: occasion slot={} is full.",
                      ue_cc.ue_index,
@@ -1005,8 +1009,10 @@ ue_cell_grid_allocator::setup_ul_grant_builder(const slice_ue&                  
   cell_slot_resource_allocator& pdcch_alloc = cell_alloc[0];
   const unsigned                final_k2    = pusch_td_cfg.k2 + ue_cc.ntn_koffset();
   cell_slot_resource_allocator& pusch_alloc = cell_alloc[final_k2];
-  ocudu_sanity_check(not pdcch_alloc.result.dl.ul_pdcchs.full(), "Maximum number of UL PDCCH grants per slot reached");
-  ocudu_sanity_check(not pusch_alloc.result.ul.puschs.full(), "No PUSCH space available in scheduler output list");
+  ocudu_sanity_check(not pdcch_alloc.result_builder().dl().ul_pdcchs().full(),
+                     "Maximum number of UL PDCCH grants per slot reached");
+  ocudu_sanity_check(not pusch_alloc.result_builder().ul().puschs().full(),
+                     "No PUSCH space available in scheduler output list");
 
   // [Implementation-defined] We skip allocation of PUSCH if there is already a PUCCH grant scheduled using common
   // PUCCH resources.
@@ -1056,10 +1062,10 @@ ue_cell_grid_allocator::setup_ul_grant_builder(const slice_ue&                  
     // Note: (Implementation-defined) Assuming all UEs share the same CORESET, if there are no more CCEs left in the
     // CORESET, stop attempting to allocate new PDCCHs in the slot.
     unsigned nof_cces_left = ss_info.coreset->cfg().get_nof_cces();
-    for (const auto& dl_pdcch : pdcch_alloc.result.dl.dl_pdcchs) {
+    for (const auto& dl_pdcch : pdcch_alloc.result_builder().dl().dl_pdcchs()) {
       nof_cces_left -= std::min(nof_cces_left, to_nof_cces(dl_pdcch.ctx.cces.aggr_lvl));
     }
-    for (const auto& ul_pdcch : pdcch_alloc.result.dl.ul_pdcchs) {
+    for (const auto& ul_pdcch : pdcch_alloc.result_builder().dl().ul_pdcchs()) {
       nof_cces_left -= std::min(nof_cces_left, to_nof_cces(ul_pdcch.ctx.cces.aggr_lvl));
     }
     return make_unexpected(nof_cces_left == 0 ? alloc_status::skip_slot : alloc_status::skip_ue);
@@ -1083,7 +1089,7 @@ ue_cell_grid_allocator::setup_ul_grant_builder(const slice_ue&                  
   }
 
   // Create PUSCH PDU.
-  auto& msg = pusch_alloc.result.ul.puschs.emplace_back();
+  auto& msg = *pusch_alloc.result_builder().ul().puschs().emplace_back();
 
   // Create a UL grant builder.
   return ul_grant_info{&user, params, h_ul.value(), pdcch, &msg, reps};
@@ -1130,8 +1136,8 @@ ue_cell_grid_allocator::set_pusch_params(ul_grant_info& grant, const vrb_interva
   // multiplexed on below -- past that point a PUCCH is gone in favour of this PUSCH and its UCI would be stranded.
   if (grant.reps.has_value()) {
     for (const uint8_t offset : grant.reps->tx_offsets) {
-      const cell_slot_resource_allocator& rep_alloc = cell_alloc[final_k2 + offset];
-      if (rep_alloc.result.ul.puschs.full()) {
+      cell_slot_resource_allocator& rep_alloc = cell_alloc[final_k2 + offset];
+      if (rep_alloc.result_builder().ul().puschs().full()) {
         logger.info("ue={} rnti={}: Cancelling PUSCH repetition bundle at slot={}. Cause: no room left for the "
                     "occasion at slot={}.",
                     u.ue_index,
@@ -1385,12 +1391,12 @@ ue_cell_grid_allocator::set_pusch_params(ul_grant_info& grant, const vrb_interva
                    "rnti={}: PUSCH repetition occasion at slot={} lands on PRBs taken by another grant",
                    u.crnti,
                    rep_alloc.slot);
-      ocudu_assert(not rep_alloc.result.ul.puschs.full(),
+      ocudu_assert(not rep_alloc.result_builder().ul().puschs().full(),
                    "rnti={}: no room left for the PUSCH repetition occasion at slot={}",
                    u.crnti,
                    rep_alloc.slot);
       rep_alloc.ul_res_grid.fill(grant_info{scs, pusch_td_cfg.symbols, crbs});
-      ul_sched_info& rep_msg     = rep_alloc.result.ul.puschs.emplace_back();
+      ul_sched_info& rep_msg     = *rep_alloc.result_builder().ul().puschs().emplace_back();
       rep_msg                    = msg;
       rep_msg.uci                = std::nullopt;
       rep_msg.context.k2         = final_k2 + offset;
@@ -1413,30 +1419,34 @@ void ue_cell_grid_allocator::post_process_results()
   auto& slot_alloc = cell_alloc[0];
 
   // Remove cancelled allocations.
-  for (auto* it = slot_alloc.result.dl.dl_pdcchs.begin(); it != slot_alloc.result.dl.dl_pdcchs.end();) {
+  for (auto it = slot_alloc.result_builder().dl().dl_pdcchs().begin();
+       it != slot_alloc.result_builder().dl().dl_pdcchs().end();) {
     if (it->ctx.rnti == rnti_t::INVALID_RNTI) {
-      it = slot_alloc.result.dl.dl_pdcchs.erase(it);
+      it = slot_alloc.result_builder().dl().dl_pdcchs().erase(it);
     } else {
       ++it;
     }
   }
-  for (auto* it = slot_alloc.result.dl.ul_pdcchs.begin(); it != slot_alloc.result.dl.ul_pdcchs.end();) {
+  for (auto it = slot_alloc.result_builder().dl().ul_pdcchs().begin();
+       it != slot_alloc.result_builder().dl().ul_pdcchs().end();) {
     if (it->ctx.rnti == rnti_t::INVALID_RNTI) {
-      it = slot_alloc.result.dl.ul_pdcchs.erase(it);
+      it = slot_alloc.result_builder().dl().ul_pdcchs().erase(it);
     } else {
       ++it;
     }
   }
-  for (auto* it = slot_alloc.result.dl.ue_grants.begin(); it != slot_alloc.result.dl.ue_grants.end();) {
+  for (auto it = slot_alloc.result_builder().dl().ue_grants().begin();
+       it != slot_alloc.result_builder().dl().ue_grants().end();) {
     if (it->pdsch_cfg.rnti == rnti_t::INVALID_RNTI) {
-      it = slot_alloc.result.dl.ue_grants.erase(it);
+      it = slot_alloc.result_builder().dl().ue_grants().erase(it);
     } else {
       ++it;
     }
   }
-  for (auto* it = slot_alloc.result.ul.puschs.begin(); it != slot_alloc.result.ul.puschs.end();) {
+  for (auto it = slot_alloc.result_builder().ul().puschs().begin();
+       it != slot_alloc.result_builder().ul().puschs().end();) {
     if (it->pusch_cfg.rnti == rnti_t::INVALID_RNTI) {
-      it = slot_alloc.result.ul.puschs.erase(it);
+      it = slot_alloc.result_builder().ul().puschs().erase(it);
     } else {
       ++it;
     }

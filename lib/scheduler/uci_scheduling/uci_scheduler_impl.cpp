@@ -249,7 +249,7 @@ void uci_scheduler_impl::schedule_updated_ues_ucis(cell_resource_allocator& res_
       auto& slot_ucis = periodic_uci_slot_wheel[(res_alloc.slot_tx() + n).count() % periodic_uci_slot_wheel.size()];
 
       // Skip UCI scheduling for this UE and slot, if they collide with other resources.
-      if (not has_space_for_uci_pdu(res_alloc[n].result, rnti, cell_cfg.expert_cfg.ue)) {
+      if (not has_space_for_uci_pdu(res_alloc[n].result_reader(), rnti, cell_cfg.expert_cfg.ue)) {
         if (logger.debug.enabled()) {
           // If we want more detailed logs on the skipped allocations.
           for (const periodic_uci_info& uci_info : slot_ucis) {
@@ -277,7 +277,7 @@ void uci_scheduler_impl::schedule_updated_ues_ucis(cell_resource_allocator& res_
           // capacity.
 
           if (uci_info.sr_counter > 0) {
-            span<const pucch_info> pucchs          = res_alloc[n].result.ul.pucchs.unsorted();
+            span<const pucch_info> pucchs          = res_alloc[n].result_reader().ul().pucchs().unsorted();
             bool                   existing_grants = std::any_of(
                 pucchs.begin(), pucchs.end(), [rnti](const pucch_info& grant) { return grant.crnti == rnti; });
             if (not existing_grants) {

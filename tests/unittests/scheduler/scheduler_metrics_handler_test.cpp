@@ -10,7 +10,7 @@
 #include "tests/unittests/scheduler/test_utils/config_generators.h"
 #include "tests/unittests/scheduler/test_utils/indication_generators.h"
 #include "ocudu/scheduler/config/scheduler_expert_config_factory.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include <gtest/gtest.h>
 
 using namespace ocudu;
@@ -265,18 +265,21 @@ TEST_F(scheduler_metrics_handler_tester, compute_mcs)
   get_next_metric();
   metrics_notif.last_report = {};
 
-  sched_result res;
+  sched_result_grid results{sched_result_grid_config{1}};
+  sched_result&     res = results.slot_storage(0);
   res.dl.nof_dl_symbols = 14;
   res.ul.nof_ul_symbols = 14;
-  dl_msg_alloc& dl_msg  = res.dl.ue_grants.emplace_back();
-  dl_msg.pdsch_cfg.rnti = to_rnti(0x4601);
-  auto&          cw     = dl_msg.pdsch_cfg.codewords.emplace_back();
-  ul_sched_info& ul_msg = res.ul.puschs.emplace_back();
-  ul_msg.pusch_cfg.rnti = to_rnti(0x4601);
+  dl_msg_alloc* dl_msg  = results.get_builder(0).dl().ue_grants().emplace_back();
+  ASSERT_NE(dl_msg, nullptr);
+  dl_msg->pdsch_cfg.rnti = to_rnti(0x4601);
+  auto&          cw      = dl_msg->pdsch_cfg.codewords.emplace_back();
+  ul_sched_info* ul_msg  = results.get_builder(0).ul().puschs().emplace_back();
+  ASSERT_NE(ul_msg, nullptr);
+  ul_msg->pusch_cfg.rnti = to_rnti(0x4601);
 
   for (unsigned i = 0; i != report_period.count() and metrics_notif.last_report.nof_slots == 0; ++i) {
-    cw.mcs_index               = dl_mcs;
-    ul_msg.pusch_cfg.mcs_index = ul_mcs;
+    cw.mcs_index                = dl_mcs;
+    ul_msg->pusch_cfg.mcs_index = ul_mcs;
     run_slot(res);
   }
 

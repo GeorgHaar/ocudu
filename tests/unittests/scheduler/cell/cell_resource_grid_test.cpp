@@ -177,27 +177,27 @@ TEST(pusch_resource_allocation_test, test_all)
 
   // Test: No allocations made yet
   ASSERT_TRUE(res_grid_alloc[0].ul_res_grid.used_crbs(bwp_cfg, {0, 14}).none());
-  ASSERT_TRUE(res_grid_alloc[0].result.ul.puschs.empty());
+  ASSERT_TRUE(res_grid_alloc[0].result_reader().ul().puschs().empty());
 
   // Action 2: Allocate PUSCH grant in current slot_tx
   bwp_sch_grant_info ul_grant{bwp_cfg, {0, 14}, {1, 5}};
   res_grid_alloc[0].ul_res_grid.fill(ul_grant);
-  res_grid_alloc[0].result.ul.puschs.emplace_back();
+  ASSERT_NE(res_grid_alloc[0].result_builder().ul().puschs().emplace_back(), nullptr);
 
   // Test: Allocated PUSCH was registered in the cell resource grid for slot_tx
   ASSERT_TRUE(res_grid_alloc[0].ul_res_grid.used_crbs(bwp_cfg, {0, 14}).any());
   ASSERT_EQ(res_grid_alloc[0].ul_res_grid.used_crbs(bwp_cfg, {0, 14}).count(), ul_grant.prbs.length());
-  ASSERT_EQ(1, res_grid_alloc[0].result.ul.puschs.size());
+  ASSERT_EQ(1, res_grid_alloc[0].result_reader().ul().puschs().size());
 
   // Action 3: Allocate PUSCH grant in slot_tx + 1
   bwp_sch_grant_info ul_grant2{bwp_cfg, {0, 14}, {4, 20}};
   res_grid_alloc[1].ul_res_grid.fill(ul_grant2);
-  res_grid_alloc[1].result.ul.puschs.emplace_back();
+  ASSERT_NE(res_grid_alloc[1].result_builder().ul().puschs().emplace_back(), nullptr);
 
   // Test: Allocated PUSCH was registered in the cell resource grid for slot_tx + 1
   ASSERT_TRUE(res_grid_alloc[1].ul_res_grid.used_crbs(bwp_cfg, {0, 14}).any());
   ASSERT_EQ(res_grid_alloc[1].ul_res_grid.used_crbs(bwp_cfg, {0, 14}).count(), ul_grant2.prbs.length());
-  ASSERT_EQ(1, res_grid_alloc[1].result.ul.puschs.size());
+  ASSERT_EQ(1, res_grid_alloc[1].result_reader().ul().puschs().size());
 
   // Action 4: New slot
   res_grid_alloc.slot_indication(++sl_tx);
@@ -232,10 +232,10 @@ TEST(cell_resource_grid_test, ntn_grid_keeps_allocations_up_to_the_koffset_delay
     slot_point sl_tx{0, 0};
     res_grid.slot_indication(sl_tx);
     const slot_point alloc_slot = sl_tx + max_ul_delay;
-    res_grid[alloc_slot].result.ul.puschs.emplace_back();
+    ASSERT_NE(res_grid[alloc_slot].result_builder().ul().puschs().emplace_back(), nullptr);
     for (unsigned i = 0; i != max_ul_delay; ++i) {
       res_grid.slot_indication(++sl_tx);
-      ASSERT_EQ(res_grid[alloc_slot].result.ul.puschs.size(), 1U)
+      ASSERT_EQ(res_grid[alloc_slot].result_reader().ul().puschs().size(), 1U)
           << fmt::format("Koffset={}ms: allocation lost at slot {}", koffset_ms, sl_tx);
     }
     ASSERT_EQ(res_grid[0].slot, alloc_slot);

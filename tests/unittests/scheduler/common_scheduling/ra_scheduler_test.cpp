@@ -78,7 +78,7 @@ public:
       sib1_sch->run_slot(res_grid[res_grid.max_dl_slot_alloc_delay]);
     }
     ra_sch.run_slot(res_grid);
-    ASSERT_NO_FATAL_FAILURE(tracker.on_new_result(res_grid[0].slot, res_grid[0].result));
+    ASSERT_NO_FATAL_FAILURE(tracker.on_new_result(res_grid[0].slot, res_grid.result_of(0)));
   }
 
   /// \param occasion_slot_delay Slots between the PRACH occasion and the slot the lower layers report it in.
@@ -136,23 +136,25 @@ public:
     for (unsigned i = 0; i != nof_slots_to_check; ++i) {
       this->run_slot();
 
-      auto& dl_res = res_grid[0].result.dl;
-      auto& ul_res = res_grid[0].result.ul;
+      const auto dl_res = res_grid[0].result_reader().dl();
+      const auto ul_res = res_grid[0].result_reader().ul();
 
+      const auto dl_pdcchs = dl_res.dl_pdcchs();
       const bool has_ra_dl_pdcch =
-          std::any_of(dl_res.dl_pdcchs.begin(), dl_res.dl_pdcchs.end(), [](const pdcch_dl_information& pdcch) {
+          std::any_of(dl_pdcchs.begin(), dl_pdcchs.end(), [](const pdcch_dl_information& pdcch) {
             return pdcch.dci.type() == dci_dl_rnti_config_type::ra_f1_0;
           });
+      const auto ul_pdcchs = dl_res.ul_pdcchs();
       const bool has_msg3_retx_pdcch =
-          std::any_of(dl_res.ul_pdcchs.begin(), dl_res.ul_pdcchs.end(), [](const pdcch_ul_information& pdcch) {
+          std::any_of(ul_pdcchs.begin(), ul_pdcchs.end(), [](const pdcch_ul_information& pdcch) {
             return pdcch.dci.type() == dci_ul_rnti_config_type::tc_rnti_f0_0;
           });
-      const bool has_msg3_pusch =
-          std::any_of(ul_res.puschs.begin(), ul_res.puschs.end(), [](const ul_sched_info& pusch) {
-            return pusch.context.ue_index == INVALID_DU_UE_INDEX;
-          });
+      const auto puschs         = ul_res.puschs();
+      const bool has_msg3_pusch = std::any_of(puschs.begin(), puschs.end(), [](const ul_sched_info& pusch) {
+        return pusch.context.ue_index == INVALID_DU_UE_INDEX;
+      });
 
-      if (not dl_res.rar_grants.empty() or has_ra_dl_pdcch or has_msg3_retx_pdcch or has_msg3_pusch) {
+      if (not dl_res.rar_grants().empty() or has_ra_dl_pdcch or has_msg3_retx_pdcch or has_msg3_pusch) {
         return true;
       }
     }
@@ -161,7 +163,7 @@ public:
 
   void handle_crc_for_pending_puschs(bool crc)
   {
-    const auto& puschs = this->res_grid[0].result.ul.puschs;
+    const auto puschs = this->res_grid[0].result_reader().ul().puschs();
     for (const ul_sched_info& pusch : puschs) {
       if (pusch.context.ue_index == INVALID_DU_UE_INDEX) {
         // Msg3 PUSCH. "rapid" is a MsgA-only field; if set here, the PHY will wrongly apply the MsgA
@@ -256,8 +258,8 @@ TEST_P(ra_scheduler_common_test,
        ++slot_count) {
     run_slot();
 
-    ASSERT_EQ(this->res_grid[0].result.dl.ue_grants.size(), 0);
-    ASSERT_EQ(this->res_grid[0].result.dl.ul_pdcchs.size(), 0);
+    ASSERT_EQ(this->res_grid[0].result_reader().dl().ue_grants().size(), 0);
+    ASSERT_EQ(this->res_grid[0].result_reader().dl().ul_pdcchs().size(), 0);
     handle_crc_for_pending_puschs(true);
   }
 
@@ -285,7 +287,7 @@ TEST_P(ra_scheduler_common_test,
        ++slot_count) {
     run_slot();
 
-    const auto& rars = this->res_grid[0].result.dl.rar_grants;
+    const auto rars = this->res_grid[0].result_reader().dl().rar_grants();
     for (const rar_information& rar : rars) {
       ra_rntis.emplace(rar.pdsch_cfg.rnti);
       max_msg3_per_rar = std::max<unsigned>(max_msg3_per_rar, rar.grants.size());
@@ -409,8 +411,8 @@ TEST_F(ra_scheduler_ntn_test, msg3_is_scheduled_the_cell_specific_koffset_after_
   const rar_information* rar = nullptr;
   for (unsigned slot_count = 0; slot_count != 100 and rar == nullptr; ++slot_count) {
     run_slot();
-    if (not res_grid[0].result.dl.rar_grants.empty()) {
-      rar = &res_grid[0].result.dl.rar_grants.front();
+    if (not res_grid[0].result_reader().dl().rar_grants().empty()) {
+      rar = &res_grid[0].result_reader().dl().rar_grants().front();
     }
   }
   ASSERT_NE(rar, nullptr) << "No RAR was scheduled";
@@ -423,7 +425,8 @@ TEST_F(ra_scheduler_ntn_test, msg3_is_scheduled_the_cell_specific_koffset_after_
   const unsigned msg3_delay = ra_helper::get_msg3_delay(ul_bwp.generic_params.scs, k2);
 
   const auto has_msg3 = [&grant](const cell_slot_resource_allocator& alloc) {
-    return std::any_of(alloc.result.ul.puschs.begin(), alloc.result.ul.puschs.end(), [&grant](const ul_sched_info& p) {
+    const auto puschs = alloc.result_reader().ul().puschs();
+    return std::any_of(puschs.begin(), puschs.end(), [&grant](const ul_sched_info& p) {
       return p.pusch_cfg.rnti == grant.temp_crnti;
     });
   };
@@ -661,10 +664,10 @@ TEST_F(ra_scheduler_snr_backoff_test, weak_preamble_excluded_and_backoff_indicat
 
   handle_rach_indication(test_helper::create_rach_indication(cell_cfg, next_slot_rx(), {strong, weak}));
 
-  const bool found = run_slot_until([this]() { return not res_grid[0].result.dl.rar_grants.empty(); });
+  const bool found = run_slot_until([this]() { return not res_grid[0].result_reader().dl().rar_grants().empty(); });
   ASSERT_TRUE(found);
 
-  const rar_information& rar = res_grid[0].result.dl.rar_grants.front();
+  const rar_information& rar = res_grid[0].result_reader().dl().rar_grants().front();
   ASSERT_TRUE(rar.backoff_indicator.has_value());
   ASSERT_EQ(rar.grants.size(), 1U);
   EXPECT_EQ(rar.grants.front().temp_crnti, strong.tc_rnti);
@@ -685,7 +688,7 @@ TEST_F(ra_scheduler_count_backoff_test, excess_preambles_excluded_and_backoff_in
   bool bi_seen = false;
   for (unsigned slot_count = 0, max_slots = 1000; slot_count != max_slots and tracker.has_pending_ra(); ++slot_count) {
     run_slot();
-    for (const rar_information& rar : res_grid[0].result.dl.rar_grants) {
+    for (const rar_information& rar : res_grid[0].result_reader().dl().rar_grants()) {
       bi_seen |= rar.backoff_indicator.has_value();
     }
     handle_crc_for_pending_puschs(true);
@@ -707,7 +710,7 @@ TEST_F(ra_scheduler_backoff_only_test, all_preambles_below_threshold_yields_back
 
   const rar_information* backoff_rar = nullptr;
   const bool             found       = run_slot_until([this, &backoff_rar]() {
-    for (const rar_information& rar : res_grid[0].result.dl.rar_grants) {
+    for (const rar_information& rar : res_grid[0].result_reader().dl().rar_grants()) {
       if (rar.backoff_indicator.has_value()) {
         backoff_rar = &rar;
         return true;
@@ -732,7 +735,7 @@ TEST_F(ra_scheduler_backoff_duration_test, duration_is_mapped_to_table_index)
 
   const rar_information* backoff_rar = nullptr;
   const bool             found       = run_slot_until([this, &backoff_rar]() {
-    for (const rar_information& rar : res_grid[0].result.dl.rar_grants) {
+    for (const rar_information& rar : res_grid[0].result_reader().dl().rar_grants()) {
       if (rar.backoff_indicator.has_value()) {
         backoff_rar = &rar;
         return true;
@@ -790,17 +793,17 @@ TEST_F(ra_scheduler_beam_test, rar_pdsch_and_pdcch_use_the_beam_of_the_ssb)
 
   const rar_information* rar   = nullptr;
   bool                   found = run_slot_until([&]() {
-    if (res_grid[0].result.dl.rar_grants.empty()) {
+    if (res_grid[0].result_reader().dl().rar_grants().empty()) {
       return false;
     }
-    rar = &res_grid[0].result.dl.rar_grants.front();
+    rar = &res_grid[0].result_reader().dl().rar_grants().front();
     return true;
   });
 
   ASSERT_TRUE(found) << "No RAR was scheduled";
   ASSERT_EQ(beam_of(rar->pdsch_cfg.precoding_and_beamforming), test_ssb_beam);
-  ASSERT_EQ(res_grid[0].result.dl.dl_pdcchs.size(), 1);
-  ASSERT_EQ(beam_of(res_grid[0].result.dl.dl_pdcchs.front().ctx.precoding_and_beamforming), test_ssb_beam);
+  ASSERT_EQ(res_grid[0].result_reader().dl().dl_pdcchs().size(), 1);
+  ASSERT_EQ(beam_of(res_grid[0].result_reader().dl().dl_pdcchs().front().ctx.precoding_and_beamforming), test_ssb_beam);
 }
 
 /// Verifies that the PDCCH scheduling a Msg3 retransmission is carried by the beam of the SS/PBCH block, so that the
@@ -813,8 +816,9 @@ TEST_F(ra_scheduler_beam_test, msg3_retx_pdcch_uses_the_beam_of_the_ssb)
   for (unsigned i = 0, max_slots = 1000; i != max_slots and tracker.nof_msg3_retxs() == 0; ++i) {
     run_slot();
     handle_crc_for_pending_puschs(false);
-    if (not res_grid[0].result.dl.ul_pdcchs.empty()) {
-      ASSERT_EQ(beam_of(res_grid[0].result.dl.ul_pdcchs.front().ctx.precoding_and_beamforming), test_ssb_beam);
+    if (not res_grid[0].result_reader().dl().ul_pdcchs().empty()) {
+      ASSERT_EQ(beam_of(res_grid[0].result_reader().dl().ul_pdcchs().front().ctx.precoding_and_beamforming),
+                test_ssb_beam);
     }
   }
 
@@ -868,7 +872,7 @@ TEST_F(ra_scheduler_multi_beam_test, rars_of_different_occasions_use_different_b
 
     for (unsigned i = 0; i != nof_slots_drained and observed_beams.size() < 2; ++i) {
       run_slot();
-      for (const rar_information& rar : res_grid[0].result.dl.rar_grants) {
+      for (const rar_information& rar : res_grid[0].result_reader().dl().rar_grants()) {
         const beam_identifier beam = beam_of(rar.pdsch_cfg.precoding_and_beamforming);
         ASSERT_NE(beam, beam_identifier::invalid);
         observed_beams.emplace(to_underlying(beam));
@@ -933,7 +937,7 @@ TEST_F(ra_scheduler_backoff_only_beam_test, backoff_only_rars_use_the_beams_of_t
 
     for (unsigned i = 0; i != nof_slots_drained and observed_beams.size() < 2; ++i) {
       run_slot();
-      for (const rar_information& rar : res_grid[0].result.dl.rar_grants) {
+      for (const rar_information& rar : res_grid[0].result_reader().dl().rar_grants()) {
         ASSERT_TRUE(rar.backoff_indicator.has_value());
         ASSERT_TRUE(rar.grants.empty());
         const beam_identifier beam = beam_of(rar.pdsch_cfg.precoding_and_beamforming);
@@ -1047,14 +1051,13 @@ public:
   /// Returns true if the current slot result contains at least one MsgB grant of either type.
   bool has_msgb_grant() const
   {
-    return std::any_of(res_grid[0].result.dl.rar_grants.begin(),
-                       res_grid[0].result.dl.rar_grants.end(),
-                       [](const rar_information& rar) {
-                         return std::any_of(rar.grants.begin(), rar.grants.end(), [](const rar_ul_grant& g) {
-                           return std::holds_alternative<rar_ul_grant::two_step_success_info>(g.type) or
-                                  std::holds_alternative<rar_ul_grant::two_step_fallback_info>(g.type);
-                         });
-                       });
+    const auto rars = res_grid[0].result_reader().dl().rar_grants();
+    return std::any_of(rars.begin(), rars.end(), [](const rar_information& rar) {
+      return std::any_of(rar.grants.begin(), rar.grants.end(), [](const rar_ul_grant& g) {
+        return std::holds_alternative<rar_ul_grant::two_step_success_info>(g.type) or
+               std::holds_alternative<rar_ul_grant::two_step_fallback_info>(g.type);
+      });
+    });
   }
 
   /// Returns true if there is a Msg3 PUSCH grant (created by FallbackRAR) for the given TC-RNTI anywhere in the
@@ -1062,7 +1065,7 @@ public:
   bool has_msg3_pusch_for(rnti_t tc_rnti) const
   {
     for (unsigned i = 0; i <= res_grid.max_ul_slot_alloc_delay; ++i) {
-      for (const auto& pusch : res_grid[i].result.ul.puschs) {
+      for (const auto& pusch : res_grid[i].result_reader().ul().puschs()) {
         if (pusch.context.ue_index == INVALID_DU_UE_INDEX and pusch.context.msg3_delay.has_value() and
             pusch.pusch_cfg.rnti == tc_rnti) {
           return true;
@@ -1118,7 +1121,7 @@ TEST_P(ra_scheduler_two_step_rach_test, when_msga_crc_ok_then_msgb_with_success_
   send_msga_rach({make_msga_preamble(0, tc_rnti)});
 
   // Event: MsgA PUSCH scheduled and forward CRC=OK.
-  ASSERT_TRUE(run_slot_until([this]() { return not res_grid[0].result.ul.puschs.empty(); }));
+  ASSERT_TRUE(run_slot_until([this]() { return not res_grid[0].result_reader().ul().puschs().empty(); }));
   send_msga_crc(0, true);
 
   // Test: MsgB with SuccessRAR scheduled.
@@ -1138,15 +1141,16 @@ TEST_P(ra_scheduler_two_step_rach_test, msgb_pdsch_and_pdcch_use_the_beam_of_the
   const rnti_t tc_rnti = to_rnti(to_underlying(rnti_t::MIN_CRNTI));
   send_msga_rach({make_msga_preamble(0, tc_rnti)});
 
-  ASSERT_TRUE(run_slot_until([this]() { return not res_grid[0].result.ul.puschs.empty(); }));
+  ASSERT_TRUE(run_slot_until([this]() { return not res_grid[0].result_reader().ul().puschs().empty(); }));
   send_msga_crc(0, true);
 
-  ASSERT_TRUE(run_slot_until([this]() { return not res_grid[0].result.dl.rar_grants.empty(); }));
+  ASSERT_TRUE(run_slot_until([this]() { return not res_grid[0].result_reader().dl().rar_grants().empty(); }));
 
-  ASSERT_EQ(beam_of(res_grid[0].result.dl.rar_grants.front().pdsch_cfg.precoding_and_beamforming), test_ssb_beam);
+  ASSERT_EQ(beam_of(res_grid[0].result_reader().dl().rar_grants().front().pdsch_cfg.precoding_and_beamforming),
+            test_ssb_beam);
 
-  ASSERT_EQ(res_grid[0].result.dl.dl_pdcchs.size(), 1);
-  ASSERT_EQ(beam_of(res_grid[0].result.dl.dl_pdcchs.front().ctx.precoding_and_beamforming), test_ssb_beam);
+  ASSERT_EQ(res_grid[0].result_reader().dl().dl_pdcchs().size(), 1);
+  ASSERT_EQ(beam_of(res_grid[0].result_reader().dl().dl_pdcchs().front().ctx.precoding_and_beamforming), test_ssb_beam);
 }
 
 /// When MsgA PUSCH decoding fails (CRC=KO), the scheduler must respond with a FallbackRAR and allocate a
@@ -1158,7 +1162,7 @@ TEST_P(ra_scheduler_two_step_rach_test, when_msga_crc_ko_then_fallback_rar_and_m
   run_slot();
 
   // Event: MsgA PUSCH scheduled and forward CRC=KO.
-  ASSERT_TRUE(run_slot_until([this]() { return not res_grid[0].result.ul.puschs.empty(); }));
+  ASSERT_TRUE(run_slot_until([this]() { return not res_grid[0].result_reader().ul().puschs().empty(); }));
   send_msga_crc(0, false);
 
   ASSERT_TRUE(run_slot_until([this]() { return tracker.nof_fallback_rars() > 0; }));
@@ -1167,8 +1171,8 @@ TEST_P(ra_scheduler_two_step_rach_test, when_msga_crc_ko_then_fallback_rar_and_m
 
   std::optional<bool> msg3_rapid_set;
   ASSERT_TRUE(run_slot_until([this, &msg3_rapid_set]() {
-    const auto& puschs = res_grid[0].result.ul.puschs;
-    auto        it     = std::find_if(
+    const auto puschs = res_grid[0].result_reader().ul().puschs();
+    auto       it     = std::find_if(
         puschs.begin(), puschs.end(), [](const ul_sched_info& p) { return p.context.msg3_delay.has_value(); });
     if (it != puschs.end()) {
       msg3_rapid_set = it->context.rapid.has_value();
@@ -1191,7 +1195,7 @@ TEST_P(ra_scheduler_two_step_rach_test, when_crc_pending_then_msgb_scheduling_is
   run_slot();
 
   // Run several slots without a CRC indication; MsgB must not be scheduled.
-  ASSERT_FALSE(run_slot_until([this]() { return not res_grid[0].result.dl.rar_grants.empty(); }, 5));
+  ASSERT_FALSE(run_slot_until([this]() { return not res_grid[0].result_reader().dl().rar_grants().empty(); }, 5));
 
   // CRC=OK arrives; MsgB must now be scheduled.
   send_msga_crc(0, true);
@@ -1208,7 +1212,7 @@ TEST_P(ra_scheduler_two_step_rach_test, when_mixed_crc_outcomes_both_rar_types_s
   const rnti_t tc_rnti_ko = to_rnti(to_underlying(rnti_t::MIN_CRNTI) + 1);
   send_msga_rach({make_msga_preamble(0, tc_rnti_ok), make_msga_preamble(1, tc_rnti_ko)});
 
-  ASSERT_TRUE(run_slot_until([this]() { return not res_grid[0].result.ul.puschs.empty(); }));
+  ASSERT_TRUE(run_slot_until([this]() { return not res_grid[0].result_reader().ul().puschs().empty(); }));
   send_msga_crc(0, true);
   send_msga_crc(1, false);
 
@@ -1216,9 +1220,9 @@ TEST_P(ra_scheduler_two_step_rach_test, when_mixed_crc_outcomes_both_rar_types_s
   ASSERT_EQ(tracker.nof_success_rars(), 1);
   ASSERT_EQ(tracker.nof_fallback_rars(), 1);
 
-  ASSERT_TRUE(run_slot_until([this]() { return not res_grid[0].result.ul.puschs.empty(); }));
-  ASSERT_EQ(res_grid[0].result.ul.puschs.size(), 1);
-  ASSERT_EQ(res_grid[0].result.ul.puschs[0].pusch_cfg.rnti, tc_rnti_ko);
+  ASSERT_TRUE(run_slot_until([this]() { return not res_grid[0].result_reader().ul().puschs().empty(); }));
+  ASSERT_EQ(res_grid[0].result_reader().ul().puschs().size(), 1);
+  ASSERT_EQ(res_grid[0].result_reader().ul().puschs()[0].pusch_cfg.rnti, tc_rnti_ko);
   ASSERT_EQ(tracker.nof_msg3_newtxs(), 1) << "FallbackRAR preamble must have a Msg3 PUSCH";
 }
 
@@ -1230,18 +1234,16 @@ TEST_P(ra_scheduler_two_step_rach_test, msgb_dci_carries_prach_sfn_lsbs_per_resp
   const rnti_t tc_rnti = to_rnti(to_underlying(rnti_t::MIN_CRNTI));
   send_msga_rach({make_msga_preamble(0, tc_rnti)});
 
-  ASSERT_TRUE(run_slot_until([this]() { return not res_grid[0].result.ul.puschs.empty(); }));
+  ASSERT_TRUE(run_slot_until([this]() { return not res_grid[0].result_reader().ul().puschs().empty(); }));
   send_msga_crc(0, true);
 
   const pdcch_dl_information* msgb_pdcch = nullptr;
   ASSERT_TRUE(run_slot_until([this, &msgb_pdcch]() {
-    auto it = std::find_if(res_grid[0].result.dl.dl_pdcchs.begin(),
-                           res_grid[0].result.dl.dl_pdcchs.end(),
-                           [](const pdcch_dl_information& p) {
-                             return p.dci.type() == dci_dl_rnti_config_type::ra_f1_0 and
-                                    ra_helper::is_valid_msgb_rnti(p.ctx.rnti);
-                           });
-    if (it != res_grid[0].result.dl.dl_pdcchs.end()) {
+    const auto dl_pdcchs = res_grid[0].result_reader().dl().dl_pdcchs();
+    const auto it        = std::find_if(dl_pdcchs.begin(), dl_pdcchs.end(), [](const pdcch_dl_information& p) {
+      return p.dci.type() == dci_dl_rnti_config_type::ra_f1_0 and ra_helper::is_valid_msgb_rnti(p.ctx.rnti);
+    });
+    if (it != dl_pdcchs.end()) {
       msgb_pdcch = &*it;
       return true;
     }
@@ -1414,8 +1416,8 @@ public:
       }
       // Skip slots that already hold a grant for the UE: re-adding a PUCCH next to its Msg3 PUSCH would recreate
       // the very overlap the UCI multiplexing is meant to resolve.
-      span<const pucch_info> pucchs = slot_alloc.result.ul.pucchs.unsorted();
-      const auto&            puschs = slot_alloc.result.ul.puschs;
+      span<const pucch_info> pucchs = slot_alloc.result_reader().ul().pucchs().unsorted();
+      const auto             puschs = slot_alloc.result_reader().ul().puschs();
       const bool             has_grant =
           std::any_of(pucchs.begin(), pucchs.end(), [this](const pucch_info& p) { return p.crnti == cfra_crnti; }) or
           std::any_of(
@@ -1439,7 +1441,7 @@ TEST_P(ra_scheduler_cfra_uci_on_msg3_test, msg3_is_only_scheduled_over_a_pucch_w
   bool msg3_with_uci = false;
   for (unsigned slot_count = 0, max_slots = 200; slot_count != max_slots; ++slot_count) {
     run_slot();
-    for (const ul_sched_info& pusch : res_grid[0].result.ul.puschs) {
+    for (const ul_sched_info& pusch : res_grid[0].result_reader().ul().puschs()) {
       if (pusch.pusch_cfg.rnti != cfra_crnti) {
         continue;
       }
@@ -1467,7 +1469,7 @@ TEST_F(ra_scheduler_cfra_test, cfra_msg3_crc_with_valid_ue_index_is_accepted)
   for (unsigned slot_count = 0, max_slots = 1000; slot_count < max_slots and tracker.nof_msg3_acked() == 0;
        ++slot_count) {
     run_slot();
-    if (not res_grid[0].result.ul.puschs.empty()) {
+    if (not res_grid[0].result_reader().ul().puschs().empty()) {
       send_cfra_crc(tc_rnti, true);
     }
   }
@@ -1485,7 +1487,7 @@ TEST_F(ra_scheduler_cfra_test, cfra_msg3_crc_ko_causes_retx_then_ok_completes)
   for (unsigned slot_count = 0, max_slots = 1000; slot_count < max_slots and tracker.nof_msg3_newtxs() == 0;
        ++slot_count) {
     run_slot();
-    if (not res_grid[0].result.ul.puschs.empty()) {
+    if (not res_grid[0].result_reader().ul().puschs().empty()) {
       send_cfra_crc(tc_rnti, false);
     }
   }
@@ -1496,7 +1498,7 @@ TEST_F(ra_scheduler_cfra_test, cfra_msg3_crc_ko_causes_retx_then_ok_completes)
   for (unsigned slot_count = 0, max_slots = 1000; slot_count < max_slots and tracker.nof_msg3_acked() == 0;
        ++slot_count) {
     run_slot();
-    if (not res_grid[0].result.ul.puschs.empty()) {
+    if (not res_grid[0].result_reader().ul().puschs().empty()) {
       send_cfra_crc(tc_rnti, true);
     }
   }
@@ -1517,7 +1519,7 @@ TEST_F(ra_scheduler_cfra_test, when_msg3_retx_starves_then_tc_rnti_is_released_f
   for (unsigned slot_count = 0, max_slots = 1000; slot_count < max_slots and tracker.nof_msg3_newtxs() == 0;
        ++slot_count) {
     run_slot();
-    if (not res_grid[0].result.ul.puschs.empty()) {
+    if (not res_grid[0].result_reader().ul().puschs().empty()) {
       send_cfra_crc(tc_rnti, false);
     }
   }

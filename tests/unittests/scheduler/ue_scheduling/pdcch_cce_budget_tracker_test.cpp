@@ -143,7 +143,7 @@ protected:
 
   void add_dl_pdcch(aggregation_level aggr_lvl, const coreset_configuration* pdcch_cs_cfg = nullptr)
   {
-    auto& pdcch             = (*res_grid)[0].result.dl.dl_pdcchs.emplace_back();
+    auto& pdcch             = *(*res_grid)[0].result_builder().dl().dl_pdcchs().emplace_back();
     pdcch.ctx.coreset_cfg   = pdcch_cs_cfg != nullptr ? pdcch_cs_cfg : cs_cfg;
     pdcch.ctx.cces.aggr_lvl = aggr_lvl;
     fill_pdcch_crbs(*pdcch.ctx.coreset_cfg, aggr_lvl);
@@ -151,7 +151,7 @@ protected:
 
   void add_ul_pdcch(aggregation_level aggr_lvl)
   {
-    auto& pdcch             = (*res_grid)[0].result.dl.ul_pdcchs.emplace_back();
+    auto& pdcch             = *(*res_grid)[0].result_builder().dl().ul_pdcchs().emplace_back();
     pdcch.ctx.coreset_cfg   = cs_cfg;
     pdcch.ctx.cces.aggr_lvl = aggr_lvl;
     fill_pdcch_crbs(*cs_cfg, aggr_lvl);

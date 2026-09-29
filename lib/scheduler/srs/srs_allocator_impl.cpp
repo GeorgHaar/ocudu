@@ -151,7 +151,7 @@ aperiodic_srs_alloc_info srs_allocator_impl::allocate_aperiodic_srs(cell_resourc
   }
 
   auto& srs_slot_res_alloc = res_alloc[sl_offset + ntn_koffset];
-  if (srs_slot_res_alloc.result.ul.srss.full()) {
+  if (srs_slot_res_alloc.result_builder().ul().srss().full()) {
     return {};
   }
 
@@ -161,7 +161,7 @@ aperiodic_srs_alloc_info srs_allocator_impl::allocate_aperiodic_srs(cell_resourc
 
   // At this point, the SRS allocation has been successful, we proceed with adding the results (SRS PDU and marking the
   // resource grid).
-  srs_slot_res_alloc.result.ul.srss.emplace_back(
+  srs_slot_res_alloc.result_builder().ul().srss().emplace_back(
       create_srs_pdu(ue_cfg.crnti, ue_cfg.cell_cfg_common.params.ul_cfg_common.init_ul_bwp.generic_params, srs_res));
   srs_slot_res_alloc.ul_res_grid.fill(
       get_srs_res_grid_grant(ue_cfg.cell_cfg_common.params.ul_cfg_common.init_ul_bwp.generic_params, srs_res));

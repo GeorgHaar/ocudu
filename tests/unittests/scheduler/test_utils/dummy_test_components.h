@@ -42,17 +42,18 @@ public:
     if (fail_pdcch_alloc_cond and fail_pdcch_alloc_cond(slot_alloc.slot)) {
       return nullptr;
     }
-    slot_alloc.result.dl.dl_pdcchs.emplace_back();
-    slot_alloc.result.dl.dl_pdcchs.back().ctx.rnti    = rnti;
-    slot_alloc.result.dl.dl_pdcchs.back().ctx.bwp_cfg = &slot_alloc.cfg.params.dl_cfg_common.init_dl_bwp.generic_params;
-    slot_alloc.result.dl.dl_pdcchs.back().ctx.coreset_cfg =
-        &*slot_alloc.cfg.params.dl_cfg_common.init_dl_bwp.pdcch_common.coreset0;
-    slot_alloc.result.dl.dl_pdcchs.back().ctx.cces          = {static_cast<uint8_t>(get_ncce(slot_alloc.slot)),
-                                                               ocudu::aggregation_level::n4};
-    slot_alloc.result.dl.dl_pdcchs.back().ctx.context.ss_id = ss_id;
-    slot_alloc.result.dl.dl_pdcchs.back().ctx.precoding_and_beamforming =
+    pdcch_dl_information* pdcch = slot_alloc.result_builder().dl().dl_pdcchs().emplace_back();
+    if (pdcch == nullptr) {
+      return nullptr;
+    }
+    pdcch->ctx.rnti          = rnti;
+    pdcch->ctx.bwp_cfg       = &slot_alloc.cfg.params.dl_cfg_common.init_dl_bwp.generic_params;
+    pdcch->ctx.coreset_cfg   = &*slot_alloc.cfg.params.dl_cfg_common.init_dl_bwp.pdcch_common.coreset0;
+    pdcch->ctx.cces          = {static_cast<uint8_t>(get_ncce(slot_alloc.slot)), ocudu::aggregation_level::n4};
+    pdcch->ctx.context.ss_id = ss_id;
+    pdcch->ctx.precoding_and_beamforming =
         beam.has_value() ? make_single_beam_precoding(*beam) : make_default_precoding();
-    return &slot_alloc.result.dl.dl_pdcchs.back();
+    return pdcch;
   }
 
   pdcch_dl_information* alloc_dl_pdcch_ue(cell_slot_resource_allocator& slot_alloc,

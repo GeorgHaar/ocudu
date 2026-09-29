@@ -324,16 +324,17 @@ TEST_P(srs_alloc_tester, with_only_1_ue_srs_is_allocated_every_time_prohibit_tim
         last_srs_slot = current_sl_tx + res.slot_offset;
         at_least_one_alloc |= true;
         expected_srs_slot = last_srs_slot + srs_prohib_time_uint;
-        ASSERT_EQ(1, res_grid[res.slot_offset].result.ul.srss.size());
+        ASSERT_EQ(1, res_grid[res.slot_offset].result_reader().ul().srss().size());
         expected<bool, std::string> pdu_test =
-            test_srs_pdu(res_grid[res.slot_offset].result.ul.srss.front(), u.ue_index);
+            test_srs_pdu(res_grid[res.slot_offset].result_reader().ul().srss().front(), u.ue_index);
         ASSERT_TRUE(pdu_test.has_value())
             << fmt::format("UE did not pass the SRS PDU check. Cause: {}", pdu_test.error());
       }
 
       // With 1 UE only, the aperiodic SRS allocation is expected periodically.
       if (expected_srs_slot.has_value() and current_sl_tx == expected_srs_slot) {
-        ASSERT_EQ(1, res_grid[0].result.ul.srss.size()) << fmt::format("Expected SRS PDU at slot {}", current_sl_tx);
+        ASSERT_EQ(1, res_grid[0].result_reader().ul().srss().size())
+            << fmt::format("Expected SRS PDU at slot {}", current_sl_tx);
       }
     }
   }
@@ -425,11 +426,11 @@ TEST_P(srs_alloc_multi_ue_tester, multiple_ues_with_orthogonal_srs_res_is_alloca
           }
           test_ue.last_srs_slot = current_sl_tx + res.slot_offset;
           test_ue.at_least_one_alloc |= true;
-          ASSERT_FALSE(res_grid[res.slot_offset].result.ul.srss.empty());
-          auto* const ue_srs_pdu_it = std::find_if(res_grid[res.slot_offset].result.ul.srss.begin(),
-                                                   res_grid[res.slot_offset].result.ul.srss.end(),
+          ASSERT_FALSE(res_grid[res.slot_offset].result_reader().ul().srss().empty());
+          auto* const ue_srs_pdu_it = std::find_if(res_grid[res.slot_offset].result_reader().ul().srss().begin(),
+                                                   res_grid[res.slot_offset].result_reader().ul().srss().end(),
                                                    [rnti = u.crnti](const srs_info& srs) { return srs.crnti == rnti; });
-          ASSERT_NE(ue_srs_pdu_it, res_grid[res.slot_offset].result.ul.srss.end());
+          ASSERT_NE(ue_srs_pdu_it, res_grid[res.slot_offset].result_reader().ul().srss().end());
           expected<bool, std::string> pdu_test = test_srs_pdu(*ue_srs_pdu_it, u.ue_index);
           ASSERT_TRUE(pdu_test.has_value())
               << fmt::format("rnti={} did not pass the SRS pdu check. Cause: {}", u.crnti, pdu_test.error());
@@ -438,7 +439,7 @@ TEST_P(srs_alloc_multi_ue_tester, multiple_ues_with_orthogonal_srs_res_is_alloca
 
       // Check possible collisions.
       cell_srs_res_usage.fill(0U);
-      for (const auto& srs_pdu : res_grid[0U].result.ul.srss) {
+      for (const auto& srs_pdu : res_grid[0U].result_reader().ul().srss()) {
         const ue* srs_ue = ues.find_by_rnti(srs_pdu.crnti);
         ASSERT_NE(srs_ue, nullptr);
         const unsigned srs_cell_id = get_ue_srs_cell_id(*srs_ue);

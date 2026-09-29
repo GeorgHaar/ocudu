@@ -78,11 +78,14 @@ void csi_rs_scheduler::run_slot(cell_slot_resource_allocator& res_grid)
     return;
   }
 
+  auto csi_rs_pdus = res_grid.result_builder().dl().csi_rs();
+
   // Schedule zp-CSI-RS PDUs.
   for (unsigned i = 0; i != cell_cfg.zp_csi_rs_list.size(); ++i) {
     const zp_csi_rs_resource& zp_csi = cell_cfg.zp_csi_rs_list[i];
     if ((res_grid.slot - *zp_csi.offset).count() % (unsigned)*zp_csi.period == 0) {
-      res_grid.result.dl.csi_rs.push_back(cached_csi_rs[i]);
+      [[maybe_unused]] const csi_rs_info* pdu = csi_rs_pdus.emplace_back(cached_csi_rs[i]);
+      ocudu_assert(pdu != nullptr, "Failed to allocate ZP-CSI-RS PDU");
     }
   }
 
@@ -91,7 +94,8 @@ void csi_rs_scheduler::run_slot(cell_slot_resource_allocator& res_grid)
     const nzp_csi_rs_resource& nzp_csi    = cell_cfg.nzp_csi_rs_list[i];
     const auto&                csi_rs_pdu = cached_csi_rs[cell_cfg.zp_csi_rs_list.size() + i];
     if ((res_grid.slot - *nzp_csi.csi_res_offset).count() % (unsigned)*nzp_csi.csi_res_period == 0) {
-      res_grid.result.dl.csi_rs.push_back(csi_rs_pdu);
+      [[maybe_unused]] const csi_rs_info* pdu = csi_rs_pdus.emplace_back(csi_rs_pdu);
+      ocudu_assert(pdu != nullptr, "Failed to allocate NZP-CSI-RS PDU");
     }
   }
 }

@@ -215,13 +215,14 @@ void sib1_scheduler::fill_sib1_grant(cell_slot_resource_allocator& res_grid,
   static constexpr unsigned sib1_si_indicator = 0;
 
   // Add DCI to list to dl_pdcch.
-  ocudu_assert(res_grid.result.dl.dl_pdcchs.size() > 0, "No DL PDCCH grant found in the DL sched results.");
+  auto dl_res = res_grid.result_builder().dl();
+  ocudu_assert(dl_res.dl_pdcchs().size() > 0, "No DL PDCCH grant found in the DL sched results.");
 
   const auto& pdsch_td_res_alloc_list = get_si_rnti_pdsch_time_domain_list(
       cell_cfg.params.dl_cfg_common.init_dl_bwp.generic_params.cp, cell_cfg.params.dmrs_typeA_pos);
 
   // Fill SIB1 DCI.
-  auto& sib1_pdcch = res_grid.result.dl.dl_pdcchs.back();
+  auto& sib1_pdcch = dl_res.dl_pdcchs().back();
   build_dci_f1_0_si_rnti(sib1_pdcch.dci,
                          cell_cfg.params.dl_cfg_common.init_dl_bwp,
                          sib1_crbs_grant,
@@ -230,7 +231,7 @@ void sib1_scheduler::fill_sib1_grant(cell_slot_resource_allocator& res_grid,
                          sib1_si_indicator);
 
   // Add SIB1 to list of SIB1 information to pass to lower layers.
-  sib_information& sib1 = res_grid.result.dl.bc.sibs.emplace_back();
+  sib_information& sib1 = *dl_res.sibs().emplace_back();
   sib1.si_indicator     = sib_information::si_indicator_type::sib1;
   sib1.version          = current_version;
   sib1.nof_txs          = 0;

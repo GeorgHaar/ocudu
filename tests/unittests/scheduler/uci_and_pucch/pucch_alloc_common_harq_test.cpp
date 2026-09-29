@@ -78,8 +78,8 @@ TEST_P(pucch_alloc_common_harq_test, test_pucch_output_info)
   ASSERT_TRUE(pucch_res_indicator.has_value());
   ASSERT_EQ(0, pucch_res_indicator.value());
 
-  ASSERT_FALSE(t_bench.res_grid[t_bench.k0 + default_k1].result.ul.pucchs.empty());
-  ASSERT_TRUE(find_pucch_pdu(t_bench.res_grid[t_bench.k0 + default_k1].result.ul.pucchs.unsorted(),
+  ASSERT_FALSE(t_bench.res_grid[t_bench.k0 + default_k1].result_reader().ul().pucchs().empty());
+  ASSERT_TRUE(find_pucch_pdu(t_bench.res_grid[t_bench.k0 + default_k1].result_reader().ul().pucchs().unsorted(),
                              [&expected = expected_info](const auto& pdu) { return pucch_info_match(expected, pdu); }));
 }
 
@@ -149,7 +149,7 @@ TEST_F(pucch_alloc_common_harq_multiple_alloc_test, test_on_full_grid)
                                             default_k1,
                                             t_bench.dci_info,
                                             t_bench.get_main_ue().get_pcell().ntn_koffset());
-  ASSERT_FALSE(t_bench.res_grid[t_bench.k0 + default_k1].result.ul.pucchs.empty());
+  ASSERT_FALSE(t_bench.res_grid[t_bench.k0 + default_k1].result_reader().ul().pucchs().empty());
 
   // Increase the slot to  try the allocation in a different slot.
   t_bench.slot_indication(++t_bench.sl_tx);
@@ -164,5 +164,5 @@ TEST_F(pucch_alloc_common_harq_multiple_alloc_test, test_on_full_grid)
                                                        t_bench.dci_info,
                                                        t_bench.get_main_ue().get_pcell().ntn_koffset());
   ASSERT_FALSE(pri.has_value());
-  ASSERT_TRUE(t_bench.res_grid[t_bench.k0 + default_k1].result.ul.pucchs.empty());
+  ASSERT_TRUE(t_bench.res_grid[t_bench.k0 + default_k1].result_reader().ul().pucchs().empty());
 }

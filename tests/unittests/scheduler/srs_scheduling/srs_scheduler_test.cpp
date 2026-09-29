@@ -301,11 +301,11 @@ TEST_P(srs_scheduler_tester, test_different_periods)
     // already have been scheduled before the UE (and its SRS resource) existed.
     if (sl_cnt >= add_ue_slot + SCHEDULER_MAX_K2) {
       if (not ues.empty() and (current_sl_tx - get_offset()).count() % srs_period_uint == 0) {
-        ASSERT_EQ(1, res_grid[0].result.ul.srss.size());
-        expected<bool, std::string> pdu_test = test_srs_pdu(res_grid[0].result.ul.srss.front());
+        ASSERT_EQ(1, res_grid[0].result_reader().ul().srss().size());
+        expected<bool, std::string> pdu_test = test_srs_pdu(res_grid[0].result_reader().ul().srss().front());
         ASSERT_TRUE(pdu_test.has_value()) << pdu_test.error();
       } else {
-        ASSERT_TRUE(res_grid[0].result.ul.srss.empty());
+        ASSERT_TRUE(res_grid[0].result_reader().ul().srss().empty());
       }
     }
 
@@ -348,11 +348,11 @@ public:
     for (unsigned sl_cnt = 0; sl_cnt < max_slots; ++sl_cnt) {
       this->srs_sched.run_slot(this->res_grid);
 
-      if (not res_grid[0].result.ul.srss.empty()) {
-        EXPECT_EQ(res_grid[0].result.ul.srss.size(), 1);
-        EXPECT_TRUE(res_grid[0].result.ul.srss[0].normalized_channel_iq_matrix_requested);
-        if (res_grid[0].result.ul.srss[0].crnti == rnti) {
-          const auto* ret = res_grid[0].result.ul.srss.data();
+      if (not res_grid[0].result_reader().ul().srss().empty()) {
+        EXPECT_EQ(res_grid[0].result_reader().ul().srss().size(), 1);
+        EXPECT_TRUE(res_grid[0].result_reader().ul().srss()[0].normalized_channel_iq_matrix_requested);
+        if (res_grid[0].result_reader().ul().srss()[0].crnti == rnti) {
+          const auto* ret = res_grid[0].result_reader().ul().srss().data();
           slot_indication(++current_sl_tx);
           return ret;
         }
@@ -448,7 +448,7 @@ TEST_F(srs_positioning_scheduler_test,
     std::vector<bool> flags_b;
     for (unsigned i = 0; i != nof_slots; ++i) {
       this->srs_sched.run_slot(this->res_grid);
-      for (const auto& pdu : res_grid[0].result.ul.srss) {
+      for (const auto& pdu : res_grid[0].result_reader().ul().srss()) {
         if (pdu.crnti == rnti_a) {
           flags_a.push_back(pdu.positioning_report_requested);
         } else if (pdu.crnti == rnti_b) {

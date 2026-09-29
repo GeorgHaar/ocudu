@@ -272,7 +272,7 @@ uci_indication uci_cell_decoder::decode_uci(const mac_uci_indication_message& ms
   return ind;
 }
 
-static bool uci_storage_required(span<const pucch_info> scheduled_pucchs, span<const ul_sched_info> scheduled_puschs)
+static bool uci_storage_required(span<const pucch_info> scheduled_pucchs, pdu_span<ul_sched_info> scheduled_puschs)
 {
   return std::any_of(scheduled_pucchs.begin(),
                      scheduled_pucchs.end(),
@@ -282,9 +282,9 @@ static bool uci_storage_required(span<const pucch_info> scheduled_pucchs, span<c
          });
 }
 
-void uci_cell_decoder::store_uci(slot_point                uci_sl,
-                                 span<const pucch_info>    scheduled_pucchs,
-                                 span<const ul_sched_info> scheduled_puschs)
+void uci_cell_decoder::store_uci(slot_point              uci_sl,
+                                 span<const pucch_info>  scheduled_pucchs,
+                                 pdu_span<ul_sched_info> scheduled_puschs)
 {
   if (not uci_storage_required(scheduled_pucchs, scheduled_puschs)) {
     // Early exit.

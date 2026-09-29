@@ -330,7 +330,7 @@ void srs_scheduler_impl::schedule_updated_ues_srs(cell_resource_allocator& cell_
       for (const ue_update& ue_upd : updated_ues) {
         if (ue_upd.type == ue_update::type_t::positioning_stop or
             ue_upd.type == ue_update::type_t::positioning_request) {
-          for (auto& pdu : slot_alloc.result.ul.srss) {
+          for (auto& pdu : slot_alloc.result_builder().ul().srss()) {
             // Several positioning measurements can run at the same time, so only the PDUs of this RNTI change.
             if (pdu.crnti == ue_upd.rnti) {
               pdu.positioning_report_requested = ue_upd.type == ue_update::type_t::positioning_request;
@@ -374,7 +374,7 @@ bool srs_scheduler_impl::allocate_srs_opportunity(cell_slot_resource_allocator& 
 {
   slot_point sl_srs = slot_alloc.slot;
 
-  if (slot_alloc.result.ul.srss.full()) {
+  if (slot_alloc.result_builder().ul().srss().full()) {
     logger.warning("cell={} c-rnti={}: SRS resource id={} cannot be allocated for slot={}. Cause: SRS list is full",
                    cell_cfg.cell_index,
                    srs_opportunity.rnti,
@@ -455,7 +455,7 @@ bool srs_scheduler_impl::allocate_srs_opportunity(cell_slot_resource_allocator& 
   slot_alloc.ul_res_grid.fill(srs_grant);
 
   // Add SRS PDU into results.
-  slot_alloc.result.ul.srss.emplace_back(
+  slot_alloc.result_builder().ul().srss().emplace_back(
       create_srs_pdu(srs_opportunity.rnti, ul_bwp_cfg, *srs_res, pos_req != nullptr));
 
   return true;

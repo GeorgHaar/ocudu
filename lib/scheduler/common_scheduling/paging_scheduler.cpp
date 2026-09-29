@@ -195,7 +195,7 @@ bool paging_scheduler::is_paging_opportunity(slot_point_extended pdcch_slot, con
   return true;
 }
 
-std::optional<unsigned> paging_scheduler::find_pdsch_time_resource(const cell_resource_allocator&  res_grid,
+std::optional<unsigned> paging_scheduler::find_pdsch_time_resource(cell_resource_allocator&        res_grid,
                                                                    const sched_paging_information& request,
                                                                    slot_point_extended             pdcch_slot)
 {
@@ -262,13 +262,13 @@ void paging_scheduler::stop()
   paging_pending_ues.clear();
 }
 
-static bool has_space_for_pdsch(const cell_resource_allocator&                    res_grid,
+static bool has_space_for_pdsch(cell_resource_allocator&                          res_grid,
                                 const search_space_configuration&                 ss_cfg,
                                 span<const pdsch_time_domain_resource_allocation> pdsch_td_alloc_list,
                                 unsigned                                          time_res_idx)
 {
-  const cell_configuration&           cell_cfg     = res_grid.cfg;
-  const cell_slot_resource_allocator& paging_alloc = res_grid[pdsch_td_alloc_list[time_res_idx].k0];
+  const cell_configuration&     cell_cfg     = res_grid.cfg;
+  cell_slot_resource_allocator& paging_alloc = res_grid[pdsch_td_alloc_list[time_res_idx].k0];
 
   // Verify Paging slot is DL enabled.
   if (not cell_cfg.is_dl_enabled(paging_alloc.slot)) {
@@ -276,12 +276,12 @@ static bool has_space_for_pdsch(const cell_resource_allocator&                  
   }
 
   // Note: Unable at the moment to multiplex CSI and PDSCH.
-  if (not paging_alloc.result.dl.csi_rs.empty()) {
+  if (not paging_alloc.result_reader().dl().csi_rs().empty()) {
     return false;
   }
 
   // Verify there is space in PDSCH and PDCCH result lists for new allocations.
-  if (paging_alloc.result.dl.paging_grants.full()) {
+  if (paging_alloc.result_builder().dl().paging_grants().full()) {
     return false;
   }
   const auto&                  pdsch_td_cfg = pdsch_td_alloc_list[time_res_idx];
@@ -300,10 +300,10 @@ static bool has_space_for_pdsch(const cell_resource_allocator&                  
   return true;
 }
 
-bool paging_scheduler::is_there_space_available_for_paging(const cell_resource_allocator& res_grid,
-                                                           unsigned                       pdsch_time_res,
-                                                           unsigned                       msg_size,
-                                                           slot_point                     pdcch_slot) const
+bool paging_scheduler::is_there_space_available_for_paging(cell_resource_allocator& res_grid,
+                                                           unsigned                 pdsch_time_res,
+                                                           unsigned                 msg_size,
+                                                           slot_point               pdcch_slot) const
 {
   if (not has_space_for_pdsch(res_grid, *ss_cfg, pdsch_td_alloc_list, pdsch_time_res)) {
     return false;
@@ -357,14 +357,14 @@ bool paging_scheduler::allocate_paging(cell_resource_allocator&         res_grid
   //   for now only initial DL BWP is considered for simplification in this function.
 
   cell_slot_resource_allocator& pdcch_alloc = res_grid[pdcch_slot];
-  if (pdcch_alloc.result.dl.dl_pdcchs.full()) {
+  if (pdcch_alloc.result_builder().dl().dl_pdcchs().full()) {
     logger.warning("Skipping Paging opportunity for id={}. Cause: Not enough PDCCH space for Paging",
                    ue_paging_ids.front());
     return false;
   }
 
   cell_slot_resource_allocator& pdsch_alloc = res_grid[pdcch_slot + pdsch_td_alloc_list[pdsch_time_res].k0];
-  if (pdsch_alloc.result.dl.paging_grants.full()) {
+  if (pdsch_alloc.result_builder().dl().paging_grants().full()) {
     logger.warning("Skipping Paging opportunity for id={}. Cause: Not enough PDSCH space for Paging",
                    ue_paging_ids.front());
     return false;
@@ -427,7 +427,7 @@ bool paging_scheduler::allocate_paging(cell_resource_allocator&         res_grid
       grant_info{cell_cfg.params.dl_cfg_common.init_dl_bwp.generic_params.scs, pdsch_td_cfg.symbols, paging_crbs});
 
   // > Delegate filling Paging grants to helper function.
-  fill_paging_grant(pdsch_alloc.result.dl.paging_grants.emplace_back(),
+  fill_paging_grant(*pdsch_alloc.result_builder().dl().paging_grants().emplace_back(),
                     *pdcch,
                     paging_crbs,
                     pdsch_time_res,

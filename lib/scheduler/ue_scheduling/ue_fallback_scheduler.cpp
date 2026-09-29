@@ -437,9 +437,9 @@ ue_fallback_scheduler::schedule_dl_srb(cell_resource_allocator&              res
       continue;
     }
 
-    auto                                offset_to_sched_ref_slot = static_cast<unsigned>(next_slot - sched_ref_slot);
-    const cell_slot_resource_allocator& pdcch_alloc              = res_alloc[offset_to_sched_ref_slot];
-    const cell_slot_resource_allocator& pdsch_alloc              = res_alloc[offset_to_sched_ref_slot];
+    auto                          offset_to_sched_ref_slot = static_cast<unsigned>(next_slot - sched_ref_slot);
+    cell_slot_resource_allocator& pdcch_alloc              = res_alloc[offset_to_sched_ref_slot];
+    cell_slot_resource_allocator& pdsch_alloc              = res_alloc[offset_to_sched_ref_slot];
 
     if ((not cell_cfg.is_dl_enabled(pdcch_alloc.slot)) or (not cell_cfg.is_dl_enabled(pdsch_alloc.slot))) {
       continue;
@@ -495,14 +495,14 @@ ue_fallback_scheduler::schedule_dl_srb(cell_resource_allocator&              res
     ocudu_sanity_check(pdsch_td_cfg.k0 == 0, "Fallback scheduler only supports k0=0");
 
     // We do not support multiplexing of PDSCH for SRB0 and SRB1 when in fallback with CSI-RS.
-    const bool is_csi_rs_slot = next_slot == sched_ref_slot ? not pdsch_alloc.result.dl.csi_rs.empty()
+    const bool is_csi_rs_slot = next_slot == sched_ref_slot ? not pdsch_alloc.result_reader().dl().csi_rs().empty()
                                                             : csi_helper::is_csi_rs_slot(cell_cfg, pdsch_alloc.slot);
     if (is_csi_rs_slot) {
       continue;
     }
 
     // Verify there is space in PDSCH and PDCCH result lists for new allocations.
-    if (pdcch_alloc.result.dl.dl_pdcchs.full() or pdsch_alloc.result.dl.ue_grants.full()) {
+    if (pdcch_alloc.result_builder().dl().dl_pdcchs().full() or pdsch_alloc.result_builder().dl().ue_grants().full()) {
       logger.debug("rnti={}: Failed to allocate fallback PDSCH. Cause: No space available in scheduler output list",
                    u.crnti);
       slots_with_no_pdxch_space[next_slot.count() % FALLBACK_SCHED_RING_BUFFER_SIZE] = true;
@@ -800,7 +800,7 @@ ue_fallback_scheduler::alloc_grant(ue&                                   u,
   if (not uci.has_value() or not uci.value().pucch_res_indicator.has_value()) {
     if (uci.has_value() and not uci.value().pucch_res_indicator.has_value()) {
       // A valid k1 candidate existed but the common HARQ-ACK PUCCH collided on every candidate: PUCCH contention.
-      ++pdcch_alloc.result.failed_attempts.fallback_uci_allocs;
+      ++pdcch_alloc.result_builder().failed_attempts().fallback_uci_allocs;
       // Note: Only log if there was at least one valid k1 candidate for this PDSCH slot.
       logger.debug("rnti={}: Failed to allocate fallback PDSCH for slot={}. Cause: No space in PUCCH",
                    u.crnti,
@@ -823,7 +823,7 @@ ue_fallback_scheduler::alloc_grant(ue&                                   u,
                            h_dl_retx,
                            *pdcch,
                            dci_type,
-                           pdsch_alloc.result.dl.ue_grants.emplace_back(),
+                           *pdsch_alloc.result_builder().dl().ue_grants().emplace_back(),
                            uci.value(),
                            pdsch_time_res,
                            mcs_idx,
@@ -1078,10 +1078,10 @@ ue_fallback_scheduler::ul_srb_sched_outcome ue_fallback_scheduler::schedule_ul_u
   }
 
   // The caller ensures the slot is UL enabled.
-  const cell_slot_resource_allocator& pdcch_alloc = res_alloc[0];
-  slot_point                          pdcch_slot  = pdcch_alloc.slot;
+  cell_slot_resource_allocator& pdcch_alloc = res_alloc[0];
+  slot_point                    pdcch_slot  = pdcch_alloc.slot;
 
-  if (pdcch_alloc.result.dl.ul_pdcchs.full()) {
+  if (pdcch_alloc.result_builder().dl().ul_pdcchs().full()) {
     // Early exit. No space for new PDCCH grants in the scheduler output.
     logger.info("ue={} rnti={}: Failed to allocate fallback PUSCH grant. Cause: Max PDCCH grants reached for slot={}",
                 u.ue_index,
@@ -1128,11 +1128,11 @@ ue_fallback_scheduler::ul_srb_sched_outcome ue_fallback_scheduler::schedule_ul_u
 
     // When checking the number of remaining grants for PUSCH, take into account that the PUCCH grants for this UE
     // will be removed when multiplexing the UCI on PUSCH.
+    auto       puschs     = pusch_alloc.result_builder().ul().puschs();
     const auto max_puschs = std::min<unsigned>(
-        {static_cast<unsigned>(pusch_alloc.result.ul.puschs.capacity()),
-         expert_cfg.max_puschs_per_slot,
-         expert_cfg.max_ul_grants_per_slot - static_cast<unsigned>(pusch_alloc.result.ul.pucchs.size())});
-    if (pusch_alloc.result.ul.puschs.size() >= max_puschs) {
+        {expert_cfg.max_puschs_per_slot,
+         expert_cfg.max_ul_grants_per_slot - static_cast<unsigned>(pusch_alloc.result_reader().ul().pucchs().size())});
+    if (puschs.full() or puschs.size() >= max_puschs) {
       logger.info("ue={} rnti={}: Failed to allocate fallback PUSCH grant in slot={}. Cause: Max number of UL "
                   "grants per slot {} was reached.",
                   u.ue_index,
@@ -1143,17 +1143,16 @@ ue_fallback_scheduler::ul_srb_sched_outcome ue_fallback_scheduler::schedule_ul_u
     }
 
     const bool existing_pusch =
-        pusch_alloc.result.ul.puschs.end() !=
-        std::find_if(pusch_alloc.result.ul.puschs.begin(),
-                     pusch_alloc.result.ul.puschs.end(),
-                     [rnti = u.crnti](const ul_sched_info& pusch) { return pusch.pusch_cfg.rnti == rnti; });
+        puschs.end() != std::find_if(puschs.begin(), puschs.end(), [rnti = u.crnti](const ul_sched_info& pusch) {
+          return pusch.pusch_cfg.rnti == rnti;
+        });
 
     if (existing_pusch) {
       // Only one PUSCH per UE per slot.
       continue;
     }
 
-    span<const pucch_info> pucchs         = pusch_alloc.result.ul.pucchs.unsorted();
+    span<const pucch_info> pucchs         = pusch_alloc.result_reader().ul().pucchs().unsorted();
     const auto*            existing_pucch = std::find_if(
         pucchs.begin(), pucchs.end(), [rnti = u.crnti](const pucch_info& pucch) { return pucch.crnti == rnti; });
 
@@ -1359,7 +1358,7 @@ ue_fallback_scheduler::schedule_ul_srb(ue&                                      
                     pdcch_alloc.slot,
                     h_ul_retx,
                     *pdcch,
-                    pusch_alloc.result.ul.puschs.emplace_back(),
+                    *pusch_alloc.result_builder().ul().puschs().emplace_back(),
                     pusch_time_res,
                     pusch_td.k2,
                     final_mcs_tbs.mcs,

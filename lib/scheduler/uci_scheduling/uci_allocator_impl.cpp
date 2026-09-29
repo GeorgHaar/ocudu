@@ -219,8 +219,8 @@ std::optional<uci_allocation> uci_allocator_impl::alloc_harq_ack(cell_resource_a
     // in the PUSCH transmission.
     // Note: the constraint applies only to the same UE — a PUSCH from a different UE must not block PUCCH placement.
     const bool ue_has_pusch_in_slot =
-        std::any_of(slot_alloc.result.ul.puschs.begin(),
-                    slot_alloc.result.ul.puschs.end(),
+        std::any_of(slot_alloc.result_reader().ul().puschs().begin(),
+                    slot_alloc.result_reader().ul().puschs().end(),
                     [rnti = ue_cell_cfg.crnti](const ul_sched_info& p) { return p.pusch_cfg.rnti == rnti; });
     if (ue_has_pusch_in_slot) {
       continue;
@@ -280,14 +280,13 @@ bool uci_allocator_impl::alloc_sr_opportunity(cell_slot_resource_allocator& slot
                                               const ue_cell_configuration&  ue_cell_cfg)
 {
   // Retrieve the scheduling results for slot = k0 + k1;
-  auto&          puschs = slot_alloc.result.ul.puschs;
-  ul_sched_info* existing_pusch =
+  auto puschs = slot_alloc.result_builder().ul().puschs();
+  auto existing_pusch =
       std::find_if(puschs.begin(), puschs.end(), [rnti = ue_cell_cfg.crnti](const ul_sched_info& pusch) {
         return pusch.pusch_cfg.rnti == rnti;
       });
 
-  const bool has_pusch_grants =
-      not slot_alloc.result.ul.puschs.empty() and existing_pusch != slot_alloc.result.ul.puschs.end();
+  const bool has_pusch_grants = not puschs.empty() and existing_pusch != puschs.end();
 
   // If there is a PUSCH allocated for this UE, do not allocate any PUCCH SR grants.
   if (has_pusch_grants) {
@@ -301,14 +300,13 @@ bool uci_allocator_impl::alloc_sr_opportunity(cell_slot_resource_allocator& slot
 bool uci_allocator_impl::alloc_csi_opportunity(cell_slot_resource_allocator& slot_alloc,
                                                const ue_cell_configuration&  ue_cell_cfg)
 {
-  auto&          puschs = slot_alloc.result.ul.puschs;
-  ul_sched_info* existing_pusch =
+  auto puschs = slot_alloc.result_builder().ul().puschs();
+  auto existing_pusch =
       std::find_if(puschs.begin(), puschs.end(), [rnti = ue_cell_cfg.crnti](const ul_sched_info& pusch) {
         return pusch.pusch_cfg.rnti == rnti;
       });
 
-  const bool has_pusch_grants =
-      not slot_alloc.result.ul.puschs.empty() and existing_pusch != slot_alloc.result.ul.puschs.end();
+  const bool has_pusch_grants = not puschs.empty() and existing_pusch != puschs.end();
 
   // TODO: check if this case is possible. The first PUSCH that is allocated outside the RAR grant is will be allocated
   //       after the UE objected gets created with the UE dedicated configuration; this means the CSI scheduler should

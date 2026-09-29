@@ -278,7 +278,7 @@ TEST_F(ssb_scheduler_fr2_test, transmitted_candidates_are_allocated_in_their_cas
   for (unsigned i = 0; i != ssb_period_slots; ++i) {
     run_slot();
     const slot_point sl = res_grid[0].slot;
-    for (const ssb_information& ssb : res_grid[0].result.dl.bc.ssb_info) {
+    for (const ssb_information& ssb : res_grid[0].result_reader().dl().ssb_info()) {
       allocated_ssbs[sl.count() % ssb_period_slots].push_back(ssb);
     }
   }
@@ -334,11 +334,11 @@ TEST_P(ssb_scheduler_test, test_time_dom_allocation)
             sl.hrf_slot_index() * NOF_SSB_CANDIDATES_PER_SLOT_FR1,
             sl.hrf_slot_index() * NOF_SSB_CANDIDATES_PER_SLOT_FR1 + NOF_SSB_CANDIDATES_PER_SLOT_FR1);
 
-        ASSERT_EQ(res_grid[0].result.dl.bc.ssb_info.size(), slot_bitmap.count())
+        ASSERT_EQ(res_grid[0].result_reader().dl().ssb_info().size(), slot_bitmap.count())
             << fmt::format("Number of SSB PDUs not as expected at slot={}", sl);
 
         const auto starting_symbs = get_starting_ofdm_symbols(sl);
-        auto*      ssb_pdu_it     = res_grid[0].result.dl.bc.ssb_info.begin();
+        auto*      ssb_pdu_it     = res_grid[0].result_reader().dl().ssb_info().begin();
         for (unsigned j = 0, sz = slot_bitmap.size(); j != sz; ++j) {
           if (not slot_bitmap.test(j)) {
             continue;
@@ -354,7 +354,7 @@ TEST_P(ssb_scheduler_test, test_time_dom_allocation)
           ++ssb_pdu_it;
         }
       } else {
-        ASSERT_TRUE(res_grid[0].result.dl.bc.ssb_info.empty())
+        ASSERT_TRUE(res_grid[0].result_reader().dl().ssb_info().empty())
             << fmt::format("At slot={} the SSB info list is expected to be empty", sl);
 
         grant_info empty_space{cell_cfg.params.dl_cfg_common.init_dl_bwp.generic_params.scs,

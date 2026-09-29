@@ -204,7 +204,7 @@ static void add_dl_pdcch_pdus_to_result(mac_dl_sched_result_test_helper& helper)
   static constexpr unsigned nof_pdus = 4;
 
   for (unsigned i = 0; i != nof_pdus; ++i) {
-    helper.sched_result.dl_pdcchs.push_back(pdcch_dl_information{
+    helper.builder.dl_pdcchs().emplace_back(pdcch_dl_information{
         generate_dci_context(helper.bwp_cfg[std::min<unsigned>(i, helper.bwp_cfg.size() - 1U)],
                              helper.coreset_cfg[std::min<unsigned>(i, helper.coreset_cfg.size() - 1U)]),
         generate_dci_dl_info()});
@@ -219,7 +219,7 @@ static void add_dl_pdcch_pdus_to_result(mac_dl_sched_result_test_helper& helper)
 static void add_all_dl_pdcch_pdus_to_result(mac_dl_sched_result_test_helper& helper)
 {
   for (unsigned i = 0; i != MAX_DL_PDCCH_PDUS_PER_SLOT; ++i) {
-    helper.sched_result.dl_pdcchs.push_back(pdcch_dl_information{
+    helper.builder.dl_pdcchs().emplace_back(pdcch_dl_information{
         generate_dci_context(helper.bwp_cfg_pdcch[std::min<unsigned>(i, helper.bwp_cfg_pdcch.size() - 1U)],
                              helper.coreset_cfg[std::min<unsigned>(i, helper.coreset_cfg.size() - 1U)]),
         generate_dci_dl_info()});
@@ -234,7 +234,7 @@ static void add_all_dl_pdcch_pdus_to_result(mac_dl_sched_result_test_helper& hel
 static void add_all_ul_pdcch_pdus_to_result(mac_dl_sched_result_test_helper& helper)
 {
   for (unsigned i = 0; i != MAX_UL_PDCCH_PDUS_PER_SLOT; ++i) {
-    helper.sched_result.ul_pdcchs.push_back(pdcch_ul_information{
+    helper.builder.ul_pdcchs().emplace_back(pdcch_ul_information{
         generate_dci_context(helper.bwp_cfg_pdcch[std::min<unsigned>(i, helper.bwp_cfg_pdcch.size() - 1U)],
                              helper.coreset_cfg[std::min<unsigned>(i, helper.coreset_cfg.size() - 1U)]),
         {}});
@@ -304,7 +304,7 @@ static void add_ul_pdcch_pdus_to_result(mac_dl_sched_result_test_helper& helper)
   context.starting_symbol          = 0;
   context.n_id_pdcch_dmrs          = 1;
 
-  helper.sched_result.ul_pdcchs.push_back(pdcch);
+  helper.builder.ul_pdcchs().emplace_back(pdcch);
   helper.result.ul_pdcch_pdus.push_back(generate_dci_payload());
 }
 
@@ -459,7 +459,7 @@ mac_dl_sched_result_test_helper unittests::build_valid_mac_dl_sched_result_with_
   helper.rar.pdu.pdsch_cfg.bwp_cfg     = &helper.rar.bwp_cfg;
   helper.rar.pdu.pdsch_cfg.coreset_cfg = &helper.rar.coreset_cfg;
   for (unsigned i = 0; i != MAX_RAR_PDUS_PER_SLOT; ++i) {
-    helper.sched_result.rar_grants.push_back(helper.rar.pdu);
+    helper.builder.rar_grants().emplace_back(helper.rar.pdu);
   }
 
   // Add paging PDU.
@@ -477,12 +477,12 @@ mac_dl_sched_result_test_helper unittests::build_valid_mac_dl_sched_result_with_
   helper.dl_msg_alloc.pdu.pdsch_cfg.bwp_cfg     = &helper.dl_msg_alloc.bwp_cfg;
   helper.dl_msg_alloc.pdu.pdsch_cfg.coreset_cfg = &helper.dl_msg_alloc.coreset_cfg;
   for (unsigned i = 0; i != MAX_UE_PDUS_PER_SLOT; ++i) {
-    helper.sched_result.ue_grants.push_back(helper.dl_msg_alloc.pdu);
+    helper.builder.ue_grants().emplace_back(helper.dl_msg_alloc.pdu);
   }
 
   // Add CSI PDU.
   for (unsigned i = 0; i != MAX_CSI_RS_PDUS_PER_SLOT; ++i) {
-    helper.sched_result.csi_rs.push_back(build_valid_csi_pdu(helper));
+    helper.builder.csi_rs().emplace_back(build_valid_csi_pdu(helper));
   }
 
   // Add DL-PRS PDUs.
@@ -737,10 +737,11 @@ pucch_info_test_helper ocudu::unittests::build_valid_pucch_format_4_pdu()
 
 mac_ul_sched_result_test_helper ocudu::unittests::build_valid_mac_ul_sched_result()
 {
-  mac_ul_sched_result_test_helper helper{{}, {}, {}, build_valid_srs_pdu(), {}, {}};
-  mac_ul_sched_result&            result = helper.result;
-  result.slot                            = slot_point(4, generate_sfn(), generate_slot());
-  result.ul_res                          = &helper.sched_result;
+  mac_ul_sched_result_test_helper helper;
+  helper.srs                  = build_valid_srs_pdu();
+  mac_ul_sched_result& result = helper.result;
+  result.slot                 = slot_point(4, generate_sfn(), generate_slot());
+  result.ul_res               = &helper.sched_result;
 
   // Add PUCCH PDUs.
   helper.pucch_f1              = build_valid_pucch_format_1_pdu();
@@ -755,7 +756,7 @@ mac_ul_sched_result_test_helper ocudu::unittests::build_valid_mac_ul_sched_resul
   // Add PUSCH PDU.
   helper.pusch                        = build_valid_pusch_pdu();
   helper.pusch.info.pusch_cfg.bwp_cfg = &helper.pusch.bwp_cfg;
-  helper.sched_result.puschs.push_back(helper.pusch.info);
+  helper.builder.puschs().emplace_back(helper.pusch.info);
 
   // Add PRACH.
   helper.sched_result.prachs.push_back(build_valid_prach_occassion());
@@ -765,10 +766,11 @@ mac_ul_sched_result_test_helper ocudu::unittests::build_valid_mac_ul_sched_resul
 
 mac_ul_sched_result_test_helper unittests::build_valid_mac_ul_sched_result_with_all_supported_pdus()
 {
-  mac_ul_sched_result_test_helper helper{{}, {}, {}, build_valid_srs_pdu(), {}, {}};
-  mac_ul_sched_result&            result = helper.result;
-  result.slot                            = slot_point(4, generate_sfn(), generate_slot());
-  result.ul_res                          = &helper.sched_result;
+  mac_ul_sched_result_test_helper helper;
+  helper.srs                  = build_valid_srs_pdu();
+  mac_ul_sched_result& result = helper.result;
+  result.slot                 = slot_point(4, generate_sfn(), generate_slot());
+  result.ul_res               = &helper.sched_result;
 
   // Add PUCCH PDUs.
   for (unsigned i = 0; i != MAX_PUCCH_PDUS_PER_SLOT; ++i) {
@@ -782,7 +784,7 @@ mac_ul_sched_result_test_helper unittests::build_valid_mac_ul_sched_result_with_
   for (unsigned i = 0; i != MAX_PUSCH_PDUS_PER_SLOT; ++i) {
     helper.pusch                        = build_valid_pusch_pdu();
     helper.pusch.info.pusch_cfg.bwp_cfg = &helper.pusch.bwp_cfg;
-    helper.sched_result.puschs.push_back(helper.pusch.info);
+    helper.builder.puschs().emplace_back(helper.pusch.info);
   }
 
   // Add PRACH.

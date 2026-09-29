@@ -76,10 +76,10 @@ bool pdcch_slot_allocator::cancel_last_pdcch(cell_slot_resource_allocator& slot_
   }
   auto& last_rec = records.back();
 
-  const bool is_dl_pdcch =
-      not slot_alloc.result.dl.dl_pdcchs.empty() and last_rec.pdcch_ctx == &slot_alloc.result.dl.dl_pdcchs.back().ctx;
-  const bool is_ul_pdcch = not is_dl_pdcch and not slot_alloc.result.dl.ul_pdcchs.empty() and
-                           last_rec.pdcch_ctx == &slot_alloc.result.dl.ul_pdcchs.back().ctx;
+  auto       dl_pdcchs   = slot_alloc.result_builder().dl().dl_pdcchs();
+  auto       ul_pdcchs   = slot_alloc.result_builder().dl().ul_pdcchs();
+  const bool is_dl_pdcch = not dl_pdcchs.empty() and last_rec.pdcch_ctx == &dl_pdcchs.back().ctx;
+  const bool is_ul_pdcch = not is_dl_pdcch and not ul_pdcchs.empty() and last_rec.pdcch_ctx == &ul_pdcchs.back().ctx;
   if (not is_dl_pdcch and not is_ul_pdcch) {
     return false;
   }
@@ -91,9 +91,9 @@ bool pdcch_slot_allocator::cancel_last_pdcch(cell_slot_resource_allocator& slot_
   const subcarrier_spacing  scs = last_rec.pdcch_ctx->bwp_cfg->scs;
 
   if (is_dl_pdcch) {
-    slot_alloc.result.dl.dl_pdcchs.pop_back();
+    dl_pdcchs.pop_back();
   } else {
-    slot_alloc.result.dl.ul_pdcchs.pop_back();
+    ul_pdcchs.pop_back();
   }
 
   // Clear allocation on resource grid.

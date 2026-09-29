@@ -66,7 +66,7 @@ private:
     paging_retries_count_type retry_count;
   };
 
-  std::optional<unsigned> find_pdsch_time_resource(const cell_resource_allocator&  res_grid,
+  std::optional<unsigned> find_pdsch_time_resource(cell_resource_allocator&        res_grid,
                                                    const sched_paging_information& pg_req,
                                                    slot_point_extended             pdcch_slot);
 
@@ -81,10 +81,10 @@ private:
   /// \param[in] pdsch_time_res Slot at which PDSCH needs to be scheduled.
   /// \param[in] msg_size Paging message size.
   /// \return True if there is space to allocate Paging grant, false otherwise.
-  bool is_there_space_available_for_paging(const cell_resource_allocator& res_grid,
-                                           unsigned                       pdsch_time_res,
-                                           unsigned                       msg_size,
-                                           slot_point                     pdcch_slot) const;
+  bool is_there_space_available_for_paging(cell_resource_allocator& res_grid,
+                                           unsigned                 pdsch_time_res,
+                                           unsigned                 msg_size,
+                                           slot_point               pdcch_slot) const;
 
   /// \brief Allocates PDSCH and PDCCH for Paging.
   ///

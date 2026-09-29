@@ -342,7 +342,8 @@ void si_message_scheduler::fill_si_grant(cell_slot_resource_allocator& res_grid,
 
   // Fill SI-message DCI.
   static constexpr unsigned si_indicator = 1;
-  auto&                     si_pdcch     = res_grid.result.dl.dl_pdcchs.back();
+  auto                      dl_res       = res_grid.result_builder().dl();
+  auto&                     si_pdcch     = dl_res.dl_pdcchs().back();
   build_dci_f1_0_si_rnti(si_pdcch.dci,
                          cell_cfg.params.dl_cfg_common.init_dl_bwp,
                          si_crbs_grant,
@@ -351,7 +352,7 @@ void si_message_scheduler::fill_si_grant(cell_slot_resource_allocator& res_grid,
                          si_indicator);
 
   // Add SIBs of the SI-message to list of SIB information to pass to lower layers.
-  sib_information& si = res_grid.result.dl.bc.sibs.emplace_back();
+  sib_information& si = *dl_res.sibs().emplace_back();
   si.si_indicator     = sib_information::si_indicator_type::other_si;
   si.si_msg_index     = si_message;
   si.sibs             = si_sched_cfg.si_messages[si_message].sibs;

@@ -10,6 +10,7 @@
 #include "ocudu/mac/mac_cell_result.h"
 #include "ocudu/ocudulog/logger.h"
 #include "ocudu/scheduler/result/pdcch_info.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/support/synchronization/stop_event.h"
 
 namespace ocudu {
@@ -74,7 +75,7 @@ public:
 private:
   /// Handles the UL_DCI.request message.
   void
-  handle_ul_dci_request(span<const pdcch_ul_information> pdcch_info, span<const dci_payload> payloads, slot_point slot);
+  handle_ul_dci_request(pdu_span<pdcch_ul_information> pdcch_info, span<const dci_payload> payloads, slot_point slot);
 
 private:
   /// Cell number of resource blocks.

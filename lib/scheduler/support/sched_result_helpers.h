@@ -12,22 +12,22 @@
 #include "ocudu/ran/prach/prach_preamble_information.h"
 #include "ocudu/scheduler/config/scheduler_expert_config.h"
 #include "ocudu/scheduler/result/pusch_info.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 
 namespace ocudu {
 /// Determine the space left for a new UCI PDU of a gived C-RNTI in the scheduler result.
 inline bool
-has_space_for_uci_pdu(const sched_result& result, rnti_t crnti, const scheduler_ue_expert_config& expert_cfg)
+has_space_for_uci_pdu(sched_slot_result_reader result, rnti_t crnti, const scheduler_ue_expert_config& expert_cfg)
 {
   // Avoid slots where PUSCH has already been scheduled, as the PUSCH could be occupying the PUCCH resources for this
   // SR/CSI.
   // Note: This will implicitly avoid that there are PUSCHs and PUCCH for the same UE in the same slot.
-  if (not result.ul.puschs.empty()) {
+  if (not result.ul().puschs().empty()) {
     return false;
   }
 
   // Check if we can fit the UCI in an existing PUCCH PDU for the same UE.
-  span<const pucch_info> pucchs = result.ul.pucchs.unsorted();
+  span<const pucch_info> pucchs = result.ul().pucchs().unsorted();
   bool                   has_pucch =
       std::any_of(pucchs.begin(), pucchs.end(), [crnti](const pucch_info& grant) { return grant.crnti == crnti; });
   if (has_pucch) {
@@ -36,38 +36,15 @@ has_space_for_uci_pdu(const sched_result& result, rnti_t crnti, const scheduler_
 
   // New PUCCH PDU is required.
   // Check if max PUCCH limit is not reached.
-  const unsigned max_pucchs = std::min(expert_cfg.max_pucchs_per_slot, (unsigned)result.ul.pucchs.capacity());
-  unsigned       space      = max_pucchs - result.ul.pucchs.size();
+  const unsigned max_pucchs = std::min(expert_cfg.max_pucchs_per_slot, (unsigned)result.ul().pucchs().capacity());
+  unsigned       space      = max_pucchs - result.ul().pucchs().size();
   if (space == 0) {
     return false;
   }
 
   // Check if max UL grant limit (PUCCH + PUSCH) is not reached.
-  unsigned ul_grants = result.ul.pucchs.size() + result.ul.puschs.size();
+  unsigned ul_grants = result.ul().pucchs().size() + result.ul().puschs().size();
   return expert_cfg.max_ul_grants_per_slot > ul_grants;
-}
-
-/// Determine the space left for a new PUSCH PDU of a gived C-RNTI in the scheduler result.
-inline unsigned
-get_space_left_for_pusch_pdus(const sched_result& result, rnti_t crnti, const scheduler_ue_expert_config& expert_cfg)
-{
-  // Check if max PUSCH limit is not reached.
-  const unsigned max_puschs = std::min(expert_cfg.max_puschs_per_slot, (unsigned)result.ul.puschs.capacity());
-  unsigned       space      = max_puschs - result.ul.puschs.size();
-  if (space == 0) {
-    return 0;
-  }
-
-  // Check if max UL grant limit (PUCCH + PUSCH) is not reached.
-  // Note: Consider that if an PUSCH grant is scheduled for this UE, its PUCCH PDUs are removed.
-  span<const pucch_info> pucchs = result.ul.pucchs.unsorted();
-  unsigned               nof_pucchs =
-      std::count_if(pucchs.begin(), pucchs.end(), [crnti](const pucch_info& pucch) { return pucch.crnti == crnti; });
-  unsigned nof_ul_grants = result.ul.pucchs.size() + result.ul.puschs.size() - nof_pucchs;
-  unsigned space2 =
-      expert_cfg.max_ul_grants_per_slot >= nof_ul_grants ? expert_cfg.max_ul_grants_per_slot - nof_ul_grants : 0;
-
-  return std::min(space, space2);
 }
 
 /// Extract PUSCH grant info of PUSCH allocation.
@@ -88,8 +65,7 @@ inline grant_info get_pusch_grant_info(const ul_sched_info& pusch)
 /// \param prachs Vector of PRACH occasions information.
 /// \return Parameters of the grants.
 inline static_vector<grant_info, MAX_PRACH_OCCASIONS_PER_SLOT>
-get_prach_grant_info(const cell_configuration&                                               cell_cfg,
-                     const static_vector<prach_occasion_info, MAX_PRACH_OCCASIONS_PER_SLOT>& prachs)
+get_prach_grant_info(const cell_configuration& cell_cfg, pdu_span<prach_occasion_info> prachs)
 {
   static_vector<grant_info, MAX_PRACH_OCCASIONS_PER_SLOT> grants;
   if (prachs.empty()) {

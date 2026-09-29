@@ -40,8 +40,8 @@ void ssb_scheduler::stop()
 
 void ssb_scheduler::schedule_ssb(cell_slot_resource_allocator& res_grid) const
 {
-  slot_point            sl_point = res_grid.slot;
-  ssb_information_list& ssb_list = res_grid.result.dl.bc.ssb_info;
+  slot_point           sl_point = res_grid.slot;
+  ssb_information_list ssb_list = res_grid.result_builder().dl().ssb_info();
 
   if (ssb_list.full()) {
     logger.error("Failed to allocate SSB");
@@ -83,9 +83,9 @@ void ssb_scheduler::schedule_ssb(cell_slot_resource_allocator& res_grid) const
   }
 }
 
-void ssb_scheduler::ssb_alloc_case_A_C(ssb_information_list& ssb_list,
-                                       arfcn_t               freq_arfcn_cut_off,
-                                       slot_point            sl_point_mod) const
+void ssb_scheduler::ssb_alloc_case_A_C(ssb_information_list ssb_list,
+                                       arfcn_t              freq_arfcn_cut_off,
+                                       slot_point           sl_point_mod) const
 {
   const uint32_t slot_idx = sl_point_mod.count();
 
@@ -117,7 +117,7 @@ void ssb_scheduler::ssb_alloc_case_A_C(ssb_information_list& ssb_list,
   }
 }
 
-void ssb_scheduler::ssb_alloc_case_B(ssb_information_list& ssb_list, slot_point sl_point_mod) const
+void ssb_scheduler::ssb_alloc_case_B(ssb_information_list ssb_list, slot_point sl_point_mod) const
 {
   const uint32_t slot_idx = sl_point_mod.count();
 
@@ -169,7 +169,7 @@ void ssb_scheduler::ssb_alloc_case_B(ssb_information_list& ssb_list, slot_point 
   }
 }
 
-void ssb_scheduler::ssb_alloc_case_D(ssb_information_list& ssb_list, slot_point sl_point_mod) const
+void ssb_scheduler::ssb_alloc_case_D(ssb_information_list ssb_list, slot_point sl_point_mod) const
 {
   // Number of slots within a 5ms burst for the SSB subcarrier spacing of 120kHz.
   static constexpr unsigned nof_slots_ssb_burst = 5 * pow2(to_numerology_value(subcarrier_spacing::kHz120));
@@ -225,7 +225,7 @@ void ssb_scheduler::ssb_alloc_case_D(ssb_information_list& ssb_list, slot_point 
   }
 }
 
-void ssb_scheduler::fill_ssb_parameters(ssb_information_list& ssb_list,
+void ssb_scheduler::fill_ssb_parameters(ssb_information_list  ssb_list,
                                         ssb_offset_to_pointA  offset_to_point_A,
                                         ssb_subcarrier_offset ssb_subc_offset,
                                         subcarrier_spacing    ssb_scs,
@@ -240,6 +240,7 @@ void ssb_scheduler::fill_ssb_parameters(ssb_information_list& ssb_list,
   // need to convert these into slot symbols, that range within [0, 14).
   ssb_msg.symbols.set(ssb_burst_symb_idx % NOF_OFDM_SYM_PER_SLOT_NORMAL_CP,
                       (ssb_burst_symb_idx + NOF_SSB_OFDM_SYMBOLS) % NOF_OFDM_SYM_PER_SLOT_NORMAL_CP);
-  ssb_msg.crbs = get_ssb_crbs(ssb_scs, scs_common, offset_to_point_A, ssb_subc_offset);
-  ssb_list.push_back(ssb_msg);
+  ssb_msg.crbs                                = get_ssb_crbs(ssb_scs, scs_common, offset_to_point_A, ssb_subc_offset);
+  [[maybe_unused]] const ssb_information* ssb = ssb_list.emplace_back(ssb_msg);
+  ocudu_assert(ssb != nullptr, "Failed to allocate SSB");
 }

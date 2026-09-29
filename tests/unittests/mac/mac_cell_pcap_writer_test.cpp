@@ -6,7 +6,7 @@
 #include "lib/mac/mac_dl/mac_cell_pcap_writer.h"
 #include "ocudu/mac/mac_cell_result.h"
 #include "ocudu/pcap/mac_pcap.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include <deque>
 #include <gtest/gtest.h>
 
@@ -81,7 +81,7 @@ protected:
 
   void add_rar_grant()
   {
-    rar_information& rar = sched_res.dl.rar_grants.emplace_back();
+    rar_information& rar = *results.get_builder(0).dl().rar_grants().emplace_back();
     rar.pdsch_cfg.rnti   = ra_rnti;
     data_res.rar_pdus.emplace_back(0, make_pdu());
   }
@@ -95,7 +95,7 @@ protected:
 
   void add_ue_grant(bool new_data)
   {
-    dl_msg_alloc& ue_grant                               = sched_res.dl.ue_grants.emplace_back();
+    dl_msg_alloc& ue_grant                               = *results.get_builder(0).dl().ue_grants().emplace_back();
     ue_grant.pdsch_cfg.rnti                              = ue_rnti;
     ue_grant.pdsch_cfg.harq_id                           = harq_id;
     ue_grant.context.ue_index                            = ue_index;
@@ -126,7 +126,8 @@ protected:
   mac_pcap_spy                                                 pcap;
   static_vector<si_message_scheduling_config, MAX_SI_MESSAGES> si_messages;
   std::optional<mac_cell_pcap_writer>                          writer;
-  sched_result                                                 sched_res;
+  sched_result_grid                                            results{sched_result_grid_config{1}};
+  sched_result&                                                sched_res = results.slot_storage(0);
   mac_dl_data_result                                           data_res;
   std::deque<std::vector<uint8_t>>                             pdu_storage;
   slot_point                                                   sl_tx{scs, 10};

@@ -72,9 +72,9 @@ TEST_F(pucch_alloc_format_0_test, test_sr_allocation_only)
 {
   ASSERT_TRUE(alloc_sr_opportunity(t_bench.get_main_ue()));
 
-  ASSERT_EQ(1U, default_slot_grid.result.ul.pucchs.size());
+  ASSERT_EQ(1U, default_slot_grid.result_reader().ul().pucchs().size());
   ASSERT_TRUE(
-      find_pucch_pdu(default_slot_grid.result.ul.pucchs.unsorted(),
+      find_pucch_pdu(default_slot_grid.result_reader().ul().pucchs().unsorted(),
                      [&expected = pucch_expected_sr](const auto& pdu) { return pucch_info_match(expected, pdu); }));
 }
 
@@ -84,9 +84,9 @@ TEST_F(pucch_alloc_format_0_test, test_harq_allocation_only)
   ASSERT_TRUE(pri.has_value());
   ASSERT_EQ(0U, pri);
 
-  ASSERT_EQ(1U, default_slot_grid.result.ul.pucchs.size());
+  ASSERT_EQ(1U, default_slot_grid.result_reader().ul().pucchs().size());
   ASSERT_TRUE(find_pucch_pdu(
-      default_slot_grid.result.ul.pucchs.unsorted(),
+      default_slot_grid.result_reader().ul().pucchs().unsorted(),
       [&expected = pucch_expected_res_set_0](const auto& pdu) { return pucch_info_match(expected, pdu); }));
 }
 
@@ -96,7 +96,7 @@ TEST_F(pucch_alloc_format_0_test, test_harq_allocation_2_bits)
   ASSERT_TRUE(pri.has_value());
   ASSERT_EQ(0U, pri);
 
-  ASSERT_EQ(1U, default_slot_grid.result.ul.pucchs.size());
+  ASSERT_EQ(1U, default_slot_grid.result_reader().ul().pucchs().size());
 
   auto pri_new = alloc_ded_harq_ack(t_bench.get_main_ue());
   ASSERT_TRUE(pri_new.has_value());
@@ -104,9 +104,9 @@ TEST_F(pucch_alloc_format_0_test, test_harq_allocation_2_bits)
 
   // PUCCH resource indicator after the second allocation should not have changed.
   pucch_expected_res_set_0.uci_bits.harq_ack_nof_bits = 2U;
-  ASSERT_EQ(1, default_slot_grid.result.ul.pucchs.size());
+  ASSERT_EQ(1, default_slot_grid.result_reader().ul().pucchs().size());
   ASSERT_TRUE(find_pucch_pdu(
-      default_slot_grid.result.ul.pucchs.unsorted(),
+      default_slot_grid.result_reader().ul().pucchs().unsorted(),
       [&expected = pucch_expected_res_set_0](const auto& pdu) { return pucch_info_match(expected, pdu); }));
 }
 
@@ -121,7 +121,7 @@ TEST_F(pucch_alloc_format_0_test, alloc_ded_harq_ack_with_existing_sr_succeeds_u
     auto pri = alloc_ded_harq_ack(t_bench.get_main_ue());
     ASSERT_TRUE(pri.has_value());
 
-    ASSERT_EQ(1U, default_slot_grid.result.ul.pucchs.size());
+    ASSERT_EQ(1U, default_slot_grid.result_reader().ul().pucchs().size());
     const unsigned harq_ack_nof_bits = n + 1;
     if (harq_ack_nof_bits <= 2U) {
       // According to the multiplexing procedure defined by TS 38.213, Section 9.2.5, the resource to use to report 1
@@ -130,20 +130,20 @@ TEST_F(pucch_alloc_format_0_test, alloc_ded_harq_ack_with_existing_sr_succeeds_u
       // and the UE will use this.
       pucch_expected_sr.uci_bits.harq_ack_nof_bits = harq_ack_nof_bits;
       ASSERT_TRUE(find_pucch_pdu(
-          default_slot_grid.result.ul.pucchs.unsorted(),
+          default_slot_grid.result_reader().ul().pucchs().unsorted(),
           [&expected = pucch_expected_sr](const pucch_info& pdu) { return pucch_info_match(expected, pdu); }));
     } else {
       pucch_expected_sr_f2.uci_bits.harq_ack_nof_bits = harq_ack_nof_bits;
       pucch_expected_sr_f2.uci_bits.sr_bits           = sr_nof_bits::one;
-      ASSERT_EQ(1U, default_slot_grid.result.ul.pucchs.size());
+      ASSERT_EQ(1U, default_slot_grid.result_reader().ul().pucchs().size());
       ASSERT_TRUE(find_pucch_pdu(
-          default_slot_grid.result.ul.pucchs.unsorted(),
+          default_slot_grid.result_reader().ul().pucchs().unsorted(),
           [&expected = pucch_expected_sr_f2](const auto& pdu) { return pucch_info_match(expected, pdu); }));
     }
 
     // Check that the resources were reserved in the resource grid.
-    const auto ue_pucchs =
-        test_helpers::find_ue_pucchs(default_slot_grid.result.ul.pucchs.unsorted(), t_bench.get_main_ue().crnti);
+    const auto ue_pucchs = test_helpers::find_ue_pucchs(default_slot_grid.result_reader().ul().pucchs().unsorted(),
+                                                        t_bench.get_main_ue().crnti);
     ASSERT_EQ(1U, ue_pucchs.size());
     const auto grants = get_pucch_grant_info(*ue_pucchs[0]);
     ASSERT_TRUE(default_slot_grid.ul_res_grid.all_set(grants.first));
@@ -168,19 +168,19 @@ TEST_F(pucch_alloc_format_0_test, alloc_ded_harq_ack_with_existing_csi_succeeds_
     auto pri = alloc_ded_harq_ack(t_bench.get_main_ue());
     ASSERT_TRUE(pri.has_value());
 
-    ASSERT_EQ(1U, default_slot_grid.result.ul.pucchs.size());
+    ASSERT_EQ(1U, default_slot_grid.result_reader().ul().pucchs().size());
     const unsigned harq_ack_nof_bits = n + 1;
     // After the multiplexing, the PUCCH F2 resource is that one that have the same PUCCH resource indicator as
     // pucch_res_idx_f0_for_csi; we need to update the PRBs and symbols accordingly. With the given configuration,
     // this resource will have the same PRBs and symbols as the F2 resource for SR.
     pucch_expected_csi.uci_bits.harq_ack_nof_bits = harq_ack_nof_bits;
     ASSERT_TRUE(find_pucch_pdu(
-        default_slot_grid.result.ul.pucchs.unsorted(),
+        default_slot_grid.result_reader().ul().pucchs().unsorted(),
         [&expected = pucch_expected_csi](const pucch_info& pdu) { return pucch_info_match(expected, pdu); }));
 
     // Check that the resources were reserved in the resource grid.
-    const auto ue_pucchs =
-        test_helpers::find_ue_pucchs(default_slot_grid.result.ul.pucchs.unsorted(), t_bench.get_main_ue().crnti);
+    const auto ue_pucchs = test_helpers::find_ue_pucchs(default_slot_grid.result_reader().ul().pucchs().unsorted(),
+                                                        t_bench.get_main_ue().crnti);
     ASSERT_EQ(1U, ue_pucchs.size());
     const auto grants = get_pucch_grant_info(*ue_pucchs[0]);
     ASSERT_TRUE(default_slot_grid.ul_res_grid.all_set(grants.first));

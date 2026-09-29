@@ -135,7 +135,7 @@ void inter_slice_scheduler::slot_indication(slot_point slot_tx, const cell_resou
 
   // Recompute the priority queues.
   const bool pdsch_enabled =
-      cell_cfg.expert_cfg.ue.enable_csi_rs_pdsch_multiplexing or res_grid[0].result.dl.csi_rs.empty();
+      cell_cfg.expert_cfg.ue.enable_csi_rs_pdsch_multiplexing or res_grid[0].result_reader().dl().csi_rs().empty();
   for (const auto& slice : slices) {
     // NOTE: Unlike the old \c pdsch_rb_count member, which was always 0 at this point because slot_tx had not been
     // scheduled yet, \c nof_pdsch_rbs_allocated(slot_tx) can already be non-zero here: a PDSCH repetition occasion

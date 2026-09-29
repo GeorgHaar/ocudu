@@ -7,6 +7,7 @@
 
 #include "ocudu/scheduler/result/pdsch_info.h"
 #include "ocudu/scheduler/result/pusch_info.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/support/units.h"
 
 namespace ocudu {
@@ -65,10 +66,10 @@ public:
   compute_ue_ul_priorities(slot_point pdcch_slot, slot_point pusch_slot, span<ue_newtx_candidate> ue_candidates) = 0;
 
   /// Save UE DL newtx grants.
-  virtual void save_dl_newtx_grants(span<const dl_msg_alloc> dl_grants) = 0;
+  virtual void save_dl_newtx_grants(pdu_span<dl_msg_alloc> dl_grants) = 0;
 
   /// Save UE UL newtx grants.
-  virtual void save_ul_newtx_grants(span<const ul_sched_info> ul_grants) = 0;
+  virtual void save_ul_newtx_grants(pdu_span<ul_sched_info> ul_grants) = 0;
 };
 
 } // namespace ocudu

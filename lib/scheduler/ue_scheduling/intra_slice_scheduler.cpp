@@ -624,8 +624,8 @@ unsigned intra_slice_scheduler::schedule_dl_newtx_candidates(dl_ran_slice_candid
   pending_dl_newtxs.clear();
 
   // Update policy with final allocation results.
-  const auto& pdschs = cell_alloc[pdsch_slot].result.dl.ue_grants;
-  dl_policy.save_dl_newtx_grants(span<const dl_msg_alloc>(pdschs.end() - alloc_count, pdschs.end()));
+  const auto pdschs = cell_alloc[pdsch_slot].result_reader().dl().ue_grants();
+  dl_policy.save_dl_newtx_grants(pdschs.last(alloc_count));
 
   return alloc_count;
 }
@@ -740,8 +740,8 @@ unsigned intra_slice_scheduler::schedule_ul_newtx_candidates(ul_ran_slice_candid
   pending_ul_newtxs.clear();
 
   // Update policy with allocation results.
-  const auto& puschs = cell_alloc[pusch_slot].result.ul.puschs;
-  ul_policy.save_ul_newtx_grants(span<const ul_sched_info>(puschs.end() - alloc_count, puschs.end()));
+  const auto puschs = cell_alloc[pusch_slot].result_reader().ul().puschs();
+  ul_policy.save_ul_newtx_grants(puschs.last(alloc_count));
 
   return alloc_count;
 }
@@ -837,17 +837,18 @@ unsigned intra_slice_scheduler::max_pdschs_to_alloc(const dl_ran_slice_candidate
   int pdschs_to_alloc = slice.get_slice_ues().size();
 
   // Determine how many UE DL PDUs can be allocated in this slot.
-  const auto& pdsch_res = cell_alloc[pdsch_slot].result;
-  pdschs_to_alloc = std::min(pdschs_to_alloc, static_cast<int>(MAX_UE_PDUS_PER_SLOT - pdsch_res.dl.ue_grants.size()));
+  const auto pdsch_res = cell_alloc[pdsch_slot].result_reader();
+  pdschs_to_alloc =
+      std::min(pdschs_to_alloc, static_cast<int>(MAX_UE_PDUS_PER_SLOT - pdsch_res.dl().ue_grants().size()));
   if (pdschs_to_alloc <= 0) {
     return 0;
   }
 
   // Determine how many PDCCHs can be allocated in this slot.
-  const auto& pdcch_res  = cell_alloc[pdcch_slot].result;
-  const int   max_pdcchs = std::min(static_cast<int>(MAX_DL_PDCCH_PDUS_PER_SLOT - pdcch_res.dl.dl_pdcchs.size()),
+  const auto pdcch_res  = cell_alloc[pdcch_slot].result_reader();
+  const int  max_pdcchs = std::min(static_cast<int>(MAX_DL_PDCCH_PDUS_PER_SLOT - pdcch_res.dl().dl_pdcchs().size()),
                                   static_cast<int>(expert_cfg.max_pdcch_alloc_attempts_per_slot - dl_attempts_count));
-  pdschs_to_alloc        = std::min(pdschs_to_alloc, max_pdcchs);
+  pdschs_to_alloc       = std::min(pdschs_to_alloc, max_pdcchs);
   if (pdschs_to_alloc <= 0) {
     return 0;
   }
@@ -855,8 +856,8 @@ unsigned intra_slice_scheduler::max_pdschs_to_alloc(const dl_ran_slice_candidate
   // Determine how many PDSCHs can be allocated in this slot.
   const int max_pdschs =
       std::min(static_cast<int>(MAX_PDSCH_PDUS_PER_SLOT), static_cast<int>(expert_cfg.max_pdschs_per_slot));
-  int allocated_pdschs = pdsch_res.dl.ue_grants.size() + pdsch_res.dl.bc.sibs.size() + pdsch_res.dl.rar_grants.size() +
-                         pdsch_res.dl.paging_grants.size();
+  int allocated_pdschs = pdsch_res.dl().ue_grants().size() + pdsch_res.dl().sibs().size() +
+                         pdsch_res.dl().rar_grants().size() + pdsch_res.dl().paging_grants().size();
   pdschs_to_alloc = std::min(pdschs_to_alloc, max_pdschs - allocated_pdschs);
   if (pdschs_to_alloc <= 0) {
     return 0;
@@ -878,28 +879,28 @@ unsigned intra_slice_scheduler::max_puschs_to_alloc(const ul_ran_slice_candidate
   int puschs_to_alloc = slice.get_slice_ues().size();
 
   // Determine how many PUSCHs can be allocated in this slot.
-  const auto& pusch_res = cell_alloc[pusch_slot].result;
+  const auto pusch_res = cell_alloc[pusch_slot].result_reader();
   // The max PUSCHs-per-slot limit cannot be exceeded.
   // Note: We use signed integer to avoid unsigned overflow.
   const int max_puschs = std::min(static_cast<unsigned>(MAX_PUSCH_PDUS_PER_SLOT), expert_cfg.max_puschs_per_slot);
-  puschs_to_alloc      = std::min(puschs_to_alloc, max_puschs - static_cast<int>(pusch_res.ul.puschs.size()));
+  puschs_to_alloc      = std::min(puschs_to_alloc, max_puschs - static_cast<int>(pusch_res.ul().puschs().size()));
   if (puschs_to_alloc <= 0) {
     return 0;
   }
 
   // The max UL grants-per-slot limit cannot be exceeded.
-  puschs_to_alloc = std::min(
-      puschs_to_alloc,
-      static_cast<int>(expert_cfg.max_ul_grants_per_slot - pusch_res.ul.puschs.size() - pusch_res.ul.pucchs.size()));
+  puschs_to_alloc = std::min(puschs_to_alloc,
+                             static_cast<int>(expert_cfg.max_ul_grants_per_slot - pusch_res.ul().puschs().size() -
+                                              pusch_res.ul().pucchs().size()));
   if (puschs_to_alloc <= 0) {
     return 0;
   }
 
   // Determine how many PDCCHs can be allocated in this slot.
-  const auto& pdcch_res  = cell_alloc[pdcch_slot].result;
-  const auto  max_pdcchs = std::min(static_cast<int>(MAX_UL_PDCCH_PDUS_PER_SLOT - pdcch_res.dl.ul_pdcchs.size()),
+  const auto pdcch_res  = cell_alloc[pdcch_slot].result_reader();
+  const auto max_pdcchs = std::min(static_cast<int>(MAX_UL_PDCCH_PDUS_PER_SLOT - pdcch_res.dl().ul_pdcchs().size()),
                                    static_cast<int>(expert_cfg.max_pdcch_alloc_attempts_per_slot - ul_attempts_count));
-  puschs_to_alloc        = std::min(puschs_to_alloc, max_pdcchs);
+  puschs_to_alloc       = std::min(puschs_to_alloc, max_pdcchs);
   if (puschs_to_alloc <= 0) {
     return 0;
   }
@@ -928,7 +929,7 @@ void intra_slice_scheduler::update_used_dl_vrbs(const dl_ran_slice_candidate& sl
 
   enable_pdsch_interleaving = ss_info.interleaved_mapping.has_value();
   if (enable_pdsch_interleaving) {
-    for (const auto& pdsch : cell_alloc[pdsch_slot].result.dl.ue_grants) {
+    for (const auto& pdsch : cell_alloc[pdsch_slot].result_reader().dl().ue_grants()) {
       // [Implementation defined] Disable interleaving if there are non-interleaved PDSCH grants already allocated on
       // that slot, to avoid wasting resources.
       if (pdsch.pdsch_cfg.vrb_prb_mapping == vrb_to_prb::mapping_type::non_interleaved) {
@@ -972,7 +973,7 @@ void intra_slice_scheduler::update_used_ul_vrbs(const ul_ran_slice_candidate& sl
   // Update the min SRS symbol before checking the used VRBs.
   // NOTE: Reset to max symbol index before looking for the min.
   min_srs_symbol = NOF_OFDM_SYM_PER_SLOT_NORMAL_CP;
-  for (const auto& srs : cell_alloc[pusch_slot - pdcch_slot].result.ul.srss) {
+  for (const auto& srs : cell_alloc[pusch_slot - pdcch_slot].result_reader().ul().srss()) {
     min_srs_symbol = std::min(static_cast<unsigned>(srs.symbols.start()), min_srs_symbol);
   }
 

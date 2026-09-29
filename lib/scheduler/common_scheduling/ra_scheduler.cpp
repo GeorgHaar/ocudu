@@ -113,7 +113,7 @@ static span<const pusch_time_domain_resource_allocation> get_pusch_td_list(const
 static unsigned get_min_srs_symbol(const cell_slot_resource_allocator& ul_alloc)
 {
   unsigned min_srs_symbol = NOF_OFDM_SYM_PER_SLOT_NORMAL_CP;
-  for (const auto& srs : ul_alloc.result.ul.srss) {
+  for (const auto& srs : ul_alloc.result_reader().ul().srss()) {
     min_srs_symbol = std::min(static_cast<unsigned>(srs.symbols.start()), min_srs_symbol);
   }
   return min_srs_symbol;
@@ -718,7 +718,7 @@ void ra_scheduler::schedule_msga_puschs(rnti_t msgb_rnti, slot_point prach_slot_
         pusch_alloc.ul_res_grid.all_set(grant_info{ul_bwp.generic_params.scs, td_alloc.symbols, preamble_crbs}),
         "Invalid prereservation of MsgA PUSCH resources");
 
-    if (pusch_alloc.result.ul.puschs.full()) {
+    if (pusch_alloc.result_builder().ul().puschs().full()) {
       logger.warning(
           "pci={} msgb-rnti={} tc-rnti={}: Discarding MsgA PUSCH. Cause: PUSCH grant list is full for slot={}",
           cell_cfg.params.pci,
@@ -730,7 +730,7 @@ void ra_scheduler::schedule_msga_puschs(rnti_t msgb_rnti, slot_point prach_slot_
     }
 
     // Fill scheduling result.
-    ul_sched_info& ul_info     = pusch_alloc.result.ul.puschs.emplace_back();
+    ul_sched_info& ul_info     = *pusch_alloc.result_builder().ul().puschs().emplace_back();
     ul_info.context.ue_index   = INVALID_DU_UE_INDEX;
     ul_info.context.ss_id      = cell_cfg.params.dl_cfg_common.init_dl_bwp.pdcch_common.ra_search_space_id;
     ul_info.context.k2         = msga_pusch_cfg.td_offset;
@@ -873,7 +873,7 @@ bool ra_scheduler::can_allocate_rar_ul_grant(rnti_t crnti, const cell_slot_resou
 
   // Multiplexing of UCI into RAR UL grant has been disabled or the beta offset config could not be fetched.
   // Check if there aren't any other PUCCHs falling in the same slot as the RAR UL grant.
-  span<const pucch_info> pucchs = slot_alloc.result.ul.pucchs.unsorted();
+  span<const pucch_info> pucchs = slot_alloc.result_reader().ul().pucchs().unsorted();
   return std::none_of(pucchs.begin(), pucchs.end(), [crnti](const pucch_info& pucch) { return pucch.crnti == crnti; });
 }
 
@@ -1026,7 +1026,7 @@ void ra_scheduler::update_pending_rars(slot_point pdcch_slot)
   }
 }
 
-bool ra_scheduler::is_slot_candidate_for_rar(const cell_slot_resource_allocator& slot_res_alloc)
+bool ra_scheduler::is_slot_candidate_for_rar(cell_slot_resource_allocator& slot_res_alloc)
 {
   slot_point pdcch_slot = slot_res_alloc.slot;
 
@@ -1046,7 +1046,7 @@ bool ra_scheduler::is_slot_candidate_for_rar(const cell_slot_resource_allocator&
   }
 
   // Check for space in PDCCH result list. We check for space in PDSCH later, once the k0 is known.
-  if (slot_res_alloc.result.dl.dl_pdcchs.full()) {
+  if (slot_res_alloc.result_builder().dl().dl_pdcchs().full()) {
     log_postponed_rar(pending_rars.front(), "PDCCH grants limit reached", pdcch_slot);
     ++pending_rars.front().failed_attempts.pdcch;
     return false;
@@ -1167,11 +1167,11 @@ auto ra_scheduler::schedule_rar(std::vector<pending_rar_alloc>::iterator rar_it,
   unsigned     max_alloc_preambles  = 0;
   crb_interval rar_crbs{};
   for (const auto& pdsch_td_res : pdsch_td_res_alloc_list) {
-    const unsigned                      time_resource = std::distance(pdsch_td_res_alloc_list.begin(), &pdsch_td_res);
-    const cell_slot_resource_allocator& pdsch_alloc   = res_alloc[pdcch_slot + pdsch_td_res.k0];
+    const unsigned                time_resource = std::distance(pdsch_td_res_alloc_list.begin(), &pdsch_td_res);
+    cell_slot_resource_allocator& pdsch_alloc   = res_alloc[pdcch_slot + pdsch_td_res.k0];
 
     // > Check space in DL sched result for RAR.
-    if (pdsch_alloc.result.dl.rar_grants.full()) {
+    if (pdsch_alloc.result_builder().dl().rar_grants().full()) {
       // early exit.
       log_postponed_rar(rar, "RAR grants limit reached", pdcch_slot);
       ++rar.failed_attempts.pdsch;
@@ -1254,8 +1254,8 @@ auto ra_scheduler::schedule_rar(std::vector<pending_rar_alloc>::iterator rar_it,
     // >> Verify if Msg3 delay provided by current PUSCH-TimeDomainResourceAllocation corresponds to an UL slot.
     const unsigned msg3_delay =
         ra_helper::get_msg3_delay(ul_bwp_cfg.scs, pusch_list[pusch_idx].k2) + cell_cfg.ntn_cs_koffset;
-    const cell_slot_resource_allocator& msg3_alloc = res_alloc[pdcch_slot + msg3_delay];
-    const unsigned                      start_ul_symbols =
+    cell_slot_resource_allocator& msg3_alloc = res_alloc[pdcch_slot + msg3_delay];
+    const unsigned                start_ul_symbols =
         NOF_OFDM_SYM_PER_SLOT_NORMAL_CP - cell_cfg.get_nof_ul_symbol_per_slot(msg3_alloc.slot);
     if (not cell_cfg.is_ul_enabled(msg3_alloc.slot) or pusch_list[pusch_idx].symbols.start() < start_ul_symbols) {
       continue;
@@ -1270,7 +1270,7 @@ auto ra_scheduler::schedule_rar(std::vector<pending_rar_alloc>::iterator rar_it,
         std::min<unsigned>(msg3_candidates.capacity(), max_alloc_preambles) - msg3_candidates.size();
 
     // >> Check space in UL sched result for remaining Msg3s.
-    const unsigned list_space = msg3_alloc.result.ul.puschs.capacity() - msg3_alloc.result.ul.puschs.size();
+    const unsigned list_space = msg3_alloc.result_builder().ul().puschs().space_left();
     pusch_res_max_grants      = std::min(pusch_res_max_grants, list_space);
     if (pusch_res_max_grants == 0) {
       continue;
@@ -1287,7 +1287,7 @@ auto ra_scheduler::schedule_rar(std::vector<pending_rar_alloc>::iterator rar_it,
     if (max_allocs_on_free_rbs == 0) {
       continue;
     }
-    if (max_allocs_on_free_rbs + msg3_alloc.result.ul.puschs.size() > msg3_alloc.result.ul.puschs.capacity()) {
+    if (max_allocs_on_free_rbs > msg3_alloc.result_builder().ul().puschs().space_left()) {
       // NOTE: this should not happen, but we added as an extra safety step.
       logger.warning("Overestimated number of MSG3 grants that can be allocated ({} > {}). This number will be capped",
                      max_allocs_on_free_rbs,
@@ -1371,10 +1371,10 @@ auto ra_scheduler::schedule_backoff_only_rar(std::vector<pending_rar_alloc>::ite
   unsigned     pdsch_time_res_index = pdsch_td_res_alloc_list.size();
   crb_interval rar_crbs{};
   for (const auto& pdsch_td_res : pdsch_td_res_alloc_list) {
-    const unsigned                      time_resource = std::distance(pdsch_td_res_alloc_list.begin(), &pdsch_td_res);
-    const cell_slot_resource_allocator& pdsch_alloc   = res_alloc[pdcch_slot + pdsch_td_res.k0];
+    const unsigned                time_resource = std::distance(pdsch_td_res_alloc_list.begin(), &pdsch_td_res);
+    cell_slot_resource_allocator& pdsch_alloc   = res_alloc[pdcch_slot + pdsch_td_res.k0];
 
-    if (pdsch_alloc.result.dl.rar_grants.full() or not cell_cfg.is_dl_enabled(pdsch_alloc.slot)) {
+    if (pdsch_alloc.result_builder().dl().rar_grants().full() or not cell_cfg.is_dl_enabled(pdsch_alloc.slot)) {
       continue;
     }
     if (pdsch_td_res.symbols.stop() > cell_cfg.get_nof_dl_symbol_per_slot(pdsch_alloc.slot)) {
@@ -1437,7 +1437,7 @@ void ra_scheduler::fill_rar_grant(cell_resource_allocator&         res_alloc,
   cell_slot_resource_allocator& rar_alloc   = res_alloc[pdcch_slot + pdsch_td_res_alloc_list[pdsch_time_res_index].k0];
 
   // Fill RAR DCI.
-  pdcch_dl_information& pdcch = pdcch_alloc.result.dl.dl_pdcchs.back();
+  pdcch_dl_information& pdcch = pdcch_alloc.result_builder().dl().dl_pdcchs().back();
   build_dci_f1_0_ra_rnti(pdcch.dci, init_dl_bwp, rar_crbs, pdsch_time_res_index, sched_cfg.rar_mcs_index);
 
   // Allocate RBs and space for RAR.
@@ -1445,7 +1445,7 @@ void ra_scheduler::fill_rar_grant(cell_resource_allocator&         res_alloc,
       grant_info{init_dl_bwp.generic_params.scs, pdsch_td_res_alloc_list[pdsch_time_res_index].symbols, rar_crbs});
 
   // Fill RAR PDSCH.
-  rar_information& rar  = rar_alloc.result.dl.rar_grants.emplace_back();
+  rar_information& rar  = *rar_alloc.result_builder().dl().rar_grants().emplace_back();
   rar.backoff_indicator = send_backoff_indicator ? std::optional<uint8_t>{backoff_indicator_value} : std::nullopt;
   build_pdsch_f1_0_ra_rnti(
       rar.pdsch_cfg,
@@ -1477,7 +1477,7 @@ void ra_scheduler::fill_rar_grant(cell_resource_allocator&         res_alloc,
         pending_msg3.harq_ent.alloc_ul_harq(pdcch_slot, msg3_alloc.slot, sched_cfg.max_nof_msg3_harq_retxs);
     ocudu_sanity_check(h_ul.has_value(), "Pending Msg3 HARQ must be available when RAR is allocated");
 
-    if (rar.grants.full() or msg3_alloc.result.ul.puschs.full()) {
+    if (rar.grants.full() or msg3_alloc.result_builder().ul().puschs().full()) {
       // Note: This should never happen.
       logger.error("RAR grant for tc-rnti={} will be dropped. Cause: no available free RAR or UL grants",
                    pending_msg3.preamble.tc_rnti);
@@ -1502,7 +1502,7 @@ void ra_scheduler::fill_rar_grant(cell_resource_allocator&         res_alloc,
     msg3_alloc.ul_res_grid.fill(grant_info{init_ul_bwp.generic_params.scs, symbols, msg3_candidate.crbs});
 
     // Fill PUSCH for Msg3.
-    ul_sched_info& pusch     = msg3_alloc.result.ul.puschs.emplace_back();
+    ul_sched_info& pusch     = *msg3_alloc.result_builder().ul().puschs().emplace_back();
     pusch.context.ue_index   = INVALID_DU_UE_INDEX;
     pusch.context.ss_id      = init_dl_bwp.pdcch_common.ra_search_space_id;
     pusch.context.nof_retxs  = 0;
@@ -1554,7 +1554,7 @@ void ra_scheduler::schedule_msg3_retx(cell_resource_allocator& res_alloc, ra_ue_
   }
 
   // Verify there is space in PDCCH result lists for new allocations.
-  if (pdcch_alloc.result.dl.ul_pdcchs.full()) {
+  if (pdcch_alloc.result_builder().dl().ul_pdcchs().full()) {
     // Early exit. No space for new PDCCHs.
     log_failed_msg3_retx(logger,
                          cell_cfg.params.pci,
@@ -1605,10 +1605,10 @@ void ra_scheduler::schedule_msg3_retx(cell_resource_allocator& res_alloc, ra_ue_
     }
 
     // Verify there is space in PUSCH and PDCCH result lists for new allocations.
-    const auto max_puschs = std::min<unsigned>(pusch_alloc.result.ul.puschs.capacity(),
-                                               res_alloc.cfg.expert_cfg.ue.max_ul_grants_per_slot -
-                                                   static_cast<unsigned>(pusch_alloc.result.ul.pucchs.size()));
-    if (pusch_alloc.result.ul.puschs.size() >= max_puschs) {
+    auto           puschs        = pusch_alloc.result_builder().ul().puschs();
+    const unsigned max_ul_grants = res_alloc.cfg.expert_cfg.ue.max_ul_grants_per_slot -
+                                   static_cast<unsigned>(pusch_alloc.result_reader().ul().pucchs().size());
+    if (puschs.full() or puschs.size() >= max_ul_grants) {
       // Early continue. Maximum limit of PUSCH grants was reached for this slot.
       log_failed_msg3_retx(logger,
                            cell_cfg.params.pci,
@@ -1670,7 +1670,7 @@ void ra_scheduler::schedule_msg3_retx(cell_resource_allocator& res_alloc, ra_ue_
                            msg3_rv);
 
     // Fill PUSCH.
-    ul_sched_info& ul_info     = pusch_alloc.result.ul.puschs.emplace_back();
+    ul_sched_info& ul_info     = *pusch_alloc.result_builder().ul().puschs().emplace_back();
     ul_info.context.ue_index   = INVALID_DU_UE_INDEX;
     ul_info.context.ss_id      = ss_cfg.get_id();
     ul_info.context.k2         = k2;
@@ -1733,10 +1733,10 @@ void ra_scheduler::schedule_pending_msgbs(cell_resource_allocator& res_alloc, sl
   if (not cell_cfg.is_dl_enabled(pdcch_slot)) {
     return;
   }
-  const cell_slot_resource_allocator& pdcch_slot_alloc = res_alloc[pdcch_slot];
-  const search_space_configuration&   ss_cfg           = get_ra_ss_cfg(cell_cfg);
-  const coreset_configuration&        cs_cfg           = cell_cfg.get_common_coreset(ss_cfg.get_coreset_id());
-  const unsigned                      coreset_duration = cs_cfg.duration();
+  cell_slot_resource_allocator&     pdcch_slot_alloc = res_alloc[pdcch_slot];
+  const search_space_configuration& ss_cfg           = get_ra_ss_cfg(cell_cfg);
+  const coreset_configuration&      cs_cfg           = cell_cfg.get_common_coreset(ss_cfg.get_coreset_id());
+  const unsigned                    coreset_duration = cs_cfg.duration();
   if (not pdcch_helper::is_pdcch_monitoring_active(pdcch_slot, ss_cfg) or
       ss_cfg.get_first_symbol_index() + coreset_duration > cell_cfg.get_nof_dl_symbol_per_slot(pdcch_slot)) {
     return;
@@ -1751,7 +1751,7 @@ void ra_scheduler::schedule_pending_msgbs(cell_resource_allocator& res_alloc, sl
   const search_space_id                                   ss_id         = init_dl_bwp.pdcch_common.ra_search_space_id;
 
   for (auto msgb_it = pending_msgbs.begin(); msgb_it != pending_msgbs.end();) {
-    if (pdcch_slot_alloc.result.dl.dl_pdcchs.full()) {
+    if (pdcch_slot_alloc.result_builder().dl().dl_pdcchs().full()) {
       // Early exit if slot is already at max PDCCH capacity.
       return;
     }
@@ -1779,10 +1779,10 @@ void ra_scheduler::schedule_pending_msgbs(cell_resource_allocator& res_alloc, sl
     unsigned     max_alloc_preambles  = 0;
     crb_interval msgb_crbs{};
     for (unsigned time_resource = 0; time_resource != pdsch_td_list.size(); ++time_resource) {
-      const auto&                         pdsch_td_res = pdsch_td_list[time_resource];
-      const cell_slot_resource_allocator& pdsch_alloc  = res_alloc[pdcch_slot + pdsch_td_res.k0];
+      const auto&                   pdsch_td_res = pdsch_td_list[time_resource];
+      cell_slot_resource_allocator& pdsch_alloc  = res_alloc[pdcch_slot + pdsch_td_res.k0];
 
-      if (pdsch_alloc.result.dl.rar_grants.full()) {
+      if (pdsch_alloc.result_builder().dl().rar_grants().full()) {
         break;
       }
       if (not cell_cfg.is_dl_enabled(pdsch_alloc.slot) or
@@ -1841,8 +1841,8 @@ void ra_scheduler::schedule_pending_msgbs(cell_resource_allocator& res_alloc, sl
       const unsigned msg3_delay =
           ra_helper::get_msg3_delay(init_ul_bwp.generic_params.scs, pusch_td_list[pusch_idx].k2) +
           cell_cfg.ntn_cs_koffset;
-      const cell_slot_resource_allocator& msg3_alloc = res_alloc[pdcch_slot + msg3_delay];
-      const unsigned                      start_ul_sym =
+      cell_slot_resource_allocator& msg3_alloc = res_alloc[pdcch_slot + msg3_delay];
+      const unsigned                start_ul_sym =
           NOF_OFDM_SYM_PER_SLOT_NORMAL_CP - cell_cfg.get_nof_ul_symbol_per_slot(msg3_alloc.slot);
       if (not cell_cfg.is_ul_enabled(msg3_alloc.slot) or pusch_td_list[pusch_idx].symbols.start() < start_ul_sym) {
         continue;
@@ -1853,7 +1853,7 @@ void ra_scheduler::schedule_pending_msgbs(cell_resource_allocator& res_alloc, sl
         continue;
       }
 
-      const unsigned list_space = msg3_alloc.result.ul.puschs.capacity() - msg3_alloc.result.ul.puschs.size();
+      const unsigned list_space = msg3_alloc.result_builder().ul().puschs().space_left();
       pusch_res_max_allocs      = std::min(pusch_res_max_allocs, list_space);
       if (pusch_res_max_allocs == 0) {
         continue;
@@ -1980,7 +1980,7 @@ void ra_scheduler::schedule_pending_msgbs(cell_resource_allocator& res_alloc, sl
                              msgb.prach_slot_rx.sfn());
     pdsch_alloc.dl_res_grid.fill(grant_info{dl_scs, pdsch_td_list[pdsch_time_res_index].symbols, msgb_crbs});
 
-    rar_information& msgb_rar = pdsch_alloc.result.dl.rar_grants.emplace_back();
+    rar_information& msgb_rar = *pdsch_alloc.result_builder().dl().rar_grants().emplace_back();
     build_pdsch_f1_0_ra_rnti(msgb_rar.pdsch_cfg,
                              msgb_prbs_tbs.tbs_bytes,
                              msgb.msgb_rnti,
@@ -2067,7 +2067,7 @@ void ra_scheduler::schedule_pending_msgbs(cell_resource_allocator& res_alloc, sl
                                              msg3_candidate.crbs});
 
       // Fill Msg3 PUSCH.
-      ul_sched_info& ul_info     = msg3_alloc.result.ul.puschs.emplace_back();
+      ul_sched_info& ul_info     = *msg3_alloc.result_builder().ul().puschs().emplace_back();
       ul_info.context.ue_index   = INVALID_DU_UE_INDEX;
       ul_info.context.ss_id      = init_dl_bwp.pdcch_common.ra_search_space_id;
       ul_info.context.nof_retxs  = 0;

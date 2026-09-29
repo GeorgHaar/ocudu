@@ -42,7 +42,7 @@ void ue_history_repository::rem_ue(du_ue_index_t ue_index)
   ue_row_ids[ue_index] = soa::row_id{std::numeric_limits<uint32_t>::max()};
 }
 
-void ue_history_repository::save_dl_newtx_grants(span<const dl_msg_alloc> dl_grants)
+void ue_history_repository::save_dl_newtx_grants(pdu_span<dl_msg_alloc> dl_grants)
 {
   if (dl_grants.empty()) {
     // Ignore slots with no grants in the statistics, as they don't add any differentiation between UEs.
@@ -64,7 +64,7 @@ void ue_history_repository::save_dl_newtx_grants(span<const dl_msg_alloc> dl_gra
   }
 }
 
-void ue_history_repository::save_ul_newtx_grants(span<const ul_sched_info> ul_grants)
+void ue_history_repository::save_ul_newtx_grants(pdu_span<ul_sched_info> ul_grants)
 {
   if (ul_grants.empty()) {
     // Ignore slots with no grants in the statistics, as they don't add any differentiation between UEs.
@@ -205,13 +205,13 @@ void scheduler_time_qos::compute_ue_ul_priorities(slot_point               pdcch
   }
 }
 
-void scheduler_time_qos::save_dl_newtx_grants(span<const dl_msg_alloc> dl_grants)
+void scheduler_time_qos::save_dl_newtx_grants(pdu_span<dl_msg_alloc> dl_grants)
 {
   // Save result of DL grants in UE history.
   ue_history_db.save_dl_newtx_grants(dl_grants);
 }
 
-void scheduler_time_qos::save_ul_newtx_grants(span<const ul_sched_info> ul_grants)
+void scheduler_time_qos::save_ul_newtx_grants(pdu_span<ul_sched_info> ul_grants)
 {
   // Save result of UL grants in UE history.
   ue_history_db.save_ul_newtx_grants(ul_grants);

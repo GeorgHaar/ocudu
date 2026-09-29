@@ -71,7 +71,7 @@ public:
 
   slot_point          last_slot_tx() const { return next_slot.without_hyper_sfn() - 1; }
   slot_point          next_slot_rx() const { return next_slot.without_hyper_sfn() - delay_tx_rx_slots; }
-  const sched_result& last_sched_result() const { return res_grid[0].result; }
+  const sched_result& last_sched_result() const { return res_grid.result_of(0); }
 
   void run_slot();
 

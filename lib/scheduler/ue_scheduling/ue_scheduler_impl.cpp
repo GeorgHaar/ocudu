@@ -94,13 +94,13 @@ void ue_scheduler_impl::run_sched_strategy(du_cell_index_t cell_index)
   }
 
   // Spans through the PUCCH grant list and check if there is any PUCCH grant scheduled for a UE that has a PUSCH.
-  for (const auto& pucch : slot_alloc.result.ul.pucchs) {
-    const auto* pusch_grant =
-        std::find_if(slot_alloc.result.ul.puschs.begin(),
-                     slot_alloc.result.ul.puschs.end(),
-                     [&pucch](const ul_sched_info& pusch) { return pusch.pusch_cfg.rnti == pucch.crnti; });
+  auto puschs = slot_alloc.result_reader().ul().puschs();
+  for (const auto& pucch : slot_alloc.result_reader().ul().pucchs()) {
+    const auto pusch_grant = std::find_if(puschs.begin(), puschs.end(), [&pucch](const ul_sched_info& pusch) {
+      return pusch.pusch_cfg.rnti == pucch.crnti;
+    });
 
-    if (pusch_grant != slot_alloc.result.ul.puschs.end()) {
+    if (pusch_grant != puschs.end()) {
       logger.error("rnti={}: has both PUCCH and PUSCH grants scheduled at slot {}, PUCCH  format={} with uci_bits={}",
                    pucch.crnti,
                    slot_alloc.slot,
@@ -121,7 +121,7 @@ void ue_scheduler_impl::post_process_results(du_cell_index_t cell_index, slot_po
 
   // Update the PUCCH power control data.
   const auto& slot_alloc = (*cell.cell_res_alloc)[0];
-  for (const auto& pucch : slot_alloc.result.ul.pucchs) {
+  for (const auto& pucch : slot_alloc.result_reader().ul().pucchs()) {
     ue_cell* ue_cc = cell.ue_cell_db.find_by_rnti(pucch.crnti);
     // The UE may be removed between the PUCCH allocation and its transmission.
     if (ue_cc == nullptr) {
@@ -132,7 +132,7 @@ void ue_scheduler_impl::post_process_results(du_cell_index_t cell_index, slot_po
   }
 
   // Record UEs needing triggered UL grants based on the finalized DL grant list.
-  cell.trig_ul_sched.process_dl_results(sl_tx, (*cell.cell_res_alloc)[0].result);
+  cell.trig_ul_sched.process_dl_results(sl_tx, cell.cell_res_alloc->result_of(0));
 
   ocudu_sanity_check(puxch_grant_sanitizer(*cell.cell_res_alloc, logger),
                      "PUCCH and PUSCH found for the same UE in the same slot");

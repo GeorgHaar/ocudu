@@ -202,7 +202,7 @@ TEST_P(prach_scheduler_test, prach_sched_allocates_in_prach_configured_slots)
   unsigned prach_counter = 0;
   for (unsigned i = 0; i != prach_repetition_period; ++i) {
     run_slot();
-    unsigned nof_prachs = res_grid[0].result.ul.prachs.size();
+    unsigned nof_prachs = res_grid[0].result_reader().ul().prachs().size();
     if (is_prach_slot()) {
       ASSERT_GE(1, nof_prachs);
     } else {
@@ -220,8 +220,8 @@ TEST_P(prach_scheduler_test, prach_sched_allocates_in_sched_grid)
   for (unsigned i = 0; i != prach_repetition_period * 2; ++i) {
     run_slot();
     if (is_prach_slot()) {
-      ASSERT_GE(1, res_grid[0].result.ul.prachs.size());
-      for (const auto& prach_pdu : res_grid[0].result.ul.prachs) {
+      ASSERT_GE(1, res_grid[0].result_reader().ul().prachs().size());
+      for (const auto& prach_pdu : res_grid[0].result_reader().ul().prachs()) {
         // For long PRACHs, we have 1 PRACH PDU and up to 8 grid grants allocated per PRACH occasion; these are
         // allocated by the scheduler at the slot where the PRACH pramble starts.
         // For short PRACHs, we have 1 or 2 PRACH PDU and grid grant allocated per burst of PRACH occasions; the

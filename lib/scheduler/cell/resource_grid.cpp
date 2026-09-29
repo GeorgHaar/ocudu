@@ -299,7 +299,6 @@ cell_slot_resource_allocator::cell_slot_resource_allocator(sched_result_grid&   
                                                            unsigned                  res_idx_,
                                                            const cell_configuration& cfg_) :
   cfg(cfg_),
-  result(results_.slot_storage(res_idx_)),
   dl_res_grid(cfg.params.dl_cfg_common.freq_info_dl.scs_carrier_list),
   ul_res_grid(cfg.params.ul_cfg_common.freq_info_ul.scs_carrier_list),
   results(&results_),
@@ -312,12 +311,7 @@ cell_slot_resource_allocator::cell_slot_resource_allocator(sched_result_grid&   
                                                            const cell_configuration&  cfg_,
                                                            span<scs_specific_carrier> dl_scs_carriers,
                                                            span<scs_specific_carrier> ul_scs_carriers) :
-  cfg(cfg_),
-  result(results_.slot_storage(res_idx_)),
-  dl_res_grid(dl_scs_carriers),
-  ul_res_grid(ul_scs_carriers),
-  results(&results_),
-  res_idx(res_idx_)
+  cfg(cfg_), dl_res_grid(dl_scs_carriers), ul_res_grid(ul_scs_carriers), results(&results_), res_idx(res_idx_)
 {
 }
 
@@ -327,10 +321,9 @@ void cell_slot_resource_allocator::slot_indication(slot_point sl)
   clear();
 
   // Initiate new slot in the same grid ring location.
-  slot                     = sl;
-  result.success           = true;
-  result.dl.nof_dl_symbols = cfg.get_nof_dl_symbol_per_slot(sl);
-  result.ul.nof_ul_symbols = cfg.get_nof_ul_symbol_per_slot(sl);
+  slot = sl;
+  results->reset_slot(res_idx, cfg.get_nof_dl_symbol_per_slot(sl), cfg.get_nof_ul_symbol_per_slot(sl));
+  result_builder().set_success(true);
 }
 
 void cell_slot_resource_allocator::clear()

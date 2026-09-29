@@ -14,7 +14,7 @@
 #include "ocudu/ran/pucch/pucch_uci_bits.h"
 #include "ocudu/scheduler/config/cell_bwp_res_config.h"
 #include "ocudu/scheduler/result/pdcch_info.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 
 namespace ocudu {
 
@@ -308,7 +308,7 @@ private:
                                    const alloc_context&                alloc_ctx) const;
 
   /// Returns whether there is space for new PUCCH grants in the given scheduler result.
-  bool is_there_space_for_new_pucch_grants(const sched_result& slot_result, unsigned nof_grants_to_allocate) const;
+  bool is_there_space_for_new_pucch_grants(sched_slot_result_reader slot_result, unsigned nof_grants_to_allocate) const;
 
   // \brief Ring of PUCCH allocations indexed by slot.
   circular_vector<slot_context, true> slots_ctx;

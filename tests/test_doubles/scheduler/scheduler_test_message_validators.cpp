@@ -219,7 +219,7 @@ bool test_helper::is_valid_ul_sched_info(const ul_sched_info& grant)
   return true;
 }
 
-bool test_helper::is_valid_dl_msg_alloc_list(span<const dl_msg_alloc>                    grants,
+bool test_helper::is_valid_dl_msg_alloc_list(pdu_span<dl_msg_alloc>                      grants,
                                              const std::optional<coreset_configuration>& coreset0)
 {
   static_vector<rnti_t, MAX_UE_PDUS_PER_SLOT> rntis;

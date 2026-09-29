@@ -95,6 +95,13 @@ prach_scheduler::prach_scheduler(const cell_configuration& cfg_) :
   }
 }
 
+/// Adds a PRACH occasion to the result of a slot.
+static void add_prach_occasion(cell_slot_resource_allocator& slot_alloc, const prach_occasion_info& occasion)
+{
+  [[maybe_unused]] const prach_occasion_info* pdu = slot_alloc.result_builder().ul().prachs().emplace_back(occasion);
+  ocudu_assert(pdu != nullptr, "Failed to allocate PRACH occasion in slot={}", slot_alloc.slot);
+}
+
 void prach_scheduler::run_slot(cell_resource_allocator& res_grid)
 {
   if (OCUDU_UNLIKELY(first_slot_ind)) {
@@ -134,13 +141,13 @@ void prach_scheduler::allocate_slot_prach_pdus(cell_resource_allocator& res_grid
         res_grid[sl + sl_idx].ul_res_grid.fill(cached_prach.grant_list[sl_idx]);
       }
       // Add PRACH occasion to scheduler slot output (one PRACH PDU per preamble).
-      res_grid[sl].result.ul.prachs.push_back(cached_prach.occasion);
+      add_prach_occasion(res_grid[sl], cached_prach.occasion);
     } else {
       // Reserve RBs and symbols of the PRACH occasion in the resource grid for each grant (over 1 or 2 slots) of the
       // preamble and add the PRACH occasions to scheduler slot output (1 or 2 PRACH PDU per burst of PRACH
       // opportunities, depending on whether this burst repeats over 1 or 2 slots).
       res_grid[sl].ul_res_grid.fill(cached_prach.grant_list[sl.slot_index() % td_mapper().prach_burst_length_slots()]);
-      res_grid[sl].result.ul.prachs.push_back(cached_prach.occasion);
+      add_prach_occasion(res_grid[sl], cached_prach.occasion);
     }
   }
 }

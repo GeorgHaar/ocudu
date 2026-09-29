@@ -12,6 +12,7 @@
 #include "ocudu/ran/csi_report/csi_report_on_pucch_helpers.h"
 #include "ocudu/scheduler/config/ran_cell_config_helper.h"
 #include "ocudu/scheduler/config/serving_cell_config_factory.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/support/async/async_no_op_task.h"
 #include "ocudu/support/executors/inline_task_executor.h"
 #include "ocudu/support/timers.h"
@@ -293,10 +294,12 @@ TEST_F(mac_test_mode_test, when_test_mode_ue_has_pucch_grants_then_uci_indicatio
 TEST_F(mac_test_mode_test, when_test_mode_ue_has_pusch_grants_then_crc_indications_are_auto_forwarded_to_mac)
 {
   // PUCCH got scheduled for test mode UE.
-  ul_sched_result ul_res{};
-  ul_sched_info&  ulgrant   = ul_res.puschs.emplace_back();
-  ulgrant.pusch_cfg.rnti    = this->params.test_ue_cfg.rnti;
-  ulgrant.pusch_cfg.harq_id = to_harq_id(test_rng::uniform_int(0, 15));
+  sched_result_grid results{sched_result_grid_config{1}};
+  ul_sched_result&  ul_res  = results.slot_storage(0).ul;
+  ul_sched_info*    ulgrant = results.get_builder(0).ul().puschs().emplace_back();
+  ASSERT_NE(ulgrant, nullptr);
+  ulgrant->pusch_cfg.rnti    = this->params.test_ue_cfg.rnti;
+  ulgrant->pusch_cfg.harq_id = to_harq_id(test_rng::uniform_int(0, 15));
   mac_events.next_ul_sched_res.emplace();
   mac_events.next_ul_sched_res->slot   = next_slot.without_hyper_sfn();
   mac_events.next_ul_sched_res->ul_res = &ul_res;
@@ -310,7 +313,7 @@ TEST_F(mac_test_mode_test, when_test_mode_ue_has_pusch_grants_then_crc_indicatio
   crc.sl_rx          = sl_rx;
   mac_crc_pdu& pdu   = crc.crcs.emplace_back();
   pdu.rnti           = this->params.test_ue_cfg.rnti;
-  pdu.harq_id        = ulgrant.pusch_cfg.harq_id;
+  pdu.harq_id        = ulgrant->pusch_cfg.harq_id;
   pdu.tb_crc_success = false;
   this->mac_wrapper->get_control_info_handler(to_du_cell_index(0)).handle_crc(crc);
 
@@ -318,7 +321,7 @@ TEST_F(mac_test_mode_test, when_test_mode_ue_has_pusch_grants_then_crc_indicatio
   ASSERT_EQ(mac_events.last_crc->sl_rx, sl_rx);
   ASSERT_EQ(mac_events.last_crc->crcs.size(), 1);
   ASSERT_EQ(mac_events.last_crc->crcs[0].rnti, this->params.test_ue_cfg.rnti);
-  ASSERT_EQ(mac_events.last_crc->crcs[0].harq_id, ulgrant.pusch_cfg.harq_id);
+  ASSERT_EQ(mac_events.last_crc->crcs[0].harq_id, ulgrant->pusch_cfg.harq_id);
   ASSERT_TRUE(mac_events.last_crc->crcs[0].tb_crc_success);
   ASSERT_TRUE(mac_events.last_crc->crcs[0].ul_sinr_dB.value() > 0);
 }
@@ -406,10 +409,12 @@ TEST_P(mac_test_mode_auto_uci_test, when_test_mode_ue_has_pucch_grants_then_uci_
 TEST_P(mac_test_mode_auto_uci_test, when_test_mode_ue_has_pusch_grants_then_crc_indications_are_auto_forwarded_to_mac)
 {
   // PUCCH got scheduled for test mode UE.
-  ul_sched_result ul_res{};
-  ul_sched_info&  ulgrant   = ul_res.puschs.emplace_back();
-  ulgrant.pusch_cfg.rnti    = this->params.test_ue_cfg.rnti;
-  ulgrant.pusch_cfg.harq_id = to_harq_id(test_rng::uniform_int(0, 15));
+  sched_result_grid results{sched_result_grid_config{1}};
+  ul_sched_result&  ul_res  = results.slot_storage(0).ul;
+  ul_sched_info*    ulgrant = results.get_builder(0).ul().puschs().emplace_back();
+  ASSERT_NE(ulgrant, nullptr);
+  ulgrant->pusch_cfg.rnti    = this->params.test_ue_cfg.rnti;
+  ulgrant->pusch_cfg.harq_id = to_harq_id(test_rng::uniform_int(0, 15));
   mac_events.next_ul_sched_res.emplace();
   mac_events.next_ul_sched_res->slot   = next_slot.without_hyper_sfn();
   mac_events.next_ul_sched_res->ul_res = &ul_res;
@@ -430,7 +435,7 @@ TEST_P(mac_test_mode_auto_uci_test, when_test_mode_ue_has_pusch_grants_then_crc_
   ASSERT_EQ(mac_events.last_crc->sl_rx, sl_rx);
   ASSERT_EQ(mac_events.last_crc->crcs.size(), 1);
   ASSERT_EQ(mac_events.last_crc->crcs[0].rnti, this->params.test_ue_cfg.rnti);
-  ASSERT_EQ(mac_events.last_crc->crcs[0].harq_id, ulgrant.pusch_cfg.harq_id);
+  ASSERT_EQ(mac_events.last_crc->crcs[0].harq_id, ulgrant->pusch_cfg.harq_id);
   ASSERT_TRUE(mac_events.last_crc->crcs[0].tb_crc_success);
   ASSERT_TRUE(mac_events.last_crc->crcs[0].ul_sinr_dB.value() > 0);
 }

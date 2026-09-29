@@ -6,7 +6,7 @@
 #pragma once
 
 #include "ocudu/ran/rnti.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 
 namespace ocudu {
 struct csi_report_configuration;
@@ -25,6 +25,22 @@ inline const pdcch_ul_information* find_ue_ul_pdcch(rnti_t rnti, const dl_sched_
     return pdcch.ctx.rnti == rnti;
   });
   return it != res.ul_pdcchs.end() ? &*it : nullptr;
+}
+
+inline const pdcch_dl_information* find_ue_dl_pdcch(rnti_t rnti, sched_slot_dl_result_reader dl_res)
+{
+  const auto pdcchs = dl_res.dl_pdcchs();
+  const auto it     = std::find_if(
+      pdcchs.begin(), pdcchs.end(), [rnti](const pdcch_dl_information& pdcch) { return pdcch.ctx.rnti == rnti; });
+  return it != pdcchs.end() ? &*it : nullptr;
+}
+
+inline const pdcch_ul_information* find_ue_ul_pdcch(rnti_t rnti, sched_slot_dl_result_reader dl_res)
+{
+  const auto pdcchs = dl_res.ul_pdcchs();
+  const auto it     = std::find_if(
+      pdcchs.begin(), pdcchs.end(), [rnti](const pdcch_ul_information& pdcch) { return pdcch.ctx.rnti == rnti; });
+  return it != pdcchs.end() ? &*it : nullptr;
 }
 
 inline const rar_information* find_rar_pdsch(rnti_t ra_rnti, span<const rar_information> rars)

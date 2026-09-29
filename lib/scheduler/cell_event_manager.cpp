@@ -942,7 +942,7 @@ void cell_event_manager::handle_uci_indication_timeout(slot_point uci_slot, rnti
 
 static void handle_discarded_pusch(const cell_slot_resource_allocator& prev_slot_result, ue_cell_repository& ue_cell_db)
 {
-  for (const ul_sched_info& grant : prev_slot_result.result.ul.puschs) {
+  for (const ul_sched_info& grant : prev_slot_result.result_reader().ul().puschs()) {
     ue_cell* ue_cc = ue_cell_db.find_by_rnti(grant.pusch_cfg.rnti);
     if (ue_cc == nullptr) {
       // UE has been removed.

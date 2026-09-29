@@ -179,7 +179,7 @@ private:
   void update_pending_rars(slot_point pdcch_slot);
 
   /// Determines whether the resource grid for the provided slot has the conditions for RAR scheduling.
-  bool is_slot_candidate_for_rar(const cell_slot_resource_allocator& slot_res_alloc);
+  bool is_slot_candidate_for_rar(cell_slot_resource_allocator& slot_res_alloc);
 
   /// Schedule pending RARs in the cell resource grid.
   void schedule_pending_rars(cell_resource_allocator& res_alloc);

@@ -41,9 +41,11 @@ static void check_decision_roundtrip(const sched_result& input)
 {
   const std::vector<uint8_t> bytes1 = decision_to_bytes(input);
 
-  sched_result intermediate;
-  convert_fb_to_decision(
-      intermediate, *flatbuffers::GetRoot<fbs::SlotDecision>(bytes1.data()), make_test_schedtrace_cell_cfg());
+  sched_result_grid intermediate_grid{sched_result_grid_config{1}};
+  convert_fb_to_decision(intermediate_grid.get_builder(0),
+                         *flatbuffers::GetRoot<fbs::SlotDecision>(bytes1.data()),
+                         make_test_schedtrace_cell_cfg());
+  const sched_result& intermediate = intermediate_grid.slot_storage(0);
   // Check the lists first: byte equality catches a list decoded into the wrong member too, but only as an opaque
   // buffer diff.
   ASSERT_EQ(intermediate.ul.puschs.size(), input.ul.puschs.size());
@@ -73,14 +75,16 @@ TEST(event_converter_test, empty_sched_result_roundtrip)
 
 TEST(event_converter_test, all_lists_roundtrip)
 {
-  check_decision_roundtrip(make_full_sched_result());
+  full_sched_result full;
+  check_decision_roundtrip(full.result());
 }
 
 // make_full_sched_result is where all_lists_roundtrip -- and the schedlog log comparison in trace_to_log_test -- get
 // their coverage, so a list quietly dropped from it must fail here rather than silently shrink both tests.
 TEST(event_converter_test, full_sched_result_populates_every_serialized_list)
 {
-  const sched_result result = make_full_sched_result();
+  full_sched_result   full;
+  const sched_result& result = full.result();
 
   EXPECT_FALSE(result.ul.puschs.empty());
   EXPECT_FALSE(result.ul.pucchs.empty());

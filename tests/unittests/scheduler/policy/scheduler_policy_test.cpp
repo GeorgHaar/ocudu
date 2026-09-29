@@ -102,7 +102,7 @@ protected:
     }
 
     // Log scheduler results.
-    res_logger.on_scheduler_result(res_grid[0].result);
+    res_logger.on_scheduler_result(res_grid.result_of(0));
 
     ++next_slot;
   }
@@ -245,11 +245,12 @@ TEST_P(scheduler_policy_css_test, when_coreset0_used_then_dl_grant_is_within_bou
 
   run_slot();
 
-  ASSERT_FALSE(this->res_grid[0].result.dl.ue_grants.empty());
-  ASSERT_EQ(this->res_grid[0].result.dl.ue_grants.back().context.ue_index, u.ue_index);
-  crb_interval crbs         = cell_cfg.params.dl_cfg_common.init_dl_bwp.pdcch_common.coreset0->coreset0_crbs();
-  prb_interval alloced_prbs = prb_interval{this->res_grid[0].result.dl.ue_grants.back().pdsch_cfg.rbs.type1().start(),
-                                           this->res_grid[0].result.dl.ue_grants.back().pdsch_cfg.rbs.type1().stop()};
+  ASSERT_FALSE(this->res_grid[0].result_reader().dl().ue_grants().empty());
+  ASSERT_EQ(this->res_grid[0].result_reader().dl().ue_grants().back().context.ue_index, u.ue_index);
+  crb_interval crbs = cell_cfg.params.dl_cfg_common.init_dl_bwp.pdcch_common.coreset0->coreset0_crbs();
+  prb_interval alloced_prbs =
+      prb_interval{this->res_grid[0].result_reader().dl().ue_grants().back().pdsch_cfg.rbs.type1().start(),
+                   this->res_grid[0].result_reader().dl().ue_grants().back().pdsch_cfg.rbs.type1().stop()};
   ASSERT_EQ(prb_to_crb(crbs, alloced_prbs), crbs);
 }
 
@@ -270,11 +271,11 @@ TEST_P(scheduler_policy_test, scheduler_uses_only_specific_searchspaces_defined_
 
   run_slot();
 
-  ASSERT_EQ(this->res_grid[0].result.dl.dl_pdcchs.size(), 1);
-  ASSERT_EQ(this->res_grid[0].result.dl.ul_pdcchs.size(), 1);
+  ASSERT_EQ(this->res_grid[0].result_reader().dl().dl_pdcchs().size(), 1);
+  ASSERT_EQ(this->res_grid[0].result_reader().dl().ul_pdcchs().size(), 1);
   // SearchSpace#2 is the only SearchSpace defined in UE dedicated configuration.
-  ASSERT_EQ(this->res_grid[0].result.dl.dl_pdcchs.back().ctx.context.ss_id, to_search_space_id(2));
-  ASSERT_EQ(this->res_grid[0].result.dl.ul_pdcchs.back().ctx.context.ss_id, to_search_space_id(2));
+  ASSERT_EQ(this->res_grid[0].result_reader().dl().dl_pdcchs().back().ctx.context.ss_id, to_search_space_id(2));
+  ASSERT_EQ(this->res_grid[0].result_reader().dl().ul_pdcchs().back().ctx.context.ss_id, to_search_space_id(2));
 }
 
 TEST_P(scheduler_policy_test, scheduler_allocates_more_than_one_ue_in_case_their_bsr_is_low)
@@ -288,20 +289,21 @@ TEST_P(scheduler_policy_test, scheduler_allocates_more_than_one_ue_in_case_their
 
   run_slot();
 
-  ASSERT_EQ(this->res_grid[0].result.dl.ul_pdcchs.size(), 2);
-  ASSERT_NE(this->res_grid[0].result.dl.ul_pdcchs[0].ctx.rnti, this->res_grid[0].result.dl.ul_pdcchs[1].ctx.rnti);
+  ASSERT_EQ(this->res_grid[0].result_reader().dl().ul_pdcchs().size(), 2);
+  ASSERT_NE(this->res_grid[0].result_reader().dl().ul_pdcchs()[0].ctx.rnti,
+            this->res_grid[0].result_reader().dl().ul_pdcchs()[1].ctx.rnti);
   // NOTE: Both UEs have same PUSCH time domain resources configured.
   span<const pusch_time_domain_resource_allocation> pusch_td_res_list =
       u1.get_pcell().cfg().cell_cfg_common.params.ul_cfg_common.init_ul_bwp.pusch_cfg_common->pusch_td_alloc_list;
   // In default UE dedicated configuration, SearchSpace#2 is configured to use DCI format 1_1/0_1.
-  if (this->res_grid[0].result.dl.ul_pdcchs[0].dci.as_c_rnti_f0_1().time_resource ==
-      this->res_grid[0].result.dl.ul_pdcchs[1].dci.as_c_rnti_f0_1().time_resource) {
+  if (this->res_grid[0].result_reader().dl().ul_pdcchs()[0].dci.as_c_rnti_f0_1().time_resource ==
+      this->res_grid[0].result_reader().dl().ul_pdcchs()[1].dci.as_c_rnti_f0_1().time_resource) {
     const unsigned k2 =
-        pusch_td_res_list[this->res_grid[0].result.dl.ul_pdcchs[0].dci.as_c_rnti_f0_1().time_resource].k2;
+        pusch_td_res_list[this->res_grid[0].result_reader().dl().ul_pdcchs()[0].dci.as_c_rnti_f0_1().time_resource].k2;
     const auto& pusch_res_grid = this->res_grid[k2];
-    ASSERT_EQ(pusch_res_grid.result.ul.puschs.size(), 2);
-    ASSERT_FALSE(pusch_res_grid.result.ul.puschs[0].pusch_cfg.rbs.type1().overlaps(
-        pusch_res_grid.result.ul.puschs[1].pusch_cfg.rbs.type1()));
+    ASSERT_EQ(pusch_res_grid.result_reader().ul().puschs().size(), 2);
+    ASSERT_FALSE(pusch_res_grid.result_reader().ul().puschs()[0].pusch_cfg.rbs.type1().overlaps(
+        pusch_res_grid.result_reader().ul().puschs()[1].pusch_cfg.rbs.type1()));
   }
 }
 
@@ -316,11 +318,12 @@ TEST_P(scheduler_policy_test, scheduler_allocates_more_than_one_ue_in_case_their
 
   run_slot();
 
-  ASSERT_EQ(this->res_grid[0].result.dl.dl_pdcchs.size(), 2);
-  ASSERT_EQ(this->res_grid[0].result.dl.ue_grants.size(), 2);
-  ASSERT_NE(this->res_grid[0].result.dl.dl_pdcchs[0].ctx.rnti, this->res_grid[0].result.dl.dl_pdcchs[1].ctx.rnti);
-  ASSERT_FALSE(this->res_grid[0].result.dl.ue_grants[0].pdsch_cfg.rbs.type1().overlaps(
-      this->res_grid[0].result.dl.ue_grants[1].pdsch_cfg.rbs.type1()));
+  ASSERT_EQ(this->res_grid[0].result_reader().dl().dl_pdcchs().size(), 2);
+  ASSERT_EQ(this->res_grid[0].result_reader().dl().ue_grants().size(), 2);
+  ASSERT_NE(this->res_grid[0].result_reader().dl().dl_pdcchs()[0].ctx.rnti,
+            this->res_grid[0].result_reader().dl().dl_pdcchs()[1].ctx.rnti);
+  ASSERT_FALSE(this->res_grid[0].result_reader().dl().ue_grants()[0].pdsch_cfg.rbs.type1().overlaps(
+      this->res_grid[0].result_reader().dl().ue_grants()[1].pdsch_cfg.rbs.type1()));
 }
 
 TEST_P(scheduler_policy_test, scheduler_allocates_ues_with_sr_opportunity_first_than_ues_with_only_ul_data)
@@ -334,8 +337,8 @@ TEST_P(scheduler_policy_test, scheduler_allocates_ues_with_sr_opportunity_first_
 
   run_slot();
 
-  ASSERT_GE(this->res_grid[0].result.dl.ul_pdcchs.size(), 1);
-  ASSERT_EQ(this->res_grid[0].result.dl.ul_pdcchs.front().ctx.rnti, to_rnti(0x4602))
+  ASSERT_GE(this->res_grid[0].result_reader().dl().ul_pdcchs().size(), 1);
+  ASSERT_EQ(this->res_grid[0].result_reader().dl().ul_pdcchs().front().ctx.rnti, to_rnti(0x4602))
       << fmt::format("UE with SR opportunity should have been scheduled first.");
 }
 
@@ -349,10 +352,10 @@ TEST_P(scheduler_policy_test, scheduler_allocates_ues_with_ul_srb_newtx_first_th
   notify_ul_bsr(u1.ue_index, drb_lcg_id, 1000);
   notify_ul_bsr(u2.ue_index, srb_lcg_id, 1000);
 
-  bool pusch_scheduled = run_until([this]() { return not this->res_grid[0].result.ul.puschs.empty(); });
+  bool pusch_scheduled = run_until([this]() { return not this->res_grid[0].result_reader().ul().puschs().empty(); });
   ASSERT_TRUE(pusch_scheduled);
   // UE2 with SRB newTx data is scheduled first.
-  ASSERT_EQ(this->res_grid[0].result.ul.puschs[0].context.ue_index, u2.ue_index);
+  ASSERT_EQ(this->res_grid[0].result_reader().ul().puschs()[0].context.ue_index, u2.ue_index);
 }
 
 TEST_P(scheduler_policy_test, scheduler_allocates_ues_with_dl_srb_newtx_first_than_ues_with_dl_drb_newtx)
@@ -365,10 +368,10 @@ TEST_P(scheduler_policy_test, scheduler_allocates_ues_with_dl_srb_newtx_first_th
   push_dl_bs(u1.ue_index, LCID_MIN_DRB, 1000);
   push_dl_bs(u2.ue_index, LCID_SRB1, 1000);
 
-  bool pdsch_scheduled = run_until([this]() { return not this->res_grid[0].result.dl.ue_grants.empty(); });
+  bool pdsch_scheduled = run_until([this]() { return not this->res_grid[0].result_reader().dl().ue_grants().empty(); });
   ASSERT_TRUE(pdsch_scheduled);
   // UE2 with SRB newTx data is scheduled first.
-  ASSERT_EQ(this->res_grid[0].result.dl.ue_grants[0].context.ue_index, u2.ue_index);
+  ASSERT_EQ(this->res_grid[0].result_reader().dl().ue_grants()[0].context.ue_index, u2.ue_index);
 }
 
 TEST_P(scheduler_policy_test, scheduler_allocates_pdsch_even_when_only_pending_ces_are_enqueued)
@@ -382,10 +385,11 @@ TEST_P(scheduler_policy_test, scheduler_allocates_pdsch_even_when_only_pending_c
   ind.ce_lcid  = lcid_dl_sch_t::TA_CMD;
   u1.handle_dl_mac_ce_indication(ind);
 
-  bool pdsch_scheduled = run_until([this]() { return not this->res_grid[0].result.dl.ue_grants.empty(); });
+  bool pdsch_scheduled = run_until([this]() { return not this->res_grid[0].result_reader().dl().ue_grants().empty(); });
   ASSERT_TRUE(pdsch_scheduled);
-  ASSERT_EQ(this->res_grid[0].result.dl.ue_grants[0].context.ue_index, u1.ue_index);
-  ASSERT_EQ(this->res_grid[0].result.dl.ue_grants[0].tb_list.back().lc_chs_to_sched.back().lcid, lcid_dl_sch_t::TA_CMD);
+  ASSERT_EQ(this->res_grid[0].result_reader().dl().ue_grants()[0].context.ue_index, u1.ue_index);
+  ASSERT_EQ(this->res_grid[0].result_reader().dl().ue_grants()[0].tb_list.back().lc_chs_to_sched.back().lcid,
+            lcid_dl_sch_t::TA_CMD);
 }
 
 class scheduler_policy_partial_slot_tdd_test : public base_scheduler_policy_test,
@@ -428,7 +432,7 @@ TEST_P(scheduler_policy_partial_slot_tdd_test, scheduler_allocates_in_partial_sl
   // Run for partial slot.
   run_slot();
 
-  ASSERT_EQ(this->res_grid[0].result.dl.ue_grants.size(), 1);
+  ASSERT_EQ(this->res_grid[0].result_reader().dl().ue_grants().size(), 1);
 }
 
 class scheduler_round_robin_test : public base_scheduler_policy_test, public ::testing::Test
@@ -448,13 +452,14 @@ TEST_F(scheduler_round_robin_test, round_robin_does_not_account_ues_with_empty_b
   push_dl_bs(u3.ue_index, uint_to_lcid(5), 1000000);
 
   for (unsigned i = 0; i != 10; ++i) {
-    const bool pdsch_scheduled = run_until([this]() { return not this->res_grid[0].result.dl.ue_grants.empty(); });
+    const bool pdsch_scheduled =
+        run_until([this]() { return not this->res_grid[0].result_reader().dl().ue_grants().empty(); });
     ASSERT_TRUE(pdsch_scheduled);
-    for (const auto& grant : this->res_grid[0].result.dl.ue_grants) {
+    for (const auto& grant : this->res_grid[0].result_reader().dl().ue_grants()) {
       ASSERT_NE(grant.context.ue_index, u2.ue_index);
     }
-    // Run once to move to next slot. If not /c (not this->res_grid[0].result.dl.ue_grants.empty()) will keep returning
-    // true.
+    // Run once to move to next slot. If not /c (not this->res_grid[0].result_reader().dl().ue_grants().empty()) will
+    // keep returning true.
     run_slot();
   }
 }
@@ -465,14 +470,14 @@ TEST_F(scheduler_round_robin_test, round_robin_must_not_attempt_to_allocate_twic
   ue&            u1     = add_ue(make_ue_create_req(to_du_ue_index(0), to_rnti(0x4601), {uint_to_lcid(5)}, lcg_id));
 
   auto get_pdsch_grant_count_for_ue = [&](const rnti_t crnti) {
-    return std::count_if(this->res_grid[0].result.dl.ue_grants.begin(),
-                         this->res_grid[0].result.dl.ue_grants.end(),
-                         [&](const dl_msg_alloc& grant) { return crnti == grant.pdsch_cfg.rnti; });
+    const auto ue_grants = this->res_grid[0].result_reader().dl().ue_grants();
+    return std::count_if(
+        ue_grants.begin(), ue_grants.end(), [&](const dl_msg_alloc& grant) { return crnti == grant.pdsch_cfg.rnti; });
   };
   auto get_pusch_grant_count_for_ue = [&](const rnti_t crnti) {
-    return std::count_if(this->res_grid[0].result.ul.puschs.begin(),
-                         this->res_grid[0].result.ul.puschs.end(),
-                         [&](const ul_sched_info& grant) { return crnti == grant.pusch_cfg.rnti; });
+    const auto puschs = this->res_grid[0].result_reader().ul().puschs();
+    return std::count_if(
+        puschs.begin(), puschs.end(), [&](const ul_sched_info& grant) { return crnti == grant.pusch_cfg.rnti; });
   };
 
   // Action: Push buffer status notification for DL + Ul and a SR indication.
@@ -511,11 +516,11 @@ TEST_F(scheduler_pf_test, pf_does_not_account_ues_with_empty_buffers)
   std::set<du_ue_index_t> ul_scheduled_ues;
   for (unsigned i = 0; i != 10; ++i) {
     run_slot();
-    for (const auto& grant : this->res_grid[0].result.dl.ue_grants) {
+    for (const auto& grant : this->res_grid[0].result_reader().dl().ue_grants()) {
       dl_scheduled_ues.emplace(grant.context.ue_index);
       ASSERT_NE(grant.context.ue_index, u2.ue_index);
     }
-    for (const auto& grant : this->res_grid[0].result.ul.puschs) {
+    for (const auto& grant : this->res_grid[0].result_reader().ul().puschs()) {
       ul_scheduled_ues.emplace(grant.context.ue_index);
       ASSERT_NE(grant.context.ue_index, u2.ue_index);
     }
@@ -551,12 +556,12 @@ TEST_F(scheduler_pf_test, pf_ensures_fairness_in_dl_when_ues_have_different_chan
 
     run_slot();
     const slot_point current_slot = next_slot - 1;
-    for (const auto& grant : this->res_grid[0].result.dl.ue_grants) {
+    for (const auto& grant : this->res_grid[0].result_reader().dl().ue_grants()) {
       ++ue_pdsch_scheduled_count[grant.context.ue_index];
     }
 
     // Auto ACK HARQs.
-    for (const pucch_info& pucch : this->res_grid[0].result.ul.pucchs) {
+    for (const pucch_info& pucch : this->res_grid[0].result_reader().ul().pucchs()) {
       const unsigned nof_ack_bits = pucch.uci_bits.harq_ack_nof_bits;
       if (pucch.crnti == u1.crnti) {
         for (unsigned harq_bit_idx = 0; harq_bit_idx < nof_ack_bits; ++harq_bit_idx) {
@@ -600,7 +605,7 @@ TEST_F(scheduler_pf_test, pf_ensures_fairness_in_ul_when_ues_have_different_chan
   for (unsigned i = 0; i != 100; ++i) {
     run_slot();
     const slot_point current_slot = next_slot - 1;
-    for (const auto& grant : this->res_grid[0].result.ul.puschs) {
+    for (const auto& grant : this->res_grid[0].result_reader().ul().puschs()) {
       ++ue_pusch_scheduled_count[grant.context.ue_index];
       // Auto send CRC=OK.
       ul_crc_pdu_indication crc_pdu{
@@ -698,7 +703,7 @@ TEST_P(scheduler_pf_qos_test, pf_upholds_qos_in_dl_gbr_flows)
     run_slot();
     // Keep pushing buffer status update for UE with GBR bearer so that there is steady flow of pending bytes.
     push_dl_bs(ue_with_gbr.ue_index, gbr_bearer_lcid, expected_rate);
-    for (const auto& grant : this->res_grid[0].result.dl.ue_grants) {
+    for (const auto& grant : this->res_grid[0].result_reader().dl().ue_grants()) {
       if (grant.context.ue_index == ue_with_gbr.ue_index) {
         for (const auto& tb_info : grant.tb_list) {
           const auto* it = std::find_if(tb_info.lc_chs_to_sched.begin(),
@@ -714,7 +719,7 @@ TEST_P(scheduler_pf_qos_test, pf_upholds_qos_in_dl_gbr_flows)
 
     // Auto ACK HARQs.
     const slot_point current_slot = next_slot - 1;
-    for (const pucch_info& pucch : this->res_grid[0].result.ul.pucchs) {
+    for (const pucch_info& pucch : this->res_grid[0].result_reader().ul().pucchs()) {
       const unsigned nof_ack_bits = pucch.uci_bits.harq_ack_nof_bits;
       if (pucch.crnti == ue_with_gbr.crnti) {
         for (unsigned harq_bit_idx = 0; harq_bit_idx < nof_ack_bits; ++harq_bit_idx) {
@@ -770,8 +775,8 @@ TEST_P(scheduler_policy_alloc_bounds_test, scheduler_allocates_pdsch_within_conf
       crb_to_prb(u1.get_pcell().cfg().bwp(u1.get_pcell().active_bwp_id()).dl.cfg().crbs, expected_crb_allocation);
   vrb_interval expected_vrb_interval{expected_prb_interval.start(), expected_prb_interval.stop()};
 
-  ASSERT_EQ(this->res_grid[0].result.dl.ue_grants.size(), 1);
-  ASSERT_TRUE(this->res_grid[0].result.dl.ue_grants.back().pdsch_cfg.rbs.type1() == expected_vrb_interval);
+  ASSERT_EQ(this->res_grid[0].result_reader().dl().ue_grants().size(), 1);
+  ASSERT_TRUE(this->res_grid[0].result_reader().dl().ue_grants().back().pdsch_cfg.rbs.type1() == expected_vrb_interval);
 }
 
 TEST_P(scheduler_policy_alloc_bounds_test, scheduler_allocates_pusch_within_configured_boundaries)
@@ -783,7 +788,7 @@ TEST_P(scheduler_policy_alloc_bounds_test, scheduler_allocates_pusch_within_conf
   notify_ul_bsr(u1.ue_index, lcg_id, 2000000);
 
   // Run until one slot before partial slot.
-  while (this->res_grid[0].result.ul.puschs.empty()) {
+  while (this->res_grid[0].result_reader().ul().puschs().empty()) {
     run_slot();
   }
 
@@ -793,7 +798,7 @@ TEST_P(scheduler_policy_alloc_bounds_test, scheduler_allocates_pusch_within_conf
       crb_to_prb(u1.get_pcell().cfg().bwp(u1.get_pcell().active_bwp_id()).ul.cfg().crbs, expected_crb_allocation);
   vrb_interval expected_vrb_interval{expected_prb_interval.start(), expected_prb_interval.stop()};
 
-  ASSERT_TRUE(this->res_grid[0].result.ul.puschs.back().pusch_cfg.rbs.type1() == expected_vrb_interval);
+  ASSERT_TRUE(this->res_grid[0].result_reader().ul().puschs().back().pusch_cfg.rbs.type1() == expected_vrb_interval);
 }
 
 class scheduler_policy_ra_type0_test : public base_scheduler_policy_test, public ::testing::Test
@@ -831,7 +836,7 @@ TEST_F(scheduler_policy_ra_type0_test, when_slice_has_fewer_rbs_than_an_rbg_then
 
   for (unsigned i = 0; i != 20; ++i) {
     run_slot();
-    ASSERT_TRUE(res_grid[0].result.dl.dl_pdcchs.empty());
+    ASSERT_TRUE(res_grid[0].result_reader().dl().dl_pdcchs().empty());
   }
 }
 
@@ -840,7 +845,8 @@ TEST_F(scheduler_policy_ra_type0_test, when_slice_has_fewer_rbs_than_an_rbg_then
   const ue& u = add_ue(make_ue_req(pdsch_config::resource_allocation::resource_allocation_type_1));
   push_dl_bs(u.ue_index, LCID_MIN_DRB, 1000);
 
-  ASSERT_TRUE(run_until([&]() { return find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
+  ASSERT_TRUE(
+      run_until([&]() { return find_ue_pdsch(u.crnti, res_grid[0].result_reader().dl().ue_grants()) != nullptr; }));
 }
 
 class scheduler_policy_ra_type0_interleaving_test : public scheduler_policy_ra_type0_test

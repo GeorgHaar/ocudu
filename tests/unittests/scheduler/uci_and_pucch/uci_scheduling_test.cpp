@@ -72,17 +72,17 @@ TEST_P(uci_sched_sr_test, test_different_periods)
   for (unsigned sl_cnt = starting_slot; sl_cnt < starting_slot + nof_slots_to_test; ++sl_cnt) {
     t_bench.uci_sched.run_slot(t_bench.res_grid);
     if ((t_bench.sl_tx - sr_offset).count() % sr_periodicity_to_slot(sr_period) == 0) {
-      ASSERT_EQ(1, t_bench.res_grid[0].result.ul.pucchs.size());
+      ASSERT_EQ(1, t_bench.res_grid[0].result_reader().ul().pucchs().size());
       // The scheduler allocates:
       // - SR only on slots that are for SR only.
       // - CSI + SR on slots that are for CSI + SR.
       if ((t_bench.sl_tx - csi_offset).count() % to_underlying(csi_period) == 0) {
         ASSERT_TRUE(find_pucch_pdu(
-            t_bench.res_grid[0].result.ul.pucchs.unsorted(),
+            t_bench.res_grid[0].result_reader().ul().pucchs().unsorted(),
             [&expected = pucch_sr_csi_test](const auto& pdu) { return pucch_info_match(expected, pdu); }));
       } else {
         ASSERT_TRUE(find_pucch_pdu(
-            t_bench.res_grid[0].result.ul.pucchs.unsorted(),
+            t_bench.res_grid[0].result_reader().ul().pucchs().unsorted(),
             [&expected = pucch_sr_only_test](const auto& pdu) { return pucch_info_match(expected, pdu); }));
       }
     }
@@ -147,11 +147,11 @@ TEST_F(uci_sched_meas_gap_test, sr_opportunities_overlapping_the_ue_meas_gap_are
     if (t_bench.sl_tx.count() % sr_periodicity_to_slot(sr_period) == 0) {
       // SR occasion.
       if (is_ue_ul_disabled(t_bench.sl_tx)) {
-        ASSERT_EQ(0, t_bench.res_grid[0].result.ul.pucchs.size())
+        ASSERT_EQ(0, t_bench.res_grid[0].result_reader().ul().pucchs().size())
             << "no SR must be scheduled in slot " << t_bench.sl_tx.count() << ", inside the UE measurement gap";
         tested_inside_gap = true;
       } else {
-        ASSERT_EQ(1, t_bench.res_grid[0].result.ul.pucchs.size())
+        ASSERT_EQ(1, t_bench.res_grid[0].result_reader().ul().pucchs().size())
             << "the SR must be scheduled in slot " << t_bench.sl_tx.count() << ", outside the UE measurement gap";
         tested_outside_gap = true;
       }
@@ -216,17 +216,17 @@ TEST_P(uci_sched_csi_test, test_different_periods)
   for (unsigned sl_cnt = starting_slot; sl_cnt < starting_slot + nof_slots_to_test; ++sl_cnt) {
     t_bench.uci_sched.run_slot(t_bench.res_grid);
     if ((t_bench.sl_tx - csi_offset).count() % to_underlying(csi_period) == 0) {
-      ASSERT_EQ(1, t_bench.res_grid[0].result.ul.pucchs.size());
+      ASSERT_EQ(1, t_bench.res_grid[0].result_reader().ul().pucchs().size());
       // The scheduler allocates:
       // - CSI only on slots that are for CSI only.
       // - CSI + SR on slots that are for CSI + SR.
       if ((t_bench.sl_tx - sr_offset).count() % sr_period == 0) {
         ASSERT_TRUE(find_pucch_pdu(
-            t_bench.res_grid[0].result.ul.pucchs.unsorted(),
+            t_bench.res_grid[0].result_reader().ul().pucchs().unsorted(),
             [&expected = pucch_csi_and_sr_test](const auto& pdu) { return pucch_info_match(expected, pdu); }));
       } else {
         ASSERT_TRUE(find_pucch_pdu(
-            t_bench.res_grid[0].result.ul.pucchs.unsorted(),
+            t_bench.res_grid[0].result_reader().ul().pucchs().unsorted(),
             [&expected = pucch_csi_only_test](const auto& pdu) { return pucch_info_match(expected, pdu); }));
       }
     }
@@ -265,7 +265,7 @@ TEST_P(uci_sched_reconf_test, after_ue_reconf_uci_doesnt_stopped_being_scheduled
   for (unsigned sl_cnt = 0; sl_cnt < nof_slots_to_test; ++sl_cnt) {
     t_bench.uci_sched.run_slot(t_bench.res_grid);
     if ((t_bench.sl_tx - sr_offset).count() % sr_period_slots == 0) {
-      ASSERT_EQ(1, t_bench.res_grid[0].result.ul.pucchs.size());
+      ASSERT_EQ(1, t_bench.res_grid[0].result_reader().ul().pucchs().size());
     }
     // Update the slot indicator.
     t_bench.slot_indication(++t_bench.sl_tx);
@@ -279,7 +279,7 @@ TEST_P(uci_sched_reconf_test, after_ue_reconf_uci_doesnt_stopped_being_scheduled
   for (unsigned sl_cnt = 0; sl_cnt < nof_slots_to_test; ++sl_cnt) {
     t_bench.uci_sched.run_slot(t_bench.res_grid);
     if ((t_bench.sl_tx - sr_offset).count() % sr_period_slots == 0) {
-      ASSERT_EQ(1, t_bench.res_grid[0].result.ul.pucchs.size());
+      ASSERT_EQ(1, t_bench.res_grid[0].result_reader().ul().pucchs().size());
     }
     // Update the slot indicator.
     t_bench.slot_indication(++t_bench.sl_tx);

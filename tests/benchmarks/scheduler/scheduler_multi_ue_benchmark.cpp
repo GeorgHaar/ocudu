@@ -5,13 +5,13 @@
 
 #include "scheduler_test_doubles.h"
 #include "tests/test_doubles/scheduler/cell_config_builder_profiles.h"
+#include "tests/test_doubles/scheduler/sched_result_copy.h"
 #include "tests/test_doubles/scheduler/scheduler_config_helper.h"
 #include "ocudu/adt/circular_vector.h"
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/scheduler/config/ran_cell_config_helper.h"
 #include "ocudu/scheduler/config/sched_cell_config_helpers.h"
 #include "ocudu/scheduler/config/scheduler_expert_config_factory.h"
-#include "ocudu/scheduler/result/sched_result.h"
 #include "ocudu/scheduler/rrm/pucch_resource_manager.h"
 #include "ocudu/scheduler/scheduler_factory.h"
 #include "ocudu/support/benchmark_utils.h"
@@ -134,12 +134,12 @@ public:
 
     // Store previous results if any.
     if (result != nullptr) {
-      sched_results[result_sl_tx.count()] = *result;
+      copy_result(sched_slot_result_reader{*result}, sched_results[result_sl_tx.count()]);
     }
 
     // Process past UCI results.
-    slot_point          sl_rx = next_sl_tx.without_hyper_sfn() - dl_pipeline_delay - uci_process_delay;
-    const sched_result& res   = sched_results[sl_rx.count()];
+    slot_point               sl_rx = next_sl_tx.without_hyper_sfn() - dl_pipeline_delay - uci_process_delay;
+    const sched_result_copy& res   = sched_results[sl_rx.count()];
     if (res.success) {
       uci_indication ind;
       ind.slot_rx    = sl_rx;
@@ -234,8 +234,8 @@ private:
   slot_point_extended next_sl_tx;
   const sched_result* result = nullptr;
 
-  static constexpr size_t             nof_stored_sched_results = 64;
-  circular_vector<sched_result, true> sched_results{nof_stored_sched_results};
+  static constexpr size_t                  nof_stored_sched_results = 64;
+  circular_vector<sched_result_copy, true> sched_results{nof_stored_sched_results};
 };
 
 void benchmark_tdd(benchmarker& bm, const bench_params& params)

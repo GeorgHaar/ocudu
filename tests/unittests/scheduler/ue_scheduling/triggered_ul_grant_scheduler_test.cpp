@@ -289,19 +289,19 @@ protected:
     return *ue_repo.find(ue_idx);
   }
 
-  static sched_result make_dl_grant(du_ue_index_t ue_idx, lcid_t lcid)
+  const sched_result& make_dl_grant(du_ue_index_t ue_idx, lcid_t lcid)
   {
-    sched_result   res{};
-    dl_msg_alloc   grant{};
+    dl_results.reset_slot(0);
+    dl_msg_alloc* grant = dl_results.get_builder(0).dl().ue_grants().emplace_back();
+    report_fatal_error_if_not(grant != nullptr, "Failed to allocate UE grant");
     dl_msg_tb_info tb{};
     dl_msg_lc_info lc{};
-    grant.context.ue_index = ue_idx;
-    lc.lcid                = lcid_dl_sch_t{static_cast<uint16_t>(lcid)};
-    lc.sched_bytes         = 100;
+    grant->context.ue_index = ue_idx;
+    lc.lcid                 = lcid_dl_sch_t{static_cast<uint16_t>(lcid)};
+    lc.sched_bytes          = 100;
     tb.lc_chs_to_sched.push_back(lc);
-    grant.tb_list.push_back(tb);
-    res.dl.ue_grants.push_back(grant);
-    return res;
+    grant->tb_list.push_back(tb);
+    return dl_results.slot_storage(0);
   }
 
   static void report_bsr(ue& u, du_ue_index_t ue_idx, rnti_t crnti, unsigned bytes)
@@ -315,6 +315,7 @@ protected:
     u.handle_bsr_indication(bsr);
   }
 
+  sched_result_grid                       dl_results{sched_result_grid_config{1}};
   test_helpers::test_sched_config_manager cfg_mgr{cell_config_builder_params{}};
   std::optional<ue_cell_repository>       cell_ues;
   ue_repository                           ue_repo{scheduler_ue_expert_config{}};

@@ -16,7 +16,7 @@ namespace ocudu {
 enum class ssb_pattern_case;
 struct cell_slot_resource_allocator;
 
-using ssb_information_list = static_vector<ssb_information, MAX_SSB_PER_SLOT>;
+using ssb_information_list = pdu_list_builder<ssb_information>;
 
 class ssb_scheduler
 {
@@ -49,15 +49,15 @@ public:
 
 private:
   /// \brief Perform allocation for case A and C (both paired and unpaired spectrum) - TS 38.213, Section 4.1.
-  void ssb_alloc_case_A_C(ssb_information_list& ssb_list, arfcn_t freq_arfcn_cut_off, slot_point sl_point_mod) const;
+  void ssb_alloc_case_A_C(ssb_information_list ssb_list, arfcn_t freq_arfcn_cut_off, slot_point sl_point_mod) const;
 
   /// \brief Perform SSB allocation for case B (both paired and unpaired spectrum) - TS 38.213, Section 4.1.
-  void ssb_alloc_case_B(ssb_information_list& ssb_list, slot_point sl_point_mod) const;
+  void ssb_alloc_case_B(ssb_information_list ssb_list, slot_point sl_point_mod) const;
 
   /// \brief Perform SSB allocation for case D for FR2 120kHz SCS - TS 38.213, Section 4.1.
-  void ssb_alloc_case_D(ssb_information_list& ssb_list, slot_point sl_point_mod) const;
+  void ssb_alloc_case_D(ssb_information_list ssb_list, slot_point sl_point_mod) const;
 
-  static void fill_ssb_parameters(ssb_information_list& ssb_list,
+  static void fill_ssb_parameters(ssb_information_list  ssb_list,
                                   ssb_offset_to_pointA  offset_to_point_A,
                                   ssb_subcarrier_offset ssb_subc_offset,
                                   subcarrier_spacing    ssb_scs,

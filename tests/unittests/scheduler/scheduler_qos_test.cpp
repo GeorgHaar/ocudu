@@ -114,12 +114,12 @@ public:
     scheduler_test_simulator::run_slot();
 
     // Register DL sched bytes.
-    span<const dl_msg_alloc> ue_grants = this->last_sched_result()->dl.ue_grants;
+    pdu_span<dl_msg_alloc> ue_grants = this->last_sched_result()->dl.ue_grants;
     for (const dl_msg_alloc& grant : ue_grants) {
       ue_stats_map[grant.context.ue_index].dl_bytes_sum += grant.pdsch_cfg.codewords[0].tb_size_bytes.value();
     }
     // Register UL sched bytes.
-    span<const ul_sched_info> ul_grants = this->last_sched_result()->ul.puschs;
+    pdu_span<ul_sched_info> ul_grants = this->last_sched_result()->ul.puschs;
     for (const ul_sched_info& grant : ul_grants) {
       ue_stats_map[grant.context.ue_index].ul_bytes_sum += grant.pusch_cfg.tb_size_bytes.value();
     }

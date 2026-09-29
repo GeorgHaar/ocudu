@@ -282,9 +282,6 @@ struct cell_slot_resource_allocator {
   /// Current slot that "this" slot resource grid refers to.
   slot_point slot;
 
-  /// Saves grants allocated for the given slot and cell.
-  sched_result& result;
-
   /// Stores all the allocated RBs and symbols for DL.
   cell_slot_resource_grid dl_res_grid;
 
@@ -313,7 +310,7 @@ struct cell_slot_resource_allocator {
   sched_slot_result_builder result_builder() { return results->get_builder(res_idx); }
 
   /// Fetches a reader of the scheduling result of this slot.
-  sched_slot_result_reader result_reader() const { return sched_slot_result_reader{result}; }
+  sched_slot_result_reader result_reader() const { return results->get_reader(res_idx); }
 
 private:
   /// Grid that owns the referenced result.
@@ -321,6 +318,8 @@ private:
 
   /// Index of the referenced result within the grid.
   unsigned res_idx;
+
+  friend struct cell_resource_allocator;
 };
 
 /// Circular Ring of cell_slot_resource_grid objects. This class manages the automatic resetting of
@@ -394,6 +393,15 @@ struct cell_resource_allocator {
 
   /// \brief Returns the size of the circular ring of cell_slot_resource_grids (not counting the history).
   unsigned ring_size() const { return slots.size() - RING_MAX_HISTORY_SIZE; }
+
+  /// \brief Fetches the whole result of a slot, for the interfaces that carry one across a layer boundary.
+  ///
+  /// Within the scheduler, a slot result is reached through the builder and reader handles of its slot.
+  const sched_result& result_of(unsigned slot_delay) const
+  {
+    const cell_slot_resource_allocator& slot_res = (*this)[slot_delay];
+    return slot_res.results->slot_storage(slot_res.res_idx);
+  }
 
 private:
   /// Ensure we are not overflowing the ring.

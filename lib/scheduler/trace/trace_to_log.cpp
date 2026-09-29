@@ -149,12 +149,13 @@ bool schedtrace::trace_to_log(std::istream& input, ocudulog::basic_logger& logge
       } break;
       case fbs::CellEventValue::CellSlotEvent: {
         const fbs::CellSlotEvent& slot_ev = *ev->value_as_CellSlotEvent();
-        sched_result              result;
-        result.success = true;
+        sched_result_grid         results{sched_result_grid_config{1}};
+        results.get_builder(0).set_success(true);
         if (slot_ev.decision() != nullptr) {
-          convert_fb_to_decision(result, *slot_ev.decision(), cell_cfg, coresets);
+          convert_fb_to_decision(results.get_builder(0), *slot_ev.decision(), cell_cfg, coresets);
         }
-        slot_point sl_tx = {dl_scs, slot_ev.slot_tx()};
+        const sched_result& result = results.slot_storage(0);
+        slot_point          sl_tx  = {dl_scs, slot_ev.slot_tx()};
         logger.set_context(sl_tx.sfn(), sl_tx.slot_index());
         const unsigned nof_inputs = slot_ev.inputs() != nullptr ? slot_ev.inputs()->size() : 0;
         for (unsigned i = 0; i != nof_inputs; ++i) {

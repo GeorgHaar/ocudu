@@ -51,8 +51,8 @@ TEST(no_si_scheduler_test, when_no_si_is_provided_then_nothing_is_scheduled)
   for (unsigned i = 0; i != nof_slots; ++i) {
     setup.run_slot();
 
-    ASSERT_TRUE(setup.res_grid[0].result.dl.bc.sibs.empty());
-    ASSERT_TRUE(setup.res_grid[0].result.dl.dl_pdcchs.empty());
+    ASSERT_TRUE(setup.res_grid[0].result_reader().dl().sibs().empty());
+    ASSERT_TRUE(setup.res_grid[0].result_reader().dl().dl_pdcchs().empty());
   }
 }
 
@@ -78,7 +78,7 @@ TEST_F(si_scheduler_test, when_sib1_is_cfg_then_sib1_gets_scheduled)
   for (unsigned i = 0; i != nof_test_slots; ++i) {
     run_slot();
 
-    for (const auto& sib : res_grid[0].result.dl.bc.sibs) {
+    for (const auto& sib : res_grid[0].result_reader().dl().sibs()) {
       ASSERT_EQ(sib.version, 0);
       if (sib.si_indicator == sib_information::sib1) {
         ASSERT_GE(sib.pdsch_cfg.codewords[0].tb_size_bytes, DEFAULT_SIB1_PAYLOAD_SIZE);
@@ -125,7 +125,7 @@ TEST_F(si_scheduler_test, when_si_is_updated_then_new_version_is_applied_at_si_c
       test_logger.info("New window starting at {}", current_slot);
     }
 
-    for (const auto& sib : res_grid[0].result.dl.bc.sibs) {
+    for (const auto& sib : res_grid[0].result_reader().dl().sibs()) {
       if (window_version.has_value()) {
         ASSERT_EQ(sib.version, window_version.value())
             << "SI version cannot change in the middle of a SI change window";
@@ -172,7 +172,7 @@ TEST_F(si_scheduler_test, when_si_is_updated_then_new_msg_len_is_applied_right_a
         DEFAULT_SI_SCHED_CFG.si_messages[0].period_radio_frames * next_slot.nof_slots_per_frame();
     for (unsigned i = 0; i != nof_baseline_test_slots and not found_before; ++i) {
       run_slot();
-      for (const auto& sib : res_grid[0].result.dl.bc.sibs) {
+      for (const auto& sib : res_grid[0].result_reader().dl().sibs()) {
         if (sib.si_indicator != sib_information::other_si) {
           continue;
         }
@@ -212,7 +212,7 @@ TEST_F(si_scheduler_test, when_si_is_updated_then_new_msg_len_is_applied_right_a
   bool found = false;
   for (unsigned i = 0; i != si_change_min_count; ++i) {
     run_slot();
-    for (const auto& sib : res_grid[0].result.dl.bc.sibs) {
+    for (const auto& sib : res_grid[0].result_reader().dl().sibs()) {
       if (sib.si_indicator != sib_information::other_si) {
         continue;
       }
@@ -245,7 +245,7 @@ TEST_F(si_scheduler_test, when_non_exempt_si_message_is_updated_then_new_msg_len
   // The new length should not get updated before the SI change modification window.
   for (unsigned i = 0; i != si_change_min_count; ++i) {
     run_slot();
-    for (const auto& sib : res_grid[0].result.dl.bc.sibs) {
+    for (const auto& sib : res_grid[0].result_reader().dl().sibs()) {
       if (sib.si_indicator != sib_information::other_si) {
         continue;
       }
@@ -259,7 +259,7 @@ TEST_F(si_scheduler_test, when_non_exempt_si_message_is_updated_then_new_msg_len
   const unsigned nof_post_window_test_slots = si_ch_wind_len_rfs * next_slot.nof_slots_per_frame();
   for (unsigned i = 0; i != nof_post_window_test_slots; ++i) {
     run_slot();
-    for (const auto& sib : res_grid[0].result.dl.bc.sibs) {
+    for (const auto& sib : res_grid[0].result_reader().dl().sibs()) {
       if (sib.si_indicator != sib_information::other_si or sib.version != 1) {
         continue;
       }
@@ -293,13 +293,13 @@ TEST_F(si_scheduler_test, when_si_is_updated_all_ues_in_rrc_idle_get_notified_ex
     slot_point current_slot = next_slot.without_hyper_sfn();
     run_slot();
 
-    for (const auto& sib : res_grid[0].result.dl.bc.sibs) {
+    for (const auto& sib : res_grid[0].result_reader().dl().sibs()) {
       if (sib.version == 1) {
         new_version_applied = true;
       }
     }
 
-    for (const auto& pdcch : res_grid[0].result.dl.dl_pdcchs) {
+    for (const auto& pdcch : res_grid[0].result_reader().dl().dl_pdcchs()) {
       if (pdcch.dci.type() != ocudu::dci_dl_rnti_config_type::p_rnti_f1_0) {
         continue;
       }
@@ -396,7 +396,7 @@ TEST_F(si_msg_scheduler_activation_test,
     slot_point current_slot = next_slot.without_hyper_sfn();
     run_slot();
 
-    for (const auto& pdcch : res_grid[0].result.dl.dl_pdcchs) {
+    for (const auto& pdcch : res_grid[0].result_reader().dl().dl_pdcchs()) {
       if (pdcch.dci.type() != ocudu::dci_dl_rnti_config_type::p_rnti_f1_0) {
         continue;
       }
@@ -458,7 +458,7 @@ TEST_F(si_msg_scheduler_activation_test, when_new_pws_broadcast_indication_recei
   unsigned nof_tx = 0;
   for (unsigned i = 0; i != nof_test_slots; ++i) {
     run_slot();
-    for (const auto& sib : res_grid[0].result.dl.bc.sibs) {
+    for (const auto& sib : res_grid[0].result_reader().dl().sibs()) {
       if (sib.si_indicator == sib_information::other_si) {
         ++nof_tx;
       }
@@ -478,7 +478,7 @@ TEST_F(si_msg_scheduler_activation_test, when_message_is_not_activated_then_it_i
       2 * ACTIVATION_REQUIRED_SI_SCHED_CFG.si_messages[0].period_radio_frames * next_slot.nof_slots_per_frame();
   for (unsigned i = 0; i != nof_test_slots; ++i) {
     run_slot();
-    for (const auto& sib : res_grid[0].result.dl.bc.sibs) {
+    for (const auto& sib : res_grid[0].result_reader().dl().sibs()) {
       ASSERT_NE(sib.si_indicator, sib_information::other_si)
           << "SI-message requiring activation must not be scheduled while dormant";
     }
@@ -510,7 +510,7 @@ TEST_F(si_msg_scheduler_activation_test,
   unsigned       nof_tx         = 0;
   for (unsigned i = 0; i != nof_test_slots; ++i) {
     run_slot();
-    for (const auto& sib : res_grid[0].result.dl.bc.sibs) {
+    for (const auto& sib : res_grid[0].result_reader().dl().sibs()) {
       if (sib.si_indicator == sib_information::other_si) {
         ++nof_tx;
       }
@@ -549,7 +549,7 @@ TEST_F(si_msg_scheduler_activation_test, when_si_change_takes_effect_then_ongoin
   bool     si_change_applied      = false;
   for (unsigned i = 0; i != nof_test_slots; ++i) {
     run_slot();
-    for (const auto& sib : res_grid[0].result.dl.bc.sibs) {
+    for (const auto& sib : res_grid[0].result_reader().dl().sibs()) {
       if (sib.si_indicator == sib_information::sib1 and sib.version == 1) {
         si_change_applied = true;
       }
@@ -580,7 +580,7 @@ TEST_F(si_msg_scheduler_activation_test, when_activation_msg_len_exceeds_static_
   bool found = false;
   for (unsigned i = 0; i != nof_test_slots; ++i) {
     run_slot();
-    for (const auto& sib : res_grid[0].result.dl.bc.sibs) {
+    for (const auto& sib : res_grid[0].result_reader().dl().sibs()) {
       if (sib.si_indicator == sib_information::other_si) {
         ASSERT_GE(sib.pdsch_cfg.codewords[0].tb_size_bytes, activated_msg_len);
         found = true;
@@ -634,7 +634,7 @@ TEST_F(si_msg_scheduler_multi_activation_test,
   std::array<unsigned, 2> nof_tx{0, 0};
   for (unsigned i = 0; i != nof_test_slots; ++i) {
     run_slot();
-    for (const auto& sib : res_grid[0].result.dl.bc.sibs) {
+    for (const auto& sib : res_grid[0].result_reader().dl().sibs()) {
       if (sib.si_indicator == sib_information::other_si) {
         ASSERT_TRUE(sib.si_msg_index.has_value());
         ++nof_tx[sib.si_msg_index.value()];
@@ -714,7 +714,7 @@ TEST_F(si_msg_scheduler_activation_test, when_pws_epoch_is_applied_then_grants_u
   bool     reverted            = false;
   for (unsigned i = 0; i != nof_test_slots; ++i) {
     run_slot();
-    for (const auto& sib : res_grid[0].result.dl.bc.sibs) {
+    for (const auto& sib : res_grid[0].result_reader().dl().sibs()) {
       if (sib.version == pws_version) {
         ++nof_etws_grants;
         ASSERT_FALSE(reverted) << "The ETWS/CMAS epoch came back after the warning had ended";
@@ -772,7 +772,7 @@ TEST_F(si_msg_scheduler_activation_test, when_two_epochs_coalesce_then_the_warni
   bool notified = false;
   for (unsigned i = 0; i != nof_test_slots and not notified; ++i) {
     run_slot();
-    notified = has_pws_short_message(res_grid[0].result.dl);
+    notified = has_pws_short_message(res_grid.result_of(0).dl);
   }
 
   ASSERT_TRUE(notified) << "The warning was never notified after both epochs coalesced";
@@ -815,7 +815,7 @@ TEST_F(si_msg_scheduler_multi_activation_test, when_a_second_warning_starts_then
   std::optional<unsigned> revert_rfs;
   for (unsigned i = 0, e = 2 * (first_duration_rfs + second_duration_rfs) * slots_per_frame; i != e; ++i) {
     run_slot();
-    for (const auto& sib : res_grid[0].result.dl.bc.sibs) {
+    for (const auto& sib : res_grid[0].result_reader().dl().sibs()) {
       if (sib.version == baseline_version and not revert_rfs.has_value()) {
         revert_rfs = i / slots_per_frame;
       }

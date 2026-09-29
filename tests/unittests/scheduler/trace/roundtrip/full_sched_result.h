@@ -20,7 +20,7 @@
 #include "sib_information.h" // IWYU pragma: keep
 #include "srs.h"             // IWYU pragma: keep
 #include "ssb.h"             // IWYU pragma: keep
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 
 namespace ocudu::schedtrace::roundtrip_test {
 
@@ -30,15 +30,16 @@ namespace ocudu::schedtrace::roundtrip_test {
 /// every field at its last corner value, front() at its first (used where a second element is worth having, to check a
 /// list is refilled in order). Per-field coverage stays in each type's own roundtrip test; what this is for is the
 /// aggregate -- that no list is encoded from, or decoded into, the wrong sched_result member.
-inline sched_result make_full_sched_result()
+inline void fill_full_sched_result(sched_result_grid& results)
 {
+  auto                      builder  = results.get_builder(0);
+  sched_result&             result   = results.slot_storage(0);
   const cell_configuration& cell_cfg = test_helper::make_test_schedtrace_cell_cfg();
 
-  sched_result result;
   result.success = true;
 
-  result.ul.puschs.push_back(test_values<ul_sched_info>::get().front());
-  result.ul.puschs.push_back(test_values<ul_sched_info>::get().back());
+  builder.ul().puschs().emplace_back(test_values<ul_sched_info>::get().front());
+  builder.ul().puschs().emplace_back(test_values<ul_sched_info>::get().back());
   // PUCCH is the one type built through its own helper rather than swept: test_values<pucch_info> varies res and
   // format_params as independent axes, so it also yields pairings that cannot occur (an F2 format_params on a Format 1
   // resource). A field-wise roundtrip does not care, but any consumer that correlates the two -- the scheduler's
@@ -50,19 +51,29 @@ inline sched_result make_full_sched_result()
   result.ul.prachs.push_back(test_values<prach_occasion_info>::get().back());
   result.ul.srss.push_back(test_values<srs_info>::get().back());
 
-  result.dl.dl_pdcchs.push_back(test_values<pdcch_dl_information>::get().front());
-  result.dl.dl_pdcchs.push_back(test_values<pdcch_dl_information>::get().back());
-  result.dl.ul_pdcchs.push_back(test_values<pdcch_ul_information>::get().back());
+  builder.dl().dl_pdcchs().emplace_back(test_values<pdcch_dl_information>::get().front());
+  builder.dl().dl_pdcchs().emplace_back(test_values<pdcch_dl_information>::get().back());
+  builder.dl().ul_pdcchs().emplace_back(test_values<pdcch_ul_information>::get().back());
   result.dl.bc.sibs.push_back(test_values<sib_information>::get().back());
   result.dl.bc.ssb_info.push_back(test_values<ssb_information>::get().back());
-  result.dl.rar_grants.push_back(test_values<rar_information>::get().back());
+  builder.dl().rar_grants().emplace_back(test_values<rar_information>::get().back());
   result.dl.paging_grants.push_back(test_values<dl_paging_allocation>::get().back());
-  result.dl.ue_grants.push_back(test_values<dl_msg_alloc>::get().back());
-  result.dl.csi_rs.push_back(test_values<csi_rs_info>::get().back());
+  builder.dl().ue_grants().emplace_back(test_values<dl_msg_alloc>::get().back());
+  builder.dl().csi_rs().emplace_back(test_values<csi_rs_info>::get().back());
 
   result.failed_attempts = test_values<failed_alloc_attempts>::get().back();
-
-  return result;
 }
+
+/// Grid holding a scheduler result with every serialized list populated.
+class full_sched_result
+{
+public:
+  full_sched_result() { fill_full_sched_result(results); }
+
+  const sched_result& result() { return results.slot_storage(0); }
+
+private:
+  sched_result_grid results{sched_result_grid_config{1}};
+};
 
 } // namespace ocudu::schedtrace::roundtrip_test

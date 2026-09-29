@@ -7,6 +7,7 @@
 #include "mac_test_helpers.h"
 #include "tests/ocudu_test_requirements.h"
 #include "tests/test_doubles/scheduler/scheduler_config_helper.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/support/executors/manual_task_worker.h"
 #include <gtest/gtest.h>
 
@@ -42,10 +43,11 @@ protected:
     rlf_handler.add_ue(ue_idx, rlf_notif);
 
     // Store the expected CSI report configuration for the slot under test.
-    ul_sched_info pusch{};
-    pusch.pusch_cfg.rnti = test_rnti;
-    pusch.uci.emplace().csi.emplace(uci_info::csi_info{.csi_rep_cfg = make_csi_rep_cfg()});
-    decoder.store_uci(sl_rx, {}, {&pusch, 1});
+    ul_sched_info* pusch = results.get_builder(0).ul().puschs().emplace_back();
+    report_fatal_error_if_not(pusch != nullptr, "Failed to allocate PUSCH grant");
+    pusch->pusch_cfg.rnti = test_rnti;
+    pusch->uci.emplace().csi.emplace(uci_info::csi_info{.csi_rep_cfg = make_csi_rep_cfg()});
+    decoder.store_uci(sl_rx, {}, results.get_builder(0).ul().reader().puschs());
   }
   ~uci_cell_decoder_aperiodic_csi_test() override { ocudulog::flush(); }
 
@@ -76,6 +78,7 @@ protected:
     return msg;
   }
 
+  sched_result_grid                   results{sched_result_grid_config{1}};
   manual_task_worker                  worker{64};
   test_helpers::dummy_ue_rlf_notifier rlf_notif;
   rlf_detector                        rlf_handler{mac_expert_config{.configs = {{100, 100, 100}}}, worker};

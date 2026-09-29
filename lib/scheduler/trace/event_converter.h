@@ -19,6 +19,7 @@
 #include "ocudu/adt/span.h"
 #include "ocudu/ran/du_cell_index.h"
 #include "ocudu/ran/subcarrier_spacing.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include <vector>
 
 namespace ocudu {
@@ -207,7 +208,7 @@ flatbuffers::Offset<fbs::SlotDecision> convert_decision_to_fb(flatbuffers::FlatB
 /// \brief Convert a flatbuffer SlotDecision into the original scheduler decision.
 ///
 /// \p coresets resolves the coreset IDs of the PDCCHs, see convert_fb_to_dl_pdcch.
-void convert_fb_to_decision(sched_result&                     result,
+void convert_fb_to_decision(sched_slot_result_builder         result,
                             const fbs::SlotDecision&          decision,
                             const cell_configuration&         cell_cfg,
                             span<const coreset_configuration> coresets = {});

@@ -20,7 +20,7 @@
 #include "ocudu/scheduler/config/ran_cell_config_helper.h"
 #include "ocudu/scheduler/config/serving_cell_config_factory.h"
 #include "ocudu/scheduler/mac_scheduler.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/support/timers.h"
 
 namespace ocudu::test_helpers {
@@ -93,7 +93,8 @@ inline mac_ue_create_request make_default_ue_creation_request(const cell_config_
 class dummy_mac_scheduler : public mac_scheduler
 {
 public:
-  sched_result                           next_sched_result = {};
+  sched_result_grid                      results{sched_result_grid_config{1}};
+  sched_result&                          next_sched_result = results.slot_storage(0);
   std::optional<rach_indication_message> last_rach_ind;
 
   bool handle_cell_configuration_request(const sched_cell_configuration_request_message& msg) override { return true; }
@@ -170,8 +171,9 @@ public:
 class dummy_mac_scheduler_adapter : public mac_scheduler_cell_info_handler
 {
 public:
-  bool                        active            = false;
-  sched_result                next_sched_result = {};
+  bool                        active = false;
+  sched_result_grid           results{sched_result_grid_config{1}};
+  sched_result&               next_sched_result = results.slot_storage(0);
   dummy_mac_cell_rach_handler rach_handler;
 
   void handle_dl_buffer_state_update(const mac_dl_buffer_state_indication_message& dl_bs) override {}

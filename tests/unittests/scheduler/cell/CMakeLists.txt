@@ -7,7 +7,8 @@ add_executable(scheduler_cell_resource_test
         sched_prb_test.cpp
         cell_resource_grid_test.cpp
         cell_harq_manager_test.cpp
-        sched_result_grid_test.cpp)
+        sched_result_grid_test.cpp
+        sched_pdu_types_test.cpp)
 target_link_libraries(scheduler_cell_resource_test
         ocudu_sched
         ocudulog

@@ -9,7 +9,7 @@
 #include "../support/bwp_helpers.h"
 #include "ocudu/adt/circular_vector.h"
 #include "ocudu/ran/slot_point.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 
 namespace ocudu {
 
@@ -283,7 +283,7 @@ struct cell_slot_resource_allocator {
   slot_point slot;
 
   /// Saves grants allocated for the given slot and cell.
-  sched_result result;
+  sched_result& result;
 
   /// Stores all the allocated RBs and symbols for DL.
   cell_slot_resource_grid dl_res_grid;
@@ -291,10 +291,12 @@ struct cell_slot_resource_allocator {
   /// Stores all the allocated RBs and symbols for UL.
   cell_slot_resource_grid ul_res_grid;
 
-  explicit cell_slot_resource_allocator(const cell_configuration& cfg_);
-  explicit cell_slot_resource_allocator(const cell_configuration&  cfg_,
-                                        span<scs_specific_carrier> dl_scs_carriers,
-                                        span<scs_specific_carrier> ul_scs_carriers);
+  cell_slot_resource_allocator(sched_result_grid& results_, unsigned res_idx_, const cell_configuration& cfg_);
+  cell_slot_resource_allocator(sched_result_grid&         results_,
+                               unsigned                   res_idx_,
+                               const cell_configuration&  cfg_,
+                               span<scs_specific_carrier> dl_scs_carriers,
+                               span<scs_specific_carrier> ul_scs_carriers);
 
   /// copies and moves are disabled to ensure pointer/reference validity.
   cell_slot_resource_allocator(const cell_slot_resource_allocator&)            = delete;
@@ -306,6 +308,19 @@ struct cell_slot_resource_allocator {
 
   /// Clears all the allocated resources and resets the scheduling result.
   void clear();
+
+  /// Fetches the builder of the scheduling result of this slot.
+  sched_slot_result_builder result_builder() { return results->get_builder(res_idx); }
+
+  /// Fetches a reader of the scheduling result of this slot.
+  sched_slot_result_reader result_reader() const { return sched_slot_result_reader{result}; }
+
+private:
+  /// Grid that owns the referenced result.
+  sched_result_grid* results;
+
+  /// Index of the referenced result within the grid.
+  unsigned res_idx;
 };
 
 /// Circular Ring of cell_slot_resource_grid objects. This class manages the automatic resetting of
@@ -391,6 +406,9 @@ private:
 
   /// The latest slot value indicated by the PHY to the MAC/scheduler.
   slot_point last_slot_ind;
+
+  /// Scheduling results of every slot of the ring.
+  sched_result_grid results;
 
   /// Circular pool of cell resource grids, where each entry represents a separate slot.
   circular_vector<cell_slot_resource_allocator> slots;

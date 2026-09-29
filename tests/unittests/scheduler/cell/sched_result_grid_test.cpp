@@ -50,16 +50,10 @@ static_assert(std::is_same_v<pdu_list_builder<rar_information>::storage_type,
                              decltype(sched_result_context::dl_slot::rar_grants)>,
               "RAR builder and storage disagree");
 
-// The RAR list is pooled and the UE grant list is not, so they resolve to different builders and views through the
-// same aliases.
-static_assert(!std::is_same_v<pdu_list_builder<rar_information>, pdu_list_builder<dl_msg_alloc>>,
-              "Pooled and inline lists must not share a builder");
-static_assert(!std::is_same_v<pdu_span<rar_information>, pdu_span<dl_msg_alloc>>,
-              "Pooled and inline lists must not share a view");
+// A list held inline in the slot is viewed as a span over its PDUs.
+static_assert(std::is_same_v<pdu_span<srs_info>, span<const srs_info>>, "Inline list resolved to the wrong view");
 static_assert(std::is_same_v<pdu_span<dl_msg_alloc>, span<const dl_msg_alloc>>,
               "Inline list resolved to the wrong view");
-static_assert(std::is_same_v<pdu_span<rar_information>, sched_pdu_detail::pooled_list_view<rar_information>>,
-              "Pooled list resolved to the wrong view");
 
 TEST_F(sched_result_grid_test, when_grid_is_created_then_it_holds_the_configured_number_of_slots)
 {
@@ -333,119 +327,4 @@ TEST_F(sched_result_grid_test, builder_reader_reflects_pdus_built_so_far)
   ASSERT_TRUE(dl.reader().ue_grants().empty());
   ASSERT_NE(dl.ue_grants().emplace_back(), nullptr);
   ASSERT_EQ(dl.reader().ue_grants().size(), 1);
-}
-
-// The RAR list is the one pooled list, so it is where the pool behaviour is exercised.
-TEST_F(sched_result_grid_test, pooled_list_holds_the_pdus_written_through_it)
-{
-  static constexpr unsigned nof_rars = 3;
-
-  auto rar_grants = grid.get_builder(test_slot_idx).dl().rar_grants();
-  for (unsigned i = 0; i != nof_rars; ++i) {
-    rar_information* rar = rar_grants.emplace_back();
-    ASSERT_NE(rar, nullptr);
-    rar->pdsch_cfg.rnti = to_rnti(0x0001 + i);
-  }
-  ASSERT_EQ(rar_grants.size(), nof_rars);
-
-  unsigned count = 0;
-  for (rar_information& rar : rar_grants) {
-    ASSERT_EQ(rar.pdsch_cfg.rnti, to_rnti(0x0001 + count));
-    ++count;
-  }
-  ASSERT_EQ(count, nof_rars);
-
-  const sched_result_grid&  cgrid = grid;
-  pdu_span<rar_information> rars  = cgrid.get_reader(test_slot_idx).dl().rar_grants();
-  ASSERT_EQ(rars.size(), nof_rars);
-  ASSERT_EQ(rars[0].pdsch_cfg.rnti, to_rnti(0x0001));
-  ASSERT_EQ(rars.back().pdsch_cfg.rnti, to_rnti(0x0001 + nof_rars - 1));
-  ASSERT_EQ(rars.last(1).front().pdsch_cfg.rnti, to_rnti(0x0001 + nof_rars - 1));
-}
-
-TEST_F(sched_result_grid_test, pooled_pdus_of_a_slot_are_not_seen_by_other_slots)
-{
-  ASSERT_NE(grid.get_builder(test_slot_idx).dl().rar_grants().emplace_back(), nullptr);
-
-  const sched_result_grid& cgrid = grid;
-  for (unsigned i = 0; i != nof_test_slots; ++i) {
-    const size_t expected_size = (i == test_slot_idx) ? 1 : 0;
-    ASSERT_EQ(cgrid.get_reader(i).dl().rar_grants().size(), expected_size);
-  }
-}
-
-TEST_F(sched_result_grid_test, pooled_pdus_of_different_slots_do_not_alias)
-{
-  static constexpr unsigned other_slot_idx = test_slot_idx + 1;
-
-  rar_information* first = grid.get_builder(test_slot_idx).dl().rar_grants().emplace_back();
-  ASSERT_NE(first, nullptr);
-  first->pdsch_cfg.rnti = to_rnti(0x0001);
-
-  rar_information* second = grid.get_builder(other_slot_idx).dl().rar_grants().emplace_back();
-  ASSERT_NE(second, nullptr);
-  second->pdsch_cfg.rnti = to_rnti(0x0002);
-
-  ASSERT_NE(first, second);
-  ASSERT_EQ(first->pdsch_cfg.rnti, to_rnti(0x0001));
-}
-
-TEST_F(sched_result_grid_test, when_pooled_list_is_full_then_emplace_back_returns_nullptr)
-{
-  auto rar_grants = grid.get_builder(test_slot_idx).dl().rar_grants();
-  for (unsigned i = 0; i != MAX_RAR_PDUS_PER_SLOT; ++i) {
-    ASSERT_NE(rar_grants.emplace_back(), nullptr);
-  }
-
-  ASSERT_TRUE(rar_grants.full());
-  ASSERT_EQ(rar_grants.emplace_back(), nullptr);
-  ASSERT_EQ(rar_grants.size(), MAX_RAR_PDUS_PER_SLOT);
-}
-
-TEST_F(sched_result_grid_test, when_pool_is_exhausted_then_emplace_back_returns_nullptr)
-{
-  // A pool sized for a single slot is exhausted by that slot, so the next slot cannot allocate.
-  sched_result_grid small_pool_grid(sched_result_grid_config{nof_test_slots, 1});
-
-  auto first_slot = small_pool_grid.get_builder(0).dl().rar_grants();
-  for (unsigned i = 0; i != MAX_RAR_PDUS_PER_SLOT; ++i) {
-    ASSERT_NE(first_slot.emplace_back(), nullptr);
-  }
-
-  auto second_slot = small_pool_grid.get_builder(1).dl().rar_grants();
-  ASSERT_TRUE(second_slot.empty());
-  ASSERT_TRUE(second_slot.full());
-  ASSERT_EQ(second_slot.emplace_back(), nullptr);
-}
-
-TEST_F(sched_result_grid_test, when_slot_is_reset_then_its_pooled_pdus_return_to_the_pool)
-{
-  sched_result_grid small_pool_grid(sched_result_grid_config{nof_test_slots, 1});
-
-  auto first_slot = small_pool_grid.get_builder(0).dl().rar_grants();
-  for (unsigned i = 0; i != MAX_RAR_PDUS_PER_SLOT; ++i) {
-    ASSERT_NE(first_slot.emplace_back(), nullptr);
-  }
-  ASSERT_TRUE(small_pool_grid.get_builder(1).dl().rar_grants().full());
-
-  small_pool_grid.reset_slot(0, 0, 0);
-
-  ASSERT_TRUE(small_pool_grid.get_builder(0).dl().rar_grants().empty());
-  ASSERT_FALSE(small_pool_grid.get_builder(1).dl().rar_grants().full());
-  ASSERT_NE(small_pool_grid.get_builder(1).dl().rar_grants().emplace_back(), nullptr);
-}
-
-TEST_F(sched_result_grid_test, when_pooled_pdu_is_popped_then_it_returns_to_the_pool)
-{
-  sched_result_grid small_pool_grid(sched_result_grid_config{nof_test_slots, 1});
-
-  auto first_slot = small_pool_grid.get_builder(0).dl().rar_grants();
-  for (unsigned i = 0; i != MAX_RAR_PDUS_PER_SLOT; ++i) {
-    ASSERT_NE(first_slot.emplace_back(), nullptr);
-  }
-  ASSERT_TRUE(small_pool_grid.get_builder(1).dl().rar_grants().full());
-
-  first_slot.pop_back();
-  ASSERT_EQ(first_slot.size(), MAX_RAR_PDUS_PER_SLOT - 1);
-  ASSERT_NE(small_pool_grid.get_builder(1).dl().rar_grants().emplace_back(), nullptr);
 }

@@ -146,7 +146,8 @@ TEST(pucch_collision_manager_test, alloc_fails_if_slot_incompatible_with_resourc
   const auto& ded_res  = cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.dedicated;
 
   pucch_collision_manager      col_manager(cell_cfg);
-  cell_slot_resource_allocator slot_alloc(cell_cfg);
+  sched_result_grid            results(sched_result_grid_config{1});
+  cell_slot_resource_allocator slot_alloc(results, 0, cell_cfg);
 
   const slot_point special_slot{subcarrier_spacing::kHz30, 3};
   col_manager.slot_indication(special_slot);
@@ -169,7 +170,8 @@ protected:
     common_res(cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.common),
     ded_res(cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.dedicated),
     col_manager(cell_cfg),
-    slot_alloc(cell_cfg),
+    results(sched_result_grid_config{1}),
+    slot_alloc(results, 0, cell_cfg),
     sl(0, 0)
   {
     col_manager.slot_indication(sl);
@@ -195,6 +197,7 @@ protected:
   const std::vector<pucch_resource>&                                                      ded_res;
 
   pucch_collision_manager      col_manager;
+  sched_result_grid            results;
   cell_slot_resource_allocator slot_alloc;
   slot_point                   sl;
 
@@ -285,7 +288,8 @@ protected:
     sr_res(ded_res[ded_params.sr_res_id(pucch_sr_resource_id(0)).ded().cell_res_id]),
     sr_f2_res(ded_res[ded_params.sr_f2_res_id(pucch_sr_resource_id(0)).ded().cell_res_id]),
     col_manager(cell_cfg),
-    slot_alloc(cell_cfg),
+    results(sched_result_grid_config{1}),
+    slot_alloc(results, 0, cell_cfg),
     sl(0, 0)
   {
     col_manager.slot_indication(sl);
@@ -307,6 +311,7 @@ protected:
   const pucch_resource&                sr_f2_res;
 
   pucch_collision_manager      col_manager;
+  sched_result_grid            results;
   cell_slot_resource_allocator slot_alloc;
   slot_point                   sl;
 

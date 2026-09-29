@@ -648,6 +648,11 @@ public:
   unsigned nof_dl_harqs() const { return get_dl_ue().harqs.size(); }
   unsigned nof_ul_harqs() const { return get_ul_ue().harqs.size(); }
 
+  /// \brief Number of UL HARQ processes reserved for Configured Grants, as set by the last reconfigure().
+  ///
+  /// These are the HARQ processes with the lowest ids; only a Configured Grant allocation may use them.
+  unsigned nof_cg_reserved_ul_harqs() const { return static_cast<unsigned>(first_non_reserved_harq_id); }
+
   /// \brief Reconfigure HARQ entity with new settings.
   /// \param new_nof_dl_harqs Number of DL HARQ processes.
   /// \param new_nof_ul_harqs Number of UL HARQ processes.

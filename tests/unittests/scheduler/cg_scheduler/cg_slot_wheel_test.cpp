@@ -103,19 +103,34 @@ TEST(cg_slot_wheel_test, rem_ue_with_the_wrong_period_leaves_stale_grants_that_a
 {
   constexpr unsigned offset     = 4;
   constexpr unsigned period     = 10;
-  constexpr unsigned bad_period = 20;
+  constexpr unsigned bad_period = 40;
+
+  // The entry counts below are exact only under these conditions: the UE's first entry must fall before its second one
+  // for the period to divide the wheel evenly, and bad_period must be a multiple of period that divides the wheel, so
+  // that every offset rem_ue() visits does hold an entry and none of its steps falls off the end of the wheel.
+  static_assert(offset < period, "offset must fall within the first period");
+  static_assert(cg_slot_wheel::max_cg_slot_periodicity % period == 0, "period must divide the wheel");
+  static_assert(cg_slot_wheel::max_cg_slot_periodicity % bad_period == 0, "bad_period must divide the wheel");
+  static_assert(bad_period % period == 0, "bad_period must be a multiple of period");
+  // Keep the wrong period from being exactly twice the right one, which would make the number of entries reached equal
+  // the number left stale and let a test that confuses the two still pass.
+  static_assert(bad_period != 2 * period, "bad_period must not make reached and stale counts coincide");
+
+  constexpr unsigned nof_added   = cg_slot_wheel::max_cg_slot_periodicity / period;
+  constexpr unsigned nof_reached = cg_slot_wheel::max_cg_slot_periodicity / bad_period;
+  constexpr unsigned nof_stale   = nof_added - nof_reached;
 
   cg_slot_wheel wheel;
   ASSERT_EQ(0, wheel.add_ue(rnti1, offset, period));
+  ASSERT_EQ(nof_added, count_entries(wheel, rnti1));
 
-  // Removing with a period the UE was not added with only reaches half of its entries; the rest leak.
+  // Removing with a period the UE was not added with steps over most of its entries. Every offset it does visit holds
+  // an entry, so nothing is reported missing and the caller has no way to tell that the rest leaked.
   ASSERT_EQ(0, wheel.rem_ue(rnti1, offset, bad_period));
-  const unsigned nof_stale = cg_slot_wheel::max_cg_slot_periodicity / period - count_entries(wheel, rnti1);
-  ASSERT_EQ(cg_slot_wheel::max_cg_slot_periodicity / bad_period, nof_stale);
-  ASSERT_NE(0, count_entries(wheel, rnti1));
+  ASSERT_EQ(nof_stale, count_entries(wheel, rnti1));
 
-  // A sweep reclaims them without needing to know the offset or the period.
-  ASSERT_EQ(cg_slot_wheel::max_cg_slot_periodicity / bad_period, wheel.rem_ue_everywhere(rnti1));
+  // A sweep reclaims exactly those, without needing to know the offset or the period.
+  ASSERT_EQ(nof_stale, wheel.rem_ue_everywhere(rnti1));
   ASSERT_EQ(0, count_entries(wheel, rnti1));
 }
 

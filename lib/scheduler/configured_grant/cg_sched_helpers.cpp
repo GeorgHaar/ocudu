@@ -5,6 +5,7 @@
 
 #include "cg_sched_helpers.h"
 #include "../config/cell_configuration.h"
+#include "../config/time_domain_mapper.h"
 #include "../config/ue_configuration.h"
 #include "../support/dmrs_helpers.h"
 
@@ -26,7 +27,10 @@ pusch_config_params ocudu::build_cg_pusch_cfg_params(const cell_configuration&  
                                                      const ue_cell_configuration& ue_cell_cfg,
                                                      uint8_t                      time_domain_allocation)
 {
-  const auto& pusch_td_list = cell_cfg.params.ul_cfg_common.init_ul_bwp.pusch_cfg_common->pusch_td_alloc_list;
+  // NOTE: one of the consumers of this function calls it while a UE reconfiguration is being applied, when \ref
+  // ue_cell_cfg is the new configuration but the UE cell context still holds the old one. Everything below must
+  // therefore be read off \ref ue_cell_cfg, never off the \ref ue_cell.
+  const auto& pusch_td_list = cell_cfg.init_bwp.ul.td_mapper().pusch_td_resources(dci_ul_format::f0_0);
 
   const auto* ul_ded = ue_cell_cfg.init_bwp().ul.ded();
   const auto& cg_cfg = ul_ded->cg_cfg.value();

@@ -38,19 +38,20 @@ void configured_grant_type1_sched_impl::add_ue_to_wheel(const ue_cell_configurat
     return;
   }
 
-  if (not has_cg_grant_cfg(ue_cfg)) {
-    return;
-  }
-  const cg_configuration& cg_cfg   = ue_cfg.init_bwp().ul.ded()->cg_cfg.value();
-  const auto&             ul_grant = cg_cfg.rrc_configured_ul_grant_cfg.value();
-
-  const auto period_slots = static_cast<unsigned>(cg_cfg.periodicity);
-
   auto* ue_cc = u->find_cell(cell_cfg.cell_index);
   if (ue_cc == nullptr) {
     logger.error("rnti={}: UE cell not found in the CG scheduler cell", ue_cfg.crnti);
     return;
   }
+
+  if (not has_cg_grant_cfg(ue_cfg)) {
+    return;
+  }
+
+  const cg_configuration& cg_cfg   = ue_cfg.init_bwp().ul.ded()->cg_cfg.value();
+  const auto&             ul_grant = cg_cfg.rrc_configured_ul_grant_cfg.value();
+
+  const auto period_slots = static_cast<unsigned>(cg_cfg.periodicity);
 
   // Fill the slot wheel at every slot where a CG PUSCH opportunity occurs.
   const unsigned nof_dup = periodic_pusch_slot_wheel.add_ue(ue_cfg.crnti, ul_grant.time_domain_offset, period_slots);

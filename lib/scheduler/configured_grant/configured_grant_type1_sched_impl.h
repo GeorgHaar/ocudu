@@ -26,8 +26,6 @@ public:
   void add_reconf_ue(const ue_cell_configuration& new_ue_cfg, const ue_cell_configuration* old_ue_cfg) override;
 
 private:
-  // Only Type 1 CG is handled here; a CG configuration without an RRC-configured grant requires a DCI activation, i.e.
-  // it is Type 2.
   bool has_cg_grant_cfg(const ue_cell_configuration& ue_cfg) const override;
 
   // Adds a UE's CG grant positions to the slot wheel. Used by add_reconf_ue().

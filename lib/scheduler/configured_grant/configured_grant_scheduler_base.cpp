@@ -143,7 +143,7 @@ bool configured_grant_scheduler_base::validate_cg_opportunity(const cell_slot_re
   // Fetch UE and its cell context.
   const auto* u = ues.find_by_rnti(rnti);
   if (u == nullptr) {
-    logger.error("rnti={}: CG opportunity scheduled but UE not found", rnti);
+    logger.error("rnti={}: resources reserved for CG opportunity, but corresponding UE not found", rnti);
     return false;
   }
 
@@ -152,7 +152,7 @@ bool configured_grant_scheduler_base::validate_cg_opportunity(const cell_slot_re
 
   const auto* ue_cc = u->find_cell(cell_cfg.cell_index);
   if (ue_cc == nullptr) {
-    logger.error("rnti={}: CG opportunity scheduled but UE cell not found", rnti);
+    logger.error("rnti={}: resources reserved for CG opportunity, but corresponding UE not found", rnti);
     return false;
   }
   // Skip if UL is not enabled in this slot (e.g., TDD DL slot, or the slot falls in the UL measurement gap window).
@@ -183,7 +183,7 @@ bool configured_grant_scheduler_base::allocate_cg_opportunity(cell_slot_resource
   const slot_point pusch_slot = slot_alloc.slot;
   const auto&      cg_cfg     = ue_cfg.init_bwp().ul.ded()->cg_cfg.value();
 
-  // The CG grant geometry was established when the UE was added to the wheel: from the RRC-configured grant for CG
+  // The CG grant parameters were established when the UE was added to the wheel: from the RRC-configured grant for CG
   // Type 1, and from the activation DCI for CG Type 2.
   const auto& cg_params = ue_cc->get_conf_grant_state_manager().get_grant_params();
   ocudu_assert(cg_params.has_value(), "rnti={}: CG PUSCH scheduled for a UE with no active CG", rnti);
@@ -191,6 +191,17 @@ bool configured_grant_scheduler_base::allocate_cg_opportunity(cell_slot_resource
   pusch_config_params pusch_params = build_cg_pusch_cfg_params(cell_cfg, ue_cfg, cg_params->time_domain_allocation);
   // The HARQ-ACK bits are the only element of pusch_params that need to be updated at scheduling time.
   pusch_params.nof_harq_ack_bits = uci_alloc.get_scheduled_pdsch_counter_in_ue_uci(pusch_slot, u->crnti);
+
+  // The CG HARQ processes are reserved by ue_cell::handle_reconfiguration_request(), which runs when the
+  // reconfiguration carrying the CG configuration reaches the UE repository. Every production path that establishes a
+  // CG grant goes through such a reconfiguration first, so a UE registered in the CG scheduler without the reservation
+  // in place means the two went out of sync; assert here rather than on the bare HARQ-id below, which gives no hint of
+  // the missing reconfiguration.
+  ocudu_assert(ue_cc->harqs.nof_cg_reserved_ul_harqs() >= cg_cfg.nof_harq_processes,
+               "rnti={}: CG PUSCH allocated with {} reserved UL HARQ processes, but the CG configuration requires {}",
+               rnti,
+               ue_cc->harqs.nof_cg_reserved_ul_harqs(),
+               cg_cfg.nof_harq_processes);
 
   static constexpr unsigned nof_harq_retx = 0;
   const harq_id_t           h_id =

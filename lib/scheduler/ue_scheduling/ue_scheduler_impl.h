@@ -20,8 +20,6 @@
 
 namespace ocudu {
 
-class configured_grant_type1_sched_impl;
-
 /// \brief Interface of data scheduler that is used to allocate UE DL and UL grants in a given slot.
 /// The data_scheduler object will be common to all cells and slots.
 class ue_scheduler_impl final : public ue_scheduler

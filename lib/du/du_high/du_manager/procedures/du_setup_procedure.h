@@ -22,7 +22,7 @@ struct du_start_request {
   /// Value of \c max_f1c_tnl_connection_retries that requests an unlimited number of setup attempts.
   static constexpr unsigned unlimited_retries = std::numeric_limits<unsigned>::max();
 
-  /// Maximum number of F1-C TNL connection attempts. A rejected F1 Setup is not retried and is not counted here.
+  /// Maximum number of F1-C TNL connection attempts. F1 Setup failures are retried only if unlimited.
   unsigned                  max_f1c_tnl_connection_retries = 1;
   std::chrono::milliseconds f1c_tnl_connection_retry_wait{1000};
 };
@@ -55,8 +55,17 @@ private:
 
   unique_timer timer;
 
+  /// [Implementation-defined] Maximum exponent of the F1 Setup retry backoff.
+  static constexpr unsigned max_setup_backoff_exponent = 5;
+  /// [Implementation-defined] Number of F1 Setup failures between two warnings.
+  static constexpr unsigned setup_failure_log_period = 60;
+
   unsigned    count = 0;
   std::string failure_cause;
+  /// Number of failed F1 Setup attempts.
+  unsigned nof_setup_failures = 0;
+  /// Number of retry waits left before the next F1 Setup attempt.
+  unsigned nof_retry_waits = 0;
 };
 
 } // namespace odu

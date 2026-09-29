@@ -130,6 +130,31 @@ TEST_F(du_high_f1c_retry_test, when_cu_cp_is_not_reachable_then_du_can_still_be_
   ASSERT_TRUE(cu_notifier.f1ap_ul_msgs.empty());
 }
 
+TEST_F(du_high_f1c_retry_test, when_cu_cp_rejects_the_f1_setup_then_du_retries_it)
+{
+  // The CU-CP rejects the first F1 Setup.
+  cu_notifier.nof_f1_setups_to_reject = 1;
+  du_hi->start();
+
+  // The DU reconnects and sends a new F1 Setup Request.
+  ASSERT_TRUE(poll_until([this]() { return cu_notifier.f1ap_ul_msgs.size() == 2; }));
+  for (const auto& [msg_no, msg] : cu_notifier.f1ap_ul_msgs) {
+    ASSERT_EQ(msg.pdu.type().value, f1ap_pdu_c::types_opts::init_msg);
+    ASSERT_EQ(msg.pdu.init_msg().proc_code, ASN1_F1AP_ID_F1_SETUP);
+  }
+  ASSERT_EQ(cu_notifier.nof_f1_setups_to_reject, 0);
+}
+
+TEST_F(du_high_f1c_retry_test, when_cu_cp_keeps_rejecting_the_f1_setup_then_du_can_still_be_stopped)
+{
+  cu_notifier.nof_f1_setups_to_reject = 100;
+  du_hi->start();
+  ASSERT_TRUE(poll_until([this]() { return not cu_notifier.f1ap_ul_msgs.empty(); }));
+
+  // The stop cancels the backoff of the pending retry.
+  du_hi->stop();
+}
+
 TEST_F(du_high_connectivity_test, when_f1_connection_is_lost_then_du_detects_connection_loss)
 {
   run_f1_setup();

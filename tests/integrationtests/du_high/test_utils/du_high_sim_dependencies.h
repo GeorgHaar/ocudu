@@ -8,6 +8,7 @@
 #include "ocudu/du/du_high/du_metrics_notifier.h"
 #include "ocudu/f1ap/gateways/f1c_connection_client.h"
 #include "ocudu/support/executors/task_executor.h"
+#include <atomic>
 #include <map>
 #include <mutex>
 
@@ -23,6 +24,9 @@ public:
 
   /// List of (message number, F1AP message) sent by the DU to the CU.
   std::map<message_number, f1ap_message> f1ap_ul_msgs;
+
+  /// Number of F1 Setup Requests still to be answered with an F1 Setup Failure.
+  std::atomic<unsigned> nof_f1_setups_to_reject{0};
 
   dummy_f1c_test_client(task_executor& test_exec_, bool cell_start_on_f1_setup_ = true);
 

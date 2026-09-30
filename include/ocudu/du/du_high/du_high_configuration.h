@@ -21,7 +21,7 @@
 #include "ocudu/pcap/rlc_pcap.h"
 #include "ocudu/ran/gnb_du_id.h"
 #include "ocudu/rlc/rlc_metrics.h"
-#include "ocudu/rlc/rlc_window_seg_pools.h"
+#include "ocudu/rlc/rlc_resource_defaults.h"
 #include "ocudu/scheduler/config/scheduler_expert_config.h"
 #include "ocudu/scheduler/scheduler_metrics.h"
 #include <map>

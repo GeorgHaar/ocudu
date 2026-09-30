@@ -11,6 +11,7 @@
 #include "lib/rlc/rlc_tx_am_entity.h"
 #include "lib/rlc/rlc_tx_tm_entity.h"
 #include "lib/rlc/rlc_tx_um_entity.h"
+#include "ocudu/rlc/rlc_resource_defaults.h"
 #include "ocudu/rlc/rlc_window_seg_pools.h"
 #include "ocudu/support/executors/manual_task_worker.h"
 #include <cstdio>

@@ -6,6 +6,7 @@
 #include "lib/rlc/rlc_um_entity.h"
 #include "tests/test_doubles/pdcp/pdcp_pdu_generator.h"
 #include "ocudu/ran/pdsch/pdsch_constants.h"
+#include "ocudu/rlc/rlc_resource_defaults.h"
 #include "ocudu/rlc/rlc_window_seg_pool_factory.h"
 #include "ocudu/support/executors/manual_task_worker.h"
 #include "ocudu/support/test_utils.h"

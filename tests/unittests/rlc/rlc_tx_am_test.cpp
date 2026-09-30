@@ -6,6 +6,7 @@
 #include "lib/rlc/rlc_tx_am_entity.h"
 #include "tests/test_doubles/pdcp/pdcp_pdu_generator.h"
 #include "ocudu/ran/pdsch/pdsch_constants.h"
+#include "ocudu/rlc/rlc_resource_defaults.h"
 #include "ocudu/support/executors/manual_task_worker.h"
 #include "ocudu/support/rtsan.h"
 #include "ocudu/support/test_utils.h"

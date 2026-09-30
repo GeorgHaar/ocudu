@@ -6,6 +6,7 @@
 #include "lib/rlc/rlc_rx_am_entity.h"
 #include "lib/rlc/rlc_tx_am_entity.h"
 #include "tests/test_doubles/pdcp/pdcp_pdu_generator.h"
+#include "ocudu/rlc/rlc_resource_defaults.h"
 #include "ocudu/rlc/rlc_window_seg_pool_factory.h"
 #include "ocudu/rlc/rlc_window_seg_pools.h"
 #include "ocudu/support/benchmark_utils.h"

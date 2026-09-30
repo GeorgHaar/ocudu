@@ -62,6 +62,12 @@ static void configure_cli11_log_args(CLI::App& app, du_low_unit_logger_config& l
                  "Minimum number of PUSCH decoder iterations to dump the uplink resource grid IQ symbols. Only works "
                  "if \"phy_rx_symbols_filename\" is set.")
       ->capture_default_str();
+  app.add_option(
+         "--phy_rx_symbols_srs_threshold_rsrp_dB",
+         log_params.phy_rx_symbol_printer.triggers.srs_threshold_rsrp_dB,
+         "Set to a RSRP threshold in dB to dump the IQ symbols when the SRS RSRP is above this value. Only works if "
+         "\"phy_rx_symbols_filename\" is set.")
+      ->capture_default_str();
 
   add_option(app,
              "--hex_max_size",

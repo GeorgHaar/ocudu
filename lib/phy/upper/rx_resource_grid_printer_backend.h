@@ -10,6 +10,7 @@
 #include "ocudu/phy/support/prach_buffer_context.h"
 #include "ocudu/phy/support/resource_grid_reader.h"
 #include "ocudu/phy/support/shared_resource_grid.h"
+#include "ocudu/phy/upper/upper_phy_rx_results_notifier.h"
 #include "ocudu/phy/upper/upper_phy_rx_symbol_handler.h"
 #include "ocudu/ran/cyclic_prefix.h"
 #include "ocudu/ran/prach/prach_constants.h"

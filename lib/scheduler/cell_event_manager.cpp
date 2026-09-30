@@ -52,23 +52,28 @@ class ocudu::cell_event_dispatcher
   static constexpr size_t MAC_REPORT_POOL_SIZE = MAX_PUSCH_PDUS_PER_SLOT * 8;
   // [Implementation defined] Slice reconfigurations are rare, so only a few can be in flight at any moment.
   static constexpr size_t SLICE_RECONF_POOL_SIZE = 4;
-  // TODO: define proper size
-  static constexpr size_t CG_CONFIRMATIONS_POOL_SIZE = 4;
+  // [Implementation defined] CG Confirmation MAC CEs are reported like the BSR, PHR and TA reports: at most one per
+  // PUSCH PDU, over the same path, so the pool is sized like theirs.
+  // NOTE: the cap on the CG Type 2 activations per slot does not bound this, as it limits the rate at which the
+  // confirmations are generated, not the rate at which they arrive: each UE sends its CE on its own next UL
+  // opportunity, so in TDD the confirmations triggered over a whole DL run can land in the same few UL slots.
+  static constexpr size_t CG_CONFIRMATIONS_POOL_SIZE = MAX_PUSCH_PDUS_PER_SLOT * 8;
 
   /// \brief Capacity of the queue of pending events.
   ///
   /// It holds every payload the pools can hand out, so that an event type is only ever limited by its own pool and
   /// never by another type having filled the queue.
-  static constexpr size_t EVENT_QUEUE_SIZE = PAGING_POOL_SIZE +         // paging
-                                             2 * SI_POOL_SIZE +         // SI and ETWS/CMAS SI updates
-                                             RACH_POOL_SIZE +           // RACH indications
-                                             CRC_POOL_SIZE +            // CRC indications
-                                             POSITIONING_POOL_SIZE +    // positioning measurement requests
-                                             UCI_POOL_SIZE +            // UCI PDUs
-                                             SRS_POOL_SIZE +            // SRS PDUs
-                                             UE_CONFIG_EVENT_SIZE +     // UE creation/reconfiguration/deletion
-                                             3 * MAC_REPORT_POOL_SIZE + // BSR, PHR and TA reports
-                                             SLICE_RECONF_POOL_SIZE;    // slice reconfigurations
+  static constexpr size_t EVENT_QUEUE_SIZE = PAGING_POOL_SIZE +          // paging
+                                             2 * SI_POOL_SIZE +          // SI and ETWS/CMAS SI updates
+                                             RACH_POOL_SIZE +            // RACH indications
+                                             CRC_POOL_SIZE +             // CRC indications
+                                             POSITIONING_POOL_SIZE +     // positioning measurement requests
+                                             UCI_POOL_SIZE +             // UCI PDUs
+                                             SRS_POOL_SIZE +             // SRS PDUs
+                                             UE_CONFIG_EVENT_SIZE +      // UE creation/reconfiguration/deletion
+                                             3 * MAC_REPORT_POOL_SIZE +  // BSR, PHR and TA reports
+                                             SLICE_RECONF_POOL_SIZE +    // slice reconfigurations
+                                             CG_CONFIRMATIONS_POOL_SIZE; // CG confirmations
 
   using paging_pool          = bounded_object_pool<sched_paging_information>;
   using si_pool              = bounded_object_pool<si_scheduling_update_request>;

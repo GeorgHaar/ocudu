@@ -624,21 +624,16 @@ ue_cell_configuration::ue_cell_configuration(const ue_cell_configuration& other)
   multi_cells_configured(other.multi_cells_configured),
   nof_dl_ports(other.nof_dl_ports)
 {
-  // NOTE: meas_gap_cfg and drx_cfg are intentionally left as they were, to preserve the pre-existing behaviour of this
-  // copy constructor. The CS-RNTI must be carried over, as it is needed to scramble the Configured Grant Type 2
-  // activation DCI and the CG PUSCHs.
-  reconfigure(other.cell_ded, std::nullopt, std::nullopt, other.cs_rnti);
+  reconfigure(other.cell_ded);
 }
 
 void ue_cell_configuration::reconfigure(const ue_cell_config_ptr&             ue_cell_params,
                                         const std::optional<meas_gap_config>& meas_gaps_,
-                                        const std::optional<drx_config>&      drx_cfg_,
-                                        const std::optional<rnti_t>&          cs_rnti_)
+                                        const std::optional<drx_config>&      drx_cfg_)
 {
   cell_ded     = ue_cell_params;
   meas_gap_cfg = meas_gaps_;
   drx_cfg      = drx_cfg_;
-  cs_rnti      = cs_rnti_;
 
   // Clear previous lookup tables.
   search_spaces = {};
@@ -790,9 +785,8 @@ void ue_configuration::update(const cell_common_configuration_list& common_cells
                          std::make_unique<ue_cell_configuration>(
                              crnti, *common_cells[cell_index], params.cells[cell_index], cfg_req.meas_gap_cfg, e > 1));
       } else {
-        // Reconfiguration of existing cell. The CS-RNTI is forwarded so that the PDCCH candidates the UE monitors with
-        // it are (re)generated; note that cs_rnti was updated above, before this loop.
-        du_cells[cell_index]->reconfigure(params.cells[cell_index], cfg_req.meas_gap_cfg, cfg_req.drx_cfg, cs_rnti);
+        // Reconfiguration of existing cell.
+        du_cells[cell_index]->reconfigure(params.cells[cell_index], cfg_req.meas_gap_cfg, cfg_req.drx_cfg);
       }
     }
 

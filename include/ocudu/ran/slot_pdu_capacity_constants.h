@@ -68,6 +68,12 @@ constexpr size_t MAX_CG_PUSCH_PDUS_PER_SLOT = 12U;
 /// [Implementation defined] Maximum number of UL PDCCH PDUs per slot.
 constexpr size_t MAX_UL_PDCCH_PDUS_PER_SLOT = 16U;
 
+/// \brief [Implementation defined] Maximum number of Configured Grant Type 2 activation PDCCHs per slot and cell.
+///
+/// The activation DCIs compete for CCEs with the dynamic grants, and a cell can have many UEs awaiting activation at
+/// once (e.g. right after the cell comes up), so they are rationed to leave PDCCH space for regular scheduling.
+constexpr size_t MAX_CG_ACTIVATION_PDCCHS_PER_SLOT = 2U;
+
 /// [Implementation defined] Maximum number of PUCCH PDUs per slot.
 constexpr size_t MAX_PUCCH_PDUS_PER_SLOT = 128U;
 

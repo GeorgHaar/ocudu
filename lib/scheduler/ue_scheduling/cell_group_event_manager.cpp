@@ -404,6 +404,15 @@ void cell_group_event_handler_impl::handle_cg_activation_indication(du_ue_index_
                    fmt::underlying(ue_index));
     return;
   }
+
+  // The CG confirmation is decoded in the MAC and only reaches the scheduler at the next slot boundary, by which time
+  // the UE may already have been removed. The MAC drains the pending UL PDUs of a UE before removing it, so the index
+  // cannot have been reassigned to another UE by now, but it can be stale.
+  if (not ue_db.contains(ue_index)) {
+    log_invalid_ue_index(ue_index, "CG confirmation");
+    return;
+  }
+
   cg_sched->handle_cg_activation_indication(ue_index);
 }
 

@@ -526,6 +526,12 @@ void ocudu::build_dci_f0_1_cg_activation(dci_ul_info&                 dci,
 
   // Not applicable for CG activation.
   f0_1.first_dl_assignment_index = 0;
-  f0_1.csi_request               = std::nullopt;
   f0_1.srs_request               = 0U;
+
+  // The activation must not trigger an aperiodic CSI report, so the CSI request field is all zeros. It still has to be
+  // set whenever the field has a non-zero size, since dci_0_1_pack() skips the field altogether when the optional is
+  // empty, and the payload would then fall short of payload_size.total.
+  if (f0_1.payload_size.csi_request.value() > 0) {
+    f0_1.csi_request = 0;
+  }
 }

@@ -116,8 +116,7 @@ public:
 
   void reconfigure(const ue_cell_config_ptr&             ue_cell_params,
                    const std::optional<meas_gap_config>& meas_gaps = std::nullopt,
-                   const std::optional<drx_config>&      drx_cfg_  = std::nullopt,
-                   const std::optional<rnti_t>&          cs_rnti_  = std::nullopt);
+                   const std::optional<drx_config>&      drx_cfg_  = std::nullopt);
 
   void set_rrm_config(const sched_ue_resource_alloc_config& ue_res_alloc_cfg);
 
@@ -229,7 +228,6 @@ private:
   ue_cell_config_ptr             cell_ded;
   std::optional<meas_gap_config> meas_gap_cfg;
   std::optional<drx_config>      drx_cfg;
-  std::optional<rnti_t>          cs_rnti;
   bool                           multi_cells_configured;
 
   /// This array maps SearchSpace-Ids (the array indexes) to SearchSpace parameters (the array values).

@@ -39,13 +39,10 @@ static validator_result validate_cg_cfg(const uplink_config& ul_cfg, const cell_
          cg_configuration::configured_grant_timer,
          cg_cfg.nof_harq_processes);
 
-  // The CG path assumes a CP-OFDM waveform throughout: both build_cg_pusch_cfg_params(), which sizes the grant, and
-  // build_dci_f0_1_cg_activation(), which picks the antenna-port row, hardcode transform precoding to disabled. A UE
-  // that applied DFT-s-OFDM to its CG PUSCH would therefore be undecodable, so refuse the combination here rather than
-  // let those two assumptions be silently wrong.
   // As per TS 38.214, Section 6.1.3, the CG PUSCH waveform is set by transformPrecoder in configuredGrantConfig, or by
   // msg3-transformPrecoder when absent. The dedicated pusch-Config transformPrecoder does not apply to it.
   const bool cg_tp_enabled = cg_cfg.trans_precoder.value_or(cell_cfg.use_msg3_transform_precoder());
+  // The CG path assumes a CP-OFDM waveform (i.e., no transform precoding) throughout.
   VERIFY(not cg_tp_enabled, "Configured Grant is not supported with PUSCH transform precoding enabled");
 
   const bool type2 = cell_cg_cfg.is_type2();

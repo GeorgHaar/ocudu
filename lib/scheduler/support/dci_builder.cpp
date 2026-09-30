@@ -490,9 +490,10 @@ void ocudu::build_dci_f0_1_cg_activation(dci_ul_info&                 dci,
   // NOTE: unlike the C-RNTI builder, this does not consult use_pusch_transform_precoding_dci_0_1(): the whole CG path
   // assumes CP-OFDM, and build_cg_pusch_cfg_params() sizes the grant on the same assumption, so the antenna-port row
   // has to be picked from the same table. validate_cg_cfg() rejects a CG combined with transform precoding.
-  bool                     use_transform_precoder = false;
-  static constexpr uint8_t nof_layers             = 1;
-  f0_1.antenna_ports                              = get_pusch_antenna_port_mapping_row_index(
+  bool use_transform_precoder = false;
+  // Only 1 layer currently supported for Configured Grant.
+  static constexpr uint8_t nof_layers = 1;
+  f0_1.antenna_ports                  = get_pusch_antenna_port_mapping_row_index(
       nof_layers, use_transform_precoder, dmrs_config_type::type1, dmrs_max_length::len1);
   // TODO: adapt this to more than 1 antenna.
   constexpr unsigned default_tpmi = 0U;

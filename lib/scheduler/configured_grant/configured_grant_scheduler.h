@@ -35,19 +35,16 @@ public:
   /// Called on cell deactivation.
   virtual void stop() = 0;
 
-  /// Notifies the scheduler that it can proceed with UE CG type2 activation.
-  /// \remark No-op for type1 Configured Grant.
+  /// Notifies the scheduler that it can proceed with the CG Type 2 activation of a UE.
+  /// \remark Leaves a UE whose CG is already active untouched. No-op for Type 1 Configured Grant.
   virtual void notify_ue_ready_for_activation(du_ue_index_t ue_idx) = 0;
 
-  /// Notifies the scheduler that the UE has acknowledged CG type2 activation, either via MAC-CE CG confirmation or via
-  /// a non-DTX CRC.
-  /// \remark No-op for type1 Configured Grant.
+  /// Notifies the scheduler that a UE has acknowledged its CG Type 2 activation, via a Configured Grant Confirmation
+  /// MAC CE or a non-DTX CRC.
+  /// \remark Idempotent. A call for a UE without a pending activation has no effect. No-op for Type 1 Configured Grant.
   virtual void handle_cg_activation_indication(du_ue_index_t ue_idx) = 0;
 
-  /// \brief Notifies that the scheduler results for a given slot were partially or fully discarded by the lower layers.
-  ///
-  /// A CG PUSCH that never reached the PHY will not produce a CRC indication, so any expectation of one for that slot
-  /// must be dropped; otherwise it would be mistaken for a UE that did not receive the activation.
+  /// Notifies the scheduler that the results for a given slot were partially or fully discarded by the lower layers.
   /// \param[in] sl_tx Slot whose results were discarded.
   /// \param[in] event Which parts of the slot result were discarded.
   virtual void handle_error_indication(slot_point sl_tx, scheduler_slot_handler::error_outcome event) = 0;

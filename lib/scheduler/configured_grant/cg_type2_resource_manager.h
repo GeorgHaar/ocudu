@@ -50,19 +50,16 @@ public:
   /// Total number of CG resources currently free across all the slot offsets of the wheel.
   unsigned get_nof_free_resources() const;
 
-  /// \brief Returns every CG resource to the pool, discarding all outstanding allocations.
-  ///
-  /// Called on cell deactivation: the UEs holding a CG resource are dropped straight from the UE repository, without
-  /// going through configured_grant_scheduler::rem_ue(), so this is the only point at which their resources can be
-  /// reclaimed.
+  /// Returns every CG resource to the pool, discarding all outstanding allocations.
   void reset();
 
 private:
-  // One entry per CG resource usable at a given slot offset. \c owner is set while the resource is reserved, so that
-  // a resource is never handed out twice, nor returned by a UE that does not hold it.
+  // One entry per CG resource usable at a given slot offset.
   struct cg_res_occupancy {
     cg_type2_resource::res_id id;
-    std::optional<rnti_t>     owner;
+    // This is set while the resource is reserved, so that a resource is never handed out twice, nor returned by a
+    // UE that does not hold it.
+    std::optional<rnti_t> owner;
   };
 
   const cell_configuration& cell_cfg;

@@ -44,7 +44,6 @@ void cg_type2_resource_manager::reset()
     std::vector<cg_res_occupancy>& res_at_offset = resource_wheel[offset];
     res_at_offset.reserve(cg_resource_list.size());
     for (const auto& cg_res : cg_resource_list) {
-      // TODO: optimize allocation so that the first resource is the closest to the PUCCH guardband.
       res_at_offset.push_back({cg_res.id, std::nullopt});
       ++nof_free_resources;
     }
@@ -81,7 +80,7 @@ void cg_type2_resource_manager::deallocate_resource(unsigned cg_offset, cg_type2
 {
   std::vector<cg_res_occupancy>& res_at_offset = resource_wheel[cg_offset];
 
-  auto it = std::find_if(
+  const auto it = std::find_if(
       res_at_offset.begin(), res_at_offset.end(), [res_id](const cg_res_occupancy& res) { return res.id == res_id; });
 
   if (it == res_at_offset.end()) {

@@ -86,6 +86,10 @@ add_executable(batched_dispatch_queue_test batched_dispatch_queue_test.cpp)
 target_link_libraries(batched_dispatch_queue_test ocudulog ocudu_support GTest::gtest GTest::gtest_main)
 add_test(batched_dispatch_queue_test batched_dispatch_queue_test)
 
+add_executable(byte_buffer_recycler_test byte_buffer_recycler_test.cpp)
+target_link_libraries(byte_buffer_recycler_test ocudulog ocudu_support GTest::gtest ocudu_gtest_main)
+gtest_discover_tests(byte_buffer_recycler_test PROPERTIES LABELS "tsan")
+
 add_executable(flat_map_test flat_map_test.cpp)
 target_link_libraries(flat_map_test ocudulog ocudulog GTest::gtest  GTest::gtest_main)
 add_test(flat_map_test flat_map_test)

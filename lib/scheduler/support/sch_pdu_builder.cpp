@@ -705,7 +705,6 @@ void ocudu::build_pusch_cs_rnti(pusch_information&           pusch,
   pusch.bwp_cfg              = &bwp_info.ul.cfg();
   pusch.rbs                  = vrbs;
   pusch.symbols              = pusch_cfg.symbols;
-  pusch.mcs_table            = pusch_cfg.mcs_table;
 
   // Backup to MSG3 transform precode in RACH-ConfigCommon if CG transform precoding is not set.
   pusch.transform_precoding = cg_cfg.trans_precoder.value_or(ue_cell_cfg.cell_cfg_common.use_msg3_transform_precoder());

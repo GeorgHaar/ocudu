@@ -483,10 +483,13 @@ void ocudu::build_dci_f0_1_cg_activation(dci_ul_info&                 dci,
 
   f0_1.payload_size = dci_sz.format0_1_ue_size.value();
 
-  f0_1.ul_sul_indicator                           = {};
-  static constexpr uint8_t default_tpc            = 1;
-  f0_1.tpc_command                                = default_tpc;
-  f0_1.dmrs_seq_initialization                    = 0;
+  f0_1.ul_sul_indicator                = {};
+  static constexpr uint8_t default_tpc = 1;
+  f0_1.tpc_command                     = default_tpc;
+  f0_1.dmrs_seq_initialization         = 0;
+  // NOTE: unlike the C-RNTI builder, this does not consult use_pusch_transform_precoding_dci_0_1(): the whole CG path
+  // assumes CP-OFDM, and build_cg_pusch_cfg_params() sizes the grant on the same assumption, so the antenna-port row
+  // has to be picked from the same table. validate_cg_cfg() rejects a CG combined with transform precoding.
   bool                     use_transform_precoder = false;
   static constexpr uint8_t nof_layers             = 1;
   f0_1.antenna_ports                              = get_pusch_antenna_port_mapping_row_index(

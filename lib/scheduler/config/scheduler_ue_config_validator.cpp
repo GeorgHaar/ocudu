@@ -39,6 +39,30 @@ static validator_result validate_cg_cfg(const uplink_config& ul_cfg, const cell_
          cg_configuration::configured_grant_timer,
          cg_cfg.nof_harq_processes);
 
+  // The CG path assumes a CP-OFDM waveform throughout: both build_cg_pusch_cfg_params(), which sizes the grant, and
+  // build_dci_f0_1_cg_activation(), which picks the antenna-port row, hardcode transform precoding to disabled. A UE
+  // that applied DFT-s-OFDM to its CG PUSCH would therefore be undecodable, so refuse the combination here rather than
+  // let those two assumptions be silently wrong.
+  // As per TS 38.214, Section 6.1.3, the CG PUSCH waveform is set by transformPrecoder in configuredGrantConfig, or by
+  // msg3-transformPrecoder when absent. The dedicated pusch-Config transformPrecoder does not apply to it.
+  const bool cg_tp_enabled = cg_cfg.trans_precoder.value_or(cell_cfg.use_msg3_transform_precoder());
+  VERIFY(not cg_tp_enabled, "Configured Grant is not supported with PUSCH transform precoding enabled");
+
+  const bool type2 = cell_cg_cfg.is_type2();
+  if (type2) {
+    // The DCI format 0_1 size, including the Antenna ports field, follows the dedicated pusch-Config transformPrecoder
+    // (or msg3-transformPrecoder when not set), while build_dci_f0_1_cg_activation() picks the antenna-port row from
+    // the CP-OFDM table. As TS 38.212, Section 7.3.1.1.2 does not state which table the UE applies to an activation
+    // DCI when the two waveforms differ, the dedicated PUSCH must be CP-OFDM too.
+    const bool ded_tp_enabled =
+        not bwp_ul_ded_cfg.pusch_cfg.has_value() or
+                bwp_ul_ded_cfg.pusch_cfg->trans_precoder == pusch_config::transform_precoder::not_set
+            ? cell_cfg.use_msg3_transform_precoder()
+            : bwp_ul_ded_cfg.pusch_cfg->trans_precoder == pusch_config::transform_precoder::enabled;
+    VERIFY(not ded_tp_enabled,
+           "Configured Grant Type 2 is not supported with transform precoding enabled for the dynamic PUSCH");
+  }
+
   // The CG scheduler requires all UL HARQ processes to operate in mode A, i.e. \c ul_harq_mode must keep its default
   // value (all-ones mask).
   VERIFY(not ul_cfg.pusch_serv_cell_cfg.has_value() or
@@ -56,7 +80,6 @@ static validator_result validate_cg_cfg(const uplink_config& ul_cfg, const cell_
            "TDD configuration is not compatible with CG period");
   }
 
-  const bool type2 = cell_cg_cfg.is_type2();
   VERIFY(cg_cfg.rrc_configured_ul_grant_cfg.has_value() != type2,
          "Configured Grant type {} requires rrc_configured_ul_grant to be {}",
          type2 ? 2 : 1,

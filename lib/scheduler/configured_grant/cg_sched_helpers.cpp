@@ -58,6 +58,8 @@ pusch_config_params ocudu::build_cg_pusch_cfg_params(const ue_cell_configuration
   // TODO: Import p_pi2bpsk_present from PUSCH Config once it will have been added there.
   pusch_params.tp_pi2bpsk_present = false;
   // CG PUSCH uses CP-OFDM (no transform precoding). The mcs_table_transform_precoder field is separate.
+  // NOTE: validate_cg_cfg() rejects a UE that combines a CG with transform precoding, so this cannot contradict the
+  // UE's own configuration. build_dci_f0_1_cg_activation() hardcodes the same assumption for the antenna-port row.
   pusch_params.use_transform_precoder = false;
   // As per TS 38.214, Section 5.1.3.2 and 6.1.4.2, and TS 38.212, Section 7.3.1.1 and 7.3.1.2, TB scaling filed is only
   // used for DCI Format 1-0 (in the DL). Therefore, for the PUSCH this is set to 0.

@@ -6,9 +6,15 @@
 #include "du_manager_mem_resources_factory.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/du/du_high/du_manager/du_manager_params.h"
+#include "ocudu/ocudulog/ocudulog.h"
 
 using namespace ocudu;
 using namespace odu;
+
+std::unique_ptr<byte_buffer_recycler> odu::make_byte_buffer_recycler(size_t capacity, task_executor& exec)
+{
+  return std::make_unique<byte_buffer_recycler>(exec, capacity, ocudulog::fetch_basic_logger("RLC"));
+}
 
 du_manager_mem_resources odu::create_du_manager_mem_resources(const du_manager_params& du_params)
 {
@@ -24,5 +30,7 @@ du_manager_mem_resources odu::create_du_manager_mem_resources(const du_manager_p
       {make_rlc_drb_rx_window_seg_pool(du_params.rlc.drb_rx_window_seg_pool_size, du_params.rlc.drb_rx_window_seg_size),
        std::move(drb_tx_window_seg_pools),
        make_rlc_srb_rx_window_seg_pool(du_params.rlc.srb_rx_window_seg_pool_size, du_params.rlc.srb_rx_window_seg_size),
-       std::move(srb_tx_window_seg_pools)}};
+       std::move(srb_tx_window_seg_pools),
+       make_byte_buffer_recycler(du_params.rlc.pdu_recycler_size,
+                                 du_params.services.ue_execs.rlc_shared_low_prio_exec())}};
 }

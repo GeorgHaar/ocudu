@@ -85,6 +85,8 @@ struct du_manager_params {
     std::size_t                                  srb_rx_window_seg_pool_size = rlc_srb_rx_window_seg_pool_size;
     std::size_t                                  srb_tx_window_seg_size      = rlc_srb_tx_window_seg_size;
     std::size_t                                  srb_tx_window_seg_pool_size = rlc_srb_tx_window_seg_pool_size;
+    /// Capacity of the shared PDU recycler queue. Default: 4 * 2^18 (four times the 18-bit AM window size).
+    std::size_t                                  pdu_recycler_size           = 524288;
   };
 
   struct mac_config_params {

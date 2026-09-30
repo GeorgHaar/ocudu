@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "ocudu/adt/byte_buffer_recycler.h"
 #include "ocudu/rlc/rlc_window_seg_pool_factory.h"
 #include "ocudu/rlc/rlc_window_seg_pools.h"
 #include <memory>
@@ -17,11 +18,13 @@ struct du_manager_mem_resources {
     rlc_resources(std::unique_ptr<rlc_drb_rx_window_seg_pool, rlc_pool_deleter>              drb_rx_window_seg_pool_,
                   std::vector<std::unique_ptr<rlc_drb_tx_window_seg_pool, rlc_pool_deleter>> drb_tx_window_seg_pools_,
                   std::unique_ptr<rlc_srb_rx_window_seg_pool, rlc_pool_deleter>              srb_rx_window_seg_pool_,
-                  std::vector<std::unique_ptr<rlc_srb_tx_window_seg_pool, rlc_pool_deleter>> srb_tx_window_seg_pools_) :
+                  std::vector<std::unique_ptr<rlc_srb_tx_window_seg_pool, rlc_pool_deleter>> srb_tx_window_seg_pools_,
+                  std::unique_ptr<byte_buffer_recycler>                                      pdu_recycler_) :
       drb_rx_window_seg_pool(std::move(drb_rx_window_seg_pool_)),
       drb_tx_window_seg_pools(std::move(drb_tx_window_seg_pools_)),
       srb_rx_window_seg_pool(std::move(srb_rx_window_seg_pool_)),
-      srb_tx_window_seg_pools(std::move(srb_tx_window_seg_pools_))
+      srb_tx_window_seg_pools(std::move(srb_tx_window_seg_pools_)),
+      pdu_recycler(std::move(pdu_recycler_))
     {
     }
 
@@ -33,6 +36,8 @@ struct du_manager_mem_resources {
     std::unique_ptr<rlc_srb_rx_window_seg_pool, rlc_pool_deleter> srb_rx_window_seg_pool;
     /// Vector of SRB TX window segment pools. One pool per cell due to concurrency. Shared across all UEs of one cell.
     std::vector<std::unique_ptr<rlc_srb_tx_window_seg_pool, rlc_pool_deleter>> srb_tx_window_seg_pools;
+    /// PDU recycler shared across all RLC bearers for deferred byte_buffer destruction off the RT path.
+    std::unique_ptr<byte_buffer_recycler> pdu_recycler;
   };
 
   rlc_resources rlc;

@@ -55,24 +55,6 @@ struct search_space_info {
     return ss_pdcch_candidates[pdcch_slot.count() % ss_pdcch_candidates.size()][to_aggregation_level_index(aggr_lvl)];
   }
 
-  /// \brief Retrieve the PDCCH candidates that the UE monitors with its CS-RNTI, for a given aggregation level and
-  /// slot.
-  ///
-  /// In a UE-specific SearchSpace the candidate positions depend on the RNTI, as \f$Y_{p,-1} = n_{RNTI}\f$ (TS 38.213,
-  /// Section 10.1), so a PDCCH whose CRC is scrambled with the CS-RNTI must be placed on these candidates rather than
-  /// on the C-RNTI ones returned by \ref get_pdcch_candidates. In a common SearchSpace \f$Y_{p,n} = 0\f$ and both
-  /// lists are identical.
-  ///
-  /// \return The CS-RNTI candidates, or an empty span if no CS-RNTI is configured for this UE.
-  span<const uint8_t> get_cs_rnti_pdcch_candidates(aggregation_level aggr_lvl, slot_point pdcch_slot) const
-  {
-    if (ss_pdcch_candidates_cs_rnti.empty()) {
-      return {};
-    }
-    return ss_pdcch_candidates_cs_rnti[pdcch_slot.count() % ss_pdcch_candidates_cs_rnti.size()]
-                                      [to_aggregation_level_index(aggr_lvl)];
-  }
-
   /// \brief Retrieve all the CRBs for a given aggregation level and searchSpace candidate.
   span<const crb_index_list_span> get_crb_list_of_pdcch_candidates(aggregation_level aggr_lvl,
                                                                    slot_point        pdcch_slot) const
@@ -99,27 +81,16 @@ struct search_space_info {
   /// \brief Assigns computed PDCCH candidates to a SearchSpace.
   void update_pdcch_candidates(const std::vector<std::array<pdcch_candidate_list, NOF_AGGREGATION_LEVELS>>& candidates);
 
-  /// \brief Assigns the PDCCH candidates that the UE monitors with its CS-RNTI in this SearchSpace.
-  void update_cs_rnti_pdcch_candidates(
-      const std::vector<std::array<pdcch_candidate_list, NOF_AGGREGATION_LEVELS>>& candidates);
-
   void update_pdsch_time_domain_list(const ue_cell_configuration& ue_cell_cfg);
 
   void update_pdsch_mappings(vrb_to_prb::mapping_type interleaving_bundle_size);
 
 private:
-  // Recomputes the CRBs used by each C-RNTI PDCCH candidate.
-  void update_candidate_crbs();
-
   // PDCCH candidates of the SearchSpace for different slot offsets and aggregation levels. Indexed by
   // ss_pddch_candidates[slot_offset % ss_pdcch_candidates.size()][aggr_level_index][candidate_index].
   // We need to keep separate lists for different slot offsets because PDCCH candidates change with the slot index,
   // may have a monitoring periodicity above 1 slot, and may be affected by the candidates of other search spaces.
   std::vector<std::array<pdcch_candidate_list, NOF_AGGREGATION_LEVELS>> ss_pdcch_candidates;
-
-  // Same as \ref ss_pdcch_candidates, but computed with the UE's CS-RNTI as hashing seed, as required for a
-  // UE-specific SearchSpace by TS 38.213, Section 10.1. Empty when the UE has no CS-RNTI configured.
-  std::vector<std::array<pdcch_candidate_list, NOF_AGGREGATION_LEVELS>> ss_pdcch_candidates_cs_rnti;
 
   // List of CRBs used by each PDCCH candidate.
   std::vector<std::array<std::vector<crb_index_list_span>, NOF_AGGREGATION_LEVELS>> crbs_of_candidates;

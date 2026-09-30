@@ -76,16 +76,6 @@ public:
     return nullptr;
   }
 
-  pdcch_ul_information* alloc_ul_pdcch_ue_cs_rnti(cell_slot_resource_allocator& slot_alloc,
-                                                  rnti_t                        cs_rnti,
-                                                  const ue_cell_configuration&  user,
-                                                  search_space_id               ss_id,
-                                                  aggregation_level             aggr_lvl) override
-  {
-    ocudu_terminate("Common PDCCHs should not be called while allocating RARs");
-    return nullptr;
-  }
-
   bool cancel_last_pdcch(cell_slot_resource_allocator& slot_alloc) override
   {
     ocudu_terminate("Not supported");

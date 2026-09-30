@@ -67,24 +67,6 @@ public:
                                                   search_space_id               ss_id,
                                                   aggregation_level             aggr_lvl) = 0;
 
-  /// \brief Allocates RE space for a UE-dedicated UL PDCCH whose CRC is scrambled with the UE's CS-RNTI, as used by a
-  /// Configured Grant Type 2 activation/deactivation.
-  ///
-  /// Unlike \ref alloc_ul_pdcch_ue, the PDCCH is placed on the candidates the UE monitors with its CS-RNTI. In a
-  /// UE-specific SearchSpace those differ from the C-RNTI ones, since the candidate hashing is seeded with the RNTI
-  /// (TS 38.213, Section 10.1).
-  ///
-  /// \param cs_rnti CS-RNTI of the UE being allocated.
-  /// \param user UE configuration for the provided cell. Must have a CS-RNTI configured.
-  /// \param ss_id Search Space Id to use.
-  /// \param aggr_lvl Aggregation Level of PDCCH allocation.
-  /// \return Allocated PDCCH if successful, nullptr otherwise.
-  virtual pdcch_ul_information* alloc_ul_pdcch_ue_cs_rnti(cell_slot_resource_allocator& slot_alloc,
-                                                          rnti_t                        cs_rnti,
-                                                          const ue_cell_configuration&  user,
-                                                          search_space_id               ss_id,
-                                                          aggregation_level             aggr_lvl) = 0;
-
   /// Cancels the last PDCCH allocation.
   virtual bool cancel_last_pdcch(cell_slot_resource_allocator& slot_alloc) = 0;
 };

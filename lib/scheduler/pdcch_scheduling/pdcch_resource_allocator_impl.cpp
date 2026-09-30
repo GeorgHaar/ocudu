@@ -56,7 +56,9 @@ pdcch_dl_information* pdcch_resource_allocator_impl::alloc_dl_pdcch_common(cell_
   const sched_search_space_config& ss_cfg = *cell_cfg.init_bwp.dl.pdcch().search_spaces()[ss_id];
   ocudu_sanity_check(ss_cfg.cfg().is_common_search_space(), "Invalid searchSpace type");
 
+  // In a common SearchSpace the payload scrambling does not depend on the RNTI (TS 38.211, Section 7.3.2.3).
   return alloc_dl_pdcch_helper(slot_alloc,
+                               rnti,
                                rnti,
                                cell_cfg.init_bwp.dl.cfg(),
                                ss_cfg.cs(),
@@ -75,7 +77,9 @@ pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_common(cell_
   // Find Common BWP and CORESET configurations.
   const sched_search_space_config& ss_cfg = *cell_cfg.init_bwp.dl.pdcch().search_spaces()[ss_id];
 
+  // In a common SearchSpace the payload scrambling does not depend on the RNTI (TS 38.211, Section 7.3.2.3).
   return alloc_ul_pdcch_helper(slot_alloc,
+                               rnti,
                                rnti,
                                cell_cfg.init_bwp.ul.cfg(),
                                ss_cfg.cs(),
@@ -96,8 +100,11 @@ pdcch_dl_information* pdcch_resource_allocator_impl::alloc_dl_pdcch_ue(cell_slot
   const bwp_configuration& bwp_cfg    = ss_cfg.bwp->dl.cfg();
   span<const uint8_t>      candidates = ss_cfg.get_pdcch_candidates(aggr_lvl, slot_alloc.slot);
 
+  // NOTE: \c rnti scrambles the CRC and may be an RNTI other than the C-RNTI (e.g. the CS-RNTI of a Configured Grant
+  // Type 2 activation), but TS 38.211, Section 7.3.2.3 seeds the payload scrambling of a UE-specific SearchSpace with
+  // the C-RNTI in every case.
   return alloc_dl_pdcch_helper(
-      slot_alloc, rnti, bwp_cfg, *ss_cfg.coreset, *ss_cfg.cfg, aggr_lvl, candidates, std::nullopt);
+      slot_alloc, rnti, user.crnti, bwp_cfg, *ss_cfg.coreset, *ss_cfg.cfg, aggr_lvl, candidates, std::nullopt);
 }
 
 pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_ue(cell_slot_resource_allocator& slot_alloc,
@@ -111,33 +118,18 @@ pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_ue(cell_slot
   const bwp_configuration&         bwp_cfg    = ss_cfg.bwp->ul.cfg();
   span<const pdcch_candidate_type> candidates = ss_cfg.get_pdcch_candidates(aggr_lvl, slot_alloc.slot);
 
+  // NOTE: \c rnti scrambles the CRC and may be an RNTI other than the C-RNTI (e.g. the CS-RNTI of a Configured Grant
+  // Type 2 activation), but TS 38.211, Section 7.3.2.3 seeds the payload scrambling of a UE-specific SearchSpace with
+  // the C-RNTI in every case.
   return alloc_ul_pdcch_helper(
-      slot_alloc, rnti, bwp_cfg, *ss_cfg.coreset, *ss_cfg.cfg, aggr_lvl, candidates, std::nullopt);
+      slot_alloc, rnti, user.crnti, bwp_cfg, *ss_cfg.coreset, *ss_cfg.cfg, aggr_lvl, candidates, std::nullopt);
 }
 
-pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_ue_cs_rnti(cell_slot_resource_allocator& slot_alloc,
-                                                                               rnti_t                        cs_rnti,
-                                                                               const ue_cell_configuration&  user,
-                                                                               search_space_id               ss_id,
-                                                                               aggregation_level             aggr_lvl)
-{
-  const search_space_info&         ss_cfg     = user.search_space(ss_id);
-  const bwp_configuration&         bwp_cfg    = ss_cfg.bwp->ul.cfg();
-  span<const pdcch_candidate_type> candidates = ss_cfg.get_cs_rnti_pdcch_candidates(aggr_lvl, slot_alloc.slot);
-  if (candidates.empty()) {
-    // No CS-RNTI candidates were generated for this UE, i.e. no CS-RNTI is configured.
-    ++slot_alloc.result.failed_attempts.ul_pdcch;
-    return nullptr;
-  }
-
-  return alloc_ul_pdcch_helper(
-      slot_alloc, cs_rnti, bwp_cfg, *ss_cfg.coreset, *ss_cfg.cfg, aggr_lvl, candidates, std::nullopt);
-}
-
-pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_helper(cell_slot_resource_allocator&     slot_alloc,
-                                                                           rnti_t                            rnti,
-                                                                           const bwp_configuration&          bwp_cfg,
-                                                                           const sched_coreset_config&       cs_cfg,
+pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_helper(cell_slot_resource_allocator& slot_alloc,
+                                                                           rnti_t                        rnti,
+                                                                           rnti_t                      scrambling_rnti,
+                                                                           const bwp_configuration&    bwp_cfg,
+                                                                           const sched_coreset_config& cs_cfg,
                                                                            const search_space_configuration& ss_cfg,
                                                                            aggregation_level                 aggr_lvl,
                                                                            span<const pdcch_candidate_type>  candidates,
@@ -162,7 +154,7 @@ pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_helper(cell_
   pdcch.ctx.starting_symbol   = 0;
   pdcch.ctx.cces.aggr_lvl     = aggr_lvl;
   pdcch.ctx.n_id_pdcch_data   = get_scrambling_n_ID(cell_cfg.params.pci, cs_cfg.cfg(), ss_cfg);
-  pdcch.ctx.n_rnti_pdcch_data = get_scrambling_n_RNTI(rnti, cs_cfg.cfg(), ss_cfg);
+  pdcch.ctx.n_rnti_pdcch_data = get_scrambling_n_RNTI(scrambling_rnti, cs_cfg.cfg(), ss_cfg);
   pdcch.ctx.n_id_pdcch_dmrs   = get_N_ID_dmrs(cell_cfg.params.pci, cs_cfg.cfg());
   pdcch.ctx.context.ss_id     = ss_cfg.get_id();
   // [Implementation-defined] The PDCCH is not precoded.
@@ -193,10 +185,11 @@ pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_helper(cell_
   return &pdcch;
 }
 
-pdcch_dl_information* pdcch_resource_allocator_impl::alloc_dl_pdcch_helper(cell_slot_resource_allocator&     slot_alloc,
-                                                                           rnti_t                            rnti,
-                                                                           const bwp_configuration&          bwp_cfg,
-                                                                           const sched_coreset_config&       cs_cfg,
+pdcch_dl_information* pdcch_resource_allocator_impl::alloc_dl_pdcch_helper(cell_slot_resource_allocator& slot_alloc,
+                                                                           rnti_t                        rnti,
+                                                                           rnti_t                      scrambling_rnti,
+                                                                           const bwp_configuration&    bwp_cfg,
+                                                                           const sched_coreset_config& cs_cfg,
                                                                            const search_space_configuration& ss_cfg,
                                                                            aggregation_level                 aggr_lvl,
                                                                            span<const pdcch_candidate_type>  candidates,
@@ -221,7 +214,7 @@ pdcch_dl_information* pdcch_resource_allocator_impl::alloc_dl_pdcch_helper(cell_
   pdcch.ctx.starting_symbol   = 0;
   pdcch.ctx.cces.aggr_lvl     = aggr_lvl;
   pdcch.ctx.n_id_pdcch_data   = get_scrambling_n_ID(cell_cfg.params.pci, cs_cfg.cfg(), ss_cfg);
-  pdcch.ctx.n_rnti_pdcch_data = get_scrambling_n_RNTI(rnti, cs_cfg.cfg(), ss_cfg);
+  pdcch.ctx.n_rnti_pdcch_data = get_scrambling_n_RNTI(scrambling_rnti, cs_cfg.cfg(), ss_cfg);
   pdcch.ctx.n_id_pdcch_dmrs   = get_N_ID_dmrs(cell_cfg.params.pci, cs_cfg.cfg());
   pdcch.ctx.context.ss_id     = ss_cfg.get_id();
   // [Implementation-defined] The PDCCH is not precoded.

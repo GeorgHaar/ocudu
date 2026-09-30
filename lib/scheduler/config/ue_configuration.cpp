@@ -24,17 +24,6 @@ void search_space_info::update_pdcch_candidates(
   ocudu_assert(candidates.size() > 0, "The SearchSpace doesn't have any candidates");
   ss_pdcch_candidates = candidates;
 
-  update_candidate_crbs();
-}
-
-void search_space_info::update_cs_rnti_pdcch_candidates(
-    const std::vector<std::array<pdcch_candidate_list, NOF_AGGREGATION_LEVELS>>& candidates)
-{
-  ss_pdcch_candidates_cs_rnti = candidates;
-}
-
-void search_space_info::update_candidate_crbs()
-{
   crbs_of_candidates.resize(ss_pdcch_candidates.size());
   for (unsigned sl = 0, sl_end = ss_pdcch_candidates.size(); sl != sl_end; ++sl) {
     for (unsigned lidx = 0, lidx_end = ss_pdcch_candidates[sl].size(); lidx != lidx_end; ++lidx) {
@@ -530,15 +519,9 @@ static void apply_pdcch_candidate_monitoring_limits(slotted_array<search_space_i
 }
 
 /// \brief Compute the list of PDCCH candidates being monitored for each SearchSpace for a given slot index.
-/// \brief Computes the PDCCH candidates that a UE monitors with the given RNTI, for every SearchSpace of a BWP.
-///
-/// In a UE-specific SearchSpace the candidate positions are seeded with the RNTI (\f$Y_{p,-1} = n_{RNTI}\f$, TS 38.213
-/// Section 10.1), so this must be run once per RNTI the UE is addressed with. In a common SearchSpace \f$Y_{p,n} = 0\f$
-/// and the result is RNTI-independent.
-static frame_pdcch_candidate_list
-generate_monitored_pdcch_candidates(slotted_array<search_space_info, MAX_NOF_SEARCH_SPACES>& ss_list,
-                                    const sched_bwp_config&                                  bwp_cfg,
-                                    rnti_t                                                   rnti)
+static void generate_crnti_monitored_pdcch_candidates(slotted_array<search_space_info, MAX_NOF_SEARCH_SPACES>& ss_list,
+                                                      const sched_bwp_config&                                  bwp_cfg,
+                                                      rnti_t                                                   crnti)
 {
   const unsigned slots_per_frame = NOF_SUBFRAMES_PER_FRAME * get_nof_slots_per_subframe(bwp_cfg.dl.cfg().scs);
 
@@ -584,7 +567,7 @@ generate_monitored_pdcch_candidates(slotted_array<search_space_info, MAX_NOF_SEA
                                                                                        ss.cfg->get_nof_candidates()[i],
                                                                                        ss.coreset->cfg().get_nof_cces(),
                                                                                        ss.cfg->get_coreset_id(),
-                                                                                       rnti,
+                                                                                       crnti,
                                                                                        slot_mod.slot_index()});
       }
     }
@@ -596,7 +579,10 @@ generate_monitored_pdcch_candidates(slotted_array<search_space_info, MAX_NOF_SEA
   // Apply TS 38.213 section 10.1 limits on the number of monitored PDCCH candidates and non-overlapped CCEs per slot.
   apply_pdcch_candidate_monitoring_limits(ss_list, candidates, bwp_cfg);
 
-  return candidates;
+  // Save resulting candidates for this slot.
+  for (search_space_info& ss : ss_list) {
+    ss.update_pdcch_candidates(candidates[ss.cfg->get_id()]);
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -639,7 +625,8 @@ ue_cell_configuration::ue_cell_configuration(const ue_cell_configuration& other)
   nof_dl_ports(other.nof_dl_ports)
 {
   // NOTE: meas_gap_cfg and drx_cfg are intentionally left as they were, to preserve the pre-existing behaviour of this
-  // copy constructor. The CS-RNTI must be carried over, as the CS-RNTI PDCCH candidates are derived from it.
+  // copy constructor. The CS-RNTI must be carried over, as it is needed to scramble the Configured Grant Type 2
+  // activation DCI and the CG PUSCHs.
   reconfigure(other.cell_ded, std::nullopt, std::nullopt, other.cs_rnti);
 }
 
@@ -675,20 +662,7 @@ void ue_cell_configuration::reconfigure(const ue_cell_config_ptr&             ue
 
   // Generate PDCCH candidates.
   for (const sched_bwp_config& bwp : cell_ded->bwps.unsorted()) {
-    const frame_pdcch_candidate_list crnti_candidates = generate_monitored_pdcch_candidates(search_spaces, bwp, crnti);
-    for (search_space_info& ss : search_spaces) {
-      ss.update_pdcch_candidates(crnti_candidates[ss.cfg->get_id()]);
-    }
-
-    // A PDCCH scrambled with the CS-RNTI (e.g. a Configured Grant Type 2 activation) sits on a different set of
-    // candidates in a UE-specific SearchSpace, as the hashing is seeded with the RNTI.
-    if (cs_rnti.has_value()) {
-      const frame_pdcch_candidate_list cs_rnti_candidates =
-          generate_monitored_pdcch_candidates(search_spaces, bwp, cs_rnti.value());
-      for (search_space_info& ss : search_spaces) {
-        ss.update_cs_rnti_pdcch_candidates(cs_rnti_candidates[ss.cfg->get_id()]);
-      }
-    }
+    generate_crnti_monitored_pdcch_candidates(search_spaces, bwp, crnti);
   }
 }
 

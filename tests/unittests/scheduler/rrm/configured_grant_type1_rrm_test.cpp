@@ -474,6 +474,52 @@ TEST(configured_grant_rrm_no_ul_config_test, ue_without_ul_config_is_skipped)
 
 // ---- Parameterization ----
 
+/// \brief Fixture whose CG grant is small enough that the RB budget alone would let many more UEs than the CG slot
+/// wheel can hold share a single slot offset.
+///
+/// Every UE placed on an offset recurs on the same slots of cg_slot_wheel, whose per-slot list holds at most
+/// MAX_CG_PUSCH_PDUS_PER_SLOT entries. A tiny grant at a high MCS takes few PRBs, so max_nof_cell_cg_rbs fits far more
+/// UEs than that, and the RB check in find_optimal_cg_offset() alone would let them through.
+class configured_grant_type1_rrm_wheel_capacity_test : public configured_grant_type1_rrm_test
+{
+protected:
+  configured_grant_type1_rrm_wheel_capacity_test() :
+    configured_grant_type1_rrm_test(
+        cg_builder_params{.grant_size_or_bitrate = units::bytes{8}, .mcs = 27, .max_nof_cell_cg_rbs = 100})
+  {
+  }
+};
+
+TEST_P(configured_grant_type1_rrm_wheel_capacity_test, no_slot_offset_holds_more_ues_than_the_cg_slot_wheel_can_fit)
+{
+  std::map<unsigned, unsigned> nof_ues_per_offset;
+  for (unsigned i = 0; i != MAX_NOF_DU_UES; ++i) {
+    const std::optional<ue_cell_config> ue = add_ue(to_du_ue_index(i));
+    if (not ue.has_value()) {
+      break;
+    }
+    ++nof_ues_per_offset[get_cg_alloc(ue.value()).offset];
+  }
+
+  ASSERT_FALSE(nof_ues_per_offset.empty()) << "no UE was allocated, so the test would prove nothing";
+
+  unsigned max_ues_on_one_offset = 0;
+  for (const auto& [offset, nof_ues] : nof_ues_per_offset) {
+    EXPECT_LE(nof_ues, MAX_CG_PUSCH_PDUS_PER_SLOT)
+        << "slot offset " << offset << " holds " << nof_ues << " UEs, more than the CG slot wheel can fit";
+    max_ues_on_one_offset = std::max(max_ues_on_one_offset, nof_ues);
+  }
+
+  // Guard against a vacuous pass: unless some offset was filled to the cap, the RB budget ran out first and the
+  // per-offset UE limit was never the binding constraint.
+  ASSERT_EQ(max_ues_on_one_offset, MAX_CG_PUSCH_PDUS_PER_SLOT)
+      << "no slot offset ever reached the CG slot wheel capacity, so the limit under test was never exercised";
+}
+
+INSTANTIATE_TEST_SUITE_P(configured_grant_type1_rrm_wheel_capacity,
+                         configured_grant_type1_rrm_wheel_capacity_test,
+                         ::testing::Values(cg_test_params{}, cg_test_params{.nof_ul_slots = 2}));
+
 INSTANTIATE_TEST_SUITE_P(configured_grant_type1_rrm,
                          configured_grant_type1_rrm_test,
                          ::testing::Values(

@@ -22,7 +22,7 @@ class cg_slot_wheel
 {
 public:
   /// List of UEs with a CG opportunity in a given slot.
-  using rnti_list = static_vector<rnti_t, MAX_PUSCH_PDUS_PER_SLOT>;
+  using rnti_list = static_vector<rnti_t, MAX_CG_PUSCH_PDUS_PER_SLOT>;
 
   /// Maximum CG periodicity in slots: sym5120x14 = 5120 slots (normal CP, 14 symbols/slot).
   static constexpr unsigned max_cg_slot_periodicity = 5120U;
@@ -44,6 +44,17 @@ public:
       rnti_list& slot_wheel = wheel[offset];
       if (std::find(slot_wheel.begin(), slot_wheel.end(), rnti) != slot_wheel.end()) {
         ++nof_dup;
+        continue;
+      }
+      // The RRM admits a UE only once it has checked that the slot offset has room, so a full list here means the two
+      // went out of sync. Pushing regardless would overrun the static_vector, so drop the entry instead: the UE loses
+      // this occasion rather than the cell losing its scheduler state.
+      ocudu_assert(not slot_wheel.full(),
+                   "rnti={}: no room left for a CG grant at slot offset={}, which already holds {} UEs",
+                   rnti,
+                   offset,
+                   slot_wheel.size());
+      if (slot_wheel.full()) {
         continue;
       }
       slot_wheel.push_back(rnti);

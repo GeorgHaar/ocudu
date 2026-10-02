@@ -6,6 +6,7 @@
 #include "ocudu/scheduler/rrm/configured_grant_type1_rrm.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/ran/resource_allocation/resource_allocation_frequency.h"
+#include "ocudu/ran/slot_pdu_capacity_constants.h"
 #include "ocudu/scheduler/config/pucch_guardbands.h"
 #include "ocudu/scheduler/config/ran_cell_config_helper.h"
 #include "ocudu/scheduler/scheduler_configurator.h"
@@ -36,7 +37,8 @@ configured_grant_type1_rrm::cell_context::cell_context(const ran_cell_config& ce
   nof_rbs_per_ue(config_helpers::compute_nof_cg_prbs_per_ue(cell_cfg_, default_cg_config)),
   usable_cg_offsets(config_helpers::compute_cg_usable_slot_offsets(cell_cfg_)),
   cg_alloc_grid(build_alloc_grid(cell_cfg_)),
-  nof_rbs_allocated(cg_alloc_grid.size(), 0U)
+  nof_rbs_allocated(cg_alloc_grid.size(), 0U),
+  nof_ues_allocated(cg_alloc_grid.size(), 0U)
 {
 }
 
@@ -50,6 +52,12 @@ std::optional<unsigned> configured_grant_type1_rrm::cell_context::find_optimal_c
   for (unsigned offset : usable_cg_offsets) {
     // Not enough room left at this offset to fit one more UE.
     if (nof_rbs_allocated[offset] + nof_rbs_per_ue > max_cg_rbs or cg_alloc_grid[offset].all()) {
+      continue;
+    }
+    // All the UEs placed on this offset recur on the same slots of the CG slot wheel, whose per-slot list is bounded.
+    // The RB budget above does not imply this one: with a small grant at a high MCS, nof_rbs_per_ue is a few PRBs and
+    // max_nof_cell_cg_rbs fits far more UEs than the wheel can hold.
+    if (nof_ues_allocated[offset] >= MAX_CG_PUSCH_PDUS_PER_SLOT) {
       continue;
     }
     if (not optimal_offset.has_value() or nof_rbs_allocated[offset] < nof_rbs_allocated[optimal_offset.value()]) {
@@ -141,6 +149,7 @@ bool configured_grant_type1_rrm::build_ue_cg_config(ue_cell_config& ue_cell_cfg)
 
   // Register the used resources in the grid and counters.
   cell.nof_rbs_allocated[offset_val] += cg_rbs.length();
+  ++cell.nof_ues_allocated[offset_val];
   cell.cg_alloc_grid[offset_val].fill(cg_rbs.start(), cg_rbs.stop());
 
   return true;
@@ -175,6 +184,8 @@ void configured_grant_type1_rrm::reset_ue_cg_config(ue_cell_config& ue_cell_cfg)
                "nof_rbs_allocated underflow at slot offset={}",
                offset);
   cell.nof_rbs_allocated[offset] -= ue_cg.value().vrbs.length();
+  ocudu_assert(cell.nof_ues_allocated[offset] != 0, "nof_ues_allocated underflow at slot offset={}", offset);
+  --cell.nof_ues_allocated[offset];
 
   // Reset the CG configuration.
   ue_cell_cfg.init_bwp().ul.cg.reset();

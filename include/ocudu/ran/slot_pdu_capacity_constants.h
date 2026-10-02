@@ -61,6 +61,10 @@ constexpr size_t MAX_CODEWORDS_PER_PDSCH = 2;
 /// [Implementation defined] Maximum number of PUSCH PDUs per slot.
 constexpr size_t MAX_PUSCH_PDUS_PER_SLOT = 16U;
 
+/// [Implementation defined] Maximum number of CG PUSCH PDUs per slot.
+/// \remark This value needs to be lower than MAX_PUSCH_PDUS_PER_SLOT to leave room for other UL grants.
+constexpr size_t MAX_CG_PUSCH_PDUS_PER_SLOT = 12U;
+
 /// [Implementation defined] Maximum number of UL PDCCH PDUs per slot.
 constexpr size_t MAX_UL_PDCCH_PDUS_PER_SLOT = 16U;
 

@@ -13,6 +13,7 @@
 #include "ocudu/ran/prach/prach_helper.h"
 #include "ocudu/ran/prach/prach_time_mapping.h"
 #include "ocudu/ran/sib/sib_helper.h"
+#include "ocudu/ran/slot_pdu_capacity_constants.h"
 #include "ocudu/ran/ssb/ssb_helper.h"
 #include "ocudu/ran/ssb/ssb_mapping.h"
 #include "ocudu/ran/tdd/tdd_ul_dl_config.h"
@@ -626,8 +627,10 @@ std::vector<crb_interval> config_helpers::compute_cg_type2_freq_resources(const 
   if (nof_cg_rbs_per_ue == 0) {
     return {};
   }
+  // Cap this the maximum number of CG resources per slot to MAX_CG_PUSCH_PDUS_PER_SLOT.
   const unsigned nof_cg_res =
-      std::min(cell_cfg.init_bwp.cg_cfg->max_nof_cell_cg_rbs, nof_non_pucch_crbs) / nof_cg_rbs_per_ue;
+      std::min(std::min(cell_cfg.init_bwp.cg_cfg->max_nof_cell_cg_rbs, nof_non_pucch_crbs) / nof_cg_rbs_per_ue,
+               static_cast<unsigned>(MAX_CG_PUSCH_PDUS_PER_SLOT));
 
   // Only considers the lower part of the spectrum, as we allocate CG resources on that side.
   std::vector<crb_interval> cg_crbs;

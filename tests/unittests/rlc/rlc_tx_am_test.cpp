@@ -5,6 +5,7 @@
 
 #include "lib/rlc/rlc_tx_am_entity.h"
 #include "tests/test_doubles/pdcp/pdcp_pdu_generator.h"
+#include "ocudu/adt/byte_buffer_recycler.h"
 #include "ocudu/ran/pdsch/pdsch_constants.h"
 #include "ocudu/rlc/rlc_resource_defaults.h"
 #include "ocudu/support/executors/manual_task_worker.h"
@@ -153,7 +154,8 @@ protected:
                                              pcell_worker,
                                              ue_worker,
                                              timers,
-                                             get_window_pool());
+                                             get_window_pool(),
+                                             recycler);
 
     // Bind AM Rx/Tx interconnect
     rlc->set_status_provider(tester.get());
@@ -374,12 +376,13 @@ protected:
 
   rlc_drb_tx_window_seg_pool pool{rlc_drb_tx_window_seg_pool_size, rlc_drb_tx_window_seg_size};
 
-  ocudulog::basic_logger&                       logger  = ocudulog::fetch_basic_logger("TEST", false);
-  rlc_am_sn_size                                sn_size = GetParam();
-  rlc_tx_am_config                              config;
-  timer_manager                                 timers;
-  manual_task_worker                            ue_worker{128};
-  manual_task_worker                            pcell_worker{128};
+  ocudulog::basic_logger& logger  = ocudulog::fetch_basic_logger("TEST", false);
+  rlc_am_sn_size          sn_size = GetParam();
+  rlc_tx_am_config        config;
+  timer_manager           timers;
+  manual_task_worker      ue_worker{128};
+  manual_task_worker      pcell_worker{128};
+  byte_buffer_recycler    recycler{ue_worker, rlc_pdu_recycler_size, ocudulog::fetch_basic_logger("RLC", false)};
   std::unique_ptr<rlc_tx_am_test_frame>         tester;
   null_rlc_pcap                                 pcap;
   std::unique_ptr<rlc_tx_am_entity>             rlc;

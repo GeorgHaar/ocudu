@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "ocudu/adt/byte_buffer_recycler.h"
 #include "ocudu/pcap/rlc_pcap.h"
 #include "ocudu/ran/gnb_du_id.h"
 #include "ocudu/rlc/rlc_config.h"
@@ -37,6 +38,7 @@ struct rlc_entity_creation_message {
   rlc_drb_um_rx_window_seg_pool*       drb_um_rx_pool = nullptr;
   rlc_srb_am_rx_window_seg_pool*       srb_am_rx_pool = nullptr;
   rlc_srb_am_tx_window_seg_pool*       srb_am_tx_pool = nullptr;
+  byte_buffer_recycler*                pdu_recycler   = nullptr;
 };
 
 /// Creates an instance of a RLC bearer

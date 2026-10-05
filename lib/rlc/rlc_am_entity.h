@@ -8,6 +8,7 @@
 #include "rlc_base_entity.h"
 #include "rlc_rx_am_entity.h"
 #include "rlc_tx_am_entity.h"
+#include "ocudu/adt/byte_buffer_recycler.h"
 
 namespace ocudu {
 
@@ -29,7 +30,8 @@ public:
                 task_executor&                       ue_executor,
                 timer_manager&                       timers,
                 rlc_drb_am_rx_window_seg_pool&       rx_window_seg_pool,
-                rlc_drb_am_tx_window_seg_pool&       tx_window_seg_pool) :
+                rlc_drb_am_tx_window_seg_pool&       tx_window_seg_pool,
+                byte_buffer_recycler&                pdu_recycler) :
     rlc_base_entity(gnb_du_id_, ue_index_, rb_id_, metrics_period_, rlc_metrics_notifier_, ue_executor)
   {
     // Create AM entities
@@ -45,7 +47,8 @@ public:
                                                                                  pcell_executor,
                                                                                  ue_executor,
                                                                                  timers,
-                                                                                 tx_window_seg_pool);
+                                                                                 tx_window_seg_pool,
+                                                                                 pdu_recycler);
     std::unique_ptr<rlc_rx_am_entity> rx_am = std::make_unique<rlc_rx_am_entity>(gnb_du_id_,
                                                                                  ue_index_,
                                                                                  rb_id_,

@@ -11,6 +11,7 @@
 #include "lib/rlc/rlc_tx_am_entity.h"
 #include "lib/rlc/rlc_tx_tm_entity.h"
 #include "lib/rlc/rlc_tx_um_entity.h"
+#include "ocudu/adt/byte_buffer_recycler.h"
 #include "ocudu/rlc/rlc_resource_defaults.h"
 #include "ocudu/rlc/rlc_window_seg_pools.h"
 #include "ocudu/support/executors/manual_task_worker.h"
@@ -438,6 +439,8 @@ void rlc_instances(const bench_params& params)
     }
   }
 
+  byte_buffer_recycler tx_am_recycler{ue_worker, rlc_pdu_recycler_size, ocudulog::fetch_basic_logger("RLC", false)};
+
   auto tx_am_12_tester = std::make_unique<rlc_tx_am_test_frame>(tx_am_12_cfg.sn_field_length, ue_worker);
   std::vector<std::unique_ptr<rlc_tx_am_entity>> tx_am_12_instances;
   if (params.nof_rlc_tx_am_12 > 0) {
@@ -455,7 +458,8 @@ void rlc_instances(const bench_params& params)
                                                          pcell_worker,
                                                          ue_worker,
                                                          timers,
-                                                         drb_tx_pool.get_pool_of_type<rlc_tx_am_sdu_info>());
+                                                         drb_tx_pool.get_pool_of_type<rlc_tx_am_sdu_info>(),
+                                                         tx_am_recycler);
       tx_am_12->set_status_provider(tx_am_12_tester.get());
       tx_am_12_instances.push_back(std::move(tx_am_12));
     }
@@ -477,7 +481,8 @@ void rlc_instances(const bench_params& params)
                                                          pcell_worker,
                                                          ue_worker,
                                                          timers,
-                                                         drb_tx_pool.get_pool_of_type<rlc_tx_am_sdu_info>());
+                                                         drb_tx_pool.get_pool_of_type<rlc_tx_am_sdu_info>(),
+                                                         tx_am_recycler);
       tx_am_18->set_status_provider(tx_am_18_tester.get());
       tx_am_18_instances.push_back(std::move(tx_am_18));
     }

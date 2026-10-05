@@ -5,6 +5,7 @@
 
 #include "lib/rlc/rlc_tx_am_entity.h"
 #include "tests/test_doubles/pdcp/pdcp_pdu_generator.h"
+#include "ocudu/adt/byte_buffer_recycler.h"
 #include "ocudu/rlc/rlc_resource_defaults.h"
 #include "ocudu/rlc/rlc_window_seg_pools.h"
 #include "ocudu/support/benchmark_utils.h"
@@ -113,6 +114,7 @@ void benchmark_status_pdu_handling(rlc_am_status_pdu status, const bench_params&
   manual_task_worker ue_worker{128};
 
   rlc_drb_tx_window_seg_pool drb_tx_pool{rlc_drb_tx_window_seg_pool_size, rlc_drb_tx_window_seg_size};
+  byte_buffer_recycler       recycler{ue_worker, rlc_pdu_recycler_size, ocudulog::fetch_basic_logger("RLC", false)};
 
   null_rlc_pcap pcap;
 
@@ -126,32 +128,34 @@ void benchmark_status_pdu_handling(rlc_am_status_pdu status, const bench_params&
       gnb_du_id_t{}, du_ue_index_t{}, rb_id_t{}, timer_duration{0}, tester.get(), ue_worker);
 
   // Run benchmark
-  auto context = [&rlc, &tester, &metrics_coll, config, &timers, &pcell_worker, &ue_worker, &pcap, &drb_tx_pool]() {
-    rlc = std::make_unique<rlc_tx_am_entity>(gnb_du_id_t::min,
-                                             du_ue_index_t::MIN_DU_UE_INDEX,
-                                             drb_id_t::drb1,
-                                             config,
-                                             *tester,
-                                             *tester,
-                                             *tester,
-                                             *metrics_coll,
-                                             pcap,
-                                             pcell_worker,
-                                             ue_worker,
-                                             timers,
-                                             drb_tx_pool.get_pool_of_type<rlc_tx_am_sdu_info>());
+  auto context =
+      [&rlc, &tester, &metrics_coll, config, &timers, &pcell_worker, &ue_worker, &pcap, &drb_tx_pool, &recycler]() {
+        rlc = std::make_unique<rlc_tx_am_entity>(gnb_du_id_t::min,
+                                                 du_ue_index_t::MIN_DU_UE_INDEX,
+                                                 drb_id_t::drb1,
+                                                 config,
+                                                 *tester,
+                                                 *tester,
+                                                 *tester,
+                                                 *metrics_coll,
+                                                 pcap,
+                                                 pcell_worker,
+                                                 ue_worker,
+                                                 timers,
+                                                 drb_tx_pool.get_pool_of_type<rlc_tx_am_sdu_info>(),
+                                                 recycler);
 
-    // Bind AM Rx/Tx interconnect
-    rlc->set_status_provider(tester.get());
+        // Bind AM Rx/Tx interconnect
+        rlc->set_status_provider(tester.get());
 
-    for (int i = 0; i < 2048; i++) {
-      byte_buffer sdu = test_helpers::create_pdcp_pdu(config.pdcp_sn_len, /* is_srb = */ false, i, 7, 0);
-      rlc->handle_sdu(std::move(sdu), false);
-      std::array<uint8_t, 100> pdu_buf;
-      rlc->pull_pdu(pdu_buf);
-    }
-    timers.tick();
-  };
+        for (int i = 0; i < 2048; i++) {
+          byte_buffer sdu = test_helpers::create_pdcp_pdu(config.pdcp_sn_len, /* is_srb = */ false, i, 7, 0);
+          rlc->handle_sdu(std::move(sdu), false);
+          std::array<uint8_t, 100> pdu_buf;
+          rlc->pull_pdu(pdu_buf);
+        }
+        timers.tick();
+      };
   auto measure = [&rlc, &status]() mutable { rlc->on_status_pdu(rlc_am_status_pdu{status}); };
   bm->new_measure_with_context("Handling status pdu", 1, context, measure);
 

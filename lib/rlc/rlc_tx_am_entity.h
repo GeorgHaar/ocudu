@@ -7,10 +7,10 @@
 
 #include "rlc_am_interconnect.h"
 #include "rlc_am_pdu.h"
-#include "rlc_pdu_recycler.h"
 #include "rlc_retx_queue.h"
 #include "rlc_sdu_queue_lockfree.h"
 #include "rlc_tx_entity.h"
+#include "ocudu/adt/byte_buffer_recycler.h"
 #include "ocudu/rlc/rlc_window_seg_pools.h"
 #include "ocudu/support/executors/task_executor.h"
 #include "ocudu/support/segmented_sdu_window.h"
@@ -111,8 +111,8 @@ private:
   /// TX window
   segmented_sdu_window<rlc_tx_am_sdu_info, rlc_bearer_logger> tx_window;
 
-  /// Recycler for discarded PDUs (from tx_window) that shall be deleted by a different executor off the critical path
-  rlc_pdu_recycler pdu_recycler;
+  /// Shared recycler for discarded PDUs (from tx_window) to be deleted off the RT-critical path.
+  byte_buffer_recycler& pdu_recycler;
 
   // Header sizes are computed upon construction based on SN length
   const uint32_t head_min_size;
@@ -165,7 +165,8 @@ public:
                    task_executor&                       pcell_executor_,
                    task_executor&                       ue_executor_,
                    timer_manager&                       timers,
-                   rlc_drb_am_tx_window_seg_pool&       window_seg_pool);
+                   rlc_drb_am_tx_window_seg_pool&       window_seg_pool,
+                   byte_buffer_recycler&                pdu_recycler_);
 
   void stop() final
   {

@@ -41,10 +41,6 @@ target_link_libraries(rlc_am_pdu_test ocudu_rlc ocudu_support ocudulog GTest::gt
 target_include_directories(rlc_am_pdu_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(rlc_am_pdu_test)
 
-add_executable(rlc_pdu_recycler_test rlc_pdu_recycler_test.cpp)
-target_link_libraries(rlc_pdu_recycler_test ocudu_instrumentation ocudu_support ocudulog GTest::gtest GTest::gtest_main pdcp_test_doubles)
-target_include_directories(rlc_pdu_recycler_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(rlc_pdu_recycler_test)
 
 add_executable(rlc_sdu_queue_lockfree_test rlc_sdu_queue_lockfree_test.cpp)
 target_link_libraries(rlc_sdu_queue_lockfree_test ocudu_support ocudulog GTest::gtest GTest::gtest_main)

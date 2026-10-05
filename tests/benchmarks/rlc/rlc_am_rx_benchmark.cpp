@@ -6,6 +6,7 @@
 #include "lib/rlc/rlc_rx_am_entity.h"
 #include "lib/rlc/rlc_tx_am_entity.h"
 #include "tests/test_doubles/pdcp/pdcp_pdu_generator.h"
+#include "ocudu/adt/byte_buffer_recycler.h"
 #include "ocudu/rlc/rlc_resource_defaults.h"
 #include "ocudu/rlc/rlc_window_seg_pool_factory.h"
 #include "ocudu/rlc/rlc_window_seg_pools.h"
@@ -149,6 +150,7 @@ static std::vector<byte_buffer> generate_pdus(bench_params params, rx_order orde
 
   std::unique_ptr<rlc_drb_tx_window_seg_pool, rlc_pool_deleter> drb_tx_pool =
       make_rlc_drb_tx_window_seg_pool(rlc_drb_tx_window_seg_pool_size, rlc_drb_tx_window_seg_size);
+  byte_buffer_recycler recycler{ue_worker, rlc_pdu_recycler_size, ocudulog::fetch_basic_logger("RLC", false)};
 
   null_rlc_pcap pcap;
 
@@ -176,7 +178,8 @@ static std::vector<byte_buffer> generate_pdus(bench_params params, rx_order orde
                                               pcell_worker,
                                               ue_worker,
                                               timers,
-                                              drb_tx_pool->get_pool_of_type<rlc_tx_am_sdu_info>());
+                                              drb_tx_pool->get_pool_of_type<rlc_tx_am_sdu_info>(),
+                                              recycler);
 
   // Bind AM Rx/Tx interconnect
   rlc_tx->set_status_provider(tester.get());

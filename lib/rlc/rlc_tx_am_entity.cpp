@@ -26,7 +26,8 @@ rlc_tx_am_entity::rlc_tx_am_entity(gnb_du_id_t                          gnb_du_i
                                    task_executor&                       pcell_executor_,
                                    task_executor&                       ue_executor_,
                                    timer_manager&                       timers,
-                                   rlc_drb_am_tx_window_seg_pool&       window_seg_pool) :
+                                   rlc_drb_am_tx_window_seg_pool&       window_seg_pool,
+                                   byte_buffer_recycler&                pdu_recycler_) :
   rlc_tx_entity(gnb_du_id,
                 ue_index,
                 rb_id_,
@@ -44,7 +45,7 @@ rlc_tx_am_entity::rlc_tx_am_entity(gnb_du_id_t                          gnb_du_i
   mod(cardinality(to_number(cfg.sn_field_length))),
   am_window_size(window_size(to_number(cfg.sn_field_length))),
   tx_window(logger, window_size(to_number(cfg.sn_field_length)), window_seg_pool),
-  pdu_recycler(window_size(to_number(cfg.sn_field_length)), logger),
+  pdu_recycler(pdu_recycler_),
   head_min_size(rlc_am_pdu_header_min_size(cfg.sn_field_length)),
   head_max_size(rlc_am_pdu_header_max_size(cfg.sn_field_length)),
   pdcp_sn_mask(pdcp_compute_sn_mask(cfg.pdcp_sn_len)),
@@ -752,7 +753,6 @@ void rlc_tx_am_entity::handle_status_pdu(rlc_am_status_pdu status) noexcept OCUD
 
   std::optional<uint32_t> max_deliv_pdcp_sn      = {}; // initialize with not value set
   std::optional<uint32_t> max_deliv_retx_pdcp_sn = {}; // initialize with not value set
-  bool                    recycle_bin_full       = false;
   for (uint32_t sn = st.tx_next_ack; tx_mod_base(sn) < tx_mod_base(stop_sn); sn = (sn + 1) % mod) {
     processed_acks++;
     if (tx_window.has_sn(sn)) {
@@ -766,11 +766,8 @@ void rlc_tx_am_entity::handle_status_pdu(rlc_am_status_pdu status) noexcept OCUD
       }
       auto ack_latency = std::chrono::duration_cast<std::chrono::milliseconds>(t_start - sdu_info.time_of_departure);
       metrics_low.metrics_add_ack_latency_ms(ack_latency.count());
-      // move the PDU's byte_buffer from tx_window into pdu_recycler (if possible) for deletion off the critical path.
-      if (!pdu_recycler.add_discarded_pdu(std::move(sdu_info.sdu))) {
-        // recycle bin is full and the PDU was deleted on the spot, which may slow down this worker. Warn later.
-        recycle_bin_full = true;
-      }
+      // move the PDU's byte_buffer into the shared recycler for deletion off the RT-critical path.
+      pdu_recycler.recycle(std::move(sdu_info.sdu));
       tx_window.remove_sn(sn); // remove the from tx_window
       st.tx_next_ack = (sn + 1) % mod;
     } else {
@@ -785,9 +782,6 @@ void rlc_tx_am_entity::handle_status_pdu(rlc_am_status_pdu status) noexcept OCUD
     upper_dn.on_delivered_retransmitted_sdu(max_deliv_retx_pdcp_sn.value());
   }
   logger.log_debug("Processed status report ACKs. ack_sn={} tx_next_ack={}", status.ack_sn, st.tx_next_ack);
-  if (recycle_bin_full) {
-    logger.log_warning("Could not postpone recycling of PDU byte_buffers. Performance can be impaired.");
-  }
 
   // Clear ReTx queue and rewind retx_counter (once per SN unless not started to ReTx)
   while (!retx_queue.empty()) {
@@ -856,8 +850,8 @@ void rlc_tx_am_entity::handle_status_pdu(rlc_am_status_pdu status) noexcept OCUD
 
   update_mac_buffer_state(/* force_notify */ true);
 
-  // Trigger recycling of discarded PDUs in ue_executor
-  pdu_recycler.clear_by_executor(ue_executor);
+  // Dispatch deferred destruction of recycled PDUs to the background executor.
+  pdu_recycler.flush();
 }
 
 void rlc_tx_am_entity::on_status_report_changed()

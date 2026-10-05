@@ -36,9 +36,11 @@ struct network_interface_config {
 struct ngu_interface_config {
   /// TS 29.281 Sec. 4.4.2.3 Encapsulated T-PDUs.
   int upf_port = GTPU_PORT;
+  /// NG-U global rate limiter.
+  std::optional<uint64_t> global_rate_limiter_bps;
   /// NG-U reordering timer.
   std::chrono::milliseconds gtpu_reordering_timer;
-  /// NG-U token bucket rate limiting period.
+  /// NG-U token bucket rate limiting period for UE-AMBR.
   std::chrono::milliseconds gtpu_rate_limiting_period;
   /// Error indication suppression time for released TEIDs.
   std::chrono::milliseconds gtpu_teid_release_linger_time;

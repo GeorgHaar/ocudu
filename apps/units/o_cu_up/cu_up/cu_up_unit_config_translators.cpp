@@ -18,6 +18,9 @@ ocuup::cu_up_config ocudu::generate_cu_up_config(const cu_up_unit_config& config
       .ngu_cfg =
           ocuup::ngu_interface_config{
               .upf_port                  = GTPU_PORT,
+              .global_rate_limiter_bps   = config.ngu_cfg.gtpu_cfg.global_rate_limiter_bps <= 0
+                                               ? std::nullopt
+                                               : std::optional<uint64_t>(config.ngu_cfg.gtpu_cfg.global_rate_limiter_bps),
               .gtpu_reordering_timer     = std::chrono::milliseconds{config.ngu_cfg.gtpu_cfg.gtpu_reordering_timer_ms},
               .gtpu_rate_limiting_period = config.ngu_cfg.gtpu_cfg.rate_limiter_period,
               .gtpu_teid_release_linger_time = config.ngu_cfg.gtpu_cfg.gtpu_teid_release_linger_time,

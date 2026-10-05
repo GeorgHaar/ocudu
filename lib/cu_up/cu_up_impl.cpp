@@ -48,6 +48,12 @@ cu_up::cu_up(const cu_up_config& config_, cu_up_dependencies dependencies) :
 
   // > Create and connect upper layers.
 
+  // Create NG-U global rate limiter, if required.
+  if (cfg.ngu_cfg.global_rate_limiter_bps) {
+    uint64_t limit_bytes = *cfg.ngu_cfg.global_rate_limiter_bps / 8;
+    ngu_limiter.emplace(limit_bytes, limit_bytes, timers);
+  }
+
   // Create NG-U TEID allocator.
   ngu_teid_allocator = create_gtpu_allocator(
       gtpu_allocator_creation_request{.max_nof_teids            = cfg.max_nof_ues * MAX_NOF_PDU_SESSIONS,

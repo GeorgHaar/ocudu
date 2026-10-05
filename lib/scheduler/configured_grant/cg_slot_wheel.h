@@ -10,14 +10,18 @@
 #include "ocudu/ran/rnti.h"
 #include "ocudu/ran/slot_pdu_capacity_constants.h"
 #include "ocudu/ran/slot_point.h"
+#include "ocudu/scheduler/resource_grid_util.h"
 #include <algorithm>
 
 namespace ocudu {
 
 /// \brief Storage of the periodic CG PUSCH opportunities to be scheduled in the resource grid.
 ///
-/// Each position of the wheel represents a slot in a ring-like structure (i.e. slot % max_cg_slot_periodicity) and
-/// holds the list of RNTIs with a CG grant due in that slot. Used by both the CG Type 1 and Type 2 schedulers.
+/// Each position of the wheel represents a slot in a ring-like structure (i.e. slot % wheel size) and holds the list of
+/// RNTIs with a CG grant due in that slot. Used by both the CG Type 1 and Type 2 schedulers.
+///
+/// The wheel is sized to the cell's CG period rather than to the largest one the standard allows, so every UE occupies
+/// a single entry. This assumes every UE on the wheel uses the cell's CG period, which the CG schedulers enforce.
 class cg_slot_wheel
 {
 public:
@@ -27,11 +31,37 @@ public:
   /// Maximum CG periodicity in slots: sym5120x14 = 5120 slots (normal CP, 14 symbols/slot).
   static constexpr unsigned max_cg_slot_periodicity = 5120U;
 
-  cg_slot_wheel()
+  /// \brief Minimum size of the wheel, in slots.
+  ///
+  /// It has to exceed the largest k2 (32, as per TS 38.331), so that a CG Type 2 UE is left with at least one usable
+  /// occasion: the ones between the activation PDCCH and the first transmission k2 slots later are skipped.
+  static constexpr unsigned min_wheel_size = 40U;
+
+  /// \brief Size of the wheel holding a CG period of \c cg_period_slots slots.
+  ///
+  /// The wheel is indexed by slot modulo its size, so that size has to be a multiple of the CG period - otherwise the
+  /// entries a UE is written to would not be the slots its grant actually recurs on - and it has to divide the number
+  /// of slots in a hyper system frame, or the mapping would shift when the slot counter wraps. Doubling the period
+  /// until it reaches the minimum preserves both: every CG periodicity is of the form 2^a or 5*2^a, so any
+  /// power-of-two multiple of one still divides NOF_SLOTS_PER_HYPER_SYSTEM_FRAME.
+  static constexpr unsigned ring_size_for(unsigned cg_period_slots)
   {
-    // NOF_SLOTS_PER_HYPER_SYSTEM_FRAME % max_cg_slot_periodicity = 0, no need to adjust the wheel size to a value
-    // different from max_cg_slot_periodicity.
-    wheel.resize(max_cg_slot_periodicity);
+    unsigned ring_size = cg_period_slots;
+    while (ring_size < min_wheel_size) {
+      ring_size *= 2;
+    }
+    return ring_size;
+  }
+
+  /// \brief Builds a wheel holding one CG period.
+  /// \param cg_period_slots CG periodicity of the cell, in slots. Every UE added to the wheel must use this period.
+  explicit cg_slot_wheel(unsigned cg_period_slots)
+  {
+    ocudu_assert(cg_period_slots > 0 and cg_period_slots <= max_cg_slot_periodicity,
+                 "Invalid CG periodicity of {} slots",
+                 cg_period_slots);
+
+    wheel.resize(ring_size_for(cg_period_slots));
   }
 
   /// \brief Adds a UE's CG grant positions to the wheel, one every \c period_slots slots.
@@ -39,8 +69,14 @@ public:
   /// non-zero value denotes a bookkeeping error in the caller.
   unsigned add_ue(rnti_t rnti, unsigned time_domain_offset, unsigned period_slots)
   {
+    ocudu_assert(period_slots > 0 and wheel.size() % period_slots == 0,
+                 "CG period of {} slots does not divide the wheel size of {}, so a UE added with it would be written "
+                 "to entries other than the slots its grant recurs on",
+                 period_slots,
+                 wheel.size());
+
     unsigned nof_dup = 0;
-    for (unsigned offset = time_domain_offset; offset < max_cg_slot_periodicity; offset += period_slots) {
+    for (unsigned offset = time_domain_offset; offset < wheel.size(); offset += period_slots) {
       rnti_list& slot_wheel = wheel[offset];
       if (std::find(slot_wheel.begin(), slot_wheel.end(), rnti) != slot_wheel.end()) {
         ++nof_dup;
@@ -71,7 +107,7 @@ public:
   unsigned rem_ue(rnti_t rnti, unsigned time_domain_offset, unsigned period_slots)
   {
     unsigned nof_missing = 0;
-    for (unsigned offset = time_domain_offset; offset < max_cg_slot_periodicity; offset += period_slots) {
+    for (unsigned offset = time_domain_offset; offset < wheel.size(); offset += period_slots) {
       rnti_list& slot_wheel = wheel[offset];
       auto*      it         = std::find(slot_wheel.begin(), slot_wheel.end(), rnti);
       if (it == slot_wheel.end()) {

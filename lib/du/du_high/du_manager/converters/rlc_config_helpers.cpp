@@ -37,7 +37,7 @@ static void fill_rlc_entity_creation_message_common(rlc_entity_creation_message&
   msg.drb_um_rx_pool = &rlc_resources.drb_rx_window_seg_pool->get_pool_of_type<rlc_rx_um_sdu_info>();
   msg.srb_am_rx_pool = &rlc_resources.srb_rx_window_seg_pool->get_pool_of_type<rlc_rx_am_sdu_info>();
   msg.srb_am_tx_pool = &rlc_resources.srb_tx_window_seg_pools[pcell_index]->get_pool_of_type<rlc_tx_am_sdu_info>();
-  msg.pdu_recycler   = rlc_resources.pdu_recycler.get();
+  msg.pdu_recycler   = rlc_resources.pdu_recyclers[pcell_index].get();
 }
 
 // for SRBs

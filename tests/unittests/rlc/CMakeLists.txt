@@ -9,7 +9,7 @@ set_directory_properties(PROPERTIES LABELS "rlc")
 add_executable(rlc_rx_am_test rlc_rx_am_test.cpp)
 target_link_libraries(rlc_rx_am_test ocudu_rlc ocudu_support ocudulog GTest::gtest GTest::gtest_main pdcp_test_doubles)
 target_include_directories(rlc_rx_am_test PRIVATE ${CMAKE_SOURCE_DIR})
-gtest_discover_tests(rlc_rx_am_test)
+gtest_discover_tests(rlc_rx_am_test PROPERTIES "LABELS;tsan")
 
 add_executable(rlc_tx_am_test rlc_tx_am_test.cpp)
 target_link_libraries(rlc_tx_am_test ocudu_rlc ocudu_support ocudulog GTest::gtest GTest::gtest_main pdcp_test_doubles)

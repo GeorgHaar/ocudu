@@ -10,9 +10,11 @@
 #include "ocudu/rlc/rlc_window_seg_pools.h"
 #include "ocudu/support/executors/manual_task_worker.h"
 #include "ocudu/support/test_utils.h"
+#include <atomic>
 #include <gtest/gtest.h>
 #include <list>
 #include <queue>
+#include <thread>
 #include <utility>
 
 using namespace ocudu;
@@ -661,6 +663,114 @@ TEST_P(rlc_rx_am_test, rx_polling_bit_sn_inside_rx_window)
   EXPECT_EQ(tester->sdu_queue.front().length(), sdu_size);
   EXPECT_EQ(tester->sdu_queue.front(), sdu);
   tester->sdu_queue.pop();
+}
+
+/// Verify that reading the status report again never returns an older report than a previous read. The RX entity
+/// publishes a new report before setting the status-required state, so the TX entity can read twice for a single
+/// published report when it pulls between both steps.
+TEST_P(rlc_rx_am_test, status_report_never_older_than_previous_read)
+{
+  uint32_t sdu_size      = 4;
+  auto     rx_polled_pdu = [&](uint32_t sn) {
+    std::list<std::vector<uint8_t>> pdu_list = {};
+    byte_buffer                     sdu;
+    ASSERT_NO_FATAL_FAILURE(create_pdus(pdu_list, sdu, sn, sdu_size, sdu_size, sn));
+    *(pdu_list.front().begin()) |= 0b01000000; // set P = 1;
+    rlc->handle_pdu(byte_buffer_slice::create(std::move(pdu_list.front())).value());
+  };
+
+  ASSERT_NO_FATAL_FAILURE(rx_polled_pdu(0));
+  ASSERT_TRUE(rlc->status_report_required());
+  EXPECT_EQ(rlc->get_status_pdu().ack_sn, 1);
+
+  // t-StatusProhibit is running now, but the TX entity may still read the report (see above)
+  ASSERT_NO_FATAL_FAILURE(rx_polled_pdu(1));
+  EXPECT_EQ(rlc->get_status_pdu().ack_sn, 2);
+
+  // No new report has been published: the latest one must be returned, not the one from the first read.
+  EXPECT_EQ(rlc->get_status_pdu().ack_sn, 2);
+}
+
+/// Stress the hand-over of status reports between the RX entity (UE executor) and the TX entity (pcell executor) from
+/// two threads, as in the DU: one thread receives polled PDUs in order while the other reads a status report whenever
+/// one is required. The ACK_SN of the reports read must never go backwards. t-StatusProhibit is disabled (as for SRBs)
+/// so that every trigger is read immediately.
+TEST_P(rlc_rx_am_test, status_report_never_older_with_concurrent_tx)
+{
+  // Silence the per-PDU logs of the 200000 PDUs below.
+  logger.set_level(ocudulog::basic_levels::info);
+  ocudulog::fetch_basic_logger("RLC", false).set_level(ocudulog::basic_levels::warning);
+  rlc_rx_am_config cfg  = config;
+  cfg.t_status_prohibit = 0;
+
+  rlc = std::make_unique<rlc_rx_am_entity>(gnb_du_id_t::min,
+                                           du_ue_index_t::MIN_DU_UE_INDEX,
+                                           srb_id_t::srb0,
+                                           cfg,
+                                           *tester,
+                                           *metrics_coll,
+                                           pcap,
+                                           ue_worker,
+                                           timers,
+                                           get_window_pool());
+  rlc->set_status_handler(tester.get());
+  rlc->set_status_notifier(tester.get());
+
+  const uint32_t        mod     = cardinality(to_number(sn_size));
+  const uint32_t        nof_pdu = 200000;
+  std::atomic<uint32_t> nof_rx_pdus{0};
+  std::atomic<uint32_t> nof_reads{0};
+  std::atomic<bool>     done{false};
+  uint32_t              nof_older = 0;
+
+  std::thread tx_thread([&]() {
+    bool     first = true;
+    uint32_t prev  = 0;
+    while (not done.load(std::memory_order_acquire)) {
+      if (not rlc->status_report_required()) {
+        continue;
+      }
+      // Unwrap ACK_SN with the number of PDUs handed to the RX entity before and after the read: the report reflects
+      // the PDUs received in between, so the unwrapped ACK_SN is the largest value not above that count that matches
+      // ACK_SN modulo the SN space. Unlike a comparison over half the SN space, this holds however many PDUs are
+      // received between two reads. A read that took longer than half the SN space is ambiguous and skipped.
+      const uint32_t count_before = nof_rx_pdus.load(std::memory_order_acquire);
+      const uint32_t ack_sn       = rlc->get_status_pdu().ack_sn;
+      const uint32_t count_after  = nof_rx_pdus.load(std::memory_order_acquire);
+      nof_reads.fetch_add(1, std::memory_order_relaxed);
+      if (count_after - count_before >= mod / 2) {
+        continue;
+      }
+      const uint32_t ack = count_after - (count_after + mod - ack_sn) % mod;
+      if (not first && ack < prev) {
+        nof_older++;
+      }
+      first = false;
+      prev  = ack;
+    }
+  });
+
+  for (uint32_t n = 0; n < nof_pdu; n++) {
+    uint32_t                        sn       = n % mod;
+    std::list<std::vector<uint8_t>> pdu_list = {};
+    byte_buffer                     sdu;
+    ASSERT_NO_FATAL_FAILURE(create_pdus(pdu_list, sdu, sn, 4, 4, sn));
+    *(pdu_list.front().begin()) |= 0b01000000; // set P = 1;
+    nof_rx_pdus.store(n + 1, std::memory_order_release);
+    rlc->handle_pdu(byte_buffer_slice::create(std::move(pdu_list.front())).value());
+    tester->sdu_queue = {};
+    ue_worker.run_pending_tasks();
+  }
+  // Let the reader take at least one report, as a scheduler that runs one thread at a time (e.g. valgrind) may not
+  // have run it yet. The last PDU was polled, so a report is pending.
+  while (nof_reads.load(std::memory_order_relaxed) == 0) {
+    std::this_thread::yield();
+  }
+  done.store(true, std::memory_order_release);
+  tx_thread.join();
+
+  logger.info("Read {} status reports, {} older than the previous one", nof_reads.load(), nof_older);
+  EXPECT_EQ(nof_older, 0);
 }
 
 /// Verify proper handling of polling bit for PDUs outside the Rx window: The status-required state shall still change

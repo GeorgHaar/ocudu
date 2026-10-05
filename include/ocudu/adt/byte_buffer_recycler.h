@@ -53,7 +53,7 @@ public:
   void flush()
   {
     if (not exec.execute([this]() { drain(); })) {
-      logger.error("byte_buffer_recycler: failed to dispatch flush to executor");
+      logger.warning("byte_buffer_recycler: failed to dispatch flush to executor");
     }
   }
 

@@ -170,7 +170,7 @@ static void generate_config(ru_ofh_configuration&                            out
           convert_dB_to_amplitude(scaling_config->ru_reference_level_dBFS - subcarrier_rms_backoff_dB);
     } else {
       report_fatal_error(
-          "Either the iq_scaling or the RU reference level and subarrier RMS backoff must be configured.");
+          "Either the iq_scaling or the RU reference level and subcarrier RMS backoff must be configured.");
     }
 
     // C-Plane PRACH FFT config.

@@ -210,7 +210,8 @@ static void configure_cli11_ru_ofh_base_cell_args(CLI::App& app, ru_ofh_unit_bas
         }
         std::get<ru_ofh_scaling_config>(config.iq_scaling_config).ru_reference_level_dBFS = value;
       },
-      "RU IQ reference level mapped to the maximum RF power")
+      "IQ power of a single subcarrier mapped to the RU maximum RF power (O-RAN Reference_Level). 0 dBFS is the "
+      "full scale of I or Q before compression")
       ->range(-std::numeric_limits<float>::infinity(), 0.0f)
       ->check([&config](const std::string& value) -> std::string {
         if (std::holds_alternative<ru_ofh_legacy_scaling_config>(config.iq_scaling_config)) {
@@ -234,7 +235,7 @@ static void configure_cli11_ru_ofh_base_cell_args(CLI::App& app, ru_ofh_unit_bas
           std::get<ru_ofh_scaling_config>(config.iq_scaling_config).subcarrier_rms_backoff_dB = backoff;
         }
       },
-      "Power back-off attenuation applied to all subcarriers with respect to the RU reference level")
+      "Subcarrier RMS power back-off with respect to the RU reference level. 'auto' sets it to 10*log10(12*N_RB)")
       ->check(CLI::Range(0.0f, std::numeric_limits<float>::infinity()) | CLI::IsMember({"auto"}))
       ->check([&config](const std::string& value) -> std::string {
         if (std::holds_alternative<ru_ofh_legacy_scaling_config>(config.iq_scaling_config)) {
@@ -252,7 +253,7 @@ static void configure_cli11_ru_ofh_base_cell_args(CLI::App& app, ru_ofh_unit_bas
         }
         std::get<ru_ofh_legacy_scaling_config>(config.iq_scaling_config).iq_scaling = value;
       },
-      "Linear IQ scaling factor. It replaces the RU reference level and subarrier back-off")
+      "Linear IQ scaling factor. It replaces the RU reference level and subcarrier back-off")
       ->range(0.0, 100.0)
       ->check([&config](const std::string& value) -> std::string {
         if (std::holds_alternative<ru_ofh_scaling_config>(config.iq_scaling_config)) {

@@ -23,32 +23,30 @@ namespace ocudu {
 struct ru_ofh_scaling_config {
   /// \brief RU reference level in dBFS.
   ///
-  /// This parameter must be set to the magnitude that is required for a single subcarrier to reach the nominal RF power
-  /// of the RU. Some RUs specify their IQ reference level in their documentation. It is referenced to the full scale
-  /// value of the selected OFH compression scheme.
+  /// IQ power level that, carried over a single subcarrier, the RU maps to its maximum RMS output power. It
+  /// corresponds to the O-RAN Reference_Level (O-RAN.WG4.CUS, clause 8.1.3), which is 0 dBFS if the RU does not support
+  /// or configure it.
   ///
-  /// \warning Check the RU documentation before settings this parameter, as incorrect values may damage the RU.
+  /// 0 dBFS is the full scale of the I or Q component before compression. Without compression, this is the full scale
+  /// of the configured IQ bit width, as in O-RAN. With BFP compression, the IQ data are quantized to 16 bits before
+  /// compression, so 0 dBFS is the 16-bit full scale and the BFP exponents above it remain unused. For a mantissa of
+  /// \f$m\f$ bits, this is \f$6.02(m-1)\f$ dB below the O-RAN full scale (O-RAN.WG4.CUS, clause 8.1.3.1) and
+  /// corresponds to an O-RAN FS_Offset of \f$2(m-1)\f$, e.g., 48.2 dB and an FS_Offset of 16 for a 9-bit mantissa.
+  ///
+  /// \warning Check the RU documentation before setting this parameter, as incorrect values may damage the RU.
   float ru_reference_level_dBFS = -12.0f;
-  /// \brief Attenuation of the subcarrier IQ data as a back-off to \ref ru_reference_level_dBFS.
+  /// \brief Back-off of the subcarrier RMS power with respect to \ref ru_reference_level_dBFS.
   ///
-  /// Set this parameter to the desired RMS power attenuation of the IQ symbols in the resource grid. It acts as a
-  /// back-off applied to the RU reference level. Its intended use is to prevent the sum of the power contributions of
-  /// each subcarrier in the signal from exceeding the RU reference level. Some RUs specify the expected subcarrier
-  /// magnitude in their documentation. If no expected subcarrier magnitude is stated on the RU documentation, it is
-  /// recommended to start with a large back-off (e.g., 30 dB), and decrease gradually until the desired RF power is
-  /// reached.
+  /// The O-RAN TX power budget (O-RAN.WG4.CUS, clause 8.1.3.3) requires the power summed over all simultaneously
+  /// transmitted subcarriers not to exceed the reference level. If not set, the back-off is
+  /// \f$10\log_{10}(12 N_{RB})\f$, which meets this budget for a fully allocated carrier. Smaller values exceed the
+  /// O-RAN power budget and should only be used if the RU documentation specifies the expected subcarrier level.
   ///
-  /// Some RUs that support multiple channel bandwidths normalize their internal gain according to the selected RU
-  /// bandwidth. This makes the subcarrier RMS power valid for all supported bandwidth settings. For RUs that don't
-  /// normalize based on channel bandwidth, a subcarrier RMS power for a new BW can be derived from a subcarrier RMS
-  /// power calibrated for a previous BW by applying the following expression:
+  /// RUs that apply bandwidth normalization internally (not O-RAN compliant) typically require a fixed back-off
+  /// independent of the bandwidth. For RUs that do not normalize their gain to the channel bandwidth, a back-off
+  /// calibrated for one bandwidth converts to another as \f$B_{BW2} = B_{BW1} + 10\log_{10}(BW2/BW1)\f$.
   ///
-  /// \f$ $$P_{BW2}\text{ [dBFS]}=P_{BW1}\text{ [dBFS]} - 10\log_{10}{\bigg(\frac{BW2}{BW1}\bigg)}\f$
-  ///
-  /// If no value is specified, then the bandwidth is normalized based on the number of subcarriers, i.e.,
-  /// the back-off is set to \f$10\log_{10}(12 N_{RB})}\f$.
-  ///
-  /// \warning Check the RU documentation before settings this parameter, as incorrect values may damage the RU.
+  /// \warning Check the RU documentation before setting this parameter, as incorrect values may damage the RU.
   std::optional<float> subcarrier_rms_backoff_dB;
 };
 
@@ -60,7 +58,7 @@ struct ru_ofh_legacy_scaling_config {
   /// subcarrier_rms_backoff_dB. To preserve backwards-compatibility with older configs, the IQ scaling factor applied
   /// to the OFH symbols will include \f$ G_{iq}=\frac{\text{iq\_scaling}}{\sqrt{12 N_{RB}}} \f$.
   ///
-  /// \warning Check the RU documentation before settings this parameter, as incorrect values may damage the RU.
+  /// \warning Check the RU documentation before setting this parameter, as incorrect values may damage the RU.
   float iq_scaling = 0.1f;
 };
 

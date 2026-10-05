@@ -93,6 +93,9 @@ private:
 
   // TX helper variables
 
+  /// Shared recycler for discarded PDUs and SDUs to be deleted off the RT-critical path.
+  byte_buffer_recycler& pdu_recycler;
+
   // TX SDU buffers
   rlc_sdu_queue_lockfree sdu_queue;
   uint32_t               sn_under_segmentation = INVALID_RLC_SN; // SN of the SDU currently being segmented
@@ -110,9 +113,6 @@ private:
 
   /// TX window
   segmented_sdu_window<rlc_tx_am_sdu_info, rlc_bearer_logger> tx_window;
-
-  /// Shared recycler for discarded PDUs (from tx_window) to be deleted off the RT-critical path.
-  byte_buffer_recycler& pdu_recycler;
 
   // Header sizes are computed upon construction based on SN length
   const uint32_t head_min_size;

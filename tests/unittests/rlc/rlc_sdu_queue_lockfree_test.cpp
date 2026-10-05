@@ -7,6 +7,8 @@
 #include "lib/rlc/rlc_sdu_queue_lockfree.h"
 #include "ocudu/adt/byte_buffer.h"
 #include "ocudu/ran/du_types.h"
+#include "ocudu/rlc/rlc_resource_defaults.h"
+#include "ocudu/support/executors/inline_task_executor.h"
 #include <gtest/gtest.h>
 
 using namespace ocudu;
@@ -43,11 +45,13 @@ protected:
   ocudulog::basic_logger& test_logger = ocudulog::fetch_basic_logger("TEST", false);
   rlc_bearer_logger       rlc_logger  = {"RLC",
                                          {gnb_du_id_t::min, du_ue_index_t::MIN_DU_UE_INDEX, rb_id_t(drb_id_t::drb1), "DL"}};
+  inline_task_executor    inline_exec;
+  byte_buffer_recycler    recycler{inline_exec, rlc_pdu_recycler_size, ocudulog::fetch_basic_logger("RLC", false)};
 };
 
 TEST_F(rlc_sdu_queue_test, queue_unqueue)
 {
-  rlc_sdu_queue_lockfree tx_queue(default_rlc_queue_size_sdus, default_rlc_queue_size_bytes, rlc_logger);
+  rlc_sdu_queue_lockfree tx_queue(default_rlc_queue_size_sdus, default_rlc_queue_size_bytes, rlc_logger, recycler);
 
   // Write 1 SDU
   byte_buffer buf       = byte_buffer::create({0x00, 0x01}).value();
@@ -79,7 +83,7 @@ TEST_F(rlc_sdu_queue_test, full_capacity)
 {
   unsigned capacity = 5;
 
-  rlc_sdu_queue_lockfree tx_queue(capacity, default_rlc_queue_size_bytes, rlc_logger);
+  rlc_sdu_queue_lockfree tx_queue(capacity, default_rlc_queue_size_bytes, rlc_logger, recycler);
 
   // Write Capacity + 1 SDUs
   for (uint32_t pdcp_sn = 0; pdcp_sn < capacity + 1; pdcp_sn++) {
@@ -121,7 +125,7 @@ TEST_F(rlc_sdu_queue_test, full_capacity_bytes)
   unsigned sdu_len        = 1;
   unsigned capacity_bytes = 5;
 
-  rlc_sdu_queue_lockfree tx_queue(default_rlc_queue_size_sdus, capacity_bytes, rlc_logger);
+  rlc_sdu_queue_lockfree tx_queue(default_rlc_queue_size_sdus, capacity_bytes, rlc_logger, recycler);
 
   // Write Capacity + 1 SDUs
   unsigned written_bytes = 0;
@@ -170,7 +174,7 @@ TEST_F(rlc_sdu_queue_test, discard)
   unsigned       n_sdus            = capacity;
   const uint32_t queue_bytes_limit = 6172672;
 
-  rlc_sdu_queue_lockfree tx_queue(capacity, queue_bytes_limit, rlc_logger);
+  rlc_sdu_queue_lockfree tx_queue(capacity, queue_bytes_limit, rlc_logger, recycler);
 
   // Fill SDU queue with SDUs
   for (uint32_t pdcp_sn = 0; pdcp_sn < n_sdus; pdcp_sn++) {
@@ -212,7 +216,7 @@ TEST_F(rlc_sdu_queue_test, discard_all)
   unsigned capacity = 10;
   unsigned n_sdus   = capacity / 2;
 
-  rlc_sdu_queue_lockfree tx_queue(capacity, default_rlc_queue_size_bytes, rlc_logger);
+  rlc_sdu_queue_lockfree tx_queue(capacity, default_rlc_queue_size_bytes, rlc_logger, recycler);
 
   // Fill SDU queue with SDUs
   for (uint32_t pdcp_sn = 0; pdcp_sn < n_sdus; pdcp_sn++) {

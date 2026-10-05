@@ -5,9 +5,11 @@
 
 #include "lib/rlc/rlc_um_entity.h"
 #include "tests/test_doubles/pdcp/pdcp_pdu_generator.h"
+#include "ocudu/adt/byte_buffer_recycler.h"
 #include "ocudu/ran/pdsch/pdsch_constants.h"
 #include "ocudu/rlc/rlc_resource_defaults.h"
 #include "ocudu/rlc/rlc_window_seg_pool_factory.h"
+#include "ocudu/support/executors/inline_task_executor.h"
 #include "ocudu/support/executors/manual_task_worker.h"
 #include "ocudu/support/test_utils.h"
 #include "fmt/ostream.h"
@@ -121,7 +123,8 @@ protected:
                                            pcell_worker,
                                            ue_worker,
                                            timers,
-                                           get_window_pool());
+                                           get_window_pool(),
+                                           recycler);
     rlc2 = std::make_unique<rlc_um_entity>(gnb_du_id_t::min,
                                            du_ue_index_t::MIN_DU_UE_INDEX,
                                            srb_id_t::srb0,
@@ -136,7 +139,8 @@ protected:
                                            pcell_worker,
                                            ue_worker,
                                            timers,
-                                           get_window_pool());
+                                           get_window_pool(),
+                                           recycler);
 
     // Bind interfaces
     rlc1_rx_lower = rlc1->get_rx_lower_layer_interface();
@@ -276,14 +280,16 @@ protected:
   std::unique_ptr<rlc_drb_rx_window_seg_pool, rlc_pool_deleter> pool =
       make_rlc_drb_rx_window_seg_pool(rlc_drb_rx_window_seg_pool_size, rlc_drb_rx_window_seg_size);
 
-  ocudulog::basic_logger&            logger  = ocudulog::fetch_basic_logger("TEST", false);
-  rlc_um_sn_size                     sn_size = GetParam();
-  rlc_um_config                      config;
-  timer_manager                      timers;
-  manual_task_worker                 ue_worker{128};
-  manual_task_worker                 pcell_worker{128};
-  rlc_test_frame                     tester1, tester2;
-  null_rlc_pcap                      pcap1, pcap2;
+  ocudulog::basic_logger& logger  = ocudulog::fetch_basic_logger("TEST", false);
+  rlc_um_sn_size          sn_size = GetParam();
+  rlc_um_config           config;
+  timer_manager           timers;
+  manual_task_worker      ue_worker{128};
+  manual_task_worker      pcell_worker{128};
+  inline_task_executor    inline_exec;
+  byte_buffer_recycler    recycler{inline_exec, rlc_pdu_recycler_size, ocudulog::fetch_basic_logger("RLC", false)};
+  rlc_test_frame          tester1, tester2;
+  null_rlc_pcap           pcap1, pcap2;
   std::unique_ptr<rlc_um_entity>     rlc1, rlc2;
   rlc_rx_lower_layer_interface*      rlc1_rx_lower = nullptr;
   rlc_tx_upper_layer_data_interface* rlc1_tx_upper = nullptr;

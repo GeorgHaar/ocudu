@@ -488,6 +488,8 @@ void rlc_instances(const bench_params& params)
     }
   }
 
+  byte_buffer_recycler tx_tm_um_recycler{ue_worker, rlc_pdu_recycler_size, ocudulog::fetch_basic_logger("RLC", false)};
+
   auto                                           tx_tm_tester = std::make_unique<rlc_tx_tm_um_test_frame>(ue_worker);
   std::vector<std::unique_ptr<rlc_tx_tm_entity>> tx_tm_instances;
   if (params.nof_rlc_tx_tm > 0) {
@@ -503,7 +505,8 @@ void rlc_instances(const bench_params& params)
                                                       pcap,
                                                       pcell_worker,
                                                       ue_worker,
-                                                      timers);
+                                                      timers,
+                                                      tx_tm_um_recycler);
       tx_tm_instances.push_back(std::move(tx_tm));
     }
   }
@@ -523,7 +526,8 @@ void rlc_instances(const bench_params& params)
                                                         pcap,
                                                         pcell_worker,
                                                         ue_worker,
-                                                        timers);
+                                                        timers,
+                                                        tx_tm_um_recycler);
       tx_um_6_instances.push_back(std::move(tx_um_6));
     }
   }
@@ -543,7 +547,8 @@ void rlc_instances(const bench_params& params)
                                                          pcap,
                                                          pcell_worker,
                                                          ue_worker,
-                                                         timers);
+                                                         timers,
+                                                         tx_tm_um_recycler);
       tx_um_12_instances.push_back(std::move(tx_um_12));
     }
   }

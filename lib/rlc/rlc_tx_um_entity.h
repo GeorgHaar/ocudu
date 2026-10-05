@@ -36,6 +36,7 @@ private:
   rlc_tx_um_state st;
 
   // TX SDU buffers
+  byte_buffer_recycler&  pdu_recycler;
   rlc_sdu_queue_lockfree sdu_queue;
   rlc_sdu                sdu;
   uint32_t               next_so = 0; // The segment offset for the next generated PDU
@@ -78,7 +79,8 @@ public:
                    rlc_pcap&                            pcap_,
                    task_executor&                       pcell_executor_,
                    task_executor&                       ue_executor_,
-                   timer_manager&                       timers);
+                   timer_manager&                       timers,
+                   byte_buffer_recycler&                pdu_recycler_);
 
   void stop() final
   {

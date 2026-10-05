@@ -5,6 +5,7 @@
 
 #include "lib/rlc/rlc_tx_tm_entity.h"
 #include "ocudu/adt/byte_buffer_chain.h"
+#include "ocudu/rlc/rlc_resource_defaults.h"
 #include "ocudu/rlc/rlc_srb_config_factory.h"
 #include "ocudu/support/executors/manual_task_worker.h"
 #include <gtest/gtest.h>
@@ -80,7 +81,8 @@ protected:
                                              pcap,
                                              pcell_worker,
                                              ue_worker,
-                                             timers);
+                                             timers,
+                                             recycler);
   }
 
   void TearDown() override
@@ -98,13 +100,14 @@ protected:
     return buf;
   }
 
-  ocudulog::basic_logger&                       logger = ocudulog::fetch_basic_logger("TEST", false);
-  timer_manager                                 timers;
-  manual_task_worker                            pcell_worker{128};
-  manual_task_worker                            ue_worker{128};
-  std::unique_ptr<rlc_tx_tm_test_frame>         tester;
-  null_rlc_pcap                                 pcap;
-  rlc_tx_tm_config                              cfg;
+  ocudulog::basic_logger&               logger = ocudulog::fetch_basic_logger("TEST", false);
+  timer_manager                         timers;
+  manual_task_worker                    pcell_worker{128};
+  manual_task_worker                    ue_worker{128};
+  std::unique_ptr<rlc_tx_tm_test_frame> tester;
+  null_rlc_pcap                         pcap;
+  rlc_tx_tm_config                      cfg;
+  byte_buffer_recycler recycler{ue_worker, rlc_pdu_recycler_size, ocudulog::fetch_basic_logger("RLC", false)};
   std::unique_ptr<rlc_tx_tm_entity>             rlc;
   std::unique_ptr<rlc_bearer_metrics_collector> metrics_coll;
 };

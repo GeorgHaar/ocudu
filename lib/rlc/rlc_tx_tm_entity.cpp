@@ -18,7 +18,8 @@ rlc_tx_tm_entity::rlc_tx_tm_entity(gnb_du_id_t                          du_id,
                                    rlc_pcap&                            pcap_,
                                    task_executor&                       pcell_executor_,
                                    task_executor&                       ue_executor_,
-                                   timer_manager&                       timers) :
+                                   timer_manager&                       timers,
+                                   byte_buffer_recycler&                pdu_recycler_) :
   rlc_tx_entity(du_id,
                 ue_index,
                 rb_id_,
@@ -31,7 +32,8 @@ rlc_tx_tm_entity::rlc_tx_tm_entity(gnb_du_id_t                          du_id,
                 ue_executor_,
                 timers),
   cfg(config),
-  sdu_queue(cfg.queue_size, cfg.queue_size_bytes, logger),
+  pdu_recycler(pdu_recycler_),
+  sdu_queue(cfg.queue_size, cfg.queue_size_bytes, logger, pdu_recycler),
   pcap_context(ue_index, rb_id_, /* is_uplink */ false)
 {
   metrics_low.metrics_set_mode(rlc_mode::tm);

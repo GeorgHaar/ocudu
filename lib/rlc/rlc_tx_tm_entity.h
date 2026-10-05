@@ -17,6 +17,7 @@ private:
   // Config storage
   const rlc_tx_tm_config cfg;
 
+  byte_buffer_recycler&  pdu_recycler;
   rlc_sdu_queue_lockfree sdu_queue;
   rlc_sdu                sdu;
 
@@ -40,7 +41,8 @@ public:
                    rlc_pcap&                            pcap_,
                    task_executor&                       pcell_executor_,
                    task_executor&                       ue_executor_,
-                   timer_manager&                       timers);
+                   timer_manager&                       timers,
+                   byte_buffer_recycler&                pdu_recycler_);
 
   ~rlc_tx_tm_entity() override { stop(); }
 

@@ -6,6 +6,7 @@
 #pragma once
 
 #include "rlc_bearer_logger.h"
+#include "ocudu/adt/byte_buffer_recycler.h"
 #include "ocudu/adt/spsc_queue.h"
 #include "ocudu/rlc/rlc_tx.h"
 #include "fmt/std.h"
@@ -31,8 +32,11 @@ namespace ocudu {
 class rlc_sdu_queue_lockfree
 {
 public:
-  explicit rlc_sdu_queue_lockfree(uint32_t capacity_, uint32_t byte_limit_, rlc_bearer_logger& logger_) :
-    logger(logger_), capacity(capacity_), byte_limit(byte_limit_)
+  explicit rlc_sdu_queue_lockfree(uint32_t              capacity_,
+                                  uint32_t              byte_limit_,
+                                  rlc_bearer_logger&    logger_,
+                                  byte_buffer_recycler& pdu_recycler_) :
+    logger(logger_), pdu_recycler(pdu_recycler_), capacity(capacity_), byte_limit(byte_limit_)
   {
     sdu_states = std::make_unique<std::atomic<uint32_t>[]>(capacity);
     sdu_sizes  = std::make_unique<std::atomic<size_t>[]>(capacity);
@@ -162,11 +166,15 @@ public:
   bool read(rlc_sdu& sdu)
   {
     bool sdu_is_valid = true;
+    bool recycled_any = false;
     do {
       // first try to pop front (SDU can still get discarded from upper layers)
       bool popped = queue->try_pop(sdu);
       if (not popped) {
         // queue is empty
+        if (recycled_any) {
+          pdu_recycler.flush();
+        }
         return false;
       }
 
@@ -174,6 +182,10 @@ public:
         // Check if the SDU is still valid (i.e. the PDCP SN was not already discarded) and release the slot
         const uint32_t pdcp_sn = sdu.pdcp_sn.value();
         sdu_is_valid           = check_and_release(pdcp_sn); // this also updates totals
+        if (not sdu_is_valid) {
+          pdu_recycler.recycle(std::move(sdu.buf));
+          recycled_any = true;
+        }
       } else {
         // SDUs without PDCP SN are alway valid as they can't be discarded
         sdu_is_valid = true;
@@ -183,6 +195,9 @@ public:
       }
       // try again if SDU is not valid
     } while (not sdu_is_valid);
+    if (recycled_any) {
+      pdu_recycler.flush();
+    }
     return true;
   }
 
@@ -337,7 +352,8 @@ private:
   static constexpr uint32_t STATE_FREE      = 0xffffffff; ///< Sentinel value to mark a slot as free.
   static constexpr uint32_t STATE_DISCARDED = 0xfffffffe; ///< Sentinel value to mark a slot as discarded.
 
-  rlc_bearer_logger& logger;
+  rlc_bearer_logger&    logger;
+  byte_buffer_recycler& pdu_recycler;
 
   const uint32_t capacity;
   const uint32_t byte_limit;

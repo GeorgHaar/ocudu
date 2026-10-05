@@ -8,6 +8,7 @@
 #include "rlc_base_entity.h"
 #include "rlc_rx_tm_entity.h"
 #include "rlc_tx_tm_entity.h"
+#include "ocudu/adt/byte_buffer_recycler.h"
 
 namespace ocudu {
 
@@ -27,7 +28,8 @@ public:
                 rlc_pcap&                            pcap,
                 task_executor&                       pcell_executor,
                 task_executor&                       ue_executor,
-                timer_manager&                       timers) :
+                timer_manager&                       timers,
+                byte_buffer_recycler&                pdu_recycler) :
     rlc_base_entity(gnb_du_id_, ue_index_, rb_id_, metrics_period_, rlc_metrics_notifier_, ue_executor)
   {
     tx = std::make_unique<rlc_tx_tm_entity>(gnb_du_id_,
@@ -41,7 +43,8 @@ public:
                                             pcap,
                                             pcell_executor,
                                             ue_executor,
-                                            timers);
+                                            timers,
+                                            pdu_recycler);
     rx = std::make_unique<rlc_rx_tm_entity>(
         gnb_du_id_, ue_index_, rb_id_, config.rx, rx_upper_dn, metrics_coll, pcap, ue_executor, timers);
   }

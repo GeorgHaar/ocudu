@@ -93,6 +93,7 @@ static YAML::Node build_du_section(const du_high_unit_config& config)
   rlc_node["srb_rx_window_seg_pool_size"] = config.rlc_cfg.srb_rx_window_seg_pool_size;
   rlc_node["srb_tx_window_seg_size"]      = config.rlc_cfg.srb_tx_window_seg_size;
   rlc_node["srb_tx_window_seg_pool_size"] = config.rlc_cfg.srb_tx_window_seg_pool_size;
+  rlc_node["pdu_recycler_size"]           = config.rlc_cfg.pdu_recycler_size;
   node["rlc"]                             = rlc_node;
 
   return node;

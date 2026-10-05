@@ -1612,6 +1612,7 @@ void ocudu::generate_du_high_config(odu::du_high_configuration& du_hi_cfg, const
   du_hi_cfg.rlc.srb_rx_window_seg_pool_size = du_high_unit_cfg.rlc_cfg.srb_rx_window_seg_pool_size;
   du_hi_cfg.rlc.srb_tx_window_seg_size      = du_high_unit_cfg.rlc_cfg.srb_tx_window_seg_size;
   du_hi_cfg.rlc.srb_tx_window_seg_pool_size = du_high_unit_cfg.rlc_cfg.srb_tx_window_seg_pool_size;
+  du_hi_cfg.rlc.pdu_recycler_size           = du_high_unit_cfg.rlc_cfg.pdu_recycler_size;
 
   // Configure test mode
   du_hi_cfg.test_cfg = generate_test_mode_config(du_high_unit_cfg);

@@ -486,6 +486,8 @@ static void configure_cli11_du_rlc_args(CLI::App& app, du_high_unit_rlc_config& 
   add_option(
       app, "--srb_tx_window_seg_pool_size", rlc_cfg.srb_tx_window_seg_pool_size, "SRB TX window segment pool size")
       ->capture_default_str();
+
+  add_option(app, "--pdu_recycler_size", rlc_cfg.pdu_recycler_size, "PDU recycler queue size")->capture_default_str();
 }
 
 static void configure_cli11_du_args(CLI::App& app, du_high_unit_config& du_high_params)

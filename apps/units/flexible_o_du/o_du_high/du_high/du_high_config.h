@@ -1711,6 +1711,7 @@ struct du_high_unit_rlc_config {
   std::size_t srb_rx_window_seg_pool_size = 2048;
   std::size_t srb_tx_window_seg_size      = 8;
   std::size_t srb_tx_window_seg_pool_size = 2048;
+  std::size_t pdu_recycler_size           = 524288;
 };
 
 /// DU high configuration.

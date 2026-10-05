@@ -2479,6 +2479,10 @@ static bool validate_rlc_config(const du_high_unit_rlc_config& config)
     fmt::print("Invalid RLC configuration: srb_tx_window_seg_pool_size must be greater than 0\n");
     return false;
   }
+  if (config.pdu_recycler_size == 0) {
+    fmt::print("Invalid RLC configuration: pdu_recycler_size must be greater than 0\n");
+    return false;
+  }
   return true;
 }
 

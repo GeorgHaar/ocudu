@@ -63,6 +63,7 @@ struct du_high_configuration {
     std::size_t srb_rx_window_seg_pool_size = rlc_srb_rx_window_seg_pool_size;
     std::size_t srb_tx_window_seg_size      = rlc_srb_tx_window_seg_size;
     std::size_t srb_tx_window_seg_pool_size = rlc_srb_tx_window_seg_pool_size;
+    std::size_t pdu_recycler_size           = rlc_pdu_recycler_size;
   };
 
   struct f1ap_config {

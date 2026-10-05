@@ -9,6 +9,7 @@
 #include "rlc_stress_test_mac.h"
 #include "rlc_stress_test_rrc.h"
 #include "rlc_stress_test_traffic.h"
+#include "ocudu/adt/byte_buffer_recycler.h"
 #include "ocudu/pcap/rlc_pcap.h"
 #include "ocudu/pdcp/pdcp_entity.h"
 #include "ocudu/pdcp/pdcp_metrics.h"
@@ -17,6 +18,7 @@
 #include "ocudu/rlc/rlc_resource_defaults.h"
 #include "ocudu/rlc/rlc_window_seg_pool_factory.h"
 #include "ocudu/rlc/rlc_window_seg_pools.h"
+#include "ocudu/support/executors/inline_task_executor.h"
 #include "ocudu/support/executors/task_worker.h"
 #include <condition_variable>
 #include <mutex>
@@ -131,6 +133,8 @@ private:
       make_rlc_srb_rx_window_seg_pool(rlc_srb_rx_window_seg_pool_size, rlc_srb_rx_window_seg_size);
   std::unique_ptr<rlc_srb_tx_window_seg_pool, rlc_pool_deleter> srb_tx_seg_pool =
       make_rlc_srb_tx_window_seg_pool(rlc_srb_tx_window_seg_pool_size, rlc_srb_tx_window_seg_size);
+  inline_task_executor pdu_inline_exec;
+  byte_buffer_recycler pdu_recycler{pdu_inline_exec, rlc_pdu_recycler_size, ocudulog::fetch_basic_logger("RLC", false)};
 };
 
 } // namespace ocudu

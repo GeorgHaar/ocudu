@@ -5,11 +5,14 @@
 
 #pragma once
 
+#include "ocudu/adt/byte_buffer_recycler.h"
 #include "ocudu/du/du_high/du_high_configuration.h"
 #include "ocudu/ran/rnti.h"
 #include "ocudu/rlc/rlc_entity.h"
+#include "ocudu/rlc/rlc_resource_defaults.h"
 #include "ocudu/rlc/rlc_window_seg_pool_factory.h"
 #include "ocudu/rlc/rlc_window_seg_pools.h"
+#include "ocudu/support/executors/inline_task_executor.h"
 
 namespace ocudu {
 
@@ -53,6 +56,10 @@ private:
       make_rlc_srb_rx_window_seg_pool(rlc_srb_rx_window_seg_pool_size, rlc_srb_rx_window_seg_size);
   std::unique_ptr<rlc_srb_tx_window_seg_pool, rlc_pool_deleter> srb_tx_seg_pool =
       make_rlc_srb_tx_window_seg_pool(rlc_srb_tx_window_seg_pool_size, rlc_srb_tx_window_seg_size);
+  inline_task_executor ue_inline_exec;
+  byte_buffer_recycler ue_pdu_recycler{ue_inline_exec,
+                                       rlc_pdu_recycler_size,
+                                       ocudulog::fetch_basic_logger("RLC", false)};
 
   std::map<lcid_t, bearer_context> bearers;
 

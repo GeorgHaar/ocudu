@@ -142,6 +142,7 @@ du_high_ue_simulator::du_high_ue_simulator(const du_high_ue_simulator_config& cf
       msg.pcap_writer       = &pcap_sink;
       msg.srb_am_rx_pool    = &srb_rx_seg_pool->get_pool_of_type<rlc_rx_am_sdu_info>();
       msg.srb_am_tx_pool    = &srb_tx_seg_pool->get_pool_of_type<rlc_tx_am_sdu_info>();
+      msg.pdu_recycler      = &ue_pdu_recycler;
       auto entity           = create_rlc_entity(msg);
       bc.rlc                = std::move(entity);
     }

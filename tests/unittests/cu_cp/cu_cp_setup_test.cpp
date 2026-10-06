@@ -435,6 +435,13 @@ TEST_F(cu_cp_setup_test, when_ue_selects_unsupported_plmn_during_rrc_setup_then_
   // TEST: UE context removed from CU-CP.
   report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
   ASSERT_TRUE(report.ues.empty());
+
+  // The CU-CP releases the UE with an RRCRelease and sends no RRCReject, so the failure cause is "other".
+  ASSERT_EQ(report.dus[0].rrc_metrics.failed_rrc_connection_establishments.get_count(establishment_fail_cause_t::other),
+            1U);
+  ASSERT_EQ(report.dus[0].rrc_metrics.failed_rrc_connection_establishments.get_count(
+                establishment_fail_cause_t::network_reject),
+            0U);
 }
 
 TEST_F(cu_cp_setup_test, when_rrc_setup_completes_then_initial_message_sent_to_amf)

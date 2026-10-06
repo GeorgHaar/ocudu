@@ -752,6 +752,22 @@ struct du_high_unit_cell_geo_coordinates_ha_config {
   uint8_t vertical_confidence = 0;
 };
 
+/// \brief Orientation of the antenna array of the cell/TRP, as the bearing, downtilt and slant angles of TS 38.901
+/// section 7.1.3.
+///
+/// The local coordinate system (LCS) of the array has its x-axis along the array normal and its y-axis along the array
+/// axis. The y-axis points to the side of positive broadside angles, as the PHY reports them. The DU sends this
+/// orientation with the angle of arrival measurements, as the LCS to GCS Translation IE of TS 38.473 section 9.3.1.241.
+struct du_high_unit_cell_antenna_orientation_config {
+  /// Bearing angle alpha of the array normal, in degrees, counter-clockwise from geographic North. Values: [0, 360).
+  double bearing = 0.0;
+  /// Downtilt angle beta of the array normal, in degrees. Values: [0, 360). Values below 90 degrees point the normal
+  /// below the horizon.
+  double downtilt = 0.0;
+  /// Slant angle gamma of the array around the array normal, in degrees. Values: [0, 360).
+  double slant = 0.0;
+};
+
 /// \brief Geographical coordinates of the cell/TRP antenna, reported to the CU in the F1AP TRP Information Response
 /// procedure. See TS 38.473, Section 9.3.1.184 (Direct definition): either the normal- or the high-accuracy
 /// position, never both.
@@ -1420,6 +1436,8 @@ struct du_high_unit_base_cell_config {
   du_high_unit_phy_cell_group_config pcg_cfg;
   /// Geographical coordinates of the cell/TRP antenna, reported in the F1AP TRP Information Response.
   std::optional<du_high_unit_cell_geo_coordinates_config> geo_coordinates_cfg;
+  /// Orientation of the antenna array of the cell/TRP, reported with the angle of arrival measurements.
+  std::optional<du_high_unit_cell_antenna_orientation_config> antenna_orientation_cfg;
   /// MAC Cell Gropup parameters.
   du_high_unit_mac_cell_group_config mcg_cfg;
   /// TDD slot configuration.

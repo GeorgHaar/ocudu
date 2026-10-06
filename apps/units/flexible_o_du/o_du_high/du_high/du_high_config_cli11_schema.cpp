@@ -2545,6 +2545,52 @@ static void configure_cli11_geo_coordinates_args(CLI::App&                      
   });
 }
 
+static void
+configure_cli11_antenna_orientation_args(CLI::App&                                                    app,
+                                         std::optional<du_high_unit_cell_antenna_orientation_config>& orientation_cfg)
+{
+  // The angles of the LCS to GCS Translation have the range [0, 360) degrees, as per TS 38.473, Section 9.3.1.241.
+  const CLI::Validator angle_validator(
+      [](const std::string& str) -> std::string {
+        double value = 0.0;
+        if (not CLI::detail::lexical_cast(str, value) or value < 0.0 or value >= 360.0) {
+          return "Value " + str + " not in range [0, 360)";
+        }
+        return "";
+      },
+      "[0, 360)");
+
+  // CLI11 parses the values after this function returns. The callback owns the parsed values, one instance per cell.
+  auto cfg = std::make_shared<du_high_unit_cell_antenna_orientation_config>();
+  add_option(app,
+             "--bearing",
+             cfg->bearing,
+             "Bearing of the array normal, counter-clockwise from geographic North [degree]. For example, an array "
+             "that faces East has a bearing of 270")
+      ->capture_default_str()
+      ->check(angle_validator);
+  add_option(app,
+             "--downtilt",
+             cfg->downtilt,
+             "Downtilt of the array normal [degree]. Values below 90 point the normal below the horizon. For example, "
+             "an uptilt of 5 degrees is a downtilt of 355")
+      ->capture_default_str()
+      ->check(angle_validator);
+  add_option(app,
+             "--slant",
+             cfg->slant,
+             "Slant of the array around the array normal [degree]. Change the slant by 180 degrees if the reported "
+             "angles are mirrored")
+      ->capture_default_str()
+      ->check(angle_validator);
+
+  app.parse_complete_callback([&app, &orientation_cfg, cfg]() {
+    if (app.count() != 0) {
+      orientation_cfg = *cfg;
+    }
+  });
+}
+
 static void configure_cli11_common_cell_args(CLI::App& app, du_high_unit_base_cell_config& cell_params)
 {
   add_option(app, "--pci", cell_params.pci, "PCI")->capture_default_str()->range(0, 1007);
@@ -2648,6 +2694,11 @@ static void configure_cli11_common_cell_args(CLI::App& app, du_high_unit_base_ce
   CLI::App* geo_coordinates_subcmd = add_subcommand(
       app, "geo_coordinates", "Geographical coordinates of the cell/TRP antenna, TS 38.473, Section 9.3.1.184");
   configure_cli11_geo_coordinates_args(*geo_coordinates_subcmd, cell_params.geo_coordinates_cfg);
+
+  // Orientation of the cell/TRP antenna array.
+  CLI::App* antenna_orientation_subcmd =
+      add_subcommand(app, "antenna_orientation", "Orientation of the cell/TRP antenna array, TS 38.901, Section 7.1.3");
+  configure_cli11_antenna_orientation_args(*antenna_orientation_subcmd, cell_params.antenna_orientation_cfg);
 
   // MAC Cell group parameters.
   CLI::App* mcg_subcmd = add_subcommand(app, "mac_cell_group", "MAC Cell Group parameters")->configurable();

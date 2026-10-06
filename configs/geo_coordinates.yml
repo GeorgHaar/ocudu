@@ -6,7 +6,8 @@
 # Geographical coordinates of the gNB-DU cell/TRP antenna example configuration
 #
 # This is a supplementary configuration that reports the cell/TRP antenna position to the CU-CP in the F1AP
-# TRP Information Response procedure (TS 38.473, Section 9.3.1.184). This file will be passed to the DU along with
+# TRP Information Response procedure (TS 38.473, Section 9.3.1.184). It also gives the orientation of the antenna
+# array, which the DU sends with the angle of arrival measurements. This file will be passed to the DU along with
 # the base configuration at start-up. The following command may be used to run the DU with this configuration file:
 #   sudo ./du -c du_rf_b200_tdd_n78_20mhz.yml -c geo_coordinates.yml
 
@@ -37,3 +38,11 @@ cell_cfg:
       #   horizontal_confidence: 90       # percentage, range [0, 100]
       #   uncertainty_altitude: 50        # uncertainty code, range [0, 255]
       #   vertical_confidence: 85         # percentage, range [0, 100]
+
+  # Orientation of the antenna array (TS 38.901, Section 7.1.3). The DU sends it with the angle of arrival
+  # measurements as the LCS to GCS Translation (TS 38.473, Section 9.3.1.241). The LCS x-axis is the array normal.
+  # The LCS y-axis is the array axis and points to the side of positive broadside angles.
+  antenna_orientation:
+    bearing: 270                      # degrees, range [0, 360), counter-clockwise from geographic North. 270 faces East
+    downtilt: 6                       # degrees, range [0, 360). An uptilt of 5 degrees is a downtilt of 355
+    slant: 0                          # degrees, range [0, 360). Change by 180 if the reported angles are mirrored

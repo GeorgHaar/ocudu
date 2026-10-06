@@ -85,6 +85,23 @@ static trp_position_direct_accuracy_t make_trp_geo_coordinates(const du_high_uni
   return make_trp_geo_coordinates_ha(std::get<du_high_unit_cell_geo_coordinates_ha_config>(geo_cfg));
 }
 
+/// \brief Converts an angle in degrees to an angle of the LCS to GCS Translation, as per TS 38.473, Section 9.3.1.241.
+///
+/// The angle has the range {0,...,3599}, which encodes [0, 360) degrees in steps of 0.1 degrees.
+static uint16_t angle_to_lcs_to_gcs_value(double degrees)
+{
+  // An angle just below 360 degrees rounds to 360 degrees, which is the angle 0.
+  return static_cast<uint16_t>(std::lround(degrees * 10.0) % 3600);
+}
+
+static lcs_to_gcs_translation_t
+make_trp_antenna_orientation(const du_high_unit_cell_antenna_orientation_config& orientation_cfg)
+{
+  return {angle_to_lcs_to_gcs_value(orientation_cfg.bearing),
+          angle_to_lcs_to_gcs_value(orientation_cfg.downtilt),
+          angle_to_lcs_to_gcs_value(orientation_cfg.slant)};
+}
+
 /// \brief Generates the DL-PRS configuration of a cell.
 ///
 /// \param prs_cfg  DL-PRS application configuration of the cell.
@@ -829,6 +846,11 @@ std::vector<odu::du_cell_config> ocudu::generate_du_cell_config(const du_high_un
     // Geographical coordinates of the cell/TRP antenna.
     if (base_cell.geo_coordinates_cfg.has_value()) {
       out_cell.trp_geo_coordinates = make_trp_geo_coordinates(base_cell.geo_coordinates_cfg.value());
+    }
+
+    // Orientation of the cell/TRP antenna array.
+    if (base_cell.antenna_orientation_cfg.has_value()) {
+      out_cell.trp_antenna_orientation = make_trp_antenna_orientation(base_cell.antenna_orientation_cfg.value());
     }
 
     // Number of CRBs of the cell.

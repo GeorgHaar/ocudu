@@ -7,6 +7,7 @@
 
 #include "ocudu/mac/config/mac_cell_group_params.h"
 #include "ocudu/ran/nr_cgi.h"
+#include "ocudu/ran/positioning/common.h"
 #include "ocudu/ran/positioning/trp_information_exchange.h"
 #include "ocudu/ran/prs/prs.h"
 #include "ocudu/ran/sib/system_info_config.h"
@@ -63,6 +64,13 @@ struct du_cell_config {
   /// Geographical coordinates of the cell/TRP antenna, Direct definition (normal or high accuracy), as per
   /// TS 38.473, Section 9.3.1.184. Reported to the gNB-CU in the TRP Information Response procedure.
   std::optional<trp_position_direct_accuracy_t> trp_geo_coordinates;
+
+  /// \brief Orientation of the antenna array of the cell/TRP, as the LCS to GCS Translation of TS 38.473,
+  /// Section 9.3.1.241.
+  ///
+  /// The LCS x-axis is the array normal. The LCS y-axis is the array axis and points to the side of positive broadside
+  /// angles, as the PHY reports them. The DU reports the angle of arrival measurements in this LCS.
+  std::optional<lcs_to_gcs_translation_t> trp_antenna_orientation;
 };
 
 } // namespace odu

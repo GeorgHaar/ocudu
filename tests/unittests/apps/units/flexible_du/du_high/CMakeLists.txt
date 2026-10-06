@@ -25,6 +25,15 @@ target_link_libraries(du_high_sib_config_test
         gtest_main)
 gtest_discover_tests(du_high_sib_config_test)
 
+add_executable(du_high_antenna_orientation_config_test du_high_antenna_orientation_config_test.cpp)
+target_include_directories(du_high_antenna_orientation_config_test PRIVATE ${CMAKE_SOURCE_DIR})
+target_link_libraries(du_high_antenna_orientation_config_test
+        ocudu_du_high_unit_helpers
+        ocudu_app_services
+        gtest
+        gtest_main)
+gtest_discover_tests(du_high_antenna_orientation_config_test)
+
 add_executable(du_high_sr_config_test du_high_sr_config_test.cpp)
 target_include_directories(du_high_sr_config_test PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(du_high_sr_config_test

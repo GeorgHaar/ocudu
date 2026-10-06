@@ -892,6 +892,17 @@ asn1::f1ap::ul_ao_a_s ocudu::ul_aoa_to_asn1(const odu::pos_meas_result_ul_aoa& a
   return asn1out;
 }
 
+asn1::f1ap::zo_a_info_s ocudu::zoa_to_asn1(const odu::pos_meas_result_zoa& zoa)
+{
+  zo_a_info_s asn1out;
+  asn1out.zenith_ao_a = zoa.zenith_aoa;
+  if (zoa.lcs_to_gcs_translation.has_value()) {
+    asn1out.lcs_to_gcs_translation_present = true;
+    asn1out.lcs_to_gcs_translation         = lcs_to_gcs_translation_to_asn1(zoa.lcs_to_gcs_translation.value());
+  }
+  return asn1out;
+}
+
 asn1::f1ap::geographical_coordinates_s ocudu::geographical_coordinates_to_asn1(const geographical_coordinates_t& geo)
 {
   geographical_coordinates_s asn1out;

@@ -166,6 +166,43 @@ TEST_F(f1ap_du_positioning_measurement_procedure_test, when_ul_aoa_is_requested_
   ASSERT_EQ(asn1_aoa.lcs_to_gcs_translation.gamma, lcs_to_gcs.gamma);
 }
 
+TEST_F(f1ap_du_positioning_measurement_procedure_test, when_du_reports_a_zenith_only_then_response_contains_zoa)
+{
+  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-c");
+
+  static constexpr uint16_t                 zenith_aoa = 600;
+  static constexpr lcs_to_gcs_translation_t lcs_to_gcs{.alpha = 2700, .beta = 60, .gamma = 2700};
+
+  // Program the DU to report a Zenith Angle of Arrival measurement for the requested TRP.
+  du_positioning_meas_response& meas_resp  = this->f1ap_du_cfg_handler.next_positioning_meas_response;
+  pos_meas_result&              trp_result = meas_resp.pos_meas_list.emplace_back();
+  trp_result.trp_id                        = trp_id_t::min;
+  trp_result.sl_rx                         = slot_point{subcarrier_spacing::kHz15, 0, 0};
+  trp_result.results.push_back(pos_meas_result_zoa{.zenith_aoa = zenith_aoa, .lcs_to_gcs_translation = lcs_to_gcs});
+
+  this->f1ap->handle_message(test_helpers::generate_positioning_measurement_request(
+      {trp_id_t::min}, lmf_meas_id_t::min, ran_meas_id_t::min, {asn1::f1ap::pos_meas_type_opts::options::ul_aoa}));
+
+  auto tx_msg = this->f1c_gw.pop_tx_pdu();
+  ASSERT_TRUE(tx_msg.has_value());
+  log_f1ap_pdu(test_logger, "Positioning Measurement Response", tx_msg.value());
+  ASSERT_TRUE(test_helpers::is_valid_f1ap_positioning_measurement_response(tx_msg.value()));
+
+  const auto& resp            = tx_msg.value().pdu.successful_outcome().value.positioning_meas_resp();
+  const auto& pos_meas_result = resp->pos_meas_result_list[0].pos_meas_result;
+  ASSERT_EQ(pos_meas_result.size(), 1U);
+  ASSERT_EQ(pos_meas_result[0].measured_results_value.type(),
+            asn1::f1ap::measured_results_value_c::types_opts::choice_ext);
+  const auto& asn1_ext = pos_meas_result[0].measured_results_value.choice_ext();
+  ASSERT_EQ(asn1_ext->type(), asn1::f1ap::measured_results_value_ext_ies_o::value_c::types_opts::zo_a_info);
+  const auto& asn1_zoa = asn1_ext->zo_a_info();
+  ASSERT_EQ(asn1_zoa.zenith_ao_a, zenith_aoa);
+  ASSERT_TRUE(asn1_zoa.lcs_to_gcs_translation_present);
+  ASSERT_EQ(asn1_zoa.lcs_to_gcs_translation.alpha, lcs_to_gcs.alpha);
+  ASSERT_EQ(asn1_zoa.lcs_to_gcs_translation.beta, lcs_to_gcs.beta);
+  ASSERT_EQ(asn1_zoa.lcs_to_gcs_translation.gamma, lcs_to_gcs.gamma);
+}
+
 /// The gNB-CU expects the result within the Response Time, as per TS 38.473 section 8.13.2.2, so that time caps how
 /// long the DU waits for the SRS.
 TEST_F(f1ap_du_positioning_measurement_procedure_test,

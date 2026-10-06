@@ -46,3 +46,4 @@ cell_cfg:
     bearing: 270                      # degrees, range [0, 360), counter-clockwise from geographic North. 270 faces East
     downtilt: 6                       # degrees, range [0, 360). An uptilt of 5 degrees is a downtilt of 355
     slant: 0                          # degrees, range [0, 360). Change by 180 if the reported angles are mirrored
+    report_zenith_aoa: false          # report the TRP angle to the array axis (Z-AoA). Needs an LMF with Rel-17 support

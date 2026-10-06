@@ -105,3 +105,23 @@ TEST(du_high_antenna_orientation_config_test, angle_outside_0_to_360_degrees_is_
   EXPECT_THROW(parse_cells("cell_cfg:\n  antenna_orientation:\n    bearing: 360\n"), CLI::ParseError);
   EXPECT_THROW(parse_cells("cell_cfg:\n  antenna_orientation:\n    downtilt: -5\n"), CLI::ParseError);
 }
+
+TEST(du_high_antenna_orientation_config_test, zenith_aoa_reports_are_disabled_unless_configured)
+{
+  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-c");
+
+  const std::vector<odu::du_cell_config> cells = parse_cells(R"(
+cells:
+  - pci: 1
+    antenna_orientation:
+      bearing: 90
+  - pci: 2
+    antenna_orientation:
+      bearing: 90
+      report_zenith_aoa: true
+)");
+
+  ASSERT_EQ(cells.size(), 2);
+  EXPECT_FALSE(cells[0].trp_report_zenith_aoa);
+  EXPECT_TRUE(cells[1].trp_report_zenith_aoa);
+}

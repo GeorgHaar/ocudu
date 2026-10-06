@@ -2583,6 +2583,12 @@ configure_cli11_antenna_orientation_args(CLI::App&                              
              "angles are mirrored")
       ->capture_default_str()
       ->check(angle_validator);
+  add_option(app,
+             "--report_zenith_aoa",
+             cfg->report_zenith_aoa,
+             "Report the TRP angle of arrival of a linear array as the angle to the array axis (Z-AoA). Only an LMF "
+             "with Rel-17 support accepts it")
+      ->capture_default_str();
 
   app.parse_complete_callback([&app, &orientation_cfg, cfg]() {
     if (app.count() != 0) {

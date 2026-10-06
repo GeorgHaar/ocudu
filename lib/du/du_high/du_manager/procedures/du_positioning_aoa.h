@@ -35,4 +35,32 @@ inline pos_meas_result_ul_aoa make_ul_aoa_result(const mac_positioning_measureme
   return result;
 }
 
+/// \brief Returns the Zenith Angle of Arrival Information of a linear array measurement, as per TS 38.473 section
+/// 9.3.1.239.
+///
+/// A linear array measures the broadside angle b. This is the angle to the plane normal to the array axis. The angle to
+/// the array axis is therefore 90 - b. TS 38.473 section 9.3.1.239 reports this angle as the zenith in an LCS with the
+/// z-axis along the array axis. A rotation of -90 degrees around the x-axis moves the y-axis of the array LCS onto
+/// this z-axis. The slant of this LCS is therefore 90 degrees smaller, as per TS 38.901 section 7.1.3.
+///
+/// \param[in] broadside_deg Broadside angle, in degrees. Values: [-90, 90].
+/// \param[in] orientation   Orientation of the antenna array of the cell.
+inline pos_meas_result_zoa make_linear_array_zoa_result(float                           broadside_deg,
+                                                        const lcs_to_gcs_translation_t& orientation)
+{
+  ocudu_assert(broadside_deg >= -90.0F && broadside_deg <= 90.0F,
+               "Broadside angle {} degrees is outside [-90, 90].",
+               broadside_deg);
+
+  const float zenith_deg = 90.0F - broadside_deg;
+
+  // The range {0,...,3599} of TS 38.473 section 9.3.1.241 encodes [0, 360) degrees in steps of 0.1 degrees.
+  static constexpr uint16_t full_turn    = 3600;
+  static constexpr uint16_t quarter_turn = 900;
+  lcs_to_gcs_translation_t  axis_lcs     = orientation;
+  axis_lcs.gamma                         = (orientation.gamma + full_turn - quarter_turn) % full_turn;
+
+  return {.zenith_aoa = zenith_aoa_to_reported_value(zenith_deg), .lcs_to_gcs_translation = axis_lcs};
+}
+
 } // namespace ocudu::odu

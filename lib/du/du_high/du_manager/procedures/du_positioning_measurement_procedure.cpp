@@ -160,8 +160,16 @@ du_positioning_meas_response positioning_measurement_procedure::prepare_f1ap_res
           pos_meas_result_ul_rsrp{.ul_rsrp = rsrp_dbfs_to_l3_rsrp_mapping(mac_meas.rsrp_dbfs.value())});
     }
     if (aoa_report) {
-      meas_res.results.push_back(
-          make_ul_aoa_result(mac_meas, get_antenna_orientation(mac_req.cells[trp_idx].cell_index)));
+      const du_cell_index_t                         cell_index  = mac_req.cells[trp_idx].cell_index;
+      const std::optional<lcs_to_gcs_translation_t> orientation = get_antenna_orientation(cell_index);
+      // The MAC gives a linear array measurement as an azimuth without a zenith. This azimuth is the broadside angle.
+      // The broadside angle gives the angle to the array axis exactly. The DU reports this angle when the cell
+      // configuration enables it and gives the array orientation.
+      if (orientation.has_value() and is_zenith_aoa_reported(cell_index) and not mac_meas.zenith_aoa_deg.has_value()) {
+        meas_res.results.push_back(make_linear_array_zoa_result(*mac_meas.azimuth_aoa_deg, *orientation));
+      } else {
+        meas_res.results.push_back(make_ul_aoa_result(mac_meas, orientation));
+      }
     }
     meas_res.sl_rx = mac_resp.sl_rx;
 
@@ -178,6 +186,11 @@ positioning_measurement_procedure::get_antenna_orientation(du_cell_index_t cell_
     return std::nullopt;
   }
   return du_cells.get_cell_cfg(cell_index).trp_antenna_orientation;
+}
+
+bool positioning_measurement_procedure::is_zenith_aoa_reported(du_cell_index_t cell_index) const
+{
+  return cell_index < du_cells.nof_cells() and du_cells.get_cell_cfg(cell_index).trp_report_zenith_aoa;
 }
 
 bool srs_config_matches(const srs_config& ue_cfg, const srs_config& pos_cfg)

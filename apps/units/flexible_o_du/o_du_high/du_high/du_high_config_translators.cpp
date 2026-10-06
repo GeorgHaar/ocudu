@@ -851,6 +851,7 @@ std::vector<odu::du_cell_config> ocudu::generate_du_cell_config(const du_high_un
     // Orientation of the cell/TRP antenna array.
     if (base_cell.antenna_orientation_cfg.has_value()) {
       out_cell.trp_antenna_orientation = make_trp_antenna_orientation(base_cell.antenna_orientation_cfg.value());
+      out_cell.trp_report_zenith_aoa   = base_cell.antenna_orientation_cfg->report_zenith_aoa;
     }
 
     // Number of CRBs of the cell.

@@ -95,7 +95,16 @@ struct pos_meas_result_ul_aoa {
   std::optional<lcs_to_gcs_translation_t> lcs_to_gcs_translation;
 };
 
-using pos_meas_result_item = std::variant<pos_meas_result_ul_rtoa, pos_meas_result_ul_rsrp, pos_meas_result_ul_aoa>;
+/// Zenith Angle of Arrival Information, as per TS 38.473, Section 9.3.1.239.
+struct pos_meas_result_zoa {
+  /// Zenith Angle of Arrival, in units of 0.1 degrees. Values {0,...,1799}. The LCS z-axis is the linear array axis.
+  uint16_t zenith_aoa;
+  /// Orientation of the LCS of the angle, as per TS 38.473, Section 9.3.1.241. Empty when the angle is in the GCS.
+  std::optional<lcs_to_gcs_translation_t> lcs_to_gcs_translation;
+};
+
+using pos_meas_result_item =
+    std::variant<pos_meas_result_ul_rtoa, pos_meas_result_ul_rsrp, pos_meas_result_ul_aoa, pos_meas_result_zoa>;
 
 struct pos_meas_result {
   trp_id_t trp_id;

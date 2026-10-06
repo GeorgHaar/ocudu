@@ -71,6 +71,13 @@ struct du_cell_config {
   /// The LCS x-axis is the array normal. The LCS y-axis is the array axis and points to the side of positive broadside
   /// angles, as the PHY reports them. The DU reports the angle of arrival measurements in this LCS.
   std::optional<lcs_to_gcs_translation_t> trp_antenna_orientation;
+
+  /// \brief Reports the TRP angle of arrival of a linear array as the Zenith Angle of Arrival Information, as per
+  /// TS 38.473, Section 9.3.1.239.
+  ///
+  /// The IE has the criticality "reject", so only an LMF with Rel-17 support accepts it. The DU uses it only with
+  /// \c trp_antenna_orientation.
+  bool trp_report_zenith_aoa = false;
 };
 
 } // namespace odu

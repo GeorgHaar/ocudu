@@ -766,6 +766,11 @@ struct du_high_unit_cell_antenna_orientation_config {
   double downtilt = 0.0;
   /// Slant angle gamma of the array around the array normal, in degrees. Values: [0, 360).
   double slant = 0.0;
+  /// \brief Reports the TRP angle of arrival of a linear array as the Zenith Angle of Arrival Information, as per
+  /// TS 38.473, Section 9.3.1.239.
+  ///
+  /// The IE has the criticality "reject", so only an LMF with Rel-17 support accepts it.
+  bool report_zenith_aoa = false;
 };
 
 /// \brief Geographical coordinates of the cell/TRP antenna, reported to the CU in the F1AP TRP Information Response

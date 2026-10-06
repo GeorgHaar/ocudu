@@ -36,6 +36,9 @@ private:
   /// Returns the orientation of the antenna array of a cell, if the cell exists and its configuration provides it.
   std::optional<lcs_to_gcs_translation_t> get_antenna_orientation(du_cell_index_t cell_index) const;
 
+  /// Returns true if the cell exists and its configuration enables the Zenith Angle of Arrival reports.
+  bool is_zenith_aoa_reported(du_cell_index_t cell_index) const;
+
   const du_positioning_meas_request      req;
   du_cell_manager&                       du_cells;
   du_ue_manager&                         ue_mng;

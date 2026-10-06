@@ -835,10 +835,11 @@ static YAML::Node build_cell_entry(const du_high_unit_base_cell_config& config)
     }
   }
   if (config.antenna_orientation_cfg.has_value()) {
-    YAML::Node orientation_node  = node["antenna_orientation"];
-    orientation_node["bearing"]  = config.antenna_orientation_cfg->bearing;
-    orientation_node["downtilt"] = config.antenna_orientation_cfg->downtilt;
-    orientation_node["slant"]    = config.antenna_orientation_cfg->slant;
+    YAML::Node orientation_node           = node["antenna_orientation"];
+    orientation_node["bearing"]           = config.antenna_orientation_cfg->bearing;
+    orientation_node["downtilt"]          = config.antenna_orientation_cfg->downtilt;
+    orientation_node["slant"]             = config.antenna_orientation_cfg->slant;
+    orientation_node["report_zenith_aoa"] = config.antenna_orientation_cfg->report_zenith_aoa;
   }
   if (config.band.has_value()) {
     node["band"] = static_cast<unsigned>(config.band.value());

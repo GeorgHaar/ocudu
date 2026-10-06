@@ -266,10 +266,14 @@ void f1ap_du_positioning_measurement_procedure::send_response() const
         const auto& du_rsrp_result = std::get<pos_meas_result_ul_rsrp>(du_meas_result);
         auto&       rsrp_item      = asn1_meas_result.measured_results_value.set_ul_srs_rsrp();
         rsrp_item                  = du_rsrp_result.ul_rsrp;
-      } else {
+      } else if (const auto* du_aoa_result = std::get_if<pos_meas_result_ul_aoa>(&du_meas_result)) {
         // UL-AoA measurement result.
-        asn1_meas_result.measured_results_value.set_ul_angle_of_arrival() =
-            ul_aoa_to_asn1(std::get<pos_meas_result_ul_aoa>(du_meas_result));
+        asn1_meas_result.measured_results_value.set_ul_angle_of_arrival() = ul_aoa_to_asn1(*du_aoa_result);
+      } else {
+        // Zenith Angle of Arrival Information measurement result.
+        auto& asn1_ext = asn1_meas_result.measured_results_value.set_choice_ext();
+        asn1_ext->set(measured_results_value_ext_ies_o::value_c::types_opts::zo_a_info);
+        asn1_ext->zo_a_info() = zoa_to_asn1(std::get<pos_meas_result_zoa>(du_meas_result));
       }
 
       // Slot and time stamp.

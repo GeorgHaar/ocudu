@@ -5,6 +5,7 @@
 
 #include "du_manager_procedure_test_helpers.h"
 #include "lib/du/du_high/du_manager/du_ue/du_ue_manager.h"
+#include "lib/du/du_high/du_manager/procedures/du_positioning_aoa.h"
 #include "lib/du/du_high/du_manager/procedures/du_positioning_measurement_procedure.h"
 #include "ocudu/du/du_cell_config_helpers.h"
 #include "ocudu/support/async/async_test_utils.h"
@@ -43,7 +44,8 @@ srs_config make_test_srs_config()
 class du_positioning_measurement_procedure_test : public du_manager_proc_tester, public ::testing::Test
 {
 protected:
-  du_positioning_measurement_procedure_test() : du_manager_proc_tester(make_test_cells())
+  explicit du_positioning_measurement_procedure_test(std::vector<du_cell_config> cells = make_test_cells()) :
+    du_manager_proc_tester(std::move(cells))
   {
     ocudulog::fetch_basic_logger("DU-MNG").set_level(ocudulog::basic_levels::debug);
     ocudulog::init();
@@ -98,6 +100,33 @@ protected:
 
   du_ue_manager                   real_ue_mng{params, mem_resources, cell_res_alloc, cell_mng, proc_metrics};
   std::map<trp_id_t, du_trp_info> trps;
+};
+
+/// Test cell without an orientation of the antenna array.
+class du_positioning_measurement_procedure_without_orientation_test : public du_positioning_measurement_procedure_test
+{
+protected:
+  du_positioning_measurement_procedure_without_orientation_test() :
+    du_positioning_measurement_procedure_test({config_helpers::make_default_du_cell_config()})
+  {
+  }
+};
+
+/// Test cell with an orientation of the antenna array and the Zenith Angle of Arrival reports enabled.
+class du_positioning_measurement_procedure_with_zenith_aoa_test : public du_positioning_measurement_procedure_test
+{
+protected:
+  du_positioning_measurement_procedure_with_zenith_aoa_test() :
+    du_positioning_measurement_procedure_test(make_zenith_aoa_test_cells())
+  {
+  }
+
+  static std::vector<du_cell_config> make_zenith_aoa_test_cells()
+  {
+    std::vector<du_cell_config> cells = make_test_cells();
+    cells[0].trp_report_zenith_aoa    = true;
+    return cells;
+  }
 };
 
 } // namespace
@@ -179,4 +208,84 @@ TEST_F(du_positioning_measurement_procedure_test, when_the_cell_has_an_antenna_o
   ASSERT_EQ(aoa->lcs_to_gcs_translation->alpha, test_orientation.alpha);
   ASSERT_EQ(aoa->lcs_to_gcs_translation->beta, test_orientation.beta);
   ASSERT_EQ(aoa->lcs_to_gcs_translation->gamma, test_orientation.gamma);
+}
+
+/// A linear array measures the broadside angle. The DU reports it as the azimuth in the LCS of the array.
+TEST_F(du_positioning_measurement_procedure_test,
+       when_zenith_aoa_reports_are_disabled_then_the_broadside_angle_is_reported_as_the_azimuth)
+{
+  mac_reports_aoa(30.0F, std::nullopt);
+
+  du_positioning_meas_response resp = run_procedure(make_aoa_request());
+
+  ASSERT_EQ(resp.pos_meas_list.size(), 1);
+  ASSERT_EQ(resp.pos_meas_list[0].results.size(), 1);
+  const auto* aoa = std::get_if<pos_meas_result_ul_aoa>(&resp.pos_meas_list[0].results[0]);
+  ASSERT_NE(aoa, nullptr);
+  ASSERT_EQ(aoa->azimuth_aoa, 2100);
+  ASSERT_FALSE(aoa->zenith_aoa.has_value());
+  ASSERT_TRUE(aoa->lcs_to_gcs_translation.has_value());
+  ASSERT_EQ(aoa->lcs_to_gcs_translation->alpha, test_orientation.alpha);
+  ASSERT_EQ(aoa->lcs_to_gcs_translation->beta, test_orientation.beta);
+  ASSERT_EQ(aoa->lcs_to_gcs_translation->gamma, test_orientation.gamma);
+}
+
+/// A linear array measures the broadside angle. With the Zenith Angle of Arrival reports enabled, the DU reports the
+/// angle to the array axis.
+TEST_F(du_positioning_measurement_procedure_with_zenith_aoa_test,
+       when_the_mac_reports_no_zenith_then_the_angle_to_the_array_axis_is_reported)
+{
+  mac_reports_aoa(30.0F, std::nullopt);
+
+  du_positioning_meas_response resp = run_procedure(make_aoa_request());
+
+  ASSERT_EQ(resp.pos_meas_list.size(), 1);
+  ASSERT_EQ(resp.pos_meas_list[0].results.size(), 1);
+  const auto* zoa = std::get_if<pos_meas_result_zoa>(&resp.pos_meas_list[0].results[0]);
+  ASSERT_NE(zoa, nullptr);
+  // The angle to the array axis is 90 - 30 = 60 degrees, in 0.1 degree steps.
+  ASSERT_EQ(zoa->zenith_aoa, 600);
+  // The z-axis of the LCS is the array axis, so the slant is 90 degrees smaller than the one of the array.
+  ASSERT_TRUE(zoa->lcs_to_gcs_translation.has_value());
+  ASSERT_EQ(zoa->lcs_to_gcs_translation->alpha, test_orientation.alpha);
+  ASSERT_EQ(zoa->lcs_to_gcs_translation->beta, test_orientation.beta);
+  ASSERT_EQ(zoa->lcs_to_gcs_translation->gamma, 2700);
+}
+
+TEST_F(du_positioning_measurement_procedure_without_orientation_test,
+       when_the_cell_has_no_antenna_orientation_then_the_aoa_has_no_lcs_to_gcs_translation)
+{
+  mac_reports_aoa(30.0F, std::nullopt);
+
+  du_positioning_meas_response resp = run_procedure(make_aoa_request());
+
+  ASSERT_EQ(resp.pos_meas_list.size(), 1);
+  ASSERT_EQ(resp.pos_meas_list[0].results.size(), 1);
+  const auto* aoa = std::get_if<pos_meas_result_ul_aoa>(&resp.pos_meas_list[0].results[0]);
+  ASSERT_NE(aoa, nullptr);
+  ASSERT_EQ(aoa->azimuth_aoa, 2100);
+  ASSERT_FALSE(aoa->zenith_aoa.has_value());
+  ASSERT_FALSE(aoa->lcs_to_gcs_translation.has_value());
+}
+
+TEST(du_positioning_aoa_test, linear_array_zenith_covers_the_whole_broadside_range)
+{
+  const lcs_to_gcs_translation_t orientation{.alpha = 0, .beta = 0, .gamma = 0};
+
+  ASSERT_EQ(make_linear_array_zoa_result(90.0F, orientation).zenith_aoa, 0);
+  ASSERT_EQ(make_linear_array_zoa_result(0.0F, orientation).zenith_aoa, 900);
+  // The zenith of 180 degrees falls in the last reported value interval.
+  ASSERT_EQ(make_linear_array_zoa_result(-90.0F, orientation).zenith_aoa, 1799);
+}
+
+TEST(du_positioning_aoa_test, linear_array_slant_wraps_around_a_full_turn)
+{
+  const lcs_to_gcs_translation_t orientation{.alpha = 100, .beta = 200, .gamma = 900};
+
+  const pos_meas_result_zoa zoa = make_linear_array_zoa_result(0.0F, orientation);
+
+  ASSERT_TRUE(zoa.lcs_to_gcs_translation.has_value());
+  ASSERT_EQ(zoa.lcs_to_gcs_translation->alpha, 100);
+  ASSERT_EQ(zoa.lcs_to_gcs_translation->beta, 200);
+  ASSERT_EQ(zoa.lcs_to_gcs_translation->gamma, 0);
 }

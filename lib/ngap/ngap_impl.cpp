@@ -955,6 +955,7 @@ void ngap_impl::handle_paging(const asn1::ngap::paging_s& msg)
   auto msgerr = validate_paging(msg);
   if (not msgerr.has_value()) {
     logger.warning("Dropping invalid Paging message. Cause: {}", msgerr.error());
+    metrics_handler.aggregate_discarded_cn_initiated_paging_request();
     send_error_indication(tx_pdu_notifier, logger);
     return;
   }
@@ -963,7 +964,10 @@ void ngap_impl::handle_paging(const asn1::ngap::paging_s& msg)
   cu_cp_paging_message cu_cp_paging_msg;
   fill_cu_cp_paging_message(cu_cp_paging_msg, msg);
 
-  cu_cp_notifier.on_paging_message(cu_cp_paging_msg);
+  if (not cu_cp_notifier.on_paging_message(cu_cp_paging_msg)) {
+    // Notify metrics handler about the paging request that no DU received.
+    metrics_handler.aggregate_discarded_cn_initiated_paging_request();
+  }
 }
 
 void ngap_impl::handle_write_replace_warning(const asn1::ngap::write_replace_warning_request_s& msg)

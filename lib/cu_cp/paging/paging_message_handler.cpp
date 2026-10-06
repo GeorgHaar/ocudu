@@ -17,7 +17,7 @@ paging_message_handler::paging_message_handler(const paging_message_handler_depe
 {
 }
 
-void paging_message_handler::handle_paging_message(const cu_cp_paging_message& msg) const
+bool paging_message_handler::handle_paging_message(const cu_cp_paging_message& msg) const
 {
   // Forward paging message to all DU processors
   bool paging_sent = false;
@@ -28,6 +28,7 @@ void paging_message_handler::handle_paging_message(const cu_cp_paging_message& m
   if (!paging_sent) {
     logger.warning("No DU processor was able to handle the paging message");
   }
+  return paging_sent;
 }
 
 static bool is_tac_in_list(span<const cu_cp_tai_list_for_paging_item> tai_list, tac_t tac)

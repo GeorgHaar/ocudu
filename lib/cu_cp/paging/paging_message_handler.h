@@ -25,8 +25,9 @@ class paging_message_handler
 public:
   explicit paging_message_handler(const paging_message_handler_dependencies& dependencies);
 
-  /// Handle Paging message sent by the core network and distribute across the served DU cells.
-  void handle_paging_message(const cu_cp_paging_message& msg) const;
+  /// \brief Handle Paging message sent by the core network and distribute across the served DU cells.
+  /// \return True if at least one DU received the paging message, false if the paging message was discarded.
+  bool handle_paging_message(const cu_cp_paging_message& msg) const;
 
 private:
   /// Handles the DU paging message.

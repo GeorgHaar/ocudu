@@ -22,6 +22,8 @@ public:
 
   void aggregate_cn_initiated_paging_request();
 
+  void aggregate_discarded_cn_initiated_paging_request();
+
   void aggregate_ue_associated_logical_ng_connection_establishment_attempt();
 
   void aggregate_ue_associated_logical_ng_connection_establishment_success();

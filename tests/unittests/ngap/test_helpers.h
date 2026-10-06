@@ -391,10 +391,11 @@ public:
     return ue_index;
   }
 
-  void on_paging_message(cu_cp_paging_message& msg) override
+  bool on_paging_message(cu_cp_paging_message& msg) override
   {
     logger.info("Received a new Paging message");
     last_paging_msg = std::move(msg);
+    return true;
   }
 
   async_task<ngap_write_replace_warning_response>

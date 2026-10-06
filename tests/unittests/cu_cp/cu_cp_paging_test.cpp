@@ -177,6 +177,8 @@ TEST_F(cu_cp_paging_test, when_du_connection_not_finished_then_paging_is_not_sen
   // Make sure he paging request is in the metrics.
   auto report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
   ASSERT_EQ(report.ngaps[0].metrics.nof_cn_initiated_paging_requests, 1) << "Paging request should be in the metrics";
+  ASSERT_EQ(report.ngaps[0].metrics.nof_discarded_cn_initiated_paging_requests, 1)
+      << "Discarded paging request should be in the metrics";
 
   // Make sure that no paging was sent to the DU.
   ASSERT_FALSE(this->get_du(du_idx).try_pop_dl_pdu(f1ap_pdu));
@@ -195,6 +197,8 @@ TEST_F(cu_cp_paging_test, when_no_du_for_tac_exists_then_paging_is_not_sent_to_d
   // Make sure the paging request is in the metrics.
   auto report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
   ASSERT_EQ(report.ngaps[0].metrics.nof_cn_initiated_paging_requests, 1) << "Paging request should be in the metrics";
+  ASSERT_EQ(report.ngaps[0].metrics.nof_discarded_cn_initiated_paging_requests, 1)
+      << "Discarded paging request should be in the metrics";
 
   // Make sure that no paging was sent to the DU.
   ASSERT_FALSE(this->get_du(du_idx).try_pop_dl_pdu(f1ap_pdu));
@@ -270,6 +274,8 @@ TEST_F(cu_cp_paging_test, when_invalid_paging_message_received_then_paging_is_no
   // Make sure he paging request is in the metrics.
   auto report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
   ASSERT_EQ(report.ngaps[0].metrics.nof_cn_initiated_paging_requests, 1) << "Paging request should be in the metrics";
+  ASSERT_EQ(report.ngaps[0].metrics.nof_discarded_cn_initiated_paging_requests, 1)
+      << "Discarded paging request should be in the metrics";
 
   // Make sure that no paging was sent to the DU.
   ASSERT_FALSE(this->get_du(du_idx).try_pop_dl_pdu(f1ap_pdu));
@@ -286,6 +292,8 @@ TEST_F(cu_cp_paging_test, when_valid_paging_message_received_then_paging_is_sent
   // Make sure he paging request is in the metrics.
   auto report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
   ASSERT_EQ(report.ngaps[0].metrics.nof_cn_initiated_paging_requests, 1) << "Paging request should be in the metrics";
+  ASSERT_EQ(report.ngaps[0].metrics.nof_discarded_cn_initiated_paging_requests, 0)
+      << "Paging request should not be discarded";
 }
 
 TEST_F(cu_cp_paging_test, when_valid_paging_message_received_then_paging_is_only_sent_to_du_with_matching_tac)

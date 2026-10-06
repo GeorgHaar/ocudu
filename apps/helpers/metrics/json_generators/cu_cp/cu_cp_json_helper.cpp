@@ -68,7 +68,9 @@ void to_json(nlohmann::json& json, const ngap_info& metrics)
   json["pdu_session_management"]                  = metrics.metrics;
   nlohmann::json& paging_json                     = json["paging_measurement"];
   paging_json["nof_cn_initiated_paging_requests"] = metrics.metrics.nof_cn_initiated_paging_requests;
-  nlohmann::json& ng_connection_json              = json["ue_associated_logical_ng_connection"];
+  paging_json["nof_discarded_cn_initiated_paging_requests"] =
+      metrics.metrics.nof_discarded_cn_initiated_paging_requests;
+  nlohmann::json& ng_connection_json = json["ue_associated_logical_ng_connection"];
   ng_connection_json["nof_ue_associated_logical_ng_connection_establishment_attempts"] =
       metrics.metrics.nof_ue_associated_logical_ng_connection_establishment_attempts;
   ng_connection_json["nof_ue_associated_logical_ng_connection_establishment_successes"] =

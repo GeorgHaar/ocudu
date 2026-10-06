@@ -222,7 +222,8 @@ public:
   virtual void on_n2_disconnection(cu_cp_amf_index_t amf_index) = 0;
 
   /// \brief Notifies the CU-CP about a Paging message.
-  virtual void on_paging_message(cu_cp_paging_message& msg) = 0;
+  /// \return True if the CU-CP sent the paging message to at least one DU, false if it discarded the paging message.
+  virtual bool on_paging_message(cu_cp_paging_message& msg) = 0;
 
   /// \brief Notifies the CU-CP about a Write-Replace Warning Request (TS 38.413 section 8.9.1).
   /// \param[in] request The decoded Write-Replace Warning Request.

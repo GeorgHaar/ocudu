@@ -32,10 +32,10 @@ public:
     amf_task_sched = &amf_task_sched_;
   }
 
-  void on_paging_message(cu_cp_paging_message& msg) override
+  bool on_paging_message(cu_cp_paging_message& msg) override
   {
     ocudu_assert(paging_handler != nullptr, "CU-CP Paging handler must not be nullptr");
-    paging_handler->handle_paging_message(msg);
+    return paging_handler->handle_paging_message(msg);
   }
 
   async_task<cu_cp_handover_resource_allocation_response>

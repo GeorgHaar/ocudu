@@ -118,7 +118,8 @@ struct pdu_session_metrics_t {
 struct ngap_metrics {
   std::map<s_nssai_t, pdu_session_metrics_t> pdu_session_metrics;
   /// Paging Measurement metrics, see TS 28.552 section 5.1.1.27.
-  unsigned nof_cn_initiated_paging_requests = 0;
+  unsigned nof_cn_initiated_paging_requests           = 0;
+  unsigned nof_discarded_cn_initiated_paging_requests = 0;
   /// UE-associated logical NG-connection metrics, see TS 28.552 section 5.1.1.16.
   /// Incremented after InitialUEMessage is successfully sent to AMF.
   unsigned nof_ue_associated_logical_ng_connection_establishment_attempts = 0;
@@ -176,8 +177,9 @@ inline std::string format_ngap_metrics(const std::vector<ngap_info>&      report
       fmt::format_to(std::back_inserter(buffer), " ]");
     }
     fmt::format_to(std::back_inserter(buffer),
-                   " nof_cn_initiated_paging_requests={}",
-                   ngap_info.metrics.nof_cn_initiated_paging_requests);
+                   " nof_cn_initiated_paging_requests={} nof_discarded_cn_initiated_paging_requests={}",
+                   ngap_info.metrics.nof_cn_initiated_paging_requests,
+                   ngap_info.metrics.nof_discarded_cn_initiated_paging_requests);
     fmt::format_to(std::back_inserter(buffer),
                    " nof_ue_associated_logical_ng_connection_establishment_attempts={} "
                    "nof_ue_associated_logical_ng_connection_establishment_successes={}",

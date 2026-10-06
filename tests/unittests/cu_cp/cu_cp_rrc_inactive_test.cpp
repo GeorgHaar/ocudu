@@ -1123,10 +1123,12 @@ TEST_F(cu_cp_rrc_inactive_test, when_rrc_resume_request_with_cause_rna_upd_is_re
   // Send F1AP UE Context Release Complete.
   ASSERT_TRUE(send_f1ap_ue_context_release_complete(int_to_gnb_du_ue_f1ap_id(1)));
 
-  // Check metrics for RRC inactive transition.
+  // Check metrics for RRC inactive transition and for the RRC resume followed by suspension.
   report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
   ASSERT_EQ(report.dus[0].rrc_metrics.mean_nof_inactive_rrc_connections, 1);
   ASSERT_EQ(report.dus[0].rrc_metrics.max_nof_inactive_rrc_connections, 1);
+  ASSERT_EQ(report.dus[0].rrc_metrics.rrc_connection_resumes_followed_by_suspension.get_count(resume_cause_t::rna_upd),
+            1);
 }
 
 TEST_F(cu_cp_rrc_inactive_test, when_ue_resumes_after_rna_update_resume_then_second_resume_succeeds)

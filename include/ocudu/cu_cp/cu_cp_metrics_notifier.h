@@ -167,6 +167,17 @@ inline std::string format_rrc_metrics(const std::vector<cu_cp_metrics_report::du
     }
     fmt::format_to(std::back_inserter(buffer), " ]");
 
+    fmt::format_to(std::back_inserter(buffer), " rrc_connection_resumes_followed_by_suspension=[");
+    cause_index = 0;
+    for (const auto& cause_count : du_info.rrc_metrics.rrc_connection_resumes_followed_by_suspension) {
+      fmt::format_to(std::back_inserter(buffer),
+                     " {}={}",
+                     du_info.rrc_metrics.rrc_connection_resumes_followed_by_suspension.get_cause(cause_index),
+                     cause_count);
+      ++cause_index;
+    }
+    fmt::format_to(std::back_inserter(buffer), " ]");
+
     fmt::format_to(std::back_inserter(buffer), " attempted_rrc_connection_resumes_followed_by_rrc_setup=[");
     cause_index = 0;
     for (const auto& cause_count : du_info.rrc_metrics.attempted_rrc_connection_resumes_followed_by_rrc_setup) {

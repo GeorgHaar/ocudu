@@ -97,6 +97,10 @@ void ue_resume_routine::operator()(coro_context<async_task<rrc_resume_request_re
           CORO_EARLY_RETURN(response_msg);
         }
 
+        // Notify RRC DU metrics about the RRC resume followed by an RRCRelease with suspend configuration.
+        du_proc.get_rrc_du_handler().get_rrc_du_connection_event_handler().handle_rrc_resume_followed_by_suspension(
+            request.cause);
+
         // Start RNA update timer after successful transition to RRC Inactive state.
         {
           ue_context_handler.initialize_rna_update_timer(request.ue_index);

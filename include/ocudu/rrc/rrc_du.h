@@ -185,6 +185,9 @@ public:
   /// \brief Add the RRC connection resume followed by network release to the metrics.
   virtual void handle_rrc_resume_followed_by_network_release(resume_cause_t cause) = 0;
 
+  /// \brief Add the RRC connection resume followed by an RRCRelease with suspend configuration to the metrics.
+  virtual void handle_rrc_resume_followed_by_suspension(resume_cause_t cause) = 0;
+
   /// \brief Add the attempted RRC connection resume followed by RRC setup to the metrics.
   virtual void handle_attempted_rrc_resume_followed_by_rrc_setup(resume_cause_t cause) = 0;
 };

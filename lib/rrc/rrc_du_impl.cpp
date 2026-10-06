@@ -491,6 +491,11 @@ void rrc_du_impl::handle_rrc_resume_followed_by_network_release(resume_cause_t c
   metrics_aggregator.aggregate_connection_resume_followed_by_network_release(cause);
 }
 
+void rrc_du_impl::handle_rrc_resume_followed_by_suspension(resume_cause_t cause)
+{
+  metrics_aggregator.aggregate_connection_resume_followed_by_suspension(cause);
+}
+
 void rrc_du_impl::handle_attempted_rrc_resume_followed_by_rrc_setup(resume_cause_t cause)
 {
   metrics_aggregator.aggregate_attempted_connection_resume_followed_by_rrc_setup(cause);

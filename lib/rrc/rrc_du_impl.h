@@ -137,6 +137,7 @@ public:
   void handle_successful_rrc_resume(resume_cause_t cause) override;
   void handle_successful_rrc_resume_with_fallback(resume_cause_t cause) override;
   void handle_rrc_resume_followed_by_network_release(resume_cause_t cause) override;
+  void handle_rrc_resume_followed_by_suspension(resume_cause_t cause) override;
   void handle_attempted_rrc_resume_followed_by_rrc_setup(resume_cause_t cause) override;
 
   rrc_du_cell_manager&             get_rrc_du_cell_manager() override { return *this; }

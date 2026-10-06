@@ -100,6 +100,11 @@ void rrc_du_metrics_aggregator::aggregate_connection_resume_followed_by_network_
   connection_resume_metrics.rrc_connection_resumes_followed_by_network_release.increase(cause);
 }
 
+void rrc_du_metrics_aggregator::aggregate_connection_resume_followed_by_suspension(resume_cause_t cause)
+{
+  connection_resume_metrics.rrc_connection_resumes_followed_by_suspension.increase(cause);
+}
+
 void rrc_du_metrics_aggregator::aggregate_attempted_connection_resume_followed_by_rrc_setup(resume_cause_t cause)
 {
   connection_resume_metrics.attempted_rrc_connection_resumes_followed_by_rrc_setup.increase(cause);
@@ -137,6 +142,8 @@ void rrc_du_metrics_aggregator::collect_metrics(rrc_du_metrics& metrics)
       connection_resume_metrics.successful_rrc_connection_resumes_with_fallback;
   metrics.rrc_connection_resumes_followed_by_network_release =
       connection_resume_metrics.rrc_connection_resumes_followed_by_network_release;
+  metrics.rrc_connection_resumes_followed_by_suspension =
+      connection_resume_metrics.rrc_connection_resumes_followed_by_suspension;
   metrics.attempted_rrc_connection_resumes_followed_by_rrc_setup =
       connection_resume_metrics.attempted_rrc_connection_resumes_followed_by_rrc_setup;
   connection_metrics.reset();

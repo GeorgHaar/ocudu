@@ -138,6 +138,7 @@ struct rrc_du_metrics {
   rrc_connection_resume_counter_with_cause successful_rrc_connection_resumes;
   rrc_connection_resume_counter_with_cause successful_rrc_connection_resumes_with_fallback;
   rrc_connection_resume_counter_with_cause rrc_connection_resumes_followed_by_network_release;
+  rrc_connection_resume_counter_with_cause rrc_connection_resumes_followed_by_suspension;
   rrc_connection_resume_counter_with_cause attempted_rrc_connection_resumes_followed_by_rrc_setup;
 };
 

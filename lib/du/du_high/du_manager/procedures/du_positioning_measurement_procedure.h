@@ -33,6 +33,9 @@ private:
   mac_positioning_measurement_request::cell_info prepare_mac_cell_positioning_request(du_cell_index_t    cell_index,
                                                                                       const srs_carrier& carrier);
 
+  /// Returns the orientation of the antenna array of a cell, if the cell exists and its configuration provides it.
+  std::optional<lcs_to_gcs_translation_t> get_antenna_orientation(du_cell_index_t cell_index) const;
+
   const du_positioning_meas_request      req;
   du_cell_manager&                       du_cells;
   du_ue_manager&                         ue_mng;

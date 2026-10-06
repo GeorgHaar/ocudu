@@ -15,9 +15,14 @@ using namespace odu;
 
 namespace {
 
+/// Orientation of the antenna array of the test cell, in the TS 38.473 Section 9.3.1.241 encoding.
+constexpr lcs_to_gcs_translation_t test_orientation{.alpha = 2700, .beta = 60, .gamma = 0};
+
 std::vector<du_cell_config> make_test_cells()
 {
-  return {config_helpers::make_default_du_cell_config()};
+  std::vector<du_cell_config> cells = {config_helpers::make_default_du_cell_config()};
+  cells[0].trp_antenna_orientation  = test_orientation;
+  return cells;
 }
 
 /// Builds an SRS configuration with one periodic resource.
@@ -61,6 +66,24 @@ protected:
     carrier.srs_cfg        = make_test_srs_config();
     carrier.ul_bwp_cfg.scs = subcarrier_spacing::kHz15;
     req.srs_carriers.push_back(carrier);
+    return req;
+  }
+
+  /// Programs the MAC to report an angle of arrival on the next measurement request.
+  void mac_reports_aoa(std::optional<float> azimuth_deg, std::optional<float> zenith_deg)
+  {
+    auto& mac_resp = mac.next_positioning_meas_response;
+    mac_resp.cell_results.resize(1);
+    mac_resp.cell_results[0].ul_srs_pos_meass.resize(1);
+    mac_resp.cell_results[0].ul_srs_pos_meass[0].azimuth_aoa_deg = azimuth_deg;
+    mac_resp.cell_results[0].ul_srs_pos_meass[0].zenith_aoa_deg  = zenith_deg;
+  }
+
+  /// Builds a request for the UL Angle of Arrival.
+  du_positioning_meas_request make_aoa_request()
+  {
+    du_positioning_meas_request req = make_request();
+    req.pos_meas_quants             = {positioning_meas_quantity{.meas_type = pos_meas_type::ul_aoa}};
     return req;
   }
 
@@ -137,4 +160,23 @@ TEST_F(du_positioning_measurement_procedure_test, when_response_time_is_longer_t
   ASSERT_TRUE(mac.last_positioning_meas_request.has_value());
   // Two periods of 80 slots at 15 kHz.
   ASSERT_EQ(mac.last_positioning_meas_request->timeout, std::chrono::milliseconds{160});
+}
+
+TEST_F(du_positioning_measurement_procedure_test, when_the_cell_has_an_antenna_orientation_then_the_aoa_carries_it)
+{
+  mac_reports_aoa(123.4F, 56.7F);
+
+  du_positioning_meas_response resp = run_procedure(make_aoa_request());
+
+  ASSERT_EQ(resp.pos_meas_list.size(), 1);
+  ASSERT_EQ(resp.pos_meas_list[0].results.size(), 1);
+  const auto* aoa = std::get_if<pos_meas_result_ul_aoa>(&resp.pos_meas_list[0].results[0]);
+  ASSERT_NE(aoa, nullptr);
+  // The angles are encoded as per TS 38.133, Table 13.4.1-1 and Table 13.4.1-2.
+  ASSERT_EQ(aoa->azimuth_aoa, 3034);
+  ASSERT_EQ(aoa->zenith_aoa, 567);
+  ASSERT_TRUE(aoa->lcs_to_gcs_translation.has_value());
+  ASSERT_EQ(aoa->lcs_to_gcs_translation->alpha, test_orientation.alpha);
+  ASSERT_EQ(aoa->lcs_to_gcs_translation->beta, test_orientation.beta);
+  ASSERT_EQ(aoa->lcs_to_gcs_translation->gamma, test_orientation.gamma);
 }

@@ -87,10 +87,12 @@ struct pos_meas_result_ul_rsrp {
 };
 
 struct pos_meas_result_ul_aoa {
-  /// Azimuth Angle of Arrival, in units of 0.1 degrees. Values {0,...,3599}, as per TS 38.473, Section 9.3.1.157.
+  /// Azimuth Angle of Arrival, in units of 0.1 degrees. Values {0,...,3599}, as per TS 38.473, Section 9.3.1.167.
   uint16_t azimuth_aoa;
-  /// Zenith Angle of Arrival, in units of 0.1 degrees. Values {0,...,1799}, as per TS 38.473, Section 9.3.1.157.
+  /// Zenith Angle of Arrival, in units of 0.1 degrees. Values {0,...,1799}, as per TS 38.473, Section 9.3.1.167.
   std::optional<uint16_t> zenith_aoa;
+  /// Orientation of the LCS of the angles, as per TS 38.473, Section 9.3.1.241. Empty when the angles are in the GCS.
+  std::optional<lcs_to_gcs_translation_t> lcs_to_gcs_translation;
 };
 
 using pos_meas_result_item = std::variant<pos_meas_result_ul_rtoa, pos_meas_result_ul_rsrp, pos_meas_result_ul_aoa>;

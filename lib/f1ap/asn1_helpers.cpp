@@ -867,6 +867,16 @@ static asn1::f1ap::prs_cfg_s prs_cfg_to_asn1(const prs_cfg_t& prs_cfg)
   return asn1_prs_cfg;
 }
 
+/// Convert the LCS to GCS Translation to ASN.1, as per TS 38.473 section 9.3.1.241.
+static lcs_to_gcs_translation_s lcs_to_gcs_translation_to_asn1(const lcs_to_gcs_translation_t& translation)
+{
+  lcs_to_gcs_translation_s asn1out;
+  asn1out.alpha = translation.alpha;
+  asn1out.beta  = translation.beta;
+  asn1out.gamma = translation.gamma;
+  return asn1out;
+}
+
 asn1::f1ap::ul_ao_a_s ocudu::ul_aoa_to_asn1(const odu::pos_meas_result_ul_aoa& aoa)
 {
   ul_ao_a_s asn1out;
@@ -874,6 +884,10 @@ asn1::f1ap::ul_ao_a_s ocudu::ul_aoa_to_asn1(const odu::pos_meas_result_ul_aoa& a
   if (aoa.zenith_aoa.has_value()) {
     asn1out.zenith_ao_a_present = true;
     asn1out.zenith_ao_a         = aoa.zenith_aoa.value();
+  }
+  if (aoa.lcs_to_gcs_translation.has_value()) {
+    asn1out.lcs_to_gcs_translation_present = true;
+    asn1out.lcs_to_gcs_translation         = lcs_to_gcs_translation_to_asn1(aoa.lcs_to_gcs_translation.value());
   }
   return asn1out;
 }

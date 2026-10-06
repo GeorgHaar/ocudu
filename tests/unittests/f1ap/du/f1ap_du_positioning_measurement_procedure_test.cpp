@@ -124,15 +124,17 @@ TEST_F(f1ap_du_positioning_measurement_procedure_test, when_ul_aoa_is_requested_
 {
   OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-c");
 
-  static constexpr uint16_t azimuth_aoa = 1234;
-  static constexpr uint16_t zenith_aoa  = 567;
+  static constexpr uint16_t                 azimuth_aoa = 1234;
+  static constexpr uint16_t                 zenith_aoa  = 567;
+  static constexpr lcs_to_gcs_translation_t lcs_to_gcs{.alpha = 2700, .beta = 60, .gamma = 3590};
 
   // Program the DU to report a UL-AoA measurement for the requested TRP.
   du_positioning_meas_response& meas_resp  = this->f1ap_du_cfg_handler.next_positioning_meas_response;
   pos_meas_result&              trp_result = meas_resp.pos_meas_list.emplace_back();
   trp_result.trp_id                        = trp_id_t::min;
   trp_result.sl_rx                         = slot_point{subcarrier_spacing::kHz15, 0, 0};
-  trp_result.results.push_back(pos_meas_result_ul_aoa{.azimuth_aoa = azimuth_aoa, .zenith_aoa = zenith_aoa});
+  trp_result.results.push_back(pos_meas_result_ul_aoa{
+      .azimuth_aoa = azimuth_aoa, .zenith_aoa = zenith_aoa, .lcs_to_gcs_translation = lcs_to_gcs});
 
   f1ap_message req = test_helpers::generate_positioning_measurement_request(
       {trp_id_t::min}, lmf_meas_id_t::min, ran_meas_id_t::min, {asn1::f1ap::pos_meas_type_opts::options::ul_aoa});
@@ -158,6 +160,10 @@ TEST_F(f1ap_du_positioning_measurement_procedure_test, when_ul_aoa_is_requested_
   ASSERT_EQ(asn1_aoa.azimuth_ao_a, azimuth_aoa);
   ASSERT_TRUE(asn1_aoa.zenith_ao_a_present);
   ASSERT_EQ(asn1_aoa.zenith_ao_a, zenith_aoa);
+  ASSERT_TRUE(asn1_aoa.lcs_to_gcs_translation_present);
+  ASSERT_EQ(asn1_aoa.lcs_to_gcs_translation.alpha, lcs_to_gcs.alpha);
+  ASSERT_EQ(asn1_aoa.lcs_to_gcs_translation.beta, lcs_to_gcs.beta);
+  ASSERT_EQ(asn1_aoa.lcs_to_gcs_translation.gamma, lcs_to_gcs.gamma);
 }
 
 /// The gNB-CU expects the result within the Response Time, as per TS 38.473 section 8.13.2.2, so that time caps how

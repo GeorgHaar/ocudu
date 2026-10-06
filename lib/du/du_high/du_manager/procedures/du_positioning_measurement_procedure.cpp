@@ -160,7 +160,8 @@ du_positioning_meas_response positioning_measurement_procedure::prepare_f1ap_res
           pos_meas_result_ul_rsrp{.ul_rsrp = rsrp_dbfs_to_l3_rsrp_mapping(mac_meas.rsrp_dbfs.value())});
     }
     if (aoa_report) {
-      meas_res.results.push_back(make_ul_aoa_result(mac_meas));
+      meas_res.results.push_back(
+          make_ul_aoa_result(mac_meas, get_antenna_orientation(mac_req.cells[trp_idx].cell_index)));
     }
     meas_res.sl_rx = mac_resp.sl_rx;
 
@@ -168,6 +169,15 @@ du_positioning_meas_response positioning_measurement_procedure::prepare_f1ap_res
   }
 
   return resp;
+}
+
+std::optional<lcs_to_gcs_translation_t>
+positioning_measurement_procedure::get_antenna_orientation(du_cell_index_t cell_index) const
+{
+  if (cell_index >= du_cells.nof_cells()) {
+    return std::nullopt;
+  }
+  return du_cells.get_cell_cfg(cell_index).trp_antenna_orientation;
 }
 
 bool srs_config_matches(const srs_config& ue_cfg, const srs_config& pos_cfg)

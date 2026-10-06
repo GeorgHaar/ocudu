@@ -65,6 +65,7 @@ bool du_ue_e_cid_measurement_procedure::prepare_mac_request()
     coords.trp_position_definition_type = trp_position_direct_t{cell_cmn.trp_geo_coordinates.value()};
     geo_coords                          = coords;
   }
+  antenna_orientation = cell_cmn.trp_antenna_orientation;
 
   if (not aoa_requested) {
     return true;
@@ -112,7 +113,9 @@ du_e_cid_meas_response du_ue_e_cid_measurement_procedure::create_response()
     return resp;
   }
 
-  resp.ul_aoa_results.push_back(make_ul_aoa_result(mac_meas));
+  // A linear array measures the broadside angle, which the MAC gives as the azimuth. The DU reports this angle as the
+  // LCS azimuth. This azimuth is correct for a UE in front of the array and in the horizontal plane of the LCS.
+  resp.ul_aoa_results.push_back(make_ul_aoa_result(mac_meas, antenna_orientation));
   resp.success = true;
 
   return resp;

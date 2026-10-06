@@ -100,6 +100,26 @@ TEST_F(f1ap_du_e_cid_measurement_procedure_test, when_nr_aoa_is_requested_then_r
   ASSERT_EQ(result.value_angleof_arrival_nr().zenith_ao_a, test_zenith_aoa);
 }
 
+TEST_F(f1ap_du_e_cid_measurement_procedure_test, when_du_reports_an_lcs_to_gcs_translation_then_response_carries_it)
+{
+  constexpr lcs_to_gcs_translation_t lcs_to_gcs{.alpha = 2700, .beta = 60, .gamma = 3590};
+  du_reports_aoa();
+  this->f1ap_du_cfg_handler.next_e_cid_meas_response.ul_aoa_results[0].lcs_to_gcs_translation = lcs_to_gcs;
+
+  this->f1ap->handle_message(make_request({e_cid_quantity::angle_of_arrival_nr}));
+
+  auto tx_msg = this->f1c_gw.pop_tx_pdu();
+  ASSERT_TRUE(tx_msg.has_value());
+  ASSERT_TRUE(test_helpers::is_valid_f1ap_e_cid_measurement_initiation_response(tx_msg.value()));
+  const auto& resp = tx_msg.value().pdu.successful_outcome().value.e_c_id_meas_initiation_resp();
+  const auto& aoa =
+      resp->e_c_id_meas_result.measured_results_list[0].e_c_id_measured_results_value.value_angleof_arrival_nr();
+  ASSERT_TRUE(aoa.lcs_to_gcs_translation_present);
+  ASSERT_EQ(aoa.lcs_to_gcs_translation.alpha, lcs_to_gcs.alpha);
+  ASSERT_EQ(aoa.lcs_to_gcs_translation.beta, lcs_to_gcs.beta);
+  ASSERT_EQ(aoa.lcs_to_gcs_translation.gamma, lcs_to_gcs.gamma);
+}
+
 TEST_F(f1ap_du_e_cid_measurement_procedure_test, when_du_reports_no_zenith_angle_then_response_omits_it)
 {
   du_reports_aoa(std::nullopt);

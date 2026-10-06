@@ -43,6 +43,8 @@ private:
   bool aoa_requested = false;
   /// Geographical coordinates of the serving cell, if the cell configuration provides them.
   std::optional<geographical_coordinates_t> geo_coords;
+  /// Orientation of the antenna array of the serving cell, if the cell configuration provides it.
+  std::optional<lcs_to_gcs_translation_t> antenna_orientation;
 
   mac_positioning_measurement_request  mac_req;
   mac_positioning_measurement_response mac_resp;

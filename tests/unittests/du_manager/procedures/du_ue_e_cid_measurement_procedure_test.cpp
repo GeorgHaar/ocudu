@@ -25,13 +25,17 @@ constexpr uint16_t test_zenith_aoa  = 567;
 /// Latitude the test cell reports, in the TS 38.455 Section 9.1.19.7 encoding.
 constexpr uint32_t test_latitude = 12345;
 
+/// Orientation of the antenna array of the test cell, in the TS 38.473 Section 9.3.1.241 encoding.
+constexpr lcs_to_gcs_translation_t test_orientation{.alpha = 2700, .beta = 60, .gamma = 0};
+
 std::vector<du_cell_config> make_test_cells()
 {
   std::vector<du_cell_config> cells = {config_helpers::make_default_du_cell_config()};
 
   ng_ran_access_point_position_t position{};
-  position.latitude            = test_latitude;
-  cells[0].trp_geo_coordinates = position;
+  position.latitude                = test_latitude;
+  cells[0].trp_geo_coordinates     = position;
+  cells[0].trp_antenna_orientation = test_orientation;
 
   return cells;
 }
@@ -160,6 +164,21 @@ TEST_F(du_ue_e_cid_measurement_procedure_test, when_mac_reports_aoa_then_degrees
   ASSERT_EQ(resp.ul_aoa_results[0].azimuth_aoa, test_azimuth_aoa);
   ASSERT_TRUE(resp.ul_aoa_results[0].zenith_aoa.has_value());
   ASSERT_EQ(resp.ul_aoa_results[0].zenith_aoa.value(), test_zenith_aoa);
+}
+
+TEST_F(du_ue_e_cid_measurement_procedure_test, when_the_cell_has_an_antenna_orientation_then_the_aoa_carries_it)
+{
+  create_ue(test_ue_index);
+  mac_reports_aoa(test_azimuth_deg, std::nullopt);
+
+  du_e_cid_meas_response resp = run_procedure(make_request(test_ue_index, {e_cid_meas_quantity::nr_angle_of_arrival}));
+
+  ASSERT_TRUE(resp.success);
+  ASSERT_EQ(resp.ul_aoa_results.size(), 1);
+  ASSERT_TRUE(resp.ul_aoa_results[0].lcs_to_gcs_translation.has_value());
+  ASSERT_EQ(resp.ul_aoa_results[0].lcs_to_gcs_translation->alpha, test_orientation.alpha);
+  ASSERT_EQ(resp.ul_aoa_results[0].lcs_to_gcs_translation->beta, test_orientation.beta);
+  ASSERT_EQ(resp.ul_aoa_results[0].lcs_to_gcs_translation->gamma, test_orientation.gamma);
 }
 
 TEST_F(du_ue_e_cid_measurement_procedure_test, when_mac_reports_no_zenith_angle_then_only_the_azimuth_is_reported)

@@ -235,6 +235,8 @@ public:
 
   void on_successful_rrc_connection_reestablishment_fallback() override {}
 
+  void on_attempted_rrc_connection_reestablishment_followed_by_rrc_setup() override {}
+
   void on_successful_rrc_connection_resume(resume_cause_t cause) override {}
 
   void on_successful_rrc_connection_resume_with_fallback(resume_cause_t cause) override {}

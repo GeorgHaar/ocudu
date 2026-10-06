@@ -132,6 +132,7 @@ struct rrc_du_metrics {
   unsigned attempted_rrc_connection_reestablishments;
   unsigned successful_rrc_connection_reestablishments_with_ue_context;
   unsigned successful_rrc_connection_reestablishments_without_ue_context;
+  unsigned attempted_rrc_connection_reestablishments_followed_by_rrc_setup;
   /// \brief RRC connection resume metrics, see TS 28.552 section 5.1.1.18.
   rrc_connection_resume_counter_with_cause attempted_rrc_connection_resumes;
   rrc_connection_resume_counter_with_cause successful_rrc_connection_resumes;

@@ -27,9 +27,10 @@ struct rrc_connection_establishment_metrics {
 };
 
 struct rrc_connection_reestablishment_metrics {
-  unsigned attempted_rrc_connection_reestablishments                     = 0;
-  unsigned successful_rrc_connection_reestablishments_with_ue_context    = 0;
-  unsigned successful_rrc_connection_reestablishments_without_ue_context = 0;
+  unsigned attempted_rrc_connection_reestablishments                       = 0;
+  unsigned successful_rrc_connection_reestablishments_with_ue_context      = 0;
+  unsigned successful_rrc_connection_reestablishments_without_ue_context   = 0;
+  unsigned attempted_rrc_connection_reestablishments_followed_by_rrc_setup = 0;
 };
 
 struct rrc_connection_resume_metrics {
@@ -65,6 +66,8 @@ public:
   void aggregate_attempted_connection_reestablishment();
 
   void aggregate_successful_connection_reestablishment(bool with_ue_context);
+
+  void aggregate_attempted_connection_reestablishment_followed_by_rrc_setup();
 
   void aggregate_attempted_connection_resume(resume_cause_t cause);
 

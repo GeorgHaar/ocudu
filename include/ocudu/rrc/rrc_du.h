@@ -169,6 +169,9 @@ public:
   /// \brief Add the successful RRC connection re-establishment fallback to the metrics.
   virtual void handle_successful_rrc_reestablishment_fallback() = 0;
 
+  /// \brief Add the RRC connection re-establishment attempt that falls back to RRC Setup to the metrics.
+  virtual void handle_attempted_rrc_reestablishment_followed_by_rrc_setup() = 0;
+
   /// \brief Add the attempted RRC connection resume to the metrics.
   virtual void handle_attempted_rrc_resume(resume_cause_t cause) = 0;
 

@@ -75,6 +75,11 @@ void rrc_du_metrics_aggregator::aggregate_successful_connection_reestablishment(
   }
 }
 
+void rrc_du_metrics_aggregator::aggregate_attempted_connection_reestablishment_followed_by_rrc_setup()
+{
+  ++connection_reestablishment_metrics.attempted_rrc_connection_reestablishments_followed_by_rrc_setup;
+}
+
 void rrc_du_metrics_aggregator::aggregate_attempted_connection_resume(resume_cause_t cause)
 {
   connection_resume_metrics.attempted_rrc_connection_resumes.increase(cause);
@@ -124,6 +129,8 @@ void rrc_du_metrics_aggregator::collect_metrics(rrc_du_metrics& metrics)
       connection_reestablishment_metrics.successful_rrc_connection_reestablishments_with_ue_context;
   metrics.successful_rrc_connection_reestablishments_without_ue_context =
       connection_reestablishment_metrics.successful_rrc_connection_reestablishments_without_ue_context;
+  metrics.attempted_rrc_connection_reestablishments_followed_by_rrc_setup =
+      connection_reestablishment_metrics.attempted_rrc_connection_reestablishments_followed_by_rrc_setup;
   metrics.attempted_rrc_connection_resumes  = connection_resume_metrics.attempted_rrc_connection_resumes;
   metrics.successful_rrc_connection_resumes = connection_resume_metrics.successful_rrc_connection_resumes;
   metrics.successful_rrc_connection_resumes_with_fallback =

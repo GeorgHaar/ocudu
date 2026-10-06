@@ -158,6 +158,9 @@ async_task<void> rrc_reestablishment_procedure::handle_rrc_reestablishment_fallb
 {
   context.connection_cause = establishment_cause_t::mt_access;
 
+  // Notify metrics about the attempted RRC connection re-establishment followed by RRC Setup.
+  metrics_notifier.on_attempted_rrc_connection_reestablishment_followed_by_rrc_setup();
+
   return launch_async([this](coro_context<async_task<void>>& ctx) mutable {
     CORO_BEGIN(ctx);
 

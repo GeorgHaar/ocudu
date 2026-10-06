@@ -465,6 +465,11 @@ void rrc_du_impl::handle_successful_rrc_reestablishment_fallback()
   metrics_aggregator.aggregate_successful_connection_reestablishment(false);
 }
 
+void rrc_du_impl::handle_attempted_rrc_reestablishment_followed_by_rrc_setup()
+{
+  metrics_aggregator.aggregate_attempted_connection_reestablishment_followed_by_rrc_setup();
+}
+
 void rrc_du_impl::handle_attempted_rrc_resume(resume_cause_t cause)
 {
   metrics_aggregator.aggregate_attempted_connection_resume(cause);

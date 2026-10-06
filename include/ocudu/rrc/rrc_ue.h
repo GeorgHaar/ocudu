@@ -694,6 +694,9 @@ public:
   /// \brief Notify the RRC DU about the successful RRC connection re-establishment fallback.
   virtual void on_successful_rrc_connection_reestablishment_fallback() = 0;
 
+  /// \brief Notify the RRC DU about the RRC connection re-establishment attempt that falls back to RRC Setup.
+  virtual void on_attempted_rrc_connection_reestablishment_followed_by_rrc_setup() = 0;
+
   /// \brief Notify the RRC DU about the successful RRC connection resume.
   virtual void on_successful_rrc_connection_resume(resume_cause_t cause) = 0;
 

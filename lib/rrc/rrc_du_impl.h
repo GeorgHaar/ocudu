@@ -55,6 +55,11 @@ public:
     metrics_handler.handle_successful_rrc_reestablishment_fallback();
   }
 
+  void on_attempted_rrc_connection_reestablishment_followed_by_rrc_setup() override
+  {
+    metrics_handler.handle_attempted_rrc_reestablishment_followed_by_rrc_setup();
+  }
+
   void on_successful_rrc_connection_resume(resume_cause_t cause) override
   {
     metrics_handler.handle_successful_rrc_resume(cause);
@@ -127,6 +132,7 @@ public:
   void handle_attempted_rrc_reestablishment() override;
   void handle_successful_rrc_reestablishment() override;
   void handle_successful_rrc_reestablishment_fallback() override;
+  void handle_attempted_rrc_reestablishment_followed_by_rrc_setup() override;
   void handle_attempted_rrc_resume(resume_cause_t cause) override;
   void handle_successful_rrc_resume(resume_cause_t cause) override;
   void handle_successful_rrc_resume_with_fallback(resume_cause_t cause) override;

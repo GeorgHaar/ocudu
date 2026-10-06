@@ -380,9 +380,10 @@ TEST_F(cu_cp_reestablishment_test, when_old_ue_does_not_exist_then_reestablishme
       send_rrc_reest_request_and_wait_response(int_to_gnb_du_ue_f1ap_id(1), to_rnti(0x4602), to_rnti(0x4603), old_pci))
       << "RRC setup should have been sent";
 
-  // Check metrics for RRC connection re-establishment attempt.
+  // Check metrics for RRC connection re-establishment attempt followed by RRC Setup.
   report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
   ASSERT_EQ(report.dus[0].rrc_metrics.attempted_rrc_connection_reestablishments, 1);
+  ASSERT_EQ(report.dus[0].rrc_metrics.attempted_rrc_connection_reestablishments_followed_by_rrc_setup, 1);
 
   // UE sends RRC Setup Complete.
   ASSERT_TRUE(this->ue_sends_rrc_setup_complete(int_to_gnb_du_ue_f1ap_id(1), int_to_gnb_cu_ue_f1ap_id(1)));
@@ -570,6 +571,7 @@ TEST_F(cu_cp_reestablishment_test, when_reestablishment_succeeds_then_amf_is_con
   ASSERT_EQ(report.dus[0].rrc_metrics.successful_rrc_connection_establishments.get_count(establishment_cause_t::mo_sig),
             1);
   ASSERT_EQ(report.dus[0].rrc_metrics.successful_rrc_connection_reestablishments_with_ue_context, 1);
+  ASSERT_EQ(report.dus[0].rrc_metrics.attempted_rrc_connection_reestablishments_followed_by_rrc_setup, 0);
   // Old UE should not be removed at this stage.
   ASSERT_EQ(report.ues.size(), 1) << "Old UE should not be removed yet";
 

@@ -115,10 +115,12 @@ inline std::string format_rrc_metrics(const std::vector<cu_cp_metrics_report::du
     fmt::format_to(
         std::back_inserter(buffer),
         " attempted_rrc_connection_reestablishments={} successful_rrc_connection_reestablishments_with_ue_context={} "
-        "successful_rrc_connection_reestablishments_without_ue_context={}",
+        "successful_rrc_connection_reestablishments_without_ue_context={} "
+        "attempted_rrc_connection_reestablishments_followed_by_rrc_setup={}",
         du_info.rrc_metrics.attempted_rrc_connection_reestablishments,
         du_info.rrc_metrics.successful_rrc_connection_reestablishments_with_ue_context,
-        du_info.rrc_metrics.successful_rrc_connection_reestablishments_without_ue_context);
+        du_info.rrc_metrics.successful_rrc_connection_reestablishments_without_ue_context,
+        du_info.rrc_metrics.attempted_rrc_connection_reestablishments_followed_by_rrc_setup);
 
     fmt::format_to(std::back_inserter(buffer), " attempted_rrc_connection_resumes=[");
     cause_index = 0;

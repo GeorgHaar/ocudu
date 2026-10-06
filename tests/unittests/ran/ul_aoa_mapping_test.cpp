@@ -39,14 +39,16 @@ TEST(ul_aoa_mapping_test, zenith_maps_to_the_interval_starting_at_0_degrees)
   EXPECT_EQ(567, zenith_aoa_to_reported_value(56.7F));
   EXPECT_EQ(1799, zenith_aoa_to_reported_value(179.95F));
   EXPECT_EQ(1799, zenith_aoa_to_reported_value(std::nextafter(180.0F, 0.0F)));
+  // The last interval includes 180 degrees.
+  EXPECT_EQ(1799, zenith_aoa_to_reported_value(180.0F));
 }
 
 #ifdef ASSERTS_ENABLED
-/// Zenith angles outside [0, 180) degrees break the precondition.
+/// Zenith angles outside [0, 180] degrees break the precondition.
 TEST(ul_aoa_mapping_test, zenith_outside_the_range_asserts)
 {
-  ASSERT_DEATH(zenith_aoa_to_reported_value(-5.0F), R"(outside \[0, 180\))");
-  ASSERT_DEATH(zenith_aoa_to_reported_value(180.0F), R"(outside \[0, 180\))");
-  ASSERT_DEATH(zenith_aoa_to_reported_value(200.0F), R"(outside \[0, 180\))");
+  ASSERT_DEATH(zenith_aoa_to_reported_value(-5.0F), R"(outside \[0, 180\])");
+  ASSERT_DEATH(zenith_aoa_to_reported_value(180.05F), R"(outside \[0, 180\])");
+  ASSERT_DEATH(zenith_aoa_to_reported_value(200.0F), R"(outside \[0, 180\])");
 }
 #endif // ASSERTS_ENABLED

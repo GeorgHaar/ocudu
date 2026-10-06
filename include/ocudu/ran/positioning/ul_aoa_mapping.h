@@ -37,14 +37,17 @@ inline uint16_t azimuth_aoa_to_reported_value(float degrees)
 
 /// \brief Maps a zenith Angle of Arrival in degrees to its reported value, as per TS 38.133, Table 13.4.1-2.
 ///
-/// The reported value n = {0,...,1799} covers the angles [0.1n, 0.1(n + 1)) degrees.
-/// \param[in] degrees Zenith Angle of Arrival, in degrees. Values: [0, 180).
+/// The reported value n = {0,...,1798} covers the angles [0.1n, 0.1(n + 1)) degrees. The reported value 1799 covers
+/// the angles [179.9, 180] degrees.
+/// \param[in] degrees Zenith Angle of Arrival, in degrees. Values: [0, 180].
 inline uint16_t zenith_aoa_to_reported_value(float degrees)
 {
-  ocudu_assert(degrees >= 0.0F && degrees < 180.0F, "Zenith Angle of Arrival {} degrees is outside [0, 180).", degrees);
+  ocudu_assert(
+      degrees >= 0.0F && degrees <= 180.0F, "Zenith Angle of Arrival {} degrees is outside [0, 180].", degrees);
 
   const double value = std::floor(static_cast<double>(degrees) * 10.0);
-  // Clamping keeps the reported value valid when asserts are disabled.
+  // The last reported value includes 180 degrees. Clamping also keeps the reported value valid when asserts are
+  // disabled.
   return static_cast<uint16_t>(std::clamp(value, 0.0, static_cast<double>(MAX_ZENITH_AOA_REPORTED_VALUE)));
 }
 

@@ -11,21 +11,18 @@
 
 version: 1
 rules:
-  - id: security-must-not-depend-on-upper-layers
-    kind: forbidden-edge
+  - id: security-allowed-includes
+    kind: allowed-edge
     from:
       - include/ocudu/security/**
       - lib/security/**
-    to:
-      - include/ocudu/rrc/**
-      - lib/rrc/**
-      - include/ocudu/pdcp/**
-      - lib/pdcp/**
-      - include/ocudu/cu_cp/**
-      - lib/cu_cp/**
-      - include/ocudu/cu_up/**
-      - lib/cu_up/**
-      - include/ocudu/ngap/**
-      - lib/ngap/**
-    reason: The security primitives are a leaf utility. Including any of their callers' headers makes
-      the ciphering and integrity code impossible to test in isolation.
+    allow:
+      - include/ocudu/adt/**
+      - include/ocudu/asn1/*.h
+      - include/ocudu/ocudulog/**
+      - include/ocudu/ocuduvec/**
+      - include/ocudu/ran/**
+      - include/ocudu/security/**
+      - include/ocudu/support/**
+      - lib/security/**
+    reason: Module security may only depend on the modules listed in allow; anything else breaks its layering boundary.

@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: Copyright (C) 2021-2026 Software Radio Systems Limited
+# SPDX-FileCopyrightText: Copyright (C) 2026 OCUDU contributors
+# SPDX-License-Identifier: BSD-3-Clause-Open-MPI
+
+# Forbidden and allowed include dependencies for the OCUDU C++ tree, checked by
+# check_dependency_rules.py against a tree from gen_dependency_tree.py.
+#
+# Every rule here is green on the tree it was ported against. Never land a
+# rule that is red without `exempt` entries carrying issue links.
+#
+
+version: 1
+rules:
+  - id: f1u-allowed-includes
+    kind: allowed-edge
+    from:
+      - include/ocudu/f1u/**
+      - lib/f1u/**
+    allow:
+      - include/ocudu/adt/**
+      - include/ocudu/f1u/**
+      - include/ocudu/gtpu/**
+      - include/ocudu/nru/**
+      - include/ocudu/ocudulog/**
+      - include/ocudu/pcap/**
+      - include/ocudu/ran/**
+      - include/ocudu/support/**
+      - lib/f1u/**
+    reason: Module F1U may only depend on the modules listed in allow; anything else breaks its layering boundary.
+  - id: f1u-cu-up-forbidden-includes
+    kind: forbidden-edge
+    from:
+      - include/ocudu/f1u/cu_up/**
+      - lib/f1u/cu_up/**
+    to:
+      - include/ocudu/f1u/du/**
+      - lib/f1u/du/**
+    reason: Sub-module F1U CU-UP may not include from sub-module F1U DU.
+  - id: f1u-du-forbidden-includes
+    kind: forbidden-edge
+    from:
+      - include/ocudu/f1u/du/**
+      - lib/f1u/du/**
+    to:
+      - include/ocudu/f1u/cu_up/**
+      - lib/f1u/cu_up/**
+    reason: Sub-module F1U DU may not include from sub-module F1U CU-UP.

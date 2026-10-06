@@ -13,7 +13,9 @@ reports every include edge a rule forbids.
 Four rule kinds:
 
   forbidden-edge            `from` may not include `to`. Both accept a string
-                            or a list of glob patterns.
+                            or a list of glob patterns. `from_exclude`
+                            exempts a subset of `from` (e.g. the one directory
+                            allowed to use a dependency).
   allowed-edge              The inverse: `from` may *only* include `allow`
                             (plus the top-level `always_allowed` list) —
                             anything else is a violation. `from_exclude`
@@ -81,7 +83,7 @@ LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
 RULE_KINDS = ("forbidden-edge", "allowed-edge", "peer-isolation", "no-relative-includes")
 COMMON_KEYS = {"id", "kind", "reason", "transitive", "exempt"}
 KIND_KEYS = {
-    "forbidden-edge": {"from", "to"},
+    "forbidden-edge": {"from", "from_exclude", "to"},
     "allowed-edge": {"from", "from_exclude", "allow", "extra_allow_for_prefix"},
     "peer-isolation": {"peers"},
     "no-relative-includes": {"from"},
@@ -260,6 +262,8 @@ def validate_rules(rules: list[dict], paths: set[str], dirs: set[str]) -> list[d
 
         if kind == "forbidden-edge":
             prepared_rule["from"] = file_matcher("from")
+            prepared_rule["from_exclude"] = file_matcher("from_exclude") if rule.get(
+                "from_exclude") is not None else Matcher([])
             prepared_rule["to"] = file_matcher("to")
         elif kind == "allowed-edge":
             prepared_rule["from"] = file_matcher("from")
@@ -412,9 +416,9 @@ def violations_for(
     found = []
     kind = rule["kind"]
     if kind == "forbidden-edge":
-        src, dst = rule["from"], rule["to"]
+        src, exclude, dst = rule["from"], rule["from_exclude"], rule["to"]
         for source in edges:
-            if not src.matches(source):
+            if not src.matches(source) or exclude.matches(source):
                 continue
             if rule["transitive"]:
                 chain = shortest_chain(source, edges, dst)

@@ -19,5 +19,4 @@ rules:
       - include/ocudu/adt/**
       - include/ocudu/ocudulog/**
       - include/ocudu/support/**
-    reason: Module adt may only depend on the modules listed in allow; anything else breaks its layering
-      boundary.
+    reason: Module adt may only depend on the modules listed in allow; anything else breaks its layering boundary.

@@ -11,15 +11,18 @@
 
 version: 1
 rules:
-  - id: rlc-must-not-depend-on-adjacent-layers
-    kind: forbidden-edge
+  - id: rlc-allowed-includes
+    kind: allowed-edge
     from:
       - include/ocudu/rlc/**
       - lib/rlc/**
-    to:
-      - include/ocudu/mac/**
-      - lib/mac/**
-      - include/ocudu/pdcp/**
-      - lib/pdcp/**
-    reason: RLC exchanges SDUs with MAC and PDCP through interfaces it defines itself, so it must not
-      see either neighbour's types.
+    allow:
+      - include/ocudu/adt/**
+      - include/ocudu/instrumentation/**
+      - include/ocudu/ocudulog/**
+      - include/ocudu/pcap/**
+      - include/ocudu/ran/**
+      - include/ocudu/rlc/**
+      - include/ocudu/support/**
+      - lib/rlc/**
+    reason: Module RLC may only depend on the modules listed in allow; anything else breaks its layering boundary.

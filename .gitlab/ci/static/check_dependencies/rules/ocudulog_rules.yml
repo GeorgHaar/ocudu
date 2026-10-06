@@ -19,5 +19,4 @@ rules:
     allow:
       - include/ocudu/ocudulog/**
       - lib/ocudulog/**
-    reason: Module ocudulog may only depend on the modules listed in allow; anything else breaks its layering
-      boundary.
+    reason: Module ocudulog may only depend on the modules listed in allow; anything else breaks its layering boundary.

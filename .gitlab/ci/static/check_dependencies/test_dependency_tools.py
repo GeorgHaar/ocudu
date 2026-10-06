@@ -298,6 +298,30 @@ class CheckerTest(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertEqual(payload["findings"], [])
 
+    def test_from_exclude_exempts_only_the_excluded_sources(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            make_project(root, mac_impl_extra='#include "proj/du/du_manager.h"\n')
+            write(root, "lib/e2/e2_du.cpp", '#include "proj/du/du_manager.h"\n')
+            tree = gen(root)
+            rules = write_yaml(root, "rules.yml", {
+                "version": 1,
+                "rules": [{
+                    "id": "only-mac-may-use-du",
+                    "kind": "forbidden-edge",
+                    "from": "lib/**",
+                    "from_exclude": "lib/mac/**",
+                    "to": "include/proj/du/**",
+                    "reason": "Contrived rule exempting one directory.",
+                }],
+            })
+            payload, code = self.json_check(tree, rules)
+            self.assertEqual(code, 1)
+            self.assertEqual(
+                [(f["file"], f["to"]) for f in payload["findings"]],
+                [("lib/e2/e2_du.cpp", "include/proj/du/du_manager.h")],
+            )
+
     def test_peer_isolation_flags_sibling_subsystem(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

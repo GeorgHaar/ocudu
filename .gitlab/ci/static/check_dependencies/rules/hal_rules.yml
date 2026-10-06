@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: Copyright (C) 2021-2026 Software Radio Systems Limited
+# SPDX-FileCopyrightText: Copyright (C) 2026 OCUDU contributors
+# SPDX-License-Identifier: BSD-3-Clause-Open-MPI
+
+# Forbidden and allowed include dependencies for the OCUDU C++ tree, checked by
+# check_dependency_rules.py against a tree from gen_dependency_tree.py.
+#
+# Every rule here is green on the tree it was ported against. Never land a
+# rule that is red without `exempt` entries carrying issue links.
+#
+
+version: 1
+rules:
+  - id: hal-allowed-includes
+    kind: allowed-edge
+    from:
+      - include/ocudu/hal/**
+      - lib/hal/**
+    allow:
+      - include/ocudu/adt/**
+      - include/ocudu/hal/**
+      - include/ocudu/ocudulog/**
+      - include/ocudu/ocuduvec/**
+      - include/ocudu/ran/**
+      - include/ocudu/support/**
+      - lib/hal/**
+    reason: Module HAL may only depend on the modules listed in allow; anything else breaks its layering boundary.
+  - id: hal-dpdk-forbideden-includes
+    kind: forbidden-edge
+    from:
+      - include/ocudu/hal/dpdk/**
+      - lib/hal/dpdk/**
+    to:
+      - lib/hal/phy/**
+    reason: Sub-module HAL DPDK may not include from other HAL sub-modules.
+  - id: hal-phy-forbidden-includes
+    kind: forbidden-edge
+    from:
+      - include/ocudu/hal/phy/**
+      - lib/hal/phy/**
+    to:
+      - lib/hal/dpdk/**
+    reason: Sub-module HAL PHY may not include from other HAL sub-modules.

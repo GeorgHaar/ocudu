@@ -25,16 +25,3 @@ rules:
       - include/ocudu/support/**
     reason: Module ran may only depend on the modules listed in allow; anything else breaks its layering
       boundary.
-    exempt:
-      - from: include/ocudu/ran/cu_types.h
-        to: include/ocudu/sdap/sdap_config.h
-        reason: Tracked by https://gitlab.com/ocudu/ocudu/-/issues/39. QoS flow types in ran/ carry
-          an SDAP config field; splitting it out needs a shared QoS header.
-      - from: include/ocudu/ran/inter_cu_handover_messages.h
-        to: include/ocudu/security/security.h
-        reason: Tracked by https://gitlab.com/ocudu/ocudu/-/issues/39. Handover request messages embed
-          the security context; moving it needs a ran-level security type.
-      - from: include/ocudu/ran/pdcch/search_space.h
-        to: include/ocudu/scheduler/sched_consts.h
-        reason: Tracked by https://gitlab.com/ocudu/ocudu/-/issues/39. Search space uses a scheduler
-          constant that belongs in ran/.

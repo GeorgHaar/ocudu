@@ -11,18 +11,21 @@
 
 version: 1
 rules:
-  - id: rrc-must-not-depend-on-transport-protocols
-    kind: forbidden-edge
+  - id: rrc-allowed-includes
+    kind: allowed-edge
     from:
       - include/ocudu/rrc/**
       - lib/rrc/**
-    to:
-      - include/ocudu/ngap/**
-      - lib/ngap/**
-      - include/ocudu/f1ap/**
-      - lib/f1ap/**
-      - include/ocudu/e1ap/**
-      - lib/e1ap/**
-    reason: RRC is the Uu control-plane signalling protocol, terminated in the CU-CP and carried to the
-      DU over F1AP. Including transport headers couples message handling to the protocols that carry
-      it.
+    allow:
+      - include/ocudu/adt/**
+      - include/ocudu/asn1/*.h
+      - include/ocudu/asn1/rrc_nr/**
+      - include/ocudu/lpp/**
+      - include/ocudu/ocudulog/**
+      - include/ocudu/pdcp/**
+      - include/ocudu/ran/**
+      - include/ocudu/rrc/**
+      - include/ocudu/security/**
+      - include/ocudu/support/**
+      - lib/rrc/**
+    reason: Module RRC may only depend on the modules listed in allow; anything else breaks its layering boundary.

@@ -11,15 +11,19 @@
 
 version: 1
 rules:
-  - id: pdcp-must-not-depend-on-adjacent-layers
-    kind: forbidden-edge
+  - id: pdcp-allowed-includes
+    kind: allowed-edge
     from:
       - include/ocudu/pdcp/**
       - lib/pdcp/**
-    to:
-      - include/ocudu/rlc/**
-      - lib/rlc/**
-      - include/ocudu/sdap/**
-      - lib/sdap/**
-    reason: PDCP exchanges SDUs with RLC and SDAP through interfaces it defines itself, so it must not
-      see either neighbour's types.
+    allow:
+      - include/ocudu/adt/**
+      - include/ocudu/instrumentation/**
+      - include/ocudu/ocudulog/**
+      - include/ocudu/pdcp/**
+      - include/ocudu/ran/**
+      - include/ocudu/rohc/**
+      - include/ocudu/security/**
+      - include/ocudu/support/**
+      - lib/pdcp/**
+    reason: Module PDCP may only depend on the modules listed in allow; anything else breaks its layering boundary.

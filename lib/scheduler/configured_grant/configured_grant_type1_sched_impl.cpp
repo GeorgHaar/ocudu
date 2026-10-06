@@ -63,7 +63,7 @@ void configured_grant_type1_sched_impl::add_ue_to_wheel(const ue_cell_configurat
   // resource grid at the next run_slot().
   updated_ues.push_back(ue_cfg.crnti);
 
-  const pusch_config_params pusch_params = build_cg_pusch_cfg_params(cell_cfg, ue_cfg, ul_grant.time_domain_allocation);
+  const pusch_config_params pusch_params = build_cg_pusch_cfg_params(ue_cfg, ul_grant.time_domain_allocation);
   const auto                cg_vrbs      = compute_cg_vrbs(ul_grant);
   // In CG type1, res ID is not applicable.
   constexpr unsigned non_applicable_res_id = 0U;

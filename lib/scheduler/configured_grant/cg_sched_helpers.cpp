@@ -23,14 +23,15 @@ harq_id_t ocudu::get_cg_harq_id(slot_point                      pusch_slot,
   return to_harq_id((current_symbol / periodicity_sym) % static_cast<unsigned>(nof_harq_processes));
 }
 
-pusch_config_params ocudu::build_cg_pusch_cfg_params(const cell_configuration&    cell_cfg,
-                                                     const ue_cell_configuration& ue_cell_cfg,
+pusch_config_params ocudu::build_cg_pusch_cfg_params(const ue_cell_configuration& ue_cell_cfg,
                                                      uint8_t                      time_domain_allocation)
 {
+  const cell_configuration& cell_cfg = ue_cell_cfg.cell_cfg_common;
+
   // NOTE: one of the consumers of this function calls it while a UE reconfiguration is being applied, when \ref
   // ue_cell_cfg is the new configuration but the UE cell context still holds the old one. Everything below must
   // therefore be read off \ref ue_cell_cfg, never off the \ref ue_cell.
-  const auto& pusch_td_list = cell_cfg.init_bwp.ul.td_mapper().pusch_td_resources(dci_ul_format::f0_0);
+  const auto& pusch_td_list = ue_cell_cfg.init_bwp().ul.td_mapper().pusch_td_resources(dci_ul_format::f0_0);
 
   const auto* ul_ded = ue_cell_cfg.init_bwp().ul.ded();
   const auto& cg_cfg = ul_ded->cg_cfg.value();
@@ -65,7 +66,7 @@ pusch_config_params ocudu::build_cg_pusch_cfg_params(const cell_configuration&  
   pusch_params.nof_oh_prb = ue_cell_cfg.pusch_serving_cell_cfg() != nullptr
                                 ? static_cast<unsigned>(ue_cell_cfg.pusch_serving_cell_cfg()->x_ov_head)
                                 : static_cast<unsigned>(x_overhead::not_set);
-  // If aperiodic CSI is configured, it is assumed that it will be carried by dynamic grants.
+  // If aperiodic CSI is configured, we'll trigger it only for dynamic grants.
   pusch_params.aperiodic_csi = false;
 
   // NOTE: pusch_params.nof_harq_ack_bits can only be built at scheduling time, as it needs the pusch slot.

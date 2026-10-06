@@ -188,7 +188,7 @@ bool configured_grant_scheduler_base::allocate_cg_opportunity(cell_slot_resource
   const auto& cg_params = ue_cc->get_conf_grant_state_manager().get_grant_params();
   ocudu_assert(cg_params.has_value(), "rnti={}: CG PUSCH scheduled for a UE with no active CG", rnti);
 
-  pusch_config_params pusch_params = build_cg_pusch_cfg_params(cell_cfg, ue_cfg, cg_params->time_domain_allocation);
+  pusch_config_params pusch_params = build_cg_pusch_cfg_params(ue_cfg, cg_params->time_domain_allocation);
   // The HARQ-ACK bits are the only element of pusch_params that need to be updated at scheduling time.
   pusch_params.nof_harq_ack_bits = uci_alloc.get_scheduled_pdsch_counter_in_ue_uci(pusch_slot, u->crnti);
 

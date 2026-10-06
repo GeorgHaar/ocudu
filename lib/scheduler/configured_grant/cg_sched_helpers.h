@@ -29,12 +29,9 @@ harq_id_t get_cg_harq_id(slot_point                      pusch_slot,
 ///
 /// The returned parameters are independent of the CG type: CG Type 1 takes \c time_domain_allocation from the
 /// RRC-configured grant, whereas CG Type 2 picks it when building the activation DCI.
-/// \param[in] cell_cfg Cell configuration.
 /// \param[in] ue_cell_cfg UE dedicated configuration; it must have a CG configured.
 /// \param[in] time_domain_allocation Index in the cell PUSCH time domain resource allocation list.
 /// \remark \c nof_harq_ack_bits is left unset, as it can only be derived at scheduling time.
-pusch_config_params build_cg_pusch_cfg_params(const cell_configuration&    cell_cfg,
-                                              const ue_cell_configuration& ue_cell_cfg,
-                                              uint8_t                      time_domain_allocation);
+pusch_config_params build_cg_pusch_cfg_params(const ue_cell_configuration& ue_cell_cfg, uint8_t time_domain_allocation);
 
 } // namespace ocudu

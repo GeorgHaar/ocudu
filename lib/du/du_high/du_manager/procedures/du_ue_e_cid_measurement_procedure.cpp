@@ -4,10 +4,10 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "du_ue_e_cid_measurement_procedure.h"
+#include "du_positioning_aoa.h"
 #include "du_positioning_meas_timeout.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/ocudulog/ocudulog.h"
-#include "ocudu/ran/positioning/ul_aoa_mapping.h"
 #include <algorithm>
 
 using namespace ocudu;
@@ -112,11 +112,7 @@ du_e_cid_meas_response du_ue_e_cid_measurement_procedure::create_response()
     return resp;
   }
 
-  pos_meas_result_ul_aoa aoa_result{.azimuth_aoa = azimuth_aoa_to_reported_value(*mac_meas.azimuth_aoa_deg)};
-  if (mac_meas.zenith_aoa_deg.has_value()) {
-    aoa_result.zenith_aoa = zenith_aoa_to_reported_value(*mac_meas.zenith_aoa_deg);
-  }
-  resp.ul_aoa_results.push_back(aoa_result);
+  resp.ul_aoa_results.push_back(make_ul_aoa_result(mac_meas));
   resp.success = true;
 
   return resp;

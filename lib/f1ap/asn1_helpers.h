@@ -118,6 +118,9 @@ f1ap_drb_failed_to_setupmod make_drb_failed_to_setupmod(const asn1::f1ap::drbs_f
 /// \remark The caller must set the position definition type to "direct".
 asn1::f1ap::geographical_coordinates_s geographical_coordinates_to_asn1(const geographical_coordinates_t& geo);
 
+/// Convert the UL Angle of Arrival of a positioning measurement to ASN.1, as per TS 38.473 section 9.3.1.167.
+asn1::f1ap::ul_ao_a_s ul_aoa_to_asn1(const odu::pos_meas_result_ul_aoa& aoa);
+
 /// Convert F1AP TRP info to ASN.1.
 asn1::f1ap::trp_info_s trp_info_to_asn1(const odu::du_trp_info& trp);
 

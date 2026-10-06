@@ -122,15 +122,8 @@ void f1ap_du_e_cid_measurement_initiation_procedure::send_response() const
   }
   resp->e_c_id_meas_result.measured_results_list.resize(du_result.ul_aoa_results.size());
   for (unsigned i = 0, e = du_result.ul_aoa_results.size(); i != e; ++i) {
-    const pos_meas_result_ul_aoa&   aoa  = du_result.ul_aoa_results[i];
     e_c_id_measured_results_item_s& item = resp->e_c_id_meas_result.measured_results_list[i];
-
-    ul_ao_a_s& asn1_aoa   = item.e_c_id_measured_results_value.set_value_angleof_arrival_nr();
-    asn1_aoa.azimuth_ao_a = aoa.azimuth_aoa;
-    if (aoa.zenith_aoa.has_value()) {
-      asn1_aoa.zenith_ao_a_present = true;
-      asn1_aoa.zenith_ao_a         = aoa.zenith_aoa.value();
-    }
+    item.e_c_id_measured_results_value.set_value_angleof_arrival_nr() = ul_aoa_to_asn1(du_result.ul_aoa_results[i]);
   }
 
   ues.find(du_ue_id)->f1ap_msg_notifier.on_new_message(f1ap_msg);

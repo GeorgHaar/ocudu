@@ -867,6 +867,17 @@ static asn1::f1ap::prs_cfg_s prs_cfg_to_asn1(const prs_cfg_t& prs_cfg)
   return asn1_prs_cfg;
 }
 
+asn1::f1ap::ul_ao_a_s ocudu::ul_aoa_to_asn1(const odu::pos_meas_result_ul_aoa& aoa)
+{
+  ul_ao_a_s asn1out;
+  asn1out.azimuth_ao_a = aoa.azimuth_aoa;
+  if (aoa.zenith_aoa.has_value()) {
+    asn1out.zenith_ao_a_present = true;
+    asn1out.zenith_ao_a         = aoa.zenith_aoa.value();
+  }
+  return asn1out;
+}
+
 asn1::f1ap::geographical_coordinates_s ocudu::geographical_coordinates_to_asn1(const geographical_coordinates_t& geo)
 {
   geographical_coordinates_s asn1out;

@@ -268,13 +268,8 @@ void f1ap_du_positioning_measurement_procedure::send_response() const
         rsrp_item                  = du_rsrp_result.ul_rsrp;
       } else {
         // UL-AoA measurement result.
-        const auto& du_aoa_result = std::get<pos_meas_result_ul_aoa>(du_meas_result);
-        auto&       aoa_item      = asn1_meas_result.measured_results_value.set_ul_angle_of_arrival();
-        aoa_item.azimuth_ao_a     = du_aoa_result.azimuth_aoa;
-        if (du_aoa_result.zenith_aoa.has_value()) {
-          aoa_item.zenith_ao_a_present = true;
-          aoa_item.zenith_ao_a         = du_aoa_result.zenith_aoa.value();
-        }
+        asn1_meas_result.measured_results_value.set_ul_angle_of_arrival() =
+            ul_aoa_to_asn1(std::get<pos_meas_result_ul_aoa>(du_meas_result));
       }
 
       // Slot and time stamp.

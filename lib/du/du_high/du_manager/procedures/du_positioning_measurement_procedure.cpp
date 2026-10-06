@@ -4,11 +4,10 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "du_positioning_measurement_procedure.h"
+#include "du_positioning_aoa.h"
 #include "du_positioning_meas_timeout.h"
 #include "ocudu/adt/format.h"
-#include "ocudu/ran/positioning/ul_aoa_mapping.h"
 #include <algorithm>
-#include <cmath>
 
 using namespace ocudu;
 using namespace odu;
@@ -161,11 +160,7 @@ du_positioning_meas_response positioning_measurement_procedure::prepare_f1ap_res
           pos_meas_result_ul_rsrp{.ul_rsrp = rsrp_dbfs_to_l3_rsrp_mapping(mac_meas.rsrp_dbfs.value())});
     }
     if (aoa_report) {
-      pos_meas_result_ul_aoa aoa_result{.azimuth_aoa = azimuth_aoa_to_reported_value(*mac_meas.azimuth_aoa_deg)};
-      if (mac_meas.zenith_aoa_deg.has_value()) {
-        aoa_result.zenith_aoa = zenith_aoa_to_reported_value(*mac_meas.zenith_aoa_deg);
-      }
-      meas_res.results.push_back(aoa_result);
+      meas_res.results.push_back(make_ul_aoa_result(mac_meas));
     }
     meas_res.sl_rx = mac_resp.sl_rx;
 

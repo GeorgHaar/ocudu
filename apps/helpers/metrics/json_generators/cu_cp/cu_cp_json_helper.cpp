@@ -68,6 +68,11 @@ void to_json(nlohmann::json& json, const ngap_info& metrics)
   json["pdu_session_management"]                  = metrics.metrics;
   nlohmann::json& paging_json                     = json["paging_measurement"];
   paging_json["nof_cn_initiated_paging_requests"] = metrics.metrics.nof_cn_initiated_paging_requests;
+  nlohmann::json& ng_connection_json              = json["ue_associated_logical_ng_connection"];
+  ng_connection_json["nof_ue_associated_logical_ng_connection_establishment_attempts"] =
+      metrics.metrics.nof_ue_associated_logical_ng_connection_establishment_attempts;
+  ng_connection_json["nof_ue_associated_logical_ng_connection_establishment_successes"] =
+      metrics.metrics.nof_ue_associated_logical_ng_connection_establishment_successes;
 }
 
 void to_json(nlohmann::json& json, const ocudu::cu_cp_ngap_metrics_json& metrics)
@@ -95,6 +100,16 @@ void to_json(nlohmann::json& json, const rrc_connection_counter_with_cause& metr
   }
 }
 
+void to_json(nlohmann::json& json, const rrc_connection_fail_counter_with_cause& metrics)
+{
+  // RRC connection failure counter with cause metrics.
+  unsigned cause_index = 0;
+  for (const auto& count : metrics) {
+    json[fmt::format("{}", metrics.get_cause(cause_index))] = count;
+    cause_index++;
+  }
+}
+
 void to_json(nlohmann::json& json, const ocudu::cu_cp_metrics_report::du_info& metrics)
 {
   // RRC-DU metrics.
@@ -110,6 +125,8 @@ void to_json(nlohmann::json& json, const ocudu::cu_cp_metrics_report::du_info& m
       metrics.rrc_metrics.attempted_rrc_connection_establishments;
   rrc_connection_establishment["successful_rrc_connection_establishments"] =
       metrics.rrc_metrics.successful_rrc_connection_establishments;
+  rrc_connection_establishment["failed_rrc_connection_establishments"] =
+      metrics.rrc_metrics.failed_rrc_connection_establishments;
   rrc_connection_establishment["mean_rrc_connection_setup_time_ms"] = nullptr;
   rrc_connection_establishment["max_rrc_connection_setup_time_ms"]  = nullptr;
   if (metrics.rrc_metrics.mean_rrc_connection_setup_time.has_value() and

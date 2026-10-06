@@ -178,6 +178,11 @@ inline std::string format_ngap_metrics(const std::vector<ngap_info>&      report
     fmt::format_to(std::back_inserter(buffer),
                    " nof_cn_initiated_paging_requests={}",
                    ngap_info.metrics.nof_cn_initiated_paging_requests);
+    fmt::format_to(std::back_inserter(buffer),
+                   " nof_ue_associated_logical_ng_connection_establishment_attempts={} "
+                   "nof_ue_associated_logical_ng_connection_establishment_successes={}",
+                   ngap_info.metrics.nof_ue_associated_logical_ng_connection_establishment_attempts,
+                   ngap_info.metrics.nof_ue_associated_logical_ng_connection_establishment_successes);
 
     fmt::format_to(std::back_inserter(buffer), " ],");
   }

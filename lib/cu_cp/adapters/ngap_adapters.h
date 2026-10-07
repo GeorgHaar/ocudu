@@ -57,12 +57,10 @@ public:
     return cu_cp_handler->schedule_ue_task(ue_index, std::move(task));
   }
 
-  bool on_handover_request_received(cu_cp_ue_index_t                  ue_index,
-                                    const plmn_identity&              selected_plmn,
-                                    const security::security_context& sec_ctxt) override
+  bool on_handover_request_received(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt) override
   {
     ocudu_assert(cu_cp_handler != nullptr, "CU-CP NGAP handler must not be nullptr");
-    return cu_cp_handler->handle_handover_request(ue_index, selected_plmn, sec_ctxt);
+    return cu_cp_handler->handle_handover_request(ue_index, sec_ctxt);
   }
 
   async_task<expected<ngap_init_context_setup_response, ngap_init_context_setup_failure>>

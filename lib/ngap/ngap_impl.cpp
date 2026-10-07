@@ -1055,8 +1055,7 @@ void ngap_impl::handle_handover_request(const asn1::ngap::ho_request_s& msg)
   }
 
   // Inititialize security context of target UE.
-  if (!cu_cp_notifier.on_handover_request_received(
-          ho_request.ue_index, ho_request.guami.plmn, ho_request.security_context)) {
+  if (!cu_cp_notifier.on_handover_request_received(ho_request.ue_index, ho_request.security_context)) {
     send_handover_failure(msg->amf_ue_ngap_id);
     return;
   }

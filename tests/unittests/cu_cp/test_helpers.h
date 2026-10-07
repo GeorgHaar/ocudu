@@ -960,9 +960,7 @@ public:
     return cu_cp_ue_index_t::invalid;
   }
 
-  bool handle_handover_request(cu_cp_ue_index_t                  ue_index,
-                               const plmn_identity&              selected_plmn,
-                               const security::security_context& sec_ctxt) override
+  bool handle_handover_request(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt) override
   {
     ocudu_assert(ue_mng.find_ue(ue_index) != nullptr, "UE must be present");
     logger.info("Received a handover request");

@@ -117,12 +117,9 @@ public:
 
   /// \brief Notify the CU-CP about a handover request received.
   /// \param[in] ue_index Index of the UE.
-  /// \param[in] selected_plmn The selected PLMN identity of the UE.
   /// \param[in] sec_ctxt The received security context.
   /// \return True if the handover request handling is successful, false otherwise.
-  virtual bool on_handover_request_received(cu_cp_ue_index_t                  ue_index,
-                                            const plmn_identity&              selected_plmn,
-                                            const security::security_context& sec_ctxt) = 0;
+  virtual bool on_handover_request_received(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt) = 0;
 
   /// \brief Request scheduling a task for a UE.
   /// \param[in] ue_index The index of the UE.

@@ -339,8 +339,8 @@ void xnap_impl::handle_handover_request(const asn1::xnap::ho_request_s& msg)
   }
 
   // Inititialize security context of target UE.
-  if (!cu_cp_notifier.on_handover_request_received(
-          ho_request.ue_index, ho_request.guami.plmn, ho_request.ue_context_info_ho_request.security_context)) {
+  if (!cu_cp_notifier.on_handover_request_received(ho_request.ue_index,
+                                                   ho_request.ue_context_info_ho_request.security_context)) {
     logger.debug("Failed to initialize security context for UE index {}. Rejecting handover request",
                  ho_request.ue_index);
     send_handover_failure(msg->source_ng_ra_nnode_ue_xn_ap_id, xnap_cause_misc_t::not_enough_user_plane_processing_res);

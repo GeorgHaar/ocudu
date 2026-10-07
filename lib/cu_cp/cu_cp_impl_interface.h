@@ -66,12 +66,9 @@ public:
 
   /// \brief Handle a received handover request.
   /// \param[in] ue_index Index of the UE.
-  /// \param[in] selected_plmn The selected PLMN identity of the UE.
   /// \param[in] sec_ctxt The received security context.
   /// \return True if the handover request was successfully handled, false otherwise.
-  virtual bool handle_handover_request(cu_cp_ue_index_t                  ue_index,
-                                       const plmn_identity&              selected_plmn,
-                                       const security::security_context& sec_ctxt) = 0;
+  virtual bool handle_handover_request(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt) = 0;
 
   /// \brief Handle the handover execution phase of the inter-CU handover at target gNB.
   /// \param[in] ue_index The index of the UE that is performing the handover.

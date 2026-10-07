@@ -32,12 +32,10 @@ public:
     return cu_cp_handler->handle_ue_index_allocation_request(cgi, plmn);
   }
 
-  bool on_handover_request_received(cu_cp_ue_index_t                  ue_index,
-                                    const plmn_identity&              selected_plmn,
-                                    const security::security_context& sec_ctxt) override
+  bool on_handover_request_received(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt) override
   {
     ocudu_assert(cu_cp_handler != nullptr, "CU-CP XNAP handler must not be nullptr");
-    return cu_cp_handler->handle_handover_request(ue_index, selected_plmn, sec_ctxt);
+    return cu_cp_handler->handle_handover_request(ue_index, sec_ctxt);
   }
 
   bool schedule_async_task(cu_cp_ue_index_t ue_index, async_task<void> task) override

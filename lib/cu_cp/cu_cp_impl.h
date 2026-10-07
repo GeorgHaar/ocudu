@@ -146,12 +146,10 @@ public:
                                                    std::optional<xnc_peer_index_t> xnc_index = std::nullopt) override;
   cu_cp_ue_index_t handle_ue_index_allocation_request(const nr_cell_global_id_t& cgi,
                                                       const plmn_identity&       plmn) override;
-  bool             handle_handover_request(cu_cp_ue_index_t                  ue_index,
-                                           const plmn_identity&              selected_plmn,
-                                           const security::security_context& sec_ctxt) override;
-  void             handle_inter_cu_target_handover_execution(cu_cp_ue_index_t ue_index,
-                                                             const std::optional<xnap_handover_target_execution_context>&
-                                                                 xnap_ho_target_execution_ctxt = std::nullopt) override;
+  bool handle_handover_request(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt) override;
+  void handle_inter_cu_target_handover_execution(cu_cp_ue_index_t ue_index,
+                                                 const std::optional<xnap_handover_target_execution_context>&
+                                                     xnap_ho_target_execution_ctxt = std::nullopt) override;
 
   // cu_cp_xnap_handler.
   async_task<cu_cp_handover_resource_allocation_response>

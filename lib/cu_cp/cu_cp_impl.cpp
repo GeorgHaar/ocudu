@@ -1147,18 +1147,11 @@ void cu_cp_impl::handle_location_measurement_indication(cu_cp_ue_index_t ue_inde
       ue_index, du_db.get_du_processor(ue->get_du_index()).get_f1ap_handler(), *ue->get_rrc_ue(), logger));
 }
 
-bool cu_cp_impl::handle_handover_request(cu_cp_ue_index_t                  ue_index,
-                                         const plmn_identity&              selected_plmn,
-                                         const security::security_context& sec_ctxt)
+bool cu_cp_impl::handle_handover_request(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt)
 {
   cu_cp_ue* ue = ue_mng.find_ue(ue_index);
   if (ue == nullptr) {
     logger.debug("ue={}: Could not find UE", ue_index);
-    return false;
-  }
-
-  if (!handle_ue_plmn_selected(ue_index, selected_plmn)) {
-    logger.info("ue={}: PLMN selection failed", ue_index);
     return false;
   }
 

@@ -304,6 +304,14 @@ void pos_handler_impl::start_queued_meass()
 {
   for (unsigned i = 0; i != queued_meass.size();) {
     meas_context& meas = meass[queued_meass[i]];
+    if (std::any_of(meas.queued_req.cells.begin(), meas.queued_req.cells.end(), [this](const auto& c) {
+          return not cells.contains(c.cell_index);
+        })) {
+      // A request for a removed cell is discarded. Its completion processes the rest of the queue.
+      logger.warning("Discarding queued positioning measurement request. Cause: A cell of the request was removed");
+      complete_meas(meas, {});
+      return;
+    }
     // A measurement also waits for the earlier queued ones of the same C-RNTI.
     if (is_crnti_measured(meas.queued_req, span<const unsigned>(queued_meass.data(), i))) {
       ++i;
@@ -468,12 +476,17 @@ void pos_handler_impl::complete_meas(meas_context& meas, mac_positioning_measure
 
   const unsigned meas_idx = static_cast<unsigned>(&meas - meass.data());
   if (meas.state == meas_state::running) {
-    // Notify scheduler to stop scheduling new positioning measurement PDUs.
+    // Notify scheduler to stop scheduling new positioning measurement PDUs. A removed cell is skipped, as the scheduler
+    // removes its cells before the MAC does.
     positioning_measurement_stop_request stop_req;
     for (const auto& c : meas.cells) {
-      stop_req.completed_meas.emplace_back(c.cell_index, c.pos_rnti);
+      if (cells.contains(c.cell_index)) {
+        stop_req.completed_meas.emplace_back(c.cell_index, c.pos_rnti);
+      }
     }
-    sched.handle_positioning_measurement_stop(stop_req);
+    if (not stop_req.completed_meas.empty()) {
+      sched.handle_positioning_measurement_stop(stop_req);
+    }
   } else {
     queued_meass.erase(std::find(queued_meass.begin(), queued_meass.end(), meas_idx));
   }
@@ -547,7 +560,8 @@ bool pos_handler_impl::has_free_dummy_rntis(const mac_positioning_measurement_re
 void pos_handler_impl::release_meas_resources(meas_context& meas)
 {
   for (const auto& c : meas.cells) {
-    if (c.pos_rnti >= rnti_t::MIN_RESERVED_RNTI and c.pos_rnti <= rnti_t::MAX_RESERVED_RNTI) {
+    if (cells.contains(c.cell_index) and c.pos_rnti >= rnti_t::MIN_RESERVED_RNTI and
+        c.pos_rnti <= rnti_t::MAX_RESERVED_RNTI) {
       // Late reports of this RNTI can still arrive, so the RNTI waits in quarantine at the end of the list.
       cells[c.cell_index].free_dummy_rnti_list.push(free_dummy_rnti{c.pos_rnti, timers.now()});
     }
@@ -591,7 +605,22 @@ pos_handler_impl::meas_context* pos_handler_impl::find_meas(du_cell_index_t cell
 void pos_handler_impl::rem_cell(du_cell_index_t cell_index)
 {
   ocudu_assert(cells.contains(cell_index), "Cell does not exist");
+  // The cell is erased first, so that a caller that the completion below resumes cannot start a new measurement on it.
   cells.erase(cell_index);
+
+  // The SRS of a removed cell is no longer reported, so its measurements end with an empty response. The queue
+  // processing discards the queued ones.
+  // Note: The callers resume inside the cell handler destructor. The MAC removes cells only when the DU configures its
+  // cells at startup.
+  for (auto& m : meass) {
+    if (m.state == meas_state::running and
+        std::any_of(
+            m.cells.begin(), m.cells.end(), [cell_index](const meas_cell& c) { return c.cell_index == cell_index; })) {
+      logger.warning("cell={}: Positioning measurement stopped. Cause: The cell was removed", cell_index);
+      complete_meas(m, {});
+    }
+  }
+  start_queued_meass();
 }
 
 } // namespace

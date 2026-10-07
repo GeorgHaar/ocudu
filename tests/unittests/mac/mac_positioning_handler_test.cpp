@@ -1177,6 +1177,49 @@ TEST_F(multi_cell_positioning_handler_test,
   ASSERT_EQ(sched.received_reqs.size(), nof_reserved_rntis + 1);
 }
 
+TEST_F(multi_cell_positioning_handler_test, when_a_cell_is_removed_then_its_measurements_end_with_an_empty_response)
+{
+  // One measurement covers both cells and another one only cell 0.
+  mac_positioning_measurement_request both_req         = make_positioning_request_for_connected_ue(2);
+  auto&                               t_both_launcher  = launch(both_req);
+  mac_positioning_measurement_request cell0_req        = make_positioning_request_for_neighbor_ue();
+  auto&                               t_cell0_launcher = launch(cell0_req);
+  ASSERT_EQ(sched.received_reqs.size(), 2);
+
+  // The scheduler removes the cell before the MAC, so the MAC sends no stop for it.
+  cells[1].reset();
+  ASSERT_TRUE(t_both_launcher.ready());
+  ASSERT_TRUE(t_both_launcher.result.value().cell_results.empty());
+  ASSERT_EQ(sched.stop_reqs.size(), 1);
+  ASSERT_EQ(sched.stop_reqs.back().completed_meas.size(), 1);
+  EXPECT_EQ(sched.stop_reqs.back().completed_meas[0].first, to_du_cell_index(0));
+
+  // The measurement of the remaining cell is not affected.
+  ASSERT_FALSE(t_cell0_launcher.ready());
+  cells[0]->handle_srs_indication(make_srs_ind(sched.last_req->cells[0].pos_rnti));
+  worker.run_pending_tasks();
+  ASSERT_TRUE(t_cell0_launcher.ready());
+  ASSERT_FALSE(t_cell0_launcher.result.value().cell_results.empty());
+}
+
+TEST_F(multi_cell_positioning_handler_test,
+       when_a_cell_is_removed_then_its_queued_measurements_end_without_reaching_the_scheduler)
+{
+  // A second measurement of the same UE waits for the first one.
+  mac_positioning_measurement_request req         = make_positioning_request_for_connected_ue(2);
+  auto&                               t1_launcher = launch(req);
+  auto&                               t2_launcher = launch(req);
+  ASSERT_EQ(sched.received_reqs.size(), 1);
+
+  // Both measurements end, and the queued one does not start.
+  cells[1].reset();
+  ASSERT_TRUE(t1_launcher.ready());
+  ASSERT_TRUE(t1_launcher.result.value().cell_results.empty());
+  ASSERT_TRUE(t2_launcher.ready());
+  ASSERT_TRUE(t2_launcher.result.value().cell_results.empty());
+  ASSERT_EQ(sched.received_reqs.size(), 1);
+}
+
 TEST_F(multi_cell_positioning_handler_test,
        when_a_neighbor_ue_and_a_connected_ue_are_measured_concurrently_then_both_complete)
 {

@@ -19,6 +19,9 @@ struct du_qos_config {
   std::optional<mac_lc_config::triggered_ul_grant_cfg> triggered_ul_grant;
   /// UL HARQ mode a grant must use for a 5QI logical channel to be multiplexed into it. Unrestricted when absent.
   std::optional<ul_harq_mode> allowed_harq_mode;
+  /// DL HARQ feedback a process must carry for a 5QI logical channel to be multiplexed into it. Unrestricted when
+  /// absent.
+  std::optional<dl_harq_feedback> allowed_dl_harq_feedback;
 };
 
 } // namespace odu

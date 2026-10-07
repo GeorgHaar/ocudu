@@ -167,13 +167,16 @@ struct mac_lc_config {
   /// UL HARQ mode a grant must use for this Logical Channel to be multiplexed into it, as per \c allowedHARQ-mode,
   /// TS 38.331. When absent, the mapping is unrestricted.
   std::optional<ul_harq_mode> allowed_harq_mode;
+  /// [Implementation-defined] DL HARQ feedback a process must carry for this Logical Channel to be multiplexed into
+  /// its transport block. When absent, the mapping is unrestricted.
+  std::optional<dl_harq_feedback> allowed_dl_harq_feedback;
 
   bool operator==(const mac_lc_config& rhs) const
   {
     return priority == rhs.priority && pbr == rhs.pbr && bsd == rhs.bsd && lcg_id == rhs.lcg_id &&
            lc_sr_mask == rhs.lc_sr_mask && sr_id == rhs.sr_id && lc_sr_delay_applied == rhs.lc_sr_delay_applied &&
            triggered_ul_grant == rhs.triggered_ul_grant && cg_type1_allowed == rhs.cg_type1_allowed &&
-           allowed_harq_mode == rhs.allowed_harq_mode;
+           allowed_harq_mode == rhs.allowed_harq_mode && allowed_dl_harq_feedback == rhs.allowed_dl_harq_feedback;
   }
   bool operator!=(const mac_lc_config& rhs) const { return !(rhs == *this); }
 };

@@ -13,6 +13,9 @@
 
 namespace ocudu {
 
+/// [Implementation-defined] Maximum number of positioning measurements that run at the same time in a DU and in a cell.
+constexpr unsigned MAX_NOF_CONCURRENT_POSITIONING_MEASUREMENTS = 32;
+
 /// \brief Request for positioning measurements to the scheduler.
 struct positioning_measurement_request {
   struct cell_info {

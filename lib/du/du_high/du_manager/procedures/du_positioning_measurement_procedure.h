@@ -28,6 +28,10 @@ public:
 private:
   async_task<void> handle_mac_meas_request();
 
+  /// Builds the MAC request. Returns false if a TRP of the request has no cell in this DU, or if two TRPs have the same
+  /// cell.
+  bool prepare_mac_request();
+
   du_positioning_meas_response prepare_f1ap_response();
 
   mac_positioning_measurement_request::cell_info prepare_mac_cell_positioning_request(du_cell_index_t    cell_index,

@@ -25,7 +25,7 @@ struct mac_positioning_measurement_request {
     srs_config srs_to_meas;
   };
 
-  /// Cells for which to perform measurements.
+  /// Cells for which to perform measurements. Each cell appears at most once.
   std::vector<cell_info> cells;
   /// \brief Maximum time the MAC waits for the SRS measurements before it completes the request.
   ///

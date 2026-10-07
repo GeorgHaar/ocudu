@@ -72,34 +72,12 @@ async_task<void> positioning_measurement_procedure::handle_mac_meas_request()
 {
   ocudu_assert(not req.srs_carriers.empty(), "Positioning measurement request does not contain SRS carriers.");
 
-  return launch_async([this, i = 0U, trp_it = trps.end(), cell_index = INVALID_DU_CELL_INDEX](
-                          coro_context<async_task<void>>& ctx) mutable {
+  return launch_async([this](coro_context<async_task<void>>& ctx) {
     CORO_BEGIN(ctx);
 
-    // Prepare MAC positioning request.
-    for (; i != req.trp_meas_req_list.size(); ++i) {
-      // Fetch cell index from TRP contained in the list.
-      // TODO: Once the F1AP we defined which elements of Positioning measurement request are mandatory, review this
-      //       logic for fetching the TRP from the saves ones vs the one in the request.
-      trp_it     = trps.find(req.trp_meas_req_list[i].trp_id);
-      cell_index = du_cells.get_cell_index(trp_it != trps.end() and trp_it->second.cgi.has_value()
-                                               ? trp_it->second.cgi.value()
-                                               : req.trp_meas_req_list[i].cgi.value());
-
-      // Request MAC cell for new positioning measurement.
-      // NOTE: we assume there is only one SRS Carrier in the request, which holds an SRS-Config which is
-      // common to all TRPs.
-      // TODO: Review this assumption once the F1AP we defined which elements of Positioning measurement request are
-      //       mandatory.
-      mac_req.cells.push_back(prepare_mac_cell_positioning_request(cell_index, req.srs_carriers[0]));
-    }
-
-    // The measurement completes on an SRS occasion, so the time the MAC waits follows the SRS period. The gNB-CU
-    // expects the result within the Response Time, as per TS 38.473 section 8.13.2.2, so that time caps the wait and
-    // leaves a margin for the answer.
-    mac_req.timeout = get_positioning_meas_timeout(req.srs_carriers[0].srs_cfg, req.srs_carriers[0].ul_bwp_cfg.scs);
-    if (req.response_time.has_value()) {
-      mac_req.timeout = std::min(mac_req.timeout, get_response_time_deadline(req.response_time.value()));
+    if (not prepare_mac_request()) {
+      // The MAC is not called, so the empty MAC response makes the DU report a failure.
+      CORO_EARLY_RETURN();
     }
 
     // NOTE: we implicitly map mac_resps[i] to req.trp_meas_req_list[i].trp_id.
@@ -112,13 +90,60 @@ async_task<void> positioning_measurement_procedure::handle_mac_meas_request()
   });
 }
 
+bool positioning_measurement_procedure::prepare_mac_request()
+{
+  for (const du_trp_meas_request& trp_req : req.trp_meas_req_list) {
+    // Fetch cell index from TRP contained in the list.
+    // TODO: Once the F1AP we defined which elements of Positioning measurement request are mandatory, review this
+    //       logic for fetching the TRP from the saves ones vs the one in the request.
+    auto                                      trp_it = trps.find(trp_req.trp_id);
+    const std::optional<nr_cell_global_id_t>& cgi =
+        trp_it != trps.end() and trp_it->second.cgi.has_value() ? trp_it->second.cgi : trp_req.cgi;
+    if (not cgi.has_value()) {
+      logger.warning("trp_id={}: Positioning measurement failed. Cause: The TRP is unknown and has no NR CGI",
+                     fmt::underlying(trp_req.trp_id));
+      return false;
+    }
+    const du_cell_index_t cell_index = du_cells.get_cell_index(cgi.value());
+    if (cell_index == INVALID_DU_CELL_INDEX) {
+      logger.warning("trp_id={}: Positioning measurement failed. Cause: No cell with the NR CGI of the TRP",
+                     fmt::underlying(trp_req.trp_id));
+      return false;
+    }
+    // The MAC measures each cell once.
+    if (std::any_of(mac_req.cells.begin(), mac_req.cells.end(), [cell_index](const auto& c) {
+          return c.cell_index == cell_index;
+        })) {
+      logger.warning("trp_id={}: Positioning measurement failed. Cause: Another TRP of the request has the same cell",
+                     fmt::underlying(trp_req.trp_id));
+      return false;
+    }
+
+    // Request MAC cell for new positioning measurement.
+    // NOTE: we assume there is only one SRS Carrier in the request, which holds an SRS-Config which is
+    // common to all TRPs.
+    // TODO: Review this assumption once the F1AP we defined which elements of Positioning measurement request are
+    //       mandatory.
+    mac_req.cells.push_back(prepare_mac_cell_positioning_request(cell_index, req.srs_carriers[0]));
+  }
+
+  // The measurement completes on an SRS occasion, so the time the MAC waits follows the SRS period. The gNB-CU
+  // expects the result within the Response Time, as per TS 38.473 section 8.13.2.2, so that time caps the wait and
+  // leaves a margin for the answer.
+  mac_req.timeout = get_positioning_meas_timeout(req.srs_carriers[0].srs_cfg, req.srs_carriers[0].ul_bwp_cfg.scs);
+  if (req.response_time.has_value()) {
+    mac_req.timeout = std::min(mac_req.timeout, get_response_time_deadline(req.response_time.value()));
+  }
+  return true;
+}
+
 du_positioning_meas_response positioning_measurement_procedure::prepare_f1ap_response()
 {
   ocudu_assert(not req.pos_meas_quants.empty(), "Positioning measurement quantities are empty.");
 
   du_positioning_meas_response resp;
 
-  // The MAC returns an empty response when the measurement times out, or when it already runs another measurement.
+  // The MAC returns an empty response when the measurement times out, or when it discards the request.
   // An empty response list makes the DU report a failure.
   if (mac_resp.cell_results.size() != req.trp_meas_req_list.size()) {
     logger.warning("Positioning measurement failed. Cause: MAC reported no measurement for every requested TRP");

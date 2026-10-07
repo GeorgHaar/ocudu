@@ -37,8 +37,8 @@ class ocudu::cell_event_dispatcher
   // [Implementation defined] Lower layers report one CRC indication per PUSCH PDU, so the pool has to cover a full
   // slot of PUSCH PDUs times the slots that can elapse before the events are dispatched.
   static constexpr size_t CRC_POOL_SIZE = MAX_PUSCH_PDUS_PER_SLOT * 4;
-  // [Implementation defined] Positioning measurements are rare, so only a few can be in flight at any moment.
-  static constexpr size_t POSITIONING_POOL_SIZE = 4;
+  // [Implementation defined] Every concurrent positioning measurement of the DU can target this cell.
+  static constexpr size_t POSITIONING_POOL_SIZE = MAX_NOF_CONCURRENT_POSITIONING_MEASUREMENTS;
   // [Implementation defined] Number of UCI PDUs that can be in flight at any moment.
   static constexpr size_t UCI_POOL_SIZE = MAX_PUCCH_PDUS_PER_SLOT * 4;
   // [Implementation defined] Number of SRS PDUs that can be in flight at any moment.
@@ -67,7 +67,7 @@ class ocudu::cell_event_dispatcher
                                              2 * SI_POOL_SIZE +          // SI and ETWS/CMAS SI updates
                                              RACH_POOL_SIZE +            // RACH indications
                                              CRC_POOL_SIZE +             // CRC indications
-                                             POSITIONING_POOL_SIZE +     // positioning measurement requests
+                                             2 * POSITIONING_POOL_SIZE + // positioning requests and stops
                                              UCI_POOL_SIZE +             // UCI PDUs
                                              SRS_POOL_SIZE +             // SRS PDUs
                                              UE_CONFIG_EVENT_SIZE +      // UE creation/reconfiguration/deletion

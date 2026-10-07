@@ -50,6 +50,7 @@ add_executable(scheduler_test
         scheduler_multi_ue_test.cpp
         scheduler_ntn_koffset_test.cpp
 		scheduler_no_ue_test.cpp
+        scheduler_positioning_test.cpp
 )
 target_link_libraries(scheduler_test
         ocudu_sched

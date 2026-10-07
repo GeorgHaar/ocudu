@@ -27,7 +27,9 @@ lower_phy_uplink_processor_impl::lower_phy_uplink_processor_impl(std::unique_ptr
   nof_symbols_per_subframe(nof_symbols_per_slot * get_nof_slots_per_subframe(config.scs)),
   temp_buffer_write_index(0),
   current_symbol_index(0),
-  temp_buffer(config.nof_rx_ports, 2 * config.rate.get_dft_size(config.scs)),
+  temp_buffer_pool(puxch_processor::max_nof_concurrent_slots * get_nsymb_per_slot(config.cp) + 1,
+                   config.nof_rx_ports,
+                   2 * config.rate.get_dft_size(config.scs)),
   prach_proc(std::move(prach_proc_)),
   puxch_proc(std::move(puxch_proc_)),
   cfo_processor(config.rate)
@@ -76,22 +78,28 @@ uplink_processor_baseband& lower_phy_uplink_processor_impl::get_baseband()
   return *this;
 }
 
-void lower_phy_uplink_processor_impl::process(const baseband_gateway_buffer_reader& samples,
-                                              baseband_gateway_timestamp            timestamp)
+void lower_phy_uplink_processor_impl::process(baseband_gateway_buffer_ptr samples, baseband_gateway_timestamp timestamp)
 {
+  // Wrap the whole buffer in a view that shares its ownership.
+  unsigned                         nof_samples = samples->get_nof_samples();
+  baseband_gateway_buffer_ptr_view samples_view(std::move(samples), 0, nof_samples);
+
   switch (state) {
     case fsm_states::alignment:
-      process_alignment(samples, timestamp);
+      process_alignment(samples_view, timestamp);
       break;
     case fsm_states::collecting:
-      process_collecting(samples, timestamp);
+      process_collecting(samples_view, timestamp);
       break;
   }
 }
 
-void lower_phy_uplink_processor_impl::process_alignment(const baseband_gateway_buffer_reader& samples,
-                                                        baseband_gateway_timestamp            timestamp)
+void lower_phy_uplink_processor_impl::process_alignment(const baseband_gateway_buffer_ptr_view& samples,
+                                                        baseband_gateway_timestamp              timestamp)
 {
+  // Discard the partially filled symbol, if any, as the alignment is lost.
+  filling_buffer.reset();
+
   // Calculate the sample index within a subframe.
   unsigned i_sample_sf = timestamp % nof_samples_per_subframe;
   unsigned nof_samples = samples.get_nof_samples();
@@ -104,7 +112,7 @@ void lower_phy_uplink_processor_impl::process_alignment(const baseband_gateway_b
 
   // If the next subframe boundary is within the buffer, then process.
   if (nof_samples_next_sf < nof_samples) {
-    baseband_gateway_buffer_reader_view samples2(samples, nof_samples_next_sf, nof_samples - nof_samples_next_sf);
+    baseband_gateway_buffer_ptr_view samples2 = samples.slice(nof_samples_next_sf, nof_samples - nof_samples_next_sf);
     process_symbol_boundary(samples2, timestamp + nof_samples_next_sf);
     return;
   }
@@ -113,8 +121,8 @@ void lower_phy_uplink_processor_impl::process_alignment(const baseband_gateway_b
   state = fsm_states::alignment;
 }
 
-void lower_phy_uplink_processor_impl::process_symbol_boundary(const baseband_gateway_buffer_reader& samples,
-                                                              baseband_gateway_timestamp            timestamp)
+void lower_phy_uplink_processor_impl::process_symbol_boundary(const baseband_gateway_buffer_ptr_view& samples,
+                                                              baseband_gateway_timestamp              timestamp)
 {
   // Calculate the subframe index.
   unsigned i_sf = static_cast<uint64_t>((timestamp / nof_samples_per_subframe) % (NOF_SFNS * NOF_SUBFRAMES_PER_FRAME));
@@ -149,7 +157,6 @@ void lower_phy_uplink_processor_impl::process_symbol_boundary(const baseband_gat
   current_symbol_size      = symbol_sizes[i_symbol_sf];
   temp_buffer_write_index  = 0;
   current_symbol_timestamp = timestamp;
-  temp_buffer.resize(current_symbol_size);
 
   if (i_symbol == 0) {
     cfo_processor.next_cfo_command();
@@ -159,8 +166,8 @@ void lower_phy_uplink_processor_impl::process_symbol_boundary(const baseband_gat
   process_collecting(samples, timestamp);
 }
 
-void lower_phy_uplink_processor_impl::process_collecting(const baseband_gateway_buffer_reader& samples,
-                                                         baseband_gateway_timestamp            timestamp)
+void lower_phy_uplink_processor_impl::process_collecting(const baseband_gateway_buffer_ptr_view& samples,
+                                                         baseband_gateway_timestamp              timestamp)
 {
   ocudu_assert(notifier != nullptr, "Notifier has not been connected.");
   ocudu_assert(nof_rx_ports == samples.get_nof_channels(), "Invalid number of channels.");
@@ -178,13 +185,26 @@ void lower_phy_uplink_processor_impl::process_collecting(const baseband_gateway_
   // Select the minimum among the remainder of samples to process and the number of samples to complete the buffer.
   unsigned nof_samples = std::min(nof_input_samples, current_symbol_size - temp_buffer_write_index);
 
-  // Copy samples to a temporary buffer if the buffer requires alignment or if CFO compensation is required.
-  baseband_gateway_buffer_reader_view samples_view(samples, 0, nof_samples);
+  // Samples of the current OFDM symbol. If the symbol is entirely contained in the input buffer and it does not require
+  // CFO compensation, the view shares the input buffer. Otherwise, the symbol is assembled in a buffer from the pool.
+  baseband_gateway_buffer_ptr_view samples_view = samples.slice(0, nof_samples);
   if ((nof_samples != current_symbol_size) || cfo_processor.has_cfo()) {
+    // Get a new buffer from the pool for the first samples of the symbol. The buffer is kept between calls until the
+    // symbol is complete, as the symbol samples might be split across several input buffers.
+    if (!filling_buffer) {
+      filling_buffer = temp_buffer_pool.get();
+      if (!filling_buffer) {
+        report_fatal_error("Pool of temporary buffers is exhausted.");
+      }
+
+      // Resize the temporary buffer.
+      filling_buffer->resize(current_symbol_size);
+    }
+
     // For each port, concatenate samples.
     for (unsigned i_port = 0; i_port != nof_rx_ports; ++i_port) {
       // Select view of the temporary buffer.
-      span<ci16_t> temp_buffer_dst = temp_buffer[i_port].subspan(temp_buffer_write_index, nof_samples);
+      span<ci16_t> temp_buffer_dst = (*filling_buffer)[i_port].subspan(temp_buffer_write_index, nof_samples);
 
       // Select view of the input samples.
       span<const ci16_t> temp_buffer_src = samples.get_channel_buffer(i_port).first(nof_samples);
@@ -203,13 +223,14 @@ void lower_phy_uplink_processor_impl::process_collecting(const baseband_gateway_
     }
 
     // Perform carrier frequency offset compensation.
-    cfo_processor.process(temp_buffer.get_writer());
+    cfo_processor.process(filling_buffer->get_writer());
 
     // Advance CFO processor number of samples.
-    cfo_processor.advance(temp_buffer.get_nof_samples());
+    cfo_processor.advance(filling_buffer->get_nof_samples());
 
-    // Update the samples view with the temporary buffer.
-    samples_view = baseband_gateway_buffer_reader_view(temp_buffer.get_reader(), 0, temp_buffer.get_nof_samples());
+    // The symbol is complete. Pass the buffer ownership to the processing chain, so the next symbol is assembled in
+    // another buffer while the processing of this one is still ongoing.
+    samples_view = baseband_gateway_buffer_ptr_view(std::move(filling_buffer), 0, current_symbol_size);
   }
 
   // Process symbol by PRACH processor.
@@ -235,7 +256,7 @@ void lower_phy_uplink_processor_impl::process_collecting(const baseband_gateway_
   }
 
   // Process next symbol with the remainder samples.
-  baseband_gateway_buffer_reader_view samples2(samples, nof_samples, nof_input_samples - nof_samples);
+  baseband_gateway_buffer_ptr_view samples2 = samples.slice(nof_samples, nof_input_samples - nof_samples);
   process_symbol_boundary(samples2, timestamp + nof_samples);
 }
 

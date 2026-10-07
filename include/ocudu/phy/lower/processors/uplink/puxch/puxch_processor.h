@@ -22,6 +22,9 @@ class lower_phy_center_freq_controller;
 class puxch_processor
 {
 public:
+  /// Maximum number of slots that can be concurrently demodulated.
+  static constexpr unsigned max_nof_concurrent_slots = 4;
+
   /// Default destructor.
   virtual ~puxch_processor() = default;
 

@@ -100,9 +100,11 @@ public:
     // Maximum time delay between reception and transmission in samples (1ms plus the time offset).
     unsigned rx_to_tx_max_delay = config.srate.to_kHz() + tx_time_offset;
 
-    // Number of receive buffers, sized for storing up to one frame.
-    unsigned nof_rx_buffers =
-        divide_ceil((NOF_SUBFRAMES_PER_FRAME * SUBFRAME_DURATION_MSEC * config.srate.to_kHz()), rx_buffer_size);
+    // Number of receive buffers, sized for storing up to one frame plus the slots that the PUxCH processor can
+    // demodulate concurrently.
+    unsigned nof_rx_buffers = divide_ceil((NOF_SUBFRAMES_PER_FRAME * SUBFRAME_DURATION_MSEC * config.srate.to_kHz()) +
+                                              puxch_processor::max_nof_concurrent_slots * nof_samples_per_slot,
+                                          rx_buffer_size);
 
     // Prepare downlink processor configuration.
     downlink_processor_configuration dl_proc_config = {.sector_id               = config.sector_id,

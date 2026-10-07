@@ -7,6 +7,7 @@
 
 #include "../../resource_request_pool.h"
 #include "ocudu/adt/circular_array.h"
+#include "ocudu/gateways/baseband/buffer/baseband_gateway_buffer_ptr_view.h"
 #include "ocudu/phy/lower/modulation/ofdm_demodulator.h"
 #include "ocudu/phy/lower/processors/lower_phy_center_freq_controller.h"
 #include "ocudu/phy/lower/processors/uplink/puxch/puxch_processor.h"
@@ -56,8 +57,8 @@ public:
 
 private:
   // See interface for documentation.
-  bool process_symbol(const baseband_gateway_buffer_reader& samples,
-                      const lower_phy_rx_symbol_context&    context) override;
+  bool process_symbol(const baseband_gateway_buffer_ptr_view& samples,
+                      const lower_phy_rx_symbol_context&      context) override;
 
   // See interface for documentation.
   void handle_request(const shared_resource_grid& grid, const resource_grid_context& context) override;

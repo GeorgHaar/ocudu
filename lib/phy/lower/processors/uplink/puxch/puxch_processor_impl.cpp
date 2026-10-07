@@ -11,8 +11,8 @@
 
 using namespace ocudu;
 
-bool puxch_processor_impl::process_symbol(const baseband_gateway_buffer_reader& samples,
-                                          const lower_phy_rx_symbol_context&    context)
+bool puxch_processor_impl::process_symbol(const baseband_gateway_buffer_ptr_view& samples,
+                                          const lower_phy_rx_symbol_context&      context)
 {
   ocudu_assert(notifier != nullptr, "Notifier has not been connected.");
 

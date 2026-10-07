@@ -144,7 +144,7 @@ void lower_phy_baseband_processor::ul_process()
   }
 
   // Get receive buffer.
-  baseband_buffer_pool::ptr rx_buffer = rx_buffers.get();
+  baseband_gateway_buffer_ptr rx_buffer = rx_buffers.get();
   if (!rx_buffer) {
     logger.warning("Insufficient number of receive buffers in the baseband processor (i.e., {}). Discarding...",
                    rx_buffers.capacity());
@@ -173,7 +173,7 @@ void lower_phy_baseband_processor::ul_process()
     trace_point ul_tp = ru_tracer.now();
 
     // Process UL.
-    uplink_processor.process(ul_buffer->get_reader(), apply_timestamp_sfn0_ref(rx_metadata.ts));
+    uplink_processor.process(std::move(ul_buffer), apply_timestamp_sfn0_ref(rx_metadata.ts));
 
     ru_tracer << trace_event("uplink_baseband", ul_tp);
   });

@@ -6,6 +6,7 @@
 #pragma once
 
 #include "../../../../../gateways/baseband/baseband_gateway_buffer_test_doubles.h"
+#include "ocudu/gateways/baseband/buffer/baseband_gateway_buffer_ptr_view.h"
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/phy/lower/lower_phy_rx_symbol_context.h"
 #include "ocudu/phy/lower/processors/lower_phy_center_freq_controller.h"
@@ -27,8 +28,8 @@ public:
     lower_phy_rx_symbol_context       context;
   };
 
-  bool process_symbol(const baseband_gateway_buffer_reader& samples,
-                      const lower_phy_rx_symbol_context&    context) override
+  bool process_symbol(const baseband_gateway_buffer_ptr_view& samples,
+                      const lower_phy_rx_symbol_context&      context) override
   {
     entries.emplace_back();
     entry_t& entry = entries.back();

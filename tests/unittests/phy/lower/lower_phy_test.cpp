@@ -374,7 +374,8 @@ protected:
   static constexpr antenna_topology   tx_ant_topology = antenna_topology::eight_ports;
   static constexpr subcarrier_spacing max_scs         = subcarrier_spacing::kHz30;
   static constexpr unsigned           max_nof_pending_ul_tasks =
-      NOF_SUBFRAMES_PER_FRAME * SUBFRAME_DURATION_MSEC * get_nof_slots_per_subframe(max_scs) + 1;
+      NOF_SUBFRAMES_PER_FRAME * SUBFRAME_DURATION_MSEC * get_nof_slots_per_subframe(max_scs) +
+      puxch_processor::max_nof_concurrent_slots + 1;
 
   subcarrier_spacing scs;
   cyclic_prefix      cp;
@@ -887,9 +888,11 @@ TEST_P(LowerPhyFixture, BasebandUplinkNotEnoughBuffers)
   static constexpr unsigned nof_discarded_blocks = 10;
 
   // Derive the number of receive buffers in the pool.
-  unsigned rx_buffer_size = srate.to_kHz() / pow2(to_numerology_value(scs));
-  unsigned nof_rx_buffers =
-      divide_ceil((NOF_SUBFRAMES_PER_FRAME * SUBFRAME_DURATION_MSEC * srate.to_kHz()), rx_buffer_size);
+  unsigned nof_samples_per_slot = srate.to_kHz() / pow2(to_numerology_value(scs));
+  unsigned rx_buffer_size       = nof_samples_per_slot;
+  unsigned nof_rx_buffers       = divide_ceil((NOF_SUBFRAMES_PER_FRAME * SUBFRAME_DURATION_MSEC * srate.to_kHz()) +
+                                            puxch_processor::max_nof_concurrent_slots * nof_samples_per_slot,
+                                        rx_buffer_size);
   ASSERT_LT(nof_rx_buffers, max_nof_pending_ul_tasks) << "The uplink executor queue cannot hold all the buffers.";
 
   // Get lower PHY controller.

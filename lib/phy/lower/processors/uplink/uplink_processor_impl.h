@@ -8,6 +8,8 @@
 #include "../baseband_cfo_processor.h"
 #include "ocudu/adt/tensor.h"
 #include "ocudu/gateways/baseband/buffer/baseband_gateway_buffer_dynamic.h"
+#include "ocudu/gateways/baseband/buffer/baseband_gateway_buffer_pool.h"
+#include "ocudu/gateways/baseband/buffer/baseband_gateway_buffer_ptr_view.h"
 #include "ocudu/phy/lower/processors/lower_phy_center_freq_controller.h"
 #include "ocudu/phy/lower/processors/uplink/prach/prach_processor.h"
 #include "ocudu/phy/lower/processors/uplink/puxch/puxch_processor.h"
@@ -84,22 +86,22 @@ private:
   };
 
   // See interface for documentation.
-  void process(const baseband_gateway_buffer_reader& samples, baseband_gateway_timestamp timestamp) override;
+  void process(baseband_gateway_buffer_ptr samples, baseband_gateway_timestamp timestamp) override;
 
   /// \brief Processes samples in alignment state.
   /// \param[in] samples   Input baseband samples.
   /// \param[in] timestamp Time instant in which the first sample within \c samples was received.
-  void process_alignment(const baseband_gateway_buffer_reader& samples, baseband_gateway_timestamp timestamp);
+  void process_alignment(const baseband_gateway_buffer_ptr_view& samples, baseband_gateway_timestamp timestamp);
 
   /// \brief Processes a symbol boundary.
   /// \param[in] samples   Input baseband samples.
   /// \param[in] timestamp Time instant in which the first sample within \c samples was received.
-  void process_symbol_boundary(const baseband_gateway_buffer_reader& samples, baseband_gateway_timestamp timestamp);
+  void process_symbol_boundary(const baseband_gateway_buffer_ptr_view& samples, baseband_gateway_timestamp timestamp);
 
   /// \brief Collects symbol samples.
   /// \param[in] samples   Input baseband samples.
   /// \param[in] timestamp Time instant in which the first sample within \c samples was received.
-  void process_collecting(const baseband_gateway_buffer_reader& samples, baseband_gateway_timestamp timestamp);
+  void process_collecting(const baseband_gateway_buffer_ptr_view& samples, baseband_gateway_timestamp timestamp);
 
   /// Finite state machine state.
   fsm_states state = fsm_states::alignment;
@@ -117,9 +119,9 @@ private:
   unsigned nof_samples_per_subframe;
   /// Number of symbols per subframe.
   unsigned nof_symbols_per_subframe;
-  /// \brief Write index for the \ref temp_buffer holding OFDM symbols.
+  /// \brief Write index for the \ref filling_buffer holding OFDM symbols.
   ///
-  /// Sample index within the \c temp_buffer data, it points the writing position within the buffered signal. It is
+  /// Sample index within the \c filling_buffer data, it points the writing position within the buffered signal. It is
   /// used to copy the samples aligned with the requested timestamp into the destination buffer.
   unsigned temp_buffer_write_index;
   /// Current symbol index within the slot.
@@ -132,8 +134,10 @@ private:
   slot_point current_slot;
   /// List of the symbol sizes in number samples for each symbol within the subframe.
   std::vector<unsigned> symbol_sizes;
-  /// Temporal storage of baseband samples.
-  baseband_gateway_buffer_dynamic temp_buffer;
+  /// Pool of buffers for assembling OFDM symbols.
+  baseband_gateway_buffer_pool temp_buffer_pool;
+  /// Buffer of the OFDM symbol being assembled.
+  baseband_gateway_buffer_ptr filling_buffer;
   /// Internal PRACH processor.
   std::unique_ptr<prach_processor> prach_proc;
   /// Internal PUxCH processor.

@@ -10,7 +10,7 @@
 #include "support/compare_sequences.h"
 #include "uplink_processor_notifier_test_doubles.h"
 #include "ocudu/adt/format.h"
-#include "ocudu/gateways/baseband/buffer/baseband_gateway_buffer_dynamic.h"
+#include "ocudu/gateways/baseband/buffer/baseband_gateway_buffer_pool.h"
 #include "ocudu/phy/lower/processors/uplink/uplink_processor_baseband.h"
 #include "ocudu/phy/lower/processors/uplink/uplink_processor_factories.h"
 #include "ocudu/ran/resource_block.h"
@@ -208,7 +208,7 @@ TEST_P(LowerPhyUplinkProcessorFixture, Flow)
 
   unsigned base_symbol_size = srate.get_dft_size(scs);
 
-  baseband_gateway_buffer_dynamic buffer(nof_rx_ports, 2 * base_symbol_size);
+  baseband_gateway_buffer_pool buffer_pool(1, nof_rx_ports, 2 * base_symbol_size);
 
   unsigned nof_symbols_per_slot   = get_nsymb_per_slot(cp);
   unsigned nof_slots_per_subframe = get_nof_slots_per_subframe(scs);
@@ -230,11 +230,13 @@ TEST_P(LowerPhyUplinkProcessorFixture, Flow)
           unsigned cp_size = cp.get_length(i_symbol_subframe, scs).to_samples(srate.to_Hz());
 
           // Setup buffer.
-          buffer.resize(cp_size + base_symbol_size);
+          baseband_gateway_buffer_ptr buffer = buffer_pool.get();
+          ASSERT_TRUE(buffer);
+          buffer->resize(cp_size + base_symbol_size);
 
           // Fill buffer.
           for (unsigned i_port = 0; i_port != nof_rx_ports; ++i_port) {
-            span<ci16_t> port_buffer = buffer[i_port];
+            span<ci16_t> port_buffer = (*buffer)[i_port];
             std::generate(port_buffer.begin(), port_buffer.end(), []() {
               return to_ci16(cf_t(dist_sample(rgen) * INT16_MAX, dist_sample(rgen) * INT16_MAX));
             });
@@ -248,7 +250,7 @@ TEST_P(LowerPhyUplinkProcessorFixture, Flow)
           puxch_proc_spy->clear();
 
           // Process baseband.
-          ul_proc_baseband.process(buffer.get_reader(), timestamp);
+          ul_proc_baseband.process(buffer.clone(), timestamp);
 
           // Prepare expected PRACH baseband entry context.
           prach_processor_baseband::symbol_context prach_context;
@@ -268,7 +270,7 @@ TEST_P(LowerPhyUplinkProcessorFixture, Flow)
           auto& prach_proc_entry = prach_proc_entries.back();
           ASSERT_EQ(prach_proc_entry.context, prach_context);
           {
-            baseband_gateway_buffer_read_only expected(buffer.get_reader());
+            baseband_gateway_buffer_read_only expected(buffer->get_reader());
             for (unsigned channel = 0; channel != prach_proc_entry.samples.get_nof_channels(); ++channel) {
               error_type<std::string> compare_result = compare_sequences(
                   prach_proc_entry.samples.get_channel_buffer(channel), expected.get_channel_buffer(channel));

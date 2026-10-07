@@ -183,9 +183,6 @@ private:
     return timestamp - start_time_sfn0;
   }
 
-  /// Pool of baseband receive buffers.
-  using baseband_buffer_pool = bounded_rc_object_pool<baseband_gateway_buffer_dynamic>;
-
   ocudulog::basic_logger&                                           logger;
   sampling_rate                                                     srate;
   uint64_t                                                          nof_samples_in_all_hyper_frames;
@@ -199,7 +196,7 @@ private:
   baseband_gateway_transmitter&                                     transmitter;
   uplink_processor_baseband&                                        uplink_processor;
   downlink_processor_baseband&                                      downlink_processor;
-  baseband_buffer_pool                                              rx_buffers;
+  baseband_gateway_buffer_pool                                      rx_buffers;
   baseband_gateway_buffer_dynamic                                   discard_buffer;
   baseband_gateway_timestamp                                        tx_time_offset;
   baseband_gateway_timestamp                                        rx_to_tx_max_delay;

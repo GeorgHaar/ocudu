@@ -8,10 +8,9 @@
 #include "ocudu/adt/complex.h"
 #include "ocudu/adt/span.h"
 #include "ocudu/gateways/baseband/baseband_gateway_timestamp.h"
+#include "ocudu/gateways/baseband/buffer/baseband_gateway_buffer_pool.h"
 
 namespace ocudu {
-
-class baseband_gateway_buffer_reader;
 
 /// \brief Lower physical layer uplink processor - Baseband interface.
 ///
@@ -27,7 +26,7 @@ public:
   /// \param[in] buffer    Baseband samples to process.
   /// \param[in] timestamp Time instant in which the first sample was captured.
   /// \remark The number of channels in \c buffer must be equal to the number of receive ports for the sector.
-  virtual void process(const baseband_gateway_buffer_reader& buffer, baseband_gateway_timestamp timestamp) = 0;
+  virtual void process(baseband_gateway_buffer_ptr buffer, baseband_gateway_timestamp timestamp) = 0;
 };
 
 } // namespace ocudu

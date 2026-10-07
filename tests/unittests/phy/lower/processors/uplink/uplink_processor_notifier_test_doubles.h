@@ -47,12 +47,12 @@ public:
     baseband_gateway_timestamp        timestamp;
   };
 
-  void process(const baseband_gateway_buffer_reader& buffer, baseband_gateway_timestamp timestamp) override
+  void process(baseband_gateway_buffer_ptr buffer, baseband_gateway_timestamp timestamp) override
   {
     entries.emplace_back();
     entry_t& entry  = entries.back();
     entry.timestamp = timestamp;
-    entry.buffer    = buffer;
+    entry.buffer    = buffer->get_reader();
   }
 
   const std::vector<entry_t>& get_entries() const { return entries; }

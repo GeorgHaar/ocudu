@@ -8,7 +8,7 @@
 #include "puxch_processor_notifier_test_doubles.h"
 #include "support/compare_sequences.h"
 #include "ocudu/adt/format.h"
-#include "ocudu/gateways/baseband/buffer/baseband_gateway_buffer_dynamic.h"
+#include "ocudu/gateways/baseband/buffer/baseband_gateway_buffer_ptr_view.h"
 #include "ocudu/ocuduvec/conversion.h"
 #include "ocudu/phy/lower/lower_phy_rx_symbol_context.h"
 #include "ocudu/phy/lower/processors/uplink/puxch/puxch_processor_baseband.h"
@@ -206,7 +206,8 @@ TEST_P(LowerPhyUplinkProcessorFixture, FlowNoRequest)
 
   unsigned base_symbol_size = srate.get_dft_size(scs);
 
-  baseband_gateway_buffer_dynamic buffer(nof_rx_ports, 2 * base_symbol_size);
+  baseband_gateway_buffer_pool buffer_pool(1, nof_rx_ports, 2 * base_symbol_size);
+  baseband_gateway_buffer_ptr  buffer = buffer_pool.get();
 
   unsigned nof_symbols_per_slot   = get_nsymb_per_slot(cp);
   unsigned nof_slots_per_subframe = get_nof_slots_per_subframe(scs);
@@ -222,11 +223,11 @@ TEST_P(LowerPhyUplinkProcessorFixture, FlowNoRequest)
         for (unsigned i_symbol = 0; i_symbol != nof_symbols_per_slot; ++i_symbol, ++i_symbol_subframe) {
           unsigned cp_size = cp.get_length(i_symbol_subframe, scs).to_samples(srate.to_Hz());
           // Setup buffer.
-          buffer.resize(cp_size + base_symbol_size);
+          buffer->resize(cp_size + base_symbol_size);
 
           // Fill buffer.
           for (unsigned i_port = 0; i_port != nof_rx_ports; ++i_port) {
-            span<ci16_t> port_buffer = buffer[i_port];
+            span<ci16_t> port_buffer = (*buffer)[i_port];
             std::generate(port_buffer.begin(), port_buffer.end(), []() {
               return to_ci16(cf_t(dist_sample(rgen) * INT16_MAX, dist_sample(rgen) * INT16_MAX));
             });
@@ -243,7 +244,8 @@ TEST_P(LowerPhyUplinkProcessorFixture, FlowNoRequest)
           puxch_context.nof_symbols = i_symbol_subframe;
 
           // Process baseband.
-          puxch_proc->get_baseband().process_symbol(buffer.get_reader(), puxch_context);
+          puxch_proc->get_baseband().process_symbol(
+              baseband_gateway_buffer_ptr_view(buffer.clone(), 0, buffer->get_nof_samples()), puxch_context);
 
           // Assert OFDM demodulator call.
           auto& ofdm_demod_entries = ofdm_demod_spy->get_demodulate_entries();
@@ -266,7 +268,8 @@ TEST_P(LowerPhyUplinkProcessorFixture, FlowFloodRequest)
 
   unsigned base_symbol_size = srate.get_dft_size(scs);
 
-  baseband_gateway_buffer_dynamic buffer(nof_rx_ports, 2 * base_symbol_size);
+  baseband_gateway_buffer_pool buffer_pool(1, nof_rx_ports, 2 * base_symbol_size);
+  baseband_gateway_buffer_ptr  buffer = buffer_pool.get();
 
   unsigned nof_symbols_per_slot   = get_nsymb_per_slot(cp);
   unsigned nof_slots_per_subframe = get_nof_slots_per_subframe(scs);
@@ -291,12 +294,12 @@ TEST_P(LowerPhyUplinkProcessorFixture, FlowFloodRequest)
         for (unsigned i_symbol = 0; i_symbol != nof_symbols_per_slot; ++i_symbol, ++i_symbol_subframe) {
           unsigned cp_size = cp.get_length(i_symbol_subframe, scs).to_samples(srate.to_Hz());
           // Setup buffer.
-          buffer.resize(cp_size + base_symbol_size);
+          buffer->resize(cp_size + base_symbol_size);
           ci16_buffer.resize(cp_size + base_symbol_size);
 
           // Fill buffer.
           for (unsigned i_port = 0; i_port != nof_rx_ports; ++i_port) {
-            span<ci16_t> port_buffer = buffer[i_port];
+            span<ci16_t> port_buffer = (*buffer)[i_port];
             std::generate(port_buffer.begin(), port_buffer.end(), []() {
               return to_ci16(cf_t(dist_sample(rgen) * INT16_MAX, dist_sample(rgen) * INT16_MAX));
             });
@@ -313,7 +316,8 @@ TEST_P(LowerPhyUplinkProcessorFixture, FlowFloodRequest)
           puxch_context.nof_symbols = i_symbol;
 
           // Process baseband.
-          puxch_proc->get_baseband().process_symbol(buffer.get_reader(), puxch_context);
+          puxch_proc->get_baseband().process_symbol(
+              baseband_gateway_buffer_ptr_view(buffer.clone(), 0, buffer->get_nof_samples()), puxch_context);
 
           // Assert OFDM demodulator call.
           const auto& ofdm_demod_entries = ofdm_demod_spy->get_demodulate_entries();
@@ -323,7 +327,7 @@ TEST_P(LowerPhyUplinkProcessorFixture, FlowFloodRequest)
 
             {
               error_type<std::string> compare_result =
-                  compare_sequences(span<const ci16_t>(ofdm_demod_entry.input), span<const ci16_t>(buffer[i_port]));
+                  compare_sequences(span<const ci16_t>(ofdm_demod_entry.input), span<const ci16_t>((*buffer)[i_port]));
               ASSERT_TRUE(compare_result.has_value()) << compare_result.error();
             }
             ASSERT_EQ(static_cast<const void*>(ofdm_demod_entry.grid), static_cast<const void*>(&rg_writer_spy));
@@ -350,8 +354,9 @@ TEST_P(LowerPhyUplinkProcessorFixture, LateRequest)
 
   unsigned base_symbol_size = srate.get_dft_size(scs);
 
-  baseband_gateway_buffer_dynamic buffer(nof_rx_ports, 2 * base_symbol_size);
-  std::vector<ci16_t>             ci16_buffer;
+  baseband_gateway_buffer_pool buffer_pool(1, nof_rx_ports, 2 * base_symbol_size);
+  baseband_gateway_buffer_ptr  buffer = buffer_pool.get();
+  std::vector<ci16_t>          ci16_buffer;
 
   unsigned nof_symbols_per_slot   = get_nsymb_per_slot(cp);
   unsigned nof_slots_per_subframe = get_nof_slots_per_subframe(scs);
@@ -390,12 +395,12 @@ TEST_P(LowerPhyUplinkProcessorFixture, LateRequest)
       for (unsigned i_symbol = 0; i_symbol != nof_symbols_per_slot; ++i_symbol, ++i_symbol_subframe) {
         unsigned cp_size = cp.get_length(i_symbol_subframe, scs).to_samples(srate.to_Hz());
         // Setup buffer.
-        buffer.resize(cp_size + base_symbol_size);
+        buffer->resize(cp_size + base_symbol_size);
         ci16_buffer.resize(cp_size + base_symbol_size);
 
         // Fill buffer.
         for (unsigned i_port = 0; i_port != nof_rx_ports; ++i_port) {
-          span<ci16_t> port_buffer = buffer[i_port];
+          span<ci16_t> port_buffer = (*buffer)[i_port];
           std::generate(port_buffer.begin(), port_buffer.end(), []() {
             return to_ci16(cf_t(dist_sample(rgen) * INT16_MAX, dist_sample(rgen) * INT16_MAX));
           });
@@ -412,7 +417,8 @@ TEST_P(LowerPhyUplinkProcessorFixture, LateRequest)
         puxch_context.nof_symbols = i_symbol;
 
         // Process baseband.
-        puxch_proc->get_baseband().process_symbol(buffer.get_reader(), puxch_context);
+        puxch_proc->get_baseband().process_symbol(
+            baseband_gateway_buffer_ptr_view(buffer.clone(), 0, buffer->get_nof_samples()), puxch_context);
 
         // Assert OFDM demodulator call only for initial and next slot.
         const auto& ofdm_demod_entries = ofdm_demod_spy->get_demodulate_entries();
@@ -424,7 +430,7 @@ TEST_P(LowerPhyUplinkProcessorFixture, LateRequest)
 
             {
               error_type<std::string> compare_result =
-                  compare_sequences(span<const ci16_t>(ofdm_demod_entry.input), span<const ci16_t>(buffer[i_port]));
+                  compare_sequences(span<const ci16_t>(ofdm_demod_entry.input), span<const ci16_t>((*buffer)[i_port]));
               ASSERT_TRUE(compare_result.has_value()) << compare_result.error();
             }
             ASSERT_EQ(static_cast<const void*>(ofdm_demod_entry.grid), static_cast<const void*>(rg_spy_ptr));
@@ -462,7 +468,8 @@ TEST_P(LowerPhyUplinkProcessorFixture, OverflowRequest)
 
   unsigned base_symbol_size = srate.get_dft_size(scs);
 
-  baseband_gateway_buffer_dynamic buffer(nof_rx_ports, 2 * base_symbol_size);
+  baseband_gateway_buffer_pool buffer_pool(1, nof_rx_ports, 2 * base_symbol_size);
+  baseband_gateway_buffer_ptr  buffer = buffer_pool.get();
 
   // Create notifiers and connect.
   puxch_processor_notifier_spy puxch_proc_notifier_spy;

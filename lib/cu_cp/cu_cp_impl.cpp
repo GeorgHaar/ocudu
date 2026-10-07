@@ -407,11 +407,11 @@ void cu_cp_impl::handle_bearer_context_inactivity_notification(const e1ap_inacti
       return;
     }
 
-    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
     if (ngap == nullptr) {
-      logger.warning("ue={}: Dropping Bearer Context Inactivity Notification. NGAP not found for plmn={}",
+      logger.warning("ue={}: Dropping Bearer Context Inactivity Notification. NGAP not found for amf_index={}",
                      msg.ue_index,
-                     ue->get_ue_context().plmn);
+                     ue->get_ue_context().amf_index);
       return;
     }
 
@@ -938,10 +938,11 @@ async_task<bool> cu_cp_impl::handle_handover_ue_context_push(cu_cp_ue_index_t so
       return false;
     }
 
-    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
     if (ngap == nullptr) {
-      logger.warning(
-          "ue={}: could not find NGAP of the target UE for plmn={}", target_ue_index, ue->get_ue_context().plmn);
+      logger.warning("ue={}: could not find NGAP of the target UE for amf_index={}",
+                     target_ue_index,
+                     ue->get_ue_context().amf_index);
       return false;
     }
 
@@ -1028,7 +1029,7 @@ async_task<void> cu_cp_impl::handle_ue_context_release(const cu_cp_ue_context_re
   // responds to the NGAP UE Context Release Request (NGAP has no field for redirectedCarrierInfo).
   ue->get_ue_context().pending_redirect_nr_info = request.redirect_nr_info;
 
-  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
 
   return launch_async<ue_amf_context_release_request_routine>(
       request, ngap ? &ngap->get_ngap_control_message_handler() : nullptr, *this, logger);
@@ -1104,9 +1105,9 @@ async_task<bool> cu_cp_impl::handle_retrieved_context_path_switch_required(cu_cp
     return launch_no_op_task(false);
   }
 
-  ngap_interface* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  ngap_interface* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   if (ngap == nullptr) {
-    logger.warning("ue={}: Could not find NGAP for the UE's PLMN", ue_index);
+    logger.warning("ue={}: Could not find NGAP for the UE's AMF", ue_index);
     return launch_no_op_task(false);
   }
 
@@ -1177,11 +1178,11 @@ cu_cp_impl::handle_new_initial_context_setup_request(const ngap_init_context_set
   rrc_ue_interface* rrc_ue = ue->get_rrc_ue();
   ocudu_assert(rrc_ue != nullptr, "ue={}: Could not find RRC UE", request.ue_index);
 
-  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   if (ngap == nullptr) {
-    logger.warning("ue={}: Initial context setup failed. Cause: NGAP not found for plmn={}",
+    logger.warning("ue={}: Initial context setup failed. Cause: NGAP not found for amf_index={}",
                    request.ue_index,
-                   ue->get_ue_context().plmn);
+                   ue->get_ue_context().amf_index);
     return launch_async(
         [](coro_context<async_task<expected<ngap_init_context_setup_response, ngap_init_context_setup_failure>>>& ctx) {
           CORO_BEGIN(ctx);
@@ -1208,11 +1209,11 @@ cu_cp_impl::handle_new_ue_context_modification_request(const ngap_ue_context_mod
   rrc_ue_interface* rrc_ue = ue->get_rrc_ue();
   ocudu_assert(rrc_ue != nullptr, "ue={}: Could not find RRC UE", request.ue_index);
 
-  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   if (ngap == nullptr) {
-    logger.warning("ue={}: UE context modification failed. Cause: NGAP not found for plmn={}",
+    logger.warning("ue={}: UE context modification failed. Cause: NGAP not found for amf_index={}",
                    request.ue_index,
-                   ue->get_ue_context().plmn);
+                   ue->get_ue_context().amf_index);
     return launch_async(
         [](coro_context<
             async_task<expected<ngap_ue_context_modification_response, ngap_ue_context_modification_failure>>>& ctx) {
@@ -1397,9 +1398,9 @@ void cu_cp_impl::handle_inter_cu_target_handover_execution(
                "cu_up_index={}: could not find CU-UP",
                uint_to_cu_cp_cu_up_index(0));
 
-  ngap_interface* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  ngap_interface* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   if (ngap == nullptr) {
-    logger.warning("ue={}: NGAP not found for PLMN={}", ue_index, ue->get_ue_context().plmn);
+    logger.warning("ue={}: NGAP not found for amf_index={}", ue_index, ue->get_ue_context().amf_index);
     return;
   }
 
@@ -1459,9 +1460,9 @@ async_task<bool> cu_cp_impl::handle_new_rrc_handover_command(cu_cp_rrc_handover_
     logger.warning("ue={}: UE not found for handover command handling", ue_index);
     return launch_no_op_task(false);
   }
-  ngap_interface* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  ngap_interface* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   if (ngap == nullptr) {
-    logger.warning("ue={}: NGAP not found for PLMN={}", ue_index, ue->get_ue_context().plmn);
+    logger.warning("ue={}: NGAP not found for amf_index={}", ue_index, ue->get_ue_context().amf_index);
     return launch_no_op_task(false);
   }
 
@@ -1643,7 +1644,7 @@ cu_cp_impl::handle_xnap_retrieve_ue_context_request(const xnap_retrieve_ue_conte
     return reject(xnap_cause_radio_network_t::unknown_local_ng_ran_node_ue_xn_ap_id);
   }
 
-  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   if (ngap == nullptr) {
     logger.warning("ue={}: Couldn't find NGAP for UE context retrieval", request.ue_index);
     return reject(xnap_cause_radio_network_t::non_relocation_of_context);
@@ -1732,9 +1733,9 @@ void cu_cp_impl::handle_location_reporting_control_message(cu_cp_ue_index_t     
   if (msg.location_reporting_type == event_type::nulltype) {
     logger.error("ue={}: received NGAP Location Reporting Control message with nulltype event type, rejecting",
                  ue_index);
-    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
     if (ngap == nullptr) {
-      logger.warning("ue={}: NGAP not found for PLMN={}", ue_index, ue->get_ue_context().plmn);
+      logger.warning("ue={}: NGAP not found for amf_index={}", ue_index, ue->get_ue_context().amf_index);
       return;
     }
     ngap->handle_location_reporting_failure_indication_transmission(
@@ -1747,9 +1748,9 @@ void cu_cp_impl::handle_location_reporting_control_message(cu_cp_ue_index_t     
   if (msg.location_reporting_type != event_type::direct) {
     auto failure_cause = ue->get_location_manager().configure_location_reporting(msg);
     if (failure_cause.has_value()) {
-      auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+      auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
       if (ngap == nullptr) {
-        logger.warning("ue={}: NGAP not found for PLMN={}", ue_index, ue->get_ue_context().plmn);
+        logger.warning("ue={}: NGAP not found for amf_index={}", ue_index, ue->get_ue_context().amf_index);
         return;
       }
       ngap->handle_location_reporting_failure_indication_transmission({ue_index, failure_cause.value()});
@@ -1776,9 +1777,9 @@ void cu_cp_impl::handle_location_reporting_control_message(cu_cp_ue_index_t     
     ue->get_rrc_ue()->fill_ue_derived_location(user_location_info);
     auto report = ue->get_location_manager().get_direct_location_report(ue_index, user_location_info, msg);
 
-    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
     if (ngap == nullptr) {
-      logger.warning("ue={}: NGAP not found for PLMN={}", ue_index, ue->get_ue_context().plmn);
+      logger.warning("ue={}: NGAP not found for amf_index={}", ue_index, ue->get_ue_context().amf_index);
       return;
     }
 
@@ -1811,9 +1812,9 @@ void cu_cp_impl::handle_location_update(cu_cp_ue_index_t ue_index)
     return;
   }
 
-  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   if (ngap == nullptr) {
-    logger.warning("ue={}: NGAP not found for PLMN={}", ue_index, ue->get_ue_context().plmn);
+    logger.warning("ue={}: NGAP not found for amf_index={}", ue_index, ue->get_ue_context().amf_index);
     return;
   }
 
@@ -1842,9 +1843,9 @@ void cu_cp_impl::handle_ul_nrppa_pdu(const byte_buffer&                         
 
     auto* ue = ue_mng.find_du_ue(ue_index);
 
-    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
     if (ngap == nullptr) {
-      logger.warning("NGAP not found for PLMN={}", ue->get_ue_context().plmn);
+      logger.warning("NGAP not found for amf_index={}", ue->get_ue_context().amf_index);
       return;
     }
 
@@ -2025,7 +2026,7 @@ async_task<void> cu_cp_impl::handle_ue_removal_request(cu_cp_ue_index_t ue_index
     }
   }
 
-  ngap_interface*                  ngap                 = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  ngap_interface*                  ngap                 = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   ngap_ue_context_removal_handler* ngap_removal_handler = nullptr;
   if (ngap != nullptr) {
     ngap_removal_handler = &ngap->get_ngap_ue_context_removal_handler();
@@ -2285,9 +2286,10 @@ void cu_cp_impl::send_ran_paging(cu_cp_ue_index_t ue_index, full_i_rnti_t full_i
     return;
   }
 
-  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   if (ngap == nullptr) {
-    logger.warning("ue={}: Can't initiate RAN paging. NGAP not found for plmn={}", ue_index, ue->get_ue_context().plmn);
+    logger.warning(
+        "ue={}: Can't initiate RAN paging. NGAP not found for amf_index={}", ue_index, ue->get_ue_context().amf_index);
     return;
   }
 

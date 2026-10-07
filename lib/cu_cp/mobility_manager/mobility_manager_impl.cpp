@@ -427,7 +427,7 @@ void mobility_manager::handle_inter_cu_handover(cu_cp_ue_index_t source_ue_index
 
   cu_cp_ue_context& ue_ctxt = ue_context->get_ue_context();
 
-  auto* ngap = ngap_db.find_ngap(ue_ctxt.plmn);
+  auto* ngap = ngap_db.find_ngap(ue_ctxt.amf_index);
 
   if (!ngap) {
     logger.error("ue={}: Couldn't find NGAP", source_ue_index);

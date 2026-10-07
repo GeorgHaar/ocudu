@@ -103,7 +103,7 @@ std::vector<async_task<cu_cp_cho_candidate>> conditional_handover_coordinator_ro
     return tasks;
   }
 
-  ngap_interface* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  ngap_interface* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   if (ngap == nullptr) {
     logger.warning("ue={}: CHO inter-CU preparation skipped: NGAP not found", request.source_ue_index);
     return tasks;

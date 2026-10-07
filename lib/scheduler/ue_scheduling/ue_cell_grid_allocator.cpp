@@ -255,6 +255,25 @@ ue_cell_grid_allocator::setup_dl_grant_builder(const slice_ue&                  
                      "Max number of PDSCHs per slot was reached");
   ocudu_sanity_check(not pdsch_alloc.result.dl.ue_grants.full(), "No space available in scheduler PDSCH outputs");
 
+  // Both the PUCCH below and the HARQ process after it follow this value, so they cannot disagree. Only a new tx still
+  // picks a HARQ process; a retx is bound to the mode of the one it already holds.
+  bool select_normal_mode = true;
+  if (ue_cc.harqs.is_dl_harq_mode_selective()) {
+    if (is_retx) {
+      select_normal_mode = h_dl->mode() == harq_utils::harq_mode_t::normal;
+    } else {
+      select_normal_mode = user.select_normal_dl_harq_mode();
+      // Checked before the PUCCH is booked, as it cannot be given back.
+      if (not ue_cc.harqs.has_empty_dl_harqs(select_normal_mode)) {
+        logger.debug("ue={} rnti={}: Failed to allocate PDSCH in slot={}. Cause: no free DL HARQ process",
+                     user.ue_index(),
+                     user.crnti(),
+                     pdsch_alloc.slot);
+        return make_unexpected(dl_alloc_failure_cause::other);
+      }
+    }
+  }
+
   // Allocate PDCCH.
   auto pdcch_result = alloc_dl_pdcch(ue_cc, ss_info);
   if (not pdcch_result.has_value()) {
@@ -263,12 +282,8 @@ ue_cell_grid_allocator::setup_dl_grant_builder(const slice_ue&                  
   pdcch_dl_information* pdcch = pdcch_result.value();
 
   std::optional<uci_allocation> uci_result;
-  // In NTN cell, SRBs always use DL HARQ feedback; DRBs use DL Feedback Disabled when configured.
-  const bool dl_harq_feedback_disabled = ue_cell_cfg.pdsch_serving_cell_cfg() != nullptr
-                                             ? ue_cell_cfg.pdsch_serving_cell_cfg()->dl_harq_feedback_disabled.any()
-                                             : false;
 
-  if (not dl_harq_feedback_disabled or user.ran_slice_id() == SRB_RAN_SLICE_ID) {
+  if (select_normal_mode) {
     // Allocate UCI.
     uci_result = alloc_uci(ue_cc, ss_info, pdsch_td_res_index, last_occasion_offset);
     if (not uci_result.has_value()) {
@@ -296,15 +311,13 @@ ue_cell_grid_allocator::setup_dl_grant_builder(const slice_ue&                  
   // NOTE: With PDSCH repetitions, the HARQ-ACK is expected k1 slots after the last repetition occasion.
   if (not is_retx) {
     // It is a new tx.
-    h_dl = ue_cc.harqs
-               .alloc_dl_harq(pdsch_alloc.slot,
-                              ack_delay,
-                              expert_cfg.max_nof_dl_harq_retxs,
-                              uci.harq_bit_idx,
-                              user.ran_slice_id() == SRB_RAN_SLICE_ID,
-                              nof_repetitions,
-                              last_ack_delay)
-               .value();
+    h_dl = ue_cc.harqs.alloc_dl_harq(pdsch_alloc.slot,
+                                     ack_delay,
+                                     expert_cfg.max_nof_dl_harq_retxs,
+                                     uci.harq_bit_idx,
+                                     select_normal_mode,
+                                     nof_repetitions,
+                                     last_ack_delay);
     ocudu_assert(h_dl.has_value(), "Failed to allocate DL HARQ");
   } else {
     // It is a retx.
@@ -499,8 +512,11 @@ ue_cell_grid_allocator::set_pdsch_params(dl_grant_info&                        g
   // Set MAC logical channels to schedule in this PDU for each new-TX codeword.
   for (const auto& cw : msg.pdsch_cfg.codewords) {
     if (cw.new_data) {
-      build_dl_transport_block_info(
-          msg.tb_list.emplace_back(), u.logical_channels(), cw.tb_size_bytes, grant.user->ran_slice_id());
+      build_dl_transport_block_info(msg.tb_list.emplace_back(),
+                                    u.logical_channels(),
+                                    cw.tb_size_bytes,
+                                    grant.user->ran_slice_id(),
+                                    harq_utils::to_dl_harq_feedback(grant.h_dl.mode()));
     }
   }
   if (not is_retx) {

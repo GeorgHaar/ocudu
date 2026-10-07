@@ -62,6 +62,12 @@ enum class harq_mode_t : uint8_t {
   feedback_disabled_or_mode_b // Re-use allowed before RTT elapses (NTN: DL Feedback Disabled, UL Mode B)
 };
 
+/// Returns the DL HARQ feedback a process in the given mode carries.
+inline dl_harq_feedback to_dl_harq_feedback(harq_mode_t mode)
+{
+  return mode == harq_mode_t::normal ? dl_harq_feedback::enabled : dl_harq_feedback::disabled;
+}
+
 struct pending_retx_list_tag;
 
 /// Parameters that are common to DL and UL HARQ processes.
@@ -648,6 +654,12 @@ public:
                    const harq_dl_feedback_disabled_mask& dl_harq_feedback_disabled_mask,
                    const harq_ul_mode_mask&              ul_harq_mode_mask,
                    unsigned                              nof_cg_reserved_harqs);
+
+  /// Checks whether \c alloc_dl_harq() picks a free process by its mode, rather than taking any of them.
+  bool is_dl_harq_mode_selective() const
+  {
+    return cell_harq_mgr->dl.ntn_cs_koffset > 0 and get_dl_ue().feedback_disabled_or_mode_b_harq_present;
+  }
 
   /// Checks whether \c alloc_ul_harq() picks a free process by its mode, rather than taking any of them.
   bool is_ul_harq_mode_selective() const

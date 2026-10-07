@@ -11,6 +11,7 @@
 #include "qos_flow_context.h"
 #include "ocudu/f1u/cu_up/f1u_config.h"
 #include "ocudu/gtpu/gtpu_teid_pool.h"
+#include "ocudu/gtpu/gtpu_tunnel_pdcp.h"
 #include "ocudu/pdcp/pdcp_entity.h"
 #include "ocudu/ran/rb_id.h"
 #include "ocudu/ran/up_transport_layer_info.h"
@@ -68,6 +69,7 @@ struct drb_context {
   std::unique_ptr<f1u_cu_up_gateway_bearer> f1u_gw_bearer;
   std::unique_ptr<f1u_bearer>               f1u;
   std::unique_ptr<pdcp_entity>              pdcp;
+  std::unique_ptr<gtpu_tunnel_pdcp>         gtpu_fwd;
 
   // Adapter PDCP->SDAP
   // FIXME: Currently, we assume only one DRB per PDU session and only one QoS flow per DRB.

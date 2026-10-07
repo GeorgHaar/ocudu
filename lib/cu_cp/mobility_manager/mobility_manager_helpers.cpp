@@ -124,3 +124,19 @@ ocudu::ocucp::generate_xnap_handover_request(cu_cp_ue_index_t                   
           .is_conditional_handover = false,
           .cho_timeout             = std::chrono::milliseconds{0}};
 }
+
+std::optional<guami_t>
+ocudu::ocucp::get_ue_guami(ngap_interface& ngap, cu_cp_ue_index_t ue_index, const plmn_identity& plmn)
+{
+  std::optional<guami_t> serving_guami = ngap.get_serving_guami(ue_index);
+  if (serving_guami.has_value()) {
+    return serving_guami;
+  }
+
+  for (const auto& guami : ngap.get_ngap_context().served_guami_list) {
+    if (guami.plmn == plmn) {
+      return guami;
+    }
+  }
+  return std::nullopt;
+}

@@ -109,14 +109,8 @@ std::vector<async_task<cu_cp_cho_candidate>> conditional_handover_coordinator_ro
     return tasks;
   }
 
-  const ngap_context_t&  ngap_ctxt = ngap->get_ngap_context();
-  std::optional<guami_t> served_guami;
-  for (const auto& guami : ngap_ctxt.served_guami_list) {
-    if (guami.plmn == ue->get_ue_context().plmn) {
-      served_guami = guami;
-      break;
-    }
-  }
+  const ngap_context_t&  ngap_ctxt    = ngap->get_ngap_context();
+  std::optional<guami_t> served_guami = get_ue_guami(*ngap, ue->get_ue_index(), ue->get_ue_context().plmn);
   if (!served_guami.has_value()) {
     logger.warning("ue={}: CHO inter-CU preparation skipped: GUAMI not found for plmn={}",
                    request.source_ue_index,

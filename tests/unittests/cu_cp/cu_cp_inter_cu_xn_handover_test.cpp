@@ -454,6 +454,23 @@ TEST_F(cu_cp_inter_cu_xn_handover_test, when_handover_preparation_failure_is_rec
                             "there are still NGAP messages to pop from AMF");
 }
 
+TEST_F(cu_cp_inter_cu_xn_handover_test, when_handover_request_is_sent_then_it_carries_the_guami_of_the_serving_amf)
+{
+  // Attach UE. The Initial Context Setup Request assigns the GUAMI with AMF Region ID 4, while the first GUAMI of the
+  // NG Setup Response has AMF Region ID 2.
+  ASSERT_TRUE(attach_ue());
+
+  // Inject RRC Measurement Report and await Handover Request.
+  ASSERT_TRUE(send_rrc_measurement_report_and_await_handover_request(
+      ue_ctx->cu_ue_id.value(), ue_ctx->du_ue_id.value(), source_local_xnap_ue_id, target_peer_xnap_ue_id));
+
+  // The Handover Request carries the GUAMI that the AMF assigned to the UE.
+  const auto& guami = xnap_pdu.pdu.init_msg().value.ho_request()->guami;
+  ASSERT_EQ(guami.amf_region_id.to_number(), 4);
+  ASSERT_EQ(guami.amf_set_id.to_number(), 1);
+  ASSERT_EQ(guami.amf_pointer.to_number(), 0);
+}
+
 TEST_F(cu_cp_inter_cu_xn_handover_test, when_handover_command_times_out_then_handover_cancel_is_sent)
 {
   // Attach UE.
@@ -871,6 +888,36 @@ TEST_F(cu_cp_inter_cu_xn_handover_test, when_zigzag_handover_is_performed_then_h
   // STATUS: UE should be removed at this stage
   auto report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
   ASSERT_EQ(report.ues.size(), 0) << "UE should be removed";
+}
+
+TEST_F(cu_cp_inter_cu_xn_handover_test, when_ue_arrived_by_xn_handover_then_next_handover_request_carries_its_guami)
+{
+  // This CU-CP is the target. The Handover Request carries the GUAMI with AMF Region ID 1 and AMF Pointer 1, while the
+  // first GUAMI of the NG Setup Response has AMF Region ID 2 and AMF Pointer 0.
+  ASSERT_TRUE(send_handover_request_and_await_bearer_context_setup_request(source_local_xnap_ue_id));
+  ASSERT_TRUE(send_bearer_context_setup_response_and_await_ue_context_setup_request());
+  ASSERT_TRUE(send_ue_context_setup_response_and_await_bearer_context_modification_request());
+  ASSERT_TRUE(send_bearer_context_modification_response_and_await_handover_request_ack());
+  ASSERT_TRUE(send_sn_status_transfer_and_await_bearer_context_modification_request(source_local_xnap_ue_id,
+                                                                                    source_peer_xnap_ue_id));
+  ASSERT_TRUE(send_bearer_context_modification_response());
+  ASSERT_TRUE(send_rrc_reconfiguration_complete_and_await_path_switch_request());
+  ASSERT_TRUE(send_path_switch_request_ack_and_await_ue_context_modification_request());
+  ASSERT_TRUE(send_ue_context_modification_response_empty(cu_ue_id, du_ue_id));
+
+  // Now this CU-CP is the source.
+  this->get_xnc_cu_cp(xnc_peer_idx).try_pop_rx_pdu(xnap_pdu);
+  ASSERT_TRUE(send_rrc_measurement_report_and_await_handover_request(
+      cu_ue_id,
+      du_ue_id,
+      source_local_xnap_ue_id,
+      target_peer_xnap_ue_id,
+      make_byte_buffer("000100420004015f741fe0808bf183fcf868e7c5").value()));
+
+  // The Handover Request carries the GUAMI that the previous source reported.
+  const auto& guami = xnap_pdu.pdu.init_msg().value.ho_request()->guami;
+  ASSERT_EQ(guami.amf_region_id.to_number(), 1);
+  ASSERT_EQ(guami.amf_pointer.to_number(), 1);
 }
 
 // When the source proposes DL data forwarding for its QoS flows in the Data Forwarding and Offloading Info from

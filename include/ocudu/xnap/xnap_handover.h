@@ -60,9 +60,11 @@ struct xnap_handover_preparation_response {
 };
 
 struct xnap_handover_target_execution_context {
-  xnc_peer_index_t                                    xnc_index;
-  cu_cp_ue_index_t                                    ue_index;
-  unsigned                                            amf_ue_id;
+  xnc_peer_index_t xnc_index;
+  cu_cp_ue_index_t ue_index;
+  unsigned         amf_ue_id;
+  /// GUAMI of the AMF that serves the UE, as the source NG-RAN node reported it.
+  guami_t                                             guami;
   std::vector<cu_cp_xn_pdu_session_res_admitted_item> pdu_session_res_admitted_list;
   std::vector<cu_cp_pdu_session_with_cause_item>      pdu_session_failed_to_setup_list;
   /// When true, the UE arrived via Conditional HO (source sent no explicit HO Command);

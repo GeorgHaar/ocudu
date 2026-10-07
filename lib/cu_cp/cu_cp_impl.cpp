@@ -7,6 +7,7 @@
 #include "bounded_executor_dispatch.h"
 #include "du_processor/du_processor_repository.h"
 #include "metrics_handler/metrics_handler_impl.h"
+#include "mobility_manager/mobility_manager_helpers.h"
 #include "routines/amf_connection_loss_routine.h"
 #include "routines/cell_activation_routine.h"
 #include "routines/cell_barring_routine.h"
@@ -1571,13 +1572,7 @@ cu_cp_impl::handle_xnap_retrieve_ue_context_request(const xnap_retrieve_ue_conte
     return reject(xnap_cause_radio_network_t::non_relocation_of_context);
   }
 
-  std::optional<guami_t> served_guami;
-  for (const auto& guami : ngap->get_ngap_context().served_guami_list) {
-    if (guami.plmn == ue->get_ue_context().plmn) {
-      served_guami = guami;
-      break;
-    }
-  }
+  std::optional<guami_t> served_guami = get_ue_guami(*ngap, ue->get_ue_index(), ue->get_ue_context().plmn);
   if (!served_guami.has_value()) {
     logger.warning("ue={}: Couldn't find GUAMI for {}", request.ue_index, ue->get_ue_context().plmn);
     return reject(xnap_cause_radio_network_t::unknown_guami_id);

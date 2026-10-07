@@ -79,7 +79,7 @@ TEST_F(ngap_path_switch_procedure_test,
   // Action 1: Launch Path Switch Procedure.
   test_logger.info("Launch path switch procedure...");
   async_task<cu_cp_path_switch_response> t =
-      ngap->handle_path_switch_request_required(generate_path_switch_request(ue_index));
+      ngap->handle_path_switch_request_required(generate_path_switch_request(ue_index), guami_t{});
   lazy_task_launcher<cu_cp_path_switch_response> t_launcher(t);
 
   // Status: Fail Path Switch procedure (AMF doesn't respond).
@@ -104,7 +104,7 @@ TEST_F(ngap_path_switch_procedure_test, when_path_switch_request_failure_receive
   // Action 1: Launch Path Switch Procedure.
   test_logger.info("Launch path switch procedure...");
   async_task<cu_cp_path_switch_response> t =
-      ngap->handle_path_switch_request_required(generate_path_switch_request(ue_index));
+      ngap->handle_path_switch_request_required(generate_path_switch_request(ue_index), guami_t{});
   lazy_task_launcher<cu_cp_path_switch_response> t_launcher(t);
 
   // Inject Path Switch Request Failure.
@@ -129,7 +129,7 @@ TEST_F(ngap_path_switch_procedure_test, when_path_switch_request_ack_received_th
   // Action 1: Launch Path Switch Procedure.
   test_logger.info("Launch path switch procedure...");
   async_task<cu_cp_path_switch_response> t =
-      ngap->handle_path_switch_request_required(generate_path_switch_request(ue_index));
+      ngap->handle_path_switch_request_required(generate_path_switch_request(ue_index), guami_t{});
   lazy_task_launcher<cu_cp_path_switch_response> t_launcher(t);
 
   // Inject Path Switch Request Ack.
@@ -154,7 +154,7 @@ TEST_F(ngap_path_switch_procedure_test, when_ue_context_is_removed_then_path_swi
   // Action 1: Launch Path Switch Procedure.
   test_logger.info("Launch path switch procedure...");
   async_task<cu_cp_path_switch_response> t =
-      ngap->handle_path_switch_request_required(generate_path_switch_request(ue_index));
+      ngap->handle_path_switch_request_required(generate_path_switch_request(ue_index), guami_t{});
   lazy_task_launcher<cu_cp_path_switch_response> t_launcher(t);
 
   ASSERT_FALSE(t.ready());

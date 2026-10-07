@@ -34,7 +34,8 @@ void retrieved_context_path_switch_routine::operator()(coro_context<async_task<b
 
   // Ask the AMF to move the DL path to this node (TS 38.413 section 8.4.4).
   CORO_AWAIT_VALUE(path_switch_response,
-                   ngap.get_ngap_control_message_handler().handle_path_switch_request_required(path_switch_request));
+                   ngap.get_ngap_control_message_handler().handle_path_switch_request_required(
+                       path_switch_request, ue.get_context_retrieval_context()->guami));
 
   if (std::holds_alternative<cu_cp_path_switch_request_failure>(path_switch_response)) {
     logger.warning("ue={}: \"{}\" failed. Cause: Path Switch Request rejected by AMF", ue_index, name());

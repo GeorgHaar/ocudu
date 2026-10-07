@@ -166,6 +166,7 @@ bool xnap_target_handover_preparation_procedure::prepare_execution_context(const
   execution_context.xnc_index = xnc_index;
   execution_context.ue_index  = ho_ack.ue_index;
   execution_context.amf_ue_id = request.ue_context_info_ho_request.amf_ue_id;
+  execution_context.guami     = request.guami;
   for (const auto& variant_pdu_session_item : ho_ack.pdu_session_res_admitted_list) {
     if (!std::holds_alternative<cu_cp_xn_pdu_session_res_admitted_item>(variant_pdu_session_item)) {
       return false;

@@ -6,6 +6,7 @@
 #pragma once
 
 #include "ocudu/cu_cp/up_context.h"
+#include "ocudu/ngap/ngap.h"
 #include "ocudu/ngap/ngap_handover.h"
 #include "ocudu/ngap/ngap_types.h"
 #include "ocudu/xnap/xnap_handover.h"
@@ -51,5 +52,15 @@ generate_xnap_handover_request(cu_cp_ue_index_t                                 
                                const std::map<pdu_session_id_t, up_pdu_session_context>& pdu_sessions,
                                const byte_buffer&                            rrc_handover_preparation_information,
                                const std::optional<location_report_request>& location_report_cfg);
+
+/// \brief Gets the GUAMI of the AMF that serves the UE, to signal it to a peer NG-RAN node.
+///
+/// The GUAMI is the one the AMF signalled for the UE. If the AMF did not signal one, it is the first GUAMI of the UE's
+/// PLMN that the AMF serves.
+/// \param[in] ngap The NGAP of the AMF that serves the UE.
+/// \param[in] ue_index The index of the UE.
+/// \param[in] plmn The PLMN of the UE.
+/// \returns The GUAMI, or std::nullopt if the AMF serves no GUAMI of the UE's PLMN.
+std::optional<guami_t> get_ue_guami(ngap_interface& ngap, cu_cp_ue_index_t ue_index, const plmn_identity& plmn);
 
 } // namespace ocudu::ocucp

@@ -336,9 +336,10 @@ public:
 
   /// \brief Initiates the transmission of a Path Switch Request message.
   /// \param[in] path_switch_request The information about the Path Switch Request to send.
+  /// \param[in] serving_guami The GUAMI of the AMF that serves the UE, as the source NG-RAN node reported it.
   /// \returns The response of the Path Switch Request procedure.
   virtual async_task<cu_cp_path_switch_response>
-  handle_path_switch_request_required(const cu_cp_path_switch_request& request) = 0;
+  handle_path_switch_request_required(const cu_cp_path_switch_request& request, const guami_t& serving_guami) = 0;
 };
 
 /// Interface to control the NGAP.
@@ -361,6 +362,9 @@ public:
   /// \returns The core network assist info for inactive if available.
   virtual std::optional<cu_cp_core_network_assist_info_for_inactive>
   get_cn_assist_info_for_inactive(cu_cp_ue_index_t ue_index) = 0;
+
+  /// Returns the GUAMI of the AMF that serves the UE, if the AMF has signalled it.
+  virtual std::optional<guami_t> get_serving_guami(cu_cp_ue_index_t ue_index) = 0;
 };
 
 /// Interface to map between ue_index and amf_ue_id.

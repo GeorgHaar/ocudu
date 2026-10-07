@@ -100,7 +100,8 @@ void inter_cu_conditional_handover_target_execution_routine::operator()(coro_con
   // Step 5: Send Path Switch Request to AMF.
   path_switch_req = fill_path_switch_request();
   CORO_AWAIT_VALUE(path_switch_response,
-                   ngap.get_ngap_control_message_handler().handle_path_switch_request_required(path_switch_req));
+                   ngap.get_ngap_control_message_handler().handle_path_switch_request_required(path_switch_req,
+                                                                                               execution_ctxt.guami));
   if (!std::holds_alternative<cu_cp_path_switch_request_ack>(path_switch_response)) {
     logger.warning("ue={}: \"{}\" failed. Cause: Path Switch Request rejected by AMF", ue->get_ue_index(), name());
     ue_context_release_request = {.ue_index                         = ue->get_ue_index(),

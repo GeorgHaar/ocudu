@@ -99,6 +99,14 @@ ngap_impl::get_cn_assist_info_for_inactive(cu_cp_ue_index_t ue_index)
   return ue_ctxt.core_network_assist_info_for_inactive;
 }
 
+std::optional<guami_t> ngap_impl::get_serving_guami(cu_cp_ue_index_t ue_index)
+{
+  if (!ue_ctxt_list.contains(ue_index)) {
+    return std::nullopt;
+  }
+  return ue_ctxt_list[ue_index].serving_guami;
+}
+
 bool ngap_impl::handle_amf_tnl_connection_request()
 {
   // This could be a reconnection, so make sure the tx_pdu_notifier is released before creating a new one.
@@ -735,8 +743,10 @@ void ngap_impl::handle_pdu_session_resource_setup_request(const asn1::ngap::pdu_
 
   // Convert to common type.
   ngap_pdu_session_resource_setup_request msg;
-  msg.ue_index     = ue_ctxt.ue_ids.ue_index;
-  msg.serving_plmn = ue_ctxt.serving_guami.plmn;
+  msg.ue_index = ue_ctxt.ue_ids.ue_index;
+  if (ue_ctxt.serving_guami.has_value()) {
+    msg.serving_plmn = ue_ctxt.serving_guami->plmn;
+  }
   if (!fill_ngap_pdu_session_resource_setup_request(msg, request->pdu_session_res_setup_list_su_req)) {
     ue_ctxt.logger.log_warning("Conversion of PDUSessionResourceSetupRequest failed");
     send_error_indication(tx_pdu_notifier, logger, ue_ctxt.ue_ids.ran_ue_id, ue_ctxt.ue_ids.amf_ue_id, {});
@@ -1629,7 +1639,7 @@ ngap_impl::handle_rrc_inactive_transition_report_required(const ngap_rrc_inactiv
 }
 
 async_task<cu_cp_path_switch_response>
-ngap_impl::handle_path_switch_request_required(const cu_cp_path_switch_request& request)
+ngap_impl::handle_path_switch_request_required(const cu_cp_path_switch_request& request, const guami_t& serving_guami)
 {
   cu_cp_path_switch_response        failure_response;
   cu_cp_path_switch_request_failure failure;
@@ -1654,7 +1664,9 @@ ngap_impl::handle_path_switch_request_required(const cu_cp_path_switch_request& 
   ue_ctxt_list.add_ue(request.ue_index, ran_ue_id, *ue_notifier);
   ue_ctxt_list.update_amf_ue_id(ran_ue_id, uint_to_amf_ue_id(request.source_amf_ue_ngap_id));
 
+  // Store the GUAMI that the source NG-RAN node reported for the UE.
   ngap_ue_context& ue_ctxt = ue_ctxt_list[request.ue_index];
+  ue_ctxt.serving_guami    = serving_guami;
 
   return launch_async<ngap_path_switch_procedure>(request, ue_ctxt, ue_ctxt_list, tx_pdu_notifier);
 }

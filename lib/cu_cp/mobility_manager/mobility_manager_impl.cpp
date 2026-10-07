@@ -482,13 +482,7 @@ void mobility_manager::handle_xnap_handover(ngap_interface&  ngap,
 {
   const ngap_context_t& ngap_ctxt = ngap.get_ngap_context();
 
-  std::optional<guami_t> served_guami;
-  for (const auto& guami : ngap_ctxt.served_guami_list) {
-    if (guami.plmn == plmn) {
-      served_guami = guami;
-    }
-  }
-
+  std::optional<guami_t> served_guami = get_ue_guami(ngap, ue.get_ue_index(), plmn);
   if (!served_guami.has_value()) {
     logger.error("ue={}: Couldn't find GUAMI for {}", ue.get_ue_index(), plmn);
     return;

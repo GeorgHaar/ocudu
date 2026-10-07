@@ -37,6 +37,8 @@ public:
   std::optional<cu_cp_core_network_assist_info_for_inactive>
   get_cn_assist_info_for_inactive(cu_cp_ue_index_t ue_index) override;
 
+  std::optional<guami_t> get_serving_guami(cu_cp_ue_index_t ue_index) override;
+
   // NGAP connection manager functions.
   bool                             handle_amf_tnl_connection_request() override;
   async_task<void>                 handle_amf_disconnection_request() override;
@@ -74,8 +76,8 @@ public:
   async_task<void> handle_ul_non_ue_associated_nrppa_transport(const byte_buffer& nrppa_pdu) override;
   async_task<bool>
   handle_rrc_inactive_transition_report_required(const ngap_rrc_inactive_transition_report& report) override;
-  async_task<cu_cp_path_switch_response>
-  handle_path_switch_request_required(const cu_cp_path_switch_request& request) override;
+  async_task<cu_cp_path_switch_response> handle_path_switch_request_required(const cu_cp_path_switch_request& request,
+                                                                             const guami_t& serving_guami) override;
 
   // ngap_metrics_handler.
   ngap_info handle_ngap_metrics_report_request() const override;

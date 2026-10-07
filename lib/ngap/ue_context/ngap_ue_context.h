@@ -22,9 +22,12 @@ struct ngap_ue_ids {
 };
 
 struct ngap_ue_context {
-  ngap_ue_ids                                                ue_ids;
-  ngap_cu_cp_ue_notifier*                                    ue = nullptr;
-  guami_t                                                    serving_guami;
+  ngap_ue_ids             ue_ids;
+  ngap_cu_cp_ue_notifier* ue = nullptr;
+
+  /// GUAMI of the AMF that serves the UE (TS 38.413 section 9.3.3.3).
+  std::optional<guami_t> serving_guami;
+
   unique_timer                                               request_pdu_session_timer;
   bool                                                       release_requested                     = false;
   bool                                                       release_scheduled                     = false;

@@ -7,6 +7,7 @@
 
 #include "ocudu/ngap/ngap.h"
 #include "ocudu/ngap/ngap_configuration.h"
+#include "ocudu/ngap/ngap_ran_ue_id_allocator.h"
 #include "ocudu/support/executors/task_executor.h"
 #include "ocudu/support/timers.h"
 #include <memory>
@@ -19,6 +20,7 @@ class n2_connection_client;
 std::unique_ptr<ngap_interface> create_ngap(const ngap_configuration& ngap_cfg_,
                                             ngap_cu_cp_notifier&      cu_cp_notifier_,
                                             n2_connection_client&     n2_gateway_handler_,
+                                            ngap_ran_ue_id_allocator& ran_ue_ids_,
                                             timer_manager&            timers_,
                                             task_executor&            ctrl_exec_);
 

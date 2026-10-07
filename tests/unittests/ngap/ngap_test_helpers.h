@@ -9,6 +9,7 @@
 #include "test_helpers.h"
 #include "ocudu/cu_cp/cu_cp_configuration.h"
 #include "ocudu/ngap/ngap.h"
+#include "ocudu/ngap/ngap_ran_ue_id_allocator.h"
 #include "ocudu/ran/cu_cp_types.h"
 #include "ocudu/ran/cu_types.h"
 #include "ocudu/support/executors/manual_task_worker.h"
@@ -85,6 +86,7 @@ protected:
   dummy_n2_gateway                n2_gw;
   dummy_ngap_message_handler      dummy_amf;
   dummy_ngap_cu_cp_notifier       cu_cp_notifier{ue_mng};
+  ngap_ran_ue_id_allocator        ran_ue_ids;
   std::unique_ptr<ngap_interface> ngap;
 };
 

@@ -8,6 +8,7 @@
 #include "ngap_ue_logger.h"
 #include "ngap_ue_transaction_manager.h"
 #include "ocudu/ngap/ngap.h"
+#include "ocudu/ngap/ngap_ran_ue_id_allocator.h"
 #include "ocudu/ngap/ngap_types.h"
 #include "ocudu/support/timers.h"
 #include <unordered_map>
@@ -51,7 +52,18 @@ struct ngap_ue_context {
 class ngap_ue_context_list
 {
 public:
-  ngap_ue_context_list(timer_factory timers_, ocudulog::basic_logger& logger_) : timers(timers_), logger(logger_) {}
+  ngap_ue_context_list(timer_factory timers_, ngap_ran_ue_id_allocator& ran_ue_ids_, ocudulog::basic_logger& logger_) :
+    timers(timers_), ran_ue_ids(ran_ue_ids_), logger(logger_)
+  {
+  }
+
+  ~ngap_ue_context_list()
+  {
+    // Free the RAN UE NGAP IDs of the remaining UEs for the other NGAP instances.
+    for (const auto& ue : ues) {
+      ran_ue_ids.remove(ue.first);
+    }
+  }
 
   /// \brief Checks whether a UE with the given RAN UE ID exists.
   /// \param[in] ran_ue_id The RAN UE ID used to find the UE.
@@ -157,6 +169,7 @@ public:
                 std::forward_as_tuple(ran_ue_id),
                 std::forward_as_tuple(ue_index, ran_ue_id, ue_notifier, timers));
     ue_index_to_ran_ue_id.emplace(ue_index, ran_ue_id);
+    ran_ue_ids.add(ran_ue_id);
     return ues.at(ran_ue_id);
   }
 
@@ -243,65 +256,18 @@ public:
       amf_ue_id_to_ran_ue_id.erase(ues.at(ran_ue_id).ue_ids.amf_ue_id);
     }
     ues.erase(ran_ue_id);
+    ran_ue_ids.remove(ran_ue_id);
   }
 
   size_t size() const { return ues.size(); }
 
-  /// \brief Get the next available RAN-UE-ID.
-  ran_ue_id_t allocate_ran_ue_id()
-  {
-    // Return invalid when no RAN-UE-ID is available.
-    if (ue_index_to_ran_ue_id.size() == MAX_NOF_RAN_UES) {
-      return ran_ue_id_t::invalid;
-    }
-
-    // Check if the next_ran_ue_id is available.
-    if (ues.find(next_ran_ue_id) == ues.end()) {
-      ran_ue_id_t ret = next_ran_ue_id;
-      // Increase the next RAN-UE-ID.
-      increase_next_ran_ue_id();
-      return ret;
-    }
-
-    // Iterate over all ids starting with the next_ran_ue_id to find the available id.
-    while (true) {
-      // Iterate over ue_index_to_ran_ue_id.
-      auto it = std::find_if(ue_index_to_ran_ue_id.begin(), ue_index_to_ran_ue_id.end(), [this](auto& u) {
-        return u.second == next_ran_ue_id;
-      });
-
-      // Return the ID if it is not already used.
-      if (it == ue_index_to_ran_ue_id.end()) {
-        ran_ue_id_t ret = next_ran_ue_id;
-        // Increase the next RAN-UE-ID.
-        increase_next_ran_ue_id();
-        return ret;
-      }
-
-      // Increase the next RAN-UE-ID and try again.
-      increase_next_ran_ue_id();
-    }
-
-    return ran_ue_id_t::invalid;
-  }
-
-protected:
-  ran_ue_id_t next_ran_ue_id = ran_ue_id_t::min;
+  /// Returns the next RAN-UE-ID that no NGAP instance of the CU-CP uses.
+  ran_ue_id_t allocate_ran_ue_id() { return ran_ue_ids.allocate(); }
 
 private:
-  timer_factory           timers;
-  ocudulog::basic_logger& logger;
-
-  void increase_next_ran_ue_id()
-  {
-    if (next_ran_ue_id == ran_ue_id_t::max) {
-      // Reset RAN-UE-ID counter.
-      next_ran_ue_id = ran_ue_id_t::min;
-    } else {
-      // Increase RAN-UE-ID counter.
-      next_ran_ue_id = uint_to_ran_ue_id(to_underlying(next_ran_ue_id) + 1);
-    }
-  }
+  timer_factory             timers;
+  ngap_ran_ue_id_allocator& ran_ue_ids;
+  ocudulog::basic_logger&   logger;
 
   // Note: Given that UEs will self-remove from the map, we don't want to destructor to clear the lookups beforehand.
   std::unordered_map<cu_cp_ue_index_t, ran_ue_id_t> ue_index_to_ran_ue_id;  // indexed by ue_index

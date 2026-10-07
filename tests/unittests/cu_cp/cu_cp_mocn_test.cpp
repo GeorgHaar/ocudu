@@ -452,3 +452,50 @@ TEST_F(cu_cp_mocn_test, when_cells_of_different_plmns_share_an_nci_then_ue_is_ro
   const auto& user_loc_info = ngap_pdu.pdu.init_msg().value.init_ue_msg()->user_location_info.user_location_info_nr();
   ASSERT_EQ(user_loc_info.nr_cgi.plmn_id.to_number(), cell_a.plmn_id.to_bcd());
 }
+
+TEST_F(cu_cp_mocn_test, when_ues_attach_through_different_amfs_then_ran_ue_ngap_ids_are_unique)
+{
+  // Run NG setup to completion.
+  run_ng_setup();
+
+  // Setup DU with a cell that broadcasts both PLMNs.
+  auto ret = connect_new_du();
+  ASSERT_TRUE(ret.has_value());
+  unsigned du_idx = ret.value();
+  ASSERT_TRUE(this->run_f1_setup(
+      du_idx,
+      int_to_gnb_du_id(0x11),
+      {test_helpers::served_cell_item_info{
+          .sib1_str =
+              "d20405c04300100e6640400000e000cd80018056109a000200046402051320c6b6c61b3704020000080800041a23524121304269"
+              "2f1200000464e35b63224f80b0664abff0124e9106e28dc61b8e372c6fbf56c70ea008580d003058b68228"}}));
+
+  // Setup CU-UP.
+  ret = connect_new_cu_up();
+  ASSERT_TRUE(ret.has_value());
+  unsigned cu_up_idx = ret.value();
+  ASSERT_TRUE(this->run_e1_setup(cu_up_idx));
+
+  // Attach one UE per PLMN and get the RAN UE NGAP ID of each Initial UE Message.
+  std::vector<uint64_t> ran_ue_ngap_ids;
+  for (unsigned amf_idx = 0; amf_idx != 2; ++amf_idx) {
+    gnb_du_ue_f1ap_id_t du_ue_f1ap_id = int_to_gnb_du_ue_f1ap_id(amf_idx);
+    rnti_t              crnti         = to_rnti(0x4601 + amf_idx);
+    get_du(du_idx).push_ul_pdu(test_helpers::generate_init_ul_rrc_message_transfer(du_ue_f1ap_id, crnti));
+    f1ap_message f1ap_pdu;
+    ASSERT_TRUE(this->wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu));
+    ASSERT_TRUE(test_helpers::is_valid_dl_rrc_message_transfer_with_msg4(f1ap_pdu));
+
+    // The UE selects the PLMN of AMF amf_idx. The selected PLMN starts at 1.
+    byte_buffer pdu = test_helpers::pack_ul_dcch_msg(test_helpers::create_rrc_setup_complete(amf_idx + 1));
+    get_du(du_idx).push_rrc_ul_dcch_message(du_ue_f1ap_id, srb_id_t::srb1, std::move(pdu));
+
+    ngap_message ngap_pdu;
+    ASSERT_TRUE(this->wait_for_ngap_tx_pdu(ngap_pdu, std::chrono::milliseconds{1000}, amf_idx));
+    ASSERT_TRUE(test_helpers::is_valid_init_ue_message(ngap_pdu));
+    ran_ue_ngap_ids.push_back(ngap_pdu.pdu.init_msg().value.init_ue_msg()->ran_ue_ngap_id);
+  }
+
+  // TS 38.401 section 6.2.1: The RAN UE NGAP ID is unique within the NG-RAN node.
+  ASSERT_NE(ran_ue_ngap_ids[0], ran_ue_ngap_ids[1]);
+}

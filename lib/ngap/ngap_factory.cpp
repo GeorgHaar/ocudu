@@ -14,9 +14,11 @@ using namespace ocucp;
 std::unique_ptr<ngap_interface> ocudu::ocucp::create_ngap(const ngap_configuration& ngap_cfg_,
                                                           ngap_cu_cp_notifier&      cu_cp_notifier_,
                                                           n2_connection_client&     n2_gateway_handler_,
+                                                          ngap_ran_ue_id_allocator& ran_ue_ids_,
                                                           timer_manager&            timers_,
                                                           task_executor&            ctrl_exec_)
 {
-  auto ngap = std::make_unique<ngap_impl>(ngap_cfg_, cu_cp_notifier_, n2_gateway_handler_, timers_, ctrl_exec_);
+  auto ngap =
+      std::make_unique<ngap_impl>(ngap_cfg_, cu_cp_notifier_, n2_gateway_handler_, ran_ue_ids_, timers_, ctrl_exec_);
   return ngap;
 }

@@ -17,8 +17,10 @@ using namespace ocucp;
 class ngap_ue_context_list_test : public ngap_ue_context_list
 {
 public:
-  ngap_ue_context_list_test(timer_factory& timers_, ocudulog::basic_logger& logger_) :
-    ngap_ue_context_list(timers_, logger_)
+  ngap_ue_context_list_test(timer_factory&            timers_,
+                            ngap_ran_ue_id_allocator& ran_ue_ids_,
+                            ocudulog::basic_logger&   logger_) :
+    ngap_ue_context_list(timers_, ran_ue_ids_, logger_)
   {
   }
 };
@@ -55,7 +57,8 @@ protected:
   manual_task_worker           ctrl_worker{128};
   timer_factory                timers{timer_mng, ctrl_worker};
   dummy_ngap_cu_cp_ue_notifier ue_notifier;
-  ngap_ue_context_list_test    ue_ctxt_list{timers, ngap_logger};
+  ngap_ran_ue_id_allocator     ran_ue_ids;
+  ngap_ue_context_list_test    ue_ctxt_list{timers, ran_ue_ids, ngap_logger};
 };
 
 TEST_F(ngap_ue_context_test, when_ue_added_then_ue_exists)
@@ -113,4 +116,34 @@ TEST_F(ngap_ue_context_test, when_ue_is_added_then_next_ue_id_is_increased)
   ASSERT_FALSE(ue_ctxt_list.contains(ue_index));
 
   ASSERT_EQ((unsigned)ue_ctxt_list.allocate_ran_ue_id(), (unsigned)ran_ue_id_t::min + 1);
+}
+
+TEST_F(ngap_ue_context_test, when_two_lists_share_an_allocator_then_ran_ue_ids_are_unique)
+{
+  ngap_ue_context_list_test other_ue_ctxt_list{timers, ran_ue_ids, ngap_logger};
+
+  ran_ue_id_t ran_ue_id = ue_ctxt_list.allocate_ran_ue_id();
+  ue_ctxt_list.add_ue(uint_to_ue_index(0), ran_ue_id, ue_notifier);
+  ran_ue_id_t other_ran_ue_id = other_ue_ctxt_list.allocate_ran_ue_id();
+  other_ue_ctxt_list.add_ue(uint_to_ue_index(1), other_ran_ue_id, ue_notifier);
+
+  ASSERT_NE(ran_ue_id, other_ran_ue_id);
+}
+
+TEST_F(ngap_ue_context_test, when_next_ran_ue_id_is_in_use_then_allocation_skips_it)
+{
+  // Use the ID that the allocator returns next.
+  ue_ctxt_list.add_ue(uint_to_ue_index(0), ran_ue_id_t::min, ue_notifier);
+
+  ASSERT_EQ(ue_ctxt_list.allocate_ran_ue_id(), uint_to_ran_ue_id(to_underlying(ran_ue_id_t::min) + 1));
+}
+
+TEST_F(ngap_ue_context_test, when_list_is_destroyed_then_its_ran_ue_ids_are_free)
+{
+  {
+    ngap_ue_context_list_test other_ue_ctxt_list{timers, ran_ue_ids, ngap_logger};
+    other_ue_ctxt_list.add_ue(uint_to_ue_index(0), ran_ue_id_t::min, ue_notifier);
+  }
+
+  ASSERT_EQ(ue_ctxt_list.allocate_ran_ue_id(), ran_ue_id_t::min);
 }

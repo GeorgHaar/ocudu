@@ -9,6 +9,7 @@
 #include "task_schedulers/ngap_task_scheduler.h"
 #include "ocudu/cu_cp/cu_cp_configuration.h"
 #include "ocudu/ngap/ngap.h"
+#include "ocudu/ngap/ngap_ran_ue_id_allocator.h"
 #include "ocudu/ran/plmn_identity.h"
 
 namespace ocudu::ocucp {
@@ -107,6 +108,9 @@ private:
   ocudulog::basic_logger&            logger;
 
   ngap_task_scheduler amf_task_sched;
+
+  /// RAN UE NGAP IDs in use by all NGAPs.
+  ngap_ran_ue_id_allocator ran_ue_ids;
 
   std::unordered_map<plmn_identity, cu_cp_amf_index_t> plmn_to_amf_index;
   std::map<cu_cp_amf_index_t, ngap_context>            ngap_db;

@@ -56,7 +56,7 @@ ngap_test::ngap_test() :
   ngap_cfg.ran_node_name               = cu_cp_cfg.node.ran_node_name;
   ngap_cfg.supported_tas               = cu_cp_cfg.ngap.ngaps.front().supported_tas;
   ngap_cfg.request_pdu_session_timeout = cu_cp_cfg.ue.request_pdu_session_timeout;
-  ngap = create_ngap(ngap_cfg, cu_cp_notifier, *cu_cp_cfg.ngap.n2_gws.front(), timers, ctrl_worker);
+  ngap = create_ngap(ngap_cfg, cu_cp_notifier, *cu_cp_cfg.ngap.n2_gws.front(), ran_ue_ids, timers, ctrl_worker);
 
   cu_cp_notifier.connect_ngap(ngap->get_ngap_ue_context_removal_handler());
   n2_gw.attach_handler(&dummy_amf);

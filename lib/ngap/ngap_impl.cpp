@@ -39,10 +39,11 @@ using namespace ocucp;
 ngap_impl::ngap_impl(const ngap_configuration& ngap_cfg_,
                      ngap_cu_cp_notifier&      cu_cp_notifier_,
                      n2_connection_client&     n2_gateway,
+                     ngap_ran_ue_id_allocator& ran_ue_ids,
                      timer_manager&            timers_,
                      task_executor&            ctrl_exec_) :
   logger(ocudulog::fetch_basic_logger("NGAP")),
-  ue_ctxt_list(timer_factory{timers_, ctrl_exec_}, logger),
+  ue_ctxt_list(timer_factory{timers_, ctrl_exec_}, ran_ue_ids, logger),
   cu_cp_notifier(cu_cp_notifier_),
   timers(timers_),
   ctrl_exec(ctrl_exec_),

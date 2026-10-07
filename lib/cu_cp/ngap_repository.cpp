@@ -52,7 +52,7 @@ ngap_interface* ngap_repository::add_ngap(cu_cp_amf_index_t amf_index)
                                               cfg.procedure_timeout,
                                               cfg.request_pdu_session_timeout};
   std::unique_ptr<ngap_interface> ngap_entity =
-      create_ngap(ngap_cfg, ngap_ctxt.ngap_to_cu_cp_notifier, n2_gw, timers, cu_cp_executor);
+      create_ngap(ngap_cfg, ngap_ctxt.ngap_to_cu_cp_notifier, n2_gw, ran_ue_ids, timers, cu_cp_executor);
 
   if (ngap_entity == nullptr) {
     logger.error("Failed to create NGAP");

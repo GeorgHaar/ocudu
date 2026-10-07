@@ -152,6 +152,46 @@ du_bearer_resource_manager::supported_allowed_harq_mode(const du_ue_resource_con
   return allowed_harq_mode;
 }
 
+std::optional<dl_harq_feedback>
+du_bearer_resource_manager::supported_dl_harq_feedback(const du_ue_resource_config&           ue_cfg,
+                                                       const std::optional<dl_harq_feedback>& allowed_dl_harq_feedback,
+                                                       lcid_t                                 lcid) const
+{
+  if (not allowed_dl_harq_feedback.has_value()) {
+    return std::nullopt;
+  }
+
+  // An absent PDSCH serving cell config leaves the feedback of every process enabled, as per TS 38.331.
+  harq_dl_feedback_disabled_mask disabled_mask(MAX_NOF_HARQS);
+  auto        nof_harqs = static_cast<unsigned>(pdsch_serving_cell_config::nof_harq_proc_for_pdsch::n16);
+  const auto& serv_cell = ue_cfg.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg;
+  if (serv_cell.pdsch_serv_cell_cfg.has_value()) {
+    disabled_mask = serv_cell.pdsch_serv_cell_cfg->dl_harq_feedback_disabled;
+    nof_harqs     = static_cast<unsigned>(serv_cell.pdsch_serv_cell_cfg->nof_harq_proc);
+  }
+
+  if (not is_dl_harq_feedback_available(disabled_mask, nof_harqs, *allowed_dl_harq_feedback)) {
+    logger.warning("lcid={}: Dropping the allowed DL HARQ feedback restriction. Cause: no DL HARQ process of this UE "
+                   "has its feedback {}",
+                   lcid,
+                   *allowed_dl_harq_feedback);
+    return std::nullopt;
+  }
+
+  // The restriction selects nothing when every process already carries the allowed feedback.
+  const dl_harq_feedback other_feedback =
+      *allowed_dl_harq_feedback == dl_harq_feedback::enabled ? dl_harq_feedback::disabled : dl_harq_feedback::enabled;
+  if (not is_dl_harq_feedback_available(disabled_mask, nof_harqs, other_feedback)) {
+    logger.debug("lcid={}: Dropping the allowed DL HARQ feedback restriction. Cause: every DL HARQ process of this UE "
+                 "has its feedback {}",
+                 lcid,
+                 *allowed_dl_harq_feedback);
+    return std::nullopt;
+  }
+
+  return allowed_dl_harq_feedback;
+}
+
 du_ue_bearer_resource_update_response
 du_bearer_resource_manager::update(du_ue_resource_config&                      ue_cfg,
                                    const du_ue_bearer_resource_update_request& upd_req,
@@ -176,8 +216,9 @@ du_bearer_resource_manager::update(du_ue_resource_config&                      u
   // Modify DRBs.
   resp.drbs_failed_to_mod = modify_drbs(ue_cfg, upd_req);
 
-  // Keep the signalling of the UE out of the mode B grants its data is served by.
+  // Keep the SRBs on the HARQ processes that retransmit, UL mode A and DL feedback enabled.
   restrict_srbs_to_mode_a(ue_cfg);
+  restrict_srbs_to_dl_feedback(ue_cfg);
 
   return resp;
 }
@@ -187,6 +228,14 @@ void du_bearer_resource_manager::restrict_srbs_to_mode_a(du_ue_resource_config& 
   for (du_ue_srb_config& srb : ue_cfg.srbs) {
     srb.mac_cfg.allowed_harq_mode =
         supported_allowed_harq_mode(ue_cfg, ul_harq_mode::mode_a, srb_id_to_lcid(srb.srb_id));
+  }
+}
+
+void du_bearer_resource_manager::restrict_srbs_to_dl_feedback(du_ue_resource_config& ue_cfg) const
+{
+  for (du_ue_srb_config& srb : ue_cfg.srbs) {
+    srb.mac_cfg.allowed_dl_harq_feedback =
+        supported_dl_harq_feedback(ue_cfg, dl_harq_feedback::enabled, srb_id_to_lcid(srb.srb_id));
   }
 }
 
@@ -255,7 +304,8 @@ std::vector<drb_id_t> du_bearer_resource_manager::setup_drbs(du_ue_resource_conf
       // Populate MAC LC configuration for GBR DRB if GBR QoS information is present.
       new_drb.mac_cfg = make_gbr_drb_mac_lc_config(*drb_to_setup.qos_info.drb_qos.gbr_qos_info, allowed_harq_mode);
     }
-    new_drb.mac_cfg.triggered_ul_grant = qos.triggered_ul_grant;
+    new_drb.mac_cfg.triggered_ul_grant       = qos.triggered_ul_grant;
+    new_drb.mac_cfg.allowed_dl_harq_feedback = supported_dl_harq_feedback(ue_cfg, qos.allowed_dl_harq_feedback, lcid);
 
     // Update pdcp_sn_len in RLC config
     auto& rlc_cfg = new_drb.rlc_cfg;

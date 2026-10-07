@@ -56,6 +56,19 @@ private:
   /// mode B processes once it has reported the capability.
   void restrict_srbs_to_mode_a(du_ue_resource_config& ue_cfg) const;
 
+  /// \brief Returns the DL HARQ feedback allowed for this UE's logical channel, if any.
+  ///
+  /// The DL HARQ processes of a UE that does not support disabled feedback always carry feedback, regardless of the
+  /// cell's configured mask. Therefore, if the mask imposes a restriction that no HARQ process of this UE can satisfy,
+  /// the restriction is ignored; otherwise, the logical channel could be excluded from all transport blocks.
+  std::optional<dl_harq_feedback>
+  supported_dl_harq_feedback(const du_ue_resource_config&           ue_cfg,
+                             const std::optional<dl_harq_feedback>& allowed_dl_harq_feedback,
+                             lcid_t                                 lcid) const;
+
+  /// Restricts the SRBs of the UE to DL HARQ processes with feedback, when that restriction selects anything.
+  void restrict_srbs_to_dl_feedback(du_ue_resource_config& ue_cfg) const;
+
   void                  setup_srbs(du_ue_resource_config& ue_cfg, const du_ue_bearer_resource_update_request& request);
   std::vector<drb_id_t> setup_drbs(du_ue_resource_config& ue_cfg, const du_ue_bearer_resource_update_request& request);
   std::vector<drb_id_t> modify_drbs(du_ue_resource_config& ue_cfg, const du_ue_bearer_resource_update_request& request);

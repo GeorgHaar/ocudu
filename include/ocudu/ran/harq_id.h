@@ -44,6 +44,25 @@ inline bool is_ul_harq_mode_available(const harq_ul_mode_mask& mode_mask, unsign
   return mode == ul_harq_mode::mode_a ? mode_mask.any(0, nof_checked) : not mode_mask.all(0, nof_checked);
 }
 
+/// Enables/disables the DL HARQ feedback a HARQ process carries, as per \c downlinkHARQ-FeedbackDisabled,
+/// TS 38.331, Section 6.3.2.
+enum class dl_harq_feedback : uint8_t { enabled, disabled };
+
+inline const char* format_as(dl_harq_feedback feedback)
+{
+  return feedback == dl_harq_feedback::enabled ? "enabled" : "disabled";
+}
+
+/// Returns whether any of the first \c nof_harqs processes of the given mask carries the given DL HARQ feedback.
+inline bool
+is_dl_harq_feedback_available(const harq_dl_feedback_disabled_mask& mask, unsigned nof_harqs, dl_harq_feedback feedback)
+{
+  const size_t nof_checked = std::min(static_cast<size_t>(nof_harqs), mask.size());
+  // A bit set to one identifies a process with the DL HARQ feedback disabled, so the feedback is left wherever a bit
+  // is still zero.
+  return feedback == dl_harq_feedback::disabled ? mask.any(0, nof_checked) : not mask.all(0, nof_checked);
+}
+
 /// Outcomes of a HARQ-ACK report.
 enum class mac_harq_ack_report_status : int8_t { nack = 0, ack, dtx };
 

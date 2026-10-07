@@ -958,6 +958,9 @@ static void fill_du_high_mac_qos_section(YAML::Node node, const du_high_unit_mac
   if (config.allowed_harq_mode.has_value()) {
     node["allowed_harq_mode"] = *config.allowed_harq_mode;
   }
+  if (config.dl_harq_feedback.has_value()) {
+    node["dl_harq_feedback"] = *config.dl_harq_feedback;
+  }
 }
 
 static void fill_du_high_qos_entry(YAML::Node node, const du_high_unit_qos_config& config)
@@ -966,7 +969,8 @@ static void fill_du_high_qos_entry(YAML::Node node, const du_high_unit_qos_confi
   fill_du_high_rlc_qos_section(node["rlc"], config.rlc);
   fill_du_high_f1u_qos_section(node["f1u_du"], config.f1u_du);
   // The MAC section is only emitted when it carries non-default values.
-  if (config.mac.triggered_ul_grant.has_value() or config.mac.allowed_harq_mode.has_value()) {
+  if (config.mac.triggered_ul_grant.has_value() or config.mac.allowed_harq_mode.has_value() or
+      config.mac.dl_harq_feedback.has_value()) {
     fill_du_high_mac_qos_section(node["mac"], config.mac);
   }
 }

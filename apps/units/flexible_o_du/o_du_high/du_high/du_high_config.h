@@ -1670,6 +1670,9 @@ struct du_high_unit_mac_config {
   /// UL HARQ mode a grant must use for a logical channel of this 5QI to be multiplexed into it, as per \c
   /// allowedHARQ-mode, TS 38.331. One of {mode_a, mode_b}. Unrestricted when absent.
   std::optional<std::string> allowed_harq_mode;
+  /// [Implementation-defined] DL HARQ feedback a process must carry for a logical channel of this 5QI to be
+  /// multiplexed into its transport block. One of {enabled, disabled}. Unrestricted when absent.
+  std::optional<std::string> dl_harq_feedback;
 };
 
 /// QoS configuration

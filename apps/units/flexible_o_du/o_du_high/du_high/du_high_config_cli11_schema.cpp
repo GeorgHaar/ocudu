@@ -3035,9 +3035,15 @@ static void configure_cli11_qos_args(CLI::App& app, du_high_unit_qos_config& qos
   add_option(*mac_subcmd,
              "--allowed_harq_mode",
              qos_params.mac.allowed_harq_mode,
-             "UL HARQ mode a grant must use for a logical channel of this 5QI to be multiplexed into it. "
+             "Restricts a logical channel of this 5QI to UL grants whose HARQ mode is mode_a or mode_b, as set here. "
              "Unrestricted when unset")
       ->enum_values({"mode_a", "mode_b"});
+  add_option(*mac_subcmd,
+             "--dl_harq_feedback",
+             qos_params.mac.dl_harq_feedback,
+             "Restricts a logical channel of this 5QI to DL HARQ processes whose feedback is enabled or disabled, "
+             "as set here. Unrestricted when unset")
+      ->enum_values({"enabled", "disabled"});
   CLI::App* trig_ul_subcmd =
       add_subcommand(*mac_subcmd, "triggered_ul_grant", "Proactive UL grant triggered by DL allocation")
           ->configurable();

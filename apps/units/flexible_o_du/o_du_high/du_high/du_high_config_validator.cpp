@@ -2527,8 +2527,7 @@ static bool validate_allowed_harq_mode_config(const du_high_unit_config& config)
     const auto& pusch = cell.cell.pusch_cfg;
     // A bit set in harq_mode_b identifies a process in mode B, the inverse of the uplinkHARQ-mode mask of TS 38.331.
     const harq_ul_mode_mask mode_mask = ~pusch.harq_mode_b;
-    // A UE is given the processes of the cell capped to what it supports, so only the first ones are granted to every
-    // UE and a mode found beyond them does not serve all of them.
+    // A UE is given the processes of the cell capped to what it supports.
     const unsigned nof_harqs = std::min(pusch.nof_harqs, ue_capability_summary::default_max_harq_process_num);
 
     // [Implementation-defined] The scheduler always serves the SRBs on a mode A process, so at least one has to stay
@@ -2557,8 +2556,7 @@ static bool validate_allowed_harq_mode_config(const du_high_unit_config& config)
     for (ul_harq_mode mode : modes) {
       if (not is_ul_harq_mode_available(mode_mask, nof_harqs, mode)) {
         fmt::print("allowed_harq_mode={} cannot be met: none of the first {} UL HARQ processes of cell pci={} is "
-                   "configured in that mode. A UE is given more only when it reports support for them, so harq_mode_b "
-                   "must offer both modes among them\n",
+                   "configured in that mode. Fix harq_mode_b so one of them is\n",
                    mode,
                    nof_harqs,
                    cell.cell.pci);

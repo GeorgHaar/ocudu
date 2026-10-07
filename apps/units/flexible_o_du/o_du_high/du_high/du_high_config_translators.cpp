@@ -1279,6 +1279,14 @@ static std::optional<ul_harq_mode> generate_allowed_harq_mode(const std::optiona
   return *allowed_harq_mode == "mode_a" ? ul_harq_mode::mode_a : ul_harq_mode::mode_b;
 }
 
+static std::optional<dl_harq_feedback> generate_dl_harq_feedback(const std::optional<std::string>& dl_harq_feedback_)
+{
+  if (not dl_harq_feedback_.has_value()) {
+    return std::nullopt;
+  }
+  return *dl_harq_feedback_ == "enabled" ? dl_harq_feedback::enabled : dl_harq_feedback::disabled;
+}
+
 static std::map<five_qi_t, odu::du_qos_config> generate_du_qos_config(const du_high_unit_config& config)
 {
   std::map<five_qi_t, odu::du_qos_config> out_cfg = {};
@@ -1343,7 +1351,8 @@ static std::map<five_qi_t, odu::du_qos_config> generate_du_qos_config(const du_h
       out_trig.grant_size = qos.mac.triggered_ul_grant->grant_size;
     }
 
-    out_cfg[qos.five_qi].allowed_harq_mode = generate_allowed_harq_mode(qos.mac.allowed_harq_mode);
+    out_cfg[qos.five_qi].allowed_harq_mode        = generate_allowed_harq_mode(qos.mac.allowed_harq_mode);
+    out_cfg[qos.five_qi].allowed_dl_harq_feedback = generate_dl_harq_feedback(qos.mac.dl_harq_feedback);
   }
   return out_cfg;
 }

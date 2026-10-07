@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 # Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
-add_library(ocudu_cuda_ldpc ldpc_decoder.cu)
+add_library(ocudu_cuda_ldpc ldpc_decoder.cu ldpc_encoder.cu)
 
 target_link_libraries(ocudu_cuda_ldpc ocudu_cuda_adt ocudu_support CUDA::cudart)
 

@@ -15,6 +15,7 @@
 #include "ocudu/ran/srs/srs_bandwidth_configuration.h"
 #include "ocudu/scheduler/config/scheduler_expert_config_factory.h"
 #include "ocudu/scheduler/sched_consts.h"
+#include <algorithm>
 #include <gtest/gtest.h>
 
 using namespace ocudu;
@@ -167,13 +168,15 @@ public:
   ocudulog::basic_logger& test_logger = ocudulog::fetch_basic_logger("TEST");
 
   // Class methods.
-  void add_ue(srs_periodicity srs_period)
+  void add_ue(srs_periodicity srs_period, du_ue_index_t ue_index = to_du_ue_index(0), rnti_t crnti = to_rnti(0x4601))
   {
     sched_ue_creation_request_message ue_req = create_sched_ue_creation_request_for_srs_cfg(
         cfg_mng.get_default_ue_config_request(),
         srs_period,
         cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.crbs.length(),
         cell_cfg.params.tdd_cfg);
+    ue_req.ue_index = ue_index;
+    ue_req.crnti    = crnti;
     ue_ded_cfgs.emplace_back(cfg_mng.add_ue(ue_req));
     report_error_if_not(ue_ded_cfgs.back() != nullptr, "Failed to create UE configuration");
     ues.add_ue(*ue_ded_cfgs.back(), {sched_config_helper::to_ue_creation_mode(ue_req), ue_req.ul_ccch_slot_rx});
@@ -427,4 +430,52 @@ TEST_F(srs_positioning_scheduler_test, when_neighbor_cell_ue_positioning_is_requ
     }
   }
   ASSERT_LT(count, max_pdu_count);
+}
+
+TEST_F(srs_positioning_scheduler_test,
+       when_positioning_of_one_ue_starts_or_stops_then_srs_pdus_of_other_ues_keep_their_flag)
+{
+  constexpr rnti_t rnti_a = to_rnti(0x4601);
+  constexpr rnti_t rnti_b = to_rnti(0x4602);
+  add_ue(srs_period, to_du_ue_index(0), rnti_a);
+  add_ue(srs_period, to_du_ue_index(1), rnti_b);
+  const auto& srs_cfg_a = ues[to_du_ue_index(0)].ue_cfg_dedicated()->pcell_cfg().init_bwp().ul.ded()->srs_cfg.value();
+  const auto& srs_cfg_b = ues[to_du_ue_index(1)].ue_cfg_dedicated()->pcell_cfg().init_bwp().ul.ded()->srs_cfg.value();
+
+  // Runs the scheduler and returns the positioning flags seen on the SRS PDUs of each UE.
+  auto run_slots = [this](unsigned nof_slots) {
+    std::vector<bool> flags_a;
+    std::vector<bool> flags_b;
+    for (unsigned i = 0; i != nof_slots; ++i) {
+      this->srs_sched.run_slot(this->res_grid);
+      for (const auto& pdu : res_grid[0].result.ul.srss) {
+        if (pdu.crnti == rnti_a) {
+          flags_a.push_back(pdu.positioning_report_requested);
+        } else if (pdu.crnti == rnti_b) {
+          flags_b.push_back(pdu.positioning_report_requested);
+        }
+      }
+      slot_indication(++current_sl_tx);
+    }
+    return std::make_pair(flags_a, flags_b);
+  };
+  const unsigned nof_slots = static_cast<unsigned>(srs_period) * 4;
+
+  // Measuring UE A does not flag the SRS of UE B.
+  srs_sched.handle_positioning_measurement_request(
+      make_positioning_cell_request(rnti_a, to_du_ue_index(0), to_du_cell_index(0), srs_cfg_a));
+  auto [flags_a, flags_b] = run_slots(nof_slots);
+  ASSERT_FALSE(flags_a.empty());
+  ASSERT_FALSE(flags_b.empty());
+  EXPECT_TRUE(std::all_of(flags_a.begin(), flags_a.end(), [](bool f) { return f; }));
+  EXPECT_TRUE(std::none_of(flags_b.begin(), flags_b.end(), [](bool f) { return f; }));
+
+  // Starting UE B and stopping UE A does not clear the flag of the SRS already scheduled for UE B.
+  srs_sched.handle_positioning_measurement_request(
+      make_positioning_cell_request(rnti_b, to_du_ue_index(1), to_du_cell_index(0), srs_cfg_b));
+  srs_sched.handle_positioning_measurement_stop(rnti_a);
+  std::tie(flags_a, flags_b) = run_slots(nof_slots);
+  ASSERT_FALSE(flags_b.empty());
+  EXPECT_TRUE(std::all_of(flags_b.begin(), flags_b.end(), [](bool f) { return f; }));
+  EXPECT_TRUE(std::none_of(flags_a.begin(), flags_a.end(), [](bool f) { return f; }));
 }

@@ -331,7 +331,10 @@ void srs_scheduler_impl::schedule_updated_ues_srs(cell_resource_allocator& cell_
         if (ue_upd.type == ue_update::type_t::positioning_stop or
             ue_upd.type == ue_update::type_t::positioning_request) {
           for (auto& pdu : slot_alloc.result.ul.srss) {
-            pdu.positioning_report_requested = ue_upd.type == ue_update::type_t::positioning_request;
+            // Several positioning measurements can run at the same time, so only the PDUs of this RNTI change.
+            if (pdu.crnti == ue_upd.rnti) {
+              pdu.positioning_report_requested = ue_upd.type == ue_update::type_t::positioning_request;
+            }
           }
         }
       }

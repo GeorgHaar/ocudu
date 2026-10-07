@@ -11,6 +11,22 @@ namespace ocudu {
 
 struct resource_grid_context;
 
+/// Reasons for discarding a PUxCH request.
+enum class puxch_request_discard_reason {
+  /// The demodulator assigned to the slot is still busy with a previous slot.
+  demodulator_busy
+};
+
+/// Gets a string representing a \c puxch_request_discard_reason value.
+inline const char* to_string(puxch_request_discard_reason reason)
+{
+  switch (reason) {
+    case puxch_request_discard_reason::demodulator_busy:
+    default:
+      return "demodulator busy";
+  }
+}
+
 /// Lower physical layer interface used to notify miscellaneous types of error events.
 class lower_phy_error_notifier
 {
@@ -53,6 +69,16 @@ public:
   ///
   /// \param[in] context Context of the PUxCH request raising the error notification.
   virtual void on_puxch_request_late(const resource_grid_context& context) = 0;
+
+  /// \brief Notifies a discarded PUxCH request.
+  ///
+  /// This error occurs when a PUxCH request for slot \f$n\f$ cannot be processed, for example, because the
+  /// demodulation resources are still busy with a previous slot.
+  ///
+  /// \param[in] context Context of the PUxCH request raising the error notification.
+  /// \param[in] reason  Reason for discarding the request.
+  virtual void on_puxch_request_discarded(const resource_grid_context& context,
+                                          puxch_request_discard_reason reason) = 0;
 };
 
 } // namespace ocudu

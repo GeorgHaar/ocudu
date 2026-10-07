@@ -594,8 +594,19 @@ TEST_P(LowerPhyFixture, ErrorNotifiers)
     ASSERT_EQ(context, entries.back());
   }
 
-  // Assert only four error events.
-  ASSERT_EQ(error_notifier_spy.get_nof_errors(), 4);
+  // Notify discarded PUxCH request event.
+  {
+    resource_grid_context context;
+    context.sector = sector_id_dist(rgen);
+    context.slot   = slot_point(to_numerology_value(scs), slot_dist(rgen));
+    puxch_notifier->on_puxch_request_discarded(context, puxch_request_discard_reason::demodulator_busy);
+    auto& entries = error_notifier_spy.get_puxch_request_discarded_errors();
+    ASSERT_EQ(entries.size(), 1);
+    ASSERT_EQ(context, entries.back());
+  }
+
+  // Assert only five error events.
+  ASSERT_EQ(error_notifier_spy.get_nof_errors(), 5);
 
   // No other events.
   ASSERT_EQ(timing_notifier_spy.get_nof_events(), 0);

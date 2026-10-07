@@ -9,7 +9,6 @@
 #include "puxch_baseband_demodulator.h"
 #include "puxch_processor_demodulator_notifier.h"
 #include "ocudu/gateways/baseband/buffer/baseband_gateway_buffer_ptr_view.h"
-#include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/phy/lower/modulation/ofdm_demodulator.h"
 #include "ocudu/phy/lower/processors/lower_phy_center_freq_controller.h"
 #include "ocudu/phy/lower/processors/uplink/puxch/puxch_processor.h"
@@ -40,7 +39,6 @@ public:
   puxch_processor_impl(std::unique_ptr<ofdm_symbol_demodulator> demodulator_,
                        task_executor&                           executor,
                        const configuration&                     config) :
-    logger(ocudulog::fetch_basic_logger("PHY")),
     nof_symbols_per_slot(get_nsymb_per_slot(config.cp)),
     common_ofdm_demodulator(std::move(demodulator_)),
     demodulators(max_nof_concurrent_slots)
@@ -90,8 +88,6 @@ private:
   void on_demodulation_completion(const shared_resource_grid&        grid,
                                   const lower_phy_rx_symbol_context& context) override;
 
-  /// Physical layer logger.
-  ocudulog::basic_logger& logger;
   /// Set to true when upper layers request to stop.
   std::atomic<bool> stopped = false;
   /// Number of OFDM symbols per slot.
@@ -102,8 +98,10 @@ private:
   std::unique_ptr<ofdm_symbol_demodulator> common_ofdm_demodulator;
   /// Uplink physical channel baseband demodulators.
   std::vector<std::unique_ptr<puxch_baseband_demodulator>> demodulators;
-  /// Demodulator of the current slot receiving samples.
-  puxch_baseband_demodulator* current_demodulator = nullptr;
+  /// \brief Points to a PUxCH demodulator for processing the current slot receiving samples.
+  ///
+  /// Set to \c nullptr if the current slot is not associated with a receive request.
+  puxch_baseband_demodulator_scoped current_demodulator;
   /// Current slot.
   slot_point current_slot;
   /// Pool of receive requests.

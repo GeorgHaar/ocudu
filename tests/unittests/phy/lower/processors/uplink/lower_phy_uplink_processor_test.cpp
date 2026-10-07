@@ -11,6 +11,7 @@
 #include "uplink_processor_notifier_test_doubles.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/gateways/baseband/buffer/baseband_gateway_buffer_pool.h"
+#include "ocudu/ocuduvec/copy.h"
 #include "ocudu/phy/lower/processors/uplink/uplink_processor_baseband.h"
 #include "ocudu/phy/lower/processors/uplink/uplink_processor_factories.h"
 #include "ocudu/ran/resource_block.h"
@@ -307,6 +308,131 @@ TEST_P(LowerPhyUplinkProcessorFixture, Flow)
           // Increment timestamp.
           timestamp += cp_size + base_symbol_size;
         }
+      }
+    }
+  }
+}
+
+TEST_P(LowerPhyUplinkProcessorFixture, UnalignedFlow)
+{
+  unsigned           nof_rx_ports = std::get<0>(GetParam());
+  sampling_rate      srate        = std::get<1>(GetParam());
+  subcarrier_spacing scs          = std::get<2>(GetParam());
+  cyclic_prefix      cp           = std::get<3>(GetParam());
+
+  // Size of an OFDM symbol in samples.
+  unsigned base_symbol_size = srate.get_dft_size(scs);
+
+  // Scaling factor to convert between floating-point to 16-bit integer.
+  static constexpr unsigned float_to_i16_scale = std::numeric_limits<int16_t>::max();
+
+  // Baseband buffers containing each OFDM symbol.
+  std::vector<baseband_gateway_buffer_dynamic> symbols;
+
+  // Generate both symbols with random data.
+  for (unsigned i_symbol = 0; i_symbol != 2; ++i_symbol) {
+    // Get the symbol size in samples.
+    unsigned symbol_size = cp.get_length(i_symbol, scs).to_samples(srate.to_Hz()) + base_symbol_size;
+    // Build the baseband buffer for this OFDM symbol.
+    baseband_gateway_buffer_dynamic& buffer = symbols.emplace_back(nof_rx_ports, symbol_size);
+
+    // Populate each port witn random data.
+    for (unsigned i_port = 0; i_port != nof_rx_ports; ++i_port) {
+      span<ci16_t> port_buffer = buffer[i_port];
+      std::generate(port_buffer.begin(), port_buffer.end(), []() {
+        return to_ci16(cf_t(dist_sample(rgen) * float_to_i16_scale, dist_sample(rgen) * float_to_i16_scale));
+      });
+    }
+  }
+
+  const baseband_gateway_buffer_reader& symbol0 = symbols[0].get_reader();
+  const baseband_gateway_buffer_reader& symbol1 = symbols[1].get_reader();
+
+  // Create notifiers and connect.
+  uplink_processor_notifier_spy uplink_proc_notifier_spy;
+  prach_processor_notifier_spy  prach_proc_notifier_spy;
+  puxch_processor_notifier_spy  puxch_proc_notifier_spy;
+  ul_processor->connect(uplink_proc_notifier_spy, prach_proc_notifier_spy, puxch_proc_notifier_spy);
+
+  // Get the baseband uplink processor.
+  uplink_processor_baseband& ul_proc_baseband = ul_processor->get_baseband();
+
+  // Create a baseband buffer pool.
+  baseband_gateway_buffer_pool buffer_pool(1, nof_rx_ports, symbol0.get_nof_samples() + symbol1.get_nof_samples());
+
+  // Spread the first OFDM symbol into two buffers, the PUxCH processor will assemble the complete OFDM symbol merging
+  // both buffers.
+  unsigned half_size = symbol0.get_nof_samples() / 2;
+  for (unsigned i_half = 0; i_half != 2; ++i_half) {
+    unsigned offset      = i_half * half_size;
+    unsigned nof_samples = (i_half == 0) ? half_size : (symbol0.get_nof_samples() - half_size);
+
+    baseband_gateway_buffer_ptr buffer = buffer_pool.get();
+    ASSERT_TRUE(buffer);
+
+    buffer->resize(nof_samples);
+    for (unsigned i_port = 0; i_port != nof_rx_ports; ++i_port) {
+      ocuduvec::copy((*buffer)[i_port], symbol0.get_channel_buffer(i_port).subspan(offset, nof_samples));
+    }
+
+    ul_proc_baseband.process(std::move(buffer), offset);
+
+    // The OFDM symbol is incomplete after the first half.
+    if (i_half == 0) {
+      ASSERT_TRUE(puxch_proc_spy->get_baseband_entries().empty());
+    }
+  }
+
+  // The PUxCH processor receives the first OFDM symbol, assembled from the two buffers.
+  {
+    const auto& puxch_proc_entries = puxch_proc_spy->get_baseband_entries();
+    ASSERT_EQ(puxch_proc_entries.size(), 1);
+    ASSERT_EQ(puxch_proc_entries[0].context.slot, slot_point(to_numerology_value(scs), 0));
+    ASSERT_EQ(puxch_proc_entries[0].context.nof_symbols, 0);
+
+    // Ensure that the assembled samples from the PUxCH processor equal the original OFDM symbol.
+    for (unsigned i_port = 0; i_port != nof_rx_ports; ++i_port) {
+      error_type<std::string> compare_result = compare_sequences(
+          puxch_proc_entries[0].samples.get_channel_buffer(i_port), symbol0.get_channel_buffer(i_port));
+      ASSERT_TRUE(compare_result.has_value()) << compare_result.error();
+    }
+  }
+
+  // Clear the PUxCH processor entries.
+  puxch_proc_spy->clear();
+
+  // Combine both OFDM symbols in a single receive buffer, the PUxCH processor will split the buffer for each OFDM
+  // symbol.
+  {
+    baseband_gateway_buffer_ptr buffer = buffer_pool.get();
+    ASSERT_TRUE(buffer);
+
+    buffer->resize(symbol0.get_nof_samples() + symbol1.get_nof_samples());
+    for (unsigned i_port = 0; i_port != nof_rx_ports; ++i_port) {
+      span<ci16_t> port_buffer = (*buffer)[i_port];
+      ocuduvec::copy(port_buffer.first(symbol0.get_nof_samples()), symbol0.get_channel_buffer(i_port));
+      ocuduvec::copy(port_buffer.last(symbol1.get_nof_samples()), symbol1.get_channel_buffer(i_port));
+    }
+
+    ul_proc_baseband.process(std::move(buffer), srate.to_kHz());
+  }
+
+  // The PUxCH processor receives the two OFDM symbols, split from the single buffer.
+  {
+    slot_point slot(to_numerology_value(scs), get_nof_slots_per_subframe(scs));
+
+    const auto& puxch_proc_entries = puxch_proc_spy->get_baseband_entries();
+    ASSERT_EQ(puxch_proc_entries.size(), 2);
+
+    for (unsigned i_symbol = 0; i_symbol != 2; ++i_symbol) {
+      ASSERT_EQ(puxch_proc_entries[i_symbol].context.slot, slot);
+      ASSERT_EQ(puxch_proc_entries[i_symbol].context.nof_symbols, i_symbol);
+
+      for (unsigned i_port = 0; i_port != nof_rx_ports; ++i_port) {
+        error_type<std::string> compare_result =
+            compare_sequences(puxch_proc_entries[i_symbol].samples.get_channel_buffer(i_port),
+                              symbols[i_symbol].get_reader().get_channel_buffer(i_port));
+        ASSERT_TRUE(compare_result.has_value()) << compare_result.error();
       }
     }
   }

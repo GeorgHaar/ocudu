@@ -9,7 +9,7 @@
 
 namespace ocudu {
 
-/// Baseband buffer reader view that keeps the viewed pooled buffer alive.
+/// Baseband buffer reader view that keeps the viewed pooled buffer shared ownership.
 class baseband_gateway_buffer_ptr_view : public baseband_gateway_buffer_reader
 {
 public:

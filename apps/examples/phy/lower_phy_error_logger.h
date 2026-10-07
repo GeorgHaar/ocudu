@@ -60,6 +60,17 @@ public:
                    context.slot);
   }
 
+  // See interface for documentation.
+  void on_puxch_request_discarded(const resource_grid_context& context, puxch_request_discard_reason reason) override
+  {
+    logger.warning(context.slot.sfn(),
+                   context.slot.slot_index(),
+                   "Real-time failure in lower PHY: PUxCH request discarded for sector {}, slot {}, {}.",
+                   context.sector,
+                   context.slot,
+                   to_string(reason));
+  }
+
 private:
   /// Logger.
   ocudulog::basic_logger& logger;

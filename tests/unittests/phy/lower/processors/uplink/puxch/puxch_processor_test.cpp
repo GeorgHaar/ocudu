@@ -18,6 +18,7 @@
 #include "ocudu/phy/lower/processors/uplink/uplink_processor_factories.h"
 #include "ocudu/support/executors/manual_task_worker.h"
 #include "fmt/ostream.h"
+#include <deque>
 #include <gtest/gtest.h>
 #include <random>
 
@@ -104,6 +105,49 @@ bool operator==(const baseband_gateway_buffer_reader& left, const baseband_gatew
 using LowerPhyUplinkProcessorParams = std::tuple<unsigned, sampling_rate, subcarrier_spacing, cyclic_prefix>;
 
 namespace {
+
+/// Task executor that keeps the deferred tasks, so the tests choose the order in which they run.
+class task_executor_spy : public task_executor
+{
+public:
+  bool execute(unique_task task) override { return defer(std::move(task)); }
+
+  bool defer(unique_task task) override
+  {
+    tasks.push_back(std::move(task));
+    return true;
+  }
+
+  /// Runs the oldest pending task. Returns false if there are no pending tasks.
+  bool run_oldest()
+  {
+    if (tasks.empty()) {
+      return false;
+    }
+    unique_task task = std::move(tasks.front());
+    tasks.pop_front();
+    task();
+    return true;
+  }
+
+  /// Runs the newest pending task. Returns false if there are no pending tasks.
+  bool run_newest()
+  {
+    if (tasks.empty()) {
+      return false;
+    }
+    unique_task task = std::move(tasks.back());
+    tasks.pop_back();
+    task();
+    return true;
+  }
+
+  /// Gets the number of pending tasks.
+  unsigned get_nof_pending_tasks() const { return tasks.size(); }
+
+private:
+  std::deque<unique_task> tasks;
+};
 
 class LowerPhyUplinkProcessorFixture : public ::testing::TestWithParam<LowerPhyUplinkProcessorParams>
 {
@@ -503,6 +547,245 @@ TEST_P(LowerPhyUplinkProcessorFixture, OverflowRequest)
     unsigned nof_expected_late = (i_request >= request_queue_size) ? (i_request - request_queue_size + 1) : 0;
     ASSERT_EQ(puxch_proc_notifier_spy.get_rx_symbol().size(), 0);
     ASSERT_EQ(puxch_proc_notifier_spy.get_request_late().size(), nof_expected_late);
+  }
+}
+
+TEST_P(LowerPhyUplinkProcessorFixture, OutOfOrderDemodulation)
+{
+  unsigned           nof_rx_ports = std::get<0>(GetParam());
+  sampling_rate      srate        = std::get<1>(GetParam());
+  subcarrier_spacing scs          = std::get<2>(GetParam());
+  cyclic_prefix      cp           = std::get<3>(GetParam());
+
+  unsigned   base_symbol_size     = srate.get_dft_size(scs);
+  unsigned   nof_symbols_per_slot = get_nsymb_per_slot(cp);
+  unsigned   sector_id            = dist_sector_id(rgen);
+  slot_point slot(to_numerology_value(scs), 0);
+
+  // Create a processor whose demodulation tasks run in the order selected by the test.
+  task_executor_spy                demodulation_executor_spy;
+  std::unique_ptr<puxch_processor> processor = puxch_proc_factory->create(config, demodulation_executor_spy);
+  ofdm_symbol_demodulator_spy&     demod_spy = *ofdm_demod_factory_spy->get_demodulators().back();
+  puxch_processor_notifier_spy     notifier_spy;
+  processor->connect(notifier_spy);
+
+  // One buffer per OFDM symbol, so the pool is exhausted if the demodulator keeps all the symbol buffers.
+  baseband_gateway_buffer_pool buffer_pool(nof_symbols_per_slot, nof_rx_ports, 2 * base_symbol_size);
+
+  // Request the demodulation of the slot.
+  processor->get_request_handler().handle_request(shared_rg_spy.get_grid(), {.slot = slot, .sector = sector_id});
+
+  // Receive all the OFDM symbols of the slot without running any demodulation task.
+  for (unsigned i_symbol = 0; i_symbol != nof_symbols_per_slot; ++i_symbol) {
+    unsigned symbol_size = cp.get_length(i_symbol, scs).to_samples(srate.to_Hz()) + base_symbol_size;
+
+    baseband_gateway_buffer_ptr buffer = buffer_pool.get();
+    ASSERT_TRUE(buffer);
+    buffer->resize(symbol_size);
+
+    lower_phy_rx_symbol_context context = {
+        .slot = slot, .sector = sector_id, .nof_symbols = i_symbol, .is_valid = true};
+    ASSERT_TRUE(processor->get_baseband().process_symbol(
+        baseband_gateway_buffer_ptr_view(std::move(buffer), 0, symbol_size), context));
+  }
+
+  // The demodulator keeps the buffers of all the OFDM symbols and nothing is notified yet.
+  ASSERT_FALSE(buffer_pool.get());
+  ASSERT_EQ(demodulation_executor_spy.get_nof_pending_tasks(), nof_symbols_per_slot * nof_rx_ports);
+  ASSERT_EQ(notifier_spy.get_nof_notifications(), 0);
+
+  // Run the tasks from the newest to the oldest, except the tasks of the first OFDM symbol.
+  for (unsigned i_task = 0, i_task_end = (nof_symbols_per_slot - 1) * nof_rx_ports; i_task != i_task_end; ++i_task) {
+    ASSERT_TRUE(demodulation_executor_spy.run_newest());
+  }
+
+  // No symbol is notified while the first OFDM symbol is not demodulated.
+  ASSERT_EQ(notifier_spy.get_nof_notifications(), 0);
+
+  // Run the tasks of the first OFDM symbol.
+  for (unsigned i_task = 0, i_task_end = nof_rx_ports; i_task != i_task_end; ++i_task) {
+    ASSERT_TRUE(demodulation_executor_spy.run_newest());
+  }
+
+  // All symbols are demodulated.
+  ASSERT_EQ(demod_spy.get_demodulate_entries().size(), nof_symbols_per_slot * nof_rx_ports);
+
+  // All symbols are notified in ascending order.
+  const auto& rx_symbols = notifier_spy.get_rx_symbol();
+  ASSERT_EQ(rx_symbols.size(), nof_symbols_per_slot);
+
+  for (unsigned i_symbol = 0; i_symbol != nof_symbols_per_slot; ++i_symbol) {
+    ASSERT_EQ(rx_symbols[i_symbol].context.slot, slot);
+    ASSERT_EQ(rx_symbols[i_symbol].context.nof_symbols, i_symbol);
+    ASSERT_TRUE(rx_symbols[i_symbol].context.is_valid);
+  }
+
+  // The symbol buffers are released after the demodulation.
+  ASSERT_TRUE(buffer_pool.get());
+}
+
+TEST_P(LowerPhyUplinkProcessorFixture, ConcurrentSlots)
+{
+  static constexpr unsigned nof_concurrent_slots = puxch_processor::max_nof_concurrent_slots;
+  static constexpr unsigned nof_total_slots      = nof_concurrent_slots + 1;
+
+  unsigned           nof_rx_ports = std::get<0>(GetParam());
+  sampling_rate      srate        = std::get<1>(GetParam());
+  subcarrier_spacing scs          = std::get<2>(GetParam());
+  cyclic_prefix      cp           = std::get<3>(GetParam());
+
+  unsigned   base_symbol_size     = srate.get_dft_size(scs);
+  unsigned   nof_symbols_per_slot = get_nsymb_per_slot(cp);
+  unsigned   sector_id            = dist_sector_id(rgen);
+  slot_point first_slot(to_numerology_value(scs), 0);
+
+  // Create a processor whose demodulation tasks run in the order selected by the test.
+  task_executor_spy                demodulation_executor_spy;
+  std::unique_ptr<puxch_processor> processor = puxch_proc_factory->create(config, demodulation_executor_spy);
+  puxch_processor_notifier_spy     notifier_spy;
+  processor->connect(notifier_spy);
+
+  // Create the pool of baseband buffers.
+  baseband_gateway_buffer_pool buffer_pool(nof_total_slots * nof_symbols_per_slot, nof_rx_ports, 2 * base_symbol_size);
+
+  // Request the demodulation of one slot more than the maximum number of concurrent slots.
+  shared_resource_grid shared_rg = shared_rg_spy.get_grid();
+  for (unsigned i_slot = 0; i_slot != nof_total_slots; ++i_slot) {
+    processor->get_request_handler().handle_request(shared_rg.copy(),
+                                                    {.slot = first_slot + i_slot, .sector = sector_id});
+  }
+
+  // Receive all the OFDM symbols of the concurrent slots without running any demodulation task.
+  for (unsigned i_slot = 0; i_slot != nof_concurrent_slots; ++i_slot) {
+    slot_point slot = first_slot + i_slot;
+
+    for (unsigned i_symbol = 0; i_symbol != nof_symbols_per_slot; ++i_symbol) {
+      unsigned i_symbol_sf = i_symbol + slot.subframe_slot_index() * nof_symbols_per_slot;
+      unsigned symbol_size = cp.get_length(i_symbol_sf, scs).to_samples(srate.to_Hz()) + base_symbol_size;
+
+      baseband_gateway_buffer_ptr buffer = buffer_pool.get();
+      ASSERT_TRUE(buffer);
+      buffer->resize(symbol_size);
+
+      lower_phy_rx_symbol_context context = {
+          .slot = slot, .sector = sector_id, .nof_symbols = i_symbol, .is_valid = true};
+      ASSERT_TRUE(processor->get_baseband().process_symbol(
+          baseband_gateway_buffer_ptr_view(std::move(buffer), 0, symbol_size), context));
+    }
+  }
+
+  // All the concurrent slots are under demodulation and nothing is notified yet.
+  ASSERT_EQ(demodulation_executor_spy.get_nof_pending_tasks(),
+            nof_concurrent_slots * nof_symbols_per_slot * nof_rx_ports);
+  ASSERT_EQ(notifier_spy.get_nof_notifications(), 0);
+
+  // The next slot uses the demodulator of the first slot, which is still busy. Its request is discarded.
+  {
+    slot_point slot        = first_slot + nof_concurrent_slots;
+    unsigned   i_symbol_sf = slot.subframe_slot_index() * nof_symbols_per_slot;
+    unsigned   symbol_size = cp.get_length(i_symbol_sf, scs).to_samples(srate.to_Hz()) + base_symbol_size;
+
+    baseband_gateway_buffer_ptr buffer = buffer_pool.get();
+    ASSERT_TRUE(buffer);
+    buffer->resize(symbol_size);
+
+    lower_phy_rx_symbol_context context = {.slot = slot, .sector = sector_id, .nof_symbols = 0, .is_valid = true};
+    ASSERT_FALSE(processor->get_baseband().process_symbol(
+        baseband_gateway_buffer_ptr_view(std::move(buffer), 0, symbol_size), context));
+
+    ASSERT_TRUE(notifier_spy.get_request_late().empty());
+    const auto& discarded = notifier_spy.get_request_discarded();
+    ASSERT_EQ(discarded.size(), 1);
+    ASSERT_EQ(discarded.front().slot, slot);
+    ASSERT_EQ(discarded.front().sector, sector_id);
+    ASSERT_EQ(demodulation_executor_spy.get_nof_pending_tasks(),
+              nof_concurrent_slots * nof_symbols_per_slot * nof_rx_ports);
+  }
+
+  // Run all the demodulation tasks.
+  for (unsigned i_task = 0, i_task_end = nof_concurrent_slots * nof_symbols_per_slot * nof_rx_ports;
+       i_task != i_task_end;
+       ++i_task) {
+    ASSERT_TRUE(demodulation_executor_spy.run_oldest());
+  }
+
+  const auto& rx_symbols = notifier_spy.get_rx_symbol();
+  ASSERT_EQ(rx_symbols.size(), nof_concurrent_slots * nof_symbols_per_slot);
+
+  for (unsigned i_slot = 0; i_slot != nof_concurrent_slots; ++i_slot) {
+    for (unsigned i_symbol = 0; i_symbol != nof_symbols_per_slot; ++i_symbol) {
+      const auto& rx_symbol = rx_symbols[i_slot * nof_symbols_per_slot + i_symbol];
+
+      ASSERT_EQ(rx_symbol.context.slot, first_slot + i_slot);
+      ASSERT_EQ(rx_symbol.context.nof_symbols, i_symbol);
+      ASSERT_TRUE(rx_symbol.context.is_valid);
+    }
+  }
+}
+
+TEST_P(LowerPhyUplinkProcessorFixture, MissingSymbols)
+{
+  unsigned           nof_rx_ports = std::get<0>(GetParam());
+  sampling_rate      srate        = std::get<1>(GetParam());
+  subcarrier_spacing scs          = std::get<2>(GetParam());
+  cyclic_prefix      cp           = std::get<3>(GetParam());
+
+  unsigned   base_symbol_size     = srate.get_dft_size(scs);
+  unsigned   nof_symbols_per_slot = get_nsymb_per_slot(cp);
+  unsigned   nof_rx_symbols       = nof_symbols_per_slot / 2;
+  unsigned   sector_id            = dist_sector_id(rgen);
+  slot_point slot(to_numerology_value(scs), 0);
+
+  // Create a processor whose demodulation tasks run in the order selected by the test.
+  task_executor_spy                demodulation_executor_spy;
+  std::unique_ptr<puxch_processor> processor = puxch_proc_factory->create(config, demodulation_executor_spy);
+  puxch_processor_notifier_spy     notifier_spy;
+  processor->connect(notifier_spy);
+
+  baseband_gateway_buffer_pool buffer_pool(nof_rx_symbols + 1, nof_rx_ports, 2 * base_symbol_size);
+
+  // Request the demodulation of the slot.
+  processor->get_request_handler().handle_request(shared_rg_spy.get_grid(), {.slot = slot, .sector = sector_id});
+
+  // Receive only the first half of the OFDM symbols of the slot, and the first OFDM symbol of the next slot. The next
+  // slot closes the current slot, and its symbol is not demodulated -  the processor only was requested to handle
+  // "slot".
+  for (unsigned i_symbol = 0; i_symbol != nof_rx_symbols + 1; ++i_symbol) {
+    lower_phy_rx_symbol_context context = {
+        .slot = slot, .sector = sector_id, .nof_symbols = i_symbol, .is_valid = true};
+    if (i_symbol == nof_rx_symbols) {
+      context.slot        = slot + 1;
+      context.nof_symbols = 0;
+    }
+
+    unsigned i_symbol_sf = context.nof_symbols + context.slot.subframe_slot_index() * nof_symbols_per_slot;
+    unsigned symbol_size = cp.get_length(i_symbol_sf, scs).to_samples(srate.to_Hz()) + base_symbol_size;
+
+    baseband_gateway_buffer_ptr buffer = buffer_pool.get();
+    ASSERT_TRUE(buffer);
+    buffer->resize(symbol_size);
+
+    processor->get_baseband().process_symbol(baseband_gateway_buffer_ptr_view(std::move(buffer), 0, symbol_size),
+                                             context);
+  }
+
+  // Nothing is notified while the received OFDM symbols are not demodulated.
+  ASSERT_EQ(demodulation_executor_spy.get_nof_pending_tasks(), nof_rx_symbols * nof_rx_ports);
+  ASSERT_EQ(notifier_spy.get_nof_notifications(), 0);
+
+  // Run all the demodulation tasks.
+  for (unsigned i_task = 0, i_task_end = nof_rx_symbols * nof_rx_ports; i_task != i_task_end; ++i_task) {
+    ASSERT_TRUE(demodulation_executor_spy.run_newest());
+  }
+
+  // The received OFDM symbols are notified as valid and the missing ones as invalid, all of them in order.
+  const auto& rx_symbols = notifier_spy.get_rx_symbol();
+  ASSERT_EQ(rx_symbols.size(), nof_symbols_per_slot);
+
+  for (unsigned i_symbol = 0; i_symbol != nof_symbols_per_slot; ++i_symbol) {
+    ASSERT_EQ(rx_symbols[i_symbol].context.slot, slot);
+    ASSERT_EQ(rx_symbols[i_symbol].context.nof_symbols, i_symbol);
+    ASSERT_EQ(rx_symbols[i_symbol].context.is_valid, i_symbol < nof_rx_symbols);
   }
 }
 

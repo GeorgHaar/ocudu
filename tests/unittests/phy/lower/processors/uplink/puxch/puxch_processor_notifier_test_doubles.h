@@ -22,6 +22,11 @@ public:
 
   void on_puxch_request_late(const resource_grid_context& context) override { request_late.emplace_back(context); }
 
+  void on_puxch_request_discarded(const resource_grid_context& context, puxch_request_discard_reason reason) override
+  {
+    request_discarded.emplace_back(context);
+  }
+
   void
   on_rx_symbol(const shared_resource_grid& grid, const lower_phy_rx_symbol_context& context, bool is_valid) override
   {
@@ -31,18 +36,22 @@ public:
 
   const std::vector<resource_grid_context>& get_request_late() const { return request_late; }
 
+  const std::vector<resource_grid_context>& get_request_discarded() const { return request_discarded; }
+
   const std::vector<rx_symbol_entry>& get_rx_symbol() const { return rx_symbol; }
 
-  unsigned get_nof_notifications() const { return request_late.size() + rx_symbol.size(); }
+  unsigned get_nof_notifications() const { return request_late.size() + request_discarded.size() + rx_symbol.size(); }
 
   void clear_notifications()
   {
     request_late.clear();
+    request_discarded.clear();
     rx_symbol.clear();
   }
 
 private:
   std::vector<resource_grid_context> request_late;
+  std::vector<resource_grid_context> request_discarded;
   std::vector<rx_symbol_entry>       rx_symbol;
 };
 

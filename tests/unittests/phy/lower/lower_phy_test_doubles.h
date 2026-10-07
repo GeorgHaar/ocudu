@@ -24,6 +24,7 @@ private:
   std::vector<prach_buffer_context>  prach_request_late_errors;
   std::vector<prach_buffer_context>  prach_request_overflow_errors;
   std::vector<resource_grid_context> puxch_request_late_errors;
+  std::vector<resource_grid_context> puxch_request_discarded_errors;
 
 public:
   // See interface for documentation.
@@ -47,6 +48,12 @@ public:
     puxch_request_late_errors.push_back(context);
   }
 
+  // See interface for documentation.
+  void on_puxch_request_discarded(const resource_grid_context& context, puxch_request_discard_reason reason) override
+  {
+    puxch_request_discarded_errors.push_back(context);
+  }
+
   /// \brief Gets the errors notified through the lower_phy_timing_notifier::on_pdxch_request_late() interface.
   /// \return A constant reference to the event list.
   const std::vector<resource_grid_context>& get_late_rg_errors() const { return late_rg_errors; }
@@ -66,6 +73,13 @@ public:
   /// \return A constant reference to the event list.
   const std::vector<resource_grid_context>& get_puxch_request_late_errors() const { return puxch_request_late_errors; }
 
+  /// \brief Gets the errors notified through the lower_phy_timing_notifier::on_puxch_request_discarded() interface.
+  /// \return A constant reference to the event list.
+  const std::vector<resource_grid_context>& get_puxch_request_discarded_errors() const
+  {
+    return puxch_request_discarded_errors;
+  }
+
   /// \brief Gets the total number of errors of any kind.
   ///
   /// A use case to ensure no event happened:
@@ -77,7 +91,7 @@ public:
   unsigned get_nof_errors() const
   {
     return late_rg_errors.size() + prach_request_late_errors.size() + prach_request_overflow_errors.size() +
-           puxch_request_late_errors.size();
+           puxch_request_late_errors.size() + puxch_request_discarded_errors.size();
   }
 
   /// Clears all the recorded errors.
@@ -87,6 +101,7 @@ public:
     prach_request_late_errors.clear();
     prach_request_overflow_errors.clear();
     puxch_request_late_errors.clear();
+    puxch_request_discarded_errors.clear();
   }
 };
 

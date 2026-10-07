@@ -21,47 +21,48 @@ bool puxch_processor_impl::process_symbol(const baseband_gateway_buffer_ptr_view
     // Update slot.
     current_slot = context.slot;
 
-    // The previous slot does not receive more symbols.
-    if (current_demodulator != nullptr) {
-      current_demodulator->close();
-      current_demodulator = nullptr;
-    }
+    // Close the previous slot before opening a new one.
+    current_demodulator.release();
 
     // Exchange an empty request with the current slot with a stored request.
     auto request = requests.exchange({context.slot, shared_resource_grid()});
 
-    resource_grid_context       rg_context  = {.slot = request.slot, .sector = context.sector};
+    // Prepare resource grid context.
+    resource_grid_context rg_context = {.slot = request.slot, .sector = context.sector};
+
+    // Select a PUxCH demodulator using the slot index.
     puxch_baseband_demodulator& demodulator = get_demodulator(current_slot);
 
-    // Handle the returned request. If the request resource grid is invalid, the request is empty and the slot is not
-    // demodulated.
-    if (request.resource) {
-      if (request.slot != current_slot) {
-        // If the slot of the request does not match the current slot, then notify a late event.
-        notifier->on_puxch_request_late(rg_context);
-      } else if (!demodulator.start(request.resource, rg_context)) {
-        // If the demodulator is still busy with a previous slot, then the request cannot be processed.
-        logger.error(current_slot.sfn(), current_slot.slot_index(), "The demodulator is busy.");
-        notifier->on_puxch_request_late(rg_context);
-      } else {
-        // Otherwise, the demodulator processes the slot.
-        current_demodulator = &demodulator;
-      }
+    // Skip processing if there is no receive request associated with this slot.
+    if (!request.resource) {
+      return false;
+    }
+
+    // If the slot of the request does not match the current slot, then notify a late event.
+    if (request.slot != current_slot) {
+      notifier->on_puxch_request_late(rg_context);
+      return false;
+    }
+
+    // Configure the demodulator with a new slot.
+    current_demodulator = demodulator.start(request.resource, rg_context);
+    if (!current_demodulator) {
+      notifier->on_puxch_request_discarded(rg_context, puxch_request_discard_reason::demodulator_busy);
+      return false;
     }
   }
 
   // Skip symbol processing if the current slot is not demodulated.
-  if (current_demodulator == nullptr) {
+  if (!current_demodulator) {
     return false;
   }
 
   // Demodulate the OFDM symbol asynchronously.
-  current_demodulator->demodulate_symbol(samples, context);
+  current_demodulator.demodulate_symbol(samples, context);
 
   // Close the slot after its last OFDM symbol.
-  if ((context.nof_symbols == nof_symbols_per_slot - 1) && (current_demodulator != nullptr)) {
-    current_demodulator->close();
-    current_demodulator = nullptr;
+  if (context.nof_symbols == nof_symbols_per_slot - 1) {
+    current_demodulator.release();
   }
 
   return true;

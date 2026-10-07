@@ -79,6 +79,21 @@ public:
                                                    instant_trace_event::event_criticality::severe};
   }
 
+  // See interface for documentation.
+  void on_puxch_request_discarded(const resource_grid_context& context, puxch_request_discard_reason reason) override
+  {
+    notifier.on_late_uplink_message(ru_error_context{.slot = context.slot, .sector = context.sector});
+    logger.warning(context.slot.sfn(),
+                   context.slot.slot_index(),
+                   "Real-time failure in lower PHY: PUxCH request discarded for sector {}, slot {}, {}.",
+                   context.sector,
+                   context.slot,
+                   to_string(reason));
+    general_critical_tracer << instant_trace_event{"on_puxch_request_discarded",
+                                                   instant_trace_event::cpu_scope::global,
+                                                   instant_trace_event::event_criticality::severe};
+  }
+
 private:
   /// Logger.
   ocudulog::basic_logger& logger;

@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "ocudu/phy/lower/lower_phy_error_notifier.h"
+
 namespace ocudu {
 
 struct lower_phy_rx_symbol_context;
@@ -26,6 +28,14 @@ public:
   /// See \ref lower_phy_error_notifier::on_puxch_request_late for more information.
   /// \param[in] context PUxCH context.
   virtual void on_puxch_request_late(const resource_grid_context& context) = 0;
+
+  /// \brief Notifies a discarded PUxCH request.
+  ///
+  /// See \ref lower_phy_error_notifier::on_puxch_request_discarded for more information.
+  /// \param[in] context PUxCH context.
+  /// \param[in] reason  Reason for discarding the request.
+  virtual void on_puxch_request_discarded(const resource_grid_context& context,
+                                          puxch_request_discard_reason reason) = 0;
 
   /// \brief Notifies the completion of the PUxCH request processing.
   ///

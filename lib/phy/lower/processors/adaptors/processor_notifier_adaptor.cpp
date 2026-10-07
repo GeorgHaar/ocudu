@@ -50,6 +50,12 @@ void processor_notifier_adaptor::puxch_adaptor::on_puxch_request_late(const reso
   error_notifier.on_puxch_request_late(context);
 }
 
+void processor_notifier_adaptor::puxch_adaptor::on_puxch_request_discarded(const resource_grid_context& context,
+                                                                           puxch_request_discard_reason reason)
+{
+  error_notifier.on_puxch_request_discarded(context, reason);
+}
+
 void processor_notifier_adaptor::puxch_adaptor::on_rx_symbol(const shared_resource_grid&        grid,
                                                              const lower_phy_rx_symbol_context& context,
                                                              bool                               is_valid)

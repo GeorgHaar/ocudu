@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "puxch_baseband_demodulator_scoped.h"
 #include "puxch_processor_demodulator_notifier.h"
 #include "puxch_processor_symbol_sequencer.h"
 #include "ocudu/gateways/baseband/buffer/baseband_gateway_buffer_ptr_view.h"
@@ -27,7 +28,7 @@ namespace ocudu {
 /// This class asynchronously demodulates the OFDM symbols of a slot into a resource grid. The demodulation process is
 /// split in tasks per port. The demodulated OFDM symbols are notified in ascending order through the \ref
 /// puxch_processor_demodulator_notifier interface.
-class puxch_baseband_demodulator
+class puxch_baseband_demodulator : private puxch_baseband_demodulator_scoped::parent_interface
 {
 public:
   /// \brief Creates a physical uplink channel demodulator from all the required parameters.
@@ -54,16 +55,16 @@ public:
 
   /// \brief Starts the demodulation of a slot.
   ///
-  /// The demodulator stays busy from the start of the slot until it is closed by \ref close and all the demodulation
-  /// tasks are completed.
+  /// The demodulator stays busy from the start of the slot until the returned scoped demodulator is released and all
+  /// the demodulation tasks are completed.
   ///
   /// \param[in] grid    Resource grid, destination of the demodulated OFDM symbols.
   /// \param[in] context Resource grid context of the slot.
-  /// \return True if the demodulation of the slot started successfully, otherwise false if the demodulator is busy
-  ///         with a previous slot.
+  /// \return A valid scoped demodulator that keeps the slot open if the demodulation of the slot started
+  ///         successfully, otherwise an invalid one if the demodulator is busy with a previous slot.
   /// \remark An assertion is triggered if the number of ports contained in the resource grid differs from the number of
   ///         receive ports.
-  bool start(const shared_resource_grid& grid, const resource_grid_context& context)
+  puxch_baseband_demodulator_scoped start(const shared_resource_grid& grid, const resource_grid_context& context)
   {
     ocudu_assert(grid.get_writer().get_nof_ports() == nof_ports,
                  "The resource grid number of ports (i.e., {}) does not match the number of ports (i.e., {}).",
@@ -73,7 +74,7 @@ public:
     // Try transitioning to demodulate. The open slot counts as a pending task.
     uint32_t expected_state = state_idle;
     if (!current_state.compare_exchange_strong(expected_state, state_demodulate_mask + 1)) {
-      return false;
+      return {};
     }
 
     // Prepare current context and grid for the asynchronous OFDM demodulation.
@@ -82,16 +83,18 @@ public:
     received_symbols = 0;
     sequencer.reset();
 
-    return true;
+    return puxch_baseband_demodulator_scoped(*this);
   }
 
+private:
   /// \brief Demodulates an OFDM symbol of the current slot.
   ///
   /// \param[in] samples Baseband samples of the OFDM symbol.
   /// \param[in] context Receive symbol context.
   /// \remark An assertion is triggered if the demodulator is not processing the slot of the OFDM symbol.
   /// \remark An assertion is triggered if the OFDM symbol has already been demodulated.
-  void demodulate_symbol(const baseband_gateway_buffer_ptr_view& samples, const lower_phy_rx_symbol_context& context)
+  void demodulate_symbol(const baseband_gateway_buffer_ptr_view& samples,
+                         const lower_phy_rx_symbol_context&      context) override
   {
     ocudu_assert(samples.get_nof_channels() == nof_ports,
                  "The buffer number of channels (i.e., {}) does not match the number of ports (i.e., {}).",
@@ -121,7 +124,7 @@ public:
 
     // Demodulate asynchronously each of the ports.
     for (unsigned i_port = 0; i_port != nof_ports; ++i_port) {
-      bool success = executor.defer([this, i_symbol, i_symbol_sf, i_port]() {
+      bool success = executor.defer([this, i_symbol, i_symbol_sf, i_port, &entry]() {
         // Start tracing.
         trace_point tp = ru_tracer.now();
 
@@ -132,6 +135,7 @@ public:
         ru_tracer << trace_event("PUxCH demodulation", tp);
 
         // Indicate completion of the task.
+        entry.context.is_valid = true;
         complete_port_task(i_symbol);
       });
 
@@ -149,7 +153,7 @@ public:
   }
 
   /// Closes the current slot, notifying pending symbols as invalid.
-  void close()
+  void close() override
   {
     // Notify the OFDM symbols that have not been received as invalid.
     lower_phy_rx_symbol_context context = {
@@ -167,7 +171,6 @@ public:
     complete_task();
   }
 
-private:
   /// Collects the information of an OFDM symbol under demodulation.
   struct symbol_entry {
     /// Baseband samples of the OFDM symbol.

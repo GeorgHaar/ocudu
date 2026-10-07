@@ -2,16 +2,21 @@
 # SPDX-FileCopyrightText: Copyright (C) 2026 OCUDU contributors
 # SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 
-# Restricts the logical channels of 5QI 9 to grants whose UL HARQ process is in mode B, and gives the cell the mode B
-# processes that restriction needs. The SRBs take mode A, so that the signalling does not ride the mode B grants the
-# DRBs are served by. Stack on top of gnb.yml:
+# Restricts the logical channels of 5QI 9 to the UL HARQ processes in mode B and to the DL HARQ processes with the
+# feedback disabled, and gives the cell the processes those restrictions need. The SRBs keep mode A and the DL HARQ
+# feedback, so that the signalling does not ride the processes the DRBs are served by. Stack on top of gnb.yml:
 #   gnb -c ./gnb.yml -c sat.yml -c ntn_du.yml -c ntn_cu.yml -c qos_mode_b.yml
 
 cell_cfg:
+  pdsch:
+    # A bit set to one disables the DL HARQ feedback of that process, the leftmost bit being process 0. The first
+    # eight processes keep it for the signalling, and the rest go to the data. A UE is only given more than 16
+    # processes once it reports support for them, so both kinds sit among the first 16.
+    harq_feedback_disabled: "0x00ffffff"
   pusch:
-    # A bit set to one puts that UL HARQ process in mode B, the leftmost bit being process 0. This leaves the first
-    # half of the 32 processes the cell configures in mode A and the second half in mode B.
-    harq_mode_b: "0x0000ffff"
+    # A bit set to one puts that UL HARQ process in mode B, the leftmost bit being process 0. The first eight stay in
+    # mode A for the signalling, and the rest go to the data, within the first 16 for the same reason.
+    harq_mode_b: "0x00ffffff"
 
 qos:
   # Configuring any entry replaces the whole built-in 5QI table rather than adding to it, so this is an example entry
@@ -50,3 +55,4 @@ qos:
           t-status-prohibit: 10
     mac:
       allowed_harq_mode: mode_b
+      dl_harq_feedback: disabled

@@ -3,4 +3,5 @@
 # Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 add_subdirectory(channel_coding)
+add_subdirectory(channel_modulation)
 add_subdirectory(sequence_generators)

@@ -2504,6 +2504,57 @@ static bool validate_qos_config(span<const du_high_unit_qos_config> config)
   return true;
 }
 
+/// Collects the DL HARQ feedback the configuration asks for, over the 5QIs.
+static void collect_dl_harq_feedback(const du_high_unit_config& config, std::vector<dl_harq_feedback>& feedbacks)
+{
+  for (const auto& qos : config.qos_cfg) {
+    if (not qos.mac.dl_harq_feedback.has_value()) {
+      continue;
+    }
+    feedbacks.push_back(*qos.mac.dl_harq_feedback == "enabled" ? dl_harq_feedback::enabled
+                                                               : dl_harq_feedback::disabled);
+  }
+}
+
+/// Checks that every cell has a DL HARQ process carrying each feedback the configuration needs: the ones the 5QIs ask
+/// for, plus enabled feedback for the SRBs. A logical channel restricted to a feedback no process carries would never
+/// be multiplexed into a transport block.
+static bool validate_dl_harq_feedback_config(const du_high_unit_config& config)
+{
+  std::vector<dl_harq_feedback> feedbacks;
+  collect_dl_harq_feedback(config, feedbacks);
+
+  for (const auto& cell : config.cells_cfg) {
+    const auto& pdsch = cell.cell.pdsch_cfg;
+    // A UE is given the processes of the cell capped to what it supports.
+    const unsigned nof_harqs = std::min(pdsch.nof_harqs, ue_capability_summary::default_max_harq_process_num);
+
+    // [Implementation-defined] The scheduler always serves the SRBs on a process with feedback, so at least one has to
+    // keep it, even when no logical channel asks for a feedback.
+    if (pdsch.harq_feedback_disabled.any() and
+        not is_dl_harq_feedback_available(pdsch.harq_feedback_disabled, nof_harqs, dl_harq_feedback::enabled)) {
+      fmt::print("None of the first {} DL HARQ processes of cell pci={} carries HARQ feedback. A UE is given more "
+                 "only when it reports support for them, and the SRBs are served on a process with feedback, so "
+                 "harq_feedback_disabled must leave at least one of them out\n",
+                 nof_harqs,
+                 cell.cell.pci);
+      return false;
+    }
+
+    for (dl_harq_feedback feedback : feedbacks) {
+      if (not is_dl_harq_feedback_available(pdsch.harq_feedback_disabled, nof_harqs, feedback)) {
+        fmt::print("dl_harq_feedback={} cannot be met: none of the first {} DL HARQ processes of cell pci={} carries "
+                   "it. Fix harq_feedback_disabled so one of them does\n",
+                   feedback,
+                   nof_harqs,
+                   cell.cell.pci);
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 /// Collects the UL HARQ modes the configuration asks for, over the 5QIs.
 static void collect_allowed_harq_modes(const du_high_unit_config& config, std::vector<ul_harq_mode>& modes)
 {
@@ -2590,6 +2641,10 @@ bool ocudu::validate_du_high_config(const du_high_unit_config& config)
   }
 
   if (!validate_qos_config(config.qos_cfg)) {
+    return false;
+  }
+
+  if (!validate_dl_harq_feedback_config(config)) {
     return false;
   }
 

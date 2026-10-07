@@ -183,11 +183,6 @@ void rrc_setup_procedure::send_initial_ue_msg()
     init_ue_msg.five_g_s_tmsi = context.five_g_s_tmsi.value();
   }
 
-  if (rrc_setup_complete.registered_amf_present) {
-    amf_identifier_t amf_id = asn1_to_amf_identifier(rrc_setup_complete.registered_amf.amf_id);
-    init_ue_msg.amf_set_id  = amf_id.amf_set_id;
-  }
-
   ngap_notifier.on_initial_ue_message(init_ue_msg);
 }
 

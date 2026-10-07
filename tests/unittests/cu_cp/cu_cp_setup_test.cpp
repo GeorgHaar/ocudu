@@ -9,6 +9,7 @@
 #include "tests/test_doubles/f1ap/f1ap_test_message_validators.h"
 #include "tests/test_doubles/f1ap/f1ap_test_messages.h"
 #include "tests/test_doubles/ngap/ngap_test_message_validators.h"
+#include "tests/test_doubles/rrc/rrc_test_messages.h"
 #include "ocudu/adt/byte_buffer.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/asn1/f1ap/f1ap_pdu_contents_ue.h"
@@ -467,6 +468,27 @@ TEST_F(cu_cp_setup_test, when_rrc_setup_completes_then_initial_message_sent_to_a
   ASSERT_EQ(report.dus[0].rrc_metrics.max_nof_rrc_connections, 1);
   ASSERT_TRUE(report.dus[0].rrc_metrics.mean_rrc_connection_setup_time.has_value());
   ASSERT_TRUE(report.dus[0].rrc_metrics.max_rrc_connection_setup_time.has_value());
+}
+
+TEST_F(cu_cp_setup_test, when_rrc_setup_complete_contains_registered_amf_then_initial_ue_message_has_no_amf_set_id)
+{
+  // Create UE by sending Initial UL RRC Message and await DL RRC Message Transfer.
+  ASSERT_TRUE(send_initial_ul_rrc_message_and_await_dl_rrc_message_transfer());
+
+  // Inject RRC Setup Complete with the registered AMF (AMF Region ID 2, AMF Set ID 1, AMF Pointer 0).
+  asn1::rrc_nr::ul_dcch_msg_s rrc_setup_complete = test_helpers::create_rrc_setup_complete();
+  auto&                       ies = rrc_setup_complete.msg.c1().rrc_setup_complete().crit_exts.rrc_setup_complete();
+  ies.registered_amf_present      = true;
+  ies.registered_amf.amf_id.from_number(0x020040);
+  get_du(du_idx).push_rrc_ul_dcch_message(
+      du_ue_f1ap_id, srb_id_t::srb1, test_helpers::pack_ul_dcch_msg(rrc_setup_complete));
+
+  // Verify AMF is notified of UE attach.
+  ASSERT_TRUE(this->wait_for_ngap_tx_pdu(ngap_pdu));
+  ASSERT_TRUE(test_helpers::is_valid_init_ue_message(ngap_pdu));
+
+  // TS 38.413 section 8.6.1.2: The AMF Set ID IE marks a rerouted Initial UE Message.
+  ASSERT_FALSE(ngap_pdu.pdu.init_msg().value.init_ue_msg()->amf_set_id_present);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

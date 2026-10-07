@@ -149,7 +149,6 @@ struct cu_cp_initial_ue_message {
   establishment_cause_t          establishment_cause;
   cu_cp_user_location_info_nr    user_location_info;
   std::optional<five_g_s_tmsi_t> five_g_s_tmsi;
-  std::optional<uint16_t>        amf_set_id;
 };
 
 struct cu_cp_ul_nas_transport {

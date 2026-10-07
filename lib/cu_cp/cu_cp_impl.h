@@ -294,6 +294,10 @@ private:
   /// message.
   void send_ran_paging(cu_cp_ue_index_t ue_index, full_i_rnti_t full_i_rnti);
 
+  /// \brief Binds a UE to the AMF that serves it, and connects the RRC UE to the NGAP of this AMF.
+  /// \returns False if no NGAP exists for the AMF.
+  bool bind_ue_to_amf(cu_cp_ue_index_t ue_index, cu_cp_amf_index_t amf_index);
+
   /// \brief Request the release of an inactive UE that failed to resume within the expected time.
   /// \param[in] ue_index The index of the UE to release.
   void request_release_of_inactive_ue(cu_cp_ue_index_t ue_index);

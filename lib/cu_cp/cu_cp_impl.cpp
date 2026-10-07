@@ -508,10 +508,32 @@ bool cu_cp_impl::handle_ue_plmn_selected(cu_cp_ue_index_t ue_index, const plmn_i
     return false;
   }
 
-  // Connect NGAP to RRC UE to NGAP adapter.
-  logger.debug("ue={}: Connecting NGAP (plmn={}) to RRC UE adapter", ue_index, plmn);
-  ue_mng.get_rrc_ue_ngap_adapter(ue_index).connect_ngap(ngap_db.find_ngap(plmn));
+  ngap_interface* ngap = ngap_db.find_ngap(plmn);
+  if (ngap == nullptr) {
+    logger.warning("ue={}: No NGAP found for plmn={}", ue_index, plmn);
+    return false;
+  }
+  return bind_ue_to_amf(ue_index, ngap->get_ngap_context().amf_index);
+}
 
+bool cu_cp_impl::bind_ue_to_amf(cu_cp_ue_index_t ue_index, cu_cp_amf_index_t amf_index)
+{
+  ngap_interface* ngap = ngap_db.find_ngap(amf_index);
+  if (ngap == nullptr) {
+    logger.warning("ue={}: Could not bind UE to amf_index={}. NGAP not found", ue_index, amf_index);
+    return false;
+  }
+  cu_cp_ue* ue = ue_mng.find_ue(ue_index);
+  if (ue == nullptr) {
+    logger.warning("ue={}: Could not bind UE to amf_index={}. UE not found", ue_index, amf_index);
+    return false;
+  }
+
+  ue->get_ue_context().amf_index = amf_index;
+
+  // Connect NGAP to RRC UE to NGAP adapter.
+  logger.debug("ue={}: Connecting NGAP (amf_index={}) to RRC UE adapter", ue_index, amf_index);
+  ue_mng.get_rrc_ue_ngap_adapter(ue_index).connect_ngap(ngap);
   return true;
 }
 
@@ -712,12 +734,11 @@ async_task<bool> cu_cp_impl::handle_ue_context_transfer(cu_cp_ue_index_t ue_inde
 
     auto* ue = ue_mng.find_du_ue(ue_index);
 
-    // Check the NGAP and the PLMN of the old UE before the transfer starts.
-    auto* ngap = ngap_db.find_ngap(source_ue->get_ue_context().plmn);
+    // Check the NGAP and the PLMN of the old UE before the transfer starts. The new UE keeps the AMF of the old UE.
+    const cu_cp_amf_index_t amf_index = source_ue->get_ue_context().amf_index;
+    auto*                   ngap      = ngap_db.find_ngap(amf_index);
     if (ngap == nullptr) {
-      logger.warning("ue={}: Can't transfer UE context. Cause: NGAP not found for plmn={}",
-                     ue_index,
-                     source_ue->get_ue_context().plmn);
+      logger.warning("ue={}: Can't transfer UE context. Cause: NGAP not found for amf_index={}", ue_index, amf_index);
       return false;
     }
 
@@ -748,9 +769,9 @@ async_task<bool> cu_cp_impl::handle_ue_context_transfer(cu_cp_ue_index_t ue_inde
       return false;
     }
 
-    // Connect NGAP to RRC UE to NGAP adapter.
-    logger.debug("ue={}: Connecting NGAP (plmn={}) to RRC UE adapter", ue_index, ue->get_ue_context().plmn);
-    ue_mng.get_rrc_ue_ngap_adapter(ue_index).connect_ngap(ngap);
+    if (not bind_ue_to_amf(ue_index, amf_index)) {
+      return false;
+    }
 
     // Transfer E1AP UE Context to new UE and remove old context.
     cu_up_db.find_cu_up_processor(source_ue->get_cu_up_index())->update_ue_index(ue_index, old_ue_index);

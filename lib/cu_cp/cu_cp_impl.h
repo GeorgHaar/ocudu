@@ -298,6 +298,10 @@ private:
   /// \returns False if no NGAP exists for the AMF.
   bool bind_ue_to_amf(cu_cp_ue_index_t ue_index, cu_cp_amf_index_t amf_index);
 
+  /// \brief Binds a UE with a context retrieved from a peer to the AMF that the peer reported.
+  /// \returns False if the CU-CP is not connected to this AMF or to its AMF Set.
+  bool bind_retrieved_ue_to_amf(cu_cp_ue_index_t ue_index);
+
   /// \brief Request the release of an inactive UE that failed to resume within the expected time.
   /// \param[in] ue_index The index of the UE to release.
   void request_release_of_inactive_ue(cu_cp_ue_index_t ue_index);

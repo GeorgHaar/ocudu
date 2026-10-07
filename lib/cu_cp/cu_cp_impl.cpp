@@ -537,6 +537,39 @@ bool cu_cp_impl::bind_ue_to_amf(cu_cp_ue_index_t ue_index, cu_cp_amf_index_t amf
   return true;
 }
 
+bool cu_cp_impl::bind_retrieved_ue_to_amf(cu_cp_ue_index_t ue_index)
+{
+  cu_cp_ue* ue = ue_mng.find_du_ue(ue_index);
+  if (ue == nullptr) {
+    logger.warning("ue={}: Could not bind retrieved UE to an AMF. UE not found", ue_index);
+    return false;
+  }
+  if (not ue->get_context_retrieval_context().has_value()) {
+    logger.warning("ue={}: Could not bind retrieved UE to an AMF. Retrieved context not found", ue_index);
+    return false;
+  }
+
+  // The UE keeps the AMF of its GUAMI, or gets another AMF of the same AMF Set (TS 23.501 section 5.21.2.3). The
+  // retrieval fails if no AMF of the AMF Set serves the UE (TS 38.300 section 9.2.2.1).
+  const guami_t&                   guami     = ue->get_context_retrieval_context()->guami;
+  std::optional<cu_cp_amf_index_t> amf_index = ngap_db.find_amf_index(guami);
+  if (not amf_index.has_value()) {
+    logger.warning(
+        "ue={}: No AMF found for the retrieved GUAMI (plmn={} amf_region_id={} amf_set_id={} amf_pointer={})",
+        ue_index,
+        guami.plmn,
+        guami.amf_region_id,
+        guami.amf_set_id,
+        guami.amf_pointer);
+    return false;
+  }
+
+  if (not ue_mng.set_plmn(ue_index, guami.plmn)) {
+    return false;
+  }
+  return bind_ue_to_amf(ue_index, amf_index.value());
+}
+
 rrc_ue_reestablishment_context_response
 cu_cp_impl::handle_rrc_reestablishment_request(pci_t old_pci, rnti_t old_c_rnti, cu_cp_ue_index_t ue_index)
 {
@@ -615,7 +648,31 @@ async_task<rrc_ue_context_retrieval_response>
 cu_cp_impl::handle_ue_context_retrieval_required(cu_cp_ue_index_t                        ue_index,
                                                  const rrc_ue_context_retrieval_request& request)
 {
-  return launch_async<ue_context_retrieval_new_node_routine>(request, ue_index, xnap_db, ue_mng, logger);
+  return launch_async([this, ue_index, request, response = rrc_ue_context_retrieval_response{}](
+                          coro_context<async_task<rrc_ue_context_retrieval_response>>& ctx) mutable {
+    CORO_BEGIN(ctx);
+
+    CORO_AWAIT_VALUE(response,
+                     launch_async<ue_context_retrieval_new_node_routine>(request, ue_index, xnap_db, ue_mng, logger));
+
+    // Bind the UE before the RRC answers it, so that the UE falls back to RRC Setup if no AMF of the retrieved GUAMI is
+    // connected.
+    if (response.success and not bind_retrieved_ue_to_amf(ue_index)) {
+      cu_cp_ue* ue = ue_mng.find_du_ue(ue_index);
+      if (ue != nullptr) {
+        // The UE falls back to RRC Setup, so it leaves the peer that holds its context.
+        xnap_interface* xnap = xnap_db.find_xnap(ue->get_xnc_peer_index());
+        if (xnap != nullptr) {
+          xnap->get_xnap_ue_context_removal_handler().remove_ue_context(ue_index);
+        }
+        ue->set_xnc_peer_index(xnc_peer_index_t::invalid);
+        ue->get_context_retrieval_context().reset();
+      }
+      response = rrc_ue_context_retrieval_response{};
+    }
+
+    CORO_RETURN(std::move(response));
+  });
 }
 
 async_task<bool> cu_cp_impl::handle_rrc_reestablishment_context_modification_required(cu_cp_ue_index_t ue_index)
@@ -635,9 +692,9 @@ async_task<bool> cu_cp_impl::handle_rrc_reestablishment_context_modification_req
       return launch_no_op_task(false);
     }
 
-    ngap_interface* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+    ngap_interface* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
     if (ngap == nullptr) {
-      logger.warning("ue={}: Could not find NGAP for the UE's PLMN", ue_index);
+      logger.warning("ue={}: Could not find NGAP for the UE's AMF", ue_index);
       return launch_no_op_task(false);
     }
 

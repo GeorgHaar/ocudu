@@ -146,3 +146,23 @@ std::vector<guami_t> ngap_repository::get_served_guamis() const
   }
   return served_guamis;
 }
+
+std::optional<cu_cp_amf_index_t> ngap_repository::find_amf_index(const guami_t& guami) const
+{
+  std::optional<cu_cp_amf_index_t> amf_of_same_set;
+  for (const auto& ngap : ngap_db) {
+    for (const auto& served_guami : ngap.second.ngap->get_ngap_context().served_guami_list) {
+      if (served_guami.plmn != guami.plmn || served_guami.amf_region_id != guami.amf_region_id ||
+          served_guami.amf_set_id != guami.amf_set_id) {
+        continue;
+      }
+      if (served_guami.amf_pointer == guami.amf_pointer) {
+        return ngap.first;
+      }
+      if (not amf_of_same_set.has_value()) {
+        amf_of_same_set = ngap.first;
+      }
+    }
+  }
+  return amf_of_same_set;
+}

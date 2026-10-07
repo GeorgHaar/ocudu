@@ -390,7 +390,8 @@ xnap_message ocudu::ocucp::generate_retrieve_ue_context_request_for_resume(peer_
 }
 
 xnap_message ocudu::ocucp::generate_retrieve_ue_context_response(local_xnap_ue_id_t local_xnap_ue_id,
-                                                                 peer_xnap_ue_id_t  peer_xnap_ue_id)
+                                                                 peer_xnap_ue_id_t  peer_xnap_ue_id,
+                                                                 const guami_t&     guami)
 {
   xnap_message xnap_msg;
   xnap_msg.pdu.set_successful_outcome();
@@ -403,8 +404,7 @@ xnap_message ocudu::ocucp::generate_retrieve_ue_context_response(local_xnap_ue_i
   response->new_ng_ra_nnode_ue_xn_ap_id = to_underlying(local_xnap_ue_id);
   response->old_ng_ra_nnode_ue_xn_ap_id = to_underlying(peer_xnap_ue_id);
 
-  response->guami = guami_to_asn1(
-      guami_t{.plmn = plmn_identity::test_value(), .amf_set_id = 1, .amf_pointer = 1, .amf_region_id = 1});
+  response->guami = guami_to_asn1(guami);
 
   auto& ue_context_info           = response->ue_context_info_retr_ue_ctxt_resp;
   ue_context_info.ng_c_ue_sig_ref = 1;

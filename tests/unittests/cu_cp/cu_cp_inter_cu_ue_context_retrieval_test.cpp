@@ -305,6 +305,39 @@ TEST_F(cu_cp_inter_cu_ue_context_retrieval_test, when_context_is_retrieved_then_
       << "Expected a UE Context Release towards the peer";
 }
 
+TEST_F(cu_cp_inter_cu_ue_context_retrieval_test, when_path_is_switched_then_ul_nas_is_sent_to_the_amf)
+{
+  ASSERT_TRUE(retrieve_ue_context());
+  ASSERT_TRUE(ue_sends_rrc_reest_complete());
+
+  // Set up the retrieved bearers.
+  ASSERT_TRUE(this->wait_for_e1ap_tx_pdu(cu_up_idx, e1ap_pdu));
+  cu_cp_e1ap_id =
+      int_to_gnb_cu_cp_ue_e1ap_id(e1ap_pdu.pdu.init_msg().value.bearer_context_setup_request()->gnb_cu_cp_ue_e1ap_id);
+  get_cu_up(cu_up_idx).push_tx_pdu(ocucp::generate_bearer_context_setup_response(cu_cp_e1ap_id, cu_up_e1ap_id));
+  ASSERT_TRUE(this->wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu));
+  get_du(du_idx).push_ul_pdu(test_helpers::generate_ue_context_modification_response(du_ue_id, cu_ue_id, crnti));
+  ASSERT_TRUE(this->wait_for_e1ap_tx_pdu(cu_up_idx, e1ap_pdu));
+  get_cu_up(cu_up_idx).push_tx_pdu(ocucp::generate_bearer_context_modification_response(cu_cp_e1ap_id, cu_up_e1ap_id));
+  ASSERT_TRUE(this->wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu));
+  ASSERT_TRUE(ue_sends_rrc_reconfiguration_complete());
+
+  // Switch the path.
+  ASSERT_TRUE(this->wait_for_ngap_tx_pdu(ngap_pdu)) << "No Path Switch Request was sent";
+  const auto& path_switch = *ngap_pdu.pdu.init_msg().value.path_switch_request();
+  get_amf().push_tx_pdu(generate_path_switch_request_ack(uint_to_amf_ue_id(peer_reported_amf_ue_id),
+                                                         uint_to_ran_ue_id(path_switch.ran_ue_ngap_id)));
+  ASSERT_TRUE(this->wait_for_xnap_tx_pdu(xnc_peer_idx, xnap_pdu)) << "No UE Context Release was sent to the peer";
+
+  // The UE sends a NAS message.
+  asn1::rrc_nr::ul_dcch_msg_s ul_dcch_msg;
+  ul_dcch_msg.msg.set_c1().set_ul_info_transfer().crit_exts.set_ul_info_transfer().ded_nas_msg.from_string("7e004c");
+  ASSERT_TRUE(ue_sends_ul_dcch(test_helpers::pack_ul_dcch_msg(ul_dcch_msg), 2));
+
+  ASSERT_TRUE(this->wait_for_ngap_tx_pdu(ngap_pdu)) << "The NAS message was not sent to the AMF";
+  ASSERT_TRUE(test_helpers::is_valid_ul_nas_transport_message(ngap_pdu));
+}
+
 TEST_F(cu_cp_inter_cu_ue_context_retrieval_test, when_peer_rejects_retrieval_then_fallback_to_rrc_setup)
 {
   OCUDU_TEST_REQUIREMENTS("CU-GEN-3");
@@ -317,6 +350,23 @@ TEST_F(cu_cp_inter_cu_ue_context_retrieval_test, when_peer_rejects_retrieval_the
 
   ASSERT_FALSE(wait_for_msg4_and_check_reestablishment_accepted())
       << "Reestablishment was accepted although the peer rejected the retrieval";
+}
+
+TEST_F(cu_cp_inter_cu_ue_context_retrieval_test,
+       when_no_amf_of_the_retrieved_guami_is_connected_then_fallback_to_rrc_setup)
+{
+  ue_sends_rrc_reest_request(xnc_peer_served_pci);
+  ASSERT_TRUE(this->wait_for_xnap_tx_pdu(xnc_peer_idx, xnap_pdu));
+
+  // The CU-CP is connected to no AMF of the AMF Set 2.
+  get_xnc_cu_cp(xnc_peer_idx)
+      .push_tx_pdu(generate_retrieve_ue_context_response(
+          local_xnap_ue_id,
+          peer_xnap_ue_id,
+          guami_t{.plmn = plmn_identity::test_value(), .amf_set_id = 2, .amf_pointer = 0, .amf_region_id = 2}));
+
+  ASSERT_FALSE(wait_for_msg4_and_check_reestablishment_accepted())
+      << "Reestablishment was accepted although no AMF of the retrieved GUAMI is connected";
 }
 
 TEST_F(cu_cp_inter_cu_ue_context_retrieval_test, when_no_peer_serves_failure_cell_then_no_retrieval_is_attempted)

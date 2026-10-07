@@ -88,6 +88,12 @@ public:
   /// \brief Get all served GUAMIs across all connected NGAPs.
   std::vector<guami_t> get_served_guamis() const;
 
+  /// \brief Finds the AMF that serves a GUAMI.
+  ///
+  /// The AMF that serves the GUAMI comes first. Otherwise, an AMF of the same AMF Set is returned.
+  /// \return The index of the AMF, or std::nullopt if no AMF of the AMF Set is connected to the CU-CP.
+  std::optional<cu_cp_amf_index_t> find_amf_index(const guami_t& guami) const;
+
 private:
   struct ngap_context {
     // CU-CP handler of NGAP events.

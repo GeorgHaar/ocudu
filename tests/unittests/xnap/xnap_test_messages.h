@@ -87,8 +87,14 @@ xnap_message generate_retrieve_ue_context_request_for_resume(peer_xnap_ue_id_t p
                                                              uint16_t          resume_mac_i = 0xabcd);
 
 /// \brief Generate a dummy Retrieve UE Context Response message.
+/// \param[in] guami GUAMI of the AMF that serves the UE. The default is the GUAMI that generate_ng_setup_response()
+/// describes.
 xnap_message generate_retrieve_ue_context_response(local_xnap_ue_id_t local_xnap_ue_id,
-                                                   peer_xnap_ue_id_t  peer_xnap_ue_id);
+                                                   peer_xnap_ue_id_t  peer_xnap_ue_id,
+                                                   const guami_t&     guami = {.plmn = plmn_identity::test_value(),
+                                                                               .amf_set_id    = 1,
+                                                                               .amf_pointer   = 0,
+                                                                               .amf_region_id = 2});
 
 /// \brief Generate a dummy Retrieve UE Context Failure message.
 xnap_message generate_retrieve_ue_context_failure(local_xnap_ue_id_t local_xnap_ue_id);

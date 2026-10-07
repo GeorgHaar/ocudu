@@ -392,6 +392,13 @@ public:
   virtual async_task<bool> handle_handover_ue_context_push(cu_cp_ue_index_t source_ue_index,
                                                            cu_cp_ue_index_t target_ue_index) = 0;
 
+  /// \brief Handle the binding of an intra-CU handover target UE to the PLMN and the AMF of the source UE.
+  /// \param[in] source_ue_index The index of the UE that is the source of the handover.
+  /// \param[in] target_ue_index The index of the UE that is the target of the handover.
+  /// \return True if the target UE is bound to the AMF of the source UE, false otherwise.
+  virtual bool handle_handover_target_ue_amf_binding(cu_cp_ue_index_t source_ue_index,
+                                                     cu_cp_ue_index_t target_ue_index) = 0;
+
   /// \brief Initialize a handover UE release timer. When the timeout is reached, a release request is sent to the AMF.
   /// \param[in] ue_index The index of the UE.
   /// \param[in] handover_ue_release_timeout The timeout for the release.

@@ -105,9 +105,10 @@ void intra_cu_handover_routine::operator()(coro_context<async_task<cu_cp_intra_c
       CORO_EARLY_RETURN(response_msg);
     }
     target_ue_context_setup_request.ue_index = target_ue_index;
-    if (!cu_cp_handler.handle_ue_plmn_selected(target_ue_context_setup_request.ue_index,
-                                               source_ue->get_ue_context().plmn)) {
-      logger.warning("ue={}: \"{}\" failed to set PLMN for target UE", request.source_ue_index, name());
+    if (!cu_cp_handler.handle_handover_target_ue_amf_binding(request.source_ue_index,
+                                                             target_ue_context_setup_request.ue_index)) {
+      logger.warning(
+          "ue={}: \"{}\" failed to bind target UE to the AMF of the source UE", request.source_ue_index, name());
       ue_mng.remove_ue(target_ue_context_setup_request.ue_index);
       CORO_EARLY_RETURN(response_msg);
     }

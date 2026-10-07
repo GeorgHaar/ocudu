@@ -537,6 +537,21 @@ bool cu_cp_impl::bind_ue_to_amf(cu_cp_ue_index_t ue_index, cu_cp_amf_index_t amf
   return true;
 }
 
+bool cu_cp_impl::handle_handover_target_ue_amf_binding(cu_cp_ue_index_t source_ue_index,
+                                                       cu_cp_ue_index_t target_ue_index)
+{
+  cu_cp_ue* source_ue = ue_mng.find_ue(source_ue_index);
+  if (source_ue == nullptr) {
+    logger.warning("ue={}: Could not find source UE", source_ue_index);
+    return false;
+  }
+
+  if (not ue_mng.set_plmn(target_ue_index, source_ue->get_ue_context().plmn)) {
+    return false;
+  }
+  return bind_ue_to_amf(target_ue_index, source_ue->get_ue_context().amf_index);
+}
+
 bool cu_cp_impl::bind_retrieved_ue_to_amf(cu_cp_ue_index_t ue_index)
 {
   cu_cp_ue* ue = ue_mng.find_du_ue(ue_index);

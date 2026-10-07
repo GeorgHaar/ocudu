@@ -186,6 +186,12 @@ public:
     return launch_no_op_task(true);
   }
 
+  bool handle_handover_target_ue_amf_binding(cu_cp_ue_index_t source_ue_index,
+                                             cu_cp_ue_index_t target_ue_index) override
+  {
+    return true;
+  }
+
   void initialize_handover_ue_release_timer(cu_cp_ue_index_t                        ue_index,
                                             std::chrono::milliseconds               handover_ue_release_timeout,
                                             const cu_cp_ue_context_release_request& ue_context_release_request) override

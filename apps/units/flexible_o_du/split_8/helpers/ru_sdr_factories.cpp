@@ -34,12 +34,13 @@ std::unique_ptr<radio_unit> ocudu::create_sdr_radio_unit(const ru_sdr_unit_confi
     ru_sdr_sector_executor_mapper& sector_exec_map = exec_map[i];
 
     deps.sector_dependencies.emplace_back(
-        ru_sdr_sector_dependencies{.logger               = ocudulog::fetch_basic_logger("PHY"),
-                                   .rx_task_executor     = sector_exec_map.receiver_executor(),
-                                   .tx_task_executor     = sector_exec_map.transmitter_executor(),
-                                   .dl_task_executor     = sector_exec_map.downlink_executor(),
-                                   .ul_task_executor     = sector_exec_map.uplink_executor(),
-                                   .prach_async_executor = sector_exec_map.prach_executor()});
+        ru_sdr_sector_dependencies{.logger                 = ocudulog::fetch_basic_logger("PHY"),
+                                   .rx_task_executor       = sector_exec_map.receiver_executor(),
+                                   .tx_task_executor       = sector_exec_map.transmitter_executor(),
+                                   .dl_task_executor       = sector_exec_map.downlink_executor(),
+                                   .ul_task_executor       = sector_exec_map.uplink_executor(),
+                                   .ul_demod_task_executor = sector_exec_map.uplink_demodulation_executor(),
+                                   .prach_async_executor   = sector_exec_map.prach_executor()});
   }
 
   return create_sdr_ru(config, deps);

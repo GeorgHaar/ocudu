@@ -38,6 +38,11 @@ static std::shared_ptr<lower_phy_factory> create_lower_phy_factory(const lower_p
       create_ofdm_demodulator_factory_generic(ofdm_common_config);
   report_fatal_error_if_not(demodulator_factory, "Failed to create OFDM demodulator factory.");
 
+  // Wrap the OFDM demodulator factory with a pool factory.
+  demodulator_factory =
+      create_ofdm_demodulator_pool_factory(std::move(demodulator_factory), MAX_NSYMB_PER_SLOT * config.nof_rx_ports);
+  report_fatal_error_if_not(demodulator_factory, "Failed to create OFDM demodulator pool factory.");
+
   // Create OFDM PRACH demodulator factory.
   std::shared_ptr<ofdm_prach_demodulator_factory> prach_demodulator_factory =
       create_ofdm_prach_demodulator_factory_sw(dft_factory, config.srate, fr);
@@ -88,7 +93,7 @@ std::unique_ptr<lower_phy_sector> ocudu::create_lower_phy_sector(const lower_phy
                                          .tx_task_executor       = sector_deps.tx_task_executor,
                                          .dl_task_executor       = sector_deps.dl_task_executor,
                                          .ul_task_executor       = sector_deps.ul_task_executor,
-                                         .ul_demod_task_executor = sector_deps.ul_task_executor,
+                                         .ul_demod_task_executor = sector_deps.ul_demod_task_executor,
                                          .prach_async_executor   = sector_deps.prach_async_executor};
 
   // Create lower PHY factory.

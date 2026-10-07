@@ -19,15 +19,22 @@ class ru_sdr_sector_executor_mapper_impl : public ru_sdr_sector_executor_mapper
 public:
   ru_sdr_sector_executor_mapper_impl(task_executor& dl_exec_,
                                      task_executor& ul_exec_,
+                                     task_executor& ul_demod_exec_,
                                      task_executor& prach_exec_,
                                      task_executor& tx_exec_,
                                      task_executor& rx_exec_) :
-    dl_exec(dl_exec_), ul_exec(ul_exec_), prach_exec(prach_exec_), tx_exec(tx_exec_), rx_exec(rx_exec_)
+    dl_exec(dl_exec_),
+    ul_exec(ul_exec_),
+    ul_demod_exec(ul_demod_exec_),
+    prach_exec(prach_exec_),
+    tx_exec(tx_exec_),
+    rx_exec(rx_exec_)
   {
   }
 
   task_executor& downlink_executor() override { return dl_exec; }
   task_executor& uplink_executor() override { return ul_exec; }
+  task_executor& uplink_demodulation_executor() override { return ul_demod_exec; }
   task_executor& prach_executor() override { return prach_exec; }
   task_executor& transmitter_executor() override { return tx_exec; }
   task_executor& receiver_executor() override { return rx_exec; }
@@ -35,6 +42,7 @@ public:
 private:
   task_executor& dl_exec;
   task_executor& ul_exec;
+  task_executor& ul_demod_exec;
   task_executor& prach_exec;
   task_executor& tx_exec;
   task_executor& rx_exec;
@@ -85,17 +93,20 @@ public:
 
     async_exec = config.asynchronous_exec;
 
-    std::reference_wrapper<task_executor> dl_exec    = inline_executor;
-    std::reference_wrapper<task_executor> ul_exec    = inline_executor;
-    std::reference_wrapper<task_executor> prach_exec = inline_executor;
-    std::reference_wrapper<task_executor> tx_exec    = *config.common_exec;
-    std::reference_wrapper<task_executor> rx_exec    = *config.common_exec;
+    std::reference_wrapper<task_executor> dl_exec       = inline_executor;
+    std::reference_wrapper<task_executor> ul_exec       = inline_executor;
+    std::reference_wrapper<task_executor> ul_demod_exec = inline_executor;
+    std::reference_wrapper<task_executor> prach_exec    = inline_executor;
+    std::reference_wrapper<task_executor> tx_exec       = *config.common_exec;
+    std::reference_wrapper<task_executor> rx_exec       = *config.common_exec;
 
     if (config.exec_metrics_channel_registry || config.executor_tracing_enable) {
       dl_exec = decorator.decorate(
           dl_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_dl_exec");
       ul_exec = decorator.decorate(
           ul_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_ul_exec");
+      ul_demod_exec = decorator.decorate(
+          ul_demod_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_ul_demod_exec");
       prach_exec = decorator.decorate(
           prach_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_prach_exec");
       tx_exec = decorator.decorate(
@@ -105,7 +116,7 @@ public:
     }
 
     for (unsigned i_sector = 0; i_sector != config.nof_sectors; ++i_sector) {
-      sectors.emplace_back(dl_exec, ul_exec, prach_exec, tx_exec, rx_exec);
+      sectors.emplace_back(dl_exec, ul_exec, ul_demod_exec, prach_exec, tx_exec, rx_exec);
     }
   }
 
@@ -119,17 +130,20 @@ public:
     for (const auto& baseband_exec : config.baseband_exec) {
       ocudu_assert(baseband_exec != nullptr, "Invalid baseband cell executor.");
 
-      std::reference_wrapper<task_executor> dl_exec    = *config.high_prio_executor;
-      std::reference_wrapper<task_executor> ul_exec    = inline_executor;
-      std::reference_wrapper<task_executor> prach_exec = *config.high_prio_executor;
-      std::reference_wrapper<task_executor> tx_exec    = *baseband_exec;
-      std::reference_wrapper<task_executor> rx_exec    = *baseband_exec;
+      std::reference_wrapper<task_executor> dl_exec       = *config.high_prio_executor;
+      std::reference_wrapper<task_executor> ul_exec       = inline_executor;
+      std::reference_wrapper<task_executor> ul_demod_exec = *config.high_prio_executor;
+      std::reference_wrapper<task_executor> prach_exec    = *config.high_prio_executor;
+      std::reference_wrapper<task_executor> tx_exec       = *baseband_exec;
+      std::reference_wrapper<task_executor> rx_exec       = *baseband_exec;
 
       if (config.exec_metrics_channel_registry || config.executor_tracing_enable) {
         dl_exec = decorator.decorate(
             dl_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_dl_exec");
         ul_exec = decorator.decorate(
             ul_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_ul_exec");
+        ul_demod_exec = decorator.decorate(
+            ul_demod_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_ul_demod_exec");
         prach_exec = decorator.decorate(
             prach_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_prach_exec");
         tx_exec = decorator.decorate(
@@ -138,7 +152,7 @@ public:
             rx_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_rx_exec");
       }
 
-      sectors.emplace_back(dl_exec, ul_exec, prach_exec, tx_exec, rx_exec);
+      sectors.emplace_back(dl_exec, ul_exec, ul_demod_exec, prach_exec, tx_exec, rx_exec);
     }
   }
 
@@ -153,17 +167,20 @@ public:
       ocudu_assert(baseband_exec.rx_exec != nullptr, "Invalid receive baseband cell executor.");
       ocudu_assert(baseband_exec.tx_exec != nullptr, "Invalid transmit baseband cell executor.");
 
-      std::reference_wrapper<task_executor> dl_exec    = *config.high_prio_executor;
-      std::reference_wrapper<task_executor> ul_exec    = inline_executor;
-      std::reference_wrapper<task_executor> prach_exec = *config.high_prio_executor;
-      std::reference_wrapper<task_executor> tx_exec    = *baseband_exec.tx_exec;
-      std::reference_wrapper<task_executor> rx_exec    = *baseband_exec.rx_exec;
+      std::reference_wrapper<task_executor> dl_exec       = *config.high_prio_executor;
+      std::reference_wrapper<task_executor> ul_exec       = inline_executor;
+      std::reference_wrapper<task_executor> ul_demod_exec = *config.high_prio_executor;
+      std::reference_wrapper<task_executor> prach_exec    = *config.high_prio_executor;
+      std::reference_wrapper<task_executor> tx_exec       = *baseband_exec.tx_exec;
+      std::reference_wrapper<task_executor> rx_exec       = *baseband_exec.rx_exec;
 
       if (config.exec_metrics_channel_registry || config.executor_tracing_enable) {
         dl_exec = decorator.decorate(
             dl_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_dl_exec");
         ul_exec = decorator.decorate(
             ul_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_ul_exec");
+        ul_demod_exec = decorator.decorate(
+            ul_demod_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_ul_demod_exec");
         prach_exec = decorator.decorate(
             prach_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_prach_exec");
         tx_exec = decorator.decorate(
@@ -172,7 +189,7 @@ public:
             rx_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_rx_exec");
       }
 
-      sectors.emplace_back(dl_exec, ul_exec, prach_exec, tx_exec, rx_exec);
+      sectors.emplace_back(dl_exec, ul_exec, ul_demod_exec, prach_exec, tx_exec, rx_exec);
     }
   }
 
@@ -188,17 +205,20 @@ public:
       ocudu_assert(baseband_exec.tx_exec != nullptr, "Invalid transmit baseband cell executor.");
       ocudu_assert(baseband_exec.ul_exec != nullptr, "Invalid baseband demodulator cell executor.");
 
-      std::reference_wrapper<task_executor> dl_exec    = *config.high_prio_executor;
-      std::reference_wrapper<task_executor> ul_exec    = *baseband_exec.ul_exec;
-      std::reference_wrapper<task_executor> prach_exec = *config.high_prio_executor;
-      std::reference_wrapper<task_executor> tx_exec    = *baseband_exec.tx_exec;
-      std::reference_wrapper<task_executor> rx_exec    = *baseband_exec.rx_exec;
+      std::reference_wrapper<task_executor> dl_exec       = *config.high_prio_executor;
+      std::reference_wrapper<task_executor> ul_exec       = *baseband_exec.ul_exec;
+      std::reference_wrapper<task_executor> ul_demod_exec = *config.high_prio_executor;
+      std::reference_wrapper<task_executor> prach_exec    = *config.high_prio_executor;
+      std::reference_wrapper<task_executor> tx_exec       = *baseband_exec.tx_exec;
+      std::reference_wrapper<task_executor> rx_exec       = *baseband_exec.rx_exec;
 
       if (config.exec_metrics_channel_registry || config.executor_tracing_enable) {
         dl_exec = decorator.decorate(
             dl_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_dl_exec");
         ul_exec = decorator.decorate(
             ul_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_ul_exec");
+        ul_demod_exec = decorator.decorate(
+            ul_demod_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_ul_demod_exec");
         prach_exec = decorator.decorate(
             prach_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_prach_exec");
         tx_exec = decorator.decorate(
@@ -207,7 +227,7 @@ public:
             rx_exec, config.executor_tracing_enable, config.exec_metrics_channel_registry, "ru_rx_exec");
       }
 
-      sectors.emplace_back(dl_exec, ul_exec, prach_exec, tx_exec, rx_exec);
+      sectors.emplace_back(dl_exec, ul_exec, ul_demod_exec, prach_exec, tx_exec, rx_exec);
     }
   }
 

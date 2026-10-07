@@ -27,6 +27,9 @@ public:
   /// Retrieves lower physical layer executor for uplink demodulation.
   virtual task_executor& uplink_executor() = 0;
 
+  /// Retrieves lower physical layer executor for the uplink OFDM demodulation tasks.
+  virtual task_executor& uplink_demodulation_executor() = 0;
+
   /// Retrieves lower physical layer executor for PRACH demodulation.
   virtual task_executor& prach_executor() = 0;
 

@@ -20,6 +20,7 @@ struct lower_phy_sector_dependencies {
   task_executor&                tx_task_executor;
   task_executor&                dl_task_executor;
   task_executor&                ul_task_executor;
+  task_executor&                ul_demod_task_executor;
   task_executor&                prach_async_executor;
   lower_phy_error_notifier&     error_notifier;
   lower_phy_timing_notifier*    timing_notifier;

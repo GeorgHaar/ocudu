@@ -36,6 +36,8 @@ struct xn_handover_request_params {
   bool include_as_config_drb_mapping = false;
   /// Proposes every QoS flow of the PDU session for DL data forwarding (TS 38.423 Section 9.2.1.17).
   bool propose_dl_data_forwarding = false;
+  /// GUAMI of the AMF that serves the UE. The default is the GUAMI that generate_ng_setup_response() describes.
+  guami_t guami = {.plmn = plmn_identity::test_value(), .amf_set_id = 1, .amf_pointer = 0, .amf_region_id = 2};
 };
 
 /// \brief Generate a dummy Handover Request message.

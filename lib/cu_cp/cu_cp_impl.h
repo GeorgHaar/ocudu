@@ -142,13 +142,13 @@ public:
   handle_write_replace_warning_request(const ngap_write_replace_warning_request& request) override;
 
   // cu_cp_inter_cu_handover_handler.
-  async_task<bool> handle_new_rrc_handover_command(cu_cp_rrc_handover_command      command,
-                                                   std::optional<xnc_peer_index_t> xnc_index = std::nullopt) override;
-  cu_cp_ue_index_t handle_ue_index_allocation_request(const nr_cell_global_id_t& cgi,
-                                                      const plmn_identity&       plmn) override;
-  cu_cp_ue_index_t handle_ue_index_allocation_request_for_amf(const nr_cell_global_id_t& cgi,
-                                                              const plmn_identity&       plmn,
-                                                              cu_cp_amf_index_t          amf_index) override;
+  async_task<bool>                         handle_new_rrc_handover_command(cu_cp_rrc_handover_command      command,
+                                                                           std::optional<xnc_peer_index_t> xnc_index = std::nullopt) override;
+  expected<cu_cp_ue_index_t, xnap_cause_t> handle_ue_index_allocation_request_for_guami(const nr_cell_global_id_t& cgi,
+                                                                                        const guami_t& guami) override;
+  cu_cp_ue_index_t                         handle_ue_index_allocation_request_for_amf(const nr_cell_global_id_t& cgi,
+                                                                                      const plmn_identity&       plmn,
+                                                                                      cu_cp_amf_index_t          amf_index) override;
   bool handle_handover_request(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt) override;
   void handle_inter_cu_target_handover_execution(cu_cp_ue_index_t ue_index,
                                                  const std::optional<xnap_handover_target_execution_context>&

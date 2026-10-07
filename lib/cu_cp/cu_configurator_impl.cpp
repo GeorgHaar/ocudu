@@ -14,11 +14,12 @@ cu_cp_ue_index_t cu_configurator_impl::get_ue_index(const amf_ue_id_t&         a
                                                     const guami_t&             guami,
                                                     const gnb_cu_ue_f1ap_id_t& gnb_cu_ue_f1ap_id) const
 {
-  auto* ngap = ngap_db.find_ngap(guami.plmn);
-  if (ngap == nullptr) {
+  // The AMF UE NGAP ID is unique only within one AMF.
+  std::optional<cu_cp_amf_index_t> amf_index = ngap_db.find_amf_index(guami);
+  if (not amf_index.has_value()) {
     return cu_cp_ue_index_t::invalid;
   }
-  return ngap->get_ngap_ue_id_translator().get_ue_index(amf_ue_id);
+  return ngap_db.find_ngap(amf_index.value())->get_ngap_ue_id_translator().get_ue_index(amf_ue_id);
 }
 
 cu_cp_du_index_t cu_configurator_impl::get_du_index(const cu_cp_ue_index_t& ue_index) const

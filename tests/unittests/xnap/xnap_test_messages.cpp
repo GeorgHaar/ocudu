@@ -103,8 +103,7 @@ xnap_message ocudu::ocucp::generate_handover_request(local_xnap_ue_id_t         
       asn1::xnap::cause_radio_network_layer_opts::options::ho_desirable_for_radio_reasons;
   ho_request->target_cell_global_id.set_nr() =
       cgi_to_asn1(nr_cell_global_id_t{plmn_identity::test_value(), nr_cell_identity::create({411, 22}, 0).value()});
-  ho_request->guami = guami_to_asn1(
-      guami_t{.plmn = plmn_identity::test_value(), .amf_set_id = 1, .amf_pointer = 1, .amf_region_id = 1});
+  ho_request->guami                                  = guami_to_asn1(params.guami);
   ho_request->ue_context_info_ho_request.ng_c_ue_ref = 1;
 
   ho_request->ue_context_info_ho_request.cp_tnl_info_source.set_endpoint_ip_address();

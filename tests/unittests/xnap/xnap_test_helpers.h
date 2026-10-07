@@ -91,23 +91,24 @@ public:
     });
   }
 
-  cu_cp_ue_index_t request_new_ue_index_allocation(const nr_cell_global_id_t& cgi, const plmn_identity& plmn) override
+  expected<cu_cp_ue_index_t, xnap_cause_t> request_new_ue_index_allocation(const nr_cell_global_id_t& cgi,
+                                                                           const guami_t&             guami) override
   {
     if (ho_request_outcome) {
       cu_cp_ue_index_t ue_index = ue_mng.add_ue(cu_cp_du_index_t::min);
       if (ue_index == cu_cp_ue_index_t::invalid) {
         logger.error("Failed to create UE");
-        return cu_cp_ue_index_t::invalid;
+        return make_unexpected(xnap_cause_misc_t::not_enough_user_plane_processing_res);
       }
       if (ue_mng.ue_admission_limit_reached()) {
         ue_mng.remove_ue(ue_index);
         logger.error("Failed to create UE. UE not servable");
-        return cu_cp_ue_index_t::invalid;
+        return make_unexpected(xnap_cause_misc_t::not_enough_user_plane_processing_res);
       }
 
       return ue_index;
     }
-    return cu_cp_ue_index_t::invalid;
+    return make_unexpected(xnap_cause_misc_t::not_enough_user_plane_processing_res);
   }
 
   bool on_handover_request_received(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt) override

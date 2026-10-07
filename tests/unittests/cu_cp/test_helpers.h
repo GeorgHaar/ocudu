@@ -954,10 +954,10 @@ public:
     return launch_no_op_task(true);
   }
 
-  cu_cp_ue_index_t handle_ue_index_allocation_request(const nr_cell_global_id_t& cgi,
-                                                      const plmn_identity&       plmn) override
+  expected<cu_cp_ue_index_t, xnap_cause_t> handle_ue_index_allocation_request_for_guami(const nr_cell_global_id_t& cgi,
+                                                                                        const guami_t& guami) override
   {
-    return cu_cp_ue_index_t::invalid;
+    return make_unexpected(xnap_cause_misc_t::not_enough_user_plane_processing_res);
   }
 
   cu_cp_ue_index_t handle_ue_index_allocation_request_for_amf(const nr_cell_global_id_t& cgi,

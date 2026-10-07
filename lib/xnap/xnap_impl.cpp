@@ -331,12 +331,14 @@ void xnap_impl::handle_handover_request(const asn1::xnap::ho_request_s& msg)
               ho_request.nr_cgi.nci);
 
   // Create UE in target cell.
-  ho_request.ue_index = cu_cp_notifier.request_new_ue_index_allocation(ho_request.nr_cgi, ho_request.guami.plmn);
-  if (ho_request.ue_index == cu_cp_ue_index_t::invalid) {
+  expected<cu_cp_ue_index_t, xnap_cause_t> ue_index =
+      cu_cp_notifier.request_new_ue_index_allocation(ho_request.nr_cgi, ho_request.guami);
+  if (not ue_index.has_value()) {
     logger.debug("Couldn't allocate UE index for handover target cell");
-    send_handover_failure(msg->source_ng_ra_nnode_ue_xn_ap_id, xnap_cause_misc_t::not_enough_user_plane_processing_res);
+    send_handover_failure(msg->source_ng_ra_nnode_ue_xn_ap_id, ue_index.error());
     return;
   }
+  ho_request.ue_index = ue_index.value();
 
   // Inititialize security context of target UE.
   if (!cu_cp_notifier.on_handover_request_received(ho_request.ue_index,

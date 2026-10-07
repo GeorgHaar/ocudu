@@ -6,6 +6,7 @@
 #pragma once
 
 #include "du_processor/du_reported_cell.h"
+#include "ocudu/adt/expected.h"
 #include "ocudu/cu_cp/cell_meas_manager_config.h"
 #include "ocudu/cu_cp/cu_cp_intra_cu_ho_types.h"
 #include "ocudu/e1ap/cu_cp/e1ap_cu_cp_bearer_context_update.h"
@@ -60,9 +61,12 @@ public:
   handle_new_rrc_handover_command(cu_cp_rrc_handover_command      command,
                                   std::optional<xnc_peer_index_t> xnc_index = std::nullopt) = 0;
 
-  /// \brief Handles UE index allocation request for N2 handover at target gNB.
-  virtual cu_cp_ue_index_t handle_ue_index_allocation_request(const nr_cell_global_id_t& cgi,
-                                                              const plmn_identity&       plmn) = 0;
+  /// \brief Handles UE index allocation request for a handover target UE that the AMF of a GUAMI serves.
+  /// \param[in] cgi The target cell of the handover.
+  /// \param[in] guami The GUAMI of the AMF that serves the UE.
+  /// \return The index of the new UE, or the cause to reject the handover with.
+  virtual expected<cu_cp_ue_index_t, xnap_cause_t>
+  handle_ue_index_allocation_request_for_guami(const nr_cell_global_id_t& cgi, const guami_t& guami) = 0;
 
   /// \brief Handles UE index allocation request for a handover target UE that a given AMF serves.
   /// \param[in] cgi The target cell of the handover.

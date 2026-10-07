@@ -1693,20 +1693,26 @@ cu_cp_ue_index_t cu_cp_impl::add_handover_target_ue(const nr_cell_global_id_t& c
   return ue_index;
 }
 
-cu_cp_ue_index_t cu_cp_impl::handle_ue_index_allocation_request(const nr_cell_global_id_t& cgi,
-                                                                const plmn_identity&       plmn)
+expected<cu_cp_ue_index_t, xnap_cause_t>
+cu_cp_impl::handle_ue_index_allocation_request_for_guami(const nr_cell_global_id_t& cgi, const guami_t& guami)
 {
-  cu_cp_ue_index_t ue_index = add_handover_target_ue(cgi);
+  // An Xn handover keeps the AMF of the UE, and the Path Switch Request goes to this AMF (TS 38.300 section
+  // 9.2.3.2.1).
+  std::optional<cu_cp_amf_index_t> amf_index = ngap_db.find_amf_index(guami);
+  if (not amf_index.has_value()) {
+    logger.warning("No AMF found for the GUAMI of the handover target UE (plmn={} amf_region_id={} amf_set_id={} "
+                   "amf_pointer={})",
+                   guami.plmn,
+                   guami.amf_region_id,
+                   guami.amf_set_id,
+                   guami.amf_pointer);
+    return make_unexpected(xnap_cause_radio_network_t::unknown_guami_id);
+  }
+
+  cu_cp_ue_index_t ue_index = handle_ue_index_allocation_request_for_amf(cgi, guami.plmn, amf_index.value());
   if (ue_index == cu_cp_ue_index_t::invalid) {
-    return cu_cp_ue_index_t::invalid;
+    return make_unexpected(xnap_cause_misc_t::not_enough_user_plane_processing_res);
   }
-
-  if (!handle_ue_plmn_selected(ue_index, plmn)) {
-    logger.warning("ue={}: PLMN selection failed", ue_index);
-    ue_mng.remove_ue(ue_index);
-    return cu_cp_ue_index_t::invalid;
-  }
-
   return ue_index;
 }
 

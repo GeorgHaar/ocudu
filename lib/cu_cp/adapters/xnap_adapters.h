@@ -26,10 +26,11 @@ public:
     return cu_cp_handler->handle_new_rrc_handover_command(std::move(command), xnc_index);
   }
 
-  cu_cp_ue_index_t request_new_ue_index_allocation(const nr_cell_global_id_t& cgi, const plmn_identity& plmn) override
+  expected<cu_cp_ue_index_t, xnap_cause_t> request_new_ue_index_allocation(const nr_cell_global_id_t& cgi,
+                                                                           const guami_t&             guami) override
   {
     ocudu_assert(cu_cp_handler != nullptr, "CU-CP XNAP handler must not be nullptr");
-    return cu_cp_handler->handle_ue_index_allocation_request(cgi, plmn);
+    return cu_cp_handler->handle_ue_index_allocation_request_for_guami(cgi, guami);
   }
 
   bool on_handover_request_received(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt) override

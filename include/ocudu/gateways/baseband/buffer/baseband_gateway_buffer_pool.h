@@ -19,7 +19,7 @@
 namespace ocudu {
 
 /// Thread safe baseband buffer pool.
-using baseband_gateway_buffer_pool = bounded_unique_object_pool<baseband_gateway_buffer_dynamic>;
+using baseband_gateway_buffer_pool = bounded_rc_object_pool<baseband_gateway_buffer_dynamic>;
 
 /// Smart pointer for managing baseband buffers.
 using baseband_gateway_buffer_ptr = baseband_gateway_buffer_pool::ptr;

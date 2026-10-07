@@ -379,7 +379,7 @@ TEST_P(LowerPhyDownlinkProcessorFixture, UnalignedFlow)
     timestamp += result.buffer->get_nof_samples();
 
     // Return buffer to the pool.
-    result.buffer = nullptr;
+    result.buffer.reset();
   }
 }
 

@@ -124,7 +124,7 @@ downlink_processor_baseband_impl::process(baseband_gateway_timestamp timestamp)
   // Note that the slot could be equal to the previous slot if tx_time_offset was modified. So, the processor notifies
   // the slot boundary only if no previous slot has been processed before or the new slot is different from the
   // previous.
-  baseband_gateway_buffer_ptr tx_buffer = nullptr;
+  baseband_gateway_buffer_ptr tx_buffer;
   if (slot_point_extended slot(scs, i_slot); !previous_slot.has_value() || (*previous_slot != slot)) {
     ocudu_assert(notifier != nullptr, "Timing notifier is not connected.");
     trace_point tp = ru_tracer.now();

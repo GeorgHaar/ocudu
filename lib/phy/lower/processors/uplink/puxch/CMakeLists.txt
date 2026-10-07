@@ -7,4 +7,6 @@
 add_library(ocudu_lower_phy_puxch_processor STATIC
         puxch_processor_factories.cpp
         puxch_processor_impl.cpp)
-target_link_libraries(ocudu_lower_phy_puxch_processor ocudu_lower_phy_modulation)
+target_link_libraries(ocudu_lower_phy_puxch_processor
+        ocudu_instrumentation
+        ocudu_lower_phy_modulation)

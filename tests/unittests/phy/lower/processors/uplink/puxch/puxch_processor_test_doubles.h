@@ -106,7 +106,8 @@ private:
 class puxch_processor_factory_spy : public puxch_processor_factory
 {
 public:
-  std::unique_ptr<puxch_processor> create(const puxch_processor_configuration& config) override
+  std::unique_ptr<puxch_processor> create(const puxch_processor_configuration& config,
+                                          task_executor&                       demodulation_executor) override
   {
     std::unique_ptr<puxch_processor_spy> ptr = std::make_unique<puxch_processor_spy>(config);
     instance                                 = ptr.get();

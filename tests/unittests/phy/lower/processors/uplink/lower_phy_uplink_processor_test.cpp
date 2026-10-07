@@ -14,6 +14,7 @@
 #include "ocudu/phy/lower/processors/uplink/uplink_processor_baseband.h"
 #include "ocudu/phy/lower/processors/uplink/uplink_processor_factories.h"
 #include "ocudu/ran/resource_block.h"
+#include "ocudu/support/executors/manual_task_worker.h"
 #include "fmt/ostream.h"
 #include <gtest/gtest.h>
 #include <random>
@@ -151,7 +152,7 @@ protected:
     config.nof_rx_ports        = nof_rx_ports;
 
     // Create processor.
-    ul_processor = ul_proc_factory->create(config);
+    ul_processor = ul_proc_factory->create(config, demodulation_executor);
     ASSERT_NE(ul_processor, nullptr);
 
     // Select PRACH processor spy.
@@ -171,6 +172,7 @@ protected:
   static std::shared_ptr<lower_phy_uplink_processor_factory> ul_proc_factory;
 
   uplink_processor_configuration              config;
+  manual_task_worker                          demodulation_executor{MAX_NSYMB_PER_SLOT * MAX_PORTS};
   std::unique_ptr<lower_phy_uplink_processor> ul_processor   = nullptr;
   prach_processor_spy*                        prach_proc_spy = nullptr;
   puxch_processor_spy*                        puxch_proc_spy = nullptr;

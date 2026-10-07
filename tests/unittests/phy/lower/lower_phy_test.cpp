@@ -286,16 +286,17 @@ protected:
     config.system_time_throttling            = 0.1;
     config.max_nof_prach_concurrent_requests = 1;
 
-    lower_phy_dependencies deps = {.logger               = ocudulog::fetch_basic_logger("PHY"),
-                                   .bb_gateway           = bb_gateway_spy,
-                                   .rx_symbol_notifier   = rx_symbol_notifier_spy,
-                                   .timing_notifier      = timing_notifier_spy,
-                                   .error_notifier       = error_notifier_spy,
-                                   .rx_task_executor     = rx_task_executor,
-                                   .tx_task_executor     = tx_task_executor,
-                                   .dl_task_executor     = dl_task_executor,
-                                   .ul_task_executor     = ul_task_executor,
-                                   .prach_async_executor = prach_task_executor};
+    lower_phy_dependencies deps = {.logger                 = ocudulog::fetch_basic_logger("PHY"),
+                                   .bb_gateway             = bb_gateway_spy,
+                                   .rx_symbol_notifier     = rx_symbol_notifier_spy,
+                                   .timing_notifier        = timing_notifier_spy,
+                                   .error_notifier         = error_notifier_spy,
+                                   .rx_task_executor       = rx_task_executor,
+                                   .tx_task_executor       = tx_task_executor,
+                                   .dl_task_executor       = dl_task_executor,
+                                   .ul_task_executor       = ul_task_executor,
+                                   .ul_demod_task_executor = ul_task_executor,
+                                   .prach_async_executor   = prach_task_executor};
 
     // Prepare downlink processor factory.
     std::shared_ptr<lower_phy_downlink_processor_factory_spy> lphy_dl_proc_factory =

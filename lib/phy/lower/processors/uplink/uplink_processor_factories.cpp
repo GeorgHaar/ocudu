@@ -21,7 +21,8 @@ public:
     ocudu_assert(puxch_proc_factory, "Invalid PUxCH processor factory.");
   }
 
-  std::unique_ptr<lower_phy_uplink_processor> create(const uplink_processor_configuration& config) override
+  std::unique_ptr<lower_phy_uplink_processor> create(const uplink_processor_configuration& config,
+                                                     task_executor& demodulation_executor) override
   {
     // Prepare PUxCH processor configuration.
     puxch_processor_configuration puxch_proc_config = {.cp                = config.cp,
@@ -40,7 +41,9 @@ public:
                                                                   .nof_rx_ports = config.nof_rx_ports};
 
     return std::make_unique<lower_phy_uplink_processor_impl>(
-        prach_proc_factory->create(), puxch_proc_factory->create(puxch_proc_config), proc_config);
+        prach_proc_factory->create(),
+        puxch_proc_factory->create(puxch_proc_config, demodulation_executor),
+        proc_config);
   }
 
 private:

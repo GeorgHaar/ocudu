@@ -10,11 +10,13 @@
 #include "ocudu/adt/format.h"
 #include "ocudu/gateways/baseband/buffer/baseband_gateway_buffer_ptr_view.h"
 #include "ocudu/ocuduvec/conversion.h"
+#include "ocudu/phy/antenna_ports.h"
 #include "ocudu/phy/lower/lower_phy_rx_symbol_context.h"
 #include "ocudu/phy/lower/processors/uplink/puxch/puxch_processor_baseband.h"
 #include "ocudu/phy/lower/processors/uplink/puxch/puxch_processor_request_handler.h"
 #include "ocudu/phy/lower/processors/uplink/uplink_processor_baseband.h"
 #include "ocudu/phy/lower/processors/uplink/uplink_processor_factories.h"
+#include "ocudu/support/executors/manual_task_worker.h"
 #include "fmt/ostream.h"
 #include <gtest/gtest.h>
 #include <random>
@@ -119,7 +121,13 @@ protected:
     }
   }
 
-  LowerPhyUplinkProcessorFixture() : rg_spy(rg_reader_spy, rg_writer_spy), shared_rg_spy(rg_spy) {}
+  LowerPhyUplinkProcessorFixture() :
+    rg_writer_spy(std::get<0>(GetParam())),
+    rg_spy(rg_reader_spy, rg_writer_spy),
+    shared_rg_spy(rg_spy),
+    demodulation_executor(MAX_NSYMB_PER_SLOT * MAX_PORTS)
+  {
+  }
 
   void SetUp() override
   {
@@ -141,7 +149,7 @@ protected:
     config.nof_rx_ports      = nof_rx_ports;
 
     // Create processor.
-    puxch_proc = puxch_proc_factory->create(config);
+    puxch_proc = puxch_proc_factory->create(config, demodulation_executor);
     ASSERT_NE(puxch_proc, nullptr);
 
     // Select OFDM demodulator processor spy.
@@ -164,6 +172,7 @@ protected:
   resource_grid_writer_spy         rg_writer_spy;
   resource_grid_spy                rg_spy;
   shared_resource_grid_spy         shared_rg_spy;
+  manual_task_worker               demodulation_executor;
   std::unique_ptr<puxch_processor> puxch_proc = nullptr;
 };
 
@@ -318,6 +327,12 @@ TEST_P(LowerPhyUplinkProcessorFixture, FlowFloodRequest)
           // Process baseband.
           puxch_proc->get_baseband().process_symbol(
               baseband_gateway_buffer_ptr_view(buffer.clone(), 0, buffer->get_nof_samples()), puxch_context);
+
+          // Demodulate.
+          unsigned count = 0;
+          for (; demodulation_executor.try_run_next(); ++count) {
+          }
+          ASSERT_EQ(count, nof_rx_ports);
 
           // Assert OFDM demodulator call.
           const auto& ofdm_demod_entries = ofdm_demod_spy->get_demodulate_entries();

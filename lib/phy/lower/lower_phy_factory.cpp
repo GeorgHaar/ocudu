@@ -131,7 +131,8 @@ public:
                                                      .nof_rx_ports        = config.nof_rx_ports};
 
     // Create uplink processor.
-    std::unique_ptr<lower_phy_uplink_processor> ul_proc = uplink_proc_factory->create(ul_proc_config);
+    std::unique_ptr<lower_phy_uplink_processor> ul_proc =
+        uplink_proc_factory->create(ul_proc_config, dependencies.ul_demod_task_executor);
     ocudu_assert(dl_proc, "Failed to create the UL processor.");
 
     // Prepare processor baseband adaptor configuration.

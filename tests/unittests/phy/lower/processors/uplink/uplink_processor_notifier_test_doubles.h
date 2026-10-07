@@ -135,7 +135,8 @@ private:
 class lower_phy_uplink_processor_factory_spy : public lower_phy_uplink_processor_factory
 {
 public:
-  std::unique_ptr<lower_phy_uplink_processor> create(const uplink_processor_configuration& config) override
+  std::unique_ptr<lower_phy_uplink_processor> create(const uplink_processor_configuration& config,
+                                                     task_executor& demodulation_executor) override
   {
     std::unique_ptr<lower_phy_uplink_processor_spy> proc = std::make_unique<lower_phy_uplink_processor_spy>(config);
     entries.emplace_back(proc.get());

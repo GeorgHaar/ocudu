@@ -40,7 +40,8 @@ public:
   virtual ~lower_phy_uplink_processor_factory() = default;
 
   /// Creates a lower PHY uplink processor.
-  virtual std::unique_ptr<lower_phy_uplink_processor> create(const uplink_processor_configuration& config) = 0;
+  virtual std::unique_ptr<lower_phy_uplink_processor> create(const uplink_processor_configuration& config,
+                                                             task_executor& demodulation_executor) = 0;
 };
 
 /// Creates a software based uplink processor factory.

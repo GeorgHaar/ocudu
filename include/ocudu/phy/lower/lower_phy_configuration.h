@@ -113,6 +113,8 @@ struct lower_phy_dependencies {
   task_executor& dl_task_executor;
   /// Uplink task executor.
   task_executor& ul_task_executor;
+  /// Uplink OFDM demodulation task executor.
+  task_executor& ul_demod_task_executor;
   /// PRACH asynchronous task executor.
   task_executor& prach_async_executor;
 };

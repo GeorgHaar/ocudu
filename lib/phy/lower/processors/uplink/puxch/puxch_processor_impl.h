@@ -6,8 +6,10 @@
 #pragma once
 
 #include "../../resource_request_pool.h"
-#include "ocudu/adt/circular_array.h"
+#include "puxch_baseband_demodulator.h"
+#include "puxch_processor_demodulator_notifier.h"
 #include "ocudu/gateways/baseband/buffer/baseband_gateway_buffer_ptr_view.h"
+#include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/phy/lower/modulation/ofdm_demodulator.h"
 #include "ocudu/phy/lower/processors/lower_phy_center_freq_controller.h"
 #include "ocudu/phy/lower/processors/uplink/puxch/puxch_processor.h"
@@ -16,6 +18,8 @@
 #include "ocudu/phy/lower/processors/uplink/puxch/puxch_processor_request_handler.h"
 #include "ocudu/phy/support/shared_resource_grid.h"
 #include "ocudu/ran/slot_point.h"
+#include "ocudu/support/executors/task_executor.h"
+#include <vector>
 
 namespace ocudu {
 
@@ -23,7 +27,8 @@ namespace ocudu {
 class puxch_processor_impl : public puxch_processor,
                              private puxch_processor_baseband,
                              private lower_phy_center_freq_controller,
-                             private puxch_processor_request_handler
+                             private puxch_processor_request_handler,
+                             public puxch_processor_demodulator_notifier
 {
 public:
   struct configuration {
@@ -32,12 +37,21 @@ public:
     unsigned      dft_size;
   };
 
-  puxch_processor_impl(std::unique_ptr<ofdm_symbol_demodulator> demodulator_, const configuration& config) :
+  puxch_processor_impl(std::unique_ptr<ofdm_symbol_demodulator> demodulator_,
+                       task_executor&                           executor,
+                       const configuration&                     config) :
+    logger(ocudulog::fetch_basic_logger("PHY")),
     nof_symbols_per_slot(get_nsymb_per_slot(config.cp)),
-    nof_rx_ports(config.nof_rx_ports),
-    demodulator(std::move(demodulator_))
+    common_ofdm_demodulator(std::move(demodulator_)),
+    demodulators(max_nof_concurrent_slots)
   {
-    ocudu_assert(demodulator, "Invalid demodulator.");
+    ocudu_assert(common_ofdm_demodulator, "Invalid demodulator.");
+
+    // Generate baseband demodulators.
+    std::generate(demodulators.begin(), demodulators.end(), [this, &config, &executor]() {
+      return std::make_unique<puxch_baseband_demodulator>(
+          config.cp, config.nof_rx_ports, executor, *common_ofdm_demodulator, *this);
+    });
   }
 
   // See interface for documentation.
@@ -56,6 +70,12 @@ public:
   lower_phy_center_freq_controller& get_center_freq_control() override;
 
 private:
+  /// Retrieves the PUxCH demodulator associated to the given slot.
+  puxch_baseband_demodulator& get_demodulator(slot_point slot)
+  {
+    return *demodulators[slot.system_slot() % demodulators.size()];
+  }
+
   // See interface for documentation.
   bool process_symbol(const baseband_gateway_buffer_ptr_view& samples,
                       const lower_phy_rx_symbol_context&      context) override;
@@ -66,13 +86,27 @@ private:
   // See interface for documentation.
   bool set_carrier_center_frequency(double carrier_center_frequency_Hz) override;
 
-  std::atomic<bool>                           stopped = false;
-  unsigned                                    nof_symbols_per_slot;
-  unsigned                                    nof_rx_ports;
-  puxch_processor_notifier*                   notifier = nullptr;
-  std::unique_ptr<ofdm_symbol_demodulator>    demodulator;
-  slot_point                                  current_slot;
-  shared_resource_grid                        current_grid;
+  // See puxch_processor_demodulator_notifier interface for documentation.
+  void on_demodulation_completion(const shared_resource_grid&        grid,
+                                  const lower_phy_rx_symbol_context& context) override;
+
+  /// Physical layer logger.
+  ocudulog::basic_logger& logger;
+  /// Set to true when upper layers request to stop.
+  std::atomic<bool> stopped = false;
+  /// Number of OFDM symbols per slot.
+  unsigned nof_symbols_per_slot;
+  /// Physical channel baseband processor event notifier.
+  puxch_processor_notifier* notifier = nullptr;
+  /// Common OFDM symbol demodulator.
+  std::unique_ptr<ofdm_symbol_demodulator> common_ofdm_demodulator;
+  /// Uplink physical channel baseband demodulators.
+  std::vector<std::unique_ptr<puxch_baseband_demodulator>> demodulators;
+  /// Demodulator of the current slot receiving samples.
+  puxch_baseband_demodulator* current_demodulator = nullptr;
+  /// Current slot.
+  slot_point current_slot;
+  /// Pool of receive requests.
   resource_request_pool<shared_resource_grid> requests;
 };
 

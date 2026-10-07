@@ -40,7 +40,8 @@ public:
   virtual ~puxch_processor_factory() = default;
 
   /// Creates a lower PHY PUxCH processor.
-  virtual std::unique_ptr<puxch_processor> create(const puxch_processor_configuration& config) = 0;
+  virtual std::unique_ptr<puxch_processor> create(const puxch_processor_configuration& config,
+                                                  task_executor&                       demodulation_executor) = 0;
 };
 
 /// \brief Creates a software based PUxCH processor factory.

@@ -21,44 +21,47 @@ bool puxch_processor_impl::process_symbol(const baseband_gateway_buffer_ptr_view
     // Update slot.
     current_slot = context.slot;
 
+    // The previous slot does not receive more symbols.
+    if (current_demodulator != nullptr) {
+      current_demodulator->close();
+      current_demodulator = nullptr;
+    }
+
     // Exchange an empty request with the current slot with a stored request.
     auto request = requests.exchange({context.slot, shared_resource_grid()});
 
-    // Handle the returned request.
-    if (!request.resource) {
-      // If the request resource grid pointer is invalid, the request is empty.
-      current_grid.release();
-    } else if (current_slot != request.slot) {
-      // If the slot of the request does not match the current slot, then notify a late event.
-      resource_grid_context late_context = {.slot = request.slot, .sector = context.sector};
-      notifier->on_puxch_request_late(late_context);
-      current_grid.release();
-    } else {
-      // If the request is valid, then select request grid.
-      current_grid = std::move(request.resource);
+    resource_grid_context       rg_context  = {.slot = request.slot, .sector = context.sector};
+    puxch_baseband_demodulator& demodulator = get_demodulator(current_slot);
+
+    // Handle the returned request. If the request resource grid is invalid, the request is empty and the slot is not
+    // demodulated.
+    if (request.resource) {
+      if (request.slot != current_slot) {
+        // If the slot of the request does not match the current slot, then notify a late event.
+        notifier->on_puxch_request_late(rg_context);
+      } else if (!demodulator.start(request.resource, rg_context)) {
+        // If the demodulator is still busy with a previous slot, then the request cannot be processed.
+        logger.error(current_slot.sfn(), current_slot.slot_index(), "The demodulator is busy.");
+        notifier->on_puxch_request_late(rg_context);
+      } else {
+        // Otherwise, the demodulator processes the slot.
+        current_demodulator = &demodulator;
+      }
     }
   }
 
-  // Skip symbol processing if the context slot does not match with the current slot or no resource grid is available.
-  if (!current_grid) {
+  // Skip symbol processing if the current slot is not demodulated.
+  if (current_demodulator == nullptr) {
     return false;
   }
 
-  // Symbol index within the subframe.
-  unsigned symbol_index_subframe = context.nof_symbols + context.slot.subframe_slot_index() * nof_symbols_per_slot;
+  // Demodulate the OFDM symbol asynchronously.
+  current_demodulator->demodulate_symbol(samples, context);
 
-  // Demodulate each of the ports.
-  for (unsigned i_port = 0; i_port != nof_rx_ports; ++i_port) {
-    demodulator->demodulate(
-        current_grid.get().get_writer(), samples.get_channel_buffer(i_port), i_port, symbol_index_subframe);
-  }
-
-  // Notify.
-  notifier->on_rx_symbol(current_grid, context, true);
-
-  // Release current grid if the slot is completed.
-  if (context.nof_symbols == nof_symbols_per_slot - 1) {
-    current_grid.release();
+  // Close the slot after its last OFDM symbol.
+  if ((context.nof_symbols == nof_symbols_per_slot - 1) && (current_demodulator != nullptr)) {
+    current_demodulator->close();
+    current_demodulator = nullptr;
   }
 
   return true;
@@ -83,6 +86,12 @@ void puxch_processor_impl::handle_request(const shared_resource_grid& grid, cons
   }
 }
 
+void puxch_processor_impl::on_demodulation_completion(const shared_resource_grid&        grid,
+                                                      const lower_phy_rx_symbol_context& context)
+{
+  notifier->on_rx_symbol(grid, context, context.is_valid);
+}
+
 lower_phy_center_freq_controller& puxch_processor_impl::get_center_freq_control()
 {
   return *this;
@@ -90,6 +99,6 @@ lower_phy_center_freq_controller& puxch_processor_impl::get_center_freq_control(
 
 bool puxch_processor_impl::set_carrier_center_frequency(double carrier_center_frequency_Hz)
 {
-  demodulator->set_center_frequency(carrier_center_frequency_Hz);
+  common_ofdm_demodulator->set_center_frequency(carrier_center_frequency_Hz);
   return true;
 }

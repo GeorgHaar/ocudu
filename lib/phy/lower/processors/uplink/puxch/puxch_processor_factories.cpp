@@ -19,7 +19,8 @@ public:
     ocudu_assert(ofdm_factory, "Invalid demodulator factory.");
   }
 
-  std::unique_ptr<puxch_processor> create(const puxch_processor_configuration& config) override
+  std::unique_ptr<puxch_processor> create(const puxch_processor_configuration& config,
+                                          task_executor&                       demodulation_executor) override
   {
     // Calculate the DFT window offset in samples.
     unsigned nof_samples_window_offset =
@@ -43,8 +44,8 @@ public:
     puxch_processor_impl::configuration proc_config = {
         .cp = config.cp, .nof_rx_ports = config.nof_rx_ports, .dft_size = demodulator_config.dft_size};
 
-    return std::make_unique<puxch_processor_impl>(ofdm_factory->create_ofdm_symbol_demodulator(demodulator_config),
-                                                  proc_config);
+    return std::make_unique<puxch_processor_impl>(
+        ofdm_factory->create_ofdm_symbol_demodulator(demodulator_config), demodulation_executor, proc_config);
   }
 
 private:

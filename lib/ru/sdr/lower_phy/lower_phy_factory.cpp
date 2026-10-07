@@ -79,16 +79,17 @@ std::unique_ptr<lower_phy_sector> ocudu::create_lower_phy_sector(const lower_phy
 {
   auto sector = std::make_unique<lower_phy_sector>(sector_deps.timing_notifier);
 
-  lower_phy_dependencies dependencies = {.logger               = sector_deps.logger,
-                                         .bb_gateway           = sector_deps.bb_gateway,
-                                         .rx_symbol_notifier   = sector_deps.rx_symbol_notifier,
-                                         .timing_notifier      = sector->get_timing_notifier(),
-                                         .error_notifier       = sector_deps.error_notifier,
-                                         .rx_task_executor     = sector_deps.rx_task_executor,
-                                         .tx_task_executor     = sector_deps.tx_task_executor,
-                                         .dl_task_executor     = sector_deps.dl_task_executor,
-                                         .ul_task_executor     = sector_deps.ul_task_executor,
-                                         .prach_async_executor = sector_deps.prach_async_executor};
+  lower_phy_dependencies dependencies = {.logger                 = sector_deps.logger,
+                                         .bb_gateway             = sector_deps.bb_gateway,
+                                         .rx_symbol_notifier     = sector_deps.rx_symbol_notifier,
+                                         .timing_notifier        = sector->get_timing_notifier(),
+                                         .error_notifier         = sector_deps.error_notifier,
+                                         .rx_task_executor       = sector_deps.rx_task_executor,
+                                         .tx_task_executor       = sector_deps.tx_task_executor,
+                                         .dl_task_executor       = sector_deps.dl_task_executor,
+                                         .ul_task_executor       = sector_deps.ul_task_executor,
+                                         .ul_demod_task_executor = sector_deps.ul_task_executor,
+                                         .prach_async_executor   = sector_deps.prach_async_executor};
 
   // Create lower PHY factory.
   auto lphy_factory = create_lower_phy_factory(lower_phy_config, dependencies.prach_async_executor);

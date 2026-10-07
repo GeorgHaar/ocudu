@@ -476,16 +476,17 @@ create_lower_phy_configuration(task_executor*                rx_task_executor,
   phy_config.gain_backoff_dB = baseband_backoff_dB;
 
   lower_phy_dependencies deps = {// Logger for lower PHY messages.
-                                 .logger               = *logger,
-                                 .bb_gateway           = bb_gateway,
-                                 .rx_symbol_notifier   = *rx_symbol_notifier,
-                                 .timing_notifier      = *timing_notifier,
-                                 .error_notifier       = *error_notifier,
-                                 .rx_task_executor     = *rx_task_executor,
-                                 .tx_task_executor     = *tx_task_executor,
-                                 .dl_task_executor     = *dl_task_executor,
-                                 .ul_task_executor     = *ul_task_executor,
-                                 .prach_async_executor = *prach_task_executor};
+                                 .logger                 = *logger,
+                                 .bb_gateway             = bb_gateway,
+                                 .rx_symbol_notifier     = *rx_symbol_notifier,
+                                 .timing_notifier        = *timing_notifier,
+                                 .error_notifier         = *error_notifier,
+                                 .rx_task_executor       = *rx_task_executor,
+                                 .tx_task_executor       = *tx_task_executor,
+                                 .dl_task_executor       = *dl_task_executor,
+                                 .ul_task_executor       = *ul_task_executor,
+                                 .ul_demod_task_executor = *ul_task_executor,
+                                 .prach_async_executor   = *prach_task_executor};
 
   return std::make_pair(phy_config, deps);
 }

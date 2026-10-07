@@ -691,6 +691,16 @@ public:
   slot_point last_pdsch_slot() const { return get_dl_ue().last_slot_tx; }
   slot_point last_ack_slot() const { return get_dl_ue().last_slot_ack; }
   slot_point last_pusch_slot() const { return get_ul_ue().last_slot_tx; }
+  /// Returns the last slot granted to the UE for uplink transmission (PUSCH or HARQ-ACK). Invalid if none.
+  slot_point last_ul_slot() const
+  {
+    const slot_point ack   = last_ack_slot();
+    const slot_point pusch = last_pusch_slot();
+    if (not ack.valid()) {
+      return pusch;
+    }
+    return pusch.valid() and pusch > ack ? pusch : ack;
+  }
 
   /// Deallocate UE HARQ entity.
   void reset();

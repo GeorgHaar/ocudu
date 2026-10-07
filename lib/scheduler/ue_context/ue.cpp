@@ -33,7 +33,12 @@ void ue::slot_indication(slot_point sl_tx)
 {
   last_sl_tx = sl_tx;
   drx.slot_indication(sl_tx);
-  koffset.slot_indication(sl_tx);
+  // Only an NTN cell signals a Differential Koffset, so elsewhere the tracker holds nothing to update.
+  if (cell_cfg_common.ntn_cs_koffset != 0 and koffset.is_active()) {
+    // Uplink the UE was already granted. A larger Differential Koffset moves its uplink earlier, so the UE is not
+    // scheduled again until these transmissions are behind it.
+    koffset.slot_indication(sl_tx, get_pcell().harqs.last_ul_slot());
+  }
 }
 
 void ue::deactivate()

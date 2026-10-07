@@ -44,10 +44,11 @@ inline std::chrono::milliseconds derive_differential_koffset(std::chrono::millis
 ///
 /// Runtime state, like \c ue_ta_report_tracker.
 ///
-/// A decoded value applies from the first slot three subframes past the HARQ-ACK of its PDSCH, to grants whose PDCCH
-/// is in or after that slot, as per TS 38.213, Section 9. The ACK arrives a round trip later, usually past that slot,
-/// so until then the value of those PDCCHs is unknown, see \c is_known_at(). A NACKed MAC CE is not applied, and
-/// its retransmission moves the slot, as per TS 38.321, Section 5.3.2.2.
+/// A decoded value applies from the first slot three subframes past the HARQ-ACK of its PDSCH, as per TS 38.213,
+/// Section 9. Late or missing feedback leaves it unknown until the HARQ resolves, see \c is_known_at(). A NACKed MAC
+/// CE is not applied, and its retransmission moves the slot, as per TS 38.321, Section 5.3.2.2.
+///
+/// A larger value moves the UE uplink earlier, so the UE waits until the uplink it was already granted is behind it.
 class ue_koffset_tracker
 {
 public:
@@ -57,18 +58,22 @@ public:
   /// Returns whether a Differential Koffset has been signalled and has not taken effect yet.
   bool has_pending_ce() const { return pending.has_value(); }
 
-  /// \brief Whether the Differential Koffset the UE applies to a PDCCH in \c pdcch_slot is known.
+  /// \brief Checks whether a PDCCH in \c pdcch_slot can be given to the UE at the Differential Koffset it applies.
   ///
-  /// False while a MAC CE in flight has had no HARQ-ACK reported. A UE that decodes a MAC CE may apply its value at
-  /// once, and the two values place a grant in different slots.
+  /// False while uplink granted at a smaller Koffset reaches past the slots the current one leads to, and while a
+  /// MAC CE in flight has had no HARQ-ACK reported. A UE that decodes a MAC CE may apply its value at once, and the
+  /// two values place a grant in different slots.
   bool is_known_at(slot_point pdcch_slot) const
   {
+    if (drain_until.valid() and pdcch_slot < drain_until) {
+      return false;
+    }
     return not pending.has_value() or pending->state != ce_state::awaiting_feedback;
   }
 
-  /// Records a Differential Koffset carried by a PDSCH.
-  /// \param koffset Value carried by the MAC CE.
-  /// \param sl_apply Slot the UE applies the value from if it decodes this transmission.
+  /// \brief Records a Differential Koffset carried by a PDSCH.
+  /// \param[in] koffset  Value carried by the MAC CE.
+  /// \param[in] sl_apply Slot the UE applies the value from if it decodes this transmission.
   void handle_ce_sent(std::chrono::milliseconds koffset, slot_point sl_apply)
   {
     pending = pending_ce{koffset, sl_apply};
@@ -105,9 +110,17 @@ public:
   /// Records that no further transmission of the MAC CE will be made, so its value is given up.
   void handle_ce_dropped() { pending.reset(); }
 
-  /// Applies a signalled Differential Koffset once its apply slot is reached.
-  void slot_indication(slot_point sl_tx)
+  /// Returns whether a MAC CE is in flight or the UE is held back, the cases \c slot_indication() acts on.
+  bool is_active() const { return pending.has_value() or drain_until.valid(); }
+
+  /// \brief Applies a signalled Differential Koffset once its apply slot is reached.
+  /// \param[in] sl_tx        Current slot.
+  /// \param[in] last_ul_slot Last slot granted to the UE for uplink transmission (PUSCH or HARQ-ACK). Invalid if none.
+  void slot_indication(slot_point sl_tx, slot_point last_ul_slot)
   {
+    if (drain_until.valid() and sl_tx >= drain_until) {
+      drain_until.clear();
+    }
     if (not pending.has_value() or sl_tx < pending->apply_slot) {
       return;
     }
@@ -116,6 +129,11 @@ public:
       return;
     }
     if (pending->state == ce_state::acked) {
+      // A larger value moves the UE uplink earlier, so the uplink already granted reaches past the slots the new
+      // value leads to. The UE waits those slots out, which keeps its transmissions in order.
+      if (pending->koffset > applied and last_ul_slot.valid() and last_ul_slot > sl_tx) {
+        drain_until = last_ul_slot + 1;
+      }
       applied = pending->koffset;
     }
     // A value whose HARQ-ACK never reached the gNB cannot be relied on, so it is given up here and derived again
@@ -131,6 +149,7 @@ public:
   {
     applied = std::chrono::milliseconds{0};
     pending.reset();
+    drain_until.clear();
   }
 
 private:
@@ -158,6 +177,8 @@ private:
   std::chrono::milliseconds applied{0};
   /// Differential Koffset MAC CE signalled to the UE and not applied yet.
   std::optional<pending_ce> pending;
+  /// Slot the UE is scheduled again from after its Differential Koffset grew. Invalid when it is not held back.
+  slot_point drain_until;
 };
 
 } // namespace ocudu

@@ -9,7 +9,6 @@
 #include "../ngap_repository.h"
 #include "../ue_manager/ue_manager_impl.h"
 #include "ocudu/ran/cu_cp_types.h"
-#include "ocudu/ran/plmn_identity.h"
 #include "ocudu/support/async/manual_event.h"
 
 namespace ocudu::ocucp {
@@ -40,10 +39,10 @@ private:
   cu_cp_ue_removal_handler&            ue_rem_handler;
   ocudulog::basic_logger&              logger;
 
-  // NG reset messages per PLMN.
-  std::map<plmn_identity, cu_cp_reset>           ng_reset_per_plmn;
-  std::map<plmn_identity, cu_cp_reset>::iterator plmn_id_it;
-  ngap_interface*                                ngap = nullptr;
+  // NG reset messages per AMF.
+  std::map<cu_cp_amf_index_t, cu_cp_reset>           ng_reset_per_amf;
+  std::map<cu_cp_amf_index_t, cu_cp_reset>::iterator amf_index_it;
+  ngap_interface*                                    ngap = nullptr;
 
   // E1 reset messages per CU-UP.
   std::map<cu_cp_cu_up_index_t, cu_cp_reset>           e1_reset_per_cu_up;

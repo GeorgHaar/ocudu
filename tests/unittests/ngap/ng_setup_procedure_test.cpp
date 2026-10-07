@@ -38,6 +38,20 @@ TEST_F(ngap_test, when_ng_setup_procedure_times_out_then_amf_not_connected)
   ASSERT_TRUE(std::holds_alternative<ngap_ng_setup_failure>(t.get()));
 }
 
+/// Test that a repeated NG setup procedure replaces the served GUAMIs of the previous one.
+TEST_F(ngap_test, when_ng_setup_is_repeated_then_served_guami_list_is_replaced)
+{
+  for (unsigned i = 0; i != 2; ++i) {
+    async_task<ngap_ng_setup_result>         t = ngap->handle_ng_setup_request(1);
+    lazy_task_launcher<ngap_ng_setup_result> t_launcher(t);
+    ngap->handle_message(generate_ng_setup_response());
+    ASSERT_TRUE(t.ready());
+    ASSERT_TRUE(std::holds_alternative<ngap_ng_setup_response>(t.get()));
+  }
+
+  ASSERT_EQ(ngap->get_ngap_context().served_guami_list.size(), 1);
+}
+
 /// Test successful NG setup procedure.
 TEST_F(ngap_test, when_ng_setup_response_received_then_amf_connected)
 {

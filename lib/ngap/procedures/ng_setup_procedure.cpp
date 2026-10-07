@@ -133,6 +133,7 @@ ngap_ng_setup_result ng_setup_procedure::create_ng_setup_result()
 
   ngap_ng_setup_response response = create_ngap_ng_setup_response(transaction_sink.response());
 
+  context.served_guami_list.clear();
   for (const auto& guami_item : response.served_guami_list) {
     context.served_guami_list.push_back(guami_item.guami);
   }

@@ -50,6 +50,14 @@ protected:
     ocudulog::fetch_basic_logger("DU-MNG").set_level(ocudulog::basic_levels::debug);
     ocudulog::init();
 
+    // Start the cells, so that they accept positioning measurements.
+    mac.mac_cell.wait_start.ready_ev.set();
+    for (unsigned i = 0, e = cell_mng.nof_cells(); i != e; ++i) {
+      async_task<bool>         t = cell_mng.start(to_du_cell_index(i));
+      lazy_task_launcher<bool> launcher{t};
+      report_fatal_error_if_not(t.ready() and t.get(), "Failed to start cell={}", i);
+    }
+
     // The TRP IDs start from 1, as in du_positioning_manager_impl.
     du_trp_info trp;
     trp.trp_id = trp_id_t::min;
@@ -335,6 +343,19 @@ TEST_F(du_positioning_measurement_procedure_test, when_two_trps_have_the_same_ce
       du_trp_meas_request{.trp_id = uint_to_trp_id(2), .cgi = cell_mng.get_cell_cfg(to_du_cell_index(0)).nr_cgi});
 
   du_positioning_meas_response resp = run_procedure(req);
+
+  ASSERT_TRUE(resp.pos_meas_list.empty());
+  ASSERT_FALSE(mac.last_positioning_meas_request.has_value());
+}
+
+TEST_F(du_positioning_measurement_procedure_test, when_the_cell_of_a_trp_is_inactive_then_the_mac_is_not_called)
+{
+  mac.mac_cell.wait_stop.ready_ev.set();
+  async_task<void>         stop_task = cell_mng.stop(to_du_cell_index(0));
+  lazy_task_launcher<void> stop_launcher{stop_task};
+  ASSERT_FALSE(cell_mng.is_cell_active(to_du_cell_index(0)));
+
+  du_positioning_meas_response resp = run_procedure(make_request());
 
   ASSERT_TRUE(resp.pos_meas_list.empty());
   ASSERT_FALSE(mac.last_positioning_meas_request.has_value());

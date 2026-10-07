@@ -228,3 +228,67 @@ TEST_F(f1ap_du_e_cid_measurement_procedure_test, when_only_the_default_quantity_
   ASSERT_TRUE(tx_msg.has_value());
   ASSERT_TRUE(test_helpers::is_valid_f1ap_e_cid_measurement_initiation_response(tx_msg.value()));
 }
+
+TEST_F(f1ap_du_e_cid_measurement_procedure_test, when_the_measurement_waits_for_the_srs_then_the_ue_task_loop_goes_on)
+{
+  du_reports_aoa();
+  this->f1ap_du_cfg_handler.hold_measurements = true;
+
+  // The first part of the procedure runs on the task loop of the UE and reaches the DU.
+  this->f1ap->handle_message(make_request({e_cid_quantity::angle_of_arrival_nr}));
+  ASSERT_EQ(this->f1ap_du_cfg_handler.nof_e_cid_meas_requests, 1);
+  ASSERT_FALSE(this->f1c_gw.pop_tx_pdu().has_value());
+
+  // The task loop of the UE is free while the measurement waits.
+  bool task_ran = false;
+  this->f1ap_du_cfg_handler.get_ue_handler(test_ue_index)
+      .schedule_async_task(launch_async([&task_ran](coro_context<async_task<void>>& ctx) {
+        CORO_BEGIN(ctx);
+        task_ran = true;
+        CORO_RETURN();
+      }));
+  ASSERT_TRUE(task_ran) << "A waiting E-CID measurement blocks the task loop of the UE";
+
+  // The response follows once the SRS is measured.
+  this->f1ap_du_cfg_handler.release_measurements();
+  auto tx_msg = this->f1c_gw.pop_tx_pdu();
+  ASSERT_TRUE(tx_msg.has_value());
+  ASSERT_TRUE(test_helpers::is_valid_f1ap_e_cid_measurement_initiation_response(tx_msg.value()));
+}
+
+TEST_F(f1ap_du_e_cid_measurement_procedure_test, when_the_ue_is_removed_during_the_wait_then_nothing_is_sent)
+{
+  du_reports_aoa();
+  this->f1ap_du_cfg_handler.hold_measurements = true;
+  this->f1ap->handle_message(make_request({e_cid_quantity::angle_of_arrival_nr}));
+  ASSERT_EQ(this->f1ap_du_cfg_handler.nof_e_cid_meas_requests, 1);
+
+  this->f1ap->handle_ue_deletion_request(test_ue_index);
+
+  this->f1ap_du_cfg_handler.release_measurements();
+  ASSERT_FALSE(this->f1c_gw.pop_tx_pdu().has_value()) << "The procedure sent a message for a removed UE";
+}
+
+TEST_F(f1ap_du_e_cid_measurement_procedure_test,
+       when_the_du_disconnects_while_the_request_is_queued_then_the_procedure_does_not_start)
+{
+  du_reports_aoa();
+
+  // A long task of the UE holds its task loop, so the E-CID request waits in the queue.
+  manual_event_flag ue_task_done;
+  this->f1ap_du_cfg_handler.get_ue_handler(test_ue_index)
+      .schedule_async_task(launch_async([&ue_task_done](coro_context<async_task<void>>& ctx) {
+        CORO_BEGIN(ctx);
+        CORO_AWAIT(ue_task_done);
+        CORO_RETURN();
+      }));
+  this->f1ap->handle_message(make_request({e_cid_quantity::angle_of_arrival_nr}));
+
+  // The association is removed while the request waits. The returned procedure is kept, but never started.
+  async_task<void> disconnection = this->f1ap->disconnect_from_cu_cp();
+
+  // The queued request belongs to the removed association, so it does not reach the DU.
+  ue_task_done.set();
+  ASSERT_EQ(this->f1ap_du_cfg_handler.nof_e_cid_meas_requests, 0);
+  ASSERT_FALSE(this->f1c_gw.pop_tx_pdu().has_value());
+}

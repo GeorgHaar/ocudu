@@ -110,6 +110,12 @@ bool positioning_measurement_procedure::prepare_mac_request()
                      fmt::underlying(trp_req.trp_id));
       return false;
     }
+    // An inactive cell does not schedule SRS, so the measurement would only end at its timeout.
+    if (not du_cells.is_cell_active(cell_index)) {
+      logger.warning("trp_id={}: Positioning measurement failed. Cause: The cell of the TRP is inactive",
+                     fmt::underlying(trp_req.trp_id));
+      return false;
+    }
     // The MAC measures each cell once.
     if (std::any_of(mac_req.cells.begin(), mac_req.cells.end(), [cell_index](const auto& c) {
           return c.cell_index == cell_index;

@@ -31,6 +31,7 @@
 #include "ocudu/f1ap/f1ap_message.h"
 #include "ocudu/ran/nr_cgi.h"
 #include "ocudu/ran/pcch/paging_helper.h"
+#include <algorithm>
 
 using namespace ocudu;
 using namespace asn1::f1ap;
@@ -88,9 +89,9 @@ bool f1ap_du_impl::connect_to_cu_cp()
     return false;
   }
 
-  // Reset Reference Time reporting procedure. It holds a reference to the previous Tx PDU notifier, which is about
-  // to be destroyed, and its periodic reporting (if any) belongs to the previous CU-CP association.
-  ref_time_proc.reset();
+  // Stop the procedures of the previous CU-CP association. They hold a reference to the previous Tx PDU notifier,
+  // which is about to be destroyed.
+  stop_cu_cp_association_procedures();
 
   if (logger.info.enabled()) {
     // Decorate notifier with logging, if the logger is enabled.
@@ -107,8 +108,8 @@ bool f1ap_du_impl::connect_to_cu_cp()
 
 async_task<void> f1ap_du_impl::disconnect_from_cu_cp()
 {
-  // Stop Reference Time reporting procedure; it is tied to the CU-CP association being torn down.
-  ref_time_proc.reset();
+  // Stop the procedures tied to the CU-CP association being torn down.
+  stop_cu_cp_association_procedures();
 
   return connection_handler.handle_tnl_association_removal();
 }
@@ -120,8 +121,8 @@ async_task<f1_setup_result> f1ap_du_impl::handle_f1_setup_request(const f1_setup
 
 async_task<void> f1ap_du_impl::handle_f1_removal_request()
 {
-  // Stop Reference Time reporting procedure; it is tied to the CU-CP association being removed.
-  ref_time_proc.reset();
+  // Stop the procedures tied to the CU-CP association being removed.
+  stop_cu_cp_association_procedures();
 
   return launch_async<f1ap_du_removal_procedure>(connection_handler, *tx_pdu_notifier, *events, ctxt);
 }
@@ -575,7 +576,9 @@ void f1ap_du_impl::handle_write_replace_warning_request(const write_replace_warn
 
 void f1ap_du_impl::handle_positioning_measurement_request(const positioning_meas_request_s& msg)
 {
-  du_mng.schedule_async_task(
+  // TODO: A measurement whose cell stops while it runs ends only at its timeout, as the scheduler drops the pending
+  // positioning requests of a stopped cell.
+  launch_positioning_measurement_procedure(
       launch_async<f1ap_du_positioning_measurement_procedure>(msg, du_mng.get_positioning_handler(), *tx_pdu_notifier));
 }
 
@@ -614,12 +617,53 @@ void f1ap_du_impl::handle_e_cid_measurement_initiation_request(const asn1::f1ap:
     return;
   }
 
-  // The procedure reads the SRS configuration, the C-RNTI and the serving cell of the UE, so it runs on the task
-  // loop of the UE. The other tasks of this UE wait while the measurement waits for the SRS. The MAC also measures
-  // one positioning request at a time, so a request that arrives during a measurement gets a failure.
+  // The first part of the procedure reads the UE configuration and requests the measurement, so it runs on the task
+  // loop of the UE, ordered with the other procedures of the UE. The wait for the SRS continues outside the loop, so
+  // that these procedures do not wait for it. If the UE is removed during the wait, the measurement ends at its timeout
+  // and the procedure sends nothing, as no new UE takes the C-RNTI before then.
+  async_task<void> proc =
+      launch_async<f1ap_du_e_cid_measurement_initiation_procedure>(msg, du_mng.get_positioning_handler(), ues);
   du_mng.get_ue_handler(ue->context.ue_index)
-      .schedule_async_task(
-          launch_async<f1ap_du_e_cid_measurement_initiation_procedure>(msg, du_mng.get_positioning_handler(), ues));
+      .schedule_async_task(start_positioning_measurement_procedure_task(std::move(proc)));
+}
+
+async_task<void> f1ap_du_impl::start_positioning_measurement_procedure_task(async_task<void> proc)
+{
+  // The task starts the procedure when its task loop runs it, and ends right away. It starts the procedure only if the
+  // CU-CP association did not change while the task was queued.
+  return launch_async(
+      [this, assoc_gen = pos_meas_assoc_gen, proc = std::move(proc)](coro_context<async_task<void>>& ctx) mutable {
+        CORO_BEGIN(ctx);
+        if (assoc_gen == pos_meas_assoc_gen) {
+          launch_positioning_measurement_procedure(std::move(proc));
+        }
+        CORO_RETURN();
+      });
+}
+
+void f1ap_du_impl::stop_cu_cp_association_procedures()
+{
+  // The periodic Reference Time reporting (if any) belongs to the CU-CP association.
+  ref_time_proc.reset();
+
+  pos_meas_procs.clear();
+  ++pos_meas_assoc_gen;
+}
+
+void f1ap_du_impl::launch_positioning_measurement_procedure(async_task<void> proc)
+{
+  // Drop the procedures that have finished.
+  pos_meas_procs.erase(std::remove_if(pos_meas_procs.begin(),
+                                      pos_meas_procs.end(),
+                                      [](const eager_async_task<void>& t) { return t.ready(); }),
+                       pos_meas_procs.end());
+
+  // The procedure runs right away until it waits for the measurement.
+  pos_meas_procs.push_back(launch_async([proc = std::move(proc)](coro_context<eager_async_task<void>>& ctx) mutable {
+    CORO_BEGIN(ctx);
+    CORO_AWAIT(proc);
+    CORO_RETURN();
+  }));
 }
 
 void f1ap_du_impl::send_e_cid_measurement_initiation_failure(

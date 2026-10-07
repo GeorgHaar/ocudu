@@ -225,3 +225,86 @@ TEST_F(f1ap_du_positioning_measurement_procedure_test,
   ASSERT_EQ(this->f1ap_du_cfg_handler.last_positioning_meas_request->response_time.value(),
             std::chrono::milliseconds{50});
 }
+
+TEST_F(f1ap_du_positioning_measurement_procedure_test,
+       when_a_measurement_waits_for_the_srs_then_the_du_task_loop_and_other_measurements_go_on)
+{
+  du_positioning_meas_response& meas_resp  = this->f1ap_du_cfg_handler.next_positioning_meas_response;
+  pos_meas_result&              trp_result = meas_resp.pos_meas_list.emplace_back();
+  trp_result.trp_id                        = trp_id_t::min;
+  trp_result.sl_rx                         = slot_point{subcarrier_spacing::kHz15, 0, 0};
+  trp_result.results.push_back(pos_meas_result_ul_rtoa{.granularity = 1, .ul_rtoa = 0});
+  this->f1ap_du_cfg_handler.hold_measurements = true;
+
+  // Two measurements start, and neither waits for the other.
+  this->f1ap->handle_message(
+      test_helpers::generate_positioning_measurement_request({trp_id_t::min}, lmf_meas_id_t::min, ran_meas_id_t::min));
+  this->f1ap->handle_message(test_helpers::generate_positioning_measurement_request(
+      {trp_id_t::min}, uint_to_lmf_meas_id(2), uint_to_ran_meas_id(2)));
+  ASSERT_EQ(this->f1ap_du_cfg_handler.nof_positioning_meas_requests, 2);
+  ASSERT_FALSE(this->f1c_gw.pop_tx_pdu().has_value());
+
+  // The DU task loop is free while the measurements wait.
+  bool task_ran = false;
+  this->f1ap_du_cfg_handler.schedule_async_task(launch_async([&task_ran](coro_context<async_task<void>>& ctx) {
+    CORO_BEGIN(ctx);
+    task_ran = true;
+    CORO_RETURN();
+  }));
+  ASSERT_TRUE(task_ran) << "A waiting positioning measurement blocks the DU task loop";
+
+  // Both measurements complete once the SRS is measured.
+  this->f1ap_du_cfg_handler.release_measurements();
+  for (unsigned i = 0; i != 2; ++i) {
+    auto tx_msg = this->f1c_gw.pop_tx_pdu();
+    ASSERT_TRUE(tx_msg.has_value());
+    ASSERT_TRUE(test_helpers::is_valid_f1ap_positioning_measurement_response(tx_msg.value()));
+  }
+}
+
+TEST_F(f1ap_du_positioning_measurement_procedure_test, when_f1_removal_starts_then_waiting_measurements_send_nothing)
+{
+  this->f1ap_du_cfg_handler.hold_measurements = true;
+  this->f1ap->handle_message(
+      test_helpers::generate_positioning_measurement_request({trp_id_t::min}, lmf_meas_id_t::min, ran_meas_id_t::min));
+  ASSERT_EQ(this->f1ap_du_cfg_handler.nof_positioning_meas_requests, 1);
+
+  // The F1 removal drops the waiting procedure, which belongs to the association being removed.
+  // The drop happens in the call. The returned removal procedure is kept, but never started.
+  async_task<void> removal = this->f1ap->handle_f1_removal_request();
+
+  this->f1ap_du_cfg_handler.release_measurements();
+  ASSERT_FALSE(this->f1c_gw.pop_tx_pdu().has_value()) << "A dropped measurement sent a message to the CU-CP";
+}
+
+TEST_F(f1ap_du_positioning_measurement_procedure_test,
+       when_the_du_reconnects_after_a_connection_loss_then_waiting_measurements_send_nothing)
+{
+  this->f1ap_du_cfg_handler.hold_measurements = true;
+  this->f1ap->handle_message(
+      test_helpers::generate_positioning_measurement_request({trp_id_t::min}, lmf_meas_id_t::min, ran_meas_id_t::min));
+  ASSERT_EQ(this->f1ap_du_cfg_handler.nof_positioning_meas_requests, 1);
+
+  // The connection with the CU-CP is lost, and the DU connects again.
+  this->f1c_gw.lose_connection();
+  this->ctrl_worker.run_pending_tasks();
+  ASSERT_TRUE(this->f1ap->connect_to_cu_cp());
+
+  // The waiting procedure belongs to the previous association, and the connection drops it.
+  this->f1ap_du_cfg_handler.release_measurements();
+  ASSERT_FALSE(this->f1c_gw.pop_tx_pdu().has_value()) << "A dropped measurement sent a message to the CU-CP";
+}
+
+TEST_F(f1ap_du_positioning_measurement_procedure_test, when_the_du_disconnects_then_waiting_measurements_send_nothing)
+{
+  this->f1ap_du_cfg_handler.hold_measurements = true;
+  this->f1ap->handle_message(
+      test_helpers::generate_positioning_measurement_request({trp_id_t::min}, lmf_meas_id_t::min, ran_meas_id_t::min));
+  ASSERT_EQ(this->f1ap_du_cfg_handler.nof_positioning_meas_requests, 1);
+
+  // The drop happens in the call. The returned disconnection procedure is kept, but never started.
+  async_task<void> disconnection = this->f1ap->disconnect_from_cu_cp();
+
+  this->f1ap_du_cfg_handler.release_measurements();
+  ASSERT_FALSE(this->f1c_gw.pop_tx_pdu().has_value()) << "A dropped measurement sent a message to the CU-CP";
+}

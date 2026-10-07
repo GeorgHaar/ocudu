@@ -13,7 +13,9 @@
 #include "ocudu/asn1/f1ap/f1ap.h"
 #include "ocudu/f1ap/du/f1ap_du.h"
 #include "ocudu/support/async/async_task.h"
+#include "ocudu/support/async/eager_async_task.h"
 #include <memory>
+#include <vector>
 
 namespace ocudu {
 namespace odu {
@@ -144,6 +146,18 @@ private:
   /// \brief Log F1AP PDU.
   void log_pdu(bool is_rx, const f1ap_message& pdu);
 
+  /// Starts a positioning measurement procedure that runs concurrently with the other procedures.
+  void launch_positioning_measurement_procedure(async_task<void> proc);
+
+  /// Returns a task that starts the given positioning measurement procedure when a task loop runs it.
+  async_task<void> start_positioning_measurement_procedure_task(async_task<void> proc);
+
+  /// \brief Stops the procedures tied to the CU-CP association, before the association is replaced or removed.
+  ///
+  /// These procedures hold a reference to the Tx PDU notifier of the association. The running and the queued
+  /// positioning measurement procedures are dropped.
+  void stop_cu_cp_association_procedures();
+
   ocudulog::basic_logger&  logger;
   task_executor&           ctrl_exec;
   f1ap_du_configurator&    du_mng;
@@ -162,6 +176,11 @@ private:
   std::unique_ptr<f1ap_message_notifier> tx_pdu_notifier;
 
   std::unique_ptr<f1ap_du_ref_time_info_report_procedure> ref_time_proc;
+
+  /// Positioning measurement procedures that wait for SRS measurements outside the task loops.
+  std::vector<eager_async_task<void>> pos_meas_procs;
+  /// Number of times the procedures tied to the CU-CP association were stopped.
+  unsigned pos_meas_assoc_gen = 0;
 
   f1ap_metrics_collector_impl metrics;
 };

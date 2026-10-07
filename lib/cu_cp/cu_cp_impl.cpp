@@ -1669,8 +1669,7 @@ cu_cp_impl::handle_xnap_retrieve_ue_context_request(const xnap_retrieve_ue_conte
                                                             logger));
 }
 
-cu_cp_ue_index_t cu_cp_impl::handle_ue_index_allocation_request(const nr_cell_global_id_t& cgi,
-                                                                const plmn_identity&       plmn)
+cu_cp_ue_index_t cu_cp_impl::add_handover_target_ue(const nr_cell_global_id_t& cgi)
 {
   cu_cp_du_index_t du_index = du_db.find_du(cgi);
   if (du_index == cu_cp_du_index_t::invalid) {
@@ -1691,8 +1690,40 @@ cu_cp_ue_index_t cu_cp_impl::handle_ue_index_allocation_request(const nr_cell_gl
     return cu_cp_ue_index_t::invalid;
   }
 
+  return ue_index;
+}
+
+cu_cp_ue_index_t cu_cp_impl::handle_ue_index_allocation_request(const nr_cell_global_id_t& cgi,
+                                                                const plmn_identity&       plmn)
+{
+  cu_cp_ue_index_t ue_index = add_handover_target_ue(cgi);
+  if (ue_index == cu_cp_ue_index_t::invalid) {
+    return cu_cp_ue_index_t::invalid;
+  }
+
   if (!handle_ue_plmn_selected(ue_index, plmn)) {
     logger.warning("ue={}: PLMN selection failed", ue_index);
+    ue_mng.remove_ue(ue_index);
+    return cu_cp_ue_index_t::invalid;
+  }
+
+  return ue_index;
+}
+
+cu_cp_ue_index_t cu_cp_impl::handle_ue_index_allocation_request_for_amf(const nr_cell_global_id_t& cgi,
+                                                                        const plmn_identity&       plmn,
+                                                                        cu_cp_amf_index_t          amf_index)
+{
+  cu_cp_ue_index_t ue_index = add_handover_target_ue(cgi);
+  if (ue_index == cu_cp_ue_index_t::invalid) {
+    return cu_cp_ue_index_t::invalid;
+  }
+
+  if (!ue_mng.set_plmn(ue_index, plmn) || !bind_ue_to_amf(ue_index, amf_index)) {
+    logger.warning("ue={}: Removing the handover target UE. Cause: The UE cannot use plmn={} or amf_index={}",
+                   ue_index,
+                   plmn,
+                   amf_index);
     ue_mng.remove_ue(ue_index);
     return cu_cp_ue_index_t::invalid;
   }
@@ -2367,8 +2398,9 @@ cu_cp_impl::handle_inter_cu_handover_request(const cu_cp_inter_cu_handover_reque
                "ue={}: could not find a CU-UP to serve the UE",
                request.ue_index);
 
-  auto* ngap = ngap_db.find_ngap(request.guami.plmn);
-  ocudu_assert(ngap != nullptr, "ue={}: NGAP not found for PLMN={}", request.ue_index, request.guami.plmn);
+  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
+  ocudu_assert(
+      ngap != nullptr, "ue={}: NGAP not found for amf_index={}", request.ue_index, ue->get_ue_context().amf_index);
 
   async_task<cu_cp_handover_resource_allocation_response> target_routine =
       launch_async<inter_cu_handover_target_routine>(

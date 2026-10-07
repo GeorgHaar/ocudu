@@ -38,7 +38,8 @@ static const asn1::e1ap::pdu_session_res_to_setup_item_s& get_pdu_session_res_to
 class cu_cp_inter_cu_ng_handover_test : public cu_cp_test_environment, public ::testing::Test
 {
 public:
-  cu_cp_inter_cu_ng_handover_test() : cu_cp_test_environment(cu_cp_test_env_params{})
+  explicit cu_cp_inter_cu_ng_handover_test(cu_cp_test_env_params env_params = {}) :
+    cu_cp_test_environment(std::move(env_params))
   {
     OCUDU_TEST_REQUIREMENTS("MVP-FUNC-MOB-4", "MVP-FUNC-MOB-1-e");
 
@@ -72,7 +73,7 @@ public:
   [[nodiscard]] bool
   send_handover_request_and_await_bearer_context_setup_request(const handover_request_params& ho_params = {})
   {
-    report_fatal_error_if_not(not this->get_amf().try_pop_rx_pdu(ngap_pdu),
+    report_fatal_error_if_not(not this->get_amf(target_amf_idx).try_pop_rx_pdu(ngap_pdu),
                               "there are still NGAP messages to pop from AMF");
     report_fatal_error_if_not(not this->get_du(du_idx).try_pop_dl_pdu(f1ap_pdu),
                               "there are still F1AP DL messages to pop from DU");
@@ -80,7 +81,7 @@ public:
                               "there are still E1AP messages to pop from CU-UP");
 
     // Inject Handover Request and wait for Bearer Context Setup Request.
-    get_amf().push_tx_pdu(generate_valid_handover_request(amf_ue_id, ho_params));
+    get_amf(target_amf_idx).push_tx_pdu(generate_valid_handover_request(amf_ue_id, ho_params));
     report_fatal_error_if_not(this->wait_for_e1ap_tx_pdu(cu_up_idx, e1ap_pdu),
                               "Failed to receive Bearer Context Setup Request");
     report_fatal_error_if_not(test_helpers::is_valid_bearer_context_setup_request(e1ap_pdu),
@@ -144,7 +145,8 @@ public:
   {
     // Inject Bearer Context Modification Response and wait for Handover Request Ack.
     get_cu_up(cu_up_idx).push_tx_pdu(generate_bearer_context_modification_response(cu_cp_e1ap_id, cu_up_e1ap_id));
-    report_fatal_error_if_not(this->wait_for_ngap_tx_pdu(ngap_pdu), "Failed to receive Handover Request Ack");
+    report_fatal_error_if_not(this->wait_for_ngap_tx_pdu(ngap_pdu, std::chrono::milliseconds{500}, target_amf_idx),
+                              "Failed to receive Handover Request Ack");
     report_fatal_error_if_not(test_helpers::is_valid_handover_request_ack(ngap_pdu), "Invalid Handover Request Ack");
     return true;
   }
@@ -160,7 +162,7 @@ public:
   bool
   send_dl_ran_status_transfer_and_await_bearer_context_modification_request(const std::vector<drb_id_t>& drb_ids = {})
   {
-    get_amf().push_tx_pdu(generate_valid_dl_ran_status_transfer(amf_ue_id, {}, drb_ids));
+    get_amf(target_amf_idx).push_tx_pdu(generate_valid_dl_ran_status_transfer(amf_ue_id, {}, drb_ids));
     report_fatal_error_if_not(this->wait_for_e1ap_tx_pdu(cu_up_idx, e1ap_pdu),
                               "Failed to receive Bearer Context Modification Request");
     report_fatal_error_if_not(test_helpers::is_valid_bearer_context_modification_request(e1ap_pdu),
@@ -186,7 +188,8 @@ public:
 
   [[nodiscard]] bool await_handover_notify_and_ue_context_modification_request()
   {
-    report_fatal_error_if_not(this->wait_for_ngap_tx_pdu(ngap_pdu), "Failed to receive Handover Notify");
+    report_fatal_error_if_not(this->wait_for_ngap_tx_pdu(ngap_pdu, std::chrono::milliseconds{500}, target_amf_idx),
+                              "Failed to receive Handover Notify");
     report_fatal_error_if_not(this->wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu),
                               "Failed to receive UE context modification response");
     report_fatal_error_if_not(test_helpers::is_valid_handover_notify(ngap_pdu), "Invalid Handover Notify");
@@ -424,6 +427,9 @@ public:
 
   pdu_session_id_t psi = uint_to_pdu_session_id(1);
   qos_flow_id_t    qfi = uint_to_qos_flow_id(1);
+
+  /// AMF that sends the Handover Request when this CU-CP is the target.
+  unsigned target_amf_idx = 0;
 
   ngap_message ngap_pdu;
   f1ap_message f1ap_pdu;
@@ -1205,4 +1211,31 @@ TEST_F(
                             "Unexpected F1AP message after handover target success");
   report_fatal_error_if_not(not this->get_cu_up(cu_up_idx).try_pop_rx_pdu(e1ap_pdu),
                             "Unexpected E1AP message after handover target success");
+}
+
+/// Two AMFs serve the PLMN of the CU-CP.
+class cu_cp_inter_cu_ng_handover_two_amfs_test : public cu_cp_inter_cu_ng_handover_test
+{
+public:
+  cu_cp_inter_cu_ng_handover_two_amfs_test() :
+    cu_cp_inter_cu_ng_handover_test(
+        cu_cp_test_env_params{8, 8, 8192, 8, {{default_supported_tracking_area}, {default_supported_tracking_area}}})
+  {
+  }
+};
+
+TEST_F(cu_cp_inter_cu_ng_handover_two_amfs_test, when_second_amf_sends_handover_request_then_ue_is_served_by_it)
+{
+  // The second AMF of the PLMN sends the Handover Request.
+  target_amf_idx = 1;
+
+  ASSERT_TRUE(send_handover_request_and_await_bearer_context_setup_request());
+  ASSERT_TRUE(send_bearer_context_setup_response_and_await_ue_context_setup_request());
+  ASSERT_TRUE(send_ue_context_setup_response_and_await_bearer_context_modification_request());
+  ASSERT_TRUE(send_bearer_context_modification_response_and_await_handover_request_ack());
+  ASSERT_TRUE(send_dl_ran_status_transfer_and_await_bearer_context_modification_request());
+  ASSERT_TRUE(send_bearer_context_modification_response());
+
+  // The Handover Notify goes to the AMF that sent the Handover Request.
+  ASSERT_TRUE(send_rrc_reconfiguration_complete_and_await_handover_notify_and_ue_context_modification_request());
 }

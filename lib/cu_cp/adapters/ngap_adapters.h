@@ -126,7 +126,7 @@ public:
   cu_cp_ue_index_t request_new_ue_index_allocation(nr_cell_global_id_t cgi, const plmn_identity& plmn) override
   {
     ocudu_assert(cu_cp_handler != nullptr, "CU-CP NGAP handler must not be nullptr");
-    return cu_cp_handler->handle_ue_index_allocation_request(cgi, plmn);
+    return cu_cp_handler->handle_ue_index_allocation_request_for_amf(cgi, plmn, amf_index);
   }
 
   void on_dl_ue_associated_nrppa_transport_pdu(cu_cp_ue_index_t ue_index, const byte_buffer& nrppa_pdu) override

@@ -64,6 +64,14 @@ public:
   virtual cu_cp_ue_index_t handle_ue_index_allocation_request(const nr_cell_global_id_t& cgi,
                                                               const plmn_identity&       plmn) = 0;
 
+  /// \brief Handles UE index allocation request for a handover target UE that a given AMF serves.
+  /// \param[in] cgi The target cell of the handover.
+  /// \param[in] plmn The PLMN of the UE.
+  /// \param[in] amf_index The AMF that serves the UE.
+  virtual cu_cp_ue_index_t handle_ue_index_allocation_request_for_amf(const nr_cell_global_id_t& cgi,
+                                                                      const plmn_identity&       plmn,
+                                                                      cu_cp_amf_index_t          amf_index) = 0;
+
   /// \brief Handle a received handover request.
   /// \param[in] ue_index Index of the UE.
   /// \param[in] sec_ctxt The received security context.

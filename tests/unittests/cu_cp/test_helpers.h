@@ -960,6 +960,13 @@ public:
     return cu_cp_ue_index_t::invalid;
   }
 
+  cu_cp_ue_index_t handle_ue_index_allocation_request_for_amf(const nr_cell_global_id_t& cgi,
+                                                              const plmn_identity&       plmn,
+                                                              cu_cp_amf_index_t          amf_index) override
+  {
+    return cu_cp_ue_index_t::invalid;
+  }
+
   bool handle_handover_request(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt) override
   {
     ocudu_assert(ue_mng.find_ue(ue_index) != nullptr, "UE must be present");

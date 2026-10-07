@@ -146,6 +146,9 @@ public:
                                                    std::optional<xnc_peer_index_t> xnc_index = std::nullopt) override;
   cu_cp_ue_index_t handle_ue_index_allocation_request(const nr_cell_global_id_t& cgi,
                                                       const plmn_identity&       plmn) override;
+  cu_cp_ue_index_t handle_ue_index_allocation_request_for_amf(const nr_cell_global_id_t& cgi,
+                                                              const plmn_identity&       plmn,
+                                                              cu_cp_amf_index_t          amf_index) override;
   bool handle_handover_request(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt) override;
   void handle_inter_cu_target_handover_execution(cu_cp_ue_index_t ue_index,
                                                  const std::optional<xnap_handover_target_execution_context>&
@@ -299,6 +302,10 @@ private:
   /// \brief Binds a UE with a context retrieved from a peer to the AMF that the peer reported.
   /// \returns False if the CU-CP is not connected to this AMF or to its AMF Set.
   bool bind_retrieved_ue_to_amf(cu_cp_ue_index_t ue_index);
+
+  /// \brief Creates a UE in the target cell of a handover.
+  /// \returns The index of the new UE, or cu_cp_ue_index_t::invalid if the UE cannot be served.
+  cu_cp_ue_index_t add_handover_target_ue(const nr_cell_global_id_t& cgi);
 
   /// \brief Request the release of an inactive UE that failed to resume within the expected time.
   /// \param[in] ue_index The index of the UE to release.

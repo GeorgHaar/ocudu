@@ -356,6 +356,50 @@ TEST_P(du_ran_resource_manager_tester, when_the_ue_has_both_ul_harq_modes_then_t
   EXPECT_EQ(*ue_res->value().srbs[srb_id_t::srb1].mac_cfg.allowed_harq_mode, ul_harq_mode::mode_a);
 }
 
+/// A restriction no DL HARQ process of the UE carries is dropped, as it would leave the channel out of every block.
+TEST_P(du_ran_resource_manager_tester, when_every_dl_harq_process_carries_feedback_then_the_restriction_is_dropped)
+{
+  qos_cfg_list.at(uint_to_five_qi(1)).allowed_dl_harq_feedback = dl_harq_feedback::disabled;
+
+  const du_ue_index_t           ue_idx1 = to_du_ue_index(0);
+  ue_ran_resource_configurator* ue_res  = create_ue(ue_idx1);
+  ASSERT_NE(ue_res, nullptr);
+  ASSERT_FALSE(ue_res->update(to_du_cell_index(0), srb1_creation_req(ue_idx1)).failed());
+  ASSERT_FALSE(ue_res->update(to_du_cell_index(0), gbr_drb_creation_req(ue_idx1, true)).failed());
+
+  ASSERT_TRUE(ue_res->value().drbs.contains(drb_id_t::drb1));
+  ASSERT_FALSE(ue_res->value().drbs[drb_id_t::drb1].mac_cfg.allowed_dl_harq_feedback.has_value());
+}
+
+/// The SRBs take a process with feedback as soon as the capabilities of the UE give it processes without.
+TEST_P(du_ran_resource_manager_tester, when_the_ue_has_dl_harq_processes_without_feedback_then_the_srbs_keep_it)
+{
+  // The DL mask only reaches a UE on an NTN band that reports both the band and the capability, where the UL mode mask
+  // asks for the capability alone.
+  cell_cfg_list[0].ran.dl_carrier.band = nr_band::n256;
+  const unsigned nof_harqs             = std::min<unsigned>(cell_cfg_list[0].ran.init_bwp.pdsch.max_harq_procs,
+                                                ue_capability_summary::default_max_harq_process_num);
+  // A bit set to one disables the feedback, so the second half of the processes loses it and both remain available.
+  cell_cfg_list[0].ran.init_bwp.pdsch.dl_harq_feedback_disabled.fill(nof_harqs / 2, nof_harqs, true);
+  ue_capability_summary ue_caps;
+  ue_caps.ntn_supported                       = true;
+  ue_caps.disabled_dl_harq_feedback_supported = true;
+  ue_caps.bands[nr_band::n256]                = {};
+
+  const du_ue_index_t           ue_idx1 = to_du_ue_index(0);
+  ue_ran_resource_configurator* ue_res  = create_ue(ue_idx1);
+  ASSERT_NE(ue_res, nullptr);
+  ASSERT_FALSE(ue_res->update(to_du_cell_index(0), srb1_creation_req(ue_idx1)).failed());
+  ASSERT_TRUE(ue_res->value().srbs.contains(srb_id_t::srb1));
+  ASSERT_FALSE(ue_res->value().srbs[srb_id_t::srb1].mac_cfg.allowed_dl_harq_feedback.has_value())
+      << "every DL HARQ process of the UE carries feedback until it reports the capability";
+
+  ASSERT_FALSE(ue_res->update(to_du_cell_index(0), gbr_drb_creation_req(ue_idx1, true), nullptr, &ue_caps).failed());
+
+  ASSERT_TRUE(ue_res->value().srbs[srb_id_t::srb1].mac_cfg.allowed_dl_harq_feedback.has_value());
+  EXPECT_EQ(*ue_res->value().srbs[srb_id_t::srb1].mac_cfg.allowed_dl_harq_feedback, dl_harq_feedback::enabled);
+}
+
 TEST_P(du_ran_resource_manager_tester, when_multiple_ues_are_created_then_they_use_different_sr_offsets)
 {
   const unsigned sr_period = get_config_sr_period();

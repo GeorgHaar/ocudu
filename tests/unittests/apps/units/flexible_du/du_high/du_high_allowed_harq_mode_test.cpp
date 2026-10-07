@@ -48,6 +48,33 @@ public:
                 std::to_string(nof_harqs) + "\n      harq_mode_b: \"" + mask + "\"";
   }
 
+  /// \brief Disables the DL HARQ feedback of the processes the mask selects, leaving the others with feedback.
+  ///
+  /// Disabled feedback is only accepted on an NTN cell, so the cell moves to an NTN band. The mask is written from
+  /// the left, a set bit meaning disabled, and only the first \c nof_harqs processes of the cell exist.
+  void add_feedback_disabled_processes(const std::string& mask = "0x00ff0000", unsigned nof_harqs = 16)
+  {
+    cell_text = "\n  - band: 256\n    dl_arfcn: 437000\n    common_scs: 15\n    channel_bandwidth_MHz: 5"
+                "\n    pdsch:\n      nof_harqs: " +
+                std::to_string(nof_harqs) + "\n      harq_feedback_disabled: \"" + mask + "\"";
+  }
+
+  /// Adds a 5QI carrying the given allowed DL HARQ feedback.
+  void add_qos_dl_feedback(five_qi_t five_qi, const std::string& feedback)
+  {
+    qos_text += "\n  - five_qi: " + std::to_string(static_cast<unsigned>(five_qi)) + R"(
+    rlc:
+      mode: am
+      am:
+        tx: {sn: 18, t-poll-retransmit: 100, max-retx-threshold: 32, poll-pdu: 16, poll-byte: -1}
+        rx: {sn: 18, t-reassembly: 20, t-status-prohibit: 10}
+    f1u_du:
+      backoff_timer: 5
+    mac:
+      dl_harq_feedback: )" +
+                feedback;
+  }
+
   /// Configuration with its auto-derived parameters filled in.
   const du_high_unit_config& derived_config()
   {
@@ -157,6 +184,30 @@ TEST(du_high_allowed_harq_mode_test, both_modes_within_the_ue_process_cap_are_ac
   bench.add_mode_b_processes("0x00ff0000", 32);
   bench.add_qos(uint_to_five_qi(9), "mode_b");
   EXPECT_TRUE(bench.validate());
+}
+
+/// The SRBs are served on a process with feedback, so the mask must leave one even when no 5QI asks for a feedback.
+TEST(du_high_allowed_harq_mode_test, a_mask_without_a_dl_feedback_process_is_rejected)
+{
+  du_high_config_bench bench;
+  bench.add_feedback_disabled_processes("0xffff0000");
+  EXPECT_FALSE(bench.validate());
+}
+
+/// A mask that keeps a process with feedback serves the SRBs, so it is accepted with no 5QI configured.
+TEST(du_high_allowed_harq_mode_test, a_mask_keeping_a_dl_feedback_process_is_accepted)
+{
+  du_high_config_bench bench;
+  bench.add_feedback_disabled_processes();
+  EXPECT_TRUE(bench.validate());
+}
+
+/// A 5QI asking for disabled feedback needs a process carrying it, which an empty mask never provides.
+TEST(du_high_allowed_harq_mode_test, disabled_dl_feedback_is_rejected_when_every_process_carries_feedback)
+{
+  du_high_config_bench bench;
+  bench.add_qos_dl_feedback(uint_to_five_qi(9), "disabled");
+  EXPECT_FALSE(bench.validate());
 }
 
 /// A DRB restricted to mode B takes a logical channel group of its own, so the 5QIs are free to differ.

@@ -26,18 +26,29 @@ using namespace ocucp;
 class cu_cp_reestablishment_test : public cu_cp_test_environment, public ::testing::Test
 {
 public:
-  cu_cp_reestablishment_test() : cu_cp_test_environment(cu_cp_test_env_params{})
+  explicit cu_cp_reestablishment_test(plmn_identity plmn = plmn_identity::test_value()) :
+    cu_cp_test_environment(cu_cp_test_env_params{
+        8,
+        8,
+        8192,
+        8,
+        {{supported_tracking_area{7, {plmn_item{plmn, std::vector<s_nssai_t>{default_s_nssai}}}}}}})
   {
     OCUDU_TEST_REQUIREMENTS("CU-GEN-3");
+
+    ue_plmn = plmn;
 
     // Run NG setup to completion.
     run_ng_setup();
 
-    // Setup DU.
+    // Setup DU with one cell of the given PLMN.
     auto ret = connect_new_du();
     EXPECT_TRUE(ret.has_value());
     du_idx = ret.value();
-    EXPECT_TRUE(this->run_f1_setup(du_idx));
+    EXPECT_TRUE(this->run_f1_setup(du_idx,
+                                   int_to_gnb_du_id(0x11),
+                                   {test_helpers::served_cell_item_info{
+                                       .plmn_id = plmn, .sib1_str = test_helpers::create_sib1_hex_string(plmn)}}));
 
     // Setup CU-UP.
     ret = connect_new_cu_up();
@@ -267,7 +278,7 @@ public:
 
     // Send Initial UL RRC Message to CU-CP.
     f1ap_message f1ap_init_ul_rrc_msg = test_helpers::generate_init_ul_rrc_message_transfer(
-        new_du_ue_id, new_rnti, plmn_identity::test_value(), {}, std::move(rrc_container));
+        new_du_ue_id, new_rnti, ue_plmn, {}, std::move(rrc_container));
     get_du(du_idx).push_ul_pdu(f1ap_init_ul_rrc_msg);
 
     // Wait for DL RRC message transfer.
@@ -726,4 +737,33 @@ TEST_F(cu_cp_reestablishment_test,
   ASSERT_EQ(report.dus[0].rrc_metrics.successful_rrc_connection_reestablishments_with_ue_context, 1);
   // Old UE should not be removed at this stage.
   ASSERT_EQ(report.ues.size(), 1) << "Old UE should not be removed yet";
+}
+
+class cu_cp_reestablishment_non_test_plmn_test : public cu_cp_reestablishment_test
+{
+public:
+  cu_cp_reestablishment_non_test_plmn_test() : cu_cp_reestablishment_test(plmn_identity::parse("99902").value()) {}
+};
+
+TEST_F(cu_cp_reestablishment_non_test_plmn_test, when_reestablishment_succeeds_then_ue_keeps_its_plmn_and_amf)
+{
+  // Attach UE 0x4601.
+  EXPECT_TRUE(attach_ue(du_idx, cu_up_idx, old_du_ue_id, old_crnti, amf_ue_id, cu_up_e1ap_id));
+
+  // Send RRC Reestablishment Request and DU receives RRC Reestablishment.
+  gnb_du_ue_f1ap_id_t new_du_ue_id = int_to_gnb_du_ue_f1ap_id(1);
+  rnti_t              new_crnti    = to_rnti(0x4602);
+  ASSERT_TRUE(reestablish_ue(du_idx, cu_up_idx, new_du_ue_id, new_crnti, old_crnti, old_pci))
+      << "Reestablishment failed";
+
+  // Check that the UE is connected to the AMF by injecting a deregistration request and make sure its forwarded.
+  f1ap_message ul_rrc_msg_transfer = test_helpers::generate_ul_rrc_message_transfer(
+      new_du_ue_id,
+      this->find_ue_context(du_idx, new_du_ue_id)->cu_ue_id.value(),
+      srb_id_t::srb1,
+      make_byte_buffer("00023a0c3f016f19764701bf0022808005f9007888010020600003068014367cc5").value());
+  get_du(du_idx).push_ul_pdu(ul_rrc_msg_transfer);
+  ngap_message ngap_pdu;
+  ASSERT_TRUE(this->wait_for_ngap_tx_pdu(ngap_pdu));
+  ASSERT_TRUE(test_helpers::is_valid_ul_nas_transport_message(ngap_pdu));
 }

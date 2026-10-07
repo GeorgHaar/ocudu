@@ -106,6 +106,9 @@ public:
   ocudulog::basic_logger& test_logger  = ocudulog::fetch_basic_logger("TEST");
   ocudulog::basic_logger& cu_cp_logger = ocudulog::fetch_basic_logger("CU-CP");
 
+  /// PLMN of the cell in which attach_ue() and reestablish_ue() connect UEs.
+  plmn_identity ue_plmn = plmn_identity::test_value();
+
   cu_cp&          get_cu_cp() { return *cu_cp_inst; }
   mock_amf&       get_amf(size_t amf_index = 0) { return *amf_configs.at(amf_index).amf_stub; }
   mock_du&        get_du(size_t du_index) { return *dus.at(du_index); }

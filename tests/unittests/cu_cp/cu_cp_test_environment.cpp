@@ -1167,7 +1167,7 @@ bool cu_cp_test_environment::attach_ue(
     std::optional<location_report_request>                     location_reporting_request,
     std::optional<security_indication_t>                       security_indication)
 {
-  if (not connect_new_ue(du_idx, du_ue_id, crnti, plmn_identity::test_value(), std::move(rrc_setup_complete))) {
+  if (not connect_new_ue(du_idx, du_ue_id, crnti, ue_plmn, std::move(rrc_setup_complete))) {
     return false;
   }
   if (not authenticate_ue(du_idx, du_ue_id, amf_ue_id)) {
@@ -1218,7 +1218,7 @@ bool cu_cp_test_environment::reestablish_ue(unsigned            du_idx,
   byte_buffer rrc_container = test_helpers::pack_ul_ccch_msg(
       test_helpers::create_rrc_reestablishment_request(old_crnti, old_pci, "1111010001000010"));
   f1ap_message f1ap_init_ul_rrc_msg = test_helpers::generate_init_ul_rrc_message_transfer(
-      new_du_ue_id, new_crnti, plmn_identity::test_value(), {}, std::move(rrc_container));
+      new_du_ue_id, new_crnti, ue_plmn, {}, std::move(rrc_container));
   get_du(du_idx).push_ul_pdu(f1ap_init_ul_rrc_msg);
 
   // Wait for DL RRC message transfer (with RRC Reestablishment / RRC Setup / RRC Reject).

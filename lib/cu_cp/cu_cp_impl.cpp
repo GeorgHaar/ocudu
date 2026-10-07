@@ -712,6 +712,23 @@ async_task<bool> cu_cp_impl::handle_ue_context_transfer(cu_cp_ue_index_t ue_inde
 
     auto* ue = ue_mng.find_du_ue(ue_index);
 
+    // Check the NGAP and the PLMN of the old UE before the transfer starts.
+    auto* ngap = ngap_db.find_ngap(source_ue->get_ue_context().plmn);
+    if (ngap == nullptr) {
+      logger.warning("ue={}: Can't transfer UE context. Cause: NGAP not found for plmn={}",
+                     ue_index,
+                     source_ue->get_ue_context().plmn);
+      return false;
+    }
+
+    // Transfer the PLMN selected by the old UE.
+    if (not ue_mng.set_plmn(ue_index, source_ue->get_ue_context().plmn)) {
+      logger.warning("ue={}: Can't transfer UE context. Cause: PLMN {} of the old UE is not allowed",
+                     ue_index,
+                     source_ue->get_ue_context().plmn);
+      return false;
+    }
+
     // Transfer CU-UP index.
     ue->set_cu_up_index(source_ue->get_cu_up_index());
 
@@ -724,13 +741,6 @@ async_task<bool> cu_cp_impl::handle_ue_context_transfer(cu_cp_ue_index_t ue_inde
         logger.warning("The F1AP UE context of the old UE index {} does not exist", old_ue_index);
         return false;
       }
-    }
-
-    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
-    if (ngap == nullptr) {
-      logger.warning(
-          "ue={}: Can't transfer UE context. Cause: NGAP not found for plmn={}", ue_index, ue->get_ue_context().plmn);
-      return false;
     }
 
     // Transfer NGAP UE Context to new UE and remove the old context.

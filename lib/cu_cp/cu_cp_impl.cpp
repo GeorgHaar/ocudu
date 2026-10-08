@@ -1921,7 +1921,7 @@ void cu_cp_impl::handle_n2_disconnection(cu_cp_amf_index_t amf_index)
 {
   std::vector<plmn_identity> plmns = ngap_db.find_ngap(amf_index)->get_ngap_context().get_supported_plmns();
 
-  logger.warning("Handling N2 disconnection. Lost PLMNs: {}", fmt::format("{}", fmt::join(plmns, " ")));
+  logger.warning("Handling N2 disconnection of amf_index={}", amf_index);
 
   common_task_sched.schedule(launch_async<amf_connection_loss_routine>(
       amf_index, cfg, std::move(plmns), du_db, cell_ctrl.cells(), *this, ue_mng, controller, logger));

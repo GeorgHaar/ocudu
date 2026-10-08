@@ -56,10 +56,10 @@ public:
   /// \param[in] plmns PLMN identities of the UEs to be allowed again.
   void remove_blocked_plmns(const std::vector<plmn_identity>& plmns);
 
-  /// \brief Find the UEs with the given PLMN identity.
-  /// \param[in] plmn PLMN identity of the UEs to be found.
+  /// \brief Find the UEs that the given AMF serves.
+  /// \param[in] amf_index Index of the AMF that serves the UEs.
   /// \return Vector of pointers to the found UEs.
-  std::vector<cu_cp_ue*> find_ues(plmn_identity plmn);
+  std::vector<cu_cp_ue*> find_ues(cu_cp_amf_index_t amf_index);
 
   /// \brief Find the UEs whose primary cell is the given cell (identified by serving DU and PCI).
   /// \param[in] du_index Index of the DU serving the cell.

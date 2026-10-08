@@ -9,6 +9,7 @@
 #include "tests/test_doubles/ngap/ngap_test_message_validators.h"
 #include "tests/test_doubles/rrc/rrc_test_messages.h"
 #include "tests/unittests/ngap/ngap_test_messages.h"
+#include "ocudu/asn1/f1ap/f1ap_pdu_contents_ue.h"
 #include "ocudu/asn1/ngap/ngap_pdu_contents.h"
 #include "ocudu/f1ap/f1ap_message.h"
 #include "ocudu/ngap/ngap_message.h"
@@ -151,4 +152,27 @@ TEST_F(cu_cp_amf_pooling_test, when_ue_sends_registered_amf_then_it_is_served_by
   ies.registered_amf.amf_id.from_number(0x020041);
 
   ASSERT_EQ(attach_ue(int_to_gnb_du_ue_f1ap_id(0), rrc_setup_complete), 1);
+}
+
+TEST_F(cu_cp_amf_pooling_test, when_one_amf_is_lost_then_only_its_ues_are_released_and_the_plmn_stays_served)
+{
+  start_cu_cp(255, 255);
+  ASSERT_EQ(attach_ue_with_5g_s_tmsi(int_to_gnb_du_ue_f1ap_id(0), 0), 0);
+  ASSERT_EQ(attach_ue_with_5g_s_tmsi(int_to_gnb_du_ue_f1ap_id(1), 1), 1);
+
+  ASSERT_TRUE(drop_amf_connection(0));
+
+  // The UE that AMF 0 serves is released.
+  f1ap_message f1ap_pdu;
+  ASSERT_TRUE(wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu));
+  ASSERT_TRUE(test_helpers::is_valid_ue_context_release_command(f1ap_pdu));
+  ASSERT_EQ(int_to_gnb_du_ue_f1ap_id(f1ap_pdu.pdu.init_msg().value.ue_context_release_cmd()->gnb_du_ue_f1ap_id),
+            int_to_gnb_du_ue_f1ap_id(0));
+  get_du(du_idx).push_ul_pdu(test_helpers::generate_ue_context_release_complete(f1ap_pdu));
+
+  // AMF 1 still serves the PLMN, so the cell stays active and the UE that AMF 1 serves stays connected.
+  ASSERT_FALSE(wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu, std::chrono::milliseconds{100}));
+
+  // A new UE is served by AMF 1.
+  ASSERT_EQ(attach_ue(int_to_gnb_du_ue_f1ap_id(2), test_helpers::create_rrc_setup_complete()), 1);
 }

@@ -43,18 +43,25 @@ void amf_connection_loss_routine::operator()(coro_context<async_task<void>>& ctx
   // Notify AMF connection manager about the disconnection.
   controller.amf_connection_handler().handle_amf_connection_loss(amf_index);
 
-  // Stop accepting new UEs for the given PLMNs.
-  ue_mng.add_blocked_plmns(plmns);
+  // Another connected AMF can still serve some of the PLMNs. Only the other PLMNs are lost.
+  for (const plmn_identity& plmn : plmns) {
+    if (not controller.amf_connection_handler().is_amf_connected(plmn)) {
+      lost_plmns.push_back(plmn);
+    }
+  }
+  logger.info("\"{}\": Lost PLMNs: {}", name(), fmt::format("{}", fmt::join(lost_plmns, " ")));
 
-  // Deactivate the cells served by the disconnected AMF, releasing their UEs from the CU-CP first (the core is
-  // gone, so they are dropped with a transport cause). No barring stage here: this is a fault path, not an
-  // operator-driven graceful stop, and the pre-existing AMF-loss behaviour is kept unchanged.
+  // Stop accepting new UEs for the lost PLMNs.
+  ue_mng.add_blocked_plmns(lost_plmns);
+
+  // Release the UEs of the disconnected AMF with a transport cause, then deactivate the cells of the lost PLMNs at
+  // once. The loss of the AMF is a fault, so the cells skip the barring that an operator stop uses.
   CORO_AWAIT_VALUE(cell_deactivation_result deactivation_result,
                    launch_async<cell_deactivation_routine>(
                        cell_deactivation_routine_configuration{
                            .ran_node_name   = cu_cp_cfg.node.ran_node_name,
-                           .targets         = resolve_deactivation_targets(du_db, plmns),
-                           .ues_to_release  = collect_ues_for_plmns(ue_mng, plmns),
+                           .targets         = resolve_deactivation_targets(du_db, lost_plmns),
+                           .ues_to_release  = collect_ues_for_amf(ue_mng, amf_index),
                            .release_cause   = ngap_cause_t{ngap_cause_transport_t::transport_res_unavailable},
                            .bar_cells_first = false},
                        cell_deactivation_routine_dependencies{.du_db              = du_db,

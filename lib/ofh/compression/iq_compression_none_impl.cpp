@@ -29,6 +29,9 @@ void iq_compression_none_impl::compress(span<uint8_t>                buffer,
 
   span<const bf16_t> float_samples(reinterpret_cast<const bf16_t*>(iq_data.data()), iq_data.size() * 2);
 
+  // Scaling factor applied to IQ data prior to quantization.
+  float iq_scaling = scaling.get_compression_iq_scaling(params.data_width);
+
   unsigned in_sample_idx = 0;
   for (unsigned rb = 0; rb != nof_prbs; ++rb) {
     // Auxiliary buffer used for brain float to int16_t conversion.
@@ -59,6 +62,9 @@ bool iq_compression_none_impl::decompress(span<cbf16_t>                output,
   // Quantizer object.
   quantizer q(params.data_width);
 
+  // Scaling of the decompressed samples, including the quantizer gain.
+  float iq_scaling = q.to_float(1) * scaling.get_decompression_iq_scaling(params.data_width);
+
   // Number of output PRBs.
   unsigned nof_prbs = output.size() / NOF_SUBCARRIERS_PER_RB;
 
@@ -77,7 +83,7 @@ bool iq_compression_none_impl::decompress(span<cbf16_t>                output,
       int16_t re = q.sign_extend(unpack_bits(bits_reader, read_pos, params.data_width));
       int16_t im = q.sign_extend(unpack_bits(bits_reader, read_pos + params.data_width, params.data_width));
       read_pos += (params.data_width * 2);
-      output[out_idx++] = {q.to_float(re), q.to_float(im)};
+      output[out_idx++] = {re * iq_scaling, im * iq_scaling};
     }
   }
 

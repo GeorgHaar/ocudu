@@ -11,7 +11,7 @@
 using namespace ocudu;
 using namespace ofh;
 
-void iq_compression_bfp_impl::quantize_input(span<int16_t> out, span<const bf16_t> in)
+void iq_compression_bfp_impl::quantize_input(span<int16_t> out, span<const bf16_t> in, unsigned data_width)
 {
   ocudu_assert(in.size() == out.size(), "Input and output spans must have the same size");
 
@@ -19,7 +19,7 @@ void iq_compression_bfp_impl::quantize_input(span<int16_t> out, span<const bf16_
   quantizer q(Q_BIT_WIDTH);
 
   // Convert input to int16_t representation.
-  q.to_fixed_point(out, in, iq_scaling);
+  q.to_fixed_point(out, in, scaling.get_compression_iq_scaling(data_width));
 
   if (OCUDU_UNLIKELY(logger.debug.enabled() && !out.empty())) {
     // Calculate and print RMS of quantized samples.
@@ -33,7 +33,8 @@ void iq_compression_bfp_impl::quantize_input(span<int16_t> out, span<const bf16_
 
 void iq_compression_bfp_impl::compress_prb_generic(span<uint8_t>       comp_prb_buffer,
                                                    span<const int16_t> input_quantized,
-                                                   unsigned            data_width)
+                                                   unsigned            data_width,
+                                                   uint8_t             exponent_offset)
 {
   // Determine maximum absolute value and the exponent.
   const auto* start_it = input_quantized.begin();
@@ -52,7 +53,8 @@ void iq_compression_bfp_impl::compress_prb_generic(span<uint8_t>       comp_prb_
   }
 
   // Save exponent.
-  std::memcpy(comp_prb_buffer.data(), &exponent, sizeof(exponent));
+  uint8_t comp_param = exponent + exponent_offset;
+  std::memcpy(comp_prb_buffer.data(), &comp_param, sizeof(comp_param));
   comp_prb_buffer = comp_prb_buffer.last(comp_prb_buffer.size() - sizeof(exponent));
 
   bit_buffer buffer = bit_buffer::from_bytes(comp_prb_buffer);
@@ -77,20 +79,22 @@ void iq_compression_bfp_impl::compress(span<uint8_t>                buffer,
   span<const bf16_t> float_samples_span(reinterpret_cast<const bf16_t*>(iq_data.data()), iq_data.size() * 2U);
   span<int16_t>      input_quantized_span(input_quantized.data(), float_samples_span.size());
   // Performs conversion of input brain float values to signed 16-bit integers.
-  quantize_input(input_quantized_span, float_samples_span);
+  quantize_input(input_quantized_span, float_samples_span, params.data_width);
 
+  uint8_t exponent_offset = scaling.get_compression_exponent_offset(params.data_width);
   for (unsigned i = 0; i != nof_prbs; ++i) {
     const auto* in_start_it = input_quantized.begin() + NOF_SAMPLES_PER_PRB * i;
     auto*       out_it      = &buffer[i * prb_size];
     // Compress one resource block.
-    compress_prb_generic({out_it, prb_size}, {in_start_it, NOF_SAMPLES_PER_PRB}, params.data_width);
+    compress_prb_generic({out_it, prb_size}, {in_start_it, NOF_SAMPLES_PER_PRB}, params.data_width, exponent_offset);
   }
 }
 
 void iq_compression_bfp_impl::decompress_prb_generic(span<cbf16_t>       output,
                                                      span<const uint8_t> comp_prb,
                                                      const quantizer&    q_in,
-                                                     unsigned            data_width)
+                                                     unsigned            data_width,
+                                                     float               iq_scaling)
 {
   // Quantizer.
   quantizer q_out(Q_BIT_WIDTH);
@@ -98,6 +102,8 @@ void iq_compression_bfp_impl::decompress_prb_generic(span<cbf16_t>       output,
   uint8_t exponent = decode_bfp_exponent(comp_prb[0]);
   // A masked exponent reaches 15, so the shift result (up to 32768) does not fit int16_t.
   int32_t scaler = 1 << exponent;
+  // Scaling of the decompressed samples, including the quantizer gain.
+  float prb_scaling = q_out.to_float(scaler) * iq_scaling;
 
   comp_prb             = comp_prb.last(comp_prb.size() - sizeof(exponent));
   auto bit_buff_reader = bit_buffer_reader::from_bytes(comp_prb);
@@ -107,8 +113,8 @@ void iq_compression_bfp_impl::decompress_prb_generic(span<cbf16_t>       output,
     int16_t im = q_in.sign_extend(unpack_bits(bit_buff_reader, read_pos + data_width, data_width));
     read_pos += (data_width * 2);
 
-    float scaled_re = q_out.to_float(re * scaler);
-    float scaled_im = q_out.to_float(im * scaler);
+    float scaled_re = re * prb_scaling;
+    float scaled_im = im * prb_scaling;
     output[i]       = {scaled_re, scaled_im};
   }
 }
@@ -136,7 +142,8 @@ bool iq_compression_bfp_impl::decompress(span<cbf16_t>                iq_data,
 
     span<cbf16_t> out_prb_samples = iq_data.subspan(out_idx, NOF_SUBCARRIERS_PER_RB);
     // Decompress resource block.
-    decompress_prb_generic(out_prb_samples, comp_prb, q_in, params.data_width);
+    decompress_prb_generic(
+        out_prb_samples, comp_prb, q_in, params.data_width, scaling.get_decompression_iq_scaling(params.data_width));
     out_idx += NOF_SUBCARRIERS_PER_RB;
   }
 

@@ -41,7 +41,7 @@ void iq_compression_none_neon::compress(span<uint8_t>                buffer,
   span<const bf16_t> float_samples_span(reinterpret_cast<const bf16_t*>(iq_data.data()), iq_data.size() * 2U);
   span<int16_t>      input_quantized_span(input_quantized.data(), float_samples_span.size());
 
-  q.to_fixed_point(input_quantized_span, float_samples_span, iq_scaling);
+  q.to_fixed_point(input_quantized_span, float_samples_span, scaling.get_compression_iq_scaling(params.data_width));
   log_post_quantization_rms(input_quantized_span);
 
   unsigned sample_idx = 0;
@@ -126,7 +126,7 @@ bool iq_compression_none_neon::decompress(span<cbf16_t>                iq_data,
 
   span<int16_t> unpacked_iq_int16_span(unpacked_iq_data.data(), iq_data.size() * 2);
   // Convert to complex brain float samples.
-  q_out.to_brain_float(iq_data, unpacked_iq_int16_span, 1);
+  q_out.to_brain_float(iq_data, unpacked_iq_int16_span, scaling.get_decompression_iq_scaling(params.data_width));
 
   return true;
 }

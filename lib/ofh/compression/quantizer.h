@@ -77,7 +77,7 @@ public:
   ///
   /// \param[out] z       Resultant complex brain floating point values.
   /// \param[in] x        Sequence of 16-bit integer values.
-  /// \param[in] in_scale Scaling factor (expected to be bigger or equal to 1) applied to the input prior conversion.
+  /// \param[in] in_scale Scaling factor applied to the input prior conversion.
   ///
   /// \remark The size of \c x must be twice the size of \c z as \x is comprised by the quantized pairs of real and
   /// imaginary parts of complex values.

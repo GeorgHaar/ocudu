@@ -48,6 +48,7 @@ static receiver_config generate_receiver_config(const sector_configuration& conf
   rx_config.is_uplink_static_compr_hdr_enabled = config.is_uplink_static_compr_hdr_enabled;
   rx_config.prach_compression_params           = config.prach_compression_params;
   rx_config.ul_compression_params              = config.ul_compression_params;
+  rx_config.fs_offset                          = config.fs_offset;
   rx_config.is_prach_control_plane_enabled     = config.is_prach_control_plane_enabled;
   rx_config.ignore_prach_start_symbol          = config.ignore_prach_start_symbol;
   rx_config.ignore_ecpri_payload_size_field    = config.ignore_ecpri_payload_size_field;
@@ -94,6 +95,7 @@ static transmitter_config generate_transmitter_config(const sector_configuration
   tx_config.is_downlink_static_compr_hdr_enabled = sector_cfg.is_downlink_static_compr_hdr_enabled;
   tx_config.is_uplink_static_compr_hdr_enabled   = sector_cfg.is_uplink_static_compr_hdr_enabled;
   tx_config.iq_scaling                           = sector_cfg.iq_scaling;
+  tx_config.fs_offset                            = sector_cfg.fs_offset;
   tx_config.dl_processing_time                   = sector_cfg.dl_processing_time;
   tx_config.ul_processing_time                   = sector_cfg.ul_processing_time;
   tx_config.tdd_config                           = sector_cfg.tdd_config;

@@ -12,6 +12,7 @@
 #include "ocudu/ofh/serdes/ofh_uplane_message_decoder.h"
 #include "ocudu/ran/bs_channel_bandwidth.h"
 #include "ocudu/ran/cyclic_prefix.h"
+#include <optional>
 
 namespace ocudu {
 namespace ofh {
@@ -44,6 +45,8 @@ struct receiver_config {
   ru_compression_params prach_compression_params;
   /// Uplink static compression header flag.
   bool is_uplink_static_compr_hdr_enabled = true;
+  /// O-RAN FS_Offset of the IQ full scale, used in uplink and downlink (O-RAN.WG4.CUS, clause 8.1.3.1).
+  std::optional<unsigned> fs_offset;
   /// Enables the Control-Plane PRACH message signalling.
   bool is_prach_control_plane_enabled = false;
   /// Ignore the start symbol value received in the PRACH U-Plane packets.

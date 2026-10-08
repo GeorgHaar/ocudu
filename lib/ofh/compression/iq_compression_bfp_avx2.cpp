@@ -40,7 +40,10 @@ void iq_compression_bfp_avx2::compress(span<uint8_t>                buffer,
   span<const bf16_t> float_samples_span(reinterpret_cast<const bf16_t*>(iq_data.data()), iq_data.size() * 2U);
   span<int16_t>      input_quantized_span(input_quantized.data(), float_samples_span.size());
   // Performs conversion of input complex float values to signed 16-bit integers.
-  quantize_input(input_quantized_span, float_samples_span);
+  quantize_input(input_quantized_span, float_samples_span, params.data_width);
+
+  // Offset added to the transmitted exponents.
+  uint8_t exponent_offset = scaling.get_compression_exponent_offset(params.data_width);
 
   // Compression algorithm implemented according to O-RAN.WG4.CUS Annex A.1.2.
   unsigned sample_idx = 0;
@@ -73,8 +76,10 @@ void iq_compression_bfp_avx2::compress(span<uint8_t>                buffer,
     __m256i rb01_sr_epi16   = _mm256_permute2f128_si256(rb01_sr_0_epi16, rb01_sr_1_epi16, 0x30);
 
     // Write compression parameters to the output buffer.
-    std::memcpy(comp_prb0_buffer.data(), &exponent_0, sizeof(uint8_t));
-    std::memcpy(comp_prb1_buffer.data(), &exponent_1, sizeof(uint8_t));
+    uint8_t comp_param_0 = exponent_0 + exponent_offset;
+    uint8_t comp_param_1 = exponent_1 + exponent_offset;
+    std::memcpy(comp_prb0_buffer.data(), &comp_param_0, sizeof(uint8_t));
+    std::memcpy(comp_prb1_buffer.data(), &comp_param_1, sizeof(uint8_t));
 
     comp_prb0_buffer = comp_prb0_buffer.last(comp_prb0_buffer.size() - sizeof(uint8_t));
     comp_prb1_buffer = comp_prb1_buffer.last(comp_prb1_buffer.size() - sizeof(uint8_t));
@@ -92,7 +97,7 @@ void iq_compression_bfp_avx2::compress(span<uint8_t>                buffer,
     span<uint8_t> comp_prb_buffer(&buffer[rb * prb_size], prb_size);
 
     const auto* start_it = input_quantized.begin() + sample_idx;
-    compress_prb_generic(comp_prb_buffer, {start_it, NOF_SAMPLES_PER_PRB}, params.data_width);
+    compress_prb_generic(comp_prb_buffer, {start_it, NOF_SAMPLES_PER_PRB}, params.data_width, exponent_offset);
     sample_idx += NOF_SAMPLES_PER_PRB;
   }
 }
@@ -117,6 +122,8 @@ bool iq_compression_bfp_avx2::decompress(span<cbf16_t>                iq_data,
                nof_prbs);
 
   const float fixp_gain = (1 << (Q_BIT_WIDTH - 1)) - 1.0f;
+  // Scaling of the decompressed samples, including the quantizer gain.
+  const float iq_scaling = scaling.get_decompression_iq_scaling(params.data_width) / fixp_gain;
 
   // Determine array size so that AVX2 store operation doesn't write the data out of array bounds.
   constexpr size_t avx2_size_iqs = 16;
@@ -141,7 +148,7 @@ bool iq_compression_bfp_avx2::decompress(span<cbf16_t>                iq_data,
     mm256::unpack_prb_big_endian(unpacked_prb_span, comp_prb_buffer, params.data_width);
 
     // Save scaling factor.
-    std::fill(&unpacked_iq_scaling[idx], &unpacked_iq_scaling[idx] + (NOF_SUBCARRIERS_PER_RB * 2), scaler / fixp_gain);
+    std::fill(&unpacked_iq_scaling[idx], &unpacked_iq_scaling[idx] + (NOF_SUBCARRIERS_PER_RB * 2), scaler * iq_scaling);
 
     idx += (NOF_SUBCARRIERS_PER_RB * 2);
   }

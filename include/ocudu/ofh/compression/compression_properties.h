@@ -7,6 +7,7 @@
 #include "ocudu/ofh/compression/compression_params.h"
 #include "ocudu/ran/resource_block.h"
 #include "ocudu/support/units.h"
+#include <cmath>
 
 namespace ocudu {
 namespace ofh {
@@ -44,6 +45,52 @@ inline units::bytes get_packed_beamforming_weights_size(unsigned nof_weights, co
   }
 
   return size;
+}
+
+/// \brief Returns the O-RAN FS_Offset that corresponds to the OCUDU IQ full scale for the given compression parameters.
+///
+/// OCUDU maps an amplitude of 1.0 of the I or Q component to the full scale of the IQ bit width before compression. BFP
+/// compression quantizes to 16 bits before compressing, which leaves the exponents above \f$16-m\f$ unused for an
+/// \f$m\f$-bit mantissa. The OCUDU full scale is therefore \f$2(m-1)\f$ FS_Offset steps of 3.01 dB below the O-RAN
+/// full scale (O-RAN.WG4.CUS, clause 8.1.3.1).
+constexpr unsigned get_native_fs_offset(const ru_compression_params& params)
+{
+  return ((params.type == compression_type::BFP) && (params.data_width > 0)) ? 2 * (params.data_width - 1) : 0;
+}
+
+/// Scaling of the downlink IQ data that moves the OCUDU IQ full scale to a configured O-RAN FS_Offset.
+struct fs_offset_scaling {
+  /// Offset added to the shared exponent of every BFP compressed PRB.
+  unsigned bfp_exponent_offset = 0;
+  /// Amplitude factor applied to the IQ data prior to compression.
+  float amplitude = 1.0F;
+};
+
+/// \brief Returns the downlink scaling that maps the OCUDU IQ full scale to the O-RAN full scale with the given
+/// FS_Offset.
+///
+/// For BFP compression, the scaling is applied through the BFP exponent whenever possible, as it does not affect the
+/// mantissa resolution. The remaining half-bit, or a full scale above the OCUDU one, is applied as an amplitude factor
+/// that does not exceed one.
+inline fs_offset_scaling get_dl_fs_offset_scaling(const ru_compression_params& params, unsigned fs_offset)
+{
+  // Full scale difference in FS_Offset steps, i.e., half bits.
+  int nof_steps = static_cast<int>(get_native_fs_offset(params)) - static_cast<int>(fs_offset);
+
+  if ((params.type == compression_type::BFP) && (nof_steps > 0)) {
+    unsigned exponent_offset = (nof_steps + 1) / 2;
+    return {exponent_offset, std::exp2(0.5F * (nof_steps - 2 * static_cast<int>(exponent_offset)))};
+  }
+
+  return {0, std::exp2(0.5F * nof_steps)};
+}
+
+/// \brief Returns the amplitude factor that maps decompressed uplink IQ data from the O-RAN full scale with the given
+/// FS_Offset to the OCUDU IQ full scale.
+inline float get_ul_fs_offset_scaling(const ru_compression_params& params, unsigned fs_offset)
+{
+  int nof_steps = static_cast<int>(get_native_fs_offset(params)) - static_cast<int>(fs_offset);
+  return std::exp2(-0.5F * nof_steps);
 }
 
 } // namespace ofh

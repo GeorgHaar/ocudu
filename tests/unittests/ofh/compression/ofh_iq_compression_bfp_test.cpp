@@ -44,7 +44,7 @@ static std::vector<const char*> testable_impls()
 static std::array<cbf16_t, NOF_SUBCARRIERS_PER_RB>
 decompress_one(uint8_t comp_param, uint8_t mantissa, const ru_compression_params& params, const char* impl)
 {
-  auto                 decompressor = create_iq_decompressor(params.type, ocudulog::fetch_basic_logger("TEST"), impl);
+  auto decompressor = create_iq_decompressor(params.type, ocudulog::fetch_basic_logger("TEST"), std::nullopt, impl);
   std::vector<uint8_t> prb(get_compressed_prb_size(params).value(), mantissa);
   prb[0] = comp_param;
 
@@ -68,7 +68,7 @@ decompress_width16(uint8_t                                                comp_p
     prb.push_back(static_cast<uint8_t>(bits >> 8U));
     prb.push_back(static_cast<uint8_t>(bits & 0xffU));
   }
-  auto decompressor = create_iq_decompressor(params.type, ocudulog::fetch_basic_logger("TEST"), impl);
+  auto decompressor = create_iq_decompressor(params.type, ocudulog::fetch_basic_logger("TEST"), std::nullopt, impl);
   std::array<cbf16_t, NOF_SUBCARRIERS_PER_RB> out = {};
   EXPECT_TRUE(decompressor->decompress(out, prb, params));
   return out;

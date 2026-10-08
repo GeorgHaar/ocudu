@@ -4,11 +4,13 @@
 
 #pragma once
 
+#include "iq_scaling_table.h"
 #include "quantizer.h"
 #include "ocudu/ocudulog/logger.h"
 #include "ocudu/ofh/compression/iq_compressor.h"
 #include "ocudu/ofh/compression/iq_decompressor.h"
 #include "ocudu/ran/resource_block.h"
+#include <optional>
 
 namespace ocudu {
 namespace ofh {
@@ -24,8 +26,10 @@ class iq_compression_bfp_impl : public iq_compressor, public iq_decompressor
 {
 public:
   // Constructor.
-  explicit iq_compression_bfp_impl(ocudulog::basic_logger& logger_, float iq_scaling_ = 1.0) :
-    logger(logger_), iq_scaling(iq_scaling_)
+  explicit iq_compression_bfp_impl(ocudulog::basic_logger& logger_,
+                                   float                   iq_scaling_ = 1.0,
+                                   std::optional<unsigned> fs_offset   = std::nullopt) :
+    scaling(compression_type::BFP, iq_scaling_, fs_offset), logger(logger_)
   {
   }
 
@@ -68,32 +72,41 @@ protected:
   /// \brief Compresses one resource block using the generic implementation of the algorithm
   /// from O-RAN.WG4.CUS, Annex A.1.2.
   ///
-  /// \param[out] c_prb      Compressed PRB.
-  /// \param input_quantized Span of quantized IQ samples of a resource block to be compressed.
-  /// \param data_width      BFP compression bit width.
-  static void compress_prb_generic(span<uint8_t> c_prb, span<const int16_t> input_quantized, unsigned data_width);
+  /// \param[out] c_prb          Compressed PRB.
+  /// \param input_quantized     Span of quantized IQ samples of a resource block to be compressed.
+  /// \param data_width          BFP compression bit width.
+  /// \param[in] exponent_offset Offset added to the transmitted exponent.
+  static void compress_prb_generic(span<uint8_t>       c_prb,
+                                   span<const int16_t> input_quantized,
+                                   unsigned            data_width,
+                                   uint8_t             exponent_offset);
 
   /// \brief Decompresses one resource block using a generic implementation of the algorithm
   /// from O-RAN.WG4.CUS, Annex A.1.3.
   ///
-  /// \param[out] output   Span of decompressed complex samples of a resource block (12 samples).
-  /// \param[in]  comp_prb Compressed PRB IQ samples and compression parameter.
-  /// \param[in]  q        Quantizer object.
-  /// \param data_width    Bit width of compressed samples.
-  static void
-  decompress_prb_generic(span<cbf16_t> output, span<const uint8_t> comp_prb, const quantizer& q, unsigned data_width);
+  /// \param[out] output     Span of decompressed complex samples of a resource block (12 samples).
+  /// \param[in]  comp_prb   Compressed PRB IQ samples and compression parameter.
+  /// \param[in]  q          Quantizer object.
+  /// \param data_width      Bit width of compressed samples.
+  /// \param[in] iq_scaling  Scaling factor applied to the decompressed samples.
+  static void decompress_prb_generic(span<cbf16_t>       output,
+                                     span<const uint8_t> comp_prb,
+                                     const quantizer&    q,
+                                     unsigned            data_width,
+                                     float               iq_scaling);
 
   /// Quantizes complex float samples using the specified bit width.
   ///
-  /// \param[out] out      Quantized samples.
-  /// \param[in] in        Span of input float samples.
-  /// \param[in] bit_width Number of significant bits used by the quantized samples.
-  void quantize_input(span<int16_t> out, span<const bf16_t> in);
+  /// \param[out] out       Quantized samples.
+  /// \param[in] in         Span of input float samples.
+  /// \param[in] data_width BFP compression bit width, used to select the IQ scaling.
+  void quantize_input(span<int16_t> out, span<const bf16_t> in, unsigned data_width);
+
+  /// IQ data scaling for every IQ bit width.
+  const iq_scaling_table scaling;
 
 private:
   ocudulog::basic_logger& logger;
-  /// Scaling factor applied to IQ data prior to quantization.
-  const float iq_scaling;
 };
 
 } // namespace ofh

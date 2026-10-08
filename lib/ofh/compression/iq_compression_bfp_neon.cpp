@@ -80,7 +80,10 @@ void iq_compression_bfp_neon::compress(span<uint8_t>                buffer,
   span<int16_t>      input_quantized_span(input_quantized.data(), float_samples_span.size());
 
   // Performs conversion of input brain float values to signed 16-bit integers.
-  quantize_input(input_quantized_span, float_samples_span);
+  quantize_input(input_quantized_span, float_samples_span, params.data_width);
+
+  // Offset added to the transmitted exponents.
+  uint8_t exponent_offset = scaling.get_compression_exponent_offset(params.data_width);
 
   // Compression algorithm implemented according to Annex A.1.2 in O-RAN.WG4.CUS.
   unsigned sample_idx = 0;
@@ -118,22 +121,26 @@ void iq_compression_bfp_neon::compress(span<uint8_t>                buffer,
 
     // Pack compressed samples of the PRBs using utility function and save the exponent.
     span<uint8_t> output_span(&buffer[rb * prb_size], prb_size);
-    std::memcpy(output_span.data(), &exponent_0, sizeof(uint8_t));
+    uint8_t       comp_param_0 = exponent_0 + exponent_offset;
+    std::memcpy(output_span.data(), &comp_param_0, sizeof(uint8_t));
     neon::pack_prb_big_endian(
         output_span.last(output_span.size() - sizeof(uint8_t)), shifted_data_0, params.data_width);
 
-    output_span = span<uint8_t>(&buffer[(rb + 1) * prb_size], prb_size);
-    std::memcpy(output_span.data(), &exponent_1, sizeof(uint8_t));
+    output_span          = span<uint8_t>(&buffer[(rb + 1) * prb_size], prb_size);
+    uint8_t comp_param_1 = exponent_1 + exponent_offset;
+    std::memcpy(output_span.data(), &comp_param_1, sizeof(uint8_t));
     neon::pack_prb_big_endian(
         output_span.last(output_span.size() - sizeof(uint8_t)), shifted_data_1, params.data_width);
 
-    output_span = span<uint8_t>(&buffer[(rb + 2) * prb_size], prb_size);
-    std::memcpy(output_span.data(), &exponent_2, sizeof(uint8_t));
+    output_span          = span<uint8_t>(&buffer[(rb + 2) * prb_size], prb_size);
+    uint8_t comp_param_2 = exponent_2 + exponent_offset;
+    std::memcpy(output_span.data(), &comp_param_2, sizeof(uint8_t));
     neon::pack_prb_big_endian(
         output_span.last(output_span.size() - sizeof(uint8_t)), shifted_data_2, params.data_width);
 
-    output_span = span<uint8_t>(&buffer[(rb + 3) * prb_size], prb_size);
-    std::memcpy(output_span.data(), &exponent_3, sizeof(uint8_t));
+    output_span          = span<uint8_t>(&buffer[(rb + 3) * prb_size], prb_size);
+    uint8_t comp_param_3 = exponent_3 + exponent_offset;
+    std::memcpy(output_span.data(), &comp_param_3, sizeof(uint8_t));
     neon::pack_prb_big_endian(
         output_span.last(output_span.size() - sizeof(uint8_t)), shifted_data_3, params.data_width);
 
@@ -161,13 +168,15 @@ void iq_compression_bfp_neon::compress(span<uint8_t>                buffer,
 
     // Save exponent of the first compressed PRB and pack its compressed IQ samples using utility function.
     span<uint8_t> output_span(&buffer[rb * prb_size], prb_size);
-    std::memcpy(output_span.data(), &exponent_0, sizeof(uint8_t));
+    uint8_t       comp_param_0 = exponent_0 + exponent_offset;
+    std::memcpy(output_span.data(), &comp_param_0, sizeof(uint8_t));
     neon::pack_prb_big_endian(
         output_span.last(output_span.size() - sizeof(uint8_t)), shifted_data_0, params.data_width);
 
     // Save exponent of the first compressed PRB and pack its compressed IQ samples using utility function.
-    output_span = span<uint8_t>(&buffer[(rb + 1) * prb_size], prb_size);
-    std::memcpy(output_span.data(), &exponent_1, sizeof(uint8_t));
+    output_span          = span<uint8_t>(&buffer[(rb + 1) * prb_size], prb_size);
+    uint8_t comp_param_1 = exponent_1 + exponent_offset;
+    std::memcpy(output_span.data(), &comp_param_1, sizeof(uint8_t));
     neon::pack_prb_big_endian(
         output_span.last(output_span.size() - sizeof(uint8_t)), shifted_data_1, params.data_width);
 
@@ -191,7 +200,8 @@ void iq_compression_bfp_neon::compress(span<uint8_t>                buffer,
 
     // Save exponent of the compressed PRB and pack its compressed IQ samples using utility function.
     span<uint8_t> output_span(&buffer[rb * prb_size], prb_size);
-    std::memcpy(output_span.data(), &exponent, sizeof(uint8_t));
+    uint8_t       comp_param = exponent + exponent_offset;
+    std::memcpy(output_span.data(), &comp_param, sizeof(uint8_t));
     neon::pack_prb_big_endian(output_span.last(output_span.size() - sizeof(uint8_t)), shifted_data, params.data_width);
 
     sample_idx += NOF_SAMPLES_PER_PRB;
@@ -220,6 +230,9 @@ bool iq_compression_bfp_neon::decompress(span<cbf16_t>                iq_data,
 
   quantizer q_out(Q_BIT_WIDTH);
 
+  // Scaling of the decompressed samples.
+  float iq_scaling = scaling.get_decompression_iq_scaling(params.data_width);
+
   unsigned out_idx = 0;
   for (unsigned c_prb_idx = 0; c_prb_idx != nof_prbs; ++c_prb_idx) {
     // Get view over compressed PRB bytes.
@@ -243,7 +256,7 @@ bool iq_compression_bfp_neon::decompress(span<cbf16_t>                iq_data,
     span<const int16_t> unpacked_span(unpacked_iq_data.data(), NOF_SUBCARRIERS_PER_RB * 2);
 
     // Convert to complex samples.
-    q_out.to_brain_float(output_span, unpacked_span, scaler);
+    q_out.to_brain_float(output_span, unpacked_span, scaler * iq_scaling);
     out_idx += NOF_SUBCARRIERS_PER_RB;
   }
 

@@ -17,3 +17,7 @@ gtest_discover_tests(compression_validator_test)
 add_executable(ofh_iq_compression_bfp_test ofh_iq_compression_bfp_test.cpp)
 target_link_libraries(ofh_iq_compression_bfp_test ocudu_ofh_compression ocudulog GTest::gtest GTest::gtest_main)
 gtest_discover_tests(ofh_iq_compression_bfp_test)
+
+add_executable(ofh_iq_compression_fs_offset_test ofh_iq_compression_fs_offset_test.cpp)
+target_link_libraries(ofh_iq_compression_fs_offset_test ocudu_ofh_compression ocudulog GTest::gtest GTest::gtest_main)
+gtest_discover_tests(ofh_iq_compression_fs_offset_test)

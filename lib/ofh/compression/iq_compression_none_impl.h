@@ -4,9 +4,11 @@
 
 #pragma once
 
+#include "iq_scaling_table.h"
 #include "ocudu/ocudulog/logger.h"
 #include "ocudu/ofh/compression/iq_compressor.h"
 #include "ocudu/ofh/compression/iq_decompressor.h"
+#include <optional>
 
 namespace ocudu {
 namespace ofh {
@@ -16,8 +18,10 @@ class iq_compression_none_impl : public iq_compressor, public iq_decompressor
 {
 public:
   // Constructor.
-  explicit iq_compression_none_impl(ocudulog::basic_logger& logger_, float iq_scaling_ = 1.0) :
-    logger(logger_), iq_scaling(iq_scaling_)
+  explicit iq_compression_none_impl(ocudulog::basic_logger& logger_,
+                                    float                   iq_scaling_ = 1.0,
+                                    std::optional<unsigned> fs_offset   = std::nullopt) :
+    logger(logger_), scaling(compression_type::none, iq_scaling_, fs_offset)
   {
   }
 
@@ -36,8 +40,8 @@ protected:
   void log_post_quantization_rms(span<const int16_t> samples);
 
   ocudulog::basic_logger& logger;
-  /// Scaling factor applied to IQ data prior to quantization.
-  const float iq_scaling;
+  /// IQ data scaling for every IQ bit width.
+  const iq_scaling_table scaling;
 };
 
 } // namespace ofh

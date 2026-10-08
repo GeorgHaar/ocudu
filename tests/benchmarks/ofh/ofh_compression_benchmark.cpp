@@ -153,11 +153,11 @@ int main(int argc, char** argv)
   double      symbol_duration_us = 1e3 / (get_nsymb_per_slot(cyclic_prefix::NORMAL) * get_nof_slots_per_subframe(scs));
 
   std::unique_ptr<ofh::iq_compressor> compressor =
-      create_iq_compressor(ofh::to_compression_type(method), logger, 0.27, impl_type);
+      create_iq_compressor(ofh::to_compression_type(method), logger, 0.27, std::nullopt, impl_type);
   ocudu_assert(compressor != nullptr, "Failed to create OFH compressor");
 
   std::unique_ptr<ofh::iq_decompressor> decompressor =
-      create_iq_decompressor(ofh::to_compression_type(method), logger, impl_type);
+      create_iq_decompressor(ofh::to_compression_type(method), logger, std::nullopt, impl_type);
   ocudu_assert(decompressor != nullptr, "Failed to create OFH decompressor");
 
   fmt::memory_buffer meas_name;

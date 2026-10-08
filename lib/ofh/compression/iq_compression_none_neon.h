@@ -14,8 +14,10 @@ class iq_compression_none_neon : public iq_compression_none_impl
 {
 public:
   // Constructor.
-  explicit iq_compression_none_neon(ocudulog::basic_logger& logger_, float iq_scaling_ = 1.0) :
-    iq_compression_none_impl(logger_, iq_scaling_)
+  explicit iq_compression_none_neon(ocudulog::basic_logger& logger_,
+                                    float                   iq_scaling_ = 1.0,
+                                    std::optional<unsigned> fs_offset   = std::nullopt) :
+    iq_compression_none_impl(logger_, iq_scaling_, fs_offset)
   {
   }
 

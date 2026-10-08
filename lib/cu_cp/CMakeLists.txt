@@ -19,6 +19,7 @@ set(SOURCES
         cu_cp_executor_mapper.cpp
         cu_cp_controller/cu_cp_controller.cpp
         cu_cp_controller/amf_connection_manager.cpp
+        cu_cp_controller/amf_selector.cpp
         cu_cp_controller/du_connection_manager.cpp
         cu_cp_controller/cu_up_connection_manager.cpp
         cu_cp_controller/xnc_connection_manager.cpp

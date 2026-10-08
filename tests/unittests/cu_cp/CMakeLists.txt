@@ -120,6 +120,11 @@ target_link_libraries(cu_cp_test
 target_include_directories(cu_cp_test PRIVATE ${CMAKE_SOURCE_DIR})
 gtest_discover_tests(cu_cp_test)
 
+add_executable(amf_selector_test amf_selector_test.cpp)
+target_link_libraries(amf_selector_test ocudu_cu_cp GTest::gtest ocudu_gtest_main)
+target_include_directories(amf_selector_test PRIVATE ${CMAKE_SOURCE_DIR})
+gtest_discover_tests(amf_selector_test)
+
 add_executable(cu_cp_config_test cu_cp_config_test.cpp)
 target_link_libraries(cu_cp_config_test cu_cp_test_helpers ocudu_cu_cp GTest::gtest ocudu_gtest_main)
 target_include_directories(cu_cp_config_test PRIVATE ${CMAKE_SOURCE_DIR})

@@ -4,9 +4,9 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "ru_sdr_config_validator.h"
+#include "ru_sdr_config_helpers.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/adt/interval.h"
-#include "ocudu/ran/phy_time_unit.h"
 #include <sstream>
 #include <string_view>
 
@@ -76,10 +76,8 @@ static bool validate_ru_sdr_appconfig(const ru_sdr_unit_config&                 
     return false;
   }
 
-  static constexpr phy_time_unit reference_time = phy_time_unit::from_units_of_kappa(16);
-
-  if (!reference_time.is_sample_accurate(config.srate_MHz * 1e6)) {
-    fmt::print("The sampling rate must be multiple of {:.2f} MHz.\n", 1e-6 / reference_time.to_seconds());
+  if (!is_srate_sample_accurate(config.srate_MHz)) {
+    fmt::print("The sampling rate must be multiple of {:.2f} MHz.\n", 1e-6 / ru_sdr_srate_reference_time.to_seconds());
     return false;
   }
 
@@ -91,16 +89,12 @@ static bool validate_ru_sdr_appconfig(const ru_sdr_unit_config&                 
     }
 
     // Validates the sampling rate is compatible with the PRACH sequence.
-    if (!cell.preamble_info.cp_length.is_sample_accurate(config.srate_MHz * 1e6)) {
-      // List of common sampling rates for offering an alternative.
-      static constexpr std::array<double, 10> sampling_rates = {
-          7.68, 11.52, 15.36, 23.04, 30.76, 46.08, 61.44, 92.16, 122.88, 184.32};
+    if (!is_srate_prach_sample_accurate(config.srate_MHz, cell)) {
       std::vector<double> valid_sampling_rates;
-      for (double sampling_rate : sampling_rates) {
-        // A valid alternative sampling rate must be larger than the cell bandwidth and be sample accurate with the
-        // preamble cyclic prefix.
-        if ((sampling_rate > bs_channel_bandwidth_to_MHz(cell.channel_bw_mhz)) &&
-            (cell.preamble_info.cp_length.is_sample_accurate(sampling_rate * 1e6))) {
+      for (double sampling_rate : ru_sdr_standard_srates_MHz) {
+        // A valid alternative sampling rate must cover the cell bandwidth and be sample accurate with the preamble
+        // cyclic prefix.
+        if (does_srate_cover_bandwidth(sampling_rate, cell) && is_srate_prach_sample_accurate(sampling_rate, cell)) {
           valid_sampling_rates.push_back(sampling_rate);
         }
       }
@@ -165,7 +159,7 @@ bool ocudu::validate_ru_sdr_config(const ru_sdr_unit_config&                 con
   if (!validate_ru_sdr_appconfig(config, cell_config)) {
     return false;
   }
-  if (config.srate_MHz < bs_channel_bandwidth_to_MHz(cell_config.front().channel_bw_mhz)) {
+  if (!does_srate_cover_bandwidth(config.srate_MHz, cell_config.front())) {
     fmt::print("Sampling rate (i.e. {} MHz) is too low for the requested channel bandwidth (i.e. {} MHz).\n",
                config.srate_MHz,
                bs_channel_bandwidth_to_MHz(cell_config.front().channel_bw_mhz));

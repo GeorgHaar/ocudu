@@ -9,6 +9,7 @@
 #include "apps/units/flexible_o_du/o_du_low/o_du_low_unit_factory.h"
 #include "apps/units/flexible_o_du/split_7_2/helpers/ru_ofh_config_validator.h"
 #include "apps/units/flexible_o_du/split_7_2/helpers/ru_ofh_factories.h"
+#include "apps/units/flexible_o_du/split_8/helpers/ru_sdr_config_helpers.h"
 #include "apps/units/flexible_o_du/split_8/helpers/ru_sdr_config_validator.h"
 #include "apps/units/flexible_o_du/split_8/helpers/ru_sdr_factories.h"
 #include "apps/units/flexible_o_du/split_helpers/flexible_o_du_configs.h"
@@ -273,20 +274,6 @@ get_ru_sdr_validation_dependencies(const fapi::cell_configuration& config)
   return out_cfg;
 }
 
-/// Derives the sampling rate from the frequency.
-static double derive_srate_MHz_from_bandwith(unsigned bandwidth_MHz)
-{
-  if (bandwidth_MHz <= 15) {
-    return 23.04;
-  } else if (bandwidth_MHz <= 30) {
-    return 46.08;
-  } else if (bandwidth_MHz <= 60) {
-    return 92.16;
-  }
-
-  return 184.32;
-}
-
 std::unique_ptr<radio_unit>
 split6_flexible_o_du_low_session_factory::create_radio_unit(split6_flexible_o_du_low_session& odu_low,
                                                             const fapi::cell_configuration&   config)
@@ -314,14 +301,21 @@ split6_flexible_o_du_low_session_factory::create_radio_unit(split6_flexible_o_du
 
   if (const auto* cfg = std::get_if<ru_sdr_unit_config>(&ru_cfg)) {
     ru_sdr_unit_config updated_srate_config = *cfg;
+    auto               ru_sdr_dependencies  = get_ru_sdr_validation_dependencies(config);
 
-    // Update the sampling rate.
-    updated_srate_config.srate_MHz = derive_srate_MHz_from_bandwith(config.carrier_cfg.dl_bandwidth);
+    // Derive the sampling rate from the cell configuration unless the user configured it.
+    if (unit_config.derive_sdr_srate) {
+      std::optional<double> srate_MHz = derive_ru_sdr_srate_MHz(ru_sdr_dependencies.front(), split6_du_low::freq_range);
+      if (!srate_MHz) {
+        fmt::println("No standard sampling rate is valid for the cell configuration. Configure 'ru_sdr.srate'.");
+        return nullptr;
+      }
+      updated_srate_config.srate_MHz = *srate_MHz;
+    }
 
     // Update the start time of the radio.
     updated_srate_config.start_time = start_time_calc.calculate_start_time();
 
-    auto ru_sdr_dependencies = get_ru_sdr_validation_dependencies(config);
     if (!validate_ru_sdr_config(updated_srate_config, ru_sdr_dependencies)) {
       return nullptr;
     }

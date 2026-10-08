@@ -23,6 +23,8 @@ struct split6_o_du_low_unit_config {
   du_low_unit_config du_low_cfg;
   /// Radio Unit configuration.
   std::variant<ru_sdr_unit_config, ru_ofh_unit_parsed_config> ru_cfg = {ru_sdr_unit_config{}};
+  /// Derives the SDR sampling rate from the cell bandwidth when the user does not configure it.
+  bool derive_sdr_srate = true;
 };
 
 } // namespace ocudu

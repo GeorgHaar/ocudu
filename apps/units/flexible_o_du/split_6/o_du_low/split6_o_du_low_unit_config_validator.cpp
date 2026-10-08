@@ -12,8 +12,7 @@ bool ocudu::validate_split6_o_du_low_unit_config(const split6_o_du_low_unit_conf
 {
   if (auto* ru = std::get_if<ru_sdr_unit_config>(&config.ru_cfg)) {
     if (ru->device_driver == "zmq") {
-      fmt::println("Split 6 O-DU low does not support 'zmq' driver");
-      return false;
+      fmt::println("Split 6 O-DU low is configured to run with 'zmq' driver. Make sure the plugin supports it.");
     }
     if (ru->device_driver == "difi") {
       fmt::println("Split 6 O-DU low does not support 'difi' driver");

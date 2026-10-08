@@ -70,7 +70,8 @@ static void manage_ru(const CLI::App& app, split6_o_du_low_unit_config& config)
     return;
   }
 
-  config.ru_cfg = sdr_cfg;
+  config.ru_cfg           = sdr_cfg;
+  config.derive_sdr_srate = sdr_subcmd->count("--srate") == 0;
   ofh_subcmd->disabled();
 }
 

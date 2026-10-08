@@ -24,6 +24,13 @@
 
 using namespace ocudu;
 
+/// Returns true if the DU low must run in blocking mode, i.e. when the radio is ZMQ.
+static bool is_blocking_mode_enabled(const split6_o_du_low_unit_config& config)
+{
+  const auto* ru_sdr = std::get_if<ru_sdr_unit_config>(&config.ru_cfg);
+  return ru_sdr != nullptr && ru_sdr->device_driver == "zmq";
+}
+
 split6_o_du_low_application_unit_impl::split6_o_du_low_application_unit_impl(
     std::string_view                        app_name,
     std::unique_ptr<split6_o_du_low_plugin> plugin_) :
@@ -46,6 +53,7 @@ bool split6_o_du_low_application_unit_impl::are_metrics_enabled() const
 void split6_o_du_low_application_unit_impl::on_configuration_parameters_autoderivation(CLI::App& app)
 {
   autoderive_split6_o_du_low_parameters_after_parsing(app, unit_cfg);
+  plugin->on_configuration_parameters_autoderivation(app);
 }
 
 bool split6_o_du_low_application_unit_impl::on_configuration_validation() const
@@ -76,9 +84,9 @@ void split6_o_du_low_application_unit_impl::dump_config(YAML::Node& node) const
 
 void split6_o_du_low_application_unit_impl::fill_worker_manager_config(worker_manager_config& config)
 {
-  // Split 6 always runs in non blocking mode.
-  bool is_blocking_mode_enable = false;
   plugin->fill_worker_manager_config(config);
+
+  bool is_blocking_mode_enable = is_blocking_mode_enabled(unit_cfg);
 
   config.config_affinities.resize(split6_du_low::NOF_CELLS_SUPPORTED);
   std::vector<du_low_cell_config> cell_params(

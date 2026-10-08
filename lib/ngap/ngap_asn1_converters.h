@@ -9,6 +9,7 @@
 #include "ocudu/asn1/ngap/ngap_ies.h"
 #include "ocudu/ngap/ngap_handover.h"
 #include "ocudu/ngap/ngap_pdu_session.h"
+#include "ocudu/ngap/ngap_setup.h"
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/ran/cause/ngap_cause.h"
 #include "ocudu/ran/cu_cp_location_reporting_types.h"
@@ -457,6 +458,51 @@ inline expected<guami_t, std::string> asn1_to_guami(const asn1::ngap::guami_s& a
   guami.amf_pointer   = asn1_guami.amf_pointer.to_number();
 
   return guami;
+}
+
+/// \brief Converts an ASN.1 served GUAMI list to the common type.
+/// \param[in] asn1_list The ASN.1 served GUAMI list, which \c validate_served_guami_list accepted.
+/// \return The served GUAMI list.
+inline std::vector<ngap_served_guami_item> asn1_to_served_guami_list(const asn1::ngap::served_guami_list_l& asn1_list)
+{
+  std::vector<ngap_served_guami_item> list;
+  for (const auto& asn1_item : asn1_list) {
+    ngap_served_guami_item item = {};
+    item.guami                  = asn1_to_guami(asn1_item.guami).value();
+    if (asn1_item.backup_amf_name_present) {
+      item.backup_amf_name = asn1_item.backup_amf_name.to_string();
+    }
+    if (asn1_item.ie_exts_present and asn1_item.ie_exts.guami_type_present) {
+      item.guami_type = asn1_item.ie_exts.guami_type.value == asn1::ngap::guami_type_opts::mapped
+                            ? guami_type_t::mapped
+                            : guami_type_t::native;
+    }
+    list.push_back(item);
+  }
+  return list;
+}
+
+/// \brief Converts an ASN.1 PLMN support list to the common type.
+/// \param[in] asn1_list The ASN.1 PLMN support list, which \c validate_plmn_support_list accepted.
+/// \return The PLMN support list.
+inline std::vector<ngap_plmn_support_item> asn1_to_plmn_support_list(const asn1::ngap::plmn_support_list_l& asn1_list)
+{
+  std::vector<ngap_plmn_support_item> list;
+  for (const auto& asn1_item : asn1_list) {
+    ngap_plmn_support_item item = {};
+    item.plmn_id                = plmn_identity::from_bytes(asn1_item.plmn_id.to_bytes()).value();
+    for (const auto& asn1_slice_support_item : asn1_item.slice_support_list) {
+      slice_support_item_t slice_support_item = {};
+      slice_support_item.s_nssai.sst = slice_service_type{(uint8_t)asn1_slice_support_item.s_nssai.sst.to_number()};
+      if (asn1_slice_support_item.s_nssai.sd_present) {
+        slice_support_item.s_nssai.sd =
+            slice_differentiator::create(asn1_slice_support_item.s_nssai.sd.to_number()).value();
+      }
+      item.slice_support_list.push_back(slice_support_item);
+    }
+    list.push_back(item);
+  }
+  return list;
 }
 
 /// \brief Converts type \c security_indication to an ASN.1 type.

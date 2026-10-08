@@ -196,42 +196,13 @@ ng_setup_procedure::create_ngap_ng_setup_response(const asn1::ngap::ng_setup_res
   response.amf_name = asn1_response->amf_name.to_string();
 
   // Fill served GUAMI list.
-  for (const auto& asn1_served_guami_item : asn1_response->served_guami_list) {
-    ngap_served_guami_item served_guami_item = {};
-    // Note: The GUAMI is checked in the validation function, so it is safe to access it here.
-    served_guami_item.guami = asn1_to_guami(asn1_served_guami_item.guami).value();
-    if (asn1_served_guami_item.backup_amf_name_present) {
-      served_guami_item.backup_amf_name = asn1_served_guami_item.backup_amf_name.to_string();
-    }
-    if (asn1_served_guami_item.ie_exts_present and asn1_served_guami_item.ie_exts.guami_type_present) {
-      served_guami_item.guami_type =
-          asn1_served_guami_item.ie_exts.guami_type.value == asn1::ngap::guami_type_opts::mapped ? guami_type_t::mapped
-                                                                                                 : guami_type_t::native;
-    }
-    response.served_guami_list.push_back(served_guami_item);
-  }
+  response.served_guami_list = asn1_to_served_guami_list(asn1_response->served_guami_list);
 
   // Fill relative AMF capacity.
   response.relative_amf_capacity = asn1_response->relative_amf_capacity;
 
   // Fill PLMN support list.
-  for (const auto& asn1_plmn_support_item : asn1_response->plmn_support_list) {
-    ngap_plmn_support_item plmn_support_item = {};
-    // Note: The PLMN identity is checked in the validation function, so it is safe to access it here.
-    plmn_support_item.plmn_id = plmn_identity::from_bytes(asn1_plmn_support_item.plmn_id.to_bytes()).value();
-
-    for (const auto& asn1_slice_support_item : asn1_plmn_support_item.slice_support_list) {
-      slice_support_item_t slice_support_item = {};
-      slice_support_item.s_nssai.sst = slice_service_type{(uint8_t)asn1_slice_support_item.s_nssai.sst.to_number()};
-      if (asn1_slice_support_item.s_nssai.sd_present) {
-        // Note: The SD is checked in the validation function, so it is safe to access it here.
-        slice_support_item.s_nssai.sd =
-            slice_differentiator::create(asn1_slice_support_item.s_nssai.sd.to_number()).value();
-      }
-      plmn_support_item.slice_support_list.push_back(slice_support_item);
-    }
-    response.plmn_support_list.push_back(plmn_support_item);
-  }
+  response.plmn_support_list = asn1_to_plmn_support_list(asn1_response->plmn_support_list);
 
   // TODO: Add missing optional values.
 

@@ -1059,23 +1059,22 @@ void unique_ue_harq_entity::reconfigure(unsigned                              ne
   }
 }
 
-bool unique_ue_harq_entity::has_empty_dl_harqs(bool select_normal_mode_only) const
+bool unique_ue_harq_entity::has_empty_dl_harqs(std::optional<harq_mode_t> mode) const
 {
-  if (select_normal_mode_only and get_dl_ue().feedback_disabled_or_mode_b_harq_present) {
+  if (mode.has_value() and is_dl_harq_mode_selective()) {
     return std::any_of(get_dl_ue().free_harq_ids.begin(), get_dl_ue().free_harq_ids.end(), [&](auto h_id) {
-      return (get_dl_ue().harqs[h_id].mode == harq_mode_t::normal and
-              get_dl_ue().harqs[h_id].status == harq_state_t::empty);
+      return (get_dl_ue().harqs[h_id].mode == *mode and get_dl_ue().harqs[h_id].status == harq_state_t::empty);
     });
   }
   return not get_dl_ue().free_harq_ids.empty();
 }
 
-bool unique_ue_harq_entity::has_empty_ul_harqs(bool select_normal_mode_only) const
+bool unique_ue_harq_entity::has_empty_ul_harqs(std::optional<harq_mode_t> mode) const
 {
-  if (select_normal_mode_only and get_ul_ue().feedback_disabled_or_mode_b_harq_present) {
+  if (mode.has_value() and is_ul_harq_mode_selective()) {
     return std::any_of(get_ul_ue().free_harq_ids.begin(), get_ul_ue().free_harq_ids.end(), [&](auto h_id) {
-      return (get_ul_ue().harqs[h_id].mode == harq_mode_t::normal and
-              get_ul_ue().harqs[h_id].status == harq_state_t::empty);
+      return h_id >= first_non_reserved_harq_id and get_ul_ue().harqs[h_id].mode == *mode and
+             get_ul_ue().harqs[h_id].status == harq_state_t::empty;
     });
   }
   return std::any_of(get_ul_ue().free_harq_ids.begin(), get_ul_ue().free_harq_ids.end(), [&](auto h_id) {
@@ -1083,23 +1082,22 @@ bool unique_ue_harq_entity::has_empty_ul_harqs(bool select_normal_mode_only) con
   });
 }
 
-size_t unique_ue_harq_entity::nof_empty_dl_harqs(bool select_normal_mode_only) const
+size_t unique_ue_harq_entity::nof_empty_dl_harqs(std::optional<harq_mode_t> mode) const
 {
-  if (select_normal_mode_only and get_dl_ue().feedback_disabled_or_mode_b_harq_present) {
+  if (mode.has_value() and is_dl_harq_mode_selective()) {
     return std::count_if(get_dl_ue().free_harq_ids.begin(), get_dl_ue().free_harq_ids.end(), [&](auto h_id) {
-      return (get_dl_ue().harqs[h_id].mode == harq_mode_t::normal and
-              get_dl_ue().harqs[h_id].status == harq_state_t::empty);
+      return (get_dl_ue().harqs[h_id].mode == *mode and get_dl_ue().harqs[h_id].status == harq_state_t::empty);
     });
   }
   return get_dl_ue().free_harq_ids.size();
 }
 
-size_t unique_ue_harq_entity::nof_empty_ul_harqs(bool select_normal_mode_only) const
+size_t unique_ue_harq_entity::nof_empty_ul_harqs(std::optional<harq_mode_t> mode) const
 {
-  if (select_normal_mode_only and get_ul_ue().feedback_disabled_or_mode_b_harq_present) {
+  if (mode.has_value() and is_ul_harq_mode_selective()) {
     return std::count_if(get_ul_ue().free_harq_ids.begin(), get_ul_ue().free_harq_ids.end(), [&](auto h_id) {
-      return (get_ul_ue().harqs[h_id].mode == harq_mode_t::normal and
-              get_ul_ue().harqs[h_id].status == harq_state_t::empty);
+      return h_id >= first_non_reserved_harq_id and get_ul_ue().harqs[h_id].mode == *mode and
+             get_ul_ue().harqs[h_id].status == harq_state_t::empty;
     });
   }
   return get_ul_ue().free_harq_ids.size();

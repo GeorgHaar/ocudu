@@ -68,6 +68,12 @@ inline dl_harq_feedback to_dl_harq_feedback(harq_mode_t mode)
   return mode == harq_mode_t::normal ? dl_harq_feedback::enabled : dl_harq_feedback::disabled;
 }
 
+/// Returns the mode a process must use to serve a grant, depending on whether the grant selects the normal mode.
+inline harq_mode_t to_harq_mode(bool select_normal_mode)
+{
+  return select_normal_mode ? harq_mode_t::normal : harq_mode_t::feedback_disabled_or_mode_b;
+}
+
 struct pending_retx_list_tag;
 
 /// Parameters that are common to DL and UL HARQ processes.
@@ -667,11 +673,12 @@ public:
     return cell_harq_mgr->ul.ntn_cs_koffset > 0 and get_ul_ue().feedback_disabled_or_mode_b_harq_present;
   }
 
-  /// Checks whether there are free HARQ processes.
-  bool   has_empty_dl_harqs(bool select_normal_mode_only = false) const;
-  bool   has_empty_ul_harqs(bool select_normal_mode_only = false) const;
-  size_t nof_empty_dl_harqs(bool select_normal_mode_only = false) const;
-  size_t nof_empty_ul_harqs(bool select_normal_mode_only = false) const;
+  /// \brief Checks whether there are free HARQ processes.
+  /// \param[in] mode When set, only the free processes a grant in this mode can be built on are considered.
+  bool   has_empty_dl_harqs(std::optional<harq_utils::harq_mode_t> mode = std::nullopt) const;
+  bool   has_empty_ul_harqs(std::optional<harq_utils::harq_mode_t> mode = std::nullopt) const;
+  size_t nof_empty_dl_harqs(std::optional<harq_utils::harq_mode_t> mode = std::nullopt) const;
+  size_t nof_empty_ul_harqs(std::optional<harq_utils::harq_mode_t> mode = std::nullopt) const;
 
   /// Check the last HARQ allocations for the given UE.
   slot_point last_pdsch_slot() const { return get_dl_ue().last_slot_tx; }

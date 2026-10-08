@@ -384,7 +384,7 @@ ue_fallback_scheduler::schedule_dl_srb(cell_resource_allocator&              res
   const bool is_retx = h_dl_retx.has_value();
 
   // Search for empty HARQ in normal mode in case of newTx.
-  if (not is_retx and not u.get_pcell().harqs.has_empty_dl_harqs(true)) {
+  if (not is_retx and not u.get_pcell().harqs.has_empty_dl_harqs(harq_utils::harq_mode_t::normal)) {
     logger.debug("rnti={}: Skipped fallback PDSCH allocation. Cause: every empty DL HARQ process has its feedback "
                  "disabled",
                  u.crnti);
@@ -625,7 +625,7 @@ ue_fallback_scheduler::alloc_grant(ue&                                   u,
   const bool                                   is_retx      = h_dl_retx.has_value();
 
   // Search for empty HARQ in normal mode in case of newTx.
-  if (not is_retx and not ue_pcell.harqs.has_empty_dl_harqs(true)) {
+  if (not is_retx and not ue_pcell.harqs.has_empty_dl_harqs(harq_utils::harq_mode_t::normal)) {
     logger.warning("rnti={}: UE must have empty HARQs in normal mode during fallback newtx allocation", u.crnti);
     return {};
   }
@@ -1196,7 +1196,7 @@ ue_fallback_scheduler::schedule_ul_srb(ue&                                      
   const bool is_retx = h_ul_retx.has_value();
 
   // Search for empty HARQ.
-  if (not is_retx and not ue_pcell.harqs.has_empty_ul_harqs(true)) {
+  if (not is_retx and not ue_pcell.harqs.has_empty_ul_harqs(harq_utils::harq_mode_t::normal)) {
     logger.debug("ue={} rnti={} PUSCH allocation skipped. Cause: no HARQ available", u.ue_index, u.crnti);
     return ul_srb_sched_outcome::next_ue;
   }

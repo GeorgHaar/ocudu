@@ -30,10 +30,10 @@ public:
   }
 
   /// Starts the CU-CP with the given relative AMF capacities, and sets up a DU and a CU-UP.
-  void start_cu_cp(uint16_t amf_0_capacity, uint16_t amf_1_capacity)
+  void start_cu_cp(uint16_t amf_0_capacity, uint16_t amf_1_capacity, uint16_t amf_1_set_id = 1)
   {
     start_cu_cp(generate_ng_setup_response(plmn_identity::test_value(), 0, amf_0_capacity),
-                generate_ng_setup_response(plmn_identity::test_value(), 1, amf_1_capacity));
+                generate_ng_setup_response(plmn_identity::test_value(), 1, amf_1_capacity, amf_1_set_id));
   }
 
   /// Starts the CU-CP with the given NG Setup Responses, and sets up a DU and a CU-UP.
@@ -73,7 +73,8 @@ public:
         ngap_message ngap_pdu;
         if (wait_for_ngap_tx_pdu(ngap_pdu, std::chrono::milliseconds{50}, amf_idx)) {
           report_fatal_error_if_not(test_helpers::is_valid_init_ue_message(ngap_pdu), "Invalid Initial UE Message");
-          last_ran_ue_id = uint_to_ran_ue_id(ngap_pdu.pdu.init_msg().value.init_ue_msg()->ran_ue_ngap_id);
+          last_ran_ue_id          = uint_to_ran_ue_id(ngap_pdu.pdu.init_msg().value.init_ue_msg()->ran_ue_ngap_id);
+          last_initial_ue_message = ngap_pdu;
           return amf_idx;
         }
       }
@@ -92,6 +93,8 @@ public:
   unsigned du_idx = 0;
   /// RAN UE NGAP ID of the last Initial UE Message.
   ran_ue_id_t last_ran_ue_id = ran_ue_id_t::invalid;
+  /// Last Initial UE Message.
+  ngap_message last_initial_ue_message;
 };
 
 TEST_F(cu_cp_amf_pooling_test, when_amf_has_capacity_zero_then_new_ues_are_served_by_the_other_amf)
@@ -239,4 +242,129 @@ TEST_F(cu_cp_amf_pooling_test, when_other_amf_sends_initial_context_setup_reques
   ngap_message ngap_pdu;
   ASSERT_FALSE(get_amf(1).try_pop_rx_pdu(ngap_pdu)) << "AMF 1 got an answer before the Initial Context Setup ended";
   ASSERT_FALSE(get_amf(0).try_pop_rx_pdu(ngap_pdu)) << "AMF 0 still received a message for the UE";
+}
+
+TEST_F(cu_cp_amf_pooling_test, when_amf_requests_reroute_nas_then_initial_ue_message_goes_to_an_amf_of_the_set)
+{
+  // AMF 1 is the only AMF of the AMF Set 2.
+  start_cu_cp(255, 255, 2);
+  ASSERT_EQ(attach_ue_with_5g_s_tmsi(int_to_gnb_du_ue_f1ap_id(0), 0), 0);
+
+  // AMF 0 requests to reroute the Initial UE Message to the AMF Set 2 (TS 38.413 section 8.6.5).
+  get_amf(0).push_tx_pdu(generate_reroute_nas_request(last_ran_ue_id, last_initial_ue_message, 2));
+
+  // AMF 1 receives the rerouted Initial UE Message, marked as rerouted by the AMF Set ID IE.
+  ngap_message ngap_pdu;
+  ASSERT_TRUE(wait_for_ngap_tx_pdu(ngap_pdu, std::chrono::milliseconds{500}, 1))
+      << "AMF 1 received no InitialUEMessage";
+  ASSERT_TRUE(test_helpers::is_valid_init_ue_message(ngap_pdu));
+  const auto& init_ue_msg = ngap_pdu.pdu.init_msg().value.init_ue_msg();
+  ASSERT_TRUE(init_ue_msg->amf_set_id_present);
+  ASSERT_EQ(init_ue_msg->amf_set_id.to_number(), 2);
+  ASSERT_EQ(init_ue_msg->nas_pdu, last_initial_ue_message.pdu.init_msg().value.init_ue_msg()->nas_pdu);
+  ran_ue_id_t new_ran_ue_id = uint_to_ran_ue_id(init_ue_msg->ran_ue_ngap_id);
+
+  // The NAS messages of AMF 1 reach the UE.
+  get_amf(1).push_tx_pdu(generate_downlink_nas_transport_message(uint_to_amf_ue_id(9), new_ran_ue_id));
+  f1ap_message f1ap_pdu;
+  ASSERT_TRUE(wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu)) << "The NAS message of AMF 1 was not sent to the UE";
+  ASSERT_TRUE(test_helpers::is_valid_dl_rrc_message_transfer(f1ap_pdu));
+  ASSERT_FALSE(get_amf(0).try_pop_rx_pdu(ngap_pdu)) << "AMF 0 still received a message for the UE";
+}
+
+TEST_F(cu_cp_amf_pooling_test, when_reroute_request_has_nssai_information_then_the_rerouted_message_carries_it)
+{
+  start_cu_cp(255, 255, 2);
+  ASSERT_EQ(attach_ue_with_5g_s_tmsi(int_to_gnb_du_ue_f1ap_id(0), 0), 0);
+
+  ngap_message reroute_msg = generate_reroute_nas_request(last_ran_ue_id, last_initial_ue_message, 2);
+  auto&        reroute     = reroute_msg.pdu.init_msg().value.reroute_nas_request();
+  asn1::ngap::allowed_nssai_item_s allowed;
+  allowed.s_nssai.sst.from_number(1);
+  reroute->allowed_nssai_present = true;
+  reroute->allowed_nssai.push_back(allowed);
+  reroute->partially_allowed_nssai_present = true;
+  asn1::ngap::partially_allowed_nssai_item_s partially_allowed;
+  partially_allowed.s_nssai.sst.from_number(3);
+  reroute->partially_allowed_nssai.push_back(partially_allowed);
+  reroute->source_to_target_amf_info_reroute_present                      = true;
+  reroute->source_to_target_amf_info_reroute.rejected_nssai_in_ta_present = true;
+  get_amf(0).push_tx_pdu(reroute_msg);
+
+  // The NG-RAN node propagates the NSSAI information (TS 38.413 sections 8.6.1.2 and 8.6.5.2).
+  ngap_message ngap_pdu;
+  ASSERT_TRUE(wait_for_ngap_tx_pdu(ngap_pdu, std::chrono::milliseconds{500}, 1))
+      << "AMF 1 received no InitialUEMessage";
+  const auto& init_ue_msg = ngap_pdu.pdu.init_msg().value.init_ue_msg();
+  ASSERT_TRUE(init_ue_msg->allowed_nssai_present);
+  ASSERT_EQ(init_ue_msg->allowed_nssai.size(), 1);
+  ASSERT_TRUE(init_ue_msg->partially_allowed_nssai_present);
+  ASSERT_EQ(init_ue_msg->partially_allowed_nssai.size(), 1);
+  ASSERT_TRUE(init_ue_msg->source_to_target_amf_info_reroute_present);
+}
+
+TEST_F(cu_cp_amf_pooling_test, when_reroute_request_names_an_unknown_ue_then_the_error_indication_has_its_id)
+{
+  start_cu_cp(255, 255, 2);
+  ASSERT_EQ(attach_ue_with_5g_s_tmsi(int_to_gnb_du_ue_f1ap_id(0), 0), 0);
+
+  get_amf(0).push_tx_pdu(generate_reroute_nas_request(uint_to_ran_ue_id(999), last_initial_ue_message, 2));
+
+  // The Error Indication includes the AP ID received from the AMF (TS 38.413 section 10.6).
+  ngap_message ngap_pdu;
+  ASSERT_TRUE(wait_for_ngap_tx_pdu(ngap_pdu, std::chrono::milliseconds{500}, 0)) << "AMF 0 received no answer";
+  ASSERT_TRUE(test_helpers::is_valid_error_indication(ngap_pdu));
+  ASSERT_TRUE(ngap_pdu.pdu.init_msg().value.error_ind()->ran_ue_ngap_id_present);
+  ASSERT_EQ(ngap_pdu.pdu.init_msg().value.error_ind()->ran_ue_ngap_id, 999);
+}
+
+TEST_F(cu_cp_amf_pooling_test, when_the_requesting_amf_is_in_the_target_amf_set_then_another_amf_is_selected)
+{
+  // Both AMFs are in the AMF Set 1. Without the exclusion of AMF 0, most rerouted UEs would go back to AMF 0.
+  start_cu_cp(255, 1);
+  ASSERT_EQ(attach_ue_with_5g_s_tmsi(int_to_gnb_du_ue_f1ap_id(0), 0), 0);
+
+  get_amf(0).push_tx_pdu(generate_reroute_nas_request(last_ran_ue_id, last_initial_ue_message, 1));
+
+  ngap_message ngap_pdu;
+  ASSERT_TRUE(wait_for_ngap_tx_pdu(ngap_pdu, std::chrono::milliseconds{500}, 1))
+      << "AMF 1 received no InitialUEMessage";
+  ASSERT_TRUE(test_helpers::is_valid_init_ue_message(ngap_pdu));
+}
+
+TEST_F(cu_cp_amf_pooling_test, when_no_other_amf_of_the_target_amf_set_is_connected_then_the_ue_is_released)
+{
+  start_cu_cp(255, 255, 2);
+  ASSERT_EQ(attach_ue_with_5g_s_tmsi(int_to_gnb_du_ue_f1ap_id(0), 0), 0);
+
+  get_amf(0).push_tx_pdu(generate_reroute_nas_request(last_ran_ue_id, last_initial_ue_message, 3));
+
+  f1ap_message f1ap_pdu;
+  ASSERT_TRUE(wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu)) << "The UE was not released";
+  ASSERT_TRUE(test_helpers::is_valid_ue_context_release_command(f1ap_pdu));
+}
+
+TEST_F(cu_cp_amf_pooling_test, when_reroute_request_lists_an_s_nssai_twice_then_the_ue_is_released)
+{
+  start_cu_cp(255, 255, 2);
+  ASSERT_EQ(attach_ue_with_5g_s_tmsi(int_to_gnb_du_ue_f1ap_id(0), 0), 0);
+
+  // The S-NSSAI is in the Allowed NSSAI and in the Partially Allowed NSSAI (TS 38.413 section 8.6.5.3).
+  ngap_message reroute_msg = generate_reroute_nas_request(last_ran_ue_id, last_initial_ue_message, 2);
+  auto&        reroute     = reroute_msg.pdu.init_msg().value.reroute_nas_request();
+  asn1::ngap::allowed_nssai_item_s allowed;
+  allowed.s_nssai.sst.from_number(1);
+  reroute->allowed_nssai_present = true;
+  reroute->allowed_nssai.push_back(allowed);
+  reroute->partially_allowed_nssai_present = true;
+  asn1::ngap::partially_allowed_nssai_item_s partially_allowed;
+  partially_allowed.s_nssai.sst.from_number(1);
+  reroute->partially_allowed_nssai.push_back(partially_allowed);
+  get_amf(0).push_tx_pdu(reroute_msg);
+
+  f1ap_message f1ap_pdu;
+  ASSERT_TRUE(wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu)) << "The UE was not released";
+  ASSERT_TRUE(test_helpers::is_valid_ue_context_release_command(f1ap_pdu));
+  ngap_message ngap_pdu;
+  ASSERT_FALSE(get_amf(1).try_pop_rx_pdu(ngap_pdu)) << "AMF 1 received a rerouted InitialUEMessage";
 }

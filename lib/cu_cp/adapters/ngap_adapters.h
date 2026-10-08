@@ -57,6 +57,12 @@ public:
     return cu_cp_handler->handle_ue_association_transfer(ran_ue_id, amf_index);
   }
 
+  bool on_reroute_nas_request(const ngap_reroute_nas_request& request) override
+  {
+    ocudu_assert(cu_cp_handler != nullptr, "CU-CP NGAP handler must not be nullptr");
+    return cu_cp_handler->handle_reroute_nas_request(request, amf_index);
+  }
+
   bool schedule_async_task(cu_cp_ue_index_t ue_index, async_task<void> task) override
   {
     ocudu_assert(cu_cp_handler != nullptr, "CU-CP NGAP handler must not be nullptr");

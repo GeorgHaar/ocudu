@@ -214,6 +214,21 @@ async_task<void> ngap_impl::handle_ng_reset_message(const cu_cp_reset& msg)
   return launch_async<ng_reset_procedure>(context, msg, tx_pdu_notifier, ev_mng, ue_ctxt_list, logger);
 }
 
+void ngap_impl::handle_initial_ue_message(const cu_cp_initial_ue_message& msg)
+{
+  if (ue_ctxt_list.contains(msg.ue_index)) {
+    logger.warning("ue={}: Dropping InitialUEMessage. UE context already exists", msg.ue_index);
+    return;
+  }
+
+  ngap_message ngap_msg = {};
+  ngap_msg.pdu.set_init_msg();
+  ngap_msg.pdu.init_msg().load_info_obj(ASN1_NGAP_ID_INIT_UE_MSG);
+  fill_asn1_initial_ue_message(ngap_msg.pdu.init_msg().value.init_ue_msg(), msg, context);
+
+  send_initial_ue_message(msg.ue_index, ngap_msg);
+}
+
 void ngap_impl::start_request_pdu_session_timer(ngap_ue_context& ue_ctxt)
 {
   const cu_cp_ue_index_t ue_index = ue_ctxt.ue_ids.ue_index;
@@ -224,47 +239,173 @@ void ngap_impl::start_request_pdu_session_timer(ngap_ue_context& ue_ctxt)
                            ue_ctxt.request_pdu_session_timer.duration().count());
 }
 
-void ngap_impl::handle_initial_ue_message(const cu_cp_initial_ue_message& msg)
+bool ngap_impl::send_initial_ue_message(cu_cp_ue_index_t ue_index, ngap_message& ngap_msg)
 {
-  if (ue_ctxt_list.contains(msg.ue_index)) {
-    logger.warning("ue={}: Dropping InitialUEMessage. UE context already exists", msg.ue_index);
-    return;
-  }
-
   // Create NGAP UE.
   // Allocate RAN-UE-ID.
   ran_ue_id_t ran_ue_id = ue_ctxt_list.allocate_ran_ue_id();
   if (ran_ue_id == ran_ue_id_t::invalid) {
-    logger.error("ue={}: No RAN-UE-ID available", msg.ue_index);
-    return;
+    logger.error("ue={}: No RAN-UE-ID available", ue_index);
+    return false;
   }
 
   // Create UE context and store it.
-  ngap_cu_cp_ue_notifier* ue_notifier = cu_cp_notifier.on_new_ngap_ue(msg.ue_index);
-  ue_ctxt_list.add_ue(msg.ue_index, ran_ue_id, *ue_notifier);
+  ngap_cu_cp_ue_notifier* ue_notifier = cu_cp_notifier.on_new_ngap_ue(ue_index);
+  ue_ctxt_list.add_ue(ue_index, ran_ue_id, *ue_notifier);
 
-  ngap_ue_context& ue_ctxt = ue_ctxt_list[msg.ue_index];
+  ngap_ue_context& ue_ctxt = ue_ctxt_list[ue_index];
 
-  ngap_message ngap_msg = {};
-  ngap_msg.pdu.set_init_msg();
-  ngap_msg.pdu.init_msg().load_info_obj(ASN1_NGAP_ID_INIT_UE_MSG);
-
-  auto& init_ue_msg           = ngap_msg.pdu.init_msg().value.init_ue_msg();
-  init_ue_msg->ran_ue_ngap_id = to_underlying(ue_ctxt.ue_ids.ran_ue_id);
-  ue_ctxt.take_over_allowed   = true;
-
-  fill_asn1_initial_ue_message(init_ue_msg, msg, context);
+  ngap_msg.pdu.init_msg().value.init_ue_msg()->ran_ue_ngap_id = to_underlying(ue_ctxt.ue_ids.ran_ue_id);
+  ue_ctxt.take_over_allowed                                   = true;
 
   start_request_pdu_session_timer(ue_ctxt);
 
   // Forward message to AMF.
   if (!tx_pdu_notifier.on_new_message(ngap_msg)) {
     ue_ctxt.logger.log_warning("Cannot send InitialUEMessage");
-    return;
+    return false;
   }
 
   // InitialUEMessage reached AMF path, so count a connection establishment attempt.
   metrics_handler.aggregate_ue_associated_logical_ng_connection_establishment_attempt();
+  return true;
+}
+
+bool ngap_impl::handle_rerouted_initial_ue_message(const ngap_reroute_nas_request& request)
+{
+  if (ue_ctxt_list.contains(request.ue_index)) {
+    logger.warning("ue={}: Dropping rerouted InitialUEMessage. UE context already exists", request.ue_index);
+    return false;
+  }
+
+  ngap_message reroute_msg;
+  {
+    asn1::cbit_ref bref(request.packed_reroute_nas_request);
+    if (reroute_msg.pdu.unpack(bref) != asn1::OCUDUASN_SUCCESS or
+        reroute_msg.pdu.type().value != ngap_pdu_c::types_opts::init_msg or
+        reroute_msg.pdu.init_msg().value.type().value !=
+            ngap_elem_procs_o::init_msg_c::types_opts::reroute_nas_request) {
+      logger.warning("ue={}: Dropping rerouted InitialUEMessage. Invalid RerouteNASRequest", request.ue_index);
+      return false;
+    }
+  }
+  const auto& reroute = reroute_msg.pdu.init_msg().value.reroute_nas_request();
+
+  // The NGAP Message IE contains the INITIAL UE MESSAGE (TS 38.413 section 9.2.5.5).
+  ngap_message ngap_msg;
+  {
+    asn1::cbit_ref bref(reroute->ngap_msg);
+    if (ngap_msg.pdu.unpack(bref) != asn1::OCUDUASN_SUCCESS or
+        ngap_msg.pdu.type().value != ngap_pdu_c::types_opts::init_msg or
+        ngap_msg.pdu.init_msg().value.type().value != ngap_elem_procs_o::init_msg_c::types_opts::init_ue_msg) {
+      logger.warning("ue={}: Dropping rerouted InitialUEMessage. The NGAP Message IE holds no InitialUEMessage",
+                     request.ue_index);
+      return false;
+    }
+  }
+
+  // The AMF Set ID IE marks the message as rerouted. The NG-RAN node propagates the NSSAI information and the Source
+  // to Target AMF Information Reroute (TS 38.413 sections 8.6.1.2 and 8.6.5.2).
+  auto& init_ue_msg               = ngap_msg.pdu.init_msg().value.init_ue_msg();
+  init_ue_msg->amf_set_id_present = true;
+  init_ue_msg->amf_set_id         = reroute->amf_set_id;
+  if (reroute->allowed_nssai_present) {
+    init_ue_msg->allowed_nssai_present = true;
+    init_ue_msg->allowed_nssai         = reroute->allowed_nssai;
+  }
+  if (reroute->partially_allowed_nssai_present) {
+    init_ue_msg->partially_allowed_nssai_present = true;
+    init_ue_msg->partially_allowed_nssai         = reroute->partially_allowed_nssai;
+  }
+  if (reroute->source_to_target_amf_info_reroute_present) {
+    init_ue_msg->source_to_target_amf_info_reroute_present = true;
+    init_ue_msg->source_to_target_amf_info_reroute         = reroute->source_to_target_amf_info_reroute;
+  }
+
+  if (not send_initial_ue_message(request.ue_index, ngap_msg)) {
+    if (ue_ctxt_list.contains(request.ue_index)) {
+      ue_ctxt_list.remove_ue_context(request.ue_index);
+    }
+    return false;
+  }
+  return true;
+}
+
+void ngap_impl::release_ue_after_failed_reroute(ngap_ue_context& ue_ctxt)
+{
+  // The AMF gave up the UE, so the CU-CP releases the UE without NGAP signalling.
+  const cu_cp_ue_index_t ue_index = ue_ctxt.ue_ids.ue_index;
+  ue_ctxt.release_scheduled       = true;
+  ue_ctxt.get_cu_cp_ue()->schedule_async_task(launch_async([this, ue_index](coro_context<async_task<void>>& ctx) {
+    CORO_BEGIN(ctx);
+    CORO_AWAIT(cu_cp_notifier.on_new_ue_context_release_command({ue_index, ngap_cause_radio_network_t::unspecified}));
+    CORO_RETURN();
+  }));
+}
+
+void ngap_impl::handle_reroute_nas_request(const asn1::ngap::reroute_nas_request_s& msg)
+{
+  const ran_ue_id_t                ran_ue_id = uint_to_ran_ue_id(msg->ran_ue_ngap_id);
+  const std::optional<amf_ue_id_t> amf_ue_id =
+      msg->amf_ue_ngap_id_present ? std::optional<amf_ue_id_t>{uint_to_amf_ue_id(msg->amf_ue_ngap_id)} : std::nullopt;
+  ngap_ue_context* ue_ctxt = ue_ctxt_list.find(ran_ue_id);
+  if (ue_ctxt == nullptr) {
+    logger.warning("ran_ue={}: Dropping RerouteNASRequest. UE context does not exist", msg->ran_ue_ngap_id);
+    send_error_indication(
+        tx_pdu_notifier, logger, ran_ue_id, amf_ue_id, ngap_cause_radio_network_t::unknown_local_ue_ngap_id);
+    return;
+  }
+  if (amf_ue_id.has_value() and not validate_consistent_ue_id_pair(ran_ue_id, amf_ue_id.value())) {
+    handle_inconsistent_ue_id_pair(ran_ue_id, amf_ue_id.value());
+    return;
+  }
+
+  // The Allowed NSSAI and the Partially Allowed NSSAI hold at most 8 S-NSSAIs together, and no S-NSSAI is in both
+  // (TS 38.413 section 8.6.5.3).
+  if (msg->partially_allowed_nssai_present) {
+    bool overlap = std::any_of(
+        msg->partially_allowed_nssai.begin(), msg->partially_allowed_nssai.end(), [&msg](const auto& partial) {
+          return std::any_of(msg->allowed_nssai.begin(), msg->allowed_nssai.end(), [&partial](const auto& allowed) {
+            return ngap_asn1_to_s_nssai(allowed.s_nssai) == ngap_asn1_to_s_nssai(partial.s_nssai);
+          });
+        });
+    if (msg->allowed_nssai.size() + msg->partially_allowed_nssai.size() > 8 or overlap) {
+      ue_ctxt->logger.log_warning("Releasing UE. Cause: The RerouteNASRequest has an invalid NSSAI");
+      release_ue_after_failed_reroute(*ue_ctxt);
+      return;
+    }
+  }
+
+  ngap_reroute_nas_request request;
+  request.ue_index   = ue_ctxt->ue_ids.ue_index;
+  request.amf_set_id = msg->amf_set_id.to_number();
+  {
+    ngap_message reroute_msg;
+    reroute_msg.pdu.set_init_msg().load_info_obj(ASN1_NGAP_ID_REROUTE_NAS_REQUEST);
+    reroute_msg.pdu.init_msg().value.reroute_nas_request() = msg;
+    request.packed_reroute_nas_request                     = byte_buffer{byte_buffer::fallback_allocation_tag{}};
+    asn1::bit_ref bref(request.packed_reroute_nas_request);
+    if (reroute_msg.pdu.pack(bref) != asn1::OCUDUASN_SUCCESS) {
+      ue_ctxt->logger.log_warning("Dropping RerouteNASRequest. Cannot pack it");
+      return;
+    }
+  }
+
+  // The UE association of the target AMF replaces the UE association of the source AMF.
+  auto detached = schedule_ue_context_destruction(*ue_ctxt);
+  if (detached == nullptr) {
+    ue_ctxt->logger.log_warning("Dropping RerouteNASRequest. Cause: UE task queue is full");
+    return;
+  }
+
+  ue_ctxt->logger.log_info("Rerouting InitialUEMessage to AMF Set {}", request.amf_set_id);
+  if (not cu_cp_notifier.on_reroute_nas_request(request)) {
+    ue_ctxt->logger.log_warning("Releasing UE. Cause: Cannot reroute InitialUEMessage to AMF Set {}",
+                                request.amf_set_id);
+    release_ue_after_failed_reroute(*ue_ctxt);
+    return;
+  }
+  *detached = ue_ctxt_list.detach_ue_context(ran_ue_id);
 }
 
 void ngap_impl::handle_ul_nas_transport_message(const cu_cp_ul_nas_transport& msg)
@@ -482,6 +623,9 @@ void ngap_impl::handle_initiating_message(const init_msg_s& msg)
       break;
     case ngap_elem_procs_o::init_msg_c::types_opts::init_context_setup_request:
       handle_initial_context_setup_request(msg.value.init_context_setup_request());
+      break;
+    case ngap_elem_procs_o::init_msg_c::types_opts::reroute_nas_request:
+      handle_reroute_nas_request(msg.value.reroute_nas_request());
       break;
     case ngap_elem_procs_o::init_msg_c::types_opts::ue_context_mod_request:
       handle_ue_context_modification_request(msg.value.ue_context_mod_request());

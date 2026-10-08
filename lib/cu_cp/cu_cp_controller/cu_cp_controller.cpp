@@ -98,6 +98,20 @@ std::optional<cu_cp_amf_index_t> cu_cp_controller::select_amf(const amf_selectio
   return ocucp::select_amf(amf_mng.get_amf_candidates(), request, amf_selection_rng);
 }
 
+std::optional<cu_cp_amf_index_t> cu_cp_controller::select_amf_for_amf_set(const plmn_identity& plmn,
+                                                                          uint16_t             amf_set_id,
+                                                                          cu_cp_amf_index_t    requesting_amf_index)
+{
+  std::vector<amf_candidate> candidates = amf_mng.get_amf_candidates();
+  candidates.erase(std::remove_if(candidates.begin(),
+                                  candidates.end(),
+                                  [requesting_amf_index](const amf_candidate& candidate) {
+                                    return candidate.amf_index == requesting_amf_index;
+                                  }),
+                   candidates.end());
+  return ocucp::select_amf_for_amf_set(candidates, plmn, amf_set_id, amf_selection_rng);
+}
+
 std::optional<cu_cp_amf_index_t> cu_cp_controller::select_amf_for_guami(const guami_t& guami) const
 {
   return ocucp::select_amf_for_guami(amf_mng.get_amf_candidates(), guami);

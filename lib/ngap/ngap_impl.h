@@ -49,6 +49,7 @@ public:
   // ngap_nas_message_handler.
   void handle_initial_ue_message(const cu_cp_initial_ue_message& msg) override;
   void handle_ul_nas_transport_message(const cu_cp_ul_nas_transport& msg) override;
+  bool handle_rerouted_initial_ue_message(const ngap_reroute_nas_request& request) override;
 
   // ngap_location_reporting_handler.
   void handle_location_report_transmission(const location_report& msg) override;
@@ -144,6 +145,19 @@ private:
   /// \brief Notify about the reception of an DL NAS Transport message.
   /// \param[in] msg The received DL NAS Transport message.
   void handle_dl_nas_transport_message(const asn1::ngap::dl_nas_transport_s& msg);
+
+  /// \brief Releases a UE whose Reroute NAS Request procedure failed.
+  void release_ue_after_failed_reroute(ngap_ue_context& ue_ctxt);
+
+  /// \brief Handle the reception of a Reroute NAS Request message.
+  /// \param[in] msg The Reroute NAS Request message.
+  void handle_reroute_nas_request(const asn1::ngap::reroute_nas_request_s& msg);
+
+  /// \brief Creates the NGAP UE context of a UE and sends its INITIAL UE MESSAGE.
+  /// \param[in] ue_index The index of the UE.
+  /// \param[in] ngap_msg The INITIAL UE MESSAGE without the RAN UE NGAP ID.
+  /// \return True if the INITIAL UE MESSAGE was sent.
+  bool send_initial_ue_message(cu_cp_ue_index_t ue_index, ngap_message& ngap_msg);
 
   /// \brief Starts the timer that releases the UE if the UE requests no PDU session.
   void start_request_pdu_session_timer(ngap_ue_context& ue_ctxt);

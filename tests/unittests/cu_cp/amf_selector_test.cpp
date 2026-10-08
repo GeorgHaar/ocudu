@@ -189,3 +189,21 @@ TEST_F(amf_selector_test, when_no_amf_of_the_guami_set_is_connected_then_no_amf_
 
   ASSERT_FALSE(select_amf_for_guami(candidates, make_guami(1, 0)).has_value());
 }
+
+TEST_F(amf_selector_test, when_amf_set_is_requested_then_a_connected_amf_of_this_set_is_selected)
+{
+  candidates = {make_candidate(0, make_guami(1, 0)),
+                make_candidate(1, make_guami(2, 0), 255, false),
+                make_candidate(2, make_guami(2, 1))};
+
+  for (unsigned i = 0; i != 10; ++i) {
+    ASSERT_EQ(select_amf_for_amf_set(candidates, plmn_a, 2, rng), uint_to_cu_cp_amf_index(2));
+  }
+}
+
+TEST_F(amf_selector_test, when_no_amf_of_the_requested_set_is_connected_then_no_amf_is_selected)
+{
+  candidates = {make_candidate(0, make_guami(1, 0)), make_candidate(1, make_guami(2, 0), 255, false)};
+
+  ASSERT_FALSE(select_amf_for_amf_set(candidates, plmn_a, 2, rng).has_value());
+}

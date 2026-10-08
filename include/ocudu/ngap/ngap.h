@@ -9,6 +9,7 @@
 #include "ocudu/ngap/ngap_handover.h"
 #include "ocudu/ngap/ngap_init_context_setup.h"
 #include "ocudu/ngap/ngap_metrics.h"
+#include "ocudu/ngap/ngap_nas.h"
 #include "ocudu/ngap/ngap_pdu_session.h"
 #include "ocudu/ngap/ngap_rrc_inactive_transition.h"
 #include "ocudu/ngap/ngap_setup.h"
@@ -162,6 +163,11 @@ public:
   /// \returns The index of the UE, or cu_cp_ue_index_t::invalid if no other NGAP instance holds the UE association.
   virtual cu_cp_ue_index_t on_ue_association_transfer_required(ran_ue_id_t ran_ue_id) = 0;
 
+  /// \brief Notifies the CU-CP that the source AMF requests to reroute the INITIAL UE MESSAGE of a UE to a target AMF.
+  /// \param[in] request The REROUTE NAS REQUEST of the source AMF.
+  /// \returns True if the NGAP of the target AMF sent the rerouted INITIAL UE MESSAGE.
+  virtual bool on_reroute_nas_request(const ngap_reroute_nas_request& request) = 0;
+
   /// \brief Request scheduling a task for a UE.
   /// \param[in] ue_index The index of the UE.
   /// \param[in] task The task to schedule.
@@ -274,6 +280,11 @@ public:
   /// \brief Initiates Uplink NAS transport procedure as per TS 38.413 section 8.6.3.
   /// \param[in] msg The ul nas transfer message to transmit.
   virtual void handle_ul_nas_transport_message(const cu_cp_ul_nas_transport& msg) = 0;
+
+  /// \brief Sends the rerouted INITIAL UE MESSAGE of a UE to the target AMF (TS 38.413 section 8.6.5).
+  /// \param[in] request The REROUTE NAS REQUEST of the source AMF.
+  /// \returns True if the rerouted INITIAL UE MESSAGE was sent.
+  virtual bool handle_rerouted_initial_ue_message(const ngap_reroute_nas_request& request) = 0;
 };
 
 /// Handle NGAP Location Reporting procedures as defined in TS 38.413 section 8.12.

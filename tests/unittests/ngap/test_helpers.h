@@ -157,6 +157,12 @@ public:
     return cu_cp_ue_index_t::invalid;
   }
 
+  bool on_reroute_nas_request(const ngap_reroute_nas_request& request) override
+  {
+    ++nof_reroute_nas_requests;
+    return false;
+  }
+
   ngap_cu_cp_ue_notifier* on_new_ngap_ue(cu_cp_ue_index_t ue_index) override
   {
     last_ue = ue_index;
@@ -458,6 +464,7 @@ public:
   std::optional<location_report_request>                    last_location_reporting_ctrl;
   std::optional<ngap_write_replace_warning_request>         last_write_replace_warning_request;
   ngap_write_replace_warning_response                       write_replace_warning_response;
+  unsigned                                                  nof_reroute_nas_requests = 0;
 
 private:
   ue_manager&             ue_mng;

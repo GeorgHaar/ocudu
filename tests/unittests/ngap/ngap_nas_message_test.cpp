@@ -148,6 +148,24 @@ TEST_F(ngap_nas_message_routine_test, when_ue_task_queue_is_full_then_ue_associa
   ASSERT_EQ(ngap->remove_ue_association(ran_ue_id), ue_index);
 }
 
+TEST_F(ngap_nas_message_routine_test, when_ue_task_queue_is_full_then_reroute_nas_request_is_dropped)
+{
+  cu_cp_ue_index_t ue_index           = this->start_procedure();
+  ran_ue_id_t      ran_ue_id          = test_ues.at(ue_index).ran_ue_id.value();
+  ngap_message     initial_ue_message = n2_gw.last_ngap_msgs.back();
+
+  manual_event_flag unblock;
+  ASSERT_TRUE(fill_ue_task_queue(ue_index, unblock));
+
+  // The NGAP cannot schedule the destruction of the UE context, so it does not reroute the INITIAL UE MESSAGE.
+  ngap->handle_message(generate_reroute_nas_request(ran_ue_id, initial_ue_message, 2));
+  ASSERT_EQ(cu_cp_notifier.nof_reroute_nas_requests, 0);
+
+  // The NGAP keeps the UE association.
+  unblock.set();
+  ASSERT_EQ(ngap->remove_ue_association(ran_ue_id), ue_index);
+}
+
 TEST_F(ngap_nas_message_routine_test, when_no_ue_present_dl_nas_transport_is_dropped_and_error_indication_is_sent)
 {
   // Inject DL NAS transport message from AMF.

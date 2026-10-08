@@ -135,3 +135,21 @@ std::optional<cu_cp_amf_index_t> ocudu::ocucp::select_amf_for_guami(span<const a
   }
   return amf_of_same_set;
 }
+
+std::optional<cu_cp_amf_index_t> ocudu::ocucp::select_amf_for_amf_set(span<const amf_candidate> candidates,
+                                                                      const plmn_identity&      plmn,
+                                                                      uint16_t                  amf_set_id,
+                                                                      std::mt19937&             rng)
+{
+  std::vector<const amf_candidate*> pool;
+  for (const amf_candidate& candidate : candidates) {
+    bool serves_amf_set = std::any_of(
+        candidate.served_guamis.begin(), candidate.served_guamis.end(), [&](const ngap_served_guami_item& served) {
+          return served.guami.plmn == plmn and served.guami.amf_set_id == amf_set_id;
+        });
+    if (candidate.connected and supports_plmn(candidate, plmn) and serves_amf_set) {
+      pool.push_back(&candidate);
+    }
+  }
+  return pick_by_capacity(pool, rng);
+}

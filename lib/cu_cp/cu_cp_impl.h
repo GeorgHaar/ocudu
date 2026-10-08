@@ -286,6 +286,7 @@ private:
   // NGAP UE creation handler.
   ngap_cu_cp_ue_notifier* handle_new_ngap_ue(cu_cp_ue_index_t ue_index) override;
   cu_cp_ue_index_t        handle_ue_association_transfer(ran_ue_id_t ran_ue_id, cu_cp_amf_index_t amf_index) override;
+  bool handle_reroute_nas_request(const ngap_reroute_nas_request& request, cu_cp_amf_index_t amf_index) override;
 
   // cu_cp_task_scheduler_handler.
   bool schedule_ue_task(cu_cp_ue_index_t ue_index, async_task<void> task) override;

@@ -56,8 +56,10 @@ bool ocudu::ocucp::is_pdu_type(const ngap_message&                              
   return pdu.pdu.successful_outcome().value.type().value == type;
 }
 
-ngap_message
-ocudu::ocucp::generate_ng_setup_response(plmn_identity plmn, uint8_t amf_pointer, uint16_t relative_amf_capacity)
+ngap_message ocudu::ocucp::generate_ng_setup_response(plmn_identity plmn,
+                                                      uint8_t       amf_pointer,
+                                                      uint16_t      relative_amf_capacity,
+                                                      uint16_t      amf_set_id)
 {
   ngap_message ng_setup_response = {};
 
@@ -70,7 +72,7 @@ ocudu::ocucp::generate_ng_setup_response(plmn_identity plmn, uint8_t amf_pointer
   served_guami_item_s served_guami_item;
   served_guami_item.guami.plmn_id = plmn.to_bytes();
   served_guami_item.guami.amf_region_id.from_number(2);
-  served_guami_item.guami.amf_set_id.from_number(1);
+  served_guami_item.guami.amf_set_id.from_number(amf_set_id);
   served_guami_item.guami.amf_pointer.from_number(amf_pointer);
   setup_res->served_guami_list.push_back(served_guami_item);
 
@@ -86,6 +88,24 @@ ocudu::ocucp::generate_ng_setup_response(plmn_identity plmn, uint8_t amf_pointer
   setup_res->plmn_support_list.push_back(plmn_support_item);
 
   return ng_setup_response;
+}
+
+ngap_message ocudu::ocucp::generate_reroute_nas_request(ran_ue_id_t         ran_ue_id,
+                                                        const ngap_message& initial_ue_message,
+                                                        uint16_t            amf_set_id)
+{
+  ngap_message msg;
+  msg.pdu.set_init_msg().load_info_obj(ASN1_NGAP_ID_REROUTE_NAS_REQUEST);
+  auto& reroute           = msg.pdu.init_msg().value.reroute_nas_request();
+  reroute->ran_ue_ngap_id = to_underlying(ran_ue_id);
+  reroute->amf_set_id.from_number(amf_set_id);
+
+  byte_buffer   packed{byte_buffer::fallback_allocation_tag{}};
+  asn1::bit_ref bref(packed);
+  report_fatal_error_if_not(initial_ue_message.pdu.pack(bref) == asn1::OCUDUASN_SUCCESS,
+                            "Failed to pack the InitialUEMessage");
+  reroute->ngap_msg = std::move(packed);
+  return msg;
 }
 
 ngap_message ocudu::ocucp::generate_ng_setup_failure()

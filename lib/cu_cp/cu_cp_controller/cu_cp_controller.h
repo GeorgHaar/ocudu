@@ -70,6 +70,11 @@ public:
   /// \return The index of the AMF, or std::nullopt if no AMF of the AMF Set is connected.
   std::optional<cu_cp_amf_index_t> select_amf_for_guami(const guami_t& guami) const;
 
+  /// \brief Selects a connected AMF of an AMF Set that supports a PLMN, other than the AMF that asks for it.
+  /// \return The index of the AMF, or std::nullopt if no other AMF of the AMF Set supports the PLMN.
+  std::optional<cu_cp_amf_index_t>
+  select_amf_for_amf_set(const plmn_identity& plmn, uint16_t amf_set_id, cu_cp_amf_index_t requesting_amf_index);
+
   /// Gets the F1C handler.
   cu_cp_f1c_handler& get_f1c_handler() { return du_mng; }
 

@@ -2307,6 +2307,38 @@ cu_cp_ue_index_t cu_cp_impl::handle_ue_association_transfer(ran_ue_id_t ran_ue_i
   return ue_index;
 }
 
+bool cu_cp_impl::handle_reroute_nas_request(const ngap_reroute_nas_request& request, cu_cp_amf_index_t amf_index)
+{
+  cu_cp_ue* ue = ue_mng.find_ue(request.ue_index);
+  if (ue == nullptr) {
+    logger.warning("ue={}: Could not find UE to reroute", request.ue_index);
+    return false;
+  }
+
+  std::optional<cu_cp_amf_index_t> new_amf_index =
+      controller.select_amf_for_amf_set(ue->get_ue_context().plmn, request.amf_set_id, amf_index);
+  if (not new_amf_index.has_value()) {
+    logger.warning("ue={}: Cannot reroute the UE. Cause: No other connected AMF of AMF Set {} supports plmn={}",
+                   request.ue_index,
+                   request.amf_set_id,
+                   ue->get_ue_context().plmn);
+    return false;
+  }
+
+  if (not bind_ue_to_amf(request.ue_index, new_amf_index.value())) {
+    return false;
+  }
+  if (not ngap_db.find_ngap(new_amf_index.value())->handle_rerouted_initial_ue_message(request)) {
+    // The UE stays with the AMF that requested the rerouting.
+    bind_ue_to_amf(request.ue_index, amf_index);
+    return false;
+  }
+
+  logger.info(
+      "ue={}: Rerouted the UE from amf_index={} to amf_index={}", request.ue_index, amf_index, new_amf_index.value());
+  return true;
+}
+
 bool cu_cp_impl::schedule_ue_task(cu_cp_ue_index_t ue_index, async_task<void> task)
 {
   if (ue_mng.find_ue_task_scheduler(ue_index) == nullptr) {

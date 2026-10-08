@@ -83,11 +83,20 @@ static const uint8_t ng_setup_request_packed[] = {
 
 /// \brief Generate a dummy NG Setup Response.
 /// \param[in] plmn PLMN of the served GUAMI and of the PLMN support item.
-/// \param[in] amf_pointer AMF Pointer of the served GUAMI, whose AMF Region ID is 2 and AMF Set ID is 1.
+/// \param[in] amf_pointer AMF Pointer of the served GUAMI, whose AMF Region ID is 2.
 /// \param[in] relative_amf_capacity Relative AMF Capacity of the AMF.
+/// \param[in] amf_set_id AMF Set ID of the served GUAMI.
 ngap_message generate_ng_setup_response(plmn_identity plmn                  = plmn_identity::test_value(),
                                         uint8_t       amf_pointer           = 0,
-                                        uint16_t      relative_amf_capacity = 255);
+                                        uint16_t      relative_amf_capacity = 255,
+                                        uint16_t      amf_set_id            = 1);
+
+/// \brief Generate a Reroute NAS Request message.
+/// \param[in] ran_ue_id The RAN UE NGAP ID of the UE.
+/// \param[in] initial_ue_message The INITIAL UE MESSAGE to reroute.
+/// \param[in] amf_set_id The AMF Set ID of the AMF to reroute to.
+ngap_message
+generate_reroute_nas_request(ran_ue_id_t ran_ue_id, const ngap_message& initial_ue_message, uint16_t amf_set_id);
 
 /// \brief Generate a dummy NG Setup Failure.
 ngap_message generate_ng_setup_failure();

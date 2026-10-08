@@ -53,4 +53,13 @@ select_amf(span<const amf_candidate> candidates, const amf_selection_request& re
 /// \return The index of the AMF, or std::nullopt if no AMF of the AMF Set is connected.
 std::optional<cu_cp_amf_index_t> select_amf_for_guami(span<const amf_candidate> candidates, const guami_t& guami);
 
+/// \brief Selects a connected AMF of an AMF Set that supports a PLMN.
+///
+/// The AMF is picked at random and weighted by its relative AMF capacity, as in rule 4 of \ref select_amf.
+/// \return The index of the AMF, or std::nullopt if no AMF of the AMF Set is connected.
+std::optional<cu_cp_amf_index_t> select_amf_for_amf_set(span<const amf_candidate> candidates,
+                                                        const plmn_identity&      plmn,
+                                                        uint16_t                  amf_set_id,
+                                                        std::mt19937&             rng);
+
 } // namespace ocudu::ocucp

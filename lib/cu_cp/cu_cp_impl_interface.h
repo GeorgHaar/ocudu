@@ -110,6 +110,13 @@ public:
   /// \returns The index of the UE, or cu_cp_ue_index_t::invalid if no other NGAP holds the UE association.
   virtual cu_cp_ue_index_t handle_ue_association_transfer(ran_ue_id_t ran_ue_id, cu_cp_amf_index_t amf_index) = 0;
 
+  /// \brief Handle the request of the source AMF to reroute the INITIAL UE MESSAGE of a UE to a target AMF of an AMF
+  /// Set.
+  /// \param[in] request The REROUTE NAS REQUEST of the source AMF.
+  /// \param[in] amf_index The index of the source AMF.
+  /// \returns True if the NGAP of the target AMF sent the rerouted INITIAL UE MESSAGE.
+  virtual bool handle_reroute_nas_request(const ngap_reroute_nas_request& request, cu_cp_amf_index_t amf_index) = 0;
+
   /// \brief Handle the reception of a new Initial Context Setup Request.
   /// \param[in] request The received Initial Context Setup Request.
   /// \returns The Initial Context Setup Response or the Initial Context Setup Failure.

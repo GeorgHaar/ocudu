@@ -818,6 +818,8 @@ public:
 
   std::optional<rrc_meas_cfg> get_meas_config() override { return std::nullopt; }
 
+  std::optional<byte_buffer> get_packed_location_meas_info() const override { return std::nullopt; }
+
   std::optional<uint8_t> get_serving_cell_mo() override
   {
     logger.info("Received a new request to get serving cell measurement object");

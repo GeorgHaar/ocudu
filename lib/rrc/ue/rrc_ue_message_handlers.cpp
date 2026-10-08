@@ -434,14 +434,25 @@ void rrc_ue_impl::handle_location_measurement_indication(const asn1::rrc_nr::loc
 
   const auto& meas_ind = msg.crit_exts.location_meas_ind().meas_ind;
   if (meas_ind.type().value == asn1::setup_release_opts::release) {
-    // The UE stops the location measurements. The measurement gap stays configured until a later reconfiguration
-    // changes it.
-    logger.log_info("UE stops location measurements. Keeping the measurement gap configuration");
-    return;
+    if (!context.location_meas_info.has_value()) {
+      logger.log_info("Ignoring LocationMeasurementIndication. Cause: The UE has no ongoing location measurements");
+      return;
+    }
+    context.location_meas_info.reset();
+  } else {
+    context.location_meas_info = pack_into_pdu(meas_ind.setup(), "LocationMeasurementInfo");
   }
 
-  // Forward the location measurement info to the CU-CP, which requests a measurement gap from the DU.
-  cu_cp_notifier.on_location_measurement_indication(pack_into_pdu(meas_ind.setup(), "LocationMeasurementInfo"));
+  // Notify the CU-CP, which requests the measurement gaps for the ongoing location measurements from the DU.
+  cu_cp_notifier.on_location_measurement_indication();
+}
+
+std::optional<byte_buffer> rrc_ue_impl::get_packed_location_meas_info() const
+{
+  if (!context.location_meas_info.has_value()) {
+    return std::nullopt;
+  }
+  return context.location_meas_info->copy();
 }
 
 void rrc_ue_impl::handle_dl_nas_transport_message(byte_buffer nas_pdu)

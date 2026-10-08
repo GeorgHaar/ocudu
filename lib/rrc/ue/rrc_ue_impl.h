@@ -93,6 +93,7 @@ public:
   byte_buffer get_packed_meas_config(span<const pci_t> candidate_pcis = {}) override;
   void        update_meas_config(const rrc_meas_cfg& cfg) override;
   std::optional<rrc_meas_cfg>           get_meas_config() override { return context.meas_cfg; }
+  std::optional<byte_buffer>            get_packed_location_meas_info() const override;
   std::optional<uint8_t>                get_serving_cell_mo() override;
   byte_buffer                           get_rrc_handover_command(const rrc_reconfiguration_procedure_request& request,
                                                                  unsigned                                     transaction_id) override;

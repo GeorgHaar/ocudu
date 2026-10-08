@@ -1046,7 +1046,7 @@ void cu_cp_impl::handle_ran_paging_required(cu_cp_ue_index_t ue_index)
   send_ran_paging(ue_index, full_i_rnti.value());
 }
 
-void cu_cp_impl::handle_location_measurement_indication(cu_cp_ue_index_t ue_index, byte_buffer location_meas_info)
+void cu_cp_impl::handle_location_measurement_indication(cu_cp_ue_index_t ue_index)
 {
   cu_cp_ue* ue = ue_mng.find_du_ue(ue_index);
   if (ue == nullptr) {
@@ -1055,11 +1055,7 @@ void cu_cp_impl::handle_location_measurement_indication(cu_cp_ue_index_t ue_inde
   }
 
   ue->get_task_sched().schedule_async_task(launch_async<location_measurement_indication_routine>(
-      ue_index,
-      std::move(location_meas_info),
-      du_db.get_du_processor(ue->get_du_index()).get_f1ap_handler(),
-      *ue->get_rrc_ue(),
-      logger));
+      ue_index, du_db.get_du_processor(ue->get_du_index()).get_f1ap_handler(), *ue->get_rrc_ue(), logger));
 }
 
 bool cu_cp_impl::handle_handover_request(cu_cp_ue_index_t                  ue_index,

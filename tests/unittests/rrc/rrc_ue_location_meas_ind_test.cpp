@@ -70,24 +70,38 @@ protected:
   }
 };
 
-TEST_F(rrc_ue_location_meas_ind, when_location_measurements_start_then_location_meas_info_is_forwarded_to_cu_cp)
+TEST_F(rrc_ue_location_meas_ind, when_location_measurements_start_then_cu_cp_is_notified_and_info_is_stored)
 {
   OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-b");
 
   receive_location_meas_ind(make_nr_prs_location_meas_info());
 
-  // The CU-CP receives the LocationMeasurementInfo of the UE unchanged.
-  ASSERT_TRUE(rrc_ue_cu_cp_notifier.last_location_meas_info.has_value());
-  EXPECT_EQ(rrc_ue_cu_cp_notifier.last_location_meas_info.value(), make_packed_nr_prs_location_meas_info());
+  // The RRC UE keeps the LocationMeasurementInfo of the UE unchanged.
+  EXPECT_EQ(rrc_ue_cu_cp_notifier.nof_location_meas_indications, 1);
+  std::optional<byte_buffer> stored_info = rrc_ue->get_packed_location_meas_info();
+  ASSERT_TRUE(stored_info.has_value());
+  EXPECT_EQ(stored_info.value(), make_packed_nr_prs_location_meas_info());
 }
 
-TEST_F(rrc_ue_location_meas_ind, when_location_measurements_stop_then_nothing_is_forwarded_to_cu_cp)
+TEST_F(rrc_ue_location_meas_ind, when_location_measurements_stop_then_cu_cp_is_notified_and_info_is_removed)
+{
+  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-b");
+
+  receive_location_meas_ind(make_nr_prs_location_meas_info());
+  receive_location_meas_ind(std::nullopt);
+
+  EXPECT_EQ(rrc_ue_cu_cp_notifier.nof_location_meas_indications, 2);
+  EXPECT_FALSE(rrc_ue->get_packed_location_meas_info().has_value());
+  EXPECT_EQ(rrc_ue_cu_cp_notifier.last_cu_cp_ue_context_release_request.ue_index, cu_cp_ue_index_t::invalid);
+}
+
+TEST_F(rrc_ue_location_meas_ind, when_ue_without_location_measurements_stops_them_then_cu_cp_is_not_notified)
 {
   OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-b");
 
   receive_location_meas_ind(std::nullopt);
 
-  EXPECT_FALSE(rrc_ue_cu_cp_notifier.last_location_meas_info.has_value());
+  EXPECT_EQ(rrc_ue_cu_cp_notifier.nof_location_meas_indications, 0);
   EXPECT_EQ(rrc_ue_cu_cp_notifier.last_cu_cp_ue_context_release_request.ue_index, cu_cp_ue_index_t::invalid);
 }
 
@@ -97,6 +111,7 @@ TEST_F(rrc_ue_location_meas_ind, when_location_meas_ind_is_not_integrity_protect
 
   receive_location_meas_ind(make_nr_prs_location_meas_info(), /* integrity_verified */ false);
 
-  EXPECT_FALSE(rrc_ue_cu_cp_notifier.last_location_meas_info.has_value());
+  EXPECT_EQ(rrc_ue_cu_cp_notifier.nof_location_meas_indications, 0);
+  EXPECT_FALSE(rrc_ue->get_packed_location_meas_info().has_value());
   EXPECT_NE(rrc_ue_cu_cp_notifier.last_cu_cp_ue_context_release_request.ue_index, cu_cp_ue_index_t::invalid);
 }

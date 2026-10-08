@@ -360,6 +360,10 @@ public:
   /// \brief Get the measurement config currently stored for the UE, if any.
   virtual std::optional<rrc_meas_cfg> get_meas_config() = 0;
 
+  /// \brief Get the packed LocationMeasurementInfo of the ongoing location measurements of the UE (TS 38.331 section
+  /// 5.5.6), if any.
+  virtual std::optional<byte_buffer> get_packed_location_meas_info() const = 0;
+
   /// \brief Get the serving cell measurement object for the current serving cell of the UE.
   virtual std::optional<uint8_t> get_serving_cell_mo() = 0;
 
@@ -572,10 +576,9 @@ public:
   /// the AMF configured location reporting.
   virtual void on_ue_location_update() = 0;
 
-  /// \brief Notifies the CU-CP that the UE starts location measurements that need measurement gaps (TS 38.331
+  /// \brief Notifies the CU-CP that the UE starts or stops location measurements that need measurement gaps (TS 38.331
   /// section 5.5.6).
-  /// \param[in] location_meas_info The packed LocationMeasurementInfo of the UE.
-  virtual void on_location_measurement_indication(byte_buffer location_meas_info) = 0;
+  virtual void on_location_measurement_indication() = 0;
 
   /// \brief Get the UP context of the UE.
   /// \returns The UP context of the UE.

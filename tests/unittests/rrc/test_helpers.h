@@ -154,10 +154,10 @@ public:
     ++nof_ue_location_updates;
   }
 
-  void on_location_measurement_indication(byte_buffer location_meas_info) override
+  void on_location_measurement_indication() override
   {
     logger.info("Location measurement indication received");
-    last_location_meas_info = std::move(location_meas_info);
+    ++nof_location_meas_indications;
   }
 
   up_context on_up_context_required() override
@@ -207,8 +207,8 @@ public:
 
   /// Counts the coarse UE location updates reported to the CU-CP.
   unsigned nof_ue_location_updates = 0;
-  /// Last packed LocationMeasurementInfo forwarded by the RRC UE.
-  std::optional<byte_buffer> last_location_meas_info;
+  /// Number of location measurement starts and stops the RRC UE notified.
+  unsigned nof_location_meas_indications = 0;
 
 private:
   rrc_ue_reestablishment_context_response reest_context = {};

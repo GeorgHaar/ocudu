@@ -10,15 +10,10 @@ using namespace ocucp;
 
 location_measurement_indication_routine::location_measurement_indication_routine(
     cu_cp_ue_index_t         ue_index_,
-    byte_buffer              location_meas_info_,
     f1ap_ue_context_manager& f1ap_ue_ctxt_mng_,
     rrc_ue_interface&        rrc_ue_,
     ocudulog::basic_logger&  logger_) :
-  ue_index(ue_index_),
-  location_meas_info(std::move(location_meas_info_)),
-  f1ap_ue_ctxt_mng(f1ap_ue_ctxt_mng_),
-  rrc_ue(rrc_ue_),
-  logger(logger_)
+  ue_index(ue_index_), f1ap_ue_ctxt_mng(f1ap_ue_ctxt_mng_), rrc_ue(rrc_ue_), logger(logger_)
 {
 }
 
@@ -29,9 +24,12 @@ void location_measurement_indication_routine::operator()(coro_context<async_task
   logger.info("ue={}: \"{}\" started...", ue_index, name());
 
   {
-    // Request a measurement gap from the DU.
-    ue_context_mod_request.ue_index                                                         = ue_index;
-    ue_context_mod_request.cu_to_du_rrc_info.emplace().ie_exts.emplace().location_meas_info = location_meas_info.copy();
+    // Send the measurement config and the ongoing location measurements of the UE to the DU.
+    ue_context_mod_request.ue_index                             = ue_index;
+    ue_context_mod_request.cu_to_du_rrc_info.emplace().meas_cfg = rrc_ue.get_packed_meas_config();
+    if (std::optional<byte_buffer> location_meas_info = rrc_ue.get_packed_location_meas_info()) {
+      ue_context_mod_request.cu_to_du_rrc_info->ie_exts.emplace().location_meas_info = std::move(location_meas_info);
+    }
 
     CORO_AWAIT_VALUE(ue_context_mod_response,
                      f1ap_ue_ctxt_mng.handle_ue_context_modification_request(ue_context_mod_request));
@@ -42,13 +40,13 @@ void location_measurement_indication_routine::operator()(coro_context<async_task
     }
 
     if (ue_context_mod_response.du_to_cu_rrc_info.meas_gap_cfg.empty()) {
-      logger.info("ue={}: \"{}\" finished. DU did not configure a measurement gap", ue_index, name());
+      logger.info("ue={}: \"{}\" finished. DU returned no measurement gap config", ue_index, name());
       CORO_EARLY_RETURN();
     }
   }
 
   {
-    // Send the measurement gap and the updated cell group config to the UE.
+    // Send the measurement gap config and the updated cell group config to the UE.
     rrc_reconfig_args.meas_gap_cfg = ue_context_mod_response.du_to_cu_rrc_info.meas_gap_cfg.copy();
     if (!ue_context_mod_response.du_to_cu_rrc_info.cell_group_cfg.empty()) {
       rrc_ue.update_cell_group_config(ue_context_mod_response.du_to_cu_rrc_info.cell_group_cfg.copy());

@@ -62,6 +62,8 @@ public:
   bool                                reestablishment_ongoing = false;
   /// Last coarse UE location reported by the UE.
   std::optional<coarse_ue_location> coarse_location;
+  /// Packed LocationMeasurementInfo of the ongoing location measurements of the UE (TS 38.331 section 5.5.6).
+  std::optional<byte_buffer> location_meas_info;
   // NAS messages received while UE is in RRC Inactive, to be sent after successful resume.
   std::vector<byte_buffer> pending_dl_nas_transport_messages;
   rrc_ue_logger&           logger;

@@ -11,16 +11,17 @@
 
 namespace ocudu::ocucp {
 
-/// \brief Requests a measurement gap from the DU for the location measurements of a UE, and sends the gap to the UE.
+/// \brief Requests the measurement gaps for the location measurements of a UE from the DU, and sends them to the UE.
 ///
-/// The CU-CP forwards the LocationMeasurementInfo of the UE to the DU in the CU to DU RRC Information (TS 38.473
-/// section 9.3.1.25). The DU returns the MeasGapConfig in the DU to CU RRC Information (TS 38.473 section 9.3.1.26),
-/// and the CU-CP sends it to the UE in an RRC Reconfiguration.
+/// The CU-CP sends the MeasConfig of the UE to the DU in the CU to DU RRC Information (TS 38.473 section 9.3.1.25).
+/// While the UE does location measurements, the CU to DU RRC Information also has the LocationMeasurementInfo of the
+/// UE. The DU uses this information to decide which measurement gaps the UE needs (TS 38.473 section 8.3.4.2). The DU
+/// returns the MeasGapConfig in the DU to CU RRC Information (TS 38.473 section 9.3.1.26), and the CU-CP sends it to
+/// the UE in an RRC Reconfiguration.
 class location_measurement_indication_routine
 {
 public:
   location_measurement_indication_routine(cu_cp_ue_index_t         ue_index_,
-                                          byte_buffer              location_meas_info_,
                                           f1ap_ue_context_manager& f1ap_ue_ctxt_mng_,
                                           rrc_ue_interface&        rrc_ue_,
                                           ocudulog::basic_logger&  logger_);
@@ -31,7 +32,6 @@ public:
 
 private:
   const cu_cp_ue_index_t   ue_index;
-  const byte_buffer        location_meas_info;
   f1ap_ue_context_manager& f1ap_ue_ctxt_mng;
   rrc_ue_interface&        rrc_ue;
   ocudulog::basic_logger&  logger;

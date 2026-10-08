@@ -59,7 +59,7 @@ inline xnap_message generate_asn1_xn_setup_request(const xnap_configuration&    
 
     // Fill broadcast PLMN list.
     asn1_tai_support_item.broadcast_plmns.resize(tai_support_item.plmn_list.size());
-    for (unsigned j = 0; j < xnap_cfg.tai_support_list.size(); j++) {
+    for (unsigned j = 0; j < tai_support_item.plmn_list.size(); j++) {
       const auto& plmn_item           = tai_support_item.plmn_list[j];
       auto&       asn1_broadcast_plmn = asn1_tai_support_item.broadcast_plmns[j];
 
@@ -121,7 +121,7 @@ inline xnap_message generate_asn1_xn_setup_response(const xnap_configuration&   
 
     // Fill broadcast PLMN list.
     asn1_tai_support_item.broadcast_plmns.resize(tai_support_item.plmn_list.size());
-    for (unsigned j = 0; j < xnap_cfg.tai_support_list.size(); j++) {
+    for (unsigned j = 0; j < tai_support_item.plmn_list.size(); j++) {
       const auto& plmn_item           = tai_support_item.plmn_list[j];
       auto&       asn1_broadcast_plmn = asn1_tai_support_item.broadcast_plmns[j];
 

@@ -200,6 +200,34 @@ TEST_F(xn_setup_procedure_test, when_peer_advertises_served_cells_then_peer_is_f
   ASSERT_FALSE(xnap->has_peer_pci(served_pci + 1)) << "Unexpected match for a PCI the peer does not serve";
 }
 
+/// Checks that the TAI Support List holds TAC 7 with one PLMN and TAC 8 with three PLMNs.
+static void check_broadcast_plmns(const asn1::xnap::tai_support_list_l& tai_support_list)
+{
+  ASSERT_EQ(tai_support_list.size(), 2);
+  ASSERT_EQ(tai_support_list[0].broadcast_plmns.size(), 1);
+  ASSERT_EQ(tai_support_list[1].broadcast_plmns.size(), 3);
+  ASSERT_EQ(tai_support_list[1].broadcast_plmns[2].plmn_id.to_number(), plmn_identity::parse("99903").value().to_bcd());
+}
+
+TEST(xn_setup_asn1_test, when_tracking_areas_broadcast_several_plmns_then_xn_setup_lists_every_broadcast_plmn)
+{
+  s_nssai_t          slice = {};
+  xnap_configuration cfg;
+  cfg.gnb_id           = {0, 22};
+  cfg.tai_support_list = {{7, {{plmn_identity::test_value(), {slice}}}},
+                          {8,
+                           {{plmn_identity::test_value(), {slice}},
+                            {plmn_identity::parse("99902").value(), {slice}},
+                            {plmn_identity::parse("99903").value(), {slice}}}}};
+  cfg.guami_list       = {{.plmn = plmn_identity::test_value(), .amf_set_id = 1, .amf_pointer = 0, .amf_region_id = 2}};
+
+  xnap_message request = generate_asn1_xn_setup_request(cfg, {});
+  check_broadcast_plmns(request.pdu.init_msg().value.xn_setup_request()->tai_support_list);
+
+  xnap_message response = generate_asn1_xn_setup_response(cfg, {});
+  check_broadcast_plmns(response.pdu.successful_outcome().value.xn_setup_resp()->tai_support_list);
+}
+
 int main(int argc, char** argv)
 {
   ::testing::InitGoogleTest(&argc, argv);

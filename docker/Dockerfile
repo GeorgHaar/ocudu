@@ -426,33 +426,39 @@ RUN --mount=type=secret,id=rh_entitlement_cert,target=/etc/pki/entitlement/entit
     if [ "${ENABLE_DPDK}" = "On" ]; then /usr/local/etc/install_dpdk_dependencies.sh run; fi && \
     ldconfig
 
-# Bake minimum-privilege Linux capabilities into the binaries that need to
-# run as a non-root uid in Kubernetes. Kubernetes' capabilities.add only
-# populates the bounding set for non-root processes; for caps to land in
-# the effective set after execve(), they must be declared as file caps.
+# Bake Linux capabilities into the binaries that run as a non-root uid in
+# Kubernetes. Kubernetes' capabilities.add only populates the bounding set for
+# non-root processes, so the binaries carry the capabilities as file
+# capabilities. They are permitted only (+p, no effective bit): execve()
+# succeeds whatever subset the container grants, and each application raises
+# the capabilities it received into its effective set at startup. The file
+# capabilities are the maximum; the container's capabilities.add selects the
+# subset.
 #
-#   cap_sys_nice  - SCHED_FIFO on ru_timing / tx-rx threads (DPDK real-time)
-#   cap_ipc_lock  - mlock() on DPDK hugepages
-#   cap_perfmon   - perf_event_open() RAPL energy reader (kernel >= 5.8, opt-in via metricsService.powercap.enabled)
+#   cap_sys_nice  - SCHED_FIFO real-time thread priorities
+#   cap_ipc_lock  - DMA memory that DPDK pins through VFIO, which counts against RLIMIT_MEMLOCK
+#   cap_perfmon   - perf_event_open() RAPL energy reader (kernel >= 5.8)
 #
-# gnb/odu: DPDK real-time + hugepages + powercap metrics
-# ocu/ocucp/ocuup/ru_emulator: SYS_NICE+IPC_LOCK for non-root Kubernetes scheduling
+# gnb/odu: all three. ru_emulator: DPDK, no RAPL reader. ocu/ocucp/ocuup: no DPDK.
 # When COMPONENT is empty (legacy all-binary build), set caps on all binaries that exist.
 RUN case "${COMPONENT}" in \
       gnb|du) \
         BIN=$([ "${COMPONENT}" = "gnb" ] && echo "gnb" || echo "odu") && \
-        setcap cap_sys_nice,cap_ipc_lock,cap_perfmon+ep /usr/local/bin/${BIN} && \
+        setcap cap_sys_nice,cap_ipc_lock,cap_perfmon+p /usr/local/bin/${BIN} && \
         getcap /usr/local/bin/${BIN} ;; \
-      ru-emulator) setcap cap_sys_nice,cap_ipc_lock+ep /usr/local/bin/ru_emulator && getcap /usr/local/bin/ru_emulator ;; \
-      cu)    setcap cap_sys_nice,cap_ipc_lock+ep             /usr/local/bin/ocu   && getcap /usr/local/bin/ocu ;; \
-      cu-cp) setcap cap_sys_nice,cap_ipc_lock,cap_perfmon+ep /usr/local/bin/ocucp && getcap /usr/local/bin/ocucp ;; \
-      cu-up) setcap cap_sys_nice,cap_ipc_lock,cap_perfmon+ep /usr/local/bin/ocuup && getcap /usr/local/bin/ocuup ;; \
+      ru-emulator) setcap cap_sys_nice,cap_ipc_lock+p /usr/local/bin/ru_emulator && getcap /usr/local/bin/ru_emulator ;; \
+      cu)    setcap cap_sys_nice,cap_perfmon+p /usr/local/bin/ocu   && getcap /usr/local/bin/ocu ;; \
+      cu-cp) setcap cap_sys_nice,cap_perfmon+p /usr/local/bin/ocucp && getcap /usr/local/bin/ocucp ;; \
+      cu-up) setcap cap_sys_nice,cap_perfmon+p /usr/local/bin/ocuup && getcap /usr/local/bin/ocuup ;; \
       *) \
-        for bin in gnb odu ocucp ocuup; do \
-            test -f /usr/local/bin/${bin} && setcap cap_sys_nice,cap_ipc_lock,cap_perfmon+ep /usr/local/bin/${bin} || true; \
+        for bin in gnb odu; do \
+            test -f /usr/local/bin/${bin} && setcap cap_sys_nice,cap_ipc_lock,cap_perfmon+p /usr/local/bin/${bin} || true; \
         done && \
-        for bin in ocu ru_emulator; do \
-            test -f /usr/local/bin/${bin} && setcap cap_sys_nice,cap_ipc_lock+ep /usr/local/bin/${bin} || true; \
+        for bin in ocu ocucp ocuup; do \
+            test -f /usr/local/bin/${bin} && setcap cap_sys_nice,cap_perfmon+p /usr/local/bin/${bin} || true; \
+        done && \
+        for bin in ru_emulator; do \
+            test -f /usr/local/bin/${bin} && setcap cap_sys_nice,cap_ipc_lock+p /usr/local/bin/${bin} || true; \
         done && \
         for bin in gnb odu ocu ocucp ocuup ru_emulator; do \
             test -f /usr/local/bin/${bin} && getcap /usr/local/bin/${bin} || true; \
@@ -469,9 +475,9 @@ COPY --from=builder-lean /opt/ocudu /usr/local
 
 RUN ldconfig && \
     case "${COMPONENT}" in \
-      cu)    setcap cap_sys_nice,cap_ipc_lock+ep             /usr/local/bin/ocu   && getcap /usr/local/bin/ocu ;; \
-      cu-cp) setcap cap_sys_nice,cap_ipc_lock,cap_perfmon+ep /usr/local/bin/ocucp && getcap /usr/local/bin/ocucp ;; \
-      cu-up) setcap cap_sys_nice,cap_ipc_lock,cap_perfmon+ep /usr/local/bin/ocuup && getcap /usr/local/bin/ocuup ;; \
+      cu)    setcap cap_sys_nice,cap_perfmon+p /usr/local/bin/ocu   && getcap /usr/local/bin/ocu ;; \
+      cu-cp) setcap cap_sys_nice,cap_perfmon+p /usr/local/bin/ocucp && getcap /usr/local/bin/ocucp ;; \
+      cu-up) setcap cap_sys_nice,cap_perfmon+p /usr/local/bin/ocuup && getcap /usr/local/bin/ocuup ;; \
       *)     echo "Unsupported lean component: ${COMPONENT}" >&2; exit 1 ;; \
     esac
 
@@ -495,8 +501,8 @@ RUN --mount=type=secret,id=rh_entitlement_cert,target=/etc/pki/entitlement/entit
     ldconfig
 
 RUN case "${COMPONENT}" in \
-      gnb) setcap cap_sys_nice,cap_ipc_lock,cap_perfmon+ep /usr/local/bin/gnb && getcap /usr/local/bin/gnb ;; \
-      du)  setcap cap_sys_nice,cap_ipc_lock,cap_perfmon+ep /usr/local/bin/odu && getcap /usr/local/bin/odu ;; \
+      gnb) setcap cap_sys_nice,cap_ipc_lock,cap_perfmon+p /usr/local/bin/gnb && getcap /usr/local/bin/gnb ;; \
+      du)  setcap cap_sys_nice,cap_ipc_lock,cap_perfmon+p /usr/local/bin/odu && getcap /usr/local/bin/odu ;; \
       *)   echo "Unsupported UHD component: ${COMPONENT}" >&2; exit 1 ;; \
     esac
 
@@ -520,9 +526,9 @@ RUN --mount=type=secret,id=rh_entitlement_cert,target=/etc/pki/entitlement/entit
     ldconfig
 
 RUN case "${COMPONENT}" in \
-      gnb)         setcap cap_sys_nice,cap_ipc_lock,cap_perfmon+ep /usr/local/bin/gnb && getcap /usr/local/bin/gnb ;; \
-      du)          setcap cap_sys_nice,cap_ipc_lock,cap_perfmon+ep /usr/local/bin/odu && getcap /usr/local/bin/odu ;; \
-      ru-emulator) setcap cap_sys_nice,cap_ipc_lock+ep /usr/local/bin/ru_emulator && getcap /usr/local/bin/ru_emulator ;; \
+      gnb)         setcap cap_sys_nice,cap_ipc_lock,cap_perfmon+p /usr/local/bin/gnb && getcap /usr/local/bin/gnb ;; \
+      du)          setcap cap_sys_nice,cap_ipc_lock,cap_perfmon+p /usr/local/bin/odu && getcap /usr/local/bin/odu ;; \
+      ru-emulator) setcap cap_sys_nice,cap_ipc_lock+p /usr/local/bin/ru_emulator && getcap /usr/local/bin/ru_emulator ;; \
       *)           echo "Unsupported DPDK component: ${COMPONENT}" >&2; exit 1 ;; \
     esac
 

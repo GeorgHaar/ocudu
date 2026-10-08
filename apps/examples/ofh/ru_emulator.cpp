@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
+#include "apps/services/application_capabilities.h"
 #include "helpers.h"
 #include "ru_emulator_appconfig.h"
 #include "ru_emulator_cli11_schema.h"
@@ -944,6 +945,9 @@ static void print_header()
 
 int main(int argc, char** argv)
 {
+  // Threads inherit the capabilities of their creator, so this runs before any thread exists.
+  app_services::raise_permitted_capabilities();
+
   // Number of seconds between printing the statistics header.
   static constexpr unsigned SECONDS_BETWEEN_HEADERS = 20;
 

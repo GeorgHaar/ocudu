@@ -10,6 +10,7 @@
 #include "apps/helpers/network/sctp_config_translators.h"
 #include "apps/services/app_execution_metrics/executor_metrics_manager.h"
 #include "apps/services/app_resource_usage/app_resource_usage.h"
+#include "apps/services/application_capabilities.h"
 #include "apps/services/application_message_banners.h"
 #include "apps/services/application_tracer.h"
 #include "apps/services/buffer_pool/buffer_pool_manager.h"
@@ -212,6 +213,9 @@ static void autoderive_cu_up_parameters_after_parsing(cu_up_unit_config& cu_up_c
 
 int main(int argc, char** argv)
 {
+  // Threads inherit the capabilities of their creator, so this runs before any thread exists.
+  app_services::raise_permitted_capabilities();
+
   // Set the application error handler.
   set_error_handler(app_error_report_handler);
 

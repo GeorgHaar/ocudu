@@ -357,9 +357,9 @@ void cu_cp_impl::stop()
   logger.info("CU-CP stopped successfully");
 }
 
-ngap_message_handler* cu_cp_impl::get_ngap_message_handler(const plmn_identity& plmn)
+ngap_message_handler* cu_cp_impl::get_ngap_message_handler(cu_cp_amf_index_t amf_index)
 {
-  return ngap_db.find_ngap(plmn);
+  return ngap_db.find_ngap(amf_index);
 }
 
 bool cu_cp_impl::amfs_are_connected()
@@ -496,24 +496,21 @@ void cu_cp_impl::handle_e1_release_request(cu_cp_cu_up_index_t cu_up_index)
   // TODO
 }
 
-bool cu_cp_impl::handle_ue_plmn_selected(cu_cp_ue_index_t ue_index, const plmn_identity& plmn)
+bool cu_cp_impl::handle_ue_setup_complete_received(cu_cp_ue_index_t ue_index, const amf_selection_request& request)
 {
-  if (!controller.is_supported_plmn(plmn)) {
-    logger.warning("ue={}: PLMN {} not supported, rejecting UE", ue_index, plmn);
+  std::optional<cu_cp_amf_index_t> amf_index = controller.select_amf(request);
+  if (not amf_index.has_value()) {
+    logger.warning("ue={}: No connected AMF supports PLMN {}, rejecting UE", ue_index, request.plmn);
     return false;
   }
 
-  if (!ue_mng.set_plmn(ue_index, plmn)) {
-    logger.error("ue={}: Could not set PLMN {}", ue_index, plmn);
+  if (!ue_mng.set_plmn(ue_index, request.plmn)) {
+    logger.error("ue={}: Could not set PLMN {}", ue_index, request.plmn);
     return false;
   }
 
-  ngap_interface* ngap = ngap_db.find_ngap(plmn);
-  if (ngap == nullptr) {
-    logger.warning("ue={}: No NGAP found for plmn={}", ue_index, plmn);
-    return false;
-  }
-  return bind_ue_to_amf(ue_index, ngap->get_ngap_context().amf_index);
+  logger.debug("ue={}: Selected amf_index={}", ue_index, amf_index.value());
+  return bind_ue_to_amf(ue_index, amf_index.value());
 }
 
 bool cu_cp_impl::bind_ue_to_amf(cu_cp_ue_index_t ue_index, cu_cp_amf_index_t amf_index)
@@ -567,7 +564,7 @@ bool cu_cp_impl::bind_retrieved_ue_to_amf(cu_cp_ue_index_t ue_index)
   // The UE keeps the AMF of its GUAMI, or gets another AMF of the same AMF Set (TS 23.501 section 5.21.2.3). The
   // retrieval fails if no AMF of the AMF Set serves the UE (TS 38.300 section 9.2.2.1).
   const guami_t&                   guami     = ue->get_context_retrieval_context()->guami;
-  std::optional<cu_cp_amf_index_t> amf_index = ngap_db.find_amf_index(guami);
+  std::optional<cu_cp_amf_index_t> amf_index = controller.select_amf_for_guami(guami);
   if (not amf_index.has_value()) {
     logger.warning(
         "ue={}: No AMF found for the retrieved GUAMI (plmn={} amf_region_id={} amf_set_id={} amf_pointer={})",
@@ -1713,7 +1710,7 @@ cu_cp_impl::handle_ue_index_allocation_request_for_guami(const nr_cell_global_id
 {
   // An Xn handover keeps the AMF of the UE, and the Path Switch Request goes to this AMF (TS 38.300 section
   // 9.2.3.2.1).
-  std::optional<cu_cp_amf_index_t> amf_index = ngap_db.find_amf_index(guami);
+  std::optional<cu_cp_amf_index_t> amf_index = controller.select_amf_for_guami(guami);
   if (not amf_index.has_value()) {
     logger.warning("No AMF found for the GUAMI of the handover target UE (plmn={} amf_region_id={} amf_set_id={} "
                    "amf_pointer={})",

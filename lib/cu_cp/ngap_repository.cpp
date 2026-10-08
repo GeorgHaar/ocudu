@@ -64,29 +64,6 @@ ngap_interface* ngap_repository::add_ngap(cu_cp_amf_index_t amf_index)
   return ngap_ctxt.ngap.get();
 }
 
-void ngap_repository::update_plmn_lookup(cu_cp_amf_index_t amf_index)
-{
-  auto ngap = ngap_db.find(amf_index);
-  if (ngap == ngap_db.end()) {
-    logger.error("NGAP not found for AMF index {}", amf_index);
-    return;
-  }
-
-  std::vector<plmn_identity> supported_plmns = ngap->second.ngap->get_ngap_context().get_supported_plmns();
-  for (auto plmn : supported_plmns) {
-    plmn_to_amf_index.emplace(plmn, amf_index);
-  }
-}
-
-ngap_interface* ngap_repository::find_ngap(const plmn_identity& plmn)
-{
-  if (plmn_to_amf_index.find(plmn) == plmn_to_amf_index.end()) {
-    return nullptr;
-  }
-
-  return ngap_db.at(plmn_to_amf_index.at(plmn)).ngap.get();
-}
-
 ngap_interface* ngap_repository::find_ngap(const cu_cp_amf_index_t& amf_index)
 {
   if (ngap_db.find(amf_index) == ngap_db.end()) {
@@ -150,21 +127,14 @@ std::vector<guami_t> ngap_repository::get_served_guamis() const
 
 std::optional<cu_cp_amf_index_t> ngap_repository::find_amf_index(const guami_t& guami) const
 {
-  std::optional<cu_cp_amf_index_t> amf_of_same_set;
   for (const auto& ngap : ngap_db) {
     for (const auto& served_guami_item : ngap.second.ngap->get_ngap_context().served_guami_list) {
       const guami_t& served_guami = served_guami_item.guami;
-      if (served_guami.plmn != guami.plmn || served_guami.amf_region_id != guami.amf_region_id ||
-          served_guami.amf_set_id != guami.amf_set_id) {
-        continue;
-      }
-      if (served_guami.amf_pointer == guami.amf_pointer) {
+      if (served_guami.plmn == guami.plmn and served_guami.amf_region_id == guami.amf_region_id and
+          served_guami.amf_set_id == guami.amf_set_id and served_guami.amf_pointer == guami.amf_pointer) {
         return ngap.first;
-      }
-      if (not amf_of_same_set.has_value()) {
-        amf_of_same_set = ngap.first;
       }
     }
   }
-  return amf_of_same_set;
+  return std::nullopt;
 }

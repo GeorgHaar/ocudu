@@ -270,11 +270,11 @@ class cu_cp_rrc_ue_interface
 public:
   virtual ~cu_cp_rrc_ue_interface() = default;
 
-  /// \brief Handles a new UE connection with a selected PLMN.
+  /// \brief Handles a new UE connection: sets the selected PLMN of the UE and selects the AMF of the UE.
   /// \param[in] ue_index The index of the UE.
-  /// \param[in] plmn The selected PLMN of the UE.
+  /// \param[in] request The selected PLMN of the UE and the identities that the AMF selection uses.
   /// \return True if the UE connection is accepted, false otherwise.
-  virtual bool handle_ue_plmn_selected(cu_cp_ue_index_t ue_index, const plmn_identity& plmn) = 0;
+  virtual bool handle_ue_setup_complete_received(cu_cp_ue_index_t ue_index, const amf_selection_request& request) = 0;
 
   /// \brief Handle the reception of an RRC Reestablishment Request by transfering UE Contexts at the RRC.
   /// \param[in] old_pci The old PCI contained in the RRC Reestablishment Request.

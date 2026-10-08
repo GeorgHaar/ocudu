@@ -127,6 +127,13 @@ asn1::enumerated<asn1::rrc_nr::paging_cycle_opts> ran_paging_cycle_to_asn1(uint1
 /// \return The RRC NR ASN.1 object where the result of the conversion is stored
 asn1::rrc_nr::plmn_id_s plmn_to_asn1(const plmn_identity& plmn);
 
+/// \brief Converts an RRC NR ASN.1 PLMN identity to type \c plmn_identity.
+/// \param[in] asn1_plmn The ASN.1 PLMN identity.
+/// \param[in] plmn_of_absent_mcc The PLMN whose MCC applies if the ASN.1 PLMN identity has no MCC.
+/// \return The PLMN identity, or an error if the digits are not valid.
+expected<plmn_identity> asn1_to_plmn_identity(const asn1::rrc_nr::plmn_id_s& asn1_plmn,
+                                              const plmn_identity&           plmn_of_absent_mcc);
+
 /// \brief Converts type \c rrc_ran_notification_area_info_t to an RRC NR ASN.1 type.
 /// \param[in] ran_notif_area_info ran notification area info object.
 /// \return The RRC NR ASN.1 object where the result of the conversion is stored

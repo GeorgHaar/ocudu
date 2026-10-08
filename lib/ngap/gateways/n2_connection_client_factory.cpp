@@ -9,6 +9,8 @@
 #include "ocudu/gateways/sctp_network_client_factory.h"
 #include "ocudu/ngap/ngap_message.h"
 #include "ocudu/pcap/dlt_pcap.h"
+#include <algorithm>
+#include <vector>
 
 using namespace ocudu;
 using namespace ocucp;
@@ -148,7 +150,18 @@ private:
 
       const auto& req = msg.pdu.init_msg().value.ng_setup_request();
       ocudu_assert(req->supported_ta_list.size() > 0, "NG Setup Request has no supported TA list");
-      const auto& broadcast_plmns = req->supported_ta_list[0].broadcast_plmn_list;
+
+      // Take each PLMN of the supported TA list once.
+      std::vector<asn1::ngap::broadcast_plmn_item_s> broadcast_plmns;
+      for (const auto& ta : req->supported_ta_list) {
+        for (const auto& plmn_item : ta.broadcast_plmn_list) {
+          if (std::none_of(broadcast_plmns.begin(), broadcast_plmns.end(), [&plmn_item](const auto& item) {
+                return item.plmn_id.to_number() == plmn_item.plmn_id.to_number();
+              })) {
+            broadcast_plmns.push_back(plmn_item);
+          }
+        }
+      }
 
       // Generate fake NG Setup Response.
       ngap_message resp;
@@ -157,7 +170,7 @@ private:
       ng_resp->amf_name.from_string("localamf");
       ng_resp->served_guami_list.resize(broadcast_plmns.size());
       for (unsigned i = 0; i != ng_resp->served_guami_list.size(); ++i) {
-        ng_resp->served_guami_list[i].guami.plmn_id = req->supported_ta_list[0].broadcast_plmn_list[i].plmn_id;
+        ng_resp->served_guami_list[i].guami.plmn_id = broadcast_plmns[i].plmn_id;
         ng_resp->served_guami_list[i].guami.amf_region_id.from_number(0x2);
         ng_resp->served_guami_list[i].guami.amf_set_id.from_number(0x40);
         ng_resp->served_guami_list[i].guami.amf_pointer.from_number(0x0);

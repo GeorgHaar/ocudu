@@ -600,3 +600,18 @@ ocudu::ocucp::ue_cap_rat_container_list_to_asn1(const rrc_ue_cap_rat_container_l
   }
   return asn1_capabilities_list;
 }
+
+expected<plmn_identity> ocudu::ocucp::asn1_to_plmn_identity(const asn1::rrc_nr::plmn_id_s& asn1_plmn,
+                                                            const plmn_identity&           plmn_of_absent_mcc)
+{
+  expected<mobile_country_code> mcc = plmn_of_absent_mcc.mcc();
+  if (asn1_plmn.mcc_present) {
+    mcc = mobile_country_code::from_bytes(asn1_plmn.mcc);
+  }
+  expected<mobile_network_code> mnc =
+      mobile_network_code::from_bytes(span<const uint8_t>(asn1_plmn.mnc.data(), asn1_plmn.mnc.size()));
+  if (not mcc.has_value() or not mnc.has_value()) {
+    return make_unexpected(default_error_t{});
+  }
+  return plmn_identity{mcc.value(), mnc.value()};
+}

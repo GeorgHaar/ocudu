@@ -55,8 +55,9 @@ class dummy_rrc_ue_cu_cp_adapter : public rrc_ue_context_update_notifier, public
 public:
   void add_ue_context(rrc_ue_reestablishment_context_response context) { reest_context = std::move(context); }
 
-  bool next_ue_setup_response          = true;
-  bool next_ue_setup_complete_response = true;
+  bool                  next_ue_setup_response          = true;
+  bool                  next_ue_setup_complete_response = true;
+  amf_selection_request last_amf_selection_request;
 
   /// Outcome and payload the dummy answers a UE context retrieval with, plus the last request it saw.
   bool                                            context_retrieval_succeeds = false;
@@ -68,7 +69,11 @@ public:
 
   bool on_ue_setup_request() override { return next_ue_setup_response; }
 
-  bool on_ue_setup_complete_received(const plmn_identity& plmn) override { return next_ue_setup_complete_response; }
+  bool on_ue_setup_complete_received(const amf_selection_request& request) override
+  {
+    last_amf_selection_request = request;
+    return next_ue_setup_complete_response;
+  }
 
   rrc_ue_reestablishment_context_response on_rrc_reestablishment_request(pci_t old_pci, rnti_t old_c_rnti) override
   {

@@ -25,7 +25,6 @@ amf_connection_setup_routine::amf_connection_setup_routine(
     ngap_repository&                                          ngap_db_,
     std::unordered_map<cu_cp_amf_index_t, std::atomic<bool>>& amfs_connected_,
     cu_cp_ng_setup_complete_notifier*                         ng_setup_notifier_) :
-  ngap_db(ngap_db_),
   amfs_connected(amfs_connected_),
   ng_setup_notifier(ng_setup_notifier_),
   ngaps(ngap_db_.get_ngaps()),
@@ -61,9 +60,6 @@ void amf_connection_setup_routine::operator()(coro_context<async_task<bool>>& ct
         ng_setup_notifier->on_ng_setup_complete(
             std::move(ng_resp.packed_ng_setup_request), std::move(ng_resp.packed_ng_setup_response), ng_resp.amf_name);
       }
-
-      // Update PLMN lookups in NGAP repository after successful NGSetup.
-      ngap_db.update_plmn_lookup(amf_index);
 
       std::string plmn_list;
       for (const auto& plmn : ngap->get_ngap_context().get_supported_plmns()) {

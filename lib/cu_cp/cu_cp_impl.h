@@ -72,7 +72,7 @@ public:
   void stop() override;
 
   // NGAP interface.
-  ngap_message_handler* get_ngap_message_handler(const plmn_identity& plmn) override;
+  ngap_message_handler* get_ngap_message_handler(cu_cp_amf_index_t amf_index) override;
 
   bool amfs_are_connected() override;
 
@@ -83,7 +83,7 @@ public:
   void handle_e1_release_request(cu_cp_cu_up_index_t cu_up_index) override;
 
   // cu_cp_rrc_ue_interface.
-  bool handle_ue_plmn_selected(cu_cp_ue_index_t ue_index, const plmn_identity& plmn) override;
+  bool handle_ue_setup_complete_received(cu_cp_ue_index_t ue_index, const amf_selection_request& request) override;
   rrc_ue_reestablishment_context_response
   handle_rrc_reestablishment_request(pci_t old_pci, rnti_t old_c_rnti, cu_cp_ue_index_t ue_index) override;
   async_task<rrc_ue_context_retrieval_response>

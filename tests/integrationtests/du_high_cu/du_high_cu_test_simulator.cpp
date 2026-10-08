@@ -97,7 +97,7 @@ du_high_cu_test_simulator::du_high_cu_test_simulator(const du_high_cu_cp_test_si
 
   // Connect AMF by injecting a ng_setup_response
   cu_cp_inst->get_ng_handler()
-      .get_ngap_message_handler(plmn_identity::test_value())
+      .get_ngap_message_handler(uint_to_cu_cp_amf_index(0))
       ->handle_message(ocucp::generate_ng_setup_response());
 
   // Connect F1-C to CU-CP.

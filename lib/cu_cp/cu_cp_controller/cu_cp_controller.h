@@ -9,6 +9,7 @@
 #include "cu_up_connection_manager.h"
 #include "du_connection_manager.h"
 #include "xnc_connection_manager.h"
+#include <random>
 
 namespace ocudu::ocucp {
 
@@ -61,8 +62,13 @@ public:
   /// Determines whether the CU-CP should accept new UE connections.
   bool request_ue_setup() const override;
 
-  /// Determines whether the CU-CP should accept a new UE connection based on its PLMN.
-  bool is_supported_plmn(const plmn_identity& plmn) const;
+  /// \brief Selects the AMF for a UE that accesses the CU-CP.
+  /// \return The index of the AMF, or std::nullopt if no connected AMF supports the selected PLMN of the UE.
+  std::optional<cu_cp_amf_index_t> select_amf(const amf_selection_request& request);
+
+  /// \brief Finds the connected AMF that serves a GUAMI, or a connected AMF of its AMF Set.
+  /// \return The index of the AMF, or std::nullopt if no AMF of the AMF Set is connected.
+  std::optional<cu_cp_amf_index_t> select_amf_for_guami(const guami_t& guami) const;
 
   /// Gets the F1C handler.
   cu_cp_f1c_handler& get_f1c_handler() { return du_mng; }
@@ -84,6 +90,9 @@ private:
 
   std::mutex mutex;
   bool       running = true;
+
+  /// Random generator of the AMF selection.
+  std::mt19937 amf_selection_rng{std::random_device{}()};
 };
 
 } // namespace ocudu::ocucp

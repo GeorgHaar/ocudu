@@ -72,6 +72,7 @@ target_link_libraries(cu_cp_cell_command_test
 gtest_discover_tests(cu_cp_cell_command_test)
 
 add_executable(cu_cp_test
+               cu_cp_amf_pooling_test.cpp
                cu_cp_connectivity_test.cpp
                cu_cp_inactivity_notification_test.cpp
                cu_cp_initial_context_setup_test.cpp

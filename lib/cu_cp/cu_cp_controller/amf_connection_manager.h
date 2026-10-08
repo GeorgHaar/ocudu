@@ -6,6 +6,7 @@
 #pragma once
 
 #include "../ue_manager/ue_manager_impl.h"
+#include "amf_selector.h"
 #include <future>
 
 namespace ocudu {
@@ -61,7 +62,7 @@ public:
   /// Stops the AMF connection manager.
   void stop();
 
-  /// Checks whether the CU-CP is connected to the AMF with the given PLMN identity.
+  /// Checks whether the CU-CP is connected to an AMF that supports the given PLMN identity.
   bool is_amf_connected(plmn_identity plmn) const;
 
   /// Checks whether the CU-CP is connected to the AMF with the given CU_CP AMF index.
@@ -70,12 +71,12 @@ public:
   /// Returns the number of AMFs the CU-CP is connected to.
   size_t nof_connected_amfs() const;
 
+  /// Returns the AMFs that the CU-CP can select for a UE.
+  std::vector<amf_candidate> get_amf_candidates() const;
+
 private:
   /// Sets the connection state of the AMF with the given CU-CP AMF index.
   void set_amf_connected(cu_cp_amf_index_t amf_index, bool connected);
-
-  /// Converts the given PLMN identity into a CU_CP AMF index.
-  cu_cp_amf_index_t plmn_to_amf_index(plmn_identity plmn) const;
 
   /// Schedules a background reconnection for every AMF that is not connected.
   void retry_unconnected_amfs(std::chrono::milliseconds retry_time);

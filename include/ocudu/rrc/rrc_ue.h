@@ -9,6 +9,7 @@
 #include "ocudu/adt/span.h"
 #include "ocudu/adt/static_vector.h"
 #include "ocudu/cu_cp/cu_cp_ue_messages.h"
+#include "ocudu/ran/amf_selection_request.h"
 #include "ocudu/ran/cause/ngap_cause.h"
 #include "ocudu/ran/cu_cp_types.h"
 #include "ocudu/ran/cu_cp_ue_context_release.h"
@@ -527,9 +528,9 @@ public:
   virtual bool on_ue_setup_request() = 0;
 
   /// \brief Notifies that the RRC UE setup complete is received.
-  /// \param[in] plmn The selected PLMN of the UE.
+  /// \param[in] request The selected PLMN of the UE and the identities that the AMF selection uses.
   /// \return True if the UE setup complete is accepted.
-  virtual bool on_ue_setup_complete_received(const plmn_identity& plmn) = 0;
+  virtual bool on_ue_setup_complete_received(const amf_selection_request& request) = 0;
 
   /// \brief Notify about the reception of an RRC Reestablishment Request.
   /// \param[in] old_pci The old PCI contained in the RRC Reestablishment Request.

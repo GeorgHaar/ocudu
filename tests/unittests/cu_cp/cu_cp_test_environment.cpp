@@ -429,11 +429,36 @@ const cu_cp_test_environment::ue_context* cu_cp_test_environment::find_ue_contex
   return &attached_ues.at(it->second);
 }
 
+ngap_message cu_cp_test_environment::generate_amf_ng_setup_response(unsigned amf_idx) const
+{
+  auto it = amf_configs.find(amf_idx);
+  report_fatal_error_if_not(it != amf_configs.end(), "AMF {} not found", amf_idx);
+
+  std::vector<plmn_identity> plmns;
+  for (const auto& ta : it->second.supported_tas) {
+    for (const auto& plmn_item : ta.plmn_list) {
+      if (std::find(plmns.begin(), plmns.end(), plmn_item.plmn_id) == plmns.end()) {
+        plmns.push_back(plmn_item.plmn_id);
+      }
+    }
+  }
+  report_fatal_error_if_not(not plmns.empty(), "AMF {} has no PLMN", amf_idx);
+
+  ngap_message ng_setup_response = ocucp::generate_ng_setup_response(plmns.front());
+  auto&        asn1_response     = ng_setup_response.pdu.successful_outcome().value.ng_setup_resp();
+  for (unsigned i = 1; i != plmns.size(); ++i) {
+    asn1::ngap::plmn_support_item_s plmn_support_item = asn1_response->plmn_support_list[0];
+    plmn_support_item.plmn_id                         = plmns[i].to_bytes();
+    asn1_response->plmn_support_list.push_back(plmn_support_item);
+  }
+  return ng_setup_response;
+}
+
 void cu_cp_test_environment::enqueue_procedure_outcome_pdus_and_start_cu_cp()
 {
   // Enqueue NG Setup responses.s.
   for (const auto& [amf_index, amf_config] : amf_configs) {
-    get_amf(amf_index).enqueue_next_tx_pdu(ocucp::generate_ng_setup_response());
+    get_amf(amf_index).enqueue_next_tx_pdu(generate_amf_ng_setup_response(amf_index));
   }
 
   // Enqueue XN Setup responses. Each peer advertises one served cell, so that tests can resolve it by PCI the way a
@@ -492,7 +517,7 @@ bool cu_cp_test_environment::reconnect_amf(unsigned amf_idx)
 
   it->second.amf_stub->allow_reconnection();
 
-  it->second.amf_stub->enqueue_next_tx_pdu(ocucp::generate_ng_setup_response());
+  it->second.amf_stub->enqueue_next_tx_pdu(generate_amf_ng_setup_response(amf_idx));
 
   tick_until(cu_cp_cfg.ngap.amf_reconnection_retry_time, [&]() { return false; }, false);
 

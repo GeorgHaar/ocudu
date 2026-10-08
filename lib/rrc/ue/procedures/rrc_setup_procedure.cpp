@@ -94,8 +94,9 @@ void rrc_setup_procedure::operator()(coro_context<async_task<void>>& ctx)
 
   selected_plmn = context.cell.plmn_identity_list[sel_plmn_id - 1];
 
-  // Notify the CU-CP about the selected PLMN.
-  if (!cu_cp_notifier.on_ue_setup_complete_received(selected_plmn)) {
+  // Notify the CU-CP about the selected PLMN and the identities that select the AMF.
+  store_five_g_s_tmsi();
+  if (!cu_cp_notifier.on_ue_setup_complete_received(get_amf_selection_request())) {
     logger.log_warning("PLMN {} not supported, rejecting UE", selected_plmn);
     metrics_notifier.on_failed_rrc_connection_establishment(establishment_fail_cause_t::other);
     rrc_ue.on_ue_release_required(ngap_cause_radio_network_t::unspecified);
@@ -165,20 +166,6 @@ void rrc_setup_procedure::send_initial_ue_msg()
   init_ue_msg.user_location_info.tai      = {context.plmn_id, context.cell.tac};
   init_ue_msg.user_location_info.tac_list = context.cell.tac_list;
 
-  if (rrc_setup_complete.ng_5_g_s_tmsi_value_present) {
-    if (rrc_setup_complete.ng_5_g_s_tmsi_value.type() ==
-        asn1::rrc_nr::rrc_setup_complete_ies_s::ng_5_g_s_tmsi_value_c_::types_opts::options::ng_5_g_s_tmsi) {
-      context.five_g_s_tmsi = asn1_to_five_g_s_tmsi(rrc_setup_complete.ng_5_g_s_tmsi_value.ng_5_g_s_tmsi());
-    } else {
-      if (!std::holds_alternative<asn1::fixed_bitstring<39>>(context.setup_ue_id)) {
-        logger.log_warning("5G-S-TMSI part 1 is missing");
-      } else {
-        context.five_g_s_tmsi = asn1_to_five_g_s_tmsi(std::get<asn1::fixed_bitstring<39>>(context.setup_ue_id),
-                                                      rrc_setup_complete.ng_5_g_s_tmsi_value.ng_5_g_s_tmsi_part2());
-      }
-    }
-  }
-
   if (context.five_g_s_tmsi.has_value()) {
     init_ue_msg.five_g_s_tmsi = context.five_g_s_tmsi.value();
   }
@@ -213,4 +200,54 @@ rrc_setup_procedure::establishment_cause_to_resume_cause(const establishment_cau
     default:
       return resume_cause_t::unknown;
   }
+}
+
+void rrc_setup_procedure::store_five_g_s_tmsi()
+{
+  const auto& rrc_setup_complete = rrc_setup_complete_msg.crit_exts.rrc_setup_complete();
+  if (rrc_setup_complete.ng_5_g_s_tmsi_value_present) {
+    if (rrc_setup_complete.ng_5_g_s_tmsi_value.type() ==
+        asn1::rrc_nr::rrc_setup_complete_ies_s::ng_5_g_s_tmsi_value_c_::types_opts::options::ng_5_g_s_tmsi) {
+      context.five_g_s_tmsi = asn1_to_five_g_s_tmsi(rrc_setup_complete.ng_5_g_s_tmsi_value.ng_5_g_s_tmsi());
+    } else {
+      if (!std::holds_alternative<asn1::fixed_bitstring<39>>(context.setup_ue_id)) {
+        logger.log_warning("5G-S-TMSI part 1 is missing");
+      } else {
+        context.five_g_s_tmsi = asn1_to_five_g_s_tmsi(std::get<asn1::fixed_bitstring<39>>(context.setup_ue_id),
+                                                      rrc_setup_complete.ng_5_g_s_tmsi_value.ng_5_g_s_tmsi_part2());
+      }
+    }
+  }
+}
+
+amf_selection_request rrc_setup_procedure::get_amf_selection_request() const
+{
+  const auto& rrc_setup_complete = rrc_setup_complete_msg.crit_exts.rrc_setup_complete();
+
+  amf_selection_request request;
+  request.plmn = selected_plmn;
+
+  // The UE sends either the 5G-S-TMSI or the registered GUAMI (TS 24.501 section 5.3.1.1).
+  request.five_g_s_tmsi = context.five_g_s_tmsi;
+
+  if (rrc_setup_complete.registered_amf_present) {
+    // The PLMN identity of the registered AMF is absent if it is the selected PLMN (TS 38.331 section 5.3.3.4).
+    plmn_identity registered_plmn = selected_plmn;
+    if (rrc_setup_complete.registered_amf.plmn_id_present) {
+      expected<plmn_identity> plmn = asn1_to_plmn_identity(rrc_setup_complete.registered_amf.plmn_id, selected_plmn);
+      if (not plmn.has_value()) {
+        logger.log_warning("Ignoring the registered AMF. Cause: Invalid PLMN identity");
+        return request;
+      }
+      registered_plmn = plmn.value();
+    }
+    amf_identifier_t amf_id  = asn1_to_amf_identifier(rrc_setup_complete.registered_amf.amf_id);
+    request.registered_guami = guami_t{registered_plmn, amf_id.amf_set_id, amf_id.amf_pointer, amf_id.amf_region_id};
+    if (rrc_setup_complete.guami_type_present and
+        rrc_setup_complete.guami_type.value == asn1::rrc_nr::rrc_setup_complete_ies_s::guami_type_opts::mapped) {
+      request.registered_guami_type = guami_type_t::mapped;
+    }
+  }
+
+  return request;
 }

@@ -6,7 +6,7 @@
 #pragma once
 
 #include "ocudu/ngap/ngap.h"
-#include "ocudu/ran/plmn_identity.h"
+#include "ocudu/ran/cu_cp_types.h"
 
 namespace ocudu::ocucp {
 
@@ -19,9 +19,9 @@ public:
   virtual ~cu_cp_ng_handler() = default;
 
   /// \brief Get the NG message handler interface.
-  /// \param[in] plmn The PLMN of the NGAP.
+  /// \param[in] amf_index The index of the AMF of the NGAP.
   /// \return A pointer to the NG message handler interface if it was found, nullptr otherwise.
-  virtual ngap_message_handler* get_ngap_message_handler(const plmn_identity& plmn) = 0;
+  virtual ngap_message_handler* get_ngap_message_handler(cu_cp_amf_index_t amf_index) = 0;
 
   /// \brief Get the state of the AMF connections.
   /// \return True if all AMFs are connected, false otherwise.

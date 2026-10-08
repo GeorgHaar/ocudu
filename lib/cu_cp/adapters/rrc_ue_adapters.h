@@ -14,7 +14,6 @@
 #include "ocudu/cu_cp/ue_task_scheduler.h"
 #include "ocudu/f1ap/cu_cp/f1ap_rrc_msg_transfer_handling.h"
 #include "ocudu/ngap/ngap.h"
-#include "ocudu/ran/plmn_identity.h"
 #include "ocudu/rrc/rrc_ue.h"
 
 namespace ocudu::ocucp {
@@ -175,10 +174,10 @@ public:
     return controller->request_ue_setup();
   }
 
-  bool on_ue_setup_complete_received(const plmn_identity& plmn) override
+  bool on_ue_setup_complete_received(const amf_selection_request& request) override
   {
-    ocudu_assert(controller != nullptr, "CU-CP controller must not be nullptr");
-    return cu_cp_rrc_ue_handler->handle_ue_plmn_selected(ue_index, plmn);
+    ocudu_assert(cu_cp_rrc_ue_handler != nullptr, "CU-CP handler must not be nullptr");
+    return cu_cp_rrc_ue_handler->handle_ue_setup_complete_received(ue_index, request);
   }
 
   rrc_ue_reestablishment_context_response on_rrc_reestablishment_request(pci_t old_pci, rnti_t old_c_rnti) override

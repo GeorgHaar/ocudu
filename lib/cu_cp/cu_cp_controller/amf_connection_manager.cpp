@@ -85,8 +85,6 @@ void amf_connection_manager::reconnect_to_amf(cu_cp_amf_index_t         amf_inde
         CORO_AWAIT(start_amf_reconnection(
             *ngaps.find_ngap(amf_index), timer_factory{timers, cu_cp_exec}, amf_reconnection_retry_time));
 
-        // Update PLMN lookups in NGAP repository after successful reconnection.
-        ngaps.update_plmn_lookup(amf_index);
         if (ue_mng != nullptr) {
           ue_mng->remove_blocked_plmns(ngaps.find_ngap(amf_index)->get_ngap_context().get_supported_plmns());
         }
@@ -145,12 +143,11 @@ void amf_connection_manager::stop()
 
 bool amf_connection_manager::is_amf_connected(plmn_identity plmn) const
 {
-  cu_cp_amf_index_t amf_index = plmn_to_amf_index(plmn);
-  if (amf_index == cu_cp_amf_index_t::invalid) {
-    return false;
-  }
-
-  return is_amf_connected(amf_index);
+  std::vector<amf_candidate> candidates = get_amf_candidates();
+  return std::any_of(candidates.begin(), candidates.end(), [&plmn](const amf_candidate& candidate) {
+    return candidate.connected and
+           std::find(candidate.plmns.begin(), candidate.plmns.end(), plmn) != candidate.plmns.end();
+  });
 }
 
 bool amf_connection_manager::is_amf_connected(cu_cp_amf_index_t amf_index) const
@@ -190,15 +187,31 @@ void amf_connection_manager::retry_unconnected_amfs(std::chrono::milliseconds re
   }
 }
 
-cu_cp_amf_index_t amf_connection_manager::plmn_to_amf_index(plmn_identity plmn) const
+std::vector<amf_candidate> amf_connection_manager::get_amf_candidates() const
 {
+  std::vector<amf_candidate> candidates;
   for (const auto& [amf_index, ngap] : ngaps.get_ngaps()) {
-    for (auto& supported_plmn : ngap->get_ngap_context().get_supported_plmns()) {
-      if (plmn == supported_plmn) {
-        return amf_index;
+    const ngap_context_t& context = ngap->get_ngap_context();
+
+    amf_candidate candidate;
+    candidate.amf_index             = amf_index;
+    candidate.connected             = is_amf_connected(amf_index);
+    candidate.served_guamis         = context.served_guami_list;
+    candidate.relative_amf_capacity = context.relative_amf_capacity;
+
+    // A PLMN is served through the AMF if the CU-CP configures it for the AMF and the AMF supports it (TS 38.413
+    // section 9.2.6.2, PLMN Support List).
+    for (const plmn_identity& plmn : context.get_supported_plmns()) {
+      bool supported_by_amf = std::any_of(context.plmn_support_list.begin(),
+                                          context.plmn_support_list.end(),
+                                          [&plmn](const ngap_plmn_support_item& item) { return item.plmn_id == plmn; });
+      if (supported_by_amf and
+          std::find(candidate.plmns.begin(), candidate.plmns.end(), plmn) == candidate.plmns.end()) {
+        candidate.plmns.push_back(plmn);
       }
     }
-  }
 
-  return cu_cp_amf_index_t::invalid;
+    candidates.push_back(std::move(candidate));
+  }
+  return candidates;
 }

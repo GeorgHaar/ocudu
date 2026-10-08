@@ -93,7 +93,12 @@ bool cu_cp_controller::request_ue_setup() const
   return true;
 }
 
-bool cu_cp_controller::is_supported_plmn(const plmn_identity& plmn) const
+std::optional<cu_cp_amf_index_t> cu_cp_controller::select_amf(const amf_selection_request& request)
 {
-  return amf_mng.is_amf_connected(plmn);
+  return ocucp::select_amf(amf_mng.get_amf_candidates(), request, amf_selection_rng);
+}
+
+std::optional<cu_cp_amf_index_t> cu_cp_controller::select_amf_for_guami(const guami_t& guami) const
+{
+  return ocucp::select_amf_for_guami(amf_mng.get_amf_candidates(), guami);
 }

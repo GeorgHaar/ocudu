@@ -404,6 +404,9 @@ public:
 private:
   class worker_manager;
 
+  /// Generates the NG Setup Response of an AMF, which supports every PLMN that the CU-CP configures for the AMF.
+  ngap_message generate_amf_ng_setup_response(unsigned amf_idx) const;
+
   cu_cp_test_env_params params;
   cu_cp_configuration   cu_cp_cfg;
 

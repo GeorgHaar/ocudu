@@ -293,6 +293,10 @@ void conditional_handover_reconfiguration_routine::generate_gap_request()
   if (!packed_meas.empty()) {
     ue_context_mod_request.cu_to_du_rrc_info.emplace();
     ue_context_mod_request.cu_to_du_rrc_info->meas_cfg = std::move(packed_meas);
+    // Add the ongoing location measurements of the UE, so that the DU keeps their measurement gaps.
+    if (std::optional<byte_buffer> location_meas_info = source_ue.get_rrc_ue()->get_packed_location_meas_info()) {
+      ue_context_mod_request.cu_to_du_rrc_info->ie_exts.emplace().location_meas_info = std::move(location_meas_info);
+    }
   }
 }
 

@@ -178,6 +178,10 @@ void pdu_session_resource_setup_routine::operator()(
     ue_context_mod_request.cu_to_du_rrc_info.value().meas_cfg = rrc_ue->get_packed_meas_config();
     ue_context_mod_request.gnb_du_ue_ambr_ul                  = setup_msg.ue_ambr.ul;
     ue_context_mod_request.serving_cell_mo                    = rrc_ue->get_serving_cell_mo();
+    // Add the ongoing location measurements of the UE, so that the DU keeps their measurement gaps.
+    if (std::optional<byte_buffer> location_meas_info = rrc_ue->get_packed_location_meas_info()) {
+      ue_context_mod_request.cu_to_du_rrc_info->ie_exts.emplace().location_meas_info = std::move(location_meas_info);
+    }
 
     // DRB setup have already added above.
     CORO_AWAIT_VALUE(ue_context_modification_response,

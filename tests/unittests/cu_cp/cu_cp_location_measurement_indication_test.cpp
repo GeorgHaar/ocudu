@@ -5,14 +5,18 @@
 
 #include "cu_cp_test_environment.h"
 #include "tests/ocudu_test_requirements.h"
+#include "tests/test_doubles/e1ap/e1ap_cu_cp_test_messages.h"
 #include "tests/test_doubles/f1ap/f1ap_test_message_validators.h"
 #include "tests/test_doubles/f1ap/f1ap_test_messages.h"
 #include "tests/test_doubles/rrc/rrc_test_messages.h"
 #include "tests/unittests/cu_cp/test_helpers.h"
+#include "tests/unittests/ngap/ngap_test_messages.h"
 #include "ocudu/asn1/f1ap/f1ap_pdu_contents_ue.h"
 #include "ocudu/asn1/rrc_nr/dl_dcch_msg.h"
 #include "ocudu/asn1/rrc_nr/ul_dcch_msg.h"
+#include "ocudu/e1ap/common/e1ap_message.h"
 #include "ocudu/f1ap/f1ap_message.h"
+#include "ocudu/ngap/ngap_message.h"
 #include <gtest/gtest.h>
 
 using namespace ocudu;
@@ -190,6 +194,22 @@ public:
         generate_rrc_reconfiguration_complete_pdu(transaction_id, ul_count++)));
   }
 
+  /// The UE starts the location measurements, and the DU configures a measurement gap for them.
+  [[nodiscard]] bool start_location_measurements()
+  {
+    send_location_measurement_indication(make_nr_prs_location_meas_info());
+    if (!await_ue_context_modification_request(/* with_location_meas_info */ true)) {
+      return false;
+    }
+    send_ue_context_modification_response(make_packed_meas_gap_cfg());
+    std::optional<asn1::rrc_nr::rrc_recfg_s> rrc_recfg = await_rrc_reconfiguration_with_meas_gap_cfg();
+    if (!rrc_recfg.has_value()) {
+      return false;
+    }
+    send_rrc_reconfiguration_complete(rrc_recfg->rrc_transaction_id);
+    return true;
+  }
+
   unsigned du_idx    = 0;
   unsigned cu_up_idx = 0;
 
@@ -239,13 +259,7 @@ TEST_F(cu_cp_location_measurement_indication_test,
 {
   OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-b");
 
-  // The UE starts the location measurements and gets the measurement gap.
-  send_location_measurement_indication(make_nr_prs_location_meas_info());
-  ASSERT_TRUE(await_ue_context_modification_request(/* with_location_meas_info */ true));
-  send_ue_context_modification_response(make_packed_meas_gap_cfg());
-  std::optional<asn1::rrc_nr::rrc_recfg_s> rrc_recfg = await_rrc_reconfiguration_with_meas_gap_cfg();
-  ASSERT_TRUE(rrc_recfg.has_value());
-  send_rrc_reconfiguration_complete(rrc_recfg->rrc_transaction_id);
+  ASSERT_TRUE(start_location_measurements());
 
   // The UE stops the location measurements. The DU receives the MeasConfig of the UE without the
   // LocationMeasurementInfo, and releases the measurement gap.
@@ -254,7 +268,7 @@ TEST_F(cu_cp_location_measurement_indication_test,
   send_ue_context_modification_response(make_packed_meas_gap_cfg(/* release */ true));
 
   // The CU-CP sends the release of the gap to the UE.
-  rrc_recfg = await_rrc_reconfiguration_with_meas_gap_cfg();
+  std::optional<asn1::rrc_nr::rrc_recfg_s> rrc_recfg = await_rrc_reconfiguration_with_meas_gap_cfg();
   ASSERT_TRUE(rrc_recfg.has_value());
   const asn1::rrc_nr::meas_gap_cfg_s& meas_gap_cfg = rrc_recfg->crit_exts.rrc_recfg().meas_cfg.meas_gap_cfg;
   ASSERT_TRUE(meas_gap_cfg.gap_fr2_present);
@@ -263,6 +277,49 @@ TEST_F(cu_cp_location_measurement_indication_test,
   send_rrc_reconfiguration_complete(rrc_recfg->rrc_transaction_id);
   ASSERT_FALSE(this->wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu, std::chrono::milliseconds{100}));
   EXPECT_NE(this->find_ue_context(du_idx, du_ue_id), nullptr);
+}
+
+TEST_F(cu_cp_location_measurement_indication_test,
+       when_pdu_session_is_set_up_during_location_measurements_then_du_receives_the_location_meas_info_again)
+{
+  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-b");
+
+  ASSERT_TRUE(start_location_measurements());
+
+  // The AMF sets up a second PDU session for the UE.
+  const pdu_session_id_t psi2 = uint_to_pdu_session_id(2);
+  const qos_flow_id_t    qfi2 = uint_to_qos_flow_id(2);
+  ASSERT_TRUE(send_pdu_session_resource_setup_request_and_await_bearer_context_modification_request(
+      generate_valid_pdu_session_resource_setup_request_message(
+          ue_ctx->amf_ue_id.value(), ue_ctx->ran_ue_id.value(), {{psi2, {pdu_session_type_t::ipv4, {{qfi2, 9}}}}}),
+      cu_up_idx));
+  get_cu_up(cu_up_idx).push_tx_pdu(
+      generate_bearer_context_modification_response(ue_ctx->cu_cp_e1ap_id.value(),
+                                                    ue_ctx->cu_up_e1ap_id.value(),
+                                                    {{psi2, {drb_test_params{drb_id_t::drb2, qfi2}}}},
+                                                    {}));
+
+  // The UE Context Modification Request for the new DRB keeps the location measurements of the UE.
+  ASSERT_TRUE(await_ue_context_modification_request(/* with_location_meas_info */ true));
+}
+
+TEST_F(cu_cp_location_measurement_indication_test,
+       when_pdu_session_is_modified_during_location_measurements_then_du_receives_the_location_meas_info_again)
+{
+  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-b");
+
+  ASSERT_TRUE(start_location_measurements());
+
+  // The AMF adds a QoS flow to the PDU session of the UE.
+  get_amf().push_tx_pdu(generate_valid_pdu_session_resource_modify_request_message(
+      ue_ctx->amf_ue_id.value(), ue_ctx->ran_ue_id.value(), psi, {uint_to_qos_flow_id(2)}, {}));
+  e1ap_message e1ap_pdu;
+  ASSERT_TRUE(this->wait_for_e1ap_tx_pdu(cu_up_idx, e1ap_pdu));
+  get_cu_up(cu_up_idx).push_tx_pdu(generate_bearer_context_modification_response(
+      ue_ctx->cu_cp_e1ap_id.value(), ue_ctx->cu_up_e1ap_id.value(), {}, {{psi, drb_id_t::drb2}}));
+
+  // The UE Context Modification Request for the new DRB keeps the location measurements of the UE.
+  ASSERT_TRUE(await_ue_context_modification_request(/* with_location_meas_info */ true));
 }
 
 TEST_F(cu_cp_location_measurement_indication_test,

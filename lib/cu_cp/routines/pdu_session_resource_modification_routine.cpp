@@ -115,6 +115,10 @@ void pdu_session_resource_modification_routine::operator()(
     ue_context_mod_request.ue_index = modify_request.ue_index;
     ue_context_mod_request.cu_to_du_rrc_info.emplace();
     ue_context_mod_request.cu_to_du_rrc_info->meas_cfg = rrc_ue->get_packed_meas_config();
+    // Add the ongoing location measurements of the UE, so that the DU keeps their measurement gaps.
+    if (std::optional<byte_buffer> location_meas_info = rrc_ue->get_packed_location_meas_info()) {
+      ue_context_mod_request.cu_to_du_rrc_info->ie_exts.emplace().location_meas_info = std::move(location_meas_info);
+    }
 
     CORO_AWAIT_VALUE(ue_context_modification_response,
                      f1ap_ue_ctxt_mng.handle_ue_context_modification_request(ue_context_mod_request));

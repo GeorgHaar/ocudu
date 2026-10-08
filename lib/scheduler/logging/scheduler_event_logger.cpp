@@ -104,9 +104,10 @@ void format_debug_level(FormatContext& ctx, const Event& ev)
     fmt::format_to(ctx.out(), "\n- Cell creation: idx={}", ev.cell_index);
   } else if constexpr (std::is_same_v<Event, sel::prach_event>) {
     fmt::format_to(ctx.out(),
-                   "\n- PRACH: slot={} preamble={} {}={} temp_crnti={} ta_cmd={}",
+                   "\n- PRACH: slot={} preamble={} ssb={} {}={} temp_crnti={} ta_cmd={}",
                    ev.slot_rx,
                    ev.preamble_id,
+                   ev.ssb_index,
                    ev.is_msga ? "msgb-rnti" : "ra-rnti",
                    ev.ra_rnti,
                    ev.tc_rnti,

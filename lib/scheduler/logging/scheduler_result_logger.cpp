@@ -582,6 +582,7 @@ static auto make_ue_dl_msg_debug_log_entry(const dl_msg_alloc& ue_grant)
   return make_formattable([ue_idx     = ue_grant.context.ue_index,
                            rnti       = ue_grant.pdsch_cfg.rnti,
                            h_id       = ue_grant.pdsch_cfg.harq_id,
+                           ss_id      = ue_grant.context.ss_id,
                            rb         = ue_grant.pdsch_cfg.rbs,
                            symbols    = ue_grant.pdsch_cfg.symbols,
                            tbs        = ue_grant.pdsch_cfg.codewords[0].tb_size_bytes,
@@ -606,18 +607,20 @@ static auto make_ue_dl_msg_debug_log_entry(const dl_msg_alloc& ue_grant)
                            lc_grants_cw1  = ue_grant.tb_list.size() > 1
                                                 ? ue_grant.tb_list[1].lc_chs_to_sched
                                                 : static_vector<dl_msg_lc_info, MAX_LC_PER_TB>{}](auto& ctx) {
-    fmt::format_to(ctx.out(),
-                   "\n- UE PDSCH: ue={} c-rnti={} h_id={} rb={} symb={} cw[0]: tbs={} mcs={} rv={} nrtx={} k1={}",
-                   ue_idx,
-                   rnti,
-                   h_id,
-                   rb,
-                   symbols,
-                   tbs,
-                   mcs,
-                   rv,
-                   nof_retxs,
-                   k1);
+    fmt::format_to(
+        ctx.out(),
+        "\n- UE PDSCH: ue={} c-rnti={} h_id={} ss_id={} rb={} symb={} cw[0]: tbs={} mcs={} rv={} nrtx={} k1={}",
+        ue_idx,
+        rnti,
+        h_id,
+        fmt::underlying(ss_id),
+        rb,
+        symbols,
+        tbs,
+        mcs,
+        rv,
+        nof_retxs,
+        k1);
     if (has_cw1) {
       fmt::format_to(ctx.out(), " cw[1]: tbs={} mcs={} rv={}", tbs_cw1, mcs_cw1, rv_cw1);
     }
@@ -680,19 +683,21 @@ static auto make_paging_debug_log_entry(const dl_paging_allocation& pg)
 static auto make_pusch_debug_log_entry(const ul_sched_info& ul_info)
 {
   return make_formattable([ul_info](auto& ctx) {
-    fmt::format_to(ctx.out(),
-                   "\n- UE PUSCH: ue={} {}c-rnti={} h_id={} rb={} symb={} tbs={} rv={} nrtx={} nof_layers={} cg={}",
-                   ul_info.context.ue_index,
-                   ul_info.context.ue_index == INVALID_DU_UE_INDEX ? "t" : "",
-                   ul_info.pusch_cfg.rnti,
-                   ul_info.pusch_cfg.harq_id,
-                   ul_info.pusch_cfg.rbs,
-                   ul_info.pusch_cfg.symbols,
-                   ul_info.pusch_cfg.tb_size_bytes,
-                   ul_info.pusch_cfg.rv_index,
-                   ul_info.context.nof_retxs,
-                   ul_info.pusch_cfg.nof_layers,
-                   ul_info.pusch_cfg.is_cg ? "Yes" : "No");
+    fmt::format_to(
+        ctx.out(),
+        "\n- UE PUSCH: ue={} {}c-rnti={} h_id={} ss_id={} rb={} symb={} tbs={} rv={} nrtx={} nof_layers={} cg={}",
+        ul_info.context.ue_index,
+        ul_info.context.ue_index == INVALID_DU_UE_INDEX ? "t" : "",
+        ul_info.pusch_cfg.rnti,
+        ul_info.pusch_cfg.harq_id,
+        fmt::underlying(ul_info.context.ss_id),
+        ul_info.pusch_cfg.rbs,
+        ul_info.pusch_cfg.symbols,
+        ul_info.pusch_cfg.tb_size_bytes,
+        ul_info.pusch_cfg.rv_index,
+        ul_info.context.nof_retxs,
+        ul_info.pusch_cfg.nof_layers,
+        ul_info.pusch_cfg.is_cg ? "Yes" : "No");
     if (ul_info.context.olla_offset.has_value()) {
       fmt::format_to(ctx.out(), " olla={:.3}", ul_info.context.olla_offset.value());
     }

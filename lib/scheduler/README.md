@@ -11,11 +11,14 @@ scheduler_impl
 ├── sched_config_manager          # Validates and distributes cell/UE config
 ├── cell_scheduler  [per cell]    # All resources specific to one cell
 │   ├── cell_metrics_handler      # Per-slot metric aggregation for this cell
-│   ├── cell_resource_allocator   # Circular-buffer resource grid (16 slots)
+│   ├── cell_resource_allocator   # Circular-buffer resource grid
+│   ├── cell_event_tracer         # schedtrace hook of the cell results
 │   ├── ssb_scheduler             # SSB bursts
 │   ├── pdcch_resource_allocator  # PDCCH/DCI allocation
 │   ├── si_scheduler              # SIB1 and SI messages
 │   ├── csi_rs_scheduler          # CSI-RS
+│   ├── prs_scheduler             # DL-PRS
+│   ├── ra_ue_repository          # UEs of the RA procedures of the cell
 │   ├── ra_scheduler              # Random access response (RAR)
 │   ├── prach_scheduler           # PRACH occasions
 │   ├── pucch_allocator           # PUCCH resources (HARQ-ACK, SR, CSI)
@@ -28,19 +31,26 @@ scheduler_impl
 │   ├── ue_cell_repository        # UE contexts of this cell (ue_cell objects)
 │   ├── cell_event_manager        # Queues and dispatches every event of the cell
 │   └── ue_cell_scheduler         # UE grants for this cell (via ue_scheduler)
-└── ue_scheduler  [per cell group]  # Shared UE state across a CA group
-    ├── ue_repository               # UE contexts of the cell group (ue objects)
-    ├── cell_group_event_manager    # Owns one event handler per cell of the group
-    ├── ue_fallback_scheduler       # SRB0 / contention-resolution grants
-    ├── inter_slice_scheduler       # Prioritizes slices for each slot
-    └── intra_slice_scheduler       # PDSCH/PUSCH allocation within a slice
-        ├── grant_params_selector   # MCS, PRBs, HARQ selection
-        └── ue_cell_grid_allocator  # Writes grants into the resource grid
+└── ue_scheduler  [per cell group]        # Shared UE state across a CA group
+    ├── ue_repository                     # UE contexts of the cell group (ue objects)
+    ├── cell_group_event_manager          # Creates the event handler of each cell of the group
+    └── cell_context  [per cell]          # Implements ue_cell_scheduler
+        ├── cell_group_event_handler      # Applies the events of the cell to the cell group
+        ├── configured_grant_scheduler    # Configured grant PUSCH opportunities
+        ├── ue_fallback_scheduler         # SRB0 / contention-resolution grants
+        ├── inter_slice_scheduler         # Prioritizes slices for each slot
+        ├── intra_slice_scheduler         # PDSCH/PUSCH allocation within a slice
+        │   ├── pdcch_cce_budget_tracker  # PDCCH CCE budget of the slot
+        │   └── ue_cell_grid_allocator    # Writes grants into the resource grid (uses sched_helper)
+        └── triggered_ul_grant_scheduler  # UL grants triggered by DL grants
 ```
 
 A `ue_scheduler` is shared across all cells in a cell group (Carrier Aggregation), and holds the state that spans a UE's
 carriers. Each `cell_scheduler` holds a `ue_cell_scheduler` handle, which is an RAII view into the shared
-`ue_scheduler`.
+`ue_scheduler`. The handle is a `cell_context`, which holds the UE schedulers of that cell.
+
+`sched_helper` (`ue_scheduling/grant_params_selector.h`) is a set of free functions, not a component. They select the
+MCS, the PRBs and the HARQ of a grant.
 
 The `uci_scheduler` and the `srs_scheduler` run after the schedulers of the common channels and before the UE scheduling
 step, as they have to reserve their periodic opportunities before any UE grant of the slot.
@@ -50,28 +60,37 @@ step, as they have to reserve their periodic opportunities before any UE grant o
 `scheduler_impl::slot_indication(sl_tx, cell_index)` is the entry point. It calls `cell_scheduler::run_slot()`, which
 executes in this order:
 
-1. **Reset resource grid** — clear stale allocations for this slot.
-2. **Events** — process everything that arrived since the last slot (`cell_event_manager`).
-3. **SSB** — schedule Synchronization Signal Blocks.
-4. **CSI-RS** — schedule CSI-RS if due.
-5. **SI** — schedule SIB1 and SI-message windows.
-6. **PRACH** — schedule PRACH occasions.
-7. **RA** — schedule random access (RA) grants (e.g. RAR and Msg3) for detected RACH preambles.
-8. **Paging** — schedule paging PDCCH and PDSCH.
-9. **Periodic UCI** — schedule the SR and CSI PUCCH opportunities (`uci_scheduler`).
-10. **Periodic SRS** — schedule the periodic and aperiodic SRS (`srs_scheduler`).
-11. **UE scheduling** (`ue_cell_scheduler::run_slot`):
-12. Advance UE state machines (DRX, timing advance, HARQ timers).
-13. Schedule configured grant PUSCH opportunities, if configured.
-14. Schedule SRB0 / fallback grants (`ue_fallback_scheduler`).
-15. Prioritize slices for this slot (`inter_slice_scheduler::slot_indication`).
-16. For each slice in priority order:
-    - Schedule PDSCH retransmissions, then new transmissions.
-    - Schedule PUSCH retransmissions, then new transmissions.
-17. Post-process allocations (finalize PUCCH/UCI state).
-18. Inject synthetic BSRs for the UEs that need a triggered UL grant.
-19. **UCI indications** — match the UCI grants of the finished slot to their indications (`uci_indication_selector`).
-20. **Logging and metrics** — flush the event log, the result log and the slot metrics.
+1. **Skipped slots** — for each slot skipped since the last call, reset the resource grid and count the slot in the
+   metrics.
+2. **Reset resource grid** — clear stale allocations for this slot, and reset the PDCCH, PUCCH, UCI and SRS allocators.
+3. **Events** — process everything that arrived since the last slot (`cell_event_manager`).
+4. **SSB** — schedule Synchronization Signal Blocks.
+5. **CSI-RS** — schedule CSI-RS if due.
+6. **DL-PRS** — schedule the DL-PRS (`prs_scheduler`).
+7. **SI** — schedule SIB1 and SI-message windows.
+8. **PRACH** — schedule PRACH occasions.
+9. **RA** — schedule random access (RA) grants (e.g. RAR and Msg3) for detected RACH preambles.
+10. **Paging** — schedule paging PDCCH and PDSCH.
+11. **Periodic UCI** — schedule the SR and CSI PUCCH opportunities (`uci_scheduler`).
+12. **Periodic SRS** — schedule the periodic and aperiodic SRS (`srs_scheduler`).
+13. **UE scheduling** (`ue_cell_scheduler::run_slot`) — see below.
+14. **UCI indications** — match the UCI grants of the finished slot to their indications (`uci_indication_selector`).
+15. **Logging and metrics** — flush the event log, the result log, the schedtrace hook and the slot metrics.
+
+The UE scheduling runs one time per slot for the full cell group. The first cell of the group that reaches step 13 runs
+it for all the cells of the group, and the other cells skip it. With more than one cell in the group, `cell_group_mutex`
+protects it. The UE scheduling does these steps:
+
+1. Advance UE state machines (DRX, timing advance, HARQ timers).
+2. For each cell of the group:
+   1. Schedule configured grant PUSCH opportunities, if configured.
+   2. Schedule SRB0 / fallback grants (`ue_fallback_scheduler`).
+   3. Prioritize slices for this slot (`inter_slice_scheduler::slot_indication`).
+   4. Inject synthetic BSRs for the UEs that need a triggered UL grant in this slot (`triggered_ul_grant_scheduler`).
+   5. Schedule the PDSCH of all the DL slice candidates in priority order, then the PUSCH of all the UL slice candidates
+      in priority order. DL goes first, so that DCI format 0_1 gets the correct DAI value.
+   6. Post-process allocations (finalize PUCCH/UCI state).
+   7. Record the UEs that need a triggered UL grant, from the final DL grants of the slot.
 
 ## Event Handling
 
@@ -92,17 +111,18 @@ power headroom reports, MAC CEs, paging and SI requests, positioning requests, U
 `cell_group_event_handler` (`cell_group_event_handler.h`) groups the two interfaces that the cell calls:
 `cell_group_ue_config_handler` for the UE configuration requests, and `cell_group_ue_indication_handler` for the UE
 indications and for the outcomes that a cell derives for one of its UEs while processing its own events.
-`cell_group_event_manager` owns one implementation of it per cell of the group. The cell scheduler creates its
-`ue_cell_scheduler` handle before its `cell_event_manager`, so the handler already exists when the manager is given the
-reference.
+`cell_group_event_manager` creates one implementation of it per cell of the group, and the `cell_context` of that cell
+owns it. The cell scheduler creates its `ue_cell_scheduler` handle before its `cell_event_manager`, so the handler
+already exists when the manager is given the reference.
 
 The cell also aggregates the DL buffer occupancy updates that it receives for a bearer since the last slot, and relays
 only the resulting update.
 
 ## Resource Grid
 
-`cell_resource_allocator` is a circular ring buffer over `cell_slot_resource_allocator` entries — one per slot. Each
-entry contains:
+`cell_resource_allocator` is a circular ring buffer over `cell_slot_resource_allocator` entries — one per slot. The ring
+keeps 16 past slots (`RING_MAX_HISTORY_SIZE`) plus the maximum UL allocation delay, which includes the NTN k_offset.
+Each entry contains:
 
 - `sched_result` — the scheduling decisions (PDCCHs, PDSCHs, PUSCHs, etc.)
 - A DL and UL `carrier_subslot_resource_grid` per SCS — a Symbol × CRB bitmap used for collision detection and
@@ -118,8 +138,15 @@ The scheduler supports multiple RAN slices, each configured with a `slice_rrm_po
 S-NSSAI). Two scheduling layers handle slicing:
 
 **Inter-slice scheduler** (`slicing/inter_slice_scheduler.h`) — runs once per slot and produces a priority-ordered queue
-of `ran_slice_candidate` objects for DL and UL. Priority is computed from slice SLA parameters, recent utilization, and
-RB limits.
+of `ran_slice_candidate` objects for DL and UL. The priority uses these values, from the most significant to the least
+significant:
+
+1. The distance from the PDCCH slot to the PDSCH/PUSCH slot. A shorter distance has a higher priority, so that the
+   grants of a UE stay in order.
+2. Whether the slice has not reached its minimum RBs yet.
+3. The configured priority of the slice.
+4. The number of slots since the last allocation to the slice.
+5. A round-robin value.
 
 **Intra-slice scheduler** (`ue_scheduling/intra_slice_scheduler.h`) — consumes one slice candidate at a time and
 allocates PDSCH/PUSCH grants for UEs in that slice. Within a slice, UE ordering is determined by the slice's
@@ -133,7 +160,10 @@ allocates PDSCH/PUSCH grants for UEs in that slice. Within a slice, UE ordering 
 - `save_dl_newtx_grants()` / `save_ul_newtx_grants()` — called after allocation to update internal state.
 - `add_ue()` / `rem_ue()` — track UE membership.
 
-Available implementations (in `policy/`) include Round-Robin with QoS weighting and time-domain fair scheduling.
+The implementations are in `policy/`:
+
+- `scheduler_time_rr` — round-robin.
+- `scheduler_time_qos` — QoS-aware proportional fair.
 
 ## UE Context
 
@@ -150,7 +180,8 @@ UE state is split into two levels:
 - Active BWP configuration and HARQ entities.
 - Channel state manager (CQI, RI, PMI from UCI indications).
 - Link adaptation controller (translates CQI/SINR to MCS).
-- Fallback mode flag (set on repeated HARQ failures; cleared by MAC).
+- Fallback mode (`is_in_fallback_mode()`), only for the PCell. It comes from the RRC configuration state and the
+  contention resolution state of the PCell.
 
 The `ue` objects live in the `ue_repository` of the cell group; the `ue_cell` objects live in the `ue_cell_repository`
 of the cell that owns them, which the cell scheduler owns.
@@ -164,8 +195,14 @@ of the cell that owns them, which the cell scheduler owns.
 - **UE config** — validates `sched_ue_creation_request_message` / `sched_ue_reconfiguration_message`, builds a
   thread-safe config snapshot, and emits a `ue_config_update_event` that the UE PCell queues like any other event.
 
-Configuration changes are never applied mid-slot; they are queued as events and applied at the start of the next
+UE configuration changes are never applied mid-slot; they are queued as events and applied at the start of the next
 `run_slot()` call, in their arrival order relative to the indications of the same UE.
+
+Two cell configuration changes are different. `sched_config_manager` writes them to `cell_configuration` directly, in
+the thread of the caller:
+
+- The slice RB limits (`update_cell`). The inter-slice scheduler also gets the change as a cell event.
+- The NTN UL timing advance (`update_ntn_ul_ta`).
 
 A long refactor changes the cell and UE configuration structures step by step. See
 [config_refactor.md](config_refactor.md) for the rules that new configuration code follows.
@@ -186,14 +223,17 @@ lib/scheduler/
 ├── cell/                       # Resource grid, HARQ entities, PRB tracking
 ├── common_scheduling/          # SSB, SI, CSI-RS, RA, PRACH, paging schedulers
 ├── config/                     # Cell/UE configuration management and validation
-├── logging/                    # Event logger, result logger, metrics handler ([log_reference.md](log_reference.md))
+├── configured_grant/           # Configured grant PUSCH scheduler
+├── logging/                    # Event logger, result logger, metrics handler, schedtrace hook ([log_reference.md](log_reference.md))
 ├── pdcch_scheduling/           # PDCCH/DCI allocation
 ├── policy/                     # Scheduling policy interface and implementations
 ├── pucch_scheduling/           # PUCCH resource allocation
-├── slicing/                    # RAN slice instances and inter-slice scheduler
-├── srs/                        # SRS resource allocation
+├── rrm/                        # PUCCH, SRS and configured grant resource managers
+├── slicing/                    # RAN slice instances, slice UE repository and inter-slice scheduler
+├── srs/                        # SRS resource allocation and periodic SRS scheduler
 ├── support/                    # MCS tables, BWP helpers, DMRS, power control
-├── uci_scheduling/             # UCI allocation (PUCCH and PUSCH mux)
+├── trace/                      # schedtrace event tracing and conversion
+├── uci_scheduling/             # UCI allocation (PUCCH and PUSCH mux), periodic UCI scheduler, UCI indication selector
 ├── ue_context/                 # UE and UE-cell state objects
 └── ue_scheduling/              # UE grant scheduler, fallback, intra-slice allocator
 ```

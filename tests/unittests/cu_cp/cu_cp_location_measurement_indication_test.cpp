@@ -14,6 +14,7 @@
 #include "ocudu/asn1/f1ap/f1ap_pdu_contents_ue.h"
 #include "ocudu/asn1/rrc_nr/dl_dcch_msg.h"
 #include "ocudu/asn1/rrc_nr/ul_dcch_msg.h"
+#include "ocudu/cu_cp/cu_cp_command_handler.h"
 #include "ocudu/e1ap/common/e1ap_message.h"
 #include "ocudu/f1ap/f1ap_message.h"
 #include "ocudu/ngap/ngap_message.h"
@@ -320,6 +321,29 @@ TEST_F(cu_cp_location_measurement_indication_test,
 
   // The UE Context Modification Request for the new DRB keeps the location measurements of the UE.
   ASSERT_TRUE(await_ue_context_modification_request(/* with_location_meas_info */ true));
+}
+
+TEST_F(cu_cp_location_measurement_indication_test,
+       when_ue_hands_over_during_location_measurements_then_target_du_receives_the_location_meas_info)
+{
+  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-b");
+
+  ASSERT_TRUE(start_location_measurements());
+
+  // The CU-CP hands the UE over to a new UE context on the same cell.
+  get_cu_cp().get_command_handler().get_mobility_command_handler().trigger_handover(
+      pci_t{0}, crnti, pci_t{0}, plmn_identity::test_value(), 7);
+
+  // The UE Context Setup Request for the target UE context carries the location measurements of the UE.
+  ASSERT_TRUE(this->wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu));
+  ASSERT_TRUE(test_helpers::is_valid_ue_context_setup_request(f1ap_pdu));
+  const auto& req = f1ap_pdu.pdu.init_msg().value.ue_context_setup_request();
+  ASSERT_TRUE(req->cu_to_du_rrc_info.ie_exts_present);
+  ASSERT_TRUE(req->cu_to_du_rrc_info.ie_exts.location_meas_info_present);
+  byte_buffer   expected_info;
+  asn1::bit_ref bref{expected_info};
+  ASSERT_EQ(make_nr_prs_location_meas_info().pack(bref), asn1::OCUDUASN_SUCCESS);
+  EXPECT_EQ(req->cu_to_du_rrc_info.ie_exts.location_meas_info, expected_info);
 }
 
 TEST_F(cu_cp_location_measurement_indication_test,

@@ -283,6 +283,10 @@ bool intra_cu_handover_routine::generate_ue_context_setup_request(f1ap_ue_contex
   }
   setup_request.cu_to_du_rrc_info.ie_exts.value().ho_prep_info = std::move(buffer_copy.value());
   setup_request.cu_to_du_rrc_info.ue_cap_rat_container_list    = transfer_context.ue_cap_rat_container_list.copy();
+  // Add the ongoing location measurements of the UE, so that the target DU configures their measurement gaps.
+  if (transfer_context.location_meas_info.has_value()) {
+    setup_request.cu_to_du_rrc_info.ie_exts.value().location_meas_info = transfer_context.location_meas_info->copy();
+  }
 
   if (is_cho) {
     setup_request.conditional_inter_du_mobility_info.emplace();

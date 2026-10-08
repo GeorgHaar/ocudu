@@ -21,6 +21,8 @@ struct rrc_ue_transfer_context {
   byte_buffer                           handover_preparation_info;
   byte_buffer                           ue_cap_rat_container_list;
   bool                                  is_inter_cu_handover = false;
+  /// Packed LocationMeasurementInfo of the ongoing location measurements of the UE (TS 38.331 section 5.5.6).
+  std::optional<byte_buffer> location_meas_info;
 };
 
 } // namespace ocudu::ocucp

@@ -91,7 +91,8 @@ protected:
   {
   }
 
-  void init(const rrc_ue_test_cell_params& cell_params = {})
+  void init(const rrc_ue_test_cell_params&         cell_params      = {},
+            std::optional<rrc_ue_transfer_context> transfer_context = std::nullopt)
   {
     // Add UE to UE manager.
     allocated_ue_index = ue_mng.add_ue(cu_cp_du_index_t::min);
@@ -144,7 +145,7 @@ protected:
                                            rrc_ue_create_msg.cell,
                                            rrc_ue_cfg,
                                            std::move(rrc_ue_create_msg.du_to_cu_container),
-                                           std::optional<rrc_ue_transfer_context>{});
+                                           std::move(transfer_context));
 
     ASSERT_NE(rrc_ue, nullptr);
     // Wire PDCP UL delivery path to RRC (no-op release callback for tests).

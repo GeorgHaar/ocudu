@@ -52,6 +52,11 @@ rrc_ue_context_t::rrc_ue_context_t(const cu_cp_ue_index_t                 ue_ind
 
       // Measurement config (will be updated during Reconfiguration).
       meas_cfg = transfer_context.value().meas_cfg;
+
+      // Ongoing location measurements of the UE.
+      if (transfer_context.value().location_meas_info.has_value()) {
+        location_meas_info = transfer_context.value().location_meas_info->copy();
+      }
     }
   }
 }

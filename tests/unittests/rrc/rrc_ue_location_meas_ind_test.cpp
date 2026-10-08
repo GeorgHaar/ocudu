@@ -6,6 +6,7 @@
 #include "rrc_ue_test_helpers.h"
 #include "tests/ocudu_test_requirements.h"
 #include "ocudu/asn1/rrc_nr/ul_dcch_msg.h"
+#include "ocudu/support/async/async_test_utils.h"
 #include <gtest/gtest.h>
 
 using namespace ocudu;
@@ -114,4 +115,31 @@ TEST_F(rrc_ue_location_meas_ind, when_location_meas_ind_is_not_integrity_protect
   EXPECT_EQ(rrc_ue_cu_cp_notifier.nof_location_meas_indications, 0);
   EXPECT_FALSE(rrc_ue->get_packed_location_meas_info().has_value());
   EXPECT_NE(rrc_ue_cu_cp_notifier.last_cu_cp_ue_context_release_request.ue_index, cu_cp_ue_index_t::invalid);
+}
+
+TEST_F(rrc_ue_location_meas_ind, when_ue_moves_to_another_rrc_ue_then_ongoing_location_measurements_move_with_it)
+{
+  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-b");
+
+  // The transfer context needs the UE capabilities for the HandoverPreparationInformation.
+  enable_security();
+  rrc_ue_capability_transfer_request cap_request;
+  async_task<bool> t = get_rrc_ue_control_message_handler()->handle_rrc_ue_capability_transfer_request(cap_request);
+  lazy_task_launcher<bool> t_launcher(t);
+  receive_ue_capability_information(2);
+  ASSERT_TRUE(t.ready());
+
+  receive_location_meas_ind(make_nr_prs_location_meas_info());
+
+  // The source RRC UE puts the LocationMeasurementInfo into the transfer context.
+  rrc_ue_transfer_context transfer_context = rrc_ue->get_transfer_context();
+  ASSERT_TRUE(transfer_context.location_meas_info.has_value());
+  EXPECT_EQ(transfer_context.location_meas_info.value(), make_packed_nr_prs_location_meas_info());
+
+  // The target RRC UE starts with the ongoing location measurements of the UE.
+  rrc_ue.reset();
+  init({}, std::move(transfer_context));
+  std::optional<byte_buffer> stored_info = rrc_ue->get_packed_location_meas_info();
+  ASSERT_TRUE(stored_info.has_value());
+  EXPECT_EQ(stored_info.value(), make_packed_nr_prs_location_meas_info());
 }

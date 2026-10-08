@@ -12,6 +12,9 @@
 #include "ocudu/ran/cause/xnap_cause.h"
 #include "ocudu/xnap/xnap_configuration.h"
 #include "ocudu/xnap/xnap_message.h"
+#include <algorithm>
+#include <utility>
+#include <vector>
 
 namespace ocudu::ocucp {
 
@@ -33,6 +36,78 @@ inline void fill_asn1_list_of_served_cells_nr(T& asn1_ies, span<const cu_cp_serv
   }
 }
 
+/// \brief Merges tracking areas with the same TAC, and PLMNs with the same PLMN identity within a tracking area.
+///
+/// The CU-CP configures the tracking areas for each AMF. Two AMFs can have the same TAC for different PLMNs, or the
+/// same TAI.
+inline std::vector<supported_tracking_area> merge_tai_support_list(span<const supported_tracking_area> tai_support_list)
+{
+  std::vector<supported_tracking_area> merged;
+  for (const auto& ta : tai_support_list) {
+    auto it = std::find_if(
+        merged.begin(), merged.end(), [&ta](const supported_tracking_area& item) { return item.tac == ta.tac; });
+    supported_tracking_area* merged_ta = nullptr;
+    if (it != merged.end()) {
+      merged_ta = &*it;
+    } else {
+      merged.push_back(supported_tracking_area{ta.tac, {}, ta.satellite_rat});
+      merged_ta = &merged.back();
+    }
+
+    for (const auto& plmn : ta.plmn_list) {
+      auto merged_plmn = std::find_if(merged_ta->plmn_list.begin(),
+                                      merged_ta->plmn_list.end(),
+                                      [&plmn](const plmn_item& item) { return item.plmn_id == plmn.plmn_id; });
+      if (merged_plmn == merged_ta->plmn_list.end()) {
+        merged_ta->plmn_list.push_back(plmn);
+        continue;
+      }
+      for (const auto& slice : plmn.slice_support_list) {
+        if (std::find(merged_plmn->slice_support_list.begin(), merged_plmn->slice_support_list.end(), slice) ==
+            merged_plmn->slice_support_list.end()) {
+          merged_plmn->slice_support_list.push_back(slice);
+        }
+      }
+    }
+  }
+  return merged;
+}
+
+/// \brief Fill the TAI Support List in an XN Setup Request/Response.
+/// \param[out] asn1_ies The IEs of the XN Setup Request/Response to fill.
+/// \param[in] tai_support_list The tracking areas of all AMFs.
+template <typename T>
+inline void fill_asn1_tai_support_list(T& asn1_ies, span<const supported_tracking_area> tai_support_list)
+{
+  for (const auto& tai_support_item : merge_tai_support_list(tai_support_list)) {
+    asn1::xnap::tai_support_item_s asn1_tai_support_item;
+
+    // Fill TAC.
+    asn1_tai_support_item.tac.from_number(tai_support_item.tac);
+
+    // Fill broadcast PLMN list.
+    for (const auto& plmn_item : tai_support_item.plmn_list) {
+      asn1::xnap::broadcast_plmn_in_tai_support_item_s asn1_broadcast_plmn;
+
+      // Fill PLMN id.
+      asn1_broadcast_plmn.plmn_id.from_number(plmn_item.plmn_id.to_bcd());
+
+      // Fill TAI slice support list.
+      for (const auto& snssai_item : plmn_item.slice_support_list) {
+        asn1::xnap::s_nssai_s asn1_tai_slice;
+        asn1_tai_slice.sst.from_number(snssai_item.sst.value());
+        if (snssai_item.sd.is_set()) {
+          asn1_tai_slice.sd_present = true;
+          asn1_tai_slice.sd.from_number(snssai_item.sd.value());
+        }
+        asn1_broadcast_plmn.tai_slice_support_list.push_back(asn1_tai_slice);
+      }
+      asn1_tai_support_item.broadcast_plmns.push_back(asn1_broadcast_plmn);
+    }
+    asn1_ies->tai_support_list.push_back(asn1_tai_support_item);
+  }
+}
+
 inline xnap_message generate_asn1_xn_setup_request(const xnap_configuration&          xnap_cfg,
                                                    span<const cu_cp_served_cell_info> served_cells)
 {
@@ -49,41 +124,18 @@ inline xnap_message generate_asn1_xn_setup_request(const xnap_configuration&    
   global_gnb.plmn_id = xnap_cfg.tai_support_list.front().plmn_list.front().plmn_id.to_bytes();
 
   // Fill TAI support list.
-  asn1_ies->tai_support_list.resize(xnap_cfg.tai_support_list.size());
-  for (unsigned i = 0; i < xnap_cfg.tai_support_list.size(); i++) {
-    const auto& tai_support_item      = xnap_cfg.tai_support_list[i];
-    auto&       asn1_tai_support_item = asn1_ies->tai_support_list[i];
-
-    // Fill TAC.
-    asn1_tai_support_item.tac.from_number(tai_support_item.tac);
-
-    // Fill broadcast PLMN list.
-    asn1_tai_support_item.broadcast_plmns.resize(tai_support_item.plmn_list.size());
-    for (unsigned j = 0; j < tai_support_item.plmn_list.size(); j++) {
-      const auto& plmn_item           = tai_support_item.plmn_list[j];
-      auto&       asn1_broadcast_plmn = asn1_tai_support_item.broadcast_plmns[j];
-
-      // Fill PLMN id.
-      asn1_broadcast_plmn.plmn_id.from_number(plmn_item.plmn_id.to_bcd());
-
-      // Fill TAI slice support list.
-      asn1_broadcast_plmn.tai_slice_support_list.resize(plmn_item.slice_support_list.size());
-      for (unsigned k = 0; k < plmn_item.slice_support_list.size(); k++) {
-        // Fill S-NSSAI.
-        const auto& snssai_item    = plmn_item.slice_support_list[k];
-        auto&       asn1_tai_slice = asn1_broadcast_plmn.tai_slice_support_list[k];
-        asn1_tai_slice.sst.from_number(snssai_item.sst.value());
-
-        if (snssai_item.sd.is_set()) {
-          asn1_tai_slice.sd_present = true;
-          asn1_tai_slice.sd.from_number(snssai_item.sd.value());
-        }
-      }
-    }
-  }
+  fill_asn1_tai_support_list(asn1_ies, xnap_cfg.tai_support_list);
 
   // Fill AMF region information.
+  // Several GUAMIs, of one AMF or of several AMFs, can share an AMF Region.
+  std::vector<std::pair<plmn_identity, uint8_t>> amf_regions;
   for (const auto& guami : xnap_cfg.guami_list) {
+    std::pair<plmn_identity, uint8_t> amf_region{guami.plmn, guami.amf_region_id};
+    if (std::find(amf_regions.begin(), amf_regions.end(), amf_region) != amf_regions.end()) {
+      continue;
+    }
+    amf_regions.push_back(amf_region);
+
     asn1::xnap::global_amf_region_info_s amf_region_info;
     amf_region_info.plmn_id = guami.plmn.to_bytes();
     amf_region_info.amf_region_id.from_number(guami.amf_region_id);
@@ -112,37 +164,8 @@ inline xnap_message generate_asn1_xn_setup_response(const xnap_configuration&   
   global_gnb.gnb_id.gnb_id().from_number(xnap_cfg.gnb_id.id, xnap_cfg.gnb_id.bit_length);
   global_gnb.plmn_id = xnap_cfg.tai_support_list.front().plmn_list.front().plmn_id.to_bytes();
 
-  asn1_ies->tai_support_list.resize(xnap_cfg.tai_support_list.size());
-  for (unsigned i = 0; i < xnap_cfg.tai_support_list.size(); i++) {
-    const auto& tai_support_item      = xnap_cfg.tai_support_list[i];
-    auto&       asn1_tai_support_item = asn1_ies->tai_support_list[i];
-    // Fill TAC.
-    asn1_tai_support_item.tac.from_number(tai_support_item.tac);
-
-    // Fill broadcast PLMN list.
-    asn1_tai_support_item.broadcast_plmns.resize(tai_support_item.plmn_list.size());
-    for (unsigned j = 0; j < tai_support_item.plmn_list.size(); j++) {
-      const auto& plmn_item           = tai_support_item.plmn_list[j];
-      auto&       asn1_broadcast_plmn = asn1_tai_support_item.broadcast_plmns[j];
-
-      // Fill PLMN id.
-      asn1_broadcast_plmn.plmn_id.from_number(plmn_item.plmn_id.to_bcd());
-
-      // Fill TAI slice support list.
-      asn1_broadcast_plmn.tai_slice_support_list.resize(plmn_item.slice_support_list.size());
-      for (unsigned k = 0; k < plmn_item.slice_support_list.size(); k++) {
-        // Fill S-NSSAI.
-        const auto& snssai_item    = plmn_item.slice_support_list[k];
-        auto&       asn1_tai_slice = asn1_broadcast_plmn.tai_slice_support_list[k];
-        asn1_tai_slice.sst.from_number(snssai_item.sst.value());
-
-        if (snssai_item.sd.is_set()) {
-          asn1_tai_slice.sd_present = true;
-          asn1_tai_slice.sd.from_number(snssai_item.sd.value());
-        }
-      }
-    }
-  }
+  // Fill TAI support list.
+  fill_asn1_tai_support_list(asn1_ies, xnap_cfg.tai_support_list);
 
   // Fill list of served cells.
   fill_asn1_list_of_served_cells_nr(asn1_ies, served_cells);

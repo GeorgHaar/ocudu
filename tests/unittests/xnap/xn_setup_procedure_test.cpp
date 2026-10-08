@@ -228,6 +228,56 @@ TEST(xn_setup_asn1_test, when_tracking_areas_broadcast_several_plmns_then_xn_set
   check_broadcast_plmns(response.pdu.successful_outcome().value.xn_setup_resp()->tai_support_list);
 }
 
+/// Tracking areas and GUAMIs as several AMFs report them: two AMFs share TAC 7, and TAC 8 broadcasts three PLMNs.
+static xnap_configuration make_xnap_config_with_several_amfs()
+{
+  plmn_identity plmn_a = plmn_identity::test_value();
+  plmn_identity plmn_b = plmn_identity::parse("99902").value();
+  plmn_identity plmn_c = plmn_identity::parse("99903").value();
+  s_nssai_t     slice  = {};
+
+  xnap_configuration cfg;
+  cfg.gnb_id           = {0, 22};
+  cfg.tai_support_list = {{7, {{plmn_a, {slice}}}},
+                          {7, {{plmn_b, {slice}}}},
+                          {7, {{plmn_a, {slice}}}},
+                          {8, {{plmn_a, {slice}}, {plmn_b, {slice}}, {plmn_c, {slice}}}}};
+  cfg.guami_list       = {{.plmn = plmn_a, .amf_set_id = 1, .amf_pointer = 0, .amf_region_id = 2},
+                          {.plmn = plmn_a, .amf_set_id = 1, .amf_pointer = 1, .amf_region_id = 2},
+                          {.plmn = plmn_b, .amf_set_id = 1, .amf_pointer = 0, .amf_region_id = 2}};
+  return cfg;
+}
+
+/// Checks that the TAI Support List holds TAC 7 with PLMNs A and B, and TAC 8 with PLMNs A, B and C.
+static void check_tai_support_list(const asn1::xnap::tai_support_list_l& tai_support_list)
+{
+  ASSERT_EQ(tai_support_list.size(), 2);
+  ASSERT_EQ(tai_support_list[0].tac.to_number(), 7);
+  ASSERT_EQ(tai_support_list[0].broadcast_plmns.size(), 2);
+  ASSERT_EQ(tai_support_list[1].tac.to_number(), 8);
+  ASSERT_EQ(tai_support_list[1].broadcast_plmns.size(), 3);
+  ASSERT_EQ(tai_support_list[1].broadcast_plmns[2].plmn_id.to_number(), plmn_identity::parse("99903").value().to_bcd());
+  ASSERT_EQ(tai_support_list[1].broadcast_plmns[2].tai_slice_support_list.size(), 1);
+}
+
+TEST(xn_setup_asn1_test, when_amfs_report_overlapping_tracking_areas_then_xn_setup_request_lists_each_tac_once)
+{
+  xnap_message msg = generate_asn1_xn_setup_request(make_xnap_config_with_several_amfs(), {});
+
+  const auto& asn1_ies = msg.pdu.init_msg().value.xn_setup_request();
+  check_tai_support_list(asn1_ies->tai_support_list);
+
+  // AMF Region 2 of PLMN A appears once, AMF Region 2 of PLMN B once.
+  ASSERT_EQ(asn1_ies->amf_region_info.size(), 2);
+}
+
+TEST(xn_setup_asn1_test, when_amfs_report_overlapping_tracking_areas_then_xn_setup_response_lists_each_tac_once)
+{
+  xnap_message msg = generate_asn1_xn_setup_response(make_xnap_config_with_several_amfs(), {});
+
+  check_tai_support_list(msg.pdu.successful_outcome().value.xn_setup_resp()->tai_support_list);
+}
+
 int main(int argc, char** argv)
 {
   ::testing::InitGoogleTest(&argc, argv);

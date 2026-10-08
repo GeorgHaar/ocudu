@@ -11,3 +11,4 @@ target_link_libraries(crc_kernel_test
         GTest::gtest
         GTest::gtest_main)
 add_cuda_test(crc_kernel_test crc_kernel_test)
+add_subdirectory(ldpc)

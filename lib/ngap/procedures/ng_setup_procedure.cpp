@@ -133,11 +133,10 @@ ngap_ng_setup_result ng_setup_procedure::create_ng_setup_result()
 
   ngap_ng_setup_response response = create_ngap_ng_setup_response(transaction_sink.response());
 
-  context.served_guami_list.clear();
-  for (const auto& guami_item : response.served_guami_list) {
-    context.served_guami_list.push_back(guami_item.guami);
-  }
-  context.amf_name = response.amf_name;
+  context.served_guami_list     = response.served_guami_list;
+  context.relative_amf_capacity = response.relative_amf_capacity;
+  context.plmn_support_list     = response.plmn_support_list;
+  context.amf_name              = response.amf_name;
 
   // Capture packed request bytes.
   {
@@ -204,6 +203,11 @@ ng_setup_procedure::create_ngap_ng_setup_response(const asn1::ngap::ng_setup_res
     if (asn1_served_guami_item.backup_amf_name_present) {
       served_guami_item.backup_amf_name = asn1_served_guami_item.backup_amf_name.to_string();
     }
+    if (asn1_served_guami_item.ie_exts_present and asn1_served_guami_item.ie_exts.guami_type_present) {
+      served_guami_item.guami_type =
+          asn1_served_guami_item.ie_exts.guami_type.value == asn1::ngap::guami_type_opts::mapped ? guami_type_t::mapped
+                                                                                                 : guami_type_t::native;
+    }
     response.served_guami_list.push_back(served_guami_item);
   }
 
@@ -213,7 +217,8 @@ ng_setup_procedure::create_ngap_ng_setup_response(const asn1::ngap::ng_setup_res
   // Fill PLMN support list.
   for (const auto& asn1_plmn_support_item : asn1_response->plmn_support_list) {
     ngap_plmn_support_item plmn_support_item = {};
-    plmn_support_item.plmn_id                = asn1_plmn_support_item.plmn_id.to_string();
+    // Note: The PLMN identity is checked in the validation function, so it is safe to access it here.
+    plmn_support_item.plmn_id = plmn_identity::from_bytes(asn1_plmn_support_item.plmn_id.to_bytes()).value();
 
     for (const auto& asn1_slice_support_item : asn1_plmn_support_item.slice_support_list) {
       slice_support_item_t slice_support_item = {};

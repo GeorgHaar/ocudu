@@ -52,6 +52,29 @@ TEST_F(ngap_test, when_ng_setup_is_repeated_then_served_guami_list_is_replaced)
   ASSERT_EQ(ngap->get_ngap_context().served_guami_list.size(), 1);
 }
 
+/// Test that the NG setup procedure keeps the AMF information that the AMF selection uses.
+TEST_F(ngap_test, when_ng_setup_response_received_then_amf_capacity_and_plmn_support_are_stored)
+{
+  async_task<ngap_ng_setup_result>         t = ngap->handle_ng_setup_request(1);
+  lazy_task_launcher<ngap_ng_setup_result> t_launcher(t);
+  ngap_message ng_setup_response = generate_ng_setup_response(plmn_identity::test_value(), 3, 100);
+  auto& served_guami_item = ng_setup_response.pdu.successful_outcome().value.ng_setup_resp()->served_guami_list[0];
+  served_guami_item.ie_exts_present            = true;
+  served_guami_item.ie_exts.guami_type_present = true;
+  served_guami_item.ie_exts.guami_type.value   = asn1::ngap::guami_type_opts::mapped;
+  ngap->handle_message(ng_setup_response);
+  ASSERT_TRUE(t.ready());
+
+  const ngap_context_t& context = ngap->get_ngap_context();
+  ASSERT_EQ(context.relative_amf_capacity, 100);
+  ASSERT_EQ(context.served_guami_list.size(), 1);
+  ASSERT_EQ(context.served_guami_list[0].guami.amf_pointer, 3);
+  ASSERT_EQ(context.served_guami_list[0].guami_type, guami_type_t::mapped);
+  ASSERT_EQ(context.plmn_support_list.size(), 1);
+  ASSERT_EQ(context.plmn_support_list[0].plmn_id, plmn_identity::test_value());
+  ASSERT_EQ(context.plmn_support_list[0].slice_support_list.size(), 1);
+}
+
 /// Test successful NG setup procedure.
 TEST_F(ngap_test, when_ng_setup_response_received_then_amf_connected)
 {

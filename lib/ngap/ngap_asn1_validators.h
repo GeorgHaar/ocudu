@@ -32,6 +32,9 @@ validate_ng_setup_response(const asn1::ngap::ng_setup_resp_s& response)
     return make_unexpected(std::make_pair(cause, "PLMN support list is empty"));
   }
   for (const auto& plmn_support_item : response->plmn_support_list) {
+    if (!plmn_identity::from_bytes(plmn_support_item.plmn_id.to_bytes()).has_value()) {
+      return make_unexpected(std::make_pair(cause, "Invalid PLMN identity in PLMN support list"));
+    }
     for (const auto& slice_support_item : plmn_support_item.slice_support_list) {
       if (slice_support_item.s_nssai.sd_present) {
         if (!slice_differentiator::create(slice_support_item.s_nssai.sd.to_number()).has_value()) {

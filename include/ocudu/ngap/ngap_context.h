@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "ocudu/ngap/ngap_setup.h"
 #include "ocudu/ran/cu_cp_types.h"
 #include "ocudu/ran/gnb_id.h"
 #include "ocudu/ran/guami.h"
@@ -25,8 +26,13 @@ struct ngap_context_t {
   cu_cp_amf_index_t                    amf_index;
   std::vector<supported_tracking_area> supported_tas;
   transport_layer_address              amf_addr; // address of the SCTP association with the AMF
-  std::vector<guami_t>                 served_guami_list;
-  uint16_t                             default_paging_drx = 256; // default paging drx
+  /// GUAMIs that the AMF serves (TS 38.413 section 9.2.6.2).
+  std::vector<ngap_served_guami_item> served_guami_list;
+  /// Capacity of the AMF relative to the other AMFs of its AMF Set (TS 38.413 section 9.3.1.32).
+  uint16_t relative_amf_capacity = 0;
+  /// PLMNs and slices that the AMF supports (TS 38.413 section 9.2.6.2).
+  std::vector<ngap_plmn_support_item> plmn_support_list;
+  uint16_t                            default_paging_drx = 256; // default paging drx
   std::chrono::milliseconds procedure_timeout; // Time that the NGAP waits for a response from the AMF in milliseconds
   std::chrono::seconds      request_pdu_session_timeout; // timeout for requesting a PDU session in seconds
   byte_buffer               lmf_routing_id;

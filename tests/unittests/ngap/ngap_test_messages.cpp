@@ -56,7 +56,8 @@ bool ocudu::ocucp::is_pdu_type(const ngap_message&                              
   return pdu.pdu.successful_outcome().value.type().value == type;
 }
 
-ngap_message ocudu::ocucp::generate_ng_setup_response(plmn_identity plmn)
+ngap_message
+ocudu::ocucp::generate_ng_setup_response(plmn_identity plmn, uint8_t amf_pointer, uint16_t relative_amf_capacity)
 {
   ngap_message ng_setup_response = {};
 
@@ -70,10 +71,10 @@ ngap_message ocudu::ocucp::generate_ng_setup_response(plmn_identity plmn)
   served_guami_item.guami.plmn_id = plmn.to_bytes();
   served_guami_item.guami.amf_region_id.from_number(2);
   served_guami_item.guami.amf_set_id.from_number(1);
-  served_guami_item.guami.amf_pointer.from_number(0);
+  served_guami_item.guami.amf_pointer.from_number(amf_pointer);
   setup_res->served_guami_list.push_back(served_guami_item);
 
-  setup_res->relative_amf_capacity = 255;
+  setup_res->relative_amf_capacity = relative_amf_capacity;
 
   plmn_support_item_s plmn_support_item = {};
   plmn_support_item.plmn_id             = plmn.to_bytes();

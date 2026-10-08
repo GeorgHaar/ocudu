@@ -82,7 +82,12 @@ static const uint8_t ng_setup_request_packed[] = {
     0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0xf1, 0x10, 0x00, 0x00, 0x00, 0x08, 0x00, 0x15, 0x40, 0x01, 0x60};
 
 /// \brief Generate a dummy NG Setup Response.
-ngap_message generate_ng_setup_response(plmn_identity plmn = plmn_identity::test_value());
+/// \param[in] plmn PLMN of the served GUAMI and of the PLMN support item.
+/// \param[in] amf_pointer AMF Pointer of the served GUAMI, whose AMF Region ID is 2 and AMF Set ID is 1.
+/// \param[in] relative_amf_capacity Relative AMF Capacity of the AMF.
+ngap_message generate_ng_setup_response(plmn_identity plmn                  = plmn_identity::test_value(),
+                                        uint8_t       amf_pointer           = 0,
+                                        uint16_t      relative_amf_capacity = 255);
 
 /// \brief Generate a dummy NG Setup Failure.
 ngap_message generate_ng_setup_failure();

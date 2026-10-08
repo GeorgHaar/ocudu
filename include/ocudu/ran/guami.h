@@ -17,4 +17,7 @@ struct guami_t {
   uint8_t       amf_region_id = 0;
 };
 
+/// Origin of a GUAMI: native, or mapped from an EPS GUTI (TS 38.413 section 9.2.6.2, TS 38.331 section 6.2.2).
+enum class guami_type_t { native, mapped };
+
 } // namespace ocudu

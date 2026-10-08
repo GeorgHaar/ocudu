@@ -29,12 +29,13 @@ struct ngap_supported_ta_item {
 };
 
 struct ngap_served_guami_item {
-  guami_t                    guami;
-  std::optional<std::string> backup_amf_name;
+  guami_t                     guami;
+  std::optional<std::string>  backup_amf_name;
+  std::optional<guami_type_t> guami_type;
 };
 
 struct ngap_plmn_support_item {
-  std::string                       plmn_id;
+  plmn_identity                     plmn_id = plmn_identity::test_value();
   std::vector<slice_support_item_t> slice_support_list;
 };
 

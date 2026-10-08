@@ -6,6 +6,11 @@
 #pragma once
 
 #include "ocudu/cu_up/cu_up_manager.h"
+#include "ocudu/f1u/cu_up/f1u_tx_sdu_handler.h"
+#include "ocudu/gtpu/gtpu_tunnel_pdcp_tx.h"
+#include "ocudu/pdcp/pdcp_rx.h"
+#include "ocudu/pdcp/pdcp_tx.h"
+#include "ocudu/sdap/sdap.h"
 
 namespace ocudu::ocuup {
 
@@ -175,6 +180,30 @@ public:
 private:
   cu_up_manager_pdcp_interface* cu_up_mngr = nullptr;
   cu_up_ue_index_t              ue_index   = INVALID_CU_UP_UE_INDEX;
+};
+
+class pdcp_gtpu_forwarding_adapter : public pdcp_tx_forward_notifier
+{
+public:
+  pdcp_gtpu_forwarding_adapter()  = default;
+  ~pdcp_gtpu_forwarding_adapter() = default;
+
+  void connect_gtpu_forward(gtpu_tunnel_pdcp_tx_lower_layer_interface& gtpu_handler_) { gtpu_handler = &gtpu_handler_; }
+  void disconnect_gtpu_forward() { gtpu_handler = nullptr; }
+
+  // See interface for documentation.
+  void on_new_pdu(byte_buffer pdu, uint32_t sn) override
+  {
+    if (gtpu_handler == nullptr) {
+      ocudulog::fetch_basic_logger("SDAP").warning("Unconnected PDCP handler. Dropping SDAP PDU");
+      return;
+    }
+
+    gtpu_handler->handle_sdu(std::move(pdu), sn);
+  }
+
+private:
+  gtpu_tunnel_pdcp_tx_lower_layer_interface* gtpu_handler = nullptr;
 };
 
 } // namespace ocudu::ocuup

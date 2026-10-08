@@ -48,6 +48,21 @@ public:
   virtual void on_discard_pdu(uint32_t pdcp_sn)          = 0; ///< Order lower layers to discard PDU
 };
 
+/// This interface represents the data exit point TODO.
+class pdcp_tx_forward_notifier
+{
+public:
+  pdcp_tx_forward_notifier()                                         = default;
+  virtual ~pdcp_tx_forward_notifier()                                = default;
+  pdcp_tx_forward_notifier(const pdcp_tx_lower_notifier&)            = delete;
+  pdcp_tx_forward_notifier& operator=(const pdcp_tx_lower_notifier&) = delete;
+  pdcp_tx_forward_notifier(pdcp_tx_lower_notifier&&)                 = delete;
+  pdcp_tx_forward_notifier& operator=(pdcp_tx_lower_notifier&&)      = delete;
+
+  /// TODO.
+  virtual void on_new_pdu(byte_buffer pdu, uint32_t pdcp_sn) = 0;
+};
+
 /// This interface represents the notification entry point of the transmitting side of a PDCP entity.
 /// The lower layers will use this interface to inform the PDCP Tx about transmitted and successfully delivered PDUs.
 /// The PDCP uses this information to stop the discard timers of PDUs that are associated with those notifications:
@@ -175,6 +190,9 @@ public:
   /// have in-flight PDUs again. Should not be called without previously calling
   /// `notify_pdu_processing_stopped()`
   virtual void restart_pdu_processing() = 0;
+
+  /// TODO.
+  virtual void start_dl_forwarding(pdcp_tx_forward_notifier* tx_forward) = 0;
 };
 
 /// This interface represents the control upper layer that the

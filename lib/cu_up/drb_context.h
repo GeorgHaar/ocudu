@@ -77,6 +77,8 @@ struct drb_context {
   pdcp_f1u_adapter  pdcp_to_f1u_adapter;
   f1u_pdcp_adapter  f1u_to_pdcp_adapter;
 
+  pdcp_gtpu_forwarding_adapter pdcp_to_gtpu_forwarding_adapter;
+
   // Adapter PDCP->CU-UP Manager.
   // Used for control events.
   pdcp_rx_cu_up_mngr_adapter pdcp_rx_to_cu_up_mngr_adapter;

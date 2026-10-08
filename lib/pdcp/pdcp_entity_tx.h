@@ -141,6 +141,9 @@ public:
   /// \returns Returns false if already active or other failure. True otherwise.
   bool resume() override;
 
+  /// TODO
+  void start_dl_forwarding(pdcp_tx_forward_notifier* tx_forward_) override;
+
   /// \brief Get the TX count for status transfer.
   pdcp_count_info get_count() const override
   {
@@ -148,6 +151,7 @@ public:
     uint32_t        count = st.tx_next;
     count_info.sn         = SN(count);
     count_info.hfn        = HFN(count);
+    logger.log_info("Getting PDCP COUNT info. hfn={} sn={}", count_info.sn, count_info.hfn);
     return count_info;
   }
 
@@ -266,6 +270,7 @@ private:
   pdcp_rx_status_provider*        status_provider = nullptr;
   pdcp_tx_lower_notifier&         lower_dn;
   pdcp_tx_upper_control_notifier& upper_cn;
+  pdcp_tx_forward_notifier*       forward_dn = nullptr;
   timer_factory                   ue_ctrl_timer_factory;
   unique_timer                    discard_timer;
   unique_timer                    crypto_reordering_timer;

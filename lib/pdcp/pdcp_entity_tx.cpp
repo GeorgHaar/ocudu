@@ -196,6 +196,11 @@ bool pdcp_entity_tx::resume()
   return true;
 }
 
+void pdcp_entity_tx::start_dl_forwarding(pdcp_tx_forward_notifier* tx_forward_)
+{
+  logger.log_info("Starting DL forwarding. st={}", st);
+}
+
 manual_event_flag& pdcp_entity_tx::crypto_awaitable()
 {
   return token_mngr.get_awaitable();

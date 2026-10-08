@@ -515,19 +515,6 @@ pdu_session_manager_impl::modify_pdu_session(const e1ap_pdu_session_res_to_modif
 
     std::unique_ptr<drb_context>& drb = drb_iter->second;
 
-    // Store the peer endpoint of the DRB level DL data forwarding tunnel (TS 37.483 section 9.3.2.6).
-    if (drb_to_mod.drb_data_forwarding_info.has_value() and
-        drb_to_mod.drb_data_forwarding_info->dl_data_forwarding.has_value()) {
-      drb->egress_dl_data_forwarding_tnl_info = drb_to_mod.drb_data_forwarding_info->dl_data_forwarding;
-
-      auto gtpu_fwd_cfg = gtpu_tunnel_pdcp_creation_message{
-          .ue_index = ue_index, .cfg = {}, .gtpu_pcap = nullptr, .rx_lower = nullptr, .tx_upper = nullptr};
-      drb->gtpu_fwd = create_gtpu_tunnel_pdcp(gtpu_fwd_cfg);
-      logger.log_info("Received DL data forwarding tunnel for {}. tnl_info={}",
-                      drb_to_mod.drb_id,
-                      drb->egress_dl_data_forwarding_tnl_info.value());
-    }
-
     if (new_ul_tnl_info_required) {
       // Allocate new UL TEID for DRB
       expected<gtpu_teid_t> ret = f1u_teid_allocator.request_teid();
@@ -614,7 +601,7 @@ pdu_session_manager_impl::modify_pdu_session(const e1ap_pdu_session_res_to_modif
       drb_iter->second->pdcp_to_f1u_adapter.connect_f1u(drb_iter->second->f1u->get_tx_sdu_handler());
     }
 
-    // Extract PDCP status and add it to the response
+    // Extract PDCP status and add it to the response.
     if (drb_to_mod.pdcp_sn_status_request.has_value() && drb_to_mod.pdcp_sn_status_request.value()) {
       drb_result.pdcp_sn_status.emplace();
 
@@ -625,7 +612,7 @@ pdu_session_manager_impl::modify_pdu_session(const e1ap_pdu_session_res_to_modif
       drb_result.pdcp_sn_status->dl_count = pdcp_tx_ctrl.get_count();
     }
 
-    // Apply PDCP status
+    // Apply PDCP status.
     if (drb_to_mod.pdcp_sn_status_info.has_value()) {
       auto&           pdcp_rx_ctrl = drb->pdcp->get_rx_upper_control_interface();
       pdcp_count_info rx_count;
@@ -638,6 +625,22 @@ pdu_session_manager_impl::modify_pdu_session(const e1ap_pdu_session_res_to_modif
       tx_count.sn  = drb_to_mod.pdcp_sn_status_info.value().pdcp_status_transfer_dl.pdcp_sn;
       tx_count.hfn = drb_to_mod.pdcp_sn_status_info.value().pdcp_status_transfer_dl.hfn;
       pdcp_tx_ctrl.set_count(tx_count);
+    }
+
+    // Start DL data forwarding from source UP to target.
+    // This is done after extracting the PDCP count info, so that the count info is accurate.
+    if (drb_to_mod.drb_data_forwarding_info.has_value() and
+        drb_to_mod.drb_data_forwarding_info->dl_data_forwarding.has_value()) {
+      drb->egress_dl_data_forwarding_tnl_info = drb_to_mod.drb_data_forwarding_info->dl_data_forwarding;
+
+      auto gtpu_fwd_cfg = gtpu_tunnel_pdcp_creation_message{
+          .ue_index = ue_index, .cfg = {}, .gtpu_pcap = nullptr, .rx_lower = nullptr, .tx_upper = nullptr};
+      drb->gtpu_fwd = create_gtpu_tunnel_pdcp(gtpu_fwd_cfg);
+      // Connect SDAP to forwarding tunnel?
+      logger.log_info("Received DL data forwarding tunnel for {}. tnl_info={}",
+                      drb_to_mod.drb_id,
+                      drb->egress_dl_data_forwarding_tnl_info.value());
+      drb->pdcp->get_tx_upper_control_interface().start_dl_forwarding(&drb->pdcp_to_gtpu_forwarding_adapter);
     }
 
     // Apply re-establishment at PDCP

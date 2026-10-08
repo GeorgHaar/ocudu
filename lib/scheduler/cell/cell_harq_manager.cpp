@@ -278,7 +278,7 @@ cell_harq_repository<IsDl>::alloc_harq(du_ue_index_t                       ue_id
                                        slot_point                          sl_ack_end,
                                        unsigned                            max_nof_harq_retxs,
                                        std::optional<cg_harq_alloc_params> cg_params,
-                                       bool                                select_normal_mode,
+                                       harq_mode_t                         mode,
                                        uint8_t                             nof_repetitions)
 {
   ocudu_sanity_check(ue_idx < ues.size() and ues[ue_idx] != nullptr, "Invalid UE index");
@@ -299,11 +299,9 @@ cell_harq_repository<IsDl>::alloc_harq(du_ue_index_t                       ue_id
 
   // Allocation of free HARQ-id for the UE.
   if (ntn_cs_koffset > 0 && ue_harq_entity.feedback_disabled_or_mode_b_harq_present) {
-    auto rit = std::find_if(
-        ue_harq_entity.free_harq_ids.rbegin(), ue_harq_entity.free_harq_ids.rend(), [&](const harq_id_t& h_id) {
-          const bool is_normal_mode = ue_harq_entity.harqs[h_id].mode == harq_mode_t::normal;
-          return select_normal_mode == is_normal_mode;
-        });
+    auto rit = std::find_if(ue_harq_entity.free_harq_ids.rbegin(),
+                            ue_harq_entity.free_harq_ids.rend(),
+                            [&](const harq_id_t& h_id) { return ue_harq_entity.harqs[h_id].mode == mode; });
 
     if (rit == ue_harq_entity.free_harq_ids.rend()) {
       return nullptr;
@@ -768,7 +766,7 @@ harq_utils::dl_harq_process_impl* cell_harq_manager::new_dl_tx(du_ue_index_t ue_
                                                                unsigned      last_ack_delay,
                                                                unsigned      max_harq_nof_retxs,
                                                                uint8_t       harq_bit_idx,
-                                                               bool          select_normal_mode,
+                                                               harq_mode_t   mode,
                                                                uint8_t       nof_repetitions)
 {
   dl_harq_process_impl* h = dl.alloc_harq(ue_idx,
@@ -777,7 +775,7 @@ harq_utils::dl_harq_process_impl* cell_harq_manager::new_dl_tx(du_ue_index_t ue_
                                           pdsch_slot + last_ack_delay,
                                           max_harq_nof_retxs,
                                           std::nullopt,
-                                          select_normal_mode,
+                                          mode,
                                           nof_repetitions);
   if (h == nullptr) {
     return nullptr;
@@ -796,11 +794,11 @@ harq_utils::ul_harq_process_impl* cell_harq_manager::new_ul_tx(du_ue_index_t    
                                                                slot_point                          pusch_slot,
                                                                unsigned                            max_harq_nof_retxs,
                                                                std::optional<cg_harq_alloc_params> cg_params,
-                                                               bool                                select_normal_mode,
+                                                               harq_mode_t                         mode,
                                                                uint8_t                             nof_repetitions)
 {
-  ul_harq_process_impl* h = ul.alloc_harq(
-      ue_idx, pusch_slot, pusch_slot, pusch_slot, max_harq_nof_retxs, cg_params, select_normal_mode, nof_repetitions);
+  ul_harq_process_impl* h =
+      ul.alloc_harq(ue_idx, pusch_slot, pusch_slot, pusch_slot, max_harq_nof_retxs, cg_params, mode, nof_repetitions);
   if (h == nullptr) {
     return nullptr;
   }
@@ -1156,7 +1154,7 @@ std::optional<dl_harq_process_handle> unique_ue_harq_entity::alloc_dl_harq(slot_
                                                                            unsigned                ack_delay,
                                                                            unsigned                max_harq_nof_retxs,
                                                                            unsigned                harq_bit_idx,
-                                                                           bool                    select_normal_mode,
+                                                                           harq_mode_t             mode,
                                                                            uint8_t                 nof_repetitions,
                                                                            std::optional<unsigned> last_ack_delay)
 {
@@ -1167,7 +1165,7 @@ std::optional<dl_harq_process_handle> unique_ue_harq_entity::alloc_dl_harq(slot_
                                                      last_ack_delay.value_or(ack_delay),
                                                      max_harq_nof_retxs,
                                                      harq_bit_idx,
-                                                     select_normal_mode,
+                                                     mode,
                                                      nof_repetitions);
   if (h == nullptr) {
     return std::nullopt;
@@ -1179,11 +1177,11 @@ std::optional<ul_harq_process_handle>
 unique_ue_harq_entity::alloc_ul_harq(slot_point                          sl_tx,
                                      unsigned                            max_harq_nof_retxs,
                                      std::optional<cg_harq_alloc_params> cg_params,
-                                     bool                                select_normal_mode,
+                                     harq_mode_t                         mode,
                                      uint8_t                             nof_repetitions)
 {
-  ul_harq_process_impl* h = cell_harq_mgr->new_ul_tx(
-      ue_index, crnti, sl_tx, max_harq_nof_retxs, cg_params, select_normal_mode, nof_repetitions);
+  ul_harq_process_impl* h =
+      cell_harq_mgr->new_ul_tx(ue_index, crnti, sl_tx, max_harq_nof_retxs, cg_params, mode, nof_repetitions);
   if (h == nullptr) {
     return std::nullopt;
   }

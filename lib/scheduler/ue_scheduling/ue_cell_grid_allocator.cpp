@@ -257,14 +257,14 @@ ue_cell_grid_allocator::setup_dl_grant_builder(const slice_ue&                  
 
   // Both the PUCCH below and the HARQ process after it follow this value, so they cannot disagree. Only a new tx still
   // picks a HARQ process; a retx is bound to the mode of the one it already holds.
-  bool select_normal_mode = true;
+  harq_utils::harq_mode_t harq_mode = harq_utils::harq_mode_t::normal;
   if (ue_cc.harqs.is_dl_harq_mode_selective()) {
     if (is_retx) {
-      select_normal_mode = h_dl->mode() == harq_utils::harq_mode_t::normal;
+      harq_mode = h_dl->mode();
     } else {
-      select_normal_mode = user.select_normal_dl_harq_mode();
+      harq_mode = harq_utils::to_harq_mode(user.select_normal_dl_harq_mode());
       // Checked before the PUCCH is booked, as it cannot be given back.
-      if (not ue_cc.harqs.has_empty_dl_harqs(harq_utils::to_harq_mode(select_normal_mode))) {
+      if (not ue_cc.harqs.has_empty_dl_harqs(harq_mode)) {
         logger.debug("ue={} rnti={}: Failed to allocate PDSCH in slot={}. Cause: no free DL HARQ process",
                      user.ue_index(),
                      user.crnti(),
@@ -283,7 +283,7 @@ ue_cell_grid_allocator::setup_dl_grant_builder(const slice_ue&                  
 
   std::optional<uci_allocation> uci_result;
 
-  if (select_normal_mode) {
+  if (harq_mode == harq_utils::harq_mode_t::normal) {
     // Allocate UCI.
     uci_result = alloc_uci(ue_cc, ss_info, pdsch_td_res_index, last_occasion_offset);
     if (not uci_result.has_value()) {
@@ -315,7 +315,7 @@ ue_cell_grid_allocator::setup_dl_grant_builder(const slice_ue&                  
                                      ack_delay,
                                      expert_cfg.max_nof_dl_harq_retxs,
                                      uci.harq_bit_idx,
-                                     select_normal_mode,
+                                     harq_mode,
                                      nof_repetitions,
                                      last_ack_delay);
     ocudu_assert(h_dl.has_value(), "Failed to allocate DL HARQ");
@@ -971,8 +971,10 @@ ue_cell_grid_allocator::setup_ul_grant_builder(const slice_ue&                  
 
   // The process is taken only once the PDCCH is booked, and a cancelled PDCCH still costs the UL attempt of the
   // slot, so a mode left without a free process is refused before anything is reserved for it.
-  const bool select_normal_mode = ue_cc.harqs.is_ul_harq_mode_selective() ? user.select_normal_ul_harq_mode() : true;
-  if (not is_retx and not ue_cc.harqs.has_empty_ul_harqs(harq_utils::to_harq_mode(select_normal_mode))) {
+  const harq_utils::harq_mode_t harq_mode = ue_cc.harqs.is_ul_harq_mode_selective()
+                                                ? harq_utils::to_harq_mode(user.select_normal_ul_harq_mode())
+                                                : harq_utils::harq_mode_t::normal;
+  if (not is_retx and not ue_cc.harqs.has_empty_ul_harqs(harq_mode)) {
     logger.debug("ue={} rnti={}: Failed to allocate PUSCH in slot={}. Cause: no free UL HARQ process",
                  u.ue_index,
                  u.crnti,
@@ -1006,7 +1008,7 @@ ue_cell_grid_allocator::setup_ul_grant_builder(const slice_ue&                  
     h_ul = ue_cc.harqs.alloc_ul_harq(pusch_alloc.slot,
                                      expert_cfg.max_nof_ul_harq_retxs,
                                      /* cg_params */ std::nullopt,
-                                     select_normal_mode,
+                                     harq_mode,
                                      harq_slot_span);
     ocudu_assert(h_ul.has_value(), "Failed to allocate UL HARQ");
   } else {

@@ -1,0 +1,3 @@
+# C++ guidelines
+
+@AGENTS.md

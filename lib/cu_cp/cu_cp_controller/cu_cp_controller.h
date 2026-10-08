@@ -68,7 +68,7 @@ public:
 
   /// \brief Finds the connected AMF that serves a GUAMI, or a connected AMF of its AMF Set.
   /// \return The index of the AMF, or std::nullopt if no AMF of the AMF Set is connected.
-  std::optional<cu_cp_amf_index_t> select_amf_for_guami(const guami_t& guami) const;
+  std::optional<cu_cp_amf_index_t> select_amf_for_guami(const guami_t& guami);
 
   /// \brief Selects a connected AMF of an AMF Set that supports a PLMN, other than the AMF that asks for it.
   /// \return The index of the AMF, or std::nullopt if no other AMF of the AMF Set supports the PLMN.

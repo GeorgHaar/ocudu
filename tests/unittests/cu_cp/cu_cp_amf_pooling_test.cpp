@@ -36,9 +36,10 @@ public:
                 generate_ng_setup_response(plmn_identity::test_value(), 1, amf_1_capacity, amf_1_set_id));
   }
 
-  /// Starts the CU-CP with the given NG Setup Responses, and sets up a DU and a CU-UP.
-  void start_cu_cp(const ngap_message& amf_0_response, const ngap_message& amf_1_response)
+  /// Starts the CU-CP with the given NG Setup Responses, and sets up a DU and a CU-UP. AMF 1 gets its own name.
+  void start_cu_cp(const ngap_message& amf_0_response, ngap_message amf_1_response)
   {
+    amf_1_response.pdu.successful_outcome().value.ng_setup_resp()->amf_name.from_string(amf_1_name);
     get_amf(0).enqueue_next_tx_pdu(amf_0_response);
     get_amf(1).enqueue_next_tx_pdu(amf_1_response);
     get_cu_cp().start();
@@ -90,7 +91,9 @@ public:
     return attach_ue(du_ue_id, test_helpers::create_rrc_setup_complete(1, five_g_s_tmsi));
   }
 
-  unsigned du_idx = 0;
+  /// Name of AMF 1.
+  const std::string amf_1_name = "open5gs-amf1";
+  unsigned          du_idx     = 0;
   /// RAN UE NGAP ID of the last Initial UE Message.
   ran_ue_id_t last_ran_ue_id = ran_ue_id_t::invalid;
   /// Last Initial UE Message.
@@ -387,4 +390,22 @@ TEST_F(cu_cp_amf_pooling_test, when_amf_updates_its_capacity_to_zero_then_new_ue
   for (unsigned i = 0; i != 5; ++i) {
     ASSERT_EQ(attach_ue(int_to_gnb_du_ue_f1ap_id(i), test_helpers::create_rrc_setup_complete()), 1);
   }
+}
+
+TEST_F(cu_cp_amf_pooling_test, when_guami_of_the_ue_is_unavailable_then_the_ue_is_served_by_the_backup_amf)
+{
+  // AMF 0 also serves the GUAMI with AMF Pointer 2, which stays available. Without the backup AMF, the UE would stay
+  // with AMF 0, which keeps serving its AMF Set.
+  ngap_message amf_0_response = generate_ng_setup_response(plmn_identity::test_value(), 0, 255);
+  auto&        served_guamis  = amf_0_response.pdu.successful_outcome().value.ng_setup_resp()->served_guami_list;
+  asn1::ngap::served_guami_item_s second_guami = served_guamis[0];
+  second_guami.guami.amf_pointer.from_number(2);
+  served_guamis.push_back(second_guami);
+  start_cu_cp(amf_0_response, generate_ng_setup_response(plmn_identity::test_value(), 1, 0));
+
+  // AMF 0 marks its GUAMI as unavailable and names AMF 1 as backup (TS 38.413 section 8.7.6).
+  get_amf(0).push_tx_pdu(generate_amf_status_indication(
+      guami_t{.plmn = plmn_identity::test_value(), .amf_set_id = 1, .amf_pointer = 0, .amf_region_id = 2}, amf_1_name));
+
+  ASSERT_EQ(attach_ue_with_5g_s_tmsi(int_to_gnb_du_ue_f1ap_id(0), 0), 1);
 }

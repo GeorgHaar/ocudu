@@ -13,10 +13,17 @@
 #include "ocudu/ran/supported_tracking_area.h"
 #include "ocudu/support/io/transport_layer_address.h"
 #include <chrono>
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace ocudu::ocucp {
+
+/// GUAMI that the AMF marks as unavailable (TS 38.413 section 9.2.6.10).
+struct ngap_unavailable_guami_item {
+  guami_t                    guami;
+  std::optional<std::string> backup_amf_name;
+};
 
 /// \brief NGAP context
 struct ngap_context_t {
@@ -32,7 +39,9 @@ struct ngap_context_t {
   uint16_t relative_amf_capacity = 0;
   /// PLMNs and slices that the AMF supports (TS 38.413 section 9.2.6.2).
   std::vector<ngap_plmn_support_item> plmn_support_list;
-  uint16_t                            default_paging_drx = 256; // default paging drx
+  /// GUAMIs that the AMF marks as unavailable (TS 38.413 section 8.7.6.2). A new served GUAMI list clears it.
+  std::vector<ngap_unavailable_guami_item> unavailable_guami_list;
+  uint16_t                                 default_paging_drx = 256; // default paging drx
   std::chrono::milliseconds procedure_timeout; // Time that the NGAP waits for a response from the AMF in milliseconds
   std::chrono::seconds      request_pdu_session_timeout; // timeout for requesting a PDU session in seconds
   byte_buffer               lmf_routing_id;

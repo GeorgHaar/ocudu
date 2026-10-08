@@ -196,7 +196,9 @@ std::vector<amf_candidate> amf_connection_manager::get_amf_candidates() const
     amf_candidate candidate;
     candidate.amf_index             = amf_index;
     candidate.connected             = is_amf_connected(amf_index);
+    candidate.amf_name              = context.amf_name;
     candidate.served_guamis         = context.served_guami_list;
+    candidate.unavailable_guamis    = context.unavailable_guami_list;
     candidate.relative_amf_capacity = context.relative_amf_capacity;
 
     // A PLMN is served through the AMF if the CU-CP configures it for the AMF and the AMF supports it (TS 38.413

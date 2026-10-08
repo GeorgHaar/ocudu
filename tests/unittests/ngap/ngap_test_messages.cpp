@@ -97,6 +97,29 @@ ngap_message ocudu::ocucp::generate_amf_configuration_update()
   return msg;
 }
 
+ngap_message ocudu::ocucp::generate_amf_status_indication(const guami_t&                    guami,
+                                                          const std::optional<std::string>& backup_amf_name)
+{
+  ngap_message msg;
+  msg.pdu.set_init_msg().load_info_obj(ASN1_NGAP_ID_AMF_STATUS_IND);
+
+  unavailable_guami_item_s item;
+  item.guami.plmn_id = guami.plmn.to_bytes();
+  item.guami.amf_region_id.from_number(guami.amf_region_id);
+  item.guami.amf_set_id.from_number(guami.amf_set_id);
+  item.guami.amf_pointer.from_number(guami.amf_pointer);
+  if (backup_amf_name.has_value()) {
+    item.backup_amf_name_present = true;
+    item.backup_amf_name.from_string(*backup_amf_name);
+  }
+
+  auto& ies = *msg.pdu.init_msg().value.amf_status_ind();
+  ies.resize(1);
+  ies[0].load_info_obj(ASN1_NGAP_ID_UNAVAILABLE_GUAMI_LIST);
+  ies[0].value().unavailable_guami_list().push_back(item);
+  return msg;
+}
+
 ngap_message ocudu::ocucp::generate_reroute_nas_request(ran_ue_id_t         ran_ue_id,
                                                         const ngap_message& initial_ue_message,
                                                         uint16_t            amf_set_id)

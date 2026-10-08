@@ -6,6 +6,7 @@
 #pragma once
 
 #include "ocudu/adt/span.h"
+#include "ocudu/ngap/ngap_context.h"
 #include "ocudu/ngap/ngap_setup.h"
 #include "ocudu/ran/amf_selection_request.h"
 #include "ocudu/ran/cu_cp_types.h"
@@ -20,12 +21,16 @@ namespace ocudu::ocucp {
 /// AMF that the CU-CP can select for a UE.
 struct amf_candidate {
   cu_cp_amf_index_t amf_index = cu_cp_amf_index_t::invalid;
+  /// Name of the AMF (TS 38.413 section 9.3.3.21).
+  std::string amf_name;
   /// True if the NG-C interface instance to the AMF is set up.
   bool connected = false;
   /// PLMNs that the AMF supports and that the CU-CP serves through it.
   std::vector<plmn_identity> plmns;
   /// GUAMIs that the AMF serves.
   std::vector<ngap_served_guami_item> served_guamis;
+  /// Served GUAMIs that the AMF marks as unavailable (TS 38.413 section 8.7.6.2).
+  std::vector<ngap_unavailable_guami_item> unavailable_guamis;
   /// Capacity of the AMF relative to the other AMFs of its AMF Set (TS 38.413 section 9.3.1.32).
   uint16_t relative_amf_capacity = 0;
 };
@@ -43,19 +48,26 @@ struct amf_candidate {
 /// capacity 0 is picked only if all the AMFs of the rule have capacity 0. In rule 4, the AMFs can belong to different
 /// AMF Sets. The selection then picks an AMF Set with a probability that is proportional to the total capacity of its
 /// AMFs. TS 23.501 section 6.3.5 leaves the selection of the AMF Set to local policy.
+///
+/// In rules 1 and 2, the backup AMF serves the UE if the GUAMI is unavailable or its AMF is not connected. The backup
+/// AMF Name from the AMF Status Indication comes first, then the one from the served GUAMI list. Rules 3 and 4 skip an
+/// AMF whose served GUAMIs are all unavailable. Rule 4 picks such an AMF only if no other AMF supports the PLMN.
 /// \return The index of the AMF, or std::nullopt if no connected AMF supports the selected PLMN.
 std::optional<cu_cp_amf_index_t>
 select_amf(span<const amf_candidate> candidates, const amf_selection_request& request, std::mt19937& rng);
 
 /// \brief Finds the connected AMF that serves a GUAMI.
 ///
-/// The AMF that serves the GUAMI comes first. Otherwise, a connected AMF of the same AMF Set is returned.
+/// The AMFs that serve the GUAMI come first, or their backup AMF, as in rule 1 of \ref select_amf. Otherwise, the
+/// selection picks a connected AMF of the same AMF Set, as in rule 4 of \ref select_amf.
 /// \return The index of the AMF, or std::nullopt if no AMF of the AMF Set is connected.
-std::optional<cu_cp_amf_index_t> select_amf_for_guami(span<const amf_candidate> candidates, const guami_t& guami);
+std::optional<cu_cp_amf_index_t>
+select_amf_for_guami(span<const amf_candidate> candidates, const guami_t& guami, std::mt19937& rng);
 
 /// \brief Selects a connected AMF of an AMF Set that supports a PLMN.
 ///
 /// The AMF is picked at random and weighted by its relative AMF capacity, as in rule 4 of \ref select_amf.
+/// An AMF whose served GUAMIs are all unavailable is picked only if no other AMF of the AMF Set is connected.
 /// \return The index of the AMF, or std::nullopt if no AMF of the AMF Set is connected.
 std::optional<cu_cp_amf_index_t> select_amf_for_amf_set(span<const amf_candidate> candidates,
                                                         const plmn_identity&      plmn,

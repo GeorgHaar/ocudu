@@ -371,6 +371,7 @@ void ngap_impl::handle_amf_configuration_update(const asn1::ngap::amf_cfg_upd_s&
   }
   if (msg->served_guami_list_present) {
     context.served_guami_list = asn1_to_served_guami_list(msg->served_guami_list);
+    context.unavailable_guami_list.clear();
   }
   if (msg->relative_amf_capacity_present) {
     context.relative_amf_capacity = msg->relative_amf_capacity;
@@ -403,6 +404,40 @@ void ngap_impl::handle_amf_configuration_update(const asn1::ngap::amf_cfg_upd_s&
 
   if (!tx_pdu_notifier.on_new_message(ngap_msg)) {
     logger.warning("Cannot send AMFConfigurationUpdateAcknowledge");
+  }
+}
+
+void ngap_impl::handle_amf_status_indication(const asn1::ngap::amf_status_ind_s& msg)
+{
+  // The NG-RAN node considers the indicated GUAMIs unavailable for further AMF selection (TS 38.413 section 8.7.6.2).
+  for (const auto& ie : *msg) {
+    for (const auto& asn1_item : ie.value().unavailable_guami_list()) {
+      expected<guami_t, std::string> guami = asn1_to_guami(asn1_item.guami);
+      if (not guami.has_value()) {
+        logger.warning("Ignoring unavailable GUAMI. Cause: {}", guami.error());
+        continue;
+      }
+
+      ngap_unavailable_guami_item item;
+      item.guami = guami.value();
+      if (asn1_item.backup_amf_name_present) {
+        item.backup_amf_name = asn1_item.backup_amf_name.to_string();
+      }
+      logger.info("GUAMI with AMF Set ID {} and AMF Pointer {} is unavailable. Backup AMF: {}",
+                  item.guami.amf_set_id,
+                  item.guami.amf_pointer,
+                  item.backup_amf_name.value_or("none"));
+
+      // A new indication for a GUAMI replaces the stored one.
+      auto it = std::find_if(context.unavailable_guami_list.begin(),
+                             context.unavailable_guami_list.end(),
+                             [&item](const ngap_unavailable_guami_item& stored) { return stored.guami == item.guami; });
+      if (it != context.unavailable_guami_list.end()) {
+        *it = std::move(item);
+      } else {
+        context.unavailable_guami_list.push_back(std::move(item));
+      }
+    }
   }
 }
 
@@ -692,6 +727,9 @@ void ngap_impl::handle_initiating_message(const init_msg_s& msg)
       break;
     case ngap_elem_procs_o::init_msg_c::types_opts::amf_cfg_upd:
       handle_amf_configuration_update(msg.value.amf_cfg_upd());
+      break;
+    case ngap_elem_procs_o::init_msg_c::types_opts::amf_status_ind:
+      handle_amf_status_indication(msg.value.amf_status_ind());
       break;
     case ngap_elem_procs_o::init_msg_c::types_opts::ue_context_mod_request:
       handle_ue_context_modification_request(msg.value.ue_context_mod_request());

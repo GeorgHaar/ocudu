@@ -24,6 +24,7 @@ amf_candidate make_candidate(unsigned amf_idx, const guami_t& guami, uint16_t ca
 {
   amf_candidate candidate;
   candidate.amf_index             = uint_to_cu_cp_amf_index(amf_idx);
+  candidate.amf_name              = fmt::format("amf{}", amf_idx);
   candidate.connected             = connected;
   candidate.plmns                 = {guami.plmn};
   candidate.served_guamis         = {ngap_served_guami_item{guami, std::nullopt, std::nullopt}};
@@ -120,6 +121,63 @@ TEST_F(amf_selector_test, when_ue_identifies_an_amf_set_then_only_amfs_of_the_sa
       uint_to_cu_cp_amf_index(1));
 }
 
+TEST_F(amf_selector_test, when_guami_of_the_ue_is_unavailable_then_backup_amf_of_status_indication_is_selected)
+{
+  candidates = {
+      make_candidate(0, make_guami(1, 0)), make_candidate(1, make_guami(1, 1)), make_candidate(2, make_guami(1, 2), 0)};
+  candidates[0].served_guamis[0].backup_amf_name = "amf1";
+  candidates[0].unavailable_guamis               = {ngap_unavailable_guami_item{make_guami(1, 0), "amf2"}};
+
+  ASSERT_EQ(select({.plmn = plmn_a, .registered_guami = make_guami(1, 0)}), uint_to_cu_cp_amf_index(2));
+  ASSERT_EQ(select({.plmn = plmn_a, .five_g_s_tmsi = five_g_s_tmsi_t{1, 0, 0x1234}}), uint_to_cu_cp_amf_index(2));
+  ASSERT_EQ(select_amf_for_guami(candidates, make_guami(1, 0), rng), uint_to_cu_cp_amf_index(2));
+}
+
+TEST_F(amf_selector_test, when_amf_of_the_ue_is_not_connected_then_backup_amf_of_served_guami_is_selected)
+{
+  candidates                                     = {make_candidate(0, make_guami(1, 0), 255, false),
+                                                    make_candidate(1, make_guami(1, 1)),
+                                                    make_candidate(2, make_guami(1, 2), 0)};
+  candidates[0].served_guamis[0].backup_amf_name = "amf2";
+
+  ASSERT_EQ(select({.plmn = plmn_a, .five_g_s_tmsi = five_g_s_tmsi_t{1, 0, 0x1234}}), uint_to_cu_cp_amf_index(2));
+}
+
+TEST_F(amf_selector_test, when_guami_of_the_ue_is_unavailable_without_backup_then_another_amf_of_the_set_is_selected)
+{
+  candidates                       = {make_candidate(0, make_guami(1, 0)), make_candidate(1, make_guami(1, 1), 0)};
+  candidates[0].unavailable_guamis = {ngap_unavailable_guami_item{make_guami(1, 0), std::nullopt}};
+
+  ASSERT_EQ(select({.plmn = plmn_a, .registered_guami = make_guami(1, 0)}), uint_to_cu_cp_amf_index(1));
+}
+
+TEST_F(amf_selector_test, when_guami_is_unavailable_without_backup_then_another_amf_of_its_set_is_found)
+{
+  // AMF 0 comes first and serves the AMF Set too, but marks the GUAMI as unavailable.
+  candidates                       = {make_candidate(0, make_guami(1, 0)), make_candidate(1, make_guami(1, 1), 0)};
+  candidates[0].unavailable_guamis = {ngap_unavailable_guami_item{make_guami(1, 0), std::nullopt}};
+
+  ASSERT_EQ(select_amf_for_guami(candidates, make_guami(1, 0), rng), uint_to_cu_cp_amf_index(1));
+}
+
+TEST_F(amf_selector_test, when_all_guamis_of_an_amf_are_unavailable_then_it_gets_no_new_ues)
+{
+  candidates                       = {make_candidate(0, make_guami(1, 0), 255), make_candidate(1, make_guami(1, 1), 0)};
+  candidates[0].unavailable_guamis = {ngap_unavailable_guami_item{make_guami(1, 0), std::nullopt}};
+
+  ASSERT_EQ(select({.plmn = plmn_a}), uint_to_cu_cp_amf_index(1));
+  ASSERT_EQ(select_amf_for_amf_set(candidates, plmn_a, 1, rng), uint_to_cu_cp_amf_index(1));
+}
+
+TEST_F(amf_selector_test, when_the_guamis_of_all_amfs_are_unavailable_then_an_amf_is_still_selected)
+{
+  candidates                       = {make_candidate(0, make_guami(1, 0))};
+  candidates[0].unavailable_guamis = {ngap_unavailable_guami_item{make_guami(1, 0), std::nullopt}};
+
+  ASSERT_EQ(select({.plmn = plmn_a}), uint_to_cu_cp_amf_index(0));
+  ASSERT_EQ(select_amf_for_amf_set(candidates, plmn_a, 1, rng), uint_to_cu_cp_amf_index(0));
+}
+
 TEST_F(amf_selector_test, when_ue_identifies_no_amf_then_selection_is_weighted_by_relative_amf_capacity)
 {
   candidates = {make_candidate(0, make_guami(1, 0), 255), make_candidate(1, make_guami(1, 1), 85)};
@@ -162,21 +220,21 @@ TEST_F(amf_selector_test, when_guami_is_served_then_its_amf_is_found)
 {
   candidates = {make_candidate(0, make_guami(1, 0)), make_candidate(1, make_guami(1, 1))};
 
-  ASSERT_EQ(select_amf_for_guami(candidates, make_guami(1, 1)), uint_to_cu_cp_amf_index(1));
+  ASSERT_EQ(select_amf_for_guami(candidates, make_guami(1, 1), rng), uint_to_cu_cp_amf_index(1));
 }
 
 TEST_F(amf_selector_test, when_amf_of_guami_is_not_connected_then_an_amf_of_the_same_set_is_found)
 {
   candidates = {make_candidate(0, make_guami(1, 0), 255, false), make_candidate(1, make_guami(1, 1))};
 
-  ASSERT_EQ(select_amf_for_guami(candidates, make_guami(1, 0)), uint_to_cu_cp_amf_index(1));
+  ASSERT_EQ(select_amf_for_guami(candidates, make_guami(1, 0), rng), uint_to_cu_cp_amf_index(1));
 }
 
 TEST_F(amf_selector_test, when_no_amf_of_the_guami_set_is_connected_then_no_amf_is_found)
 {
   candidates = {make_candidate(0, make_guami(1, 0), 255, false), make_candidate(1, make_guami(2, 0))};
 
-  ASSERT_FALSE(select_amf_for_guami(candidates, make_guami(1, 0)).has_value());
+  ASSERT_FALSE(select_amf_for_guami(candidates, make_guami(1, 0), rng).has_value());
 }
 
 TEST_F(amf_selector_test, when_amf_set_is_requested_then_a_connected_amf_of_this_set_is_selected)

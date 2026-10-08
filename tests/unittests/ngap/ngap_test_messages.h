@@ -13,6 +13,7 @@
 #include "ocudu/ngap/ngap_types.h"
 #include "ocudu/ran/cause/ngap_cause.h"
 #include "ocudu/ran/gtpu/gtpu_teid.h"
+#include "ocudu/ran/guami.h"
 #include "ocudu/ran/nr_cgi.h"
 #include "ocudu/ran/tai.h"
 
@@ -93,6 +94,12 @@ ngap_message generate_ng_setup_response(plmn_identity plmn                  = pl
 
 /// \brief Generate an AMF Configuration Update message without any IE.
 ngap_message generate_amf_configuration_update();
+
+/// \brief Generate an AMF Status Indication message with one unavailable GUAMI.
+/// \param[in] guami The unavailable GUAMI.
+/// \param[in] backup_amf_name The Backup AMF Name of the GUAMI, if any.
+ngap_message generate_amf_status_indication(const guami_t&                    guami,
+                                            const std::optional<std::string>& backup_amf_name = std::nullopt);
 
 /// \brief Generate a Reroute NAS Request message.
 /// \param[in] ran_ue_id The RAN UE NGAP ID of the UE.

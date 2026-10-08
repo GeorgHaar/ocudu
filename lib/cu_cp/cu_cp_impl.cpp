@@ -2283,6 +2283,30 @@ ngap_cu_cp_ue_notifier* cu_cp_impl::handle_new_ngap_ue(cu_cp_ue_index_t ue_index
   return &ue->get_ngap_cu_cp_ue_notifier();
 }
 
+cu_cp_ue_index_t cu_cp_impl::handle_ue_association_transfer(ran_ue_id_t ran_ue_id, cu_cp_amf_index_t amf_index)
+{
+  // The RAN UE NGAP ID is unique within the CU-CP, so at most one other NGAP holds the UE association.
+  cu_cp_ue_index_t ue_index = cu_cp_ue_index_t::invalid;
+  for (const auto& [other_amf_index, ngap] : ngap_db.get_ngaps()) {
+    if (other_amf_index == amf_index) {
+      continue;
+    }
+    ue_index = ngap->remove_ue_association(ran_ue_id);
+    if (ue_index != cu_cp_ue_index_t::invalid) {
+      logger.info("ue={}: amf_index={} takes over the UE from amf_index={}", ue_index, amf_index, other_amf_index);
+      break;
+    }
+  }
+  if (ue_index == cu_cp_ue_index_t::invalid) {
+    return cu_cp_ue_index_t::invalid;
+  }
+
+  if (not bind_ue_to_amf(ue_index, amf_index)) {
+    return cu_cp_ue_index_t::invalid;
+  }
+  return ue_index;
+}
+
 bool cu_cp_impl::schedule_ue_task(cu_cp_ue_index_t ue_index, async_task<void> task)
 {
   if (ue_mng.find_ue_task_scheduler(ue_index) == nullptr) {

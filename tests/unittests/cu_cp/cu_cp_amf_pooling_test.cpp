@@ -73,6 +73,7 @@ public:
         ngap_message ngap_pdu;
         if (wait_for_ngap_tx_pdu(ngap_pdu, std::chrono::milliseconds{50}, amf_idx)) {
           report_fatal_error_if_not(test_helpers::is_valid_init_ue_message(ngap_pdu), "Invalid Initial UE Message");
+          last_ran_ue_id = uint_to_ran_ue_id(ngap_pdu.pdu.init_msg().value.init_ue_msg()->ran_ue_ngap_id);
           return amf_idx;
         }
       }
@@ -89,6 +90,8 @@ public:
   }
 
   unsigned du_idx = 0;
+  /// RAN UE NGAP ID of the last Initial UE Message.
+  ran_ue_id_t last_ran_ue_id = ran_ue_id_t::invalid;
 };
 
 TEST_F(cu_cp_amf_pooling_test, when_amf_has_capacity_zero_then_new_ues_are_served_by_the_other_amf)
@@ -175,4 +178,65 @@ TEST_F(cu_cp_amf_pooling_test, when_one_amf_is_lost_then_only_its_ues_are_releas
 
   // A new UE is served by AMF 1.
   ASSERT_EQ(attach_ue(int_to_gnb_du_ue_f1ap_id(2), test_helpers::create_rrc_setup_complete()), 1);
+}
+
+TEST_F(cu_cp_amf_pooling_test, when_other_amf_sends_dl_nas_transport_for_a_ue_then_it_takes_over_the_ue)
+{
+  start_cu_cp(255, 255);
+  ASSERT_EQ(attach_ue_with_5g_s_tmsi(int_to_gnb_du_ue_f1ap_id(0), 0), 0);
+
+  // AMF 1 takes over the UE from AMF 0 with the RAN UE NGAP ID of the Initial UE Message to AMF 0 (TS 38.413 section
+  // 8.6.2.2).
+  get_amf(1).push_tx_pdu(generate_downlink_nas_transport_message(uint_to_amf_ue_id(7), last_ran_ue_id));
+  f1ap_message f1ap_pdu;
+  ASSERT_TRUE(wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu)) << "The NAS message of AMF 1 was not sent to the UE";
+  ASSERT_TRUE(test_helpers::is_valid_dl_rrc_message_transfer(f1ap_pdu));
+
+  // The UL NAS messages of the UE go to AMF 1.
+  asn1::rrc_nr::ul_dcch_msg_s ul_dcch_msg;
+  ul_dcch_msg.msg.set_c1().set_ul_info_transfer().crit_exts.set_ul_info_transfer().ded_nas_msg.from_string("7e004c");
+  get_du(du_idx).push_rrc_ul_dcch_message(
+      int_to_gnb_du_ue_f1ap_id(0), srb_id_t::srb1, test_helpers::pack_ul_dcch_msg(ul_dcch_msg));
+  ngap_message ngap_pdu;
+  ASSERT_TRUE(wait_for_ngap_tx_pdu(ngap_pdu, std::chrono::milliseconds{500}, 1)) << "AMF 1 received no UL NAS";
+  ASSERT_TRUE(test_helpers::is_valid_ul_nas_transport_message(ngap_pdu));
+  ASSERT_EQ(ngap_pdu.pdu.init_msg().value.ul_nas_transport()->amf_ue_ngap_id, 7);
+  ASSERT_FALSE(get_amf(0).try_pop_rx_pdu(ngap_pdu)) << "AMF 0 still received a message for the UE";
+}
+
+TEST_F(cu_cp_amf_pooling_test, when_the_old_amf_uses_the_ue_after_a_take_over_then_the_ue_stays_with_the_new_amf)
+{
+  start_cu_cp(255, 255);
+  ASSERT_EQ(attach_ue_with_5g_s_tmsi(int_to_gnb_du_ue_f1ap_id(0), 0), 0);
+  get_amf(1).push_tx_pdu(generate_downlink_nas_transport_message(uint_to_amf_ue_id(7), last_ran_ue_id));
+  f1ap_message f1ap_pdu;
+  ASSERT_TRUE(wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu)) << "The NAS message of AMF 1 was not sent to the UE";
+
+  // AMF 0 sends a message for the UE after AMF 1 took it over. The UE association stays with AMF 1.
+  get_amf(0).push_tx_pdu(generate_downlink_nas_transport_message(uint_to_amf_ue_id(5), last_ran_ue_id));
+  ngap_message ngap_pdu;
+  ASSERT_TRUE(wait_for_ngap_tx_pdu(ngap_pdu, std::chrono::milliseconds{500}, 0)) << "AMF 0 received no answer";
+  ASSERT_TRUE(test_helpers::is_valid_error_indication(ngap_pdu));
+  ASSERT_FALSE(get_du(du_idx).try_pop_dl_pdu(f1ap_pdu)) << "The NAS message of AMF 0 was sent to the UE";
+
+  asn1::rrc_nr::ul_dcch_msg_s ul_dcch_msg;
+  ul_dcch_msg.msg.set_c1().set_ul_info_transfer().crit_exts.set_ul_info_transfer().ded_nas_msg.from_string("7e004c");
+  get_du(du_idx).push_rrc_ul_dcch_message(
+      int_to_gnb_du_ue_f1ap_id(0), srb_id_t::srb1, test_helpers::pack_ul_dcch_msg(ul_dcch_msg));
+  ASSERT_TRUE(wait_for_ngap_tx_pdu(ngap_pdu, std::chrono::milliseconds{500}, 1)) << "AMF 1 received no UL NAS";
+  ASSERT_TRUE(test_helpers::is_valid_ul_nas_transport_message(ngap_pdu));
+}
+
+TEST_F(cu_cp_amf_pooling_test, when_other_amf_sends_initial_context_setup_request_for_a_ue_then_it_takes_over_the_ue)
+{
+  start_cu_cp(255, 255);
+  ASSERT_EQ(attach_ue_with_5g_s_tmsi(int_to_gnb_du_ue_f1ap_id(0), 0), 0);
+
+  // AMF 1 takes over the UE with the RAN UE NGAP ID of the Initial UE Message to AMF 0 (TS 38.413 section 8.3.1.2).
+  get_amf(1).push_tx_pdu(generate_valid_initial_context_setup_request_message(uint_to_amf_ue_id(7), last_ran_ue_id));
+  f1ap_message f1ap_pdu;
+  ASSERT_TRUE(wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu)) << "The CU-CP did not start the Initial Context Setup";
+  ngap_message ngap_pdu;
+  ASSERT_FALSE(get_amf(1).try_pop_rx_pdu(ngap_pdu)) << "AMF 1 got an answer before the Initial Context Setup ended";
+  ASSERT_FALSE(get_amf(0).try_pop_rx_pdu(ngap_pdu)) << "AMF 0 still received a message for the UE";
 }

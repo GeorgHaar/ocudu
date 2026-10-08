@@ -154,6 +154,14 @@ public:
   /// \returns Pointer to the NGAP UE notifier.
   virtual ngap_cu_cp_ue_notifier* on_new_ngap_ue(cu_cp_ue_index_t ue_index) = 0;
 
+  /// \brief Requests the transfer of a UE association that another NGAP instance of the CU-CP holds to this NGAP.
+  ///
+  /// A new AMF that takes over a UE uses the RAN UE NGAP ID that the CU-CP allocated over the NG interface instance
+  /// of the old AMF (TS 38.413 sections 8.3.1.2 and 8.6.2.2).
+  /// \param[in] ran_ue_id The RAN UE NGAP ID that the AMF sent.
+  /// \returns The index of the UE, or cu_cp_ue_index_t::invalid if no other NGAP instance holds the UE association.
+  virtual cu_cp_ue_index_t on_ue_association_transfer_required(ran_ue_id_t ran_ue_id) = 0;
+
   /// \brief Request scheduling a task for a UE.
   /// \param[in] ue_index The index of the UE.
   /// \param[in] task The task to schedule.
@@ -362,6 +370,14 @@ public:
 
   /// Returns the GUAMI of the AMF that serves the UE, if the AMF has signalled it.
   virtual std::optional<guami_t> get_serving_guami(cu_cp_ue_index_t ue_index) = 0;
+
+  /// \brief Removes a UE association without signalling, because a new AMF serves the UE.
+  ///
+  /// The NGAP removes the UE association only if it sent the INITIAL UE MESSAGE of the UE, the UE got no INITIAL
+  /// CONTEXT SETUP REQUEST yet, no release of the UE is ongoing, and the UE task queue has space.
+  /// \param[in] ran_ue_id The RAN UE NGAP ID of the UE association.
+  /// \returns The index of the UE, or cu_cp_ue_index_t::invalid if this NGAP keeps the UE association.
+  virtual cu_cp_ue_index_t remove_ue_association(ran_ue_id_t ran_ue_id) = 0;
 };
 
 /// Interface to map between ue_index and amf_ue_id.

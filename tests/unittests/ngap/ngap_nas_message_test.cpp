@@ -55,6 +55,22 @@ protected:
     return n2_gw.last_ngap_msgs.back().pdu.init_msg().value.type() ==
            asn1::ngap::ngap_elem_procs_o::init_msg_c::types_opts::error_ind;
   }
+
+  /// Fills the UE task queue with tasks that wait for \p unblock. Returns true if the queue is full.
+  bool fill_ue_task_queue(cu_cp_ue_index_t ue_index, manual_event_flag& unblock)
+  {
+    ue_task_scheduler* ue_sched = ue_mng.find_ue_task_scheduler(ue_index);
+    for (unsigned i = 0; i != 1000; ++i) {
+      if (not ue_sched->schedule_async_task(launch_async([&unblock](coro_context<async_task<void>>& ctx) {
+            CORO_BEGIN(ctx);
+            CORO_AWAIT(unblock);
+            CORO_RETURN();
+          }))) {
+        return true;
+      }
+    }
+    return false;
+  }
 };
 
 /// Initial UE message tests.
@@ -114,6 +130,22 @@ TEST_F(ngap_nas_message_routine_test, when_ue_present_dl_nas_transport_is_forwar
 
   // Check that RRC notifier was called.
   ASSERT_TRUE(was_dl_nas_transport_forwarded(ue));
+}
+
+TEST_F(ngap_nas_message_routine_test, when_ue_task_queue_is_full_then_ue_association_is_kept)
+{
+  cu_cp_ue_index_t ue_index  = this->start_procedure();
+  ran_ue_id_t      ran_ue_id = test_ues.at(ue_index).ran_ue_id.value();
+
+  manual_event_flag unblock;
+  ASSERT_TRUE(fill_ue_task_queue(ue_index, unblock));
+
+  // The NGAP cannot schedule the destruction of the UE context, so it keeps the UE association.
+  ASSERT_EQ(ngap->remove_ue_association(ran_ue_id), cu_cp_ue_index_t::invalid);
+
+  // The NGAP removes the UE association when the UE task queue has space again.
+  unblock.set();
+  ASSERT_EQ(ngap->remove_ue_association(ran_ue_id), ue_index);
 }
 
 TEST_F(ngap_nas_message_routine_test, when_no_ue_present_dl_nas_transport_is_dropped_and_error_indication_is_sent)

@@ -27,6 +27,9 @@ struct ngap_ue_context {
 
   /// GUAMI of the AMF that serves the UE (TS 38.413 section 9.3.3.3).
   std::optional<guami_t> serving_guami;
+  /// True while a new AMF can take over the UE association (TS 38.413 sections 8.6.2.2 and 8.3.1.2): this NGAP sent
+  /// the INITIAL UE MESSAGE of the UE, and the UE got no INITIAL CONTEXT SETUP REQUEST yet.
+  bool take_over_allowed = false;
 
   unique_timer                                               request_pdu_session_timer;
   bool                                                       release_requested                     = false;
@@ -260,6 +263,30 @@ public:
     }
     ues.erase(ran_ue_id);
     ran_ue_ids.remove(ran_ue_id);
+  }
+
+  /// A UE context that is removed from the lookups, but not destroyed.
+  using detached_ue_context = std::unordered_map<ran_ue_id_t, ngap_ue_context>::node_type;
+
+  /// \brief Removes the UE context from the lookups without destroying it.
+  ///
+  /// Procedures of the UE can still refer to the UE context. The caller destroys the returned node after them.
+  /// \return The node that holds the UE context, or an empty node if no UE context has the RAN UE NGAP ID.
+  detached_ue_context detach_ue_context(ran_ue_id_t ran_ue_id)
+  {
+    auto it = ues.find(ran_ue_id);
+    if (it == ues.end()) {
+      return {};
+    }
+
+    it->second.logger.log_debug("Detaching NGAP UE context");
+    it->second.request_pdu_session_timer.stop();
+    ue_index_to_ran_ue_id.erase(it->second.ue_ids.ue_index);
+    if (it->second.ue_ids.amf_ue_id != amf_ue_id_t::invalid) {
+      amf_ue_id_to_ran_ue_id.erase(it->second.ue_ids.amf_ue_id);
+    }
+    ran_ue_ids.remove(ran_ue_id);
+    return ues.extract(it);
   }
 
   size_t size() const { return ues.size(); }

@@ -152,6 +152,11 @@ public:
 
   void connect_ngap(ngap_ue_context_removal_handler& ngap_handler_) { ngap_handler = &ngap_handler_; }
 
+  cu_cp_ue_index_t on_ue_association_transfer_required(ran_ue_id_t ran_ue_id) override
+  {
+    return cu_cp_ue_index_t::invalid;
+  }
+
   ngap_cu_cp_ue_notifier* on_new_ngap_ue(cu_cp_ue_index_t ue_index) override
   {
     last_ue = ue_index;

@@ -104,6 +104,12 @@ public:
   /// \returns Pointer to the NGAP UE notifier.
   virtual ngap_cu_cp_ue_notifier* handle_new_ngap_ue(cu_cp_ue_index_t ue_index) = 0;
 
+  /// \brief Handle the transfer of a UE association to the NGAP of the AMF that takes over the UE.
+  /// \param[in] ran_ue_id The RAN UE NGAP ID of the UE association.
+  /// \param[in] amf_index The index of the AMF that takes over the UE.
+  /// \returns The index of the UE, or cu_cp_ue_index_t::invalid if no other NGAP holds the UE association.
+  virtual cu_cp_ue_index_t handle_ue_association_transfer(ran_ue_id_t ran_ue_id, cu_cp_amf_index_t amf_index) = 0;
+
   /// \brief Handle the reception of a new Initial Context Setup Request.
   /// \param[in] request The received Initial Context Setup Request.
   /// \returns The Initial Context Setup Response or the Initial Context Setup Failure.

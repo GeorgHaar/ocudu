@@ -99,6 +99,66 @@ ngap_impl::get_cn_assist_info_for_inactive(cu_cp_ue_index_t ue_index)
   return ue_ctxt.core_network_assist_info_for_inactive;
 }
 
+cu_cp_ue_index_t ngap_impl::remove_ue_association(ran_ue_id_t ran_ue_id)
+{
+  ngap_ue_context* ue_ctxt = ue_ctxt_list.find(ran_ue_id);
+  if (ue_ctxt == nullptr) {
+    return cu_cp_ue_index_t::invalid;
+  }
+
+  if (not ue_ctxt->take_over_allowed or ue_ctxt->release_requested or ue_ctxt->release_scheduled) {
+    ue_ctxt->logger.log_warning("Keeping UE association. Cause: A new AMF cannot take over the UE in this state");
+    return cu_cp_ue_index_t::invalid;
+  }
+
+  auto detached = schedule_ue_context_destruction(*ue_ctxt);
+  if (detached == nullptr) {
+    ue_ctxt->logger.log_warning("Keeping UE association. Cause: UE task queue is full");
+    return cu_cp_ue_index_t::invalid;
+  }
+
+  cu_cp_ue_index_t ue_index = ue_ctxt->ue_ids.ue_index;
+  ue_ctxt->logger.log_info("Removing UE association. Cause: A new AMF serves the UE");
+  *detached = ue_ctxt_list.detach_ue_context(ran_ue_id);
+  return ue_index;
+}
+
+std::shared_ptr<ngap_ue_context_list::detached_ue_context>
+ngap_impl::schedule_ue_context_destruction(ngap_ue_context& ue_ctxt)
+{
+  // Procedures of the UE can still refer to the UE context. They run on the UE task loop, so the UE context is
+  // destroyed there after them.
+  auto                    detached = std::make_shared<ngap_ue_context_list::detached_ue_context>();
+  ngap_cu_cp_ue_notifier* ue       = ue_ctxt.get_cu_cp_ue();
+  if (ue != nullptr and
+      not ue->schedule_async_task(launch_async([detached](coro_context<async_task<void>>& ctx) mutable {
+        CORO_BEGIN(ctx);
+        detached.reset();
+        CORO_RETURN();
+      }))) {
+    return nullptr;
+  }
+  return detached;
+}
+
+bool ngap_impl::take_over_ue_association(ran_ue_id_t ran_ue_id)
+{
+  cu_cp_ue_index_t ue_index = cu_cp_notifier.on_ue_association_transfer_required(ran_ue_id);
+  if (ue_index == cu_cp_ue_index_t::invalid) {
+    return false;
+  }
+
+  ngap_cu_cp_ue_notifier* ue_notifier = cu_cp_notifier.on_new_ngap_ue(ue_index);
+  if (ue_notifier == nullptr) {
+    return false;
+  }
+  ue_ctxt_list.add_ue(ue_index, ran_ue_id, *ue_notifier);
+  ngap_ue_context& ue_ctxt = ue_ctxt_list[ue_index];
+  ue_ctxt.logger.log_info("Took over the UE association from the old AMF");
+  start_request_pdu_session_timer(ue_ctxt);
+  return true;
+}
+
 std::optional<guami_t> ngap_impl::get_serving_guami(cu_cp_ue_index_t ue_index)
 {
   if (!ue_ctxt_list.contains(ue_index)) {
@@ -154,6 +214,16 @@ async_task<void> ngap_impl::handle_ng_reset_message(const cu_cp_reset& msg)
   return launch_async<ng_reset_procedure>(context, msg, tx_pdu_notifier, ev_mng, ue_ctxt_list, logger);
 }
 
+void ngap_impl::start_request_pdu_session_timer(ngap_ue_context& ue_ctxt)
+{
+  const cu_cp_ue_index_t ue_index = ue_ctxt.ue_ids.ue_index;
+  ue_ctxt.request_pdu_session_timer.set(context.request_pdu_session_timeout,
+                                        [this, ue_index]() { on_request_pdu_session_timer_expired(ue_index); });
+  ue_ctxt.request_pdu_session_timer.run();
+  ue_ctxt.logger.log_debug("Starting PDU session creation timer (timeout={}ms)...",
+                           ue_ctxt.request_pdu_session_timer.duration().count());
+}
+
 void ngap_impl::handle_initial_ue_message(const cu_cp_initial_ue_message& msg)
 {
   if (ue_ctxt_list.contains(msg.ue_index)) {
@@ -181,16 +251,12 @@ void ngap_impl::handle_initial_ue_message(const cu_cp_initial_ue_message& msg)
 
   auto& init_ue_msg           = ngap_msg.pdu.init_msg().value.init_ue_msg();
   init_ue_msg->ran_ue_ngap_id = to_underlying(ue_ctxt.ue_ids.ran_ue_id);
+  ue_ctxt.take_over_allowed   = true;
 
   fill_asn1_initial_ue_message(init_ue_msg, msg, context);
 
-  // Start PDU session setup timer.
-  ue_ctxt.request_pdu_session_timer.set(context.request_pdu_session_timeout,
-                                        [this, msg]() { on_request_pdu_session_timer_expired(msg.ue_index); });
-  ue_ctxt.request_pdu_session_timer.run();
+  start_request_pdu_session_timer(ue_ctxt);
 
-  ue_ctxt.logger.log_debug("Starting PDU session creation timer (timeout={}ms)...",
-                           ue_ctxt.request_pdu_session_timer.duration().count());
   // Forward message to AMF.
   if (!tx_pdu_notifier.on_new_message(ngap_msg)) {
     ue_ctxt.logger.log_warning("Cannot send InitialUEMessage");
@@ -463,13 +529,16 @@ void ngap_impl::handle_initiating_message(const init_msg_s& msg)
 
 void ngap_impl::handle_dl_nas_transport_message(const asn1::ngap::dl_nas_transport_s& msg)
 {
-  if (!ue_ctxt_list.contains(uint_to_ran_ue_id(msg->ran_ue_ngap_id))) {
+  // The AMF can use a RAN UE NGAP ID that the CU-CP allocated over another NG interface instance (TS 38.413 section
+  // 8.6.2.2).
+  if (!ue_ctxt_list.contains(uint_to_ran_ue_id(msg->ran_ue_ngap_id)) and
+      !take_over_ue_association(uint_to_ran_ue_id(msg->ran_ue_ngap_id))) {
     logger.warning("ran_ue={} amf_ue={}: Dropping DlNasTransportMessage. UE context does not exist",
                    msg->ran_ue_ngap_id,
                    msg->amf_ue_ngap_id);
     send_error_indication(tx_pdu_notifier,
                           logger,
-                          {},
+                          uint_to_ran_ue_id(msg->ran_ue_ngap_id),
                           uint_to_amf_ue_id(msg->amf_ue_ngap_id),
                           ngap_cause_radio_network_t::unknown_local_ue_ngap_id);
     return;
@@ -532,11 +601,18 @@ void ngap_impl::handle_initial_context_setup_request(const asn1::ngap::init_cont
     }
   }
 
-  if (!ue_ctxt_list.contains(uint_to_ran_ue_id(request->ran_ue_ngap_id))) {
+  // The AMF can use a RAN UE NGAP ID that the CU-CP allocated over another NG interface instance (TS 38.413 section
+  // 8.3.1.2).
+  if (!ue_ctxt_list.contains(uint_to_ran_ue_id(request->ran_ue_ngap_id)) and
+      !take_over_ue_association(uint_to_ran_ue_id(request->ran_ue_ngap_id))) {
     logger.warning("ran_ue={} amf_ue={}: Dropping InitialContextSetupRequest. UE context does not exist",
                    request->ran_ue_ngap_id,
                    request->amf_ue_ngap_id);
-    send_error_indication(tx_pdu_notifier, logger, {}, {}, ngap_cause_radio_network_t::unknown_local_ue_ngap_id);
+    send_error_indication(tx_pdu_notifier,
+                          logger,
+                          uint_to_ran_ue_id(request->ran_ue_ngap_id),
+                          uint_to_amf_ue_id(request->amf_ue_ngap_id),
+                          ngap_cause_radio_network_t::unknown_local_ue_ngap_id);
     return;
   }
 
@@ -596,7 +672,8 @@ void ngap_impl::handle_initial_context_setup_request(const asn1::ngap::init_cont
   }
 
   // Store serving PLMN.
-  ue_ctxt.serving_guami = init_ctxt_setup_req.guami;
+  ue_ctxt.serving_guami     = init_ctxt_setup_req.guami;
+  ue_ctxt.take_over_allowed = false;
 
   // Store RRC inactive transition report request if present.
   if (init_ctxt_setup_req.rrc_inactive_transition_report_request.has_value()) {
@@ -1717,9 +1794,11 @@ void ngap_impl::schedule_error_indication(cu_cp_ue_index_t           ue_index,
 
   ocudu_assert(ue != nullptr, "ue={} amf_ue={}: UE for UE context doesn't exist", ue_index, amf_ue_id);
 
-  ue->schedule_async_task(launch_async([this, ue_index, cause, amf_ue_id](coro_context<async_task<void>>& ctx) {
+  // The UE context can leave this NGAP before the task runs, so the task keeps the RAN UE NGAP ID.
+  const ran_ue_id_t ran_ue_id = ue_ctxt.ue_ids.ran_ue_id;
+  ue->schedule_async_task(launch_async([this, ran_ue_id, cause, amf_ue_id](coro_context<async_task<void>>& ctx) {
     CORO_BEGIN(ctx);
-    send_error_indication(tx_pdu_notifier, logger, ue_ctxt_list[ue_index].ue_ids.ran_ue_id, amf_ue_id, cause);
+    send_error_indication(tx_pdu_notifier, logger, ran_ue_id, amf_ue_id, cause);
     CORO_RETURN();
   }));
 }

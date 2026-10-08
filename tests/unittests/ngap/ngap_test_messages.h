@@ -91,6 +91,9 @@ ngap_message generate_ng_setup_response(plmn_identity plmn                  = pl
                                         uint16_t      relative_amf_capacity = 255,
                                         uint16_t      amf_set_id            = 1);
 
+/// \brief Generate an AMF Configuration Update message without any IE.
+ngap_message generate_amf_configuration_update();
+
 /// \brief Generate a Reroute NAS Request message.
 /// \param[in] ran_ue_id The RAN UE NGAP ID of the UE.
 /// \param[in] initial_ue_message The INITIAL UE MESSAGE to reroute.

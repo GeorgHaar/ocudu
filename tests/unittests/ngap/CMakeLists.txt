@@ -27,6 +27,7 @@ set(SOURCES
         ngap_ue_context_test.cpp
         ngap_validators_test.cpp
         ngap_write_replace_warning_test.cpp
+        ngap_amf_configuration_update_test.cpp
         )
 
 add_executable(ngap_test ${SOURCES})

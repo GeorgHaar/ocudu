@@ -343,6 +343,69 @@ void ngap_impl::release_ue_after_failed_reroute(ngap_ue_context& ue_ctxt)
   }));
 }
 
+void ngap_impl::handle_amf_configuration_update(const asn1::ngap::amf_cfg_upd_s& msg)
+{
+  error_type<std::string> result = {};
+  if (msg->served_guami_list_present) {
+    result = validate_served_guami_list(msg->served_guami_list);
+  }
+  if (result.has_value() and msg->plmn_support_list_present) {
+    result = validate_plmn_support_list(msg->plmn_support_list);
+  }
+  if (not result.has_value()) {
+    logger.warning("Rejecting AMFConfigurationUpdate. Cause: {}", result.error());
+    ngap_message ngap_msg;
+    ngap_msg.pdu.set_unsuccessful_outcome().load_info_obj(ASN1_NGAP_ID_AMF_CFG_UPD);
+    ngap_msg.pdu.unsuccessful_outcome().value.amf_cfg_upd_fail()->cause =
+        cause_to_asn1(cause_protocol_t::semantic_error);
+    if (!tx_pdu_notifier.on_new_message(ngap_msg)) {
+      logger.warning("Cannot send AMFConfigurationUpdateFailure");
+    }
+    return;
+  }
+
+  // The received information replaces the stored information. The NG-RAN node uses it for further AMF selection (TS
+  // 38.413 section 8.7.3.2).
+  if (msg->amf_name_present) {
+    context.amf_name = msg->amf_name.to_string();
+  }
+  if (msg->served_guami_list_present) {
+    context.served_guami_list = asn1_to_served_guami_list(msg->served_guami_list);
+  }
+  if (msg->relative_amf_capacity_present) {
+    context.relative_amf_capacity = msg->relative_amf_capacity;
+  }
+  if (msg->plmn_support_list_present) {
+    context.plmn_support_list = asn1_to_plmn_support_list(msg->plmn_support_list);
+  }
+
+  ngap_message ngap_msg;
+  ngap_msg.pdu.set_successful_outcome().load_info_obj(ASN1_NGAP_ID_AMF_CFG_UPD);
+  auto& ack = ngap_msg.pdu.successful_outcome().value.amf_cfg_upd_ack();
+
+  // The CU-CP uses one TNL association per AMF, so it sets up none of the TNL associations that the AMF adds.
+  if (msg->amf_tnl_assoc_to_add_list_present) {
+    logger.warning("Rejecting {} AMF TNL associations to add. Cause: The CU-CP uses one TNL association per AMF",
+                   msg->amf_tnl_assoc_to_add_list.size());
+    ack->amf_tnl_assoc_failed_to_setup_list_present = true;
+    for (const auto& item : msg->amf_tnl_assoc_to_add_list) {
+      asn1::ngap::tnl_assoc_item_s failed_item;
+      failed_item.tnl_assoc_address = item.amf_tnl_assoc_address;
+      failed_item.cause             = cause_to_asn1(ngap_cause_transport_t::unspecified);
+      ack->amf_tnl_assoc_failed_to_setup_list.push_back(failed_item);
+    }
+  }
+
+  if (msg->amf_tnl_assoc_to_rem_list_present or msg->amf_tnl_assoc_to_upd_list_present) {
+    logger.warning(
+        "Ignoring the AMF TNL associations to remove or update. Cause: The CU-CP uses one TNL association per AMF");
+  }
+
+  if (!tx_pdu_notifier.on_new_message(ngap_msg)) {
+    logger.warning("Cannot send AMFConfigurationUpdateAcknowledge");
+  }
+}
+
 void ngap_impl::handle_reroute_nas_request(const asn1::ngap::reroute_nas_request_s& msg)
 {
   const ran_ue_id_t                ran_ue_id = uint_to_ran_ue_id(msg->ran_ue_ngap_id);
@@ -626,6 +689,9 @@ void ngap_impl::handle_initiating_message(const init_msg_s& msg)
       break;
     case ngap_elem_procs_o::init_msg_c::types_opts::reroute_nas_request:
       handle_reroute_nas_request(msg.value.reroute_nas_request());
+      break;
+    case ngap_elem_procs_o::init_msg_c::types_opts::amf_cfg_upd:
+      handle_amf_configuration_update(msg.value.amf_cfg_upd());
       break;
     case ngap_elem_procs_o::init_msg_c::types_opts::ue_context_mod_request:
       handle_ue_context_modification_request(msg.value.ue_context_mod_request());

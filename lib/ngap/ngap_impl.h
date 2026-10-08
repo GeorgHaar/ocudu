@@ -149,6 +149,10 @@ private:
   /// \brief Releases a UE whose Reroute NAS Request procedure failed.
   void release_ue_after_failed_reroute(ngap_ue_context& ue_ctxt);
 
+  /// \brief Handle the reception of an AMF Configuration Update message.
+  /// \param[in] msg The AMF Configuration Update message.
+  void handle_amf_configuration_update(const asn1::ngap::amf_cfg_upd_s& msg);
+
   /// \brief Handle the reception of a Reroute NAS Request message.
   /// \param[in] msg The Reroute NAS Request message.
   void handle_reroute_nas_request(const asn1::ngap::reroute_nas_request_s& msg);

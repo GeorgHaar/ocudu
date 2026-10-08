@@ -90,6 +90,13 @@ ngap_message ocudu::ocucp::generate_ng_setup_response(plmn_identity plmn,
   return ng_setup_response;
 }
 
+ngap_message ocudu::ocucp::generate_amf_configuration_update()
+{
+  ngap_message msg;
+  msg.pdu.set_init_msg().load_info_obj(ASN1_NGAP_ID_AMF_CFG_UPD);
+  return msg;
+}
+
 ngap_message ocudu::ocucp::generate_reroute_nas_request(ran_ue_id_t         ran_ue_id,
                                                         const ngap_message& initial_ue_message,
                                                         uint16_t            amf_set_id)

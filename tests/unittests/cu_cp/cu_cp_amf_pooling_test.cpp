@@ -368,3 +368,23 @@ TEST_F(cu_cp_amf_pooling_test, when_reroute_request_lists_an_s_nssai_twice_then_
   ngap_message ngap_pdu;
   ASSERT_FALSE(get_amf(1).try_pop_rx_pdu(ngap_pdu)) << "AMF 1 received a rerouted InitialUEMessage";
 }
+
+TEST_F(cu_cp_amf_pooling_test, when_amf_updates_its_capacity_to_zero_then_new_ues_are_served_by_the_other_amf)
+{
+  start_cu_cp(255, 255);
+
+  // AMF 0 sets its Relative AMF Capacity to 0 (TS 38.413 section 8.7.3).
+  ngap_message update                                                      = generate_amf_configuration_update();
+  update.pdu.init_msg().value.amf_cfg_upd()->relative_amf_capacity_present = true;
+  update.pdu.init_msg().value.amf_cfg_upd()->relative_amf_capacity         = 0;
+  get_amf(0).push_tx_pdu(update);
+  ngap_message ngap_pdu;
+  ASSERT_TRUE(wait_for_ngap_tx_pdu(ngap_pdu, std::chrono::milliseconds{500}, 0)) << "No acknowledge was sent";
+  ASSERT_EQ(ngap_pdu.pdu.type().value, asn1::ngap::ngap_pdu_c::types_opts::successful_outcome);
+  ASSERT_EQ(ngap_pdu.pdu.successful_outcome().value.type().value,
+            asn1::ngap::ngap_elem_procs_o::successful_outcome_c::types_opts::amf_cfg_upd_ack);
+
+  for (unsigned i = 0; i != 5; ++i) {
+    ASSERT_EQ(attach_ue(int_to_gnb_du_ue_f1ap_id(i), test_helpers::create_rrc_setup_complete()), 1);
+  }
+}

@@ -11,6 +11,25 @@
 
 using namespace ocudu;
 
+static double get_rf_time_scale(const std::string& args)
+{
+  static constexpr char key[] = "rf_time_scale=";
+  const std::size_t     pos   = args.find(key);
+  if (pos == std::string::npos) {
+    return 1.0;
+  }
+
+  const std::size_t value_pos = pos + sizeof(key) - 1;
+  const std::size_t comma     = args.find(',', value_pos);
+  const std::string value = args.substr(value_pos, comma == std::string::npos ? std::string::npos : comma - value_pos);
+
+  std::size_t  idx   = 0;
+  const double scale = std::stod(value, &idx);
+  report_error_if_not(
+      idx == value.size() && scale > 0.0, "Invalid rf_time_scale in device arguments (i.e., {}).", args);
+  return scale;
+}
+
 radio_session_realtime_loopback_impl::radio_session_realtime_loopback_impl(const radio_configuration::radio& config,
                                                                            task_executor&        async_task_executor,
                                                                            radio_event_notifier& notification_handler) :
@@ -29,6 +48,7 @@ radio_session_realtime_loopback_impl::radio_session_realtime_loopback_impl(
   logger(ocudulog::fetch_basic_logger("RF")),
   ts0_epoch(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch())),
   sampling_rate_hz(config.sampling_rate_Hz),
+  rf_time_scale(get_rf_time_scale(config.args)),
   next_receive_timestamp(0),
   next_transmit_timestamp(0),
   max_nof_buffered_rx_samples(static_cast<uint64_t>(sampling_rate_hz / 100)),

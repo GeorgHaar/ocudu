@@ -110,6 +110,9 @@ private:
   /// Sampling rate common to all channels.
   double sampling_rate_hz;
 
+  /// Scales RF time relative to the system clock. Values below 1 slow RF time down.
+  double rf_time_scale;
+
   /// Timestamp of the next sample to deliver to the stack.
   baseband_gateway_timestamp next_receive_timestamp;
 
@@ -160,7 +163,8 @@ private:
     auto time_since_epoch =
         std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch());
 
-    return (time_since_epoch.count() - ts0_epoch.count()) * sampling_rate_hz / 1000000000U;
+    return static_cast<baseband_gateway_timestamp>(static_cast<double>(time_since_epoch.count() - ts0_epoch.count()) *
+                                                   sampling_rate_hz * rf_time_scale / 1e9);
   };
 };
 

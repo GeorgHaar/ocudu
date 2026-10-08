@@ -88,7 +88,7 @@ on its own line prefixed with a `-` and a space.
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SIB1` / `SI-<n>` / `SI-?` | `SIB1: rb=<prbs> tbs=<bytes>`. `SI-?` when the SI message index is unknown.                                                                                                                                                                                                                                                 |
 | `RAR` / `MsgB`             | `RAR: ra-rnti=<rnti> rb=<prbs> tbs=<bytes>`. A 2-step grant prints `MsgB: msgb-rnti=<rnti> ...`.                                                                                                                                                                                                                            |
-| `DL`                       | `DL: ue=<idx> c-rnti=<rnti> h_id=<harq> ss_id=<ss> rb=<prbs> k1=<k1> cw[0]: newtx=<true/false> rv=<rv> tbs=<bytes>`, then ` cw[1]: newtx= rv= tbs=` for a second codeword. On new data appends `ri=<layers> dl_bo=<buffer-occupancy>`. When part of a Rel-16 PDSCH repetition bundle appends `reps=<n> reps_remaining=<n>`. |
+| `DL`                       | `DL: ue=<idx> c-rnti=<rnti> h_id=<harq> ss_id=<ss> rb=<prbs> k1=<k1> cw[0]: newtx=<true/false> rv=<rv> tbs=<bytes>`, then `cw[1]: newtx= rv= tbs=` with a second codeword. On new data appends `ri=<layers> dl_bo=<buffer-occupancy>`. When part of a Rel-16 PDSCH repetition bundle appends `reps=<n> reps_remaining=<n>`. |
 | `UL`                       | `UL: ue=<idx> rnti=<rnti> h_id=<harq> ss_id=<ss> rb=<prbs> newtx=<true/false> rv=<rv> tbs=<bytes>`, then `k2=<k2>`, or `msg3_delay=<n>` for a Msg3 grant (invalid UE index, first tx).                                                                                                                                      |
 | `PG`                       | `PG: rb=<prbs> tbs=<bytes> ues: <cn\|ran>-pg-id=<0x..>, ...`                                                                                                                                                                                                                                                                |
 
@@ -139,14 +139,14 @@ The `dci:` fields:
   `result=successRAR|fallbackRAR`.
 - `UE PDSCH`:
   - `nrtx` = retransmission count.
-  - A second codeword appends ` cw[1]: tbs= mcs= rv=`.
+  - A second codeword appends `cw[1]: tbs= mcs= rv=`.
   - `ri`/PMI printed only when precoding present.
   - `dl_bo` (DL buffer occupancy) only on new data.
   - `olla` (outer-loop link-adaptation offset) when set.
   - `reps`/`reps_remaining` only when the grant is part of a Rel-16 PDSCH repetition bundle (`reps` = nominal bundle
     size, `reps_remaining` = repetitions still to be transmitted after this occasion, decrementing to 0 at the last
     one).
-  - Per-logical-channel `grants:` list when a TB is built, then a ` cw[1] grants: ...` list for the second TB.
+  - Per-logical-channel `grants:` list when a TB is built, then a `cw[1] grants: ...` list for the second TB.
 
 **UL shared channel and control:**
 

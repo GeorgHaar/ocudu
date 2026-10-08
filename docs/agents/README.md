@@ -7,8 +7,12 @@ The developer guidelines are documented in full at <https://docs.ocudu.org/dev_g
 with that guide and carry only what an agent cannot derive from the sources and gets wrong in practice. A page earns its
 place by fixing a mistake agents actually repeat, not by restating a rule they already follow.
 
-Agent instruction files at the repository root (`CLAUDE.md`, `AGENTS.md`) stay where their tooling expects them. Point
-to this directory from there instead of duplicating its content.
+Each `AGENTS.md` file has a `CLAUDE.md` file next to it that imports it. These files are at the repository root and in
+some subdirectories, for example `apps/` and `lib/scheduler/`. They stay where their tooling expects them.
+
+Do not copy the rules of a page of this directory into an `AGENTS.md` file. Add a link to the page in the `AGENTS.md`
+file. For example, the root `AGENTS.md` file has the line
+`Follow [docs/agents/code_comments.md](docs/agents/code_comments.md).`
 
 ## Guidelines
 

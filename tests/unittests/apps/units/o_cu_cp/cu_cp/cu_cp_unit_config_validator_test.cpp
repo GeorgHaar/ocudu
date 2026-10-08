@@ -156,3 +156,12 @@ TEST(cu_cp_unit_config_validator_test, location_hysteresis_respects_its_upper_bo
   cfg.hysteresis_location_km = 327.69;
   EXPECT_FALSE(validate(cfg));
 }
+
+TEST(cu_cp_unit_config_validator_test, several_amfs_may_serve_the_same_plmn)
+{
+  cu_cp_unit_config cfg;
+  cfg.extra_amfs.push_back(cfg.amf_config.amf);
+  cfg.extra_amfs.back().ip_addrs = {"127.0.1.101"};
+
+  ASSERT_TRUE(validate_cu_cp_unit_config(cfg));
+}

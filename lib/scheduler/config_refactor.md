@@ -79,9 +79,10 @@ value from `ran_cell_config` or from the cell structures.
 
 ### Write the RRM code in the scheduler
 
-All the RRM code moves to `lib/scheduler/rrm`, because the RRM code depends on the scheduler implementation.
+All the RRM code moves to the scheduler, because the RRM code depends on the scheduler implementation. The public
+headers are in `include/ocudu/scheduler/rrm`. The implementation is in `lib/scheduler/rrm`.
 
-- Put new RRM code in `lib/scheduler/rrm`.
+- Put new RRM code in `include/ocudu/scheduler/rrm` and `lib/scheduler/rrm`.
 - Do not add new RRM code to `lib/du/du_high/du_manager/ran_resource_management`.
 
 ### Keep the BWP parameters separate
@@ -111,17 +112,21 @@ The PUCCH structures show the correct split. They are not perfect, but use them 
   parameters, for example the number of resources and the format parameters.
 - `cell_pucch_res_config` (`include/ocudu/scheduler/config/cell_bwp_res_config.h`) holds the lists of the common and the
   dedicated PUCCH resources of the cell.
-- `ue_pucch_config` (`include/ocudu/scheduler/config/ue_bwp_config.h`) holds only IDs and offsets. It holds no copy of a
-  resource.
-- `pucch_res_id_t` (`include/ocudu/ran/pucch/pucch_mapping.h`) holds two IDs. The scheduler uses `cell_res_id`. The DU
-  uses `ue_res_id` only for the ASN.1 message.
+- `ue_pucch_config` (`include/ocudu/scheduler/config/ue_bwp_config.h`) holds IDs, the SR offset, the maximum PUCCH
+  payload and the PUCCH repetition flags. It holds no copy of a resource.
+- `pucch_res_id_t` (`include/ocudu/ran/pucch/pucch_mapping.h`) holds a dedicated ID or a common ID.
+  - The dedicated ID holds two IDs. The scheduler uses `cell_res_id`. The DU uses `ue_res_id` only for the ASN.1
+    message.
+  - The common ID holds `r_pucch`. It selects a resource from the default common PUCCH table, before the UE has a
+    dedicated PUCCH configuration.
 
 ## Target
 
 - `serving_cell_config` does not exist. The DU fills the ASN.1 messages from `ran_cell_config` and `ue_bwp_config`.
 - `ue_cell_config` holds only the UE BWP configurations.
-- All the RRM code is in `lib/scheduler/rrm`. The RRM allocates the UE resources, and the DU asks the RRM for the data
-  that RRC sends to the UE. The RRM code is in the scheduler directory, but the RRM is not the scheduler.
+- All the RRM code is in `include/ocudu/scheduler/rrm` and `lib/scheduler/rrm`. The RRM allocates the UE resources, and
+  the DU asks the RRM for the data that RRC sends to the UE. The RRM code is in the scheduler directory, but the RRM is
+  not the scheduler.
 - `serving_cell_config_validator` does not exist, because the types do not permit an incorrect value.
   `scheduler_ue_config_validator` stays, because the request message still needs a check.
 

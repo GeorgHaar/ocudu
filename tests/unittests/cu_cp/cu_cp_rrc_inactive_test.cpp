@@ -8,10 +8,12 @@
 #include "tests/test_doubles/e1ap/e1ap_cu_cp_test_messages.h"
 #include "tests/test_doubles/e1ap/e1ap_test_message_validators.h"
 #include "tests/test_doubles/f1ap/f1ap_test_message_validators.h"
+#include "tests/test_doubles/f1ap/f1ap_test_messages.h"
 #include "tests/test_doubles/ngap/ngap_test_message_validators.h"
 #include "tests/test_doubles/rrc/rrc_test_message_validators.h"
 #include "tests/test_doubles/rrc/rrc_test_messages.h"
 #include "tests/test_doubles/xnap/xnap_test_message_validators.h"
+#include "tests/unittests/cu_cp/test_helpers.h"
 #include "tests/unittests/ngap/ngap_test_messages.h"
 #include "tests/unittests/xnap/xnap_test_messages.h"
 #include "ocudu/adt/format.h"
@@ -1298,6 +1300,40 @@ TEST_F(cu_cp_rrc_inactive_test, when_ran_paging_timer_expires_then_ue_release_is
 
   // Timeout RAN paging and await NGAP UE Context Release Request.
   ASSERT_TRUE(timeout_ran_paging_and_await_ngap_ue_context_release_request());
+}
+
+TEST_F(cu_cp_rrc_inactive_test, when_ue_resumes_during_location_measurements_then_du_receives_the_location_meas_info)
+{
+  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-b");
+
+  connect_ue_with_rrc_inactive_support();
+
+  // The UE starts location measurements. The first UL PDCP COUNT on SRB1 after the attach is 8.
+  get_du(du_idx).push_ul_pdu(test_helpers::generate_ul_rrc_message_transfer(
+      du_ue_id,
+      ue_ctx->cu_ue_id.value(),
+      srb_id_t::srb1,
+      generate_protected_ul_dcch_pdu(
+          test_helpers::create_location_meas_ind(test_helpers::create_nr_prs_location_meas_info()), 8)));
+  ASSERT_TRUE(this->wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu));
+  ASSERT_TRUE(test_helpers::is_valid_ue_context_modification_request(f1ap_pdu));
+  get_du(du_idx).push_ul_pdu(
+      test_helpers::generate_ue_context_modification_response(du_ue_id, ue_ctx->cu_ue_id.value(), crnti, {}, {}));
+
+  // The UE goes to RRC Inactive.
+  ASSERT_TRUE(send_ue_level_bearer_context_inactivity_notification_and_await_bearer_context_modification_request());
+  ASSERT_TRUE(send_bearer_context_modification_response_and_await_ue_context_release_command());
+  ASSERT_TRUE(send_f1ap_ue_context_release_complete());
+
+  // The UE resumes. The UE Context Setup Request carries the location measurements of the UE.
+  ASSERT_TRUE(send_init_ul_rrc_message_transfer_and_await_ue_context_setup_request());
+  const auto& req = f1ap_pdu.pdu.init_msg().value.ue_context_setup_request();
+  ASSERT_TRUE(req->cu_to_du_rrc_info.ie_exts_present);
+  ASSERT_TRUE(req->cu_to_du_rrc_info.ie_exts.location_meas_info_present);
+  byte_buffer   expected_info;
+  asn1::bit_ref bref{expected_info};
+  ASSERT_EQ(test_helpers::create_nr_prs_location_meas_info().pack(bref), asn1::OCUDUASN_SUCCESS);
+  EXPECT_EQ(req->cu_to_du_rrc_info.ie_exts.location_meas_info, expected_info);
 }
 
 TEST_F(cu_cp_rrc_inactive_test, when_location_reporting_is_configured_and_ue_resumes_then_location_report_is_sent)

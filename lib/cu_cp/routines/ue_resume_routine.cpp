@@ -242,6 +242,10 @@ bool ue_resume_routine::generate_ue_context_setup_request(f1ap_ue_context_setup_
   // Add cell group config IE, so the DU will request RLC reestablishment from the UE.
   setup_request.cu_to_du_rrc_info.ie_exts.emplace();
   setup_request.cu_to_du_rrc_info.ie_exts->cell_group_cfg = cell_group_config.copy();
+  // Add the ongoing location measurements of the UE, so that the DU configures their measurement gaps.
+  if (transfer_context.location_meas_info.has_value()) {
+    setup_request.cu_to_du_rrc_info.ie_exts->location_meas_info = transfer_context.location_meas_info->copy();
+  }
 
   for (const auto& srb_id : srbs) {
     f1ap_srb_to_setup srb_item;

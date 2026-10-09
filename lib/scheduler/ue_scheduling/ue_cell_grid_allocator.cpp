@@ -969,17 +969,18 @@ ue_cell_grid_allocator::setup_ul_grant_builder(const slice_ue&                  
     return make_unexpected(alloc_status::skip_ue);
   }
 
-  // The process is taken only once the PDCCH is booked, and a cancelled PDCCH still costs the UL attempt of the
-  // slot, so a mode left without a free process is refused before anything is reserved for it.
-  const harq_utils::harq_mode_t harq_mode = ue_cc.harqs.is_ul_harq_mode_selective()
-                                                ? harq_utils::to_harq_mode(user.select_normal_ul_harq_mode())
-                                                : harq_utils::harq_mode_t::normal;
-  if (not is_retx and not ue_cc.harqs.has_empty_ul_harqs(harq_mode)) {
-    logger.debug("ue={} rnti={}: Failed to allocate PUSCH in slot={}. Cause: no free UL HARQ process",
-                 u.ue_index,
-                 u.crnti,
-                 pusch_alloc.slot);
-    return make_unexpected(alloc_status::skip_ue);
+  // Only a new tx picks a HARQ process; a retx keeps the one it already holds.
+  harq_utils::harq_mode_t harq_mode = harq_utils::harq_mode_t::normal;
+  if (not is_retx and ue_cc.harqs.is_ul_harq_mode_selective()) {
+    harq_mode = harq_utils::to_harq_mode(user.select_normal_ul_harq_mode());
+    // Checked before the PDCCH is booked, as cancelling one still costs the UL attempt of the slot.
+    if (not ue_cc.harqs.has_empty_ul_harqs(harq_mode)) {
+      logger.debug("ue={} rnti={}: Failed to allocate PUSCH in slot={}. Cause: no free UL HARQ process",
+                   u.ue_index,
+                   u.crnti,
+                   pusch_alloc.slot);
+      return make_unexpected(alloc_status::skip_ue);
+    }
   }
 
   // Allocate PDCCH position.

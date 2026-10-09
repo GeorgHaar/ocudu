@@ -86,6 +86,10 @@ static int16_t read_i16_iq(const uint8_t* p)
 
 // ---- Test fixture -----------------------------------------------------------
 
+// ctest runs the DIFI test binaries in parallel, so no two of them may share a UDP port. This binary uses 14991,
+// 15006 to 15009, 15040 and 15041. The receive stream test uses 15001 to 15005, 15010 to 15015 and 15030. The socket
+// test uses 19981 upwards.
+
 /// Creates a tx stream sending to 127.0.0.1:14991 and a matching Rx socket.
 /// Port 14991 is chosen to avoid conflicts with any live DIFI traffic.
 class TxStreamLoopback : public ::testing::Test
@@ -831,7 +835,7 @@ TEST(TxStreamConfig, DescriptionScalarDefaultsAreDeterministic)
 /// builder would then size and fill the payload inconsistently.
 TEST(TxStreamConfig, UnsupportedBitDepthIsRejected)
 {
-  static constexpr uint16_t PORT = 15010;
+  static constexpr uint16_t PORT = 15040;
 
   // Bound first, so any packet a rejected stream wrongly sent would be waiting to be read.
   radio_difi_udp_socket drain_sock(test_socket_logger());
@@ -865,7 +869,7 @@ TEST(TxStreamConfig, SupportedBitDepthsAreAccepted)
   for (unsigned bit_depth : {8U, 16U}) {
     radio_difi_tx_stream::stream_description desc;
     desc.ip            = "127.0.0.1";
-    desc.port          = 15011;
+    desc.port          = 15041;
     desc.bit_depth     = bit_depth;
     desc.stream_id_str = "test:depth:tx";
 

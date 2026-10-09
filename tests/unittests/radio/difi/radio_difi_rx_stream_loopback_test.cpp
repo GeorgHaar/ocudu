@@ -70,6 +70,10 @@ private:
 
 // ---- Test fixture -----------------------------------------------------------
 
+// ctest runs the DIFI test binaries in parallel, so no two of them may share a UDP port. This binary uses 15001 to
+// 15005, 15010 to 15015 and 15030. The transmit stream test uses 14991, 15006 to 15009, 15040 and 15041. The socket
+// test uses 19981 upwards.
+
 /// Pairs a tx stream (sending to 127.0.0.1:15001) with an rx stream (bound on
 /// 127.0.0.1:15001).  Port 15001 is chosen to avoid conflicts.
 class RxStreamLoopback : public ::testing::Test
@@ -412,16 +416,23 @@ protected:
   static constexpr unsigned SLOT_LEN  = 11520;
   static constexpr uint32_t STREAM_ID = 0x0000000bU;
 
-  void open(uint16_t port)
+  /// \brief Longest a paced receive() call may take.
+  ///
+  /// Far above any buffer duration in these tests, so slowdown under valgrind on a loaded machine stays inside it,
+  /// while a receiver that stalls does not.
+  static constexpr std::chrono::microseconds MAX_RECEIVE_DURATION{500000};
+
+  void open(uint16_t port, double srate_Hz = SRATE)
   {
-    test_port = port;
+    test_port      = port;
+    sample_rate_Hz = srate_Hz;
 
     radio_difi_rx_stream::stream_description rx_desc;
     rx_desc.ip             = "127.0.0.1";
     rx_desc.port           = port;
     rx_desc.stream_id      = STREAM_ID;
     rx_desc.bit_depth      = 16;
-    rx_desc.sample_rate_Hz = SRATE;
+    rx_desc.sample_rate_Hz = srate_Hz;
     rx_desc.stream_id_str  = "test:reasm:rx";
     rx                     = std::make_unique<radio_difi_rx_stream>(rx_desc, notifier);
     ASSERT_TRUE(rx->is_successful());
@@ -431,7 +442,7 @@ protected:
     tx_desc.port           = port;
     tx_desc.stream_id      = STREAM_ID;
     tx_desc.bit_depth      = 16;
-    tx_desc.sample_rate_Hz = SRATE;
+    tx_desc.sample_rate_Hz = srate_Hz;
     tx_desc.center_freq_Hz = 1.8425e9;
     tx_desc.stream_id_str  = "test:reasm:tx";
     tx                     = std::make_unique<radio_difi_tx_stream>(tx_desc, notifier);
@@ -474,7 +485,7 @@ protected:
     p.stream_id = STREAM_ID;
     p.bit_depth = 16;
     p.pkt_n     = 0;
-    difi_ticks_to_time(ts, SRATE, p.full_secs, p.frac_ps);
+    difi_ticks_to_time(ts, sample_rate_Hz, p.full_secs, p.frac_ps);
 
     const std::vector<ci16_t> samples(nof_samples, value);
     std::vector<uint8_t>      raw(difi_data_packet_size(16, nof_samples).value());
@@ -492,7 +503,8 @@ protected:
   }
 
   capturing_notifier_rx                 notifier;
-  uint16_t                              test_port = 0;
+  uint16_t                              test_port      = 0;
+  double                                sample_rate_Hz = SRATE;
   std::unique_ptr<radio_difi_rx_stream> rx;
   std::unique_ptr<radio_difi_tx_stream> tx;
 };
@@ -631,7 +643,8 @@ TEST_F(RxReassembly, SilentUplinkIsPacedAtRealTime)
   const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t0);
 
   EXPECT_GT(elapsed.count(), 5000) << "Returned too quickly — the downlink would run faster than real time";
-  EXPECT_LT(elapsed.count(), 60000) << "Blocked far beyond the buffer duration — the downlink would stall";
+  EXPECT_LT(elapsed.count(), MAX_RECEIVE_DURATION.count())
+      << "Blocked far beyond the buffer duration — the downlink would stall";
 
   EXPECT_EQ(meta.ts, 0U);
   EXPECT_EQ(rx->get_sample_count(), NOF_SAMPLES) << "Timeline must advance even with no uplink";
@@ -643,33 +656,50 @@ TEST_F(RxReassembly, SilentUplinkIsPacedAtRealTime)
 // waiting, so it catches up instead of pacing itself into a backlog.
 TEST_F(RxReassembly, QueuedSamplesAreConsumedWithoutWaitingWhenBehind)
 {
-  ASSERT_NO_FATAL_FAILURE(open(15014));
+  // A slow sample rate gives the span a long pacing budget, so draining it stays far inside that budget even under
+  // a sanitizer or valgrind. The span carries the same bytes at any rate.
+  constexpr double SLOW_SRATE = 115200.0;
+  ASSERT_NO_FATAL_FAILURE(open(15014, SLOW_SRATE));
 
-  // Behind schedule by this much, but well short of the re-anchoring threshold.
-  constexpr std::chrono::milliseconds LAG{20};
+  // One datagram anchors the timeline.
+  constexpr unsigned NOF_ANCHOR_SAMPLES = radio_difi_tx_stream::MAX_PKT_SAMPLES;
+  // Three slots follow. Everything is queued before the first receive() call, and the kernel caps SO_RCVBUF at
+  // net.core.rmem_max, which defaults to 208 kB. Queueing past that drops datagrams silently, and the stream then
+  // waits out its budget for samples that never arrive.
+  constexpr unsigned NOF_SAMPLES = 3 * SLOT_LEN;
+  const auto         span_budget =
+      std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<double>(NOF_SAMPLES / SLOW_SRATE));
 
-  // Anchor the timeline with one slot, then fall behind it.
-  transmit_ramp(SLOT_LEN, 0);
-  simple_buffer_writer first(SLOT_LEN);
-  rx->receive(first);
-  std::this_thread::sleep_for(LAG);
+  // Target lag behind schedule. Kept small, so wake-up delays under load stay short of the 50 ms re-anchoring
+  // threshold.
+  constexpr std::chrono::milliseconds LAG{10};
 
-  // Four slots, not more. The whole span is queued before the receive() call, and the kernel caps
-  // SO_RCVBUF at net.core.rmem_max, which defaults to 208 kB. Queueing past that drops datagrams
-  // silently, and the stream then waits out its budget for samples that never arrive.
-  constexpr unsigned NOF_SAMPLES = 4 * SLOT_LEN;
+  // Queue the anchor and the span, 19 datagrams in all, up front. Transmission is slow under valgrind, and doing it
+  // here keeps it out of the lag measured below.
+  transmit_ramp(NOF_ANCHOR_SAMPLES, 0);
+  transmit_ramp(NOF_SAMPLES, NOF_ANCHOR_SAMPLES);
 
-  // Queue the next span, 24 fragments of 1920 samples, all of which are now overdue.
-  transmit_ramp(NOF_SAMPLES, SLOT_LEN);
-
+  // Both buffers exist before the timed section. Filling a large one is slow under valgrind and would add to the lag.
+  simple_buffer_writer first(NOF_ANCHOR_SAMPLES);
   simple_buffer_writer buf(NOF_SAMPLES);
+
+  // Anchor the timeline. The receiver anchors when it reads the first datagram, right after the call starts, so the
+  // start time stays a reliable reference even when the call itself wakes late, as it does under valgrind.
+  const auto anchor_duration = std::chrono::duration_cast<std::chrono::microseconds>(
+      std::chrono::duration<double>(NOF_ANCHOR_SAMPLES / SLOW_SRATE));
+  const auto anchor_start = std::chrono::steady_clock::now();
+  rx->receive(first);
+
+  // Sleep until the span is overdue by LAG.
+  std::this_thread::sleep_until(anchor_start + anchor_duration + span_budget + LAG);
 
   const auto t0 = std::chrono::steady_clock::now();
   rx->receive(buf);
   const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t0);
 
-  // The span is worth 4 ms of pacing, so anything approaching that means receive() waited rather than drained.
-  EXPECT_LT(elapsed.count(), 2000) << "Overdue queued samples must not be paced, this blocks catch-up";
+  // Pacing would take the whole span budget, so anything approaching it means receive() waited rather than drained.
+  EXPECT_LT(elapsed.count(), span_budget.count() / 2)
+      << "Overdue queued samples must not be paced, this blocks catch-up";
 
   for (unsigned k = 0; k != NOF_SAMPLES; ++k) {
     ASSERT_EQ(buf.data()[k], ramp_sample(k)) << "Mismatch at sample " << k;
@@ -696,7 +726,8 @@ TEST_F(RxReassembly, QueuedSamplesAheadOfTheWallClockArePaced)
   const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t0);
 
   EXPECT_GT(elapsed.count(), 3000) << "Returned before the span elapsed, the pair would run faster than real time";
-  EXPECT_LT(elapsed.count(), 60000) << "Blocked far beyond the buffer duration, the downlink would stall";
+  EXPECT_LT(elapsed.count(), MAX_RECEIVE_DURATION.count())
+      << "Blocked far beyond the buffer duration, the downlink would stall";
 
   for (unsigned k = 0; k != NOF_SAMPLES; ++k) {
     ASSERT_EQ(buf.data()[k], ramp_sample(k)) << "Mismatch at sample " << k;
@@ -868,4 +899,20 @@ TEST(FidelityRoundTrip, RoundTrip8Bit)
 
   tx_stream.stop();
   rx_stream.stop();
+}
+
+// ---- Configuration tests ----------------------------------------------------
+
+/// Every scalar field carries a default, so a partially populated description never leaves the constructor reading an
+/// indeterminate value into the logger level.
+TEST(RxStreamConfig, DescriptionScalarDefaultsAreDeterministic)
+{
+  const radio_difi_rx_stream::stream_description desc;
+
+  EXPECT_EQ(desc.port, 0U);
+  EXPECT_EQ(desc.stream_id, 0U);
+  EXPECT_EQ(desc.bit_depth, 16U);
+  EXPECT_EQ(desc.sample_rate_Hz, 0.0);
+  EXPECT_EQ(desc.log_level, ocudulog::basic_levels::info);
+  EXPECT_FALSE(desc.latch_peer_epoch);
 }

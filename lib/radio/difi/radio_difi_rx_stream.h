@@ -26,19 +26,19 @@ public:
     /// Address to bind the receive socket on. Use "0.0.0.0" for any interface.
     std::string ip;
     /// Port to listen on.
-    uint16_t port;
+    uint16_t port = 0;
     /// Stream identifier. Packets with a different identifier are discarded.
-    uint32_t stream_id;
+    uint32_t stream_id = 0;
     /// IQ sample bit depth, either 8 or 16.
-    unsigned bit_depth;
+    unsigned bit_depth = 16;
     /// Byte order of 16-bit IQ components in received packets.
     difi_iq_byte_order iq_byte_order = difi_iq_byte_order::big;
     /// Sample rate in Hz, used to convert between timestamps and sample ticks.
-    double sample_rate_Hz;
+    double sample_rate_Hz = 0.0;
     /// Stream identifier string.
     std::string stream_id_str;
     /// Logging level.
-    ocudulog::basic_levels log_level;
+    ocudulog::basic_levels log_level = ocudulog::basic_levels::info;
     /// \brief Latches the transmitter epoch onto this stream timeline instead of trusting it.
     ///
     /// Enable only for a peer running an unrelated epoch, such as equipment timestamping against UTC.

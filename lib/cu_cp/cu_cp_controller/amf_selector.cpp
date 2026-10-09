@@ -133,6 +133,53 @@ std::optional<cu_cp_amf_index_t> amf_selector::find_amf_of_guami(span<const amf_
   return std::nullopt;
 }
 
+/// Counts the requested S-NSSAIs that the AMF supports in the PLMN.
+static unsigned get_nof_supported_slices(const amf_candidate&  candidate,
+                                         const plmn_identity&  plmn,
+                                         span<const s_nssai_t> requested_nssai)
+{
+  auto plmn_item = std::find_if(candidate.plmn_support_list.begin(),
+                                candidate.plmn_support_list.end(),
+                                [&plmn](const ngap_plmn_support_item& item) { return item.plmn_id == plmn; });
+  if (plmn_item == candidate.plmn_support_list.end()) {
+    return 0;
+  }
+  return std::count_if(requested_nssai.begin(), requested_nssai.end(), [&plmn_item](const s_nssai_t& s_nssai) {
+    return std::any_of(plmn_item->slice_support_list.begin(),
+                       plmn_item->slice_support_list.end(),
+                       [&s_nssai](const slice_support_item_t& item) { return item.s_nssai == s_nssai; });
+  });
+}
+
+/// Keeps the AMFs that support all the requested S-NSSAIs. If there is none, keeps the AMFs that support some of them.
+/// If there is none either, keeps all the AMFs: the NG-RAN node then sends the UE to a default AMF (TS 23.501 section
+/// 5.15.5.2.1). Every connected AMF of the PLMN is a default AMF.
+static std::vector<const amf_candidate*> filter_by_requested_nssai(std::vector<const amf_candidate*> pool,
+                                                                   const plmn_identity&              plmn,
+                                                                   span<const s_nssai_t>             requested_nssai)
+{
+  if (requested_nssai.empty()) {
+    return pool;
+  }
+  std::vector<const amf_candidate*> supports_all;
+  std::vector<const amf_candidate*> supports_some;
+  for (const amf_candidate* candidate : pool) {
+    unsigned nof_supported = get_nof_supported_slices(*candidate, plmn, requested_nssai);
+    if (nof_supported == requested_nssai.size()) {
+      supports_all.push_back(candidate);
+    } else if (nof_supported > 0) {
+      supports_some.push_back(candidate);
+    }
+  }
+  if (not supports_all.empty()) {
+    return supports_all;
+  }
+  if (not supports_some.empty()) {
+    return supports_some;
+  }
+  return pool;
+}
+
 /// \brief Checks if the overload action rejects the RRC establishment cause or the RRC resume cause.
 ///
 /// TS 38.413 section 8.7.7.2 names the RRC causes of each overload action. The establishment causes and the
@@ -277,9 +324,19 @@ std::optional<cu_cp_amf_index_t> amf_selector::select_amf(span<const amf_candida
     return pick_preferred_by_capacity(pool);
   }
 
-  // Rule 4: Any AMF that supports the selected PLMN.
-  return pick_matching_by_capacity(
-      candidates, [&request](const amf_candidate& candidate) { return supports_plmn(candidate, request.plmn); });
+  // Rule 4: Any AMF that supports the selected PLMN. An AMF whose served GUAMIs are all unavailable is used only if no
+  // other AMF is left. Then the requested S-NSSAIs select the AMF (TS 38.300 section 16.3.4.2).
+  pool.clear();
+  std::vector<const amf_candidate*> unavailable_pool;
+  for (const amf_candidate& candidate : candidates) {
+    if (candidate.connected and supports_plmn(candidate, request.plmn)) {
+      (has_available_guami(candidate) ? pool : unavailable_pool).push_back(&candidate);
+    }
+  }
+  if (pool.empty()) {
+    pool = std::move(unavailable_pool);
+  }
+  return pick_preferred_by_capacity(filter_by_requested_nssai(pool, request.plmn, request.requested_nssai));
 }
 
 std::optional<cu_cp_amf_index_t> amf_selector::select_amf_for_guami(span<const amf_candidate> candidates,

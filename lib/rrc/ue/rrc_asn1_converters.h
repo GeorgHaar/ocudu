@@ -16,6 +16,7 @@
 #include "ocudu/ran/cu_cp_types.h"
 #include "ocudu/ran/cu_types.h"
 #include "ocudu/ran/five_g_s_tmsi.h"
+#include "ocudu/ran/s_nssai.h"
 #include "ocudu/rrc/rrc_setup.h"
 #include "ocudu/rrc/rrc_types.h"
 #include "ocudu/rrc/rrc_ue_capabilities.h"
@@ -101,6 +102,11 @@ five_g_s_tmsi_t asn1_to_five_g_s_tmsi(const asn1::fixed_bitstring<39>& asn1_five
 /// \param[in] asn1_amf_id amf id object.
 /// \return The RRC NR ASN.1 object where the result of the conversion is stored.
 amf_identifier_t asn1_to_amf_identifier(const asn1::fixed_bitstring<24>& asn1_amf_id);
+
+/// \brief Converts an ASN.1 S-NSSAI to the common type.
+/// \param[in] asn1_s_nssai The ASN.1 S-NSSAI.
+/// \return The S-NSSAI.
+s_nssai_t asn1_to_s_nssai(const asn1::rrc_nr::s_nssai_c& asn1_s_nssai);
 
 /// \brief Converts type ASN.1 establishment cause to common type.
 /// \param[in] asn1_cause ASN.1 establishment cause object.

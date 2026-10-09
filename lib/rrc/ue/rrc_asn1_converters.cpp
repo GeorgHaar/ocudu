@@ -249,6 +249,21 @@ five_g_s_tmsi_t ocudu::ocucp::asn1_to_five_g_s_tmsi(const asn1::fixed_bitstring<
   return five_g_s_tmsi_t{five_g_s_tmsi};
 }
 
+s_nssai_t ocudu::ocucp::asn1_to_s_nssai(const asn1::rrc_nr::s_nssai_c& asn1_s_nssai)
+{
+  s_nssai_t s_nssai;
+  if (asn1_s_nssai.type().value == asn1::rrc_nr::s_nssai_c::types_opts::sst) {
+    s_nssai.sst = slice_service_type{static_cast<uint8_t>(asn1_s_nssai.sst().to_number())};
+    return s_nssai;
+  }
+
+  // The SST comes first, then the SD (TS 23.003 section 28.4.2, TS 24.501 section 9.11.2.8).
+  uint32_t sst_sd = asn1_s_nssai.sst_sd().to_number();
+  s_nssai.sst     = slice_service_type{static_cast<uint8_t>(sst_sd >> 24U)};
+  s_nssai.sd      = slice_differentiator::create(sst_sd & 0xffffffU).value();
+  return s_nssai;
+}
+
 amf_identifier_t ocudu::ocucp::asn1_to_amf_identifier(const asn1::fixed_bitstring<24>& asn1_amf_id)
 {
   amf_identifier_t amf_id;

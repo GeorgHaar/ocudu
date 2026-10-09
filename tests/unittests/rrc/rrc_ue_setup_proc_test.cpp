@@ -185,6 +185,25 @@ TEST_F(rrc_ue_setup, when_registered_amf_has_a_plmn_identity_then_the_guami_has_
 }
 
 /// Test the correct handling of corrupted RRC setup complete message.
+TEST_F(rrc_ue_setup, when_setup_complete_has_s_nssais_then_they_are_given_to_the_amf_selection)
+{
+  receive_setup_request();
+
+  asn1::rrc_nr::ul_dcch_msg_s msg = test_helpers::create_rrc_setup_complete();
+  auto&                       ies = msg.msg.c1().rrc_setup_complete().crit_exts.rrc_setup_complete();
+  ies.s_nssai_list.resize(2);
+  ies.s_nssai_list[0].set_sst().from_number(1);
+  ies.s_nssai_list[1].set_sst_sd().from_number((2U << 24U) + 0x10U);
+  pdcp_ctx->handle_ul_dcch_pdu(srb_id_t::srb1, pack_rrc_setup_complete(msg));
+
+  const amf_selection_request& request = rrc_ue_cu_cp_notifier.last_amf_selection_request;
+  ASSERT_EQ(request.requested_nssai.size(), 2);
+  ASSERT_EQ(request.requested_nssai[0].sst.value(), 1);
+  ASSERT_FALSE(request.requested_nssai[0].sd.is_set());
+  ASSERT_EQ(request.requested_nssai[1].sst.value(), 2);
+  ASSERT_EQ(request.requested_nssai[1].sd.value(), 0x10);
+}
+
 TEST_F(rrc_ue_setup, when_integrity_failure_detected_then_ue_deleted)
 {
   receive_setup_request();

@@ -33,6 +33,27 @@ amf_candidate make_candidate(unsigned amf_idx, const guami_t& guami, uint16_t ca
   return candidate;
 }
 
+s_nssai_t make_s_nssai(uint8_t sst, std::optional<uint32_t> sd = std::nullopt)
+{
+  s_nssai_t s_nssai;
+  s_nssai.sst = slice_service_type{sst};
+  if (sd.has_value()) {
+    s_nssai.sd = slice_differentiator::create(*sd).value();
+  }
+  return s_nssai;
+}
+
+/// Sets the slices that the AMF supports in PLMN A.
+void set_supported_slices(amf_candidate& candidate, const std::vector<s_nssai_t>& slices)
+{
+  ngap_plmn_support_item item;
+  item.plmn_id = plmn_a;
+  for (const s_nssai_t& s_nssai : slices) {
+    item.slice_support_list.push_back(slice_support_item_t{s_nssai});
+  }
+  candidate.plmn_support_list = {item};
+}
+
 /// The AMF selection draws random numbers. A test of a rule that selects one AMF gives this AMF capacity 0 and the
 /// other AMFs a higher capacity. Only the rule can then select this AMF. A failed test prints the seed of the test run.
 class amf_selector_test : public ::testing::Test
@@ -346,6 +367,60 @@ TEST_F(amf_selector_test, when_amf_rejects_the_resume_cause_then_the_resume_is_n
 
   candidate.overload.reset();
   ASSERT_TRUE(selector.is_ue_resume_accepted(candidate, resume_cause_t::mo_sig));
+}
+
+TEST_F(amf_selector_test, when_ue_requests_a_slice_then_an_amf_that_supports_it_is_selected)
+{
+  // Without the requested slice, the selection picks AMF 0.
+  candidates = {make_candidate(0, make_guami(1, 0), 255), make_candidate(1, make_guami(1, 1), 0)};
+  set_supported_slices(candidates[0], {make_s_nssai(1)});
+  set_supported_slices(candidates[1], {make_s_nssai(1), make_s_nssai(2, 0x10)});
+
+  ASSERT_EQ(select({.plmn = plmn_a, .requested_nssai = {make_s_nssai(2, 0x10)}}), uint_to_cu_cp_amf_index(1));
+  // An AMF that supports all the requested slices comes before an AMF that supports some of them.
+  ASSERT_EQ(select({.plmn = plmn_a, .requested_nssai = {make_s_nssai(1), make_s_nssai(2, 0x10)}}),
+            uint_to_cu_cp_amf_index(1));
+}
+
+TEST_F(amf_selector_test, when_the_amf_of_the_requested_slice_is_unavailable_then_another_amf_is_selected)
+{
+  candidates = {make_candidate(0, make_guami(1, 0), 255), make_candidate(1, make_guami(1, 1), 0)};
+  set_supported_slices(candidates[0], {make_s_nssai(2)});
+  set_supported_slices(candidates[1], {make_s_nssai(1)});
+  candidates[0].unavailable_guamis = {ngap_unavailable_guami_item{make_guami(1, 0), std::nullopt}};
+
+  ASSERT_EQ(select({.plmn = plmn_a, .requested_nssai = {make_s_nssai(2)}}), uint_to_cu_cp_amf_index(1));
+}
+
+TEST_F(amf_selector_test, when_no_amf_supports_all_requested_slices_then_an_amf_that_supports_some_is_selected)
+{
+  // Without the requested slices, the selection picks AMF 1.
+  candidates = {make_candidate(0, make_guami(1, 0), 0), make_candidate(1, make_guami(1, 1), 255)};
+  set_supported_slices(candidates[0], {make_s_nssai(1)});
+  set_supported_slices(candidates[1], {make_s_nssai(3)});
+
+  ASSERT_EQ(select({.plmn = plmn_a, .requested_nssai = {make_s_nssai(1), make_s_nssai(2)}}),
+            uint_to_cu_cp_amf_index(0));
+}
+
+TEST_F(amf_selector_test, when_no_amf_supports_the_requested_slice_then_any_amf_is_selected)
+{
+  candidates = {make_candidate(0, make_guami(1, 0)), make_candidate(1, make_guami(1, 1))};
+  set_supported_slices(candidates[0], {make_s_nssai(1)});
+  set_supported_slices(candidates[1], {make_s_nssai(1)});
+
+  ASSERT_TRUE(select({.plmn = plmn_a, .requested_nssai = {make_s_nssai(2)}}).has_value());
+}
+
+TEST_F(amf_selector_test, when_ue_has_5g_s_tmsi_then_the_requested_slices_do_not_select_the_amf)
+{
+  candidates = {make_candidate(0, make_guami(1, 0)), make_candidate(1, make_guami(1, 1))};
+  set_supported_slices(candidates[0], {make_s_nssai(1)});
+  set_supported_slices(candidates[1], {make_s_nssai(2)});
+
+  ASSERT_EQ(
+      select({.plmn = plmn_a, .five_g_s_tmsi = five_g_s_tmsi_t{1, 0, 0x1234}, .requested_nssai = {make_s_nssai(2)}}),
+      uint_to_cu_cp_amf_index(0));
 }
 
 TEST_F(amf_selector_test, when_ue_identifies_no_amf_then_selection_is_weighted_by_relative_amf_capacity)

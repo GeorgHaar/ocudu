@@ -443,3 +443,23 @@ TEST_F(cu_cp_amf_pooling_test, when_every_amf_rejects_the_establishment_cause_th
   ASSERT_EQ(ccch.msg.c1().type().value, asn1::rrc_nr::dl_ccch_msg_type_c::c1_c_::types_opts::rrc_reject);
   ASSERT_TRUE(ccch.msg.c1().rrc_reject().crit_exts.rrc_reject().wait_time_present);
 }
+
+TEST_F(cu_cp_amf_pooling_test, when_ue_requests_a_slice_then_it_is_served_by_the_amf_that_supports_it)
+{
+  // AMF 1 also supports the slice with SST 2 and SD 0x10. Without the requested slice, the UE would go to AMF 0.
+  ngap_message                     amf_1_response = generate_ng_setup_response(plmn_identity::test_value(), 1, 0);
+  asn1::ngap::slice_support_item_s slice;
+  slice.s_nssai.sst.from_number(2);
+  slice.s_nssai.sd_present = true;
+  slice.s_nssai.sd.from_number(0x10);
+  amf_1_response.pdu.successful_outcome().value.ng_setup_resp()->plmn_support_list[0].slice_support_list.push_back(
+      slice);
+  start_cu_cp(generate_ng_setup_response(plmn_identity::test_value(), 0, 255), amf_1_response);
+
+  asn1::rrc_nr::ul_dcch_msg_s rrc_setup_complete = test_helpers::create_rrc_setup_complete();
+  auto&                       ies = rrc_setup_complete.msg.c1().rrc_setup_complete().crit_exts.rrc_setup_complete();
+  ies.s_nssai_list.resize(1);
+  ies.s_nssai_list[0].set_sst_sd().from_number((2U << 24U) + 0x10U);
+
+  ASSERT_EQ(attach_ue(int_to_gnb_du_ue_f1ap_id(0), rrc_setup_complete), 1);
+}

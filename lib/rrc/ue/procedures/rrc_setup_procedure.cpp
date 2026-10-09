@@ -227,6 +227,9 @@ amf_selection_request rrc_setup_procedure::get_amf_selection_request() const
   amf_selection_request request;
   request.plmn                = selected_plmn;
   request.establishment_cause = context.connection_cause;
+  for (const auto& asn1_s_nssai : rrc_setup_complete.s_nssai_list) {
+    request.requested_nssai.push_back(asn1_to_s_nssai(asn1_s_nssai));
+  }
 
   // The UE sends either the 5G-S-TMSI or the registered GUAMI (TS 24.501 section 5.3.1.1).
   request.five_g_s_tmsi = context.five_g_s_tmsi;

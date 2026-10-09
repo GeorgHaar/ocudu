@@ -88,6 +88,16 @@ radio_difi_rx_stream::radio_difi_rx_stream(const stream_description& config_, ra
 
   // Reserve the largest tail a datagram can leave behind, so receive() never allocates.
   carry_samples.reserve(MAX_SAMPLES_PER_DATAGRAM);
+
+  // Bind here, so a port already in use fails construction instead of leaving the stream silently zero-filled.
+  const double          bytes_per_sample = (config.bit_depth == 8) ? 2.0 : 4.0;
+  const units::byterate stream_rate(config.sample_rate_Hz * bytes_per_sample);
+  rx_socket_buffer_size =
+      std::max(stream_rate * RX_SOCKET_BUFFER_DURATION, radio_difi_udp_socket::RX_SOCKET_BUFFER_BYTES);
+  if (!socket.open_rx(config.ip, config.port, rx_socket_buffer_size)) {
+    return;
+  }
+
   successful = true;
 }
 
@@ -322,10 +332,11 @@ void radio_difi_rx_stream::start(baseband_gateway_timestamp init_time, int64_t e
   clock_anchor_ts             = 0;
   clock_anchor_locked_to_peer = false;
 
-  const double          bytes_per_sample = (config.bit_depth == 8) ? 2.0 : 4.0;
-  const units::byterate stream_rate(config.sample_rate_Hz * bytes_per_sample);
-  const units::bytes    rx_buffer_size = stream_rate * RX_SOCKET_BUFFER_DURATION;
-  socket.open_rx(config.ip, config.port, std::max(rx_buffer_size, radio_difi_udp_socket::RX_SOCKET_BUFFER_BYTES));
+  // The socket is bound from construction. Discard what queued since, so the stream begins at init_time. The bound is
+  // the most datagrams the socket buffer can hold, so a peer that is already streaming cannot hold start() up.
+  const unsigned max_queued_datagrams = rx_socket_buffer_size.value() / DIFI_DATA_HEADER_SIZE.value();
+  for (unsigned i = 0; (i != max_queued_datagrams) && socket.try_recv(rx_buf).has_value(); ++i) {
+  }
 }
 
 void radio_difi_rx_stream::stop()

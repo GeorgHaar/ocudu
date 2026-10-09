@@ -71,7 +71,7 @@ private:
 // ---- Test fixture -----------------------------------------------------------
 
 // ctest runs the DIFI test binaries in parallel, so no two of them may share a UDP port. This binary uses 15001 to
-// 15005, 15010 to 15015 and 15030. The transmit stream test uses 14991, 15006 to 15009, 15040 and 15041. The socket
+// 15005, 15010 to 15017 and 15030. The transmit stream test uses 14991, 15006 to 15009 and 15040 to 15042. The socket
 // test uses 19981 upwards.
 
 /// Pairs a tx stream (sending to 127.0.0.1:15001) with an rx stream (bound on
@@ -915,4 +915,78 @@ TEST(RxStreamConfig, DescriptionScalarDefaultsAreDeterministic)
   EXPECT_EQ(desc.sample_rate_Hz, 0.0);
   EXPECT_EQ(desc.log_level, ocudulog::basic_levels::info);
   EXPECT_FALSE(desc.latch_peer_epoch);
+}
+
+/// A port that is already in use must fail construction, instead of leaving the stream silently zero-filling.
+TEST(RxStreamConfig, PortInUseFailsConstruction)
+{
+  static constexpr uint16_t PORT = 15016;
+
+  radio_difi_udp_socket holder(test_socket_logger());
+  ASSERT_TRUE(holder.open_rx("127.0.0.1", PORT));
+
+  radio_difi_rx_stream::stream_description desc;
+  desc.ip             = "127.0.0.1";
+  desc.port           = PORT;
+  desc.sample_rate_Hz = 1920000.0;
+  desc.stream_id_str  = "test:inuse:rx";
+
+  null_notifier_rx     notifier;
+  radio_difi_rx_stream rx_stream(desc, notifier);
+  EXPECT_FALSE(rx_stream.is_successful()) << "A port already in use must fail construction";
+}
+
+// ---- Start tests ------------------------------------------------------------
+
+/// The socket is bound from construction, so a peer can queue datagrams before start(). The stream begins at its
+/// initial time, so those datagrams must be discarded rather than received as current samples.
+TEST(RxStreamStart, DatagramsQueuedBeforeStartAreDiscarded)
+{
+  static constexpr uint16_t PORT        = 15017;
+  static constexpr uint32_t STREAM_ID   = 0x0000000cU;
+  static constexpr double   SRATE       = 1920000.0;
+  static constexpr unsigned NOF_SAMPLES = 1920;
+
+  null_notifier_rx notifier;
+
+  radio_difi_rx_stream::stream_description rx_desc;
+  rx_desc.ip             = "127.0.0.1";
+  rx_desc.port           = PORT;
+  rx_desc.stream_id      = STREAM_ID;
+  rx_desc.sample_rate_Hz = SRATE;
+  rx_desc.stream_id_str  = "test:prestart:rx";
+  radio_difi_rx_stream rx_stream(rx_desc, notifier);
+  ASSERT_TRUE(rx_stream.is_successful());
+
+  radio_difi_tx_stream::stream_description tx_desc;
+  tx_desc.ip             = "127.0.0.1";
+  tx_desc.port           = PORT;
+  tx_desc.stream_id      = STREAM_ID;
+  tx_desc.sample_rate_Hz = SRATE;
+  tx_desc.stream_id_str  = "test:prestart:tx";
+  radio_difi_tx_stream tx_stream(tx_desc, notifier);
+  ASSERT_TRUE(tx_stream.is_successful());
+
+  // Send non-zero samples stamped at the receiver's initial time, before the receiver starts.
+  tx_stream.start(0);
+  const std::vector<ci16_t>             samples(NOF_SAMPLES, ci16_t(1, 2));
+  simple_buffer_reader_rx               reader(samples);
+  baseband_gateway_transmitter_metadata meta{};
+  meta.is_empty = false;
+  meta.ts       = 0;
+  tx_stream.transmit(reader, meta);
+
+  // Loopback delivery is near-immediate. The sleep only makes sure the datagram is queued before start().
+  std::this_thread::sleep_for(std::chrono::milliseconds(20));
+
+  rx_stream.start(0);
+  simple_buffer_writer buf(NOF_SAMPLES);
+  rx_stream.receive(buf);
+
+  for (unsigned k = 0; k != NOF_SAMPLES; ++k) {
+    ASSERT_EQ(buf.data()[k], ci16_t(0, 0)) << "A datagram queued before start() was received, at sample " << k;
+  }
+
+  tx_stream.stop();
+  rx_stream.stop();
 }

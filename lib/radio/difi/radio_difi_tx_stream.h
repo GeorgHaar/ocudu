@@ -54,7 +54,7 @@ public:
 
   radio_difi_tx_stream(const stream_description& config_, radio_event_notifier& notifier_);
 
-  /// Returns true if the stream was constructed successfully.
+  /// Returns true if the stream was constructed successfully, including opening its socket.
   bool is_successful() const { return successful; }
 
   // See baseband_gateway_transmitter for documentation.

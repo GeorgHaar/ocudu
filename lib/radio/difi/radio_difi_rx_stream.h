@@ -50,6 +50,7 @@ public:
   // See interface for documentation.
   metadata receive(baseband_gateway_buffer_writer& data) override;
 
+  /// Returns true if the stream was constructed successfully, including binding its socket.
   bool is_successful() const { return successful; }
 
   uint64_t get_sample_count() const { return sample_count.load(std::memory_order_relaxed); }
@@ -77,6 +78,8 @@ private:
   radio_difi_udp_socket socket;
   /// Reusable datagram buffer, sized for the largest possible UDP payload.
   std::vector<uint8_t> rx_buf;
+  /// Receive buffer size requested from the kernel for the socket.
+  units::bytes rx_socket_buffer_size;
   /// Offset subtracted from a wire timestamp to bring it onto the baseband timeline.
   int64_t epoch_offset = 0;
   /// Offset added to a packet timestamp to place it on this stream timeline. Empty until the first packet.

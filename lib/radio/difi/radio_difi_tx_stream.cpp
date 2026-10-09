@@ -32,6 +32,11 @@ radio_difi_tx_stream::radio_difi_tx_stream(const stream_description& config_, ra
   // Size the packet buffer once for the largest fragment, so that transmit() never allocates on the radio thread.
   tx_buf.resize(difi_data_packet_size(config.bit_depth, MAX_PKT_SAMPLES).value());
 
+  // Open the socket here, so an unusable address fails construction instead of leaving start() silent.
+  if (!socket.open_tx(config.ip, config.port)) {
+    return;
+  }
+
   successful = true;
 }
 
@@ -140,10 +145,6 @@ void radio_difi_tx_stream::start(baseband_gateway_timestamp init_time, int64_t e
 {
   // A stream that failed construction must never put a packet on the wire.
   if (!successful) {
-    return;
-  }
-
-  if (!socket.open_tx(config.ip, config.port)) {
     return;
   }
 

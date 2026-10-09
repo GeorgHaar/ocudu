@@ -67,10 +67,11 @@ public:
   /// \brief Selects the AMF for a UE that accesses the CU-CP (NAS Node Selection Function, TS 38.410 section 5.7 and
   /// TS 38.300 section 16.3.4.2).
   ///
-  /// The selection first removes the AMFs whose overload action rejects the establishment cause of the UE. An AMF with
-  /// a traffic load reduction is removed with the probability of the reduction (TS 38.413 section 8.7.7.2). If the RRC
-  /// Setup Request of the UE already decided this, the selection removes the AMFs of this decision. Then the
-  /// selection applies these rules in order. Each rule takes only the connected AMFs that support the selected PLMN.
+  /// The selection first removes the AMFs whose overload action rejects the establishment cause of the UE, and the AMFs
+  /// whose slice overload rejects the UE. An AMF with a traffic load reduction is removed with the probability of the
+  /// reduction (TS 38.413 section 8.7.7.2). If the RRC Setup Request of the UE already decided the overload action, the
+  /// selection removes the AMFs of this decision. Then the selection applies these rules in order. Each rule takes only
+  /// the connected AMFs that support the selected PLMN.
   /// 1. An AMF that serves the registered GUAMI of the UE with the same GUAMI Type.
   /// 2. An AMF that serves the AMF Set ID and AMF Pointer of the 5G-S-TMSI in the selected PLMN.
   /// 3. If the UE identifies an AMF Set, an AMF of this AMF Set.
@@ -130,10 +131,21 @@ private:
   std::optional<cu_cp_amf_index_t>
   find_amf_of_guami(span<const amf_candidate> candidates, const GuamiMatch& matches, const CandidateMatch& is_eligible);
 
+  /// Decides if the NG-RAN node rejects a UE whose signalling traffic an overload affects. With a traffic load
+  /// reduction, the NG-RAN node rejects the UE with the probability of the reduction.
+  bool draw_rejection(std::optional<uint8_t> traffic_load_reduction);
+
   /// Checks if the overload action of the AMF rejects the UE. With a traffic load reduction, the AMF rejects the UE
   /// with the probability of the reduction.
   template <typename Cause>
   bool is_rejected_by_amf_overload(const amf_candidate& candidate, Cause cause);
+
+  /// \brief Checks if the slice overload of the AMF rejects the UE (TS 38.413 section 8.7.7.2).
+  ///
+  /// The slice overload affects a UE whose requested S-NSSAIs are all in the Overload Start NSSAI List. TS 38.413 does
+  /// not define how several items combine. Each item that lists a requested S-NSSAI can reject the UE, and each item
+  /// applies its own traffic load reduction.
+  bool is_rejected_by_slice_overload(const ngap_amf_overload& overload, const amf_selection_request& request);
 
   /// Checks if the AMF accepts a new UE.
   bool accepts_ue(const amf_candidate& candidate, const amf_selection_request& request);

@@ -423,6 +423,60 @@ TEST_F(amf_selector_test, when_ue_has_5g_s_tmsi_then_the_requested_slices_do_not
       uint_to_cu_cp_amf_index(0));
 }
 
+TEST_F(amf_selector_test, when_all_requested_slices_are_overloaded_then_another_amf_is_selected)
+{
+  candidates = {make_candidate(0, make_guami(1, 0)), make_candidate(1, make_guami(1, 1))};
+  ngap_amf_overload overload;
+  overload.overload_start_nssai_list = {ngap_overload_start_nssai_item{{make_s_nssai(2)}, std::nullopt, std::nullopt}};
+  candidates[0].overload             = overload;
+
+  // The slice overload affects a UE whose requested S-NSSAIs are all overloaded.
+  ASSERT_EQ(select({.plmn = plmn_a, .registered_guami = make_guami(1, 0), .requested_nssai = {make_s_nssai(2)}}),
+            uint_to_cu_cp_amf_index(1));
+  ASSERT_EQ(select({.plmn             = plmn_a,
+                    .registered_guami = make_guami(1, 0),
+                    .requested_nssai  = {make_s_nssai(1), make_s_nssai(2)}}),
+            uint_to_cu_cp_amf_index(0));
+  ASSERT_EQ(select({.plmn = plmn_a, .registered_guami = make_guami(1, 0)}), uint_to_cu_cp_amf_index(0));
+}
+
+TEST_F(amf_selector_test, when_slice_overload_has_an_action_then_only_the_rejected_establishment_causes_are_affected)
+{
+  candidates = {make_candidate(0, make_guami(1, 0)), make_candidate(1, make_guami(1, 1))};
+  ngap_amf_overload overload;
+  overload.overload_start_nssai_list = {
+      ngap_overload_start_nssai_item{{make_s_nssai(2)}, ngap_overload_action_t::reject_signalling, std::nullopt}};
+  candidates[0].overload = overload;
+
+  ASSERT_EQ(select({.plmn                = plmn_a,
+                    .registered_guami    = make_guami(1, 0),
+                    .requested_nssai     = {make_s_nssai(2)},
+                    .establishment_cause = establishment_cause_t::mo_sig}),
+            uint_to_cu_cp_amf_index(1));
+  ASSERT_EQ(select({.plmn                = plmn_a,
+                    .registered_guami    = make_guami(1, 0),
+                    .requested_nssai     = {make_s_nssai(2)},
+                    .establishment_cause = establishment_cause_t::mt_access}),
+            uint_to_cu_cp_amf_index(0));
+}
+
+TEST_F(amf_selector_test, when_slice_overload_has_traffic_load_reduction_then_this_share_of_the_ues_is_dropped)
+{
+  candidates = {make_candidate(0, make_guami(1, 0))};
+  ngap_amf_overload overload;
+  overload.overload_start_nssai_list = {ngap_overload_start_nssai_item{{make_s_nssai(2)}, std::nullopt, 25}};
+  candidates[0].overload             = overload;
+
+  unsigned nof_rejected = 0;
+  for (unsigned i = 0; i != 4000; ++i) {
+    if (not select({.plmn = plmn_a, .requested_nssai = {make_s_nssai(2)}}).has_value()) {
+      ++nof_rejected;
+    }
+  }
+
+  EXPECT_NEAR(nof_rejected, 1000, 150);
+}
+
 TEST_F(amf_selector_test, when_ue_identifies_no_amf_then_selection_is_weighted_by_relative_amf_capacity)
 {
   candidates = {make_candidate(0, make_guami(1, 0), 255), make_candidate(1, make_guami(1, 1), 85)};

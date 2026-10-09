@@ -452,15 +452,27 @@ void ngap_impl::handle_overload_start(const asn1::ngap::overload_start_s& msg)
   if (msg->amf_traffic_load_reduction_ind_present) {
     overload.traffic_load_reduction = msg->amf_traffic_load_reduction_ind;
   }
-  if (msg->overload_start_nssai_list_present) {
-    logger.warning("Ignoring Overload Start NSSAI List. Cause: Slice overload is not supported");
+  for (const auto& asn1_item : msg->overload_start_nssai_list) {
+    ngap_overload_start_nssai_item item;
+    for (const auto& asn1_slice : asn1_item.slice_overload_list) {
+      item.slice_overload_list.push_back(ngap_asn1_to_s_nssai(asn1_slice.s_nssai));
+    }
+    if (asn1_item.slice_overload_resp_present and
+        asn1_item.slice_overload_resp.type().value == asn1::ngap::overload_resp_c::types_opts::overload_action) {
+      item.slice_overload_action = asn1_to_overload_action(asn1_item.slice_overload_resp.overload_action());
+    }
+    if (asn1_item.slice_traffic_load_reduction_ind_present) {
+      item.slice_traffic_load_reduction = asn1_item.slice_traffic_load_reduction_ind;
+    }
+    overload.overload_start_nssai_list.push_back(std::move(item));
   }
   context.overload = overload;
 
-  logger.debug("AMF is overloaded. Overload action: {}. Traffic load reduction: {}",
+  logger.debug("AMF is overloaded. Overload action: {}. Traffic load reduction: {}. Slice overload items: {}",
                overload.action.has_value() ? msg->amf_overload_resp.overload_action().to_string() : "none",
                overload.traffic_load_reduction.has_value() ? fmt::format("{}%", *overload.traffic_load_reduction)
-                                                           : std::string("none"));
+                                                           : std::string("none"),
+               overload.overload_start_nssai_list.size());
 }
 
 void ngap_impl::handle_overload_stop()

@@ -203,29 +203,66 @@ static bool is_rejected_by_overload_action(ngap_overload_action_t action, Cause 
   return false;
 }
 
+bool amf_selector::draw_rejection(std::optional<uint8_t> traffic_load_reduction)
+{
+  if (not traffic_load_reduction.has_value()) {
+    return true;
+  }
+  std::bernoulli_distribution is_rejected(*traffic_load_reduction / 100.0);
+  return is_rejected(rng);
+}
+
 template <typename Cause>
 bool amf_selector::is_rejected_by_amf_overload(const amf_candidate& candidate, Cause cause)
 {
-  if (not candidate.overload.has_value() or not candidate.overload->action.has_value() or
-      not is_rejected_by_overload_action(*candidate.overload->action, cause)) {
+  return candidate.overload.has_value() and candidate.overload->action.has_value() and
+         is_rejected_by_overload_action(*candidate.overload->action, cause) and
+         draw_rejection(candidate.overload->traffic_load_reduction);
+}
+
+bool amf_selector::is_rejected_by_slice_overload(const ngap_amf_overload&     overload,
+                                                 const amf_selection_request& request)
+{
+  auto lists_slice = [](const ngap_overload_start_nssai_item& item, const s_nssai_t& s_nssai) {
+    return std::find(item.slice_overload_list.begin(), item.slice_overload_list.end(), s_nssai) !=
+           item.slice_overload_list.end();
+  };
+  bool all_slices_overloaded =
+      not request.requested_nssai.empty() and
+      std::all_of(request.requested_nssai.begin(), request.requested_nssai.end(), [&](const s_nssai_t& s_nssai) {
+        return std::any_of(overload.overload_start_nssai_list.begin(),
+                           overload.overload_start_nssai_list.end(),
+                           [&](const ngap_overload_start_nssai_item& item) { return lists_slice(item, s_nssai); });
+      });
+  if (not all_slices_overloaded) {
     return false;
   }
-  if (not candidate.overload->traffic_load_reduction.has_value()) {
-    return true;
+
+  for (const ngap_overload_start_nssai_item& item : overload.overload_start_nssai_list) {
+    bool lists_requested_slice = std::any_of(request.requested_nssai.begin(),
+                                             request.requested_nssai.end(),
+                                             [&](const s_nssai_t& s_nssai) { return lists_slice(item, s_nssai); });
+    bool rejects_cause         = not item.slice_overload_action.has_value() or
+                         is_rejected_by_overload_action(*item.slice_overload_action, request.establishment_cause);
+    if (lists_requested_slice and rejects_cause and draw_rejection(item.slice_traffic_load_reduction)) {
+      return true;
+    }
   }
-  std::bernoulli_distribution is_rejected(*candidate.overload->traffic_load_reduction / 100.0);
-  return is_rejected(rng);
+  return false;
 }
 
 bool amf_selector::accepts_ue(const amf_candidate& candidate, const amf_selection_request& request)
 {
-  // The RRC Setup Request of the UE already decided which AMFs reject the UE because of an overload.
-  if (request.overload_rejecting_amfs.has_value()) {
-    return std::find(request.overload_rejecting_amfs->begin(),
-                     request.overload_rejecting_amfs->end(),
-                     candidate.amf_index) == request.overload_rejecting_amfs->end();
+  // The RRC Setup Request of the UE can already decide which AMFs reject the UE because of an overload.
+  bool rejected = request.overload_rejecting_amfs.has_value()
+                      ? std::find(request.overload_rejecting_amfs->begin(),
+                                  request.overload_rejecting_amfs->end(),
+                                  candidate.amf_index) != request.overload_rejecting_amfs->end()
+                      : is_rejected_by_amf_overload(candidate, request.establishment_cause);
+  if (rejected) {
+    return false;
   }
-  return not is_rejected_by_amf_overload(candidate, request.establishment_cause);
+  return not candidate.overload.has_value() or not is_rejected_by_slice_overload(*candidate.overload, request);
 }
 
 std::optional<std::vector<cu_cp_amf_index_t>> amf_selector::admit_ue_setup(span<const amf_candidate> candidates,

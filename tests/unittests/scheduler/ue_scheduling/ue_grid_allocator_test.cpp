@@ -50,6 +50,8 @@ class ue_grid_allocator_test : public ::testing::TestWithParam<duplex_mode>
     if (params.ntn_cs_koffset.count() > 0) {
       req.ran.ntn_params.emplace();
       req.ran.ntn_params->ntn_cfg.cell_specific_koffset = params.ntn_cs_koffset;
+      // A HARQ process of the cell is allowed to operate in UL HARQ mode B.
+      req.ran.ntn_params->ul_harq_mode_b = true;
     }
     return req;
   }
@@ -79,7 +81,8 @@ protected:
 
   slot_point get_next_ul_slot(const slot_point starting_slot) const
   {
-    slot_point next_slot = starting_slot + cfg_builder_params.min_k2;
+    // The cell-specific K-offset delays every UL transmission the DCI grants, as per TS 38.213, Section 17.
+    slot_point next_slot = starting_slot + cfg_builder_params.min_k2 + cell_cfg.ntn_cs_koffset;
     while (not cell_cfg.is_fully_ul_enabled(next_slot)) {
       ++next_slot;
     }
@@ -1162,6 +1165,147 @@ TEST_P(ue_grid_allocator_dl_harq_feedback_test, retx_of_a_feedback_enabled_proce
 
 INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
                          ue_grid_allocator_dl_harq_feedback_test,
+                         testing::Values(duplex_mode::FDD));
+
+// An NTN cell with a UE whose UL HARQ processes split between mode A and mode B, so that the allocator has to pick a
+// process by the mode the logical channels of the grant require.
+class ue_grid_allocator_ul_harq_mode_test : public ue_grid_allocator_test
+{
+protected:
+  // The mode follows the buffer status, which is reported per LCG, so each channel takes an LCG of its own.
+  const lcid_t   mode_a_lcid = uint_to_lcid(4);
+  const lcg_id_t mode_a_lcg  = uint_to_lcg_id(1);
+  const lcid_t   mode_b_lcid = uint_to_lcid(5);
+  const lcg_id_t mode_b_lcg  = uint_to_lcg_id(2);
+
+  ue_grid_allocator_ul_harq_mode_test() :
+    ue_grid_allocator_test(test_params{config_helpers::make_default_scheduler_expert_config(),
+                                       search_space_configuration::ue_specific_dci_format::f0_1_and_1_1,
+                                       std::chrono::milliseconds{5}})
+  {
+  }
+
+  // Adds a UE whose first UL HARQ process operates in mode A and whose remaining ones operate in mode B, with a
+  // logical channel bound to each mode.
+  ue& add_mode_restricted_ue()
+  {
+    sched_ue_creation_request_message req =
+        sched_config_helper::create_default_sched_ue_creation_request(cell_cfg.params);
+    req.ue_index                                            = to_du_ue_index(0);
+    req.crnti                                               = to_rnti(0x4601);
+    (*req.cfg.cells)[0].serv_cell_cfg.init_dl_bwp.pdcch_cfg = cell_cfg.bwp_res[to_bwp_id(0)].dl().ded_pdcchs[0];
+
+    // A bit set to one identifies a process in mode A, so only process 0 operates in that mode.
+    auto& ul_harq_mode = (*req.cfg.cells)[0].serv_cell_cfg.ul_config->pusch_serv_cell_cfg->ul_harq_mode;
+    ul_harq_mode       = harq_ul_mode_mask(ul_harq_mode.size());
+    ul_harq_mode.set(0);
+
+    req.cfg.lc_config_list->push_back(config_helpers::create_default_logical_channel_config(mode_a_lcid));
+    req.cfg.lc_config_list->back().lc_group          = mode_a_lcg;
+    req.cfg.lc_config_list->back().allowed_harq_mode = ul_harq_mode::mode_a;
+    req.cfg.lc_config_list->push_back(config_helpers::create_default_logical_channel_config(mode_b_lcid));
+    req.cfg.lc_config_list->back().lc_group          = mode_b_lcg;
+    req.cfg.lc_config_list->back().allowed_harq_mode = ul_harq_mode::mode_b;
+
+    ue& u = add_ue(req);
+
+    // A UE is created before its dedicated PUSCH configuration exists, so its HARQ processes only take a mode once it
+    // is reconfigured.
+    sched_ue_reconfiguration_message reconf_msg{.ue_index = req.ue_index, .crnti = req.crnti, .cfg = req.cfg};
+    ue_config_update_event           ev = cfg_mng.update_ue(reconf_msg);
+    ues.reconfigure_ue(ev.next_config(), sched_ue_config_request::causes::other_rrc_proc);
+    ues.ue_config_applied(ev.get_ue_index());
+    ev.notify_completion();
+
+    return u;
+  }
+
+  // Reports the UL buffer status of a single LCG.
+  void push_ul_bsr(du_ue_index_t ue_index, lcg_id_t lcg_id, unsigned bytes)
+  {
+    ul_bsr_indication_message msg{
+        to_du_cell_index(0), ue_index, to_rnti(0x4601 + (unsigned)ue_index), bsr_format::SHORT_BSR, {}};
+    msg.reported_lcgs.push_back(ul_bsr_lcg_report{lcg_id, bytes});
+    ues[ue_index].handle_bsr_indication(msg);
+  }
+
+  void allocate_ul_retx_grant(const slice_ue& user, ul_harq_process_handle h_ul)
+  {
+    const slot_point pusch_slot   = get_next_ul_slot(current_slot);
+    const auto&      init_ul_bwp  = cell_cfg.params.ul_cfg_common.init_ul_bwp;
+    auto             used_ul_vrbs = res_grid[pusch_slot]
+                            .ul_res_grid
+                            .used_prbs(init_ul_bwp.generic_params.scs,
+                                       init_ul_bwp.generic_params.crbs,
+                                       init_ul_bwp.pusch_cfg_common->pusch_td_alloc_list[0].symbols)
+                            .convert_to<vrb_bitmap>();
+    auto result = alloc.allocate_ul_grant(ue_retx_ul_grant_request{
+        user, pusch_slot, h_ul, used_ul_vrbs, ofdm_symbol_range{0, NOF_OFDM_SYM_PER_SLOT_NORMAL_CP}});
+    if (result.has_value()) {
+      used_ul_vrbs.fill(result.value().vrbs.start(), result.value().vrbs.stop());
+    }
+  }
+};
+
+// A grant takes a process operating in the mode its logical channels require, as per \c allowedHARQ-mode, TS 38.331.
+TEST_P(ue_grid_allocator_ul_harq_mode_test, newtx_takes_a_process_in_the_mode_its_channels_require)
+{
+  const ue& u     = add_mode_restricted_ue();
+  ue_cell&  ue_cc = ues[u.ue_index].get_pcell();
+
+  const size_t nof_mode_b = ue_cc.harqs.nof_empty_ul_harqs(harq_utils::harq_mode_t::feedback_disabled_or_mode_b);
+  ASSERT_EQ(ue_cc.harqs.nof_empty_ul_harqs(harq_utils::harq_mode_t::normal), 1U);
+
+  // Only the channel bound to mode B holds data, so the grant must ride a process operating in that mode.
+  push_ul_bsr(u.ue_index, mode_b_lcg, 1000);
+  ASSERT_TRUE(run_until([&]() { allocate_ul_newtx_grant(slice_ues[u.ue_index], units::bytes{200}); },
+                        [&]() {
+                          return ue_cc.harqs.nof_empty_ul_harqs(harq_utils::harq_mode_t::feedback_disabled_or_mode_b) ==
+                                 nof_mode_b - 1;
+                        }));
+  ASSERT_EQ(ue_cc.harqs.nof_empty_ul_harqs(harq_utils::harq_mode_t::normal), 1U)
+      << "the grant of a channel bound to mode B took the process operating in mode A";
+
+  // The channel bound to mode A outranks it as soon as it holds data.
+  push_ul_bsr(u.ue_index, mode_a_lcg, 1000);
+  ASSERT_TRUE(run_until([&]() { allocate_ul_newtx_grant(slice_ues[u.ue_index], units::bytes{200}); },
+                        [&]() { return ue_cc.harqs.nof_empty_ul_harqs(harq_utils::harq_mode_t::normal) == 0; }));
+}
+
+// A reTx is bound to the process it already holds, so it is scheduled even once the mode its logical channels require
+// has no free process left.
+TEST_P(ue_grid_allocator_ul_harq_mode_test, retx_is_scheduled_when_its_mode_has_no_free_process)
+{
+  const ue& u     = add_mode_restricted_ue();
+  ue_cell&  ue_cc = ues[u.ue_index].get_pcell();
+
+  // The channel bound to mode A takes the only process operating in that mode.
+  push_ul_bsr(u.ue_index, mode_a_lcg, 1000);
+  ASSERT_TRUE(run_until([&]() { allocate_ul_newtx_grant(slice_ues[u.ue_index], units::bytes{200}); },
+                        [&]() { return ue_cc.harqs.nof_empty_ul_harqs(harq_utils::harq_mode_t::normal) == 0; }));
+  ASSERT_TRUE(slice_ues[u.ue_index].select_normal_ul_harq_mode());
+
+  std::optional<ul_harq_process_handle> h_ul = ue_cc.harqs.find_ul_harq_waiting_ack();
+  ASSERT_TRUE(h_ul.has_value());
+  ASSERT_EQ(h_ul->mode(), harq_utils::harq_mode_t::normal);
+  ASSERT_TRUE(h_ul->ul_crc_info(false).has_value());
+
+  ASSERT_TRUE(run_until(
+      [&]() {
+        std::optional<ul_harq_process_handle> h_retx = ue_cc.harqs.find_pending_ul_retx();
+        if (h_retx.has_value()) {
+          allocate_ul_retx_grant(slice_ues[u.ue_index], *h_retx);
+        }
+      },
+      [&]() {
+        const ul_sched_info* grant = find_ue_pusch(u.crnti, res_grid[0].result.ul);
+        return grant != nullptr and grant->context.nof_retxs > 0;
+      }))
+      << "reTx was refused for the lack of a free UL HARQ process";
+}
+
+INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
+                         ue_grid_allocator_ul_harq_mode_test,
                          testing::Values(duplex_mode::FDD));
 
 class ue_grid_allocator_pusch_repetition_test : public ue_grid_allocator_test

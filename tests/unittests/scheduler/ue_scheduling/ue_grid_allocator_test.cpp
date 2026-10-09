@@ -35,6 +35,8 @@ struct test_params {
   scheduler_expert_config sched_cfg;
   std::variant<search_space_configuration::common_dci_format, search_space_configuration::ue_specific_dci_format>
       ss2_dci_fmt = search_space_configuration::ue_specific_dci_format::f0_1_and_1_1;
+  /// Cell-specific K-offset of the cell, which turns it into an NTN one when set.
+  std::chrono::milliseconds ntn_cs_koffset{0};
 };
 
 class ue_grid_allocator_test : public ::testing::TestWithParam<duplex_mode>
@@ -45,6 +47,10 @@ class ue_grid_allocator_test : public ::testing::TestWithParam<duplex_mode>
     sched_cell_configuration_request_message req;
     req = sched_config_helper::make_default_sched_cell_configuration_request(builder_params);
     req.ran.init_bwp.pdcch_cfg->search_spaces[0].set_non_ss0_monitored_dci_formats(params.ss2_dci_fmt);
+    if (params.ntn_cs_koffset.count() > 0) {
+      req.ran.ntn_params.emplace();
+      req.ran.ntn_params->ntn_cfg.cell_specific_koffset = params.ntn_cs_koffset;
+    }
     return req;
   }
 
@@ -1011,6 +1017,151 @@ TEST_P(ue_grid_allocator_pdsch_repetition_test,
 
 INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
                          ue_grid_allocator_pdsch_repetition_test,
+                         testing::Values(duplex_mode::FDD));
+
+// An NTN cell with a UE whose HARQ processes split between DL HARQ feedback enabled and disabled, so that the
+// allocator has to pick a process by the feedback the logical channels of the grant need.
+class ue_grid_allocator_dl_harq_feedback_test : public ue_grid_allocator_test
+{
+protected:
+  // The SRB outranks the DRB, so the feedback the slice needs follows whichever of the two holds data.
+  const lcid_t srb_lcid = lcid_t::LCID_SRB2;
+  const lcid_t drb_lcid = uint_to_lcid(4);
+
+  ue_grid_allocator_dl_harq_feedback_test() :
+    ue_grid_allocator_test(test_params{config_helpers::make_default_scheduler_expert_config(),
+                                       search_space_configuration::ue_specific_dci_format::f0_1_and_1_1,
+                                       std::chrono::milliseconds{5}})
+  {
+  }
+
+  // Adds a UE with one HARQ process carrying the DL HARQ feedback and one with it disabled, and a logical channel
+  // bound to each of them.
+  ue& add_feedback_restricted_ue()
+  {
+    sched_ue_creation_request_message req =
+        sched_config_helper::create_default_sched_ue_creation_request(cell_cfg.params);
+    req.ue_index                                            = to_du_ue_index(0);
+    req.crnti                                               = to_rnti(0x4601);
+    (*req.cfg.cells)[0].serv_cell_cfg.init_dl_bwp.pdcch_cfg = cell_cfg.bwp_res[to_bwp_id(0)].dl().ded_pdcchs[0];
+
+    auto& pdsch_cell_cfg         = (*req.cfg.cells)[0].serv_cell_cfg.pdsch_serv_cell_cfg.value();
+    pdsch_cell_cfg.nof_harq_proc = pdsch_serving_cell_config::nof_harq_proc_for_pdsch::n2;
+    // Process 0 carries the feedback and process 1 has it disabled.
+    pdsch_cell_cfg.dl_harq_feedback_disabled.set(1);
+
+    req.cfg.lc_config_list->push_back(config_helpers::create_default_logical_channel_config(srb_lcid));
+    req.cfg.lc_config_list->back().allowed_dl_harq_feedback = dl_harq_feedback::enabled;
+    req.cfg.lc_config_list->push_back(config_helpers::create_default_logical_channel_config(drb_lcid));
+    req.cfg.lc_config_list->back().allowed_dl_harq_feedback = dl_harq_feedback::disabled;
+
+    ue& u = add_ue(req);
+
+    // A UE is created before its dedicated PDSCH configuration exists, so its HARQ processes only take a mode once it
+    // is reconfigured.
+    sched_ue_reconfiguration_message reconf_msg{.ue_index = req.ue_index, .crnti = req.crnti, .cfg = req.cfg};
+    ue_config_update_event           ev = cfg_mng.update_ue(reconf_msg);
+    ues.reconfigure_ue(ev.next_config(), sched_ue_config_request::causes::other_rrc_proc);
+    ues.ue_config_applied(ev.get_ue_index());
+    ev.notify_completion();
+
+    return u;
+  }
+
+  // Number of HARQ-ACK bits the UE has booked across the resource grid.
+  unsigned booked_harq_ack_bits(rnti_t rnti) const
+  {
+    unsigned nof_bits = 0;
+    for (unsigned sl = 0; sl != res_grid.max_ul_slot_alloc_delay + 1; ++sl) {
+      const pucch_info* pucch = find_ue_pucch_with_harq_ack(rnti, res_grid[sl].result.ul.pucchs.unsorted());
+      if (pucch != nullptr) {
+        nof_bits += pucch->uci_bits.harq_ack_nof_bits;
+      }
+    }
+    return nof_bits;
+  }
+};
+
+// A reTx is bound to the process it already holds, so it is scheduled even once every process is busy and a new
+// transmission can no longer find one.
+TEST_P(ue_grid_allocator_dl_harq_feedback_test, retx_is_scheduled_when_every_harq_process_is_busy)
+{
+  const ue& u     = add_feedback_restricted_ue();
+  ue_cell&  ue_cc = ues[u.ue_index].get_pcell();
+
+  auto allocate_newtx = [&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], units::bytes{200}, false); };
+  auto ue_dl_grant    = [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants); };
+
+  // The channel with the feedback disabled takes the process that carries none.
+  push_dl_bs(u.ue_index, drb_lcid, 1000);
+  ASSERT_TRUE(run_until(allocate_newtx, [&]() { return ue_cc.harqs.nof_empty_dl_harqs() == 1; }));
+
+  // The channel carrying the feedback outranks it and takes the last free process.
+  push_dl_bs(u.ue_index, srb_lcid, 1000);
+  ASSERT_TRUE(run_until(allocate_newtx, [&]() { return not ue_cc.harqs.has_empty_dl_harqs(); }));
+
+  std::optional<dl_harq_process_handle> h_dl = ue_cc.harqs.dl_harq(to_harq_id(0));
+  ASSERT_TRUE(h_dl.has_value());
+  ASSERT_EQ(h_dl->mode(), harq_utils::harq_mode_t::normal);
+  ASSERT_TRUE(h_dl->dl_ack_info(mac_harq_ack_report_status::nack, std::nullopt));
+
+  ASSERT_TRUE(run_until(
+      [&]() {
+        std::optional<dl_harq_process_handle> h_retx = ue_cc.harqs.find_pending_dl_retx();
+        if (h_retx.has_value()) {
+          allocate_dl_retx_grant(slice_ues[u.ue_index], *h_retx);
+        }
+      },
+      [&]() {
+        const dl_msg_alloc* grant = ue_dl_grant();
+        return grant != nullptr and grant->context.nof_retxs > 0;
+      }))
+      << "reTx was refused for the lack of a free HARQ process";
+}
+
+// The feedback a reTx carries comes from the process it holds, not from the data waiting in the slice, so its PUCCH is
+// booked even while a channel with the feedback disabled holds more data.
+TEST_P(ue_grid_allocator_dl_harq_feedback_test, retx_of_a_feedback_enabled_process_books_a_pucch)
+{
+  const ue& u     = add_feedback_restricted_ue();
+  ue_cell&  ue_cc = ues[u.ue_index].get_pcell();
+
+  // The channel carrying the feedback takes the process that carries it too.
+  push_dl_bs(u.ue_index, srb_lcid, 200);
+  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], units::bytes{200}, false); },
+                        [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
+  std::optional<dl_harq_process_handle> h_dl = ue_cc.harqs.dl_harq(to_harq_id(0));
+  ASSERT_TRUE(h_dl.has_value());
+  ASSERT_EQ(h_dl->mode(), harq_utils::harq_mode_t::normal);
+
+  // The channel with the feedback disabled is left as the only one holding data, so a new transmission would pick a
+  // process that carries no feedback.
+  push_dl_bs(u.ue_index, srb_lcid, 0);
+  push_dl_bs(u.ue_index, drb_lcid, 100000);
+  ASSERT_FALSE(slice_ues[u.ue_index].select_normal_dl_harq_mode());
+
+  ASSERT_TRUE(h_dl->dl_ack_info(mac_harq_ack_report_status::nack, std::nullopt));
+
+  // Bits booked in the slot that carries the reTx, before its own PUCCH is booked.
+  unsigned nof_bits_before = 0;
+  ASSERT_TRUE(run_until(
+      [&]() {
+        std::optional<dl_harq_process_handle> h_retx = ue_cc.harqs.find_pending_dl_retx();
+        if (h_retx.has_value()) {
+          nof_bits_before = booked_harq_ack_bits(u.crnti);
+          allocate_dl_retx_grant(slice_ues[u.ue_index], *h_retx);
+        }
+      },
+      [&]() {
+        const dl_msg_alloc* grant = find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants);
+        return grant != nullptr and grant->context.nof_retxs > 0;
+      }));
+  ASSERT_GT(booked_harq_ack_bits(u.crnti), nof_bits_before)
+      << "no PUCCH was booked for the reTx of a process carrying the DL HARQ feedback";
+}
+
+INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
+                         ue_grid_allocator_dl_harq_feedback_test,
                          testing::Values(duplex_mode::FDD));
 
 class ue_grid_allocator_pusch_repetition_test : public ue_grid_allocator_test

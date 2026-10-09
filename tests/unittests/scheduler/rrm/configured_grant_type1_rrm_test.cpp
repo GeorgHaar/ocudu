@@ -139,7 +139,7 @@ protected:
   }
 
   // Returns the CG period in slots.
-  unsigned cg_period_slots() const { return static_cast<unsigned>(cg_params.periodicity.value()); }
+  unsigned cg_period_slots() const { return static_cast<unsigned>(cg_params.periodicity); }
 
   // Returns the PRACH periodicity, in slots.
   unsigned prach_period_slots() const
@@ -221,7 +221,7 @@ TEST_P(configured_grant_type1_rrm_test, single_ue_cg_config_is_fully_populated)
   const auto& cg_cfg = ue->serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.value();
 
   // Verify cg_builder_params are reflected in the CG configuration.
-  EXPECT_EQ(cg_cfg.periodicity, cg_params.periodicity.value());
+  EXPECT_EQ(cg_cfg.periodicity, cg_params.periodicity);
   EXPECT_EQ(cg_cfg.nof_harq_processes, cg_params.nof_harq_processes);
   // Verify rrc_configured_ul_grant is populated.
   ASSERT_TRUE(cg_cfg.rrc_configured_ul_grant_cfg.has_value());

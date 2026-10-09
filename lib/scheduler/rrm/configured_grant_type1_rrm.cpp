@@ -20,9 +20,8 @@ using namespace ocudu;
 // not full-UL slots, are left out of cell_context::usable_cg_offsets and therefore never allocated.
 static std::vector<crb_bitmap> build_alloc_grid(const ran_cell_config& cell_cfg)
 {
-  ocudu_assert(cell_cfg.init_bwp.cg_cfg.has_value() and cell_cfg.init_bwp.cg_cfg.value().periodicity.has_value(),
-               "Configured Grant must be configured and with a period set");
-  const auto cg_period_sl = static_cast<unsigned>(cell_cfg.init_bwp.cg_cfg.value().periodicity.value());
+  ocudu_assert(cell_cfg.init_bwp.cg_cfg.has_value(), "Configured Grant must be configured");
+  const auto cg_period_sl = static_cast<unsigned>(cell_cfg.init_bwp.cg_cfg.value().periodicity);
 
   const crb_bitmap pucch_crbs = compute_pucch_crbs(cell_cfg);
   ocudu_assert(pucch_crbs.size() == cell_cfg.ul_cfg_common.init_ul_bwp.generic_params.crbs.length(),

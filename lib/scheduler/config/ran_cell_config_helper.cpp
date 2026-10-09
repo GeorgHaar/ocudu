@@ -628,9 +628,9 @@ std::vector<crb_interval> config_helpers::compute_cg_type2_freq_resources(const 
     return {};
   }
   // Cap this the maximum number of CG resources per slot to MAX_CG_PUSCH_PDUS_PER_SLOT.
-  const unsigned nof_cg_res =
-      std::min(std::min(cell_cfg.init_bwp.cg_cfg->max_nof_cell_cg_rbs, nof_non_pucch_crbs) / nof_cg_rbs_per_ue,
-               static_cast<unsigned>(MAX_CG_PUSCH_PDUS_PER_SLOT));
+  const unsigned nof_cg_res = std::min<unsigned>(
+      std::min(cell_cfg.init_bwp.cg_cfg->max_nof_cell_cg_rbs, nof_non_pucch_crbs) / nof_cg_rbs_per_ue,
+      MAX_CG_PUSCH_PDUS_PER_SLOT);
 
   // Only considers the lower part of the spectrum, as we allocate CG resources on that side.
   std::vector<crb_interval> cg_crbs;
@@ -647,8 +647,7 @@ std::vector<crb_interval> config_helpers::compute_cg_type2_freq_resources(const 
 
 std::vector<unsigned> config_helpers::compute_cg_usable_slot_offsets(const ran_cell_config& cell_cfg)
 {
-  ocudu_assert(cell_cfg.init_bwp.cg_cfg.has_value() and cell_cfg.init_bwp.cg_cfg.value().periodicity.has_value(),
-               "Configured Grant must be configured and with a period set");
+  ocudu_assert(cell_cfg.init_bwp.cg_cfg.has_value(), "Configured Grant must be configured");
 
   // Computes the PRACH periodicity, in slots.
   const auto                                ul_scs = cell_cfg.ul_cfg_common.init_ul_bwp.generic_params.scs;
@@ -661,7 +660,7 @@ std::vector<unsigned> config_helpers::compute_cg_usable_slot_offsets(const ran_c
       get_nof_slots_per_subframe(ul_scs) * static_cast<unsigned>(NOF_SUBFRAMES_PER_FRAME) * td_mapper.sfn_period();
   ocudu_assert(prach_period_sl > 0, "PRACH opportunities period must be positive");
 
-  const auto cg_period_sl = static_cast<unsigned>(cell_cfg.init_bwp.cg_cfg.value().periodicity.value());
+  const auto cg_period_sl = static_cast<unsigned>(cell_cfg.init_bwp.cg_cfg.value().periodicity);
 
   // A CG offset recurs every CG period, and each of its occurrences falls at a different point of the TDD and PRACH
   // patterns. Both patterns realign with the CG period after the LCM of the three, so the occurrences within that

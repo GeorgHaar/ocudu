@@ -67,7 +67,7 @@ unsigned prach_period_slots(const ran_cell_config& cell_cfg)
 
 unsigned cg_period_slots(const ran_cell_config& cell_cfg)
 {
-  return static_cast<unsigned>(cell_cfg.init_bwp.cg_cfg.value().periodicity.value());
+  return static_cast<unsigned>(cell_cfg.init_bwp.cg_cfg.value().periodicity);
 }
 
 // Period after which the CG, TDD and PRACH patterns all realign, i.e. the window holding every distinct slot that a CG

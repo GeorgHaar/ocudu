@@ -262,10 +262,7 @@ static cg_configuration make_default_cg_config(const cg_builder_params& cg_param
 {
   cg_configuration cfg{};
 
-  ocudu_assert(cg_params.periodicity.has_value(),
-               "This function cannot be called if Configuration Grant is not enabled");
-
-  cfg.periodicity        = cg_params.periodicity.value();
+  cfg.periodicity        = cg_params.periodicity;
   cfg.nof_harq_processes = static_cast<uint8_t>(cg_params.nof_harq_processes);
   cfg.mcs_table          = pusch_mcs_table::qam64;
 

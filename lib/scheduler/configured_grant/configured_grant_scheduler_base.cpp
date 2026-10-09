@@ -20,8 +20,8 @@ configured_grant_scheduler_base::configured_grant_scheduler_base(const cell_conf
   uci_alloc(uci_alloc_),
   ues(ues_),
   logger(ocudulog::fetch_basic_logger("SCHED")),
-  // The CG scheduler is only instantiated for a cell that has CG configured, so the periodicity is always set here.
-  periodic_pusch_slot_wheel(static_cast<unsigned>(cell_cfg_.params.init_bwp.cg_cfg.value().periodicity.value()))
+  // The CG scheduler is only instantiated for a cell that has CG configured, so cg_cfg is always set here.
+  periodic_pusch_slot_wheel(static_cast<unsigned>(cell_cfg_.params.init_bwp.cg_cfg.value().periodicity))
 {
   // Pre-reserve space for the UEs that will be added.
   // Note: The list is cleared every slot, so it generally holds far fewer UEs than the cell can have contexts for.

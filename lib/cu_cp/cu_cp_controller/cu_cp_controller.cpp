@@ -93,6 +93,12 @@ bool cu_cp_controller::request_ue_setup() const
   return true;
 }
 
+std::optional<std::vector<cu_cp_amf_index_t>>
+cu_cp_controller::admit_ue_setup(establishment_cause_t establishment_cause)
+{
+  return amf_sel.admit_ue_setup(amf_mng.get_amf_candidates(), establishment_cause);
+}
+
 std::optional<cu_cp_amf_index_t> cu_cp_controller::select_amf(const amf_selection_request& request)
 {
   return amf_sel.select_amf(amf_mng.get_amf_candidates(), request);

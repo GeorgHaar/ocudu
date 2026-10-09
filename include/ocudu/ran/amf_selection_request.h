@@ -6,10 +6,12 @@
 #pragma once
 
 #include "ocudu/ran/cause/common.h"
+#include "ocudu/ran/cu_cp_types.h"
 #include "ocudu/ran/five_g_s_tmsi.h"
 #include "ocudu/ran/guami.h"
 #include "ocudu/ran/plmn_identity.h"
 #include <optional>
+#include <vector>
 
 namespace ocudu::ocucp {
 
@@ -25,6 +27,9 @@ struct amf_selection_request {
   std::optional<five_g_s_tmsi_t> five_g_s_tmsi;
   /// Establishment cause of the RRC connection of the UE (TS 38.331 section 6.2.2).
   establishment_cause_t establishment_cause = establishment_cause_t::unknown;
+  /// AMFs that rejected the UE because of an overload when the UE sent the RRC Setup Request. If absent, the AMF
+  /// selection decides it.
+  std::optional<std::vector<cu_cp_amf_index_t>> overload_rejecting_amfs;
 };
 
 } // namespace ocudu::ocucp

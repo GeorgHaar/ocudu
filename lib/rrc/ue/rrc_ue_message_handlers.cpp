@@ -64,12 +64,14 @@ void rrc_ue_impl::handle_ul_ccch_pdu(byte_buffer pdu, rnti_t c_rnti)
 
 void rrc_ue_impl::handle_rrc_setup_request(const asn1::rrc_nr::rrc_setup_request_s& request_msg)
 {
+  const establishment_cause_t establishment_cause =
+      asn1_to_establishment_cause(request_msg.rrc_setup_request.establishment_cause.value);
+
   // Notify metrics about attempted RRC connection establishment.
-  metrics_notifier.on_attempted_rrc_connection_establishment(
-      asn1_to_establishment_cause(request_msg.rrc_setup_request.establishment_cause.value));
+  metrics_notifier.on_attempted_rrc_connection_establishment(establishment_cause);
 
   // Perform various checks to make sure we can serve the RRC Setup Request.
-  if (not cu_cp_notifier.on_ue_setup_request()) {
+  if (not cu_cp_notifier.on_ue_setup_request(establishment_cause)) {
     logger.log_warning("Sending Connection Reject. Cause: RRC connections not allowed");
     metrics_notifier.on_failed_rrc_connection_establishment(establishment_fail_cause_t::network_reject);
     on_ue_release_required(ngap_cause_radio_network_t::unspecified);

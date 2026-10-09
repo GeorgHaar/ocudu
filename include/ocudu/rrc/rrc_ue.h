@@ -10,6 +10,7 @@
 #include "ocudu/adt/static_vector.h"
 #include "ocudu/cu_cp/cu_cp_ue_messages.h"
 #include "ocudu/ran/amf_selection_request.h"
+#include "ocudu/ran/cause/common.h"
 #include "ocudu/ran/cause/ngap_cause.h"
 #include "ocudu/ran/cu_cp_types.h"
 #include "ocudu/ran/cu_cp_ue_context_release.h"
@@ -524,8 +525,9 @@ public:
   virtual ~rrc_ue_context_update_notifier() = default;
 
   /// \brief Notifies that a new RRC UE needs to be setup.
+  /// \param[in] establishment_cause The establishment cause of the RRC Setup Request.
   /// \return True if the UE is accepted.
-  virtual bool on_ue_setup_request() = 0;
+  virtual bool on_ue_setup_request(establishment_cause_t establishment_cause) = 0;
 
   /// \brief Notifies that the RRC UE setup complete is received.
   /// \param[in] request The selected PLMN of the UE and the identities that the AMF selection uses.

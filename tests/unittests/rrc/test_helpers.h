@@ -67,7 +67,7 @@ public:
   byte_buffer                                     retrieved_rrc_context;
   std::optional<rrc_ue_context_retrieval_request> last_context_retrieval_request;
 
-  bool on_ue_setup_request() override { return next_ue_setup_response; }
+  bool on_ue_setup_request(establishment_cause_t establishment_cause) override { return next_ue_setup_response; }
 
   bool on_ue_setup_complete_received(const amf_selection_request& request) override
   {

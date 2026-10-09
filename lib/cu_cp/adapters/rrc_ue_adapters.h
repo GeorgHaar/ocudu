@@ -168,10 +168,12 @@ public:
     location_handler     = &location_handler_;
   }
 
-  bool on_ue_setup_request() override
+  bool on_ue_setup_request(establishment_cause_t establishment_cause) override
   {
     ocudu_assert(controller != nullptr, "CU-CP controller must not be nullptr");
-    return controller->request_ue_setup();
+    ocudu_assert(cu_cp_rrc_ue_handler != nullptr, "CU-CP handler must not be nullptr");
+    return controller->request_ue_setup() and
+           cu_cp_rrc_ue_handler->handle_ue_setup_request(ue_index, establishment_cause);
   }
 
   bool on_ue_setup_complete_received(const amf_selection_request& request) override

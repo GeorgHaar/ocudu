@@ -283,6 +283,12 @@ class cu_cp_rrc_ue_interface
 public:
   virtual ~cu_cp_rrc_ue_interface() = default;
 
+  /// \brief Handles the RRC Setup Request of a new UE: decides which AMFs reject the UE because of an overload.
+  /// \param[in] ue_index The index of the UE.
+  /// \param[in] establishment_cause The establishment cause of the RRC Setup Request.
+  /// \return True if an AMF accepts the UE, false otherwise.
+  virtual bool handle_ue_setup_request(cu_cp_ue_index_t ue_index, establishment_cause_t establishment_cause) = 0;
+
   /// \brief Handles a new UE connection: sets the selected PLMN of the UE and selects the AMF of the UE.
   /// \param[in] ue_index The index of the UE.
   /// \param[in] request The selected PLMN of the UE and the identities that the AMF selection uses.

@@ -279,6 +279,60 @@ TEST_F(amf_selector_test, when_all_amfs_are_overloaded_without_action_then_an_am
             uint_to_cu_cp_amf_index(0));
 }
 
+TEST_F(amf_selector_test, when_every_connected_amf_rejects_the_establishment_cause_then_ue_setup_is_not_accepted)
+{
+  candidates             = {make_candidate(0, make_guami(1, 0)), make_candidate(1, make_guami(1, 1), 255, false)};
+  candidates[0].overload = ngap_amf_overload{ngap_overload_action_t::reject_signalling, std::nullopt};
+
+  ASSERT_FALSE(selector.admit_ue_setup(candidates, establishment_cause_t::mo_sig).has_value());
+
+  std::optional<std::vector<cu_cp_amf_index_t>> rejecting_amfs =
+      selector.admit_ue_setup(candidates, establishment_cause_t::mt_access);
+  ASSERT_TRUE(rejecting_amfs.has_value());
+  ASSERT_TRUE(rejecting_amfs->empty());
+}
+
+TEST_F(amf_selector_test, when_amf_has_traffic_load_reduction_then_this_share_of_the_ue_setups_is_rejected)
+{
+  candidates             = {make_candidate(0, make_guami(1, 0)), make_candidate(1, make_guami(1, 1))};
+  candidates[0].overload = ngap_amf_overload{ngap_overload_action_t::reject_signalling, 25};
+  candidates[1].overload = ngap_amf_overload{ngap_overload_action_t::reject_signalling, std::nullopt};
+
+  unsigned nof_rejected = 0;
+  for (unsigned i = 0; i != 4000; ++i) {
+    std::optional<std::vector<cu_cp_amf_index_t>> rejecting_amfs =
+        selector.admit_ue_setup(candidates, establishment_cause_t::mo_sig);
+    if (not rejecting_amfs.has_value()) {
+      ++nof_rejected;
+    } else {
+      // AMF 1 rejects every UE, AMF 0 accepts this UE.
+      ASSERT_EQ(*rejecting_amfs, std::vector<cu_cp_amf_index_t>{uint_to_cu_cp_amf_index(1)});
+    }
+  }
+
+  EXPECT_NEAR(nof_rejected, 1000, 150);
+}
+
+TEST_F(amf_selector_test, when_ue_setup_request_decided_the_overload_then_the_selection_uses_this_decision)
+{
+  // AMF 0 rejects every UE with the establishment cause mo-Signalling.
+  candidates             = {make_candidate(0, make_guami(1, 0)), make_candidate(1, make_guami(1, 1))};
+  candidates[0].overload = ngap_amf_overload{ngap_overload_action_t::reject_signalling, std::nullopt};
+
+  // The RRC Setup Request found that AMF 0 accepts the UE, so the selection does not check the overload again.
+  ASSERT_EQ(select({.plmn                    = plmn_a,
+                    .registered_guami        = make_guami(1, 0),
+                    .establishment_cause     = establishment_cause_t::mo_sig,
+                    .overload_rejecting_amfs = std::vector<cu_cp_amf_index_t>{}}),
+            uint_to_cu_cp_amf_index(0));
+  // The RRC Setup Request found that AMF 1 rejects the UE.
+  ASSERT_EQ(select({.plmn                    = plmn_a,
+                    .registered_guami        = make_guami(1, 1),
+                    .establishment_cause     = establishment_cause_t::mt_access,
+                    .overload_rejecting_amfs = std::vector<cu_cp_amf_index_t>{uint_to_cu_cp_amf_index(1)}}),
+            uint_to_cu_cp_amf_index(0));
+}
+
 TEST_F(amf_selector_test, when_ue_identifies_no_amf_then_selection_is_weighted_by_relative_amf_capacity)
 {
   candidates = {make_candidate(0, make_guami(1, 0), 255), make_candidate(1, make_guami(1, 1), 85)};

@@ -496,9 +496,31 @@ void cu_cp_impl::handle_e1_release_request(cu_cp_cu_up_index_t cu_up_index)
   // TODO
 }
 
+bool cu_cp_impl::handle_ue_setup_request(cu_cp_ue_index_t ue_index, establishment_cause_t establishment_cause)
+{
+  cu_cp_ue* ue = ue_mng.find_ue(ue_index);
+  if (ue == nullptr) {
+    logger.warning("ue={}: Could not find UE", ue_index);
+    return false;
+  }
+
+  // The overload of an AMF rejects RRC connection establishments (TS 38.413 section 8.7.7.2).
+  std::optional<std::vector<cu_cp_amf_index_t>> rejecting_amfs = controller.admit_ue_setup(establishment_cause);
+  if (not rejecting_amfs.has_value()) {
+    logger.info("ue={}: Rejecting UE. Cause: Every connected AMF rejects the UE because of an overload", ue_index);
+    return false;
+  }
+  ue->get_ue_context().overload_rejecting_amfs = std::move(rejecting_amfs);
+  return true;
+}
+
 bool cu_cp_impl::handle_ue_setup_complete_received(cu_cp_ue_index_t ue_index, const amf_selection_request& request)
 {
-  std::optional<cu_cp_amf_index_t> amf_index = controller.select_amf(request);
+  amf_selection_request selection_request = request;
+  if (cu_cp_ue* ue = ue_mng.find_ue(ue_index); ue != nullptr) {
+    selection_request.overload_rejecting_amfs = ue->get_ue_context().overload_rejecting_amfs;
+  }
+  std::optional<cu_cp_amf_index_t> amf_index = controller.select_amf(selection_request);
   if (not amf_index.has_value()) {
     logger.warning("ue={}: No connected AMF for PLMN {} accepts the UE, rejecting UE", ue_index, request.plmn);
     return false;

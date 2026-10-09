@@ -48,11 +48,20 @@ public:
   /// \param[in] seed Seed of the random generator.
   explicit amf_selector(uint32_t seed = std::random_device{}()) : rng(seed) {}
 
+  /// \brief Decides which connected AMFs reject a new UE with the given establishment cause.
+  ///
+  /// An overloaded AMF rejects the establishment causes of its overload action. An AMF with a traffic load reduction
+  /// rejects the UE with the probability of the reduction (TS 38.413 section 8.7.7.2).
+  /// \return The AMFs that reject the UE, or std::nullopt if every connected AMF rejects the UE.
+  std::optional<std::vector<cu_cp_amf_index_t>> admit_ue_setup(span<const amf_candidate> candidates,
+                                                               establishment_cause_t     establishment_cause);
+
   /// \brief Selects the AMF for a UE that accesses the CU-CP (NAS Node Selection Function, TS 38.410 section 5.7 and
   /// TS 38.300 section 16.3.4.2).
   ///
   /// The selection first removes the AMFs whose overload action rejects the establishment cause of the UE. An AMF with
-  /// a traffic load reduction is removed with the probability of the reduction (TS 38.413 section 8.7.7.2). Then the
+  /// a traffic load reduction is removed with the probability of the reduction (TS 38.413 section 8.7.7.2). If the RRC
+  /// Setup Request of the UE already decided this, the selection removes the AMFs of this decision. Then the
   /// selection applies these rules in order. Each rule takes only the connected AMFs that support the selected PLMN.
   /// 1. An AMF that serves the registered GUAMI of the UE with the same GUAMI Type.
   /// 2. An AMF that serves the AMF Set ID and AMF Pointer of the 5G-S-TMSI in the selected PLMN.
@@ -108,9 +117,12 @@ private:
   std::optional<cu_cp_amf_index_t>
   find_amf_of_guami(span<const amf_candidate> candidates, const GuamiMatch& matches, const CandidateMatch& is_eligible);
 
-  /// Checks if the AMF accepts a new UE. An AMF with a traffic load reduction rejects the UE with the probability of
-  /// the reduction.
-  bool accepts_ue(const amf_candidate& candidate, establishment_cause_t cause);
+  /// Checks if the overload action of the AMF rejects the UE. With a traffic load reduction, the AMF rejects the UE
+  /// with the probability of the reduction.
+  bool is_rejected_by_amf_overload(const amf_candidate& candidate, establishment_cause_t cause);
+
+  /// Checks if the AMF accepts a new UE.
+  bool accepts_ue(const amf_candidate& candidate, const amf_selection_request& request);
 
   std::mt19937 rng;
 };

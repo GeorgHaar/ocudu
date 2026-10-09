@@ -11,6 +11,7 @@
 #include "tests/unittests/ngap/ngap_test_messages.h"
 #include "ocudu/asn1/f1ap/f1ap_pdu_contents_ue.h"
 #include "ocudu/asn1/ngap/ngap_pdu_contents.h"
+#include "ocudu/asn1/rrc_nr/dl_ccch_msg.h"
 #include "ocudu/f1ap/f1ap_message.h"
 #include "ocudu/ngap/ngap_message.h"
 #include <gtest/gtest.h>
@@ -420,4 +421,25 @@ TEST_F(cu_cp_amf_pooling_test, when_amf_rejects_the_establishment_cause_then_the
 
   // Without the overload, the UE would go to AMF 0, which serves its AMF Pointer.
   ASSERT_EQ(attach_ue_with_5g_s_tmsi(int_to_gnb_du_ue_f1ap_id(0), 0), 1);
+}
+
+TEST_F(cu_cp_amf_pooling_test, when_every_amf_rejects_the_establishment_cause_then_rrc_setup_is_rejected)
+{
+  start_cu_cp(255, 255);
+
+  // Both AMFs reject the RRC connection establishments for signalling (TS 38.413 section 8.7.7). The UE sends the
+  // establishment cause mo-Signalling.
+  get_amf(0).push_tx_pdu(generate_overload_start(asn1::ngap::overload_action_opts::reject_rrc_cr_sig));
+  get_amf(1).push_tx_pdu(generate_overload_start(asn1::ngap::overload_action_opts::reject_rrc_cr_sig));
+
+  get_du(du_idx).push_ul_pdu(
+      test_helpers::generate_init_ul_rrc_message_transfer(int_to_gnb_du_ue_f1ap_id(0), to_rnti(0x4601)));
+  f1ap_message f1ap_pdu;
+  ASSERT_TRUE(wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu)) << "No response was sent to the UE";
+  ASSERT_TRUE(test_helpers::is_valid_ue_context_release_command(f1ap_pdu)) << "The UE was not rejected";
+  asn1::rrc_nr::dl_ccch_msg_s ccch;
+  asn1::cbit_ref              bref{f1ap_pdu.pdu.init_msg().value.ue_context_release_cmd()->rrc_container};
+  ASSERT_EQ(ccch.unpack(bref), asn1::OCUDUASN_SUCCESS);
+  ASSERT_EQ(ccch.msg.c1().type().value, asn1::rrc_nr::dl_ccch_msg_type_c::c1_c_::types_opts::rrc_reject);
+  ASSERT_TRUE(ccch.msg.c1().rrc_reject().crit_exts.rrc_reject().wait_time_present);
 }

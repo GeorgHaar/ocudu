@@ -152,17 +152,49 @@ static bool is_rejected_by_overload_action(ngap_overload_action_t action, establ
   return false;
 }
 
-bool amf_selector::accepts_ue(const amf_candidate& candidate, establishment_cause_t cause)
+bool amf_selector::is_rejected_by_amf_overload(const amf_candidate& candidate, establishment_cause_t cause)
 {
   if (not candidate.overload.has_value() or not candidate.overload->action.has_value() or
       not is_rejected_by_overload_action(*candidate.overload->action, cause)) {
-    return true;
-  }
-  if (not candidate.overload->traffic_load_reduction.has_value()) {
     return false;
   }
+  if (not candidate.overload->traffic_load_reduction.has_value()) {
+    return true;
+  }
   std::bernoulli_distribution is_rejected(*candidate.overload->traffic_load_reduction / 100.0);
-  return not is_rejected(rng);
+  return is_rejected(rng);
+}
+
+bool amf_selector::accepts_ue(const amf_candidate& candidate, const amf_selection_request& request)
+{
+  // The RRC Setup Request of the UE already decided which AMFs reject the UE because of an overload.
+  if (request.overload_rejecting_amfs.has_value()) {
+    return std::find(request.overload_rejecting_amfs->begin(),
+                     request.overload_rejecting_amfs->end(),
+                     candidate.amf_index) == request.overload_rejecting_amfs->end();
+  }
+  return not is_rejected_by_amf_overload(candidate, request.establishment_cause);
+}
+
+std::optional<std::vector<cu_cp_amf_index_t>> amf_selector::admit_ue_setup(span<const amf_candidate> candidates,
+                                                                           establishment_cause_t establishment_cause)
+{
+  std::vector<cu_cp_amf_index_t> rejecting_amfs;
+  bool                           accepted = false;
+  for (const amf_candidate& candidate : candidates) {
+    if (not candidate.connected) {
+      continue;
+    }
+    if (is_rejected_by_amf_overload(candidate, establishment_cause)) {
+      rejecting_amfs.push_back(candidate.amf_index);
+    } else {
+      accepted = true;
+    }
+  }
+  if (not accepted) {
+    return std::nullopt;
+  }
+  return rejecting_amfs;
 }
 
 std::optional<cu_cp_amf_index_t> amf_selector::select_amf(span<const amf_candidate>    all_candidates,
@@ -170,7 +202,7 @@ std::optional<cu_cp_amf_index_t> amf_selector::select_amf(span<const amf_candida
 {
   std::vector<amf_candidate> candidates;
   for (const amf_candidate& candidate : all_candidates) {
-    if (accepts_ue(candidate, request.establishment_cause)) {
+    if (accepts_ue(candidate, request)) {
       candidates.push_back(candidate);
     }
   }

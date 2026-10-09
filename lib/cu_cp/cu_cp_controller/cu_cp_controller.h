@@ -61,6 +61,10 @@ public:
   /// Determines whether the CU-CP should accept new UE connections.
   bool request_ue_setup() const override;
 
+  /// \brief Decides which connected AMFs reject a new UE with the given establishment cause because of an overload.
+  /// \return The AMFs that reject the UE, or std::nullopt if every connected AMF rejects the UE.
+  std::optional<std::vector<cu_cp_amf_index_t>> admit_ue_setup(establishment_cause_t establishment_cause);
+
   /// \brief Selects the AMF for a UE that accesses the CU-CP.
   /// \return The index of the AMF, or std::nullopt if no connected AMF supports the selected PLMN of the UE.
   std::optional<cu_cp_amf_index_t> select_amf(const amf_selection_request& request);

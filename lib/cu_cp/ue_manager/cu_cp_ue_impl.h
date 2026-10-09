@@ -21,12 +21,14 @@ struct cu_cp_ue_context {
   cu_cp_cu_up_index_t cu_up_idx    = cu_cp_cu_up_index_t::invalid;
   xnc_peer_index_t    xnc_peer_idx = xnc_peer_index_t::invalid;
   /// Index of the AMF that serves the UE.
-  cu_cp_amf_index_t            amf_index = cu_cp_amf_index_t::invalid;
-  plmn_identity                plmn      = plmn_identity::test_value();
-  gnb_du_id_t                  du_id     = gnb_du_id_t::invalid;
-  cu_cp_ue_index_t             ue_index  = cu_cp_ue_index_t::invalid;
-  rnti_t                       crnti     = rnti_t::INVALID_RNTI;
-  aggregate_maximum_bit_rate_t ue_ambr;
+  cu_cp_amf_index_t amf_index = cu_cp_amf_index_t::invalid;
+  /// AMFs that rejected the UE because of an overload when the UE sent the RRC Setup Request.
+  std::optional<std::vector<cu_cp_amf_index_t>> overload_rejecting_amfs;
+  plmn_identity                                 plmn     = plmn_identity::test_value();
+  gnb_du_id_t                                   du_id    = gnb_du_id_t::invalid;
+  cu_cp_ue_index_t                              ue_index = cu_cp_ue_index_t::invalid;
+  rnti_t                                        crnti    = rnti_t::INVALID_RNTI;
+  aggregate_maximum_bit_rate_t                  ue_ambr;
   /// \brief Flag to disable new UE reconfigurations. This can be used, for instance, to reconfigure UE contexts
   /// that are in the process of handover.
   bool reconfiguration_disabled = false;

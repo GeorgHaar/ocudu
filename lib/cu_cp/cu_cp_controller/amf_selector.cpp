@@ -133,26 +133,31 @@ std::optional<cu_cp_amf_index_t> amf_selector::find_amf_of_guami(span<const amf_
   return std::nullopt;
 }
 
-/// Checks if the overload action rejects the establishment cause (TS 38.413 section 8.7.7.2).
-static bool is_rejected_by_overload_action(ngap_overload_action_t action, establishment_cause_t cause)
+/// \brief Checks if the overload action rejects the RRC establishment cause or the RRC resume cause.
+///
+/// TS 38.413 section 8.7.7.2 names the RRC causes of each overload action. The establishment causes and the
+/// resume causes use the same names (TS 38.331 section 6.2.2).
+template <typename Cause>
+static bool is_rejected_by_overload_action(ngap_overload_action_t action, Cause cause)
 {
-  bool is_mo_data = cause == establishment_cause_t::mo_data or cause == establishment_cause_t::mo_sms or
-                    cause == establishment_cause_t::mo_video_call or cause == establishment_cause_t::mo_voice_call;
+  bool is_mo_data = cause == Cause::mo_data or cause == Cause::mo_sms or cause == Cause::mo_video_call or
+                    cause == Cause::mo_voice_call;
   switch (action) {
     case ngap_overload_action_t::reject_non_emergency_mo_data:
       return is_mo_data;
     case ngap_overload_action_t::reject_signalling:
-      return is_mo_data or cause == establishment_cause_t::mo_sig;
+      return is_mo_data or cause == Cause::mo_sig;
     case ngap_overload_action_t::only_emergency_and_mt:
-      return cause != establishment_cause_t::emergency and cause != establishment_cause_t::mt_access;
+      return cause != Cause::emergency and cause != Cause::mt_access;
     case ngap_overload_action_t::only_high_priority_and_mt:
-      return cause != establishment_cause_t::high_prio_access and cause != establishment_cause_t::mps_prio_access and
-             cause != establishment_cause_t::mcs_prio_access and cause != establishment_cause_t::mt_access;
+      return cause != Cause::high_prio_access and cause != Cause::mps_prio_access and
+             cause != Cause::mcs_prio_access and cause != Cause::mt_access;
   }
   return false;
 }
 
-bool amf_selector::is_rejected_by_amf_overload(const amf_candidate& candidate, establishment_cause_t cause)
+template <typename Cause>
+bool amf_selector::is_rejected_by_amf_overload(const amf_candidate& candidate, Cause cause)
 {
   if (not candidate.overload.has_value() or not candidate.overload->action.has_value() or
       not is_rejected_by_overload_action(*candidate.overload->action, cause)) {
@@ -195,6 +200,14 @@ std::optional<std::vector<cu_cp_amf_index_t>> amf_selector::admit_ue_setup(span<
     return std::nullopt;
   }
   return rejecting_amfs;
+}
+
+bool amf_selector::is_ue_resume_accepted(const amf_candidate& candidate, resume_cause_t resume_cause)
+{
+  if (resume_cause == resume_cause_t::rna_upd) {
+    return true;
+  }
+  return not is_rejected_by_amf_overload(candidate, resume_cause);
 }
 
 std::optional<cu_cp_amf_index_t> amf_selector::select_amf(span<const amf_candidate>    all_candidates,

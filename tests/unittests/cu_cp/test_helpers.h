@@ -74,6 +74,8 @@ public:
 
   void on_du_cells_removed(span<const nr_cell_identity> cells) override {}
 
+  bool on_ue_resume_admission_request(cu_cp_ue_index_t ue_index, resume_cause_t resume_cause) override { return true; }
+
   void on_rrc_ue_created(cu_cp_ue_index_t ue_index, rrc_ue_interface& rrc_ue) override
   {
     logger.info("ue={}: Received a RRC UE creation notification", ue_index);

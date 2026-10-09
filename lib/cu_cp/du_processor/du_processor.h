@@ -113,6 +113,12 @@ public:
   /// \brief Notify the CU-CP about the cells a DU stopped serving, so their logical cells are de-realized.
   virtual void on_du_cells_removed(span<const nr_cell_identity> cells) = 0;
 
+  /// \brief Asks the CU-CP if an RRC_INACTIVE UE can resume.
+  /// \param[in] ue_index The index of the RRC_INACTIVE UE.
+  /// \param[in] resume_cause The resume cause of the RRC Resume Request.
+  /// \return True if the UE is accepted.
+  virtual bool on_ue_resume_admission_request(cu_cp_ue_index_t ue_index, resume_cause_t resume_cause) = 0;
+
   /// \brief Notifies about a successful RRC UE creation.
   /// \param[in] ue_index The index of the UE.
   /// \param[in] rrc_ue The created RRC UE.

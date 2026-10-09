@@ -333,6 +333,21 @@ TEST_F(amf_selector_test, when_ue_setup_request_decided_the_overload_then_the_se
             uint_to_cu_cp_amf_index(0));
 }
 
+TEST_F(amf_selector_test, when_amf_rejects_the_resume_cause_then_the_resume_is_not_accepted)
+{
+  amf_candidate candidate = make_candidate(0, make_guami(1, 0));
+  candidate.overload      = ngap_amf_overload{ngap_overload_action_t::reject_signalling, std::nullopt};
+
+  ASSERT_FALSE(selector.is_ue_resume_accepted(candidate, resume_cause_t::mo_sig));
+  ASSERT_FALSE(selector.is_ue_resume_accepted(candidate, resume_cause_t::mo_data));
+  ASSERT_TRUE(selector.is_ue_resume_accepted(candidate, resume_cause_t::mt_access));
+  // An RNA update sends no signalling to the AMF.
+  ASSERT_TRUE(selector.is_ue_resume_accepted(candidate, resume_cause_t::rna_upd));
+
+  candidate.overload.reset();
+  ASSERT_TRUE(selector.is_ue_resume_accepted(candidate, resume_cause_t::mo_sig));
+}
+
 TEST_F(amf_selector_test, when_ue_identifies_no_amf_then_selection_is_weighted_by_relative_amf_capacity)
 {
   candidates = {make_candidate(0, make_guami(1, 0), 255), make_candidate(1, make_guami(1, 1), 85)};

@@ -99,6 +99,24 @@ cu_cp_controller::admit_ue_setup(establishment_cause_t establishment_cause)
   return amf_sel.admit_ue_setup(amf_mng.get_amf_candidates(), establishment_cause);
 }
 
+bool cu_cp_controller::request_ue_resume(cu_cp_amf_index_t amf_index, resume_cause_t resume_cause)
+{
+  std::vector<amf_candidate> candidates = amf_mng.get_amf_candidates();
+  auto candidate = std::find_if(candidates.begin(), candidates.end(), [amf_index](const amf_candidate& item) {
+    return item.amf_index == amf_index;
+  });
+  if (candidate == candidates.end()) {
+    logger.warning("Accepting UE resume. Cause: amf_index={} of the UE is unknown", amf_index);
+    return true;
+  }
+
+  if (not amf_sel.is_ue_resume_accepted(*candidate, resume_cause)) {
+    logger.info("Rejecting UE resume. Cause: amf_index={} rejects the resume cause because of an overload", amf_index);
+    return false;
+  }
+  return true;
+}
+
 std::optional<cu_cp_amf_index_t> cu_cp_controller::select_amf(const amf_selection_request& request)
 {
   return amf_sel.select_amf(amf_mng.get_amf_candidates(), request);

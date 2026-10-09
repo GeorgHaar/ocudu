@@ -56,6 +56,12 @@ public:
   std::optional<std::vector<cu_cp_amf_index_t>> admit_ue_setup(span<const amf_candidate> candidates,
                                                                establishment_cause_t     establishment_cause);
 
+  /// \brief Checks if the AMF of an RRC_INACTIVE UE accepts its resume.
+  ///
+  /// The overload of the AMF also applies to the RRC Connection Resume (TS 23.501 section 5.19.5.2). An RNA update
+  /// sends no signalling to the AMF, so the AMF accepts it.
+  bool is_ue_resume_accepted(const amf_candidate& candidate, resume_cause_t resume_cause);
+
   /// \brief Selects the AMF for a UE that accesses the CU-CP (NAS Node Selection Function, TS 38.410 section 5.7 and
   /// TS 38.300 section 16.3.4.2).
   ///
@@ -119,7 +125,8 @@ private:
 
   /// Checks if the overload action of the AMF rejects the UE. With a traffic load reduction, the AMF rejects the UE
   /// with the probability of the reduction.
-  bool is_rejected_by_amf_overload(const amf_candidate& candidate, establishment_cause_t cause);
+  template <typename Cause>
+  bool is_rejected_by_amf_overload(const amf_candidate& candidate, Cause cause);
 
   /// Checks if the AMF accepts a new UE.
   bool accepts_ue(const amf_candidate& candidate, const amf_selection_request& request);

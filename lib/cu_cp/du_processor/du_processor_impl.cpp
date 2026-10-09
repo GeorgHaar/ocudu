@@ -572,6 +572,14 @@ du_processor_impl::handle_ue_rrc_context_creation_request(const ue_rrc_context_c
           // here.
           logger.info("ue={}: RRC Resume fallback forced. Removing F1AP UE context", resume_ue_index);
           f1ap->get_f1ap_ue_context_removal_handler().remove_ue_context(resume_ue_index);
+        } else if (resume_context->resume_cause.has_value() and
+                   not cu_cp_notifier.on_ue_resume_admission_request(resume_ue_index,
+                                                                     resume_context->resume_cause.value())) {
+          // The UE gets an RRCReject and stays in RRC_INACTIVE (TS 38.331 section 5.3.15.2), so the CU-CP keeps the
+          // context of the UE. The release of the new UE context sends the RRCReject.
+          logger.info("ue={}: Rejecting RRC Resume Request. Cause: The AMF of the UE is overloaded", resume_ue_index);
+          release_ue(req.ue_index);
+          return make_unexpected(default_error_t{});
         } else {
           ue = ue_mng.find_du_ue(resume_ue_index);
           ue_mng.set_active(resume_ue_index);

@@ -2263,6 +2263,15 @@ void cu_cp_impl::initialize_cho_execution_timer(cu_cp_ue_index_t ue_index, std::
 
 // private
 
+bool cu_cp_impl::handle_ue_resume_admission_request(cu_cp_ue_index_t ue_index, resume_cause_t resume_cause)
+{
+  cu_cp_ue* ue = ue_mng.find_ue(ue_index);
+  if (ue == nullptr or ue->get_ue_context().amf_index == cu_cp_amf_index_t::invalid) {
+    return true;
+  }
+  return controller.request_ue_resume(ue->get_ue_context().amf_index, resume_cause);
+}
+
 void cu_cp_impl::handle_rrc_ue_creation(cu_cp_ue_index_t ue_index, rrc_ue_interface& rrc_ue)
 {
   // Store the RRC UE in the UE manager.

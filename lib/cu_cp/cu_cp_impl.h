@@ -268,6 +268,7 @@ public:
 
 private:
   // Handling of DU events.
+  bool handle_ue_resume_admission_request(cu_cp_ue_index_t ue_index, resume_cause_t resume_cause) override;
   void handle_rrc_ue_creation(cu_cp_ue_index_t ue_index, rrc_ue_interface& rrc_ue) override;
 
   byte_buffer handle_target_cell_sib1_required(cu_cp_du_index_t du_index, nr_cell_global_id_t cgi) override;

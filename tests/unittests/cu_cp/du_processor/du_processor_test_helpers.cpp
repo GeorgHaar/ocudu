@@ -103,6 +103,11 @@ struct dummy_cu_cp_du_event_handler : public cu_cp_du_event_handler {
 public:
   dummy_cu_cp_du_event_handler(ue_manager& ue_mng_) : ue_mng(ue_mng_) {}
 
+  bool handle_ue_resume_admission_request(cu_cp_ue_index_t ue_index, resume_cause_t resume_cause) override
+  {
+    return true;
+  }
+
   void handle_rrc_ue_creation(cu_cp_ue_index_t ue_index, rrc_ue_interface& rrc_ue) override
   {
     ue_mng.get_rrc_ue_cu_cp_adapter(ue_index).connect_cu_cp(rrc_ue_handler,

@@ -239,6 +239,12 @@ class cu_cp_du_event_handler
 public:
   virtual ~cu_cp_du_event_handler() = default;
 
+  /// \brief Handle the request of an RRC_INACTIVE UE to resume.
+  /// \param[in] ue_index The index of the RRC_INACTIVE UE.
+  /// \param[in] resume_cause The resume cause of the RRC Resume Request.
+  /// \return True if the UE is accepted.
+  virtual bool handle_ue_resume_admission_request(cu_cp_ue_index_t ue_index, resume_cause_t resume_cause) = 0;
+
   /// \brief Handle a RRC UE creation notification from the DU processor.
   /// \param[in] ue_index The index of the UE.
   /// \param[in] rrc_ue The interface of the created RRC UE.

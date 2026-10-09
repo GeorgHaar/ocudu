@@ -48,6 +48,12 @@ public:
     cu_cp_handler->handle_du_cells_removed(cells);
   }
 
+  bool on_ue_resume_admission_request(cu_cp_ue_index_t ue_index, resume_cause_t resume_cause) override
+  {
+    ocudu_assert(cu_cp_handler != nullptr, "CU-CP handler must not be nullptr");
+    return cu_cp_handler->handle_ue_resume_admission_request(ue_index, resume_cause);
+  }
+
   void on_rrc_ue_created(cu_cp_ue_index_t ue_index, rrc_ue_interface& rrc_ue) override
   {
     ocudu_assert(cu_cp_handler != nullptr, "CU-CP handler must not be nullptr");

@@ -65,6 +65,11 @@ public:
   /// \return The AMFs that reject the UE, or std::nullopt if every connected AMF rejects the UE.
   std::optional<std::vector<cu_cp_amf_index_t>> admit_ue_setup(establishment_cause_t establishment_cause);
 
+  /// \brief Determines whether the CU-CP should accept the resume of an RRC_INACTIVE UE.
+  ///
+  /// The CU-CP rejects the UE if the AMF of the UE rejects its resume cause because of an overload.
+  bool request_ue_resume(cu_cp_amf_index_t amf_index, resume_cause_t resume_cause);
+
   /// \brief Selects the AMF for a UE that accesses the CU-CP.
   /// \return The index of the AMF, or std::nullopt if no connected AMF supports the selected PLMN of the UE.
   std::optional<cu_cp_amf_index_t> select_amf(const amf_selection_request& request);

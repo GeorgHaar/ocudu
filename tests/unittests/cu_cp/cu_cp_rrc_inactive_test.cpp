@@ -19,6 +19,7 @@
 #include "ocudu/adt/format.h"
 #include "ocudu/asn1/ngap/ngap_ies.h"
 #include "ocudu/asn1/ngap/ngap_pdu_contents.h"
+#include "ocudu/asn1/rrc_nr/dl_ccch_msg.h"
 #include "ocudu/asn1/xnap/xnap_pdu_contents.h"
 #include "ocudu/cu_cp/cu_cp_configuration.h"
 #include "ocudu/e1ap/common/e1ap_message.h"
@@ -694,6 +695,47 @@ TEST_F(cu_cp_rrc_inactive_test, when_ue_level_inactivity_message_received_then_u
   auto report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
   ASSERT_EQ(report.dus[0].rrc_metrics.mean_nof_inactive_rrc_connections, 1);
   ASSERT_EQ(report.dus[0].rrc_metrics.max_nof_inactive_rrc_connections, 1);
+}
+
+TEST_F(cu_cp_rrc_inactive_test, when_amf_rejects_the_resume_cause_then_resume_is_rejected_and_ue_stays_inactive)
+{
+  // Connect UE with RRC Inactive support and set it to RRC inactive.
+  connect_ue_with_rrc_inactive_support();
+  ASSERT_TRUE(send_ue_level_bearer_context_inactivity_notification_and_await_bearer_context_modification_request());
+  ASSERT_TRUE(send_bearer_context_modification_response_and_await_ue_context_release_command());
+  ASSERT_TRUE(send_f1ap_ue_context_release_complete());
+
+  // The AMF rejects non-emergency mobile originated data (TS 38.413 section 8.7.7). The UE resumes with cause mo-Data.
+  get_amf().push_tx_pdu(generate_overload_start(asn1::ngap::overload_action_opts::reject_non_emergency_mo_dt));
+  get_du(du_idx).push_ul_pdu(test_helpers::generate_init_ul_rrc_message_transfer(
+      du_ue_id_2,
+      crnti_2,
+      plmn_identity::test_value(),
+      {},
+      test_helpers::pack_ul_ccch_msg(test_helpers::create_rrc_resume_request(0x4d8000))));
+  ASSERT_TRUE(wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu)) << "No response was sent to the UE";
+  ASSERT_TRUE(test_helpers::is_valid_ue_context_release_command(f1ap_pdu)) << "The resume was not rejected";
+  const auto& release_cmd = f1ap_pdu.pdu.init_msg().value.ue_context_release_cmd();
+  ASSERT_EQ(release_cmd->srb_id, 0);
+  asn1::rrc_nr::dl_ccch_msg_s ccch;
+  asn1::cbit_ref              bref{release_cmd->rrc_container};
+  ASSERT_EQ(ccch.unpack(bref), asn1::OCUDUASN_SUCCESS);
+  ASSERT_EQ(ccch.msg.c1().type().value, asn1::rrc_nr::dl_ccch_msg_type_c::c1_c_::types_opts::rrc_reject);
+  ASSERT_TRUE(ccch.msg.c1().rrc_reject().crit_exts.rrc_reject().wait_time_present);
+  get_du(du_idx).push_ul_pdu(test_helpers::generate_ue_context_release_complete(f1ap_pdu));
+  ASSERT_FALSE(get_amf().try_pop_rx_pdu(ngap_pdu)) << "The context of the UE was released towards the AMF";
+
+  // After the overload, the UE resumes with the same I-RNTI. The ResumeMAC-I check passes only if the CU-CP kept the
+  // keys of the suspended UE.
+  get_amf().push_tx_pdu(generate_overload_stop());
+  get_du(du_idx).push_ul_pdu(test_helpers::generate_init_ul_rrc_message_transfer(
+      int_to_gnb_du_ue_f1ap_id(2),
+      to_rnti(0x4603),
+      plmn_identity::test_value(),
+      {},
+      test_helpers::pack_ul_ccch_msg(test_helpers::create_rrc_resume_request(0x4d8000))));
+  ASSERT_TRUE(wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu)) << "The UE was not resumed";
+  ASSERT_TRUE(test_helpers::is_valid_ue_context_setup_request(f1ap_pdu, true)) << "The UE was not resumed";
 }
 
 TEST_F(cu_cp_rrc_inactive_test, when_duplicate_ue_level_inactivity_message_is_received_then_it_is_ignored)

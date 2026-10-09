@@ -28,7 +28,10 @@ class uci_allocator;
 class configured_grant_scheduler_base : public configured_grant_scheduler
 {
 public:
-  configured_grant_scheduler_base(const cell_configuration& cell_cfg_, uci_allocator& uci_alloc_, ue_repository& ues_);
+  configured_grant_scheduler_base(const cell_configuration& cell_cfg_,
+                                  const cg_builder_params&  cell_cg_cfg,
+                                  uci_allocator&            uci_alloc_,
+                                  ue_repository&            ues_);
 
   /// Pre-reserves the CG resources in the resource grid and allocates the CG PUSCH occasions of the current slot.
   void run_slot(cell_resource_allocator& res_alloc) override;
@@ -52,6 +55,9 @@ protected:
   uci_allocator&            uci_alloc;
   ue_repository&            ues;
   ocudulog::basic_logger&   logger;
+
+  /// \brief CG periodicity of the cell, shared by every UE of the cell.
+  const cg_configuration::periodicity_t cg_periodicity;
 
   /// Periodic CG PUSCH opportunities to be scheduled in the resource grid.
   cg_slot_wheel periodic_pusch_slot_wheel;

@@ -207,6 +207,7 @@ ue_scheduler_impl::cell_context::cell_context(ue_scheduler_impl&                
                     ocudulog::fetch_basic_logger("SCHED")),
   cg_sched(params.cell_res_alloc->cfg.params.init_bwp.cg_cfg.has_value()
                ? std::make_unique<configured_grant_type1_sched_impl>(params.cell_res_alloc->cfg,
+                                                                     *params.cell_res_alloc->cfg.params.init_bwp.cg_cfg,
                                                                      *params.uci_alloc,
                                                                      parent.ue_db)
                : nullptr),

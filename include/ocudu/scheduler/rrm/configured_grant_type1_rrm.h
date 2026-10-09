@@ -44,10 +44,7 @@ private:
     std::vector<crb_bitmap> cg_alloc_grid;
     // Vector that keeps track of how many RBs have been used for CG at a given slot offset within the CG period.
     std::vector<unsigned> nof_rbs_allocated;
-    // Vector that keeps track of how many UEs hold a CG resource at a given slot offset within the CG period. The RB
-    // budget alone does not bound this: a small grant at a high MCS takes few RBs, so many UEs can fit in
-    // max_nof_cell_cg_rbs. Every one of them lands on the same slot of the CG slot wheel, whose per-slot list holds at
-    // most MAX_CG_PUSCH_PDUS_PER_SLOT entries.
+    // Vector that keeps track of how many UEs hold a CG resource at a given slot offset within the CG period.
     std::vector<unsigned> nof_ues_allocated;
   };
 

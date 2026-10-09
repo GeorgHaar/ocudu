@@ -181,19 +181,16 @@ protected:
     return nullptr;
   }
 
-  /// Sends a UE reconfiguration with modified CG parameters.
-  void reconf_cg(std::optional<cg_configuration::periodicity_t> new_periodicity = std::nullopt,
-                 std::optional<unsigned>                        new_offset      = std::nullopt,
-                 std::optional<unsigned>                        new_mcs         = std::nullopt)
+  /// \brief Sends a UE reconfiguration with modified CG parameters.
+  ///
+  /// The CG period is deliberately not reconfigurable here: every UE of a cell uses the cell's CG period.
+  void reconf_cg(std::optional<unsigned> new_offset = std::nullopt, std::optional<unsigned> new_mcs = std::nullopt)
   {
     auto ue_req     = sched_config_helper::create_default_sched_ue_creation_request(cell_req.ran);
     ue_req.ue_index = to_du_ue_index(0);
     ue_req.crnti    = ue_crnti;
     auto& cg_cfg    = ue_req.cfg.cells->front().serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.value();
 
-    if (new_periodicity.has_value()) {
-      cg_cfg.periodicity = new_periodicity.value();
-    }
     if (new_mcs.has_value()) {
       cg_cfg.rrc_configured_ul_grant_cfg->mcs = new_mcs.value();
     }
@@ -362,38 +359,6 @@ TEST_P(cg_duplex_test, after_ue_removal_no_more_cg_grants)
   }
 }
 
-/// Test: after changing the CG period from 40 to 20, the gap between consecutive grants halves.
-TEST_P(cg_duplex_test, cg_reconfig_period_change)
-{
-  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-BW-16-3");
-
-  auto_crc = true;
-  add_cg_ue();
-
-  // Find 2 consecutive grants and verify the gap equals the old period (40).
-  const ul_sched_info* g1 = run_until_next_cg_pusch();
-  ASSERT_NE(g1, nullptr) << "No first CG PUSCH found";
-  const slot_point s1 = last_result_slot();
-
-  const ul_sched_info* g2 = run_until_next_cg_pusch();
-  ASSERT_NE(g2, nullptr) << "No second CG PUSCH found";
-  const slot_point s2 = last_result_slot();
-  EXPECT_EQ(s2 - s1, 40) << "Gap before reconfig should be 40 slots";
-
-  // Reconfigure: change period to 20.
-  reconf_cg(cg_configuration::periodicity_t::sl20);
-
-  // Find 2 consecutive grants and verify the gap equals the new period (20).
-  const ul_sched_info* g3 = run_until_next_cg_pusch();
-  ASSERT_NE(g3, nullptr) << "No CG PUSCH found after reconfig";
-  const slot_point s3 = last_result_slot();
-
-  const ul_sched_info* g4 = run_until_next_cg_pusch();
-  ASSERT_NE(g4, nullptr) << "No second CG PUSCH found after reconfig";
-  const slot_point s4 = last_result_slot();
-  EXPECT_EQ(s4 - s3, 20) << "Gap after reconfig should be 20 slots";
-}
-
 /// Test: after changing the CG time-domain offset, grants shift to a new slot position while maintaining the same
 /// period.
 TEST_P(cg_duplex_test, cg_reconfig_offset_change)
@@ -409,7 +374,7 @@ TEST_P(cg_duplex_test, cg_reconfig_offset_change)
   const slot_point sl_old = last_result_slot();
 
   // Reconfigure: change offset from 5 to 9.
-  reconf_cg(std::nullopt, 9);
+  reconf_cg(9);
 
   // Find 2 consecutive grants and verify period is preserved (40).
   const ul_sched_info* g2 = run_until_next_cg_pusch();
@@ -638,7 +603,7 @@ TEST_P(cg_duplex_test, cg_reconfig_mcs_change_updates_tbs)
 
   // Reconfigure: raise the MCS (5 -> 20), which increases the TBS for the same VRB/symbol allocation.
   constexpr unsigned new_mcs = 20;
-  reconf_cg(std::nullopt, std::nullopt, new_mcs);
+  reconf_cg(std::nullopt, new_mcs);
 
   const ul_sched_info* g2 = run_until_next_cg_pusch();
   ASSERT_NE(g2, nullptr) << "No CG PUSCH found after MCS reconfig";

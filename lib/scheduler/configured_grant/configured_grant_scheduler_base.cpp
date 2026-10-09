@@ -14,14 +14,15 @@
 using namespace ocudu;
 
 configured_grant_scheduler_base::configured_grant_scheduler_base(const cell_configuration& cell_cfg_,
+                                                                 const cg_builder_params&  cell_cg_cfg,
                                                                  uci_allocator&            uci_alloc_,
                                                                  ue_repository&            ues_) :
   cell_cfg(cell_cfg_),
   uci_alloc(uci_alloc_),
   ues(ues_),
   logger(ocudulog::fetch_basic_logger("SCHED")),
-  // The CG scheduler is only instantiated for a cell that has CG configured, so cg_cfg is always set here.
-  periodic_pusch_slot_wheel(static_cast<unsigned>(cell_cfg_.params.init_bwp.cg_cfg.value().periodicity))
+  cg_periodicity(cell_cg_cfg.periodicity),
+  periodic_pusch_slot_wheel(static_cast<unsigned>(cg_periodicity))
 {
   // Pre-reserve space for the UEs that will be added.
   // Note: The list is cleared every slot, so it generally holds far fewer UEs than the cell can have contexts for.
@@ -221,8 +222,8 @@ bool configured_grant_scheduler_base::allocate_cg_opportunity(cell_slot_resource
 
   static constexpr unsigned nof_harq_retx = 0;
   const harq_id_t           h_id =
-      get_cg_harq_id(pusch_slot, pusch_params.symbols.start(), cg_cfg.periodicity, cg_cfg.nof_harq_processes);
-  const unsigned cg_harq_timeout = cg_configuration::configured_grant_timer * static_cast<unsigned>(cg_cfg.periodicity);
+      get_cg_harq_id(pusch_slot, pusch_params.symbols.start(), cg_periodicity, cg_cfg.nof_harq_processes);
+  const unsigned cg_harq_timeout = cg_configuration::configured_grant_timer * static_cast<unsigned>(cg_periodicity);
   auto h_ul = ue_cc->harqs.alloc_ul_harq(pusch_slot, nof_harq_retx, cg_harq_alloc_params{h_id, cg_harq_timeout});
   ocudu_assert(h_ul.has_value(), "Failed to allocate UL HARQ id={}", fmt::underlying(h_id));
 

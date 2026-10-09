@@ -20,6 +20,18 @@ static validator_result validate_cg_cfg(const uplink_config& ul_cfg, const cell_
   VERIFY(bwp_ul_ded_cfg.cg_cfg.has_value(), "Configured Grant configuration not set");
   const auto& cg_cfg = bwp_ul_ded_cfg.cg_cfg.value();
 
+  VERIFY(cell_cfg.params.init_bwp.cg_cfg.has_value(),
+         "UE is configured with a Configured Grant, but the cell has no Configured Grant configured");
+  const auto& cell_cg_cfg = cell_cfg.params.init_bwp.cg_cfg.value();
+
+  // Every UE of a cell must use the cell's CG period: the CG scheduler's slot wheel is sized to that period and derives
+  // every UE's grant positions from it alone. The per-UE periodicity exists because it has to be signalled to the UE
+  // over RRC, not because it may differ from the cell's.
+  VERIFY(cg_cfg.periodicity == cell_cg_cfg.periodicity,
+         "Configured Grant period of the UE ({} slots) differs from the period of the cell ({} slots)",
+         static_cast<unsigned>(cg_cfg.periodicity),
+         static_cast<unsigned>(cell_cg_cfg.periodicity));
+
   // NOTE: the actual HARQ timeout (in slots) is the configured_grant_timer multiplied by the CG period in slot.
   VERIFY(cg_configuration::configured_grant_timer <= cg_cfg.nof_harq_processes,
          "configured_grant_timer ({}) must be <= nof_harq_processes ({}) so the CG HARQ timeout expires before the "
@@ -44,7 +56,7 @@ static validator_result validate_cg_cfg(const uplink_config& ul_cfg, const cell_
            "TDD configuration is not compatible with CG period");
   }
 
-  const bool type2 = cell_cfg.params.init_bwp.cg_cfg.has_value() and cell_cfg.params.init_bwp.cg_cfg->is_type2();
+  const bool type2 = cell_cg_cfg.is_type2();
   VERIFY(cg_cfg.rrc_configured_ul_grant_cfg.has_value() != type2,
          "Configured Grant type {} requires rrc_configured_ul_grant to be {}",
          type2 ? 2 : 1,
@@ -71,6 +83,11 @@ static validator_result validate_cg_cfg(const uplink_config& ul_cfg, const cell_
       "list ({} entries)",
       cg_ul_grant.time_domain_allocation,
       pusch_td_list.size());
+
+  VERIFY(cg_ul_grant.time_domain_offset < static_cast<uint16_t>(cg_cfg.periodicity),
+         "Configured Grant Type 1 time domain offset ({}) exceeds CG periodicity ({} slots)",
+         cg_ul_grant.time_domain_offset,
+         fmt::underlying(cg_cfg.periodicity));
 
   return {};
 }

@@ -48,8 +48,6 @@ public:
     return slot.count() % state->periodicity_slots == state->time_offset;
   }
 
-  bool ue_cg_activated() const { return state.has_value(); }
-
   /// Update CG state variables.
   void update_state(unsigned     period_slots,
                     units::bytes tbs,

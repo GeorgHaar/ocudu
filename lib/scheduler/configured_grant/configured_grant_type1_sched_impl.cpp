@@ -18,9 +18,10 @@ static vrb_interval compute_cg_vrbs(const cg_configuration::rrc_configured_ul_gr
 }
 
 configured_grant_type1_sched_impl::configured_grant_type1_sched_impl(const cell_configuration& cell_cfg_,
+                                                                     const cg_builder_params&  cell_cg_cfg,
                                                                      uci_allocator&            uci_alloc_,
                                                                      ue_repository&            ues_) :
-  configured_grant_scheduler_base(cell_cfg_, uci_alloc_, ues_)
+  configured_grant_scheduler_base(cell_cfg_, cell_cg_cfg, uci_alloc_, ues_)
 {
 }
 
@@ -51,12 +52,16 @@ void configured_grant_type1_sched_impl::add_ue_to_wheel(const ue_cell_configurat
   const cg_configuration& cg_cfg   = ue_cfg.init_bwp().ul.ded()->cg_cfg.value();
   const auto&             ul_grant = cg_cfg.rrc_configured_ul_grant_cfg.value();
 
-  const auto period_slots = static_cast<unsigned>(cg_cfg.periodicity);
-
   // Fill the slot wheel at every slot where a CG PUSCH opportunity occurs.
-  const unsigned nof_dup = periodic_pusch_slot_wheel.add_ue(ue_cfg.crnti, ul_grant.time_domain_offset, period_slots);
-  if (nof_dup != 0) {
-    logger.error("rnti={}: CG grant already present in slot wheel at {} offsets", ue_cfg.crnti, nof_dup);
+  const auto wheel_res = periodic_pusch_slot_wheel.add_ue(ue_cfg.crnti, ul_grant.time_domain_offset);
+  if (wheel_res.nof_dup != 0) {
+    logger.error("rnti={}: CG grant already present in slot wheel at {} offsets", ue_cfg.crnti, wheel_res.nof_dup);
+  }
+  if (wheel_res.nof_full != 0) {
+    logger.error("rnti={}: CG grant dropped at {} slot wheel offsets with no room left; the RRM admitted a UE the "
+                 "scheduler cannot hold",
+                 ue_cfg.crnti,
+                 wheel_res.nof_full);
   }
 
   // Register the UE in the list of recently updated UEs, so that its CG resources get pre-reserved over the whole
@@ -69,7 +74,7 @@ void configured_grant_type1_sched_impl::add_ue_to_wheel(const ue_cell_configurat
   constexpr unsigned non_applicable_res_id = 0U;
   // Save the PUSCH parameters that will be used for the periodic allocations.
   ue_cc->get_conf_grant_state_manager().update_state(
-      period_slots,
+      static_cast<unsigned>(cg_periodicity),
       compute_ul_tbs_unsafe(pusch_params, sch_mcs_index{ul_grant.mcs}, cg_vrbs.length()),
       cg_vrbs,
       ul_grant.mcs,
@@ -86,14 +91,9 @@ void configured_grant_type1_sched_impl::rem_ue(const ue_cell_configuration& ue_c
   const cg_configuration& cg_cfg   = ue_cfg.init_bwp().ul.ded()->cg_cfg.value();
   const auto&             ul_grant = cg_cfg.rrc_configured_ul_grant_cfg.value();
 
-  const auto period_slots = static_cast<unsigned>(cg_cfg.periodicity);
-
-  // Unwind the periodic wheel and the updated-UE list first. Both are keyed on data carried by ue_cfg alone, so they
-  // must be cleaned up even when the UE can no longer be resolved in the repository: an entry left in the wheel would
-  // keep producing CG PUSCH allocations for an RNTI that no longer exists, or for whichever UE is assigned that RNTI
-  // next.
-  const unsigned nof_missing =
-      periodic_pusch_slot_wheel.rem_ue(ue_cfg.crnti, ul_grant.time_domain_offset, period_slots);
+  // Remove the UE from the periodic wheel and the updated-UE list, even though the UE is gone from the repository: this
+  // is to avoid to keep allocating CG PUSCH for a released RNTI (stale entries).
+  const unsigned nof_missing = periodic_pusch_slot_wheel.rem_ue(ue_cfg.crnti, ul_grant.time_domain_offset);
   if (nof_missing != 0) {
     logger.error(
         "rnti={}: CG grant not found in slot wheel at {} offsets during UE removal", ue_cfg.crnti, nof_missing);

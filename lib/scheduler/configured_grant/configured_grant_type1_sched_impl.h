@@ -17,9 +17,10 @@ namespace ocudu {
 class configured_grant_type1_sched_impl : public configured_grant_scheduler_base
 {
 public:
-  explicit configured_grant_type1_sched_impl(const cell_configuration& cell_cfg_,
-                                             uci_allocator&            uci_alloc_,
-                                             ue_repository&            ues_);
+  configured_grant_type1_sched_impl(const cell_configuration& cell_cfg_,
+                                    const cg_builder_params&  cell_cg_cfg,
+                                    uci_allocator&            uci_alloc_,
+                                    ue_repository&            ues_);
 
   void rem_ue(const ue_cell_configuration& ue_cfg) override;
 

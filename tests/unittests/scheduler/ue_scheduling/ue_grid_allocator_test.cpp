@@ -1333,17 +1333,13 @@ protected:
   ue_grid_allocator_pusch_repetition_test() : ue_grid_allocator_pusch_repetition_test(crb_interval{10, 40}) {}
 
   // Adds a UE configured with a Rel-16 PUSCH TDRA list that mirrors the common list and appends a repetition entry.
-  const ue& add_repetition_ue(std::optional<meas_gap_config>  meas_gap = std::nullopt,
-                              std::optional<cg_configuration> cg_cfg   = std::nullopt)
+  const ue& add_repetition_ue(std::optional<meas_gap_config> meas_gap = std::nullopt)
   {
     sched_ue_creation_request_message req =
         sched_config_helper::create_default_sched_ue_creation_request(cell_cfg.params);
     req.ue_index         = to_du_ue_index(0);
     req.crnti            = to_rnti(0x4601);
     req.cfg.meas_gap_cfg = meas_gap;
-    if (cg_cfg.has_value()) {
-      (*req.cfg.cells)[0].serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg = std::move(cg_cfg);
-    }
     req.cfg.lc_config_list->push_back(config_helpers::create_default_logical_channel_config(drb_lcid));
     (*req.cfg.cells)[0].serv_cell_cfg.init_dl_bwp.pdcch_cfg = cell_cfg.bwp_res[to_bwp_id(0)].dl().ded_pdcchs[0];
 
@@ -1361,39 +1357,25 @@ protected:
     return add_ue(req);
   }
 
-  /// Adds a repetition UE holding a Type 1 Configured Grant whose only occasion within its period is \c cg_slot.
+  /// Adds a repetition UE whose only CG occasion within its period is \c cg_slot.
   ///
   /// The schedulers read the UE's CG occasions off its \c ue_conf_grant_state_manager, which the Configured Grant
   /// scheduler primes on UE creation. That scheduler is not part of this fixture, so the state is set here the way
   /// \c configured_grant_scheduler_impl::add_ue_to_wheel() sets it. Only the periodicity and the time offset carry
   /// meaning: the grant allocator reaches the state manager through \c is_cg_slot() alone.
+  ///
+  /// NOTE: no CG configuration is attached to the UE itself. The cell of this fixture has no cell-level CG, and the UE
+  /// config validator rejects a UE carrying a CG that its cell does not have.
   const ue& add_cg_repetition_ue(slot_point cg_slot)
   {
-    constexpr auto period      = cg_configuration::periodicity_t::sl80;
-    const unsigned time_offset = cg_slot.count() % static_cast<unsigned>(period);
+    constexpr auto    period      = cg_configuration::periodicity_t::sl80;
+    constexpr uint8_t cg_mcs      = 10;
+    constexpr uint8_t cg_td_alloc = 0;
+    const unsigned    time_offset = cg_slot.count() % static_cast<unsigned>(period);
 
-    cg_configuration cg{};
-    cg.mcs_table          = pusch_mcs_table::qam64;
-    cg.nof_harq_processes = 8;
-    cg.periodicity        = period;
-
-    cg_configuration::rrc_configured_ul_grant grant{};
-    grant.time_domain_offset       = time_offset;
-    grant.time_domain_allocation   = 0;
-    grant.freq_domain_res          = ra_frequency_type1_configuration{};
-    grant.antenna_port             = 0;
-    grant.precoding_and_nof_layers = 0;
-    grant.mcs                      = 10;
-    cg.rrc_configured_ul_grant_cfg = grant;
-
-    const ue& u = add_repetition_ue(std::nullopt, cg);
-    ues[u.ue_index].get_pcell().get_conf_grant_state_manager().update_state(static_cast<unsigned>(period),
-                                                                            units::bytes{0},
-                                                                            vrb_interval{0, 0},
-                                                                            grant.mcs,
-                                                                            grant.time_domain_allocation,
-                                                                            time_offset,
-                                                                            0U);
+    const ue& u = add_repetition_ue();
+    ues[u.ue_index].get_pcell().get_conf_grant_state_manager().update_state(
+        static_cast<unsigned>(period), units::bytes{0}, vrb_interval{0, 0}, cg_mcs, cg_td_alloc, time_offset, 0U);
     return u;
   }
 

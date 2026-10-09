@@ -21,12 +21,25 @@ namespace ocudu {
 /// RNTIs with a CG grant due in that slot. Used by both the CG Type 1 and Type 2 schedulers.
 ///
 /// The wheel is sized to the cell's CG period rather than to the largest one the standard allows, so every UE occupies
-/// a single entry. This assumes every UE on the wheel uses the cell's CG period, which the CG schedulers enforce.
+/// a single entry. Every UE of the cell uses the cell's CG period - the RRM builds each UE's CG configuration from the
+/// cell defaults, and the UE config validator rejects a UE whose period differs - so the wheel holds that period once
+/// and derives every UE's grant positions from it, rather than taking one per UE.
 class cg_slot_wheel
 {
 public:
   /// List of UEs with a CG opportunity in a given slot.
   using rnti_list = static_vector<rnti_t, MAX_CG_PUSCH_PDUS_PER_SLOT>;
+
+  /// \brief Outcome of add_ue(): the offsets at which the UE's grant could not be written.
+  ///
+  /// Either count being non-zero denotes a bookkeeping error in the caller, which is expected to report it. The wheel
+  /// holds no logger of its own, so this is the only channel through which it signals one.
+  struct add_ue_result {
+    /// Offsets at which the UE was already present, and which were therefore left untouched.
+    unsigned nof_dup = 0;
+    /// Offsets that had no room left for the UE's grant, at which it was therefore dropped.
+    unsigned nof_full = 0;
+  };
 
   /// Maximum CG periodicity in slots: sym5120x14 = 5120 slots (normal CP, 14 symbols/slot).
   static constexpr unsigned max_cg_slot_periodicity = 5120U;
@@ -54,8 +67,9 @@ public:
   }
 
   /// \brief Builds a wheel holding one CG period.
-  /// \param cg_period_slots CG periodicity of the cell, in slots. Every UE added to the wheel must use this period.
-  explicit cg_slot_wheel(unsigned cg_period_slots)
+  /// \param cg_period_slots CG periodicity of the cell, in slots. It is the period of every UE of the cell, so the
+  /// wheel derives each UE's grant positions from it alone.
+  explicit cg_slot_wheel(unsigned cg_period_slots) : period_slots(cg_period_slots)
   {
     ocudu_assert(cg_period_slots > 0 and cg_period_slots <= max_cg_slot_periodicity,
                  "Invalid CG periodicity of {} slots",
@@ -64,47 +78,38 @@ public:
     wheel.resize(ring_size_for(cg_period_slots));
   }
 
-  /// \brief Adds a UE's CG grant positions to the wheel, one every \c period_slots slots.
-  /// \return Number of offsets at which the UE was already present, and which were therefore left untouched. A
-  /// non-zero value denotes a bookkeeping error in the caller.
-  unsigned add_ue(rnti_t rnti, unsigned time_domain_offset, unsigned period_slots)
+  /// \brief Adds a UE's CG grant positions to the wheel, one every CG period.
+  ///
+  /// The wheel size is a multiple of the CG period (see ring_size_for()), so a UE occupies more than one entry whenever
+  /// the period is below \ref min_wheel_size.
+  /// \return The offsets at which the UE's grant could not be written; see \ref add_ue_result.
+  add_ue_result add_ue(rnti_t rnti, unsigned time_domain_offset)
   {
-    ocudu_assert(period_slots > 0 and wheel.size() % period_slots == 0,
-                 "CG period of {} slots does not divide the wheel size of {}, so a UE added with it would be written "
-                 "to entries other than the slots its grant recurs on",
-                 period_slots,
-                 wheel.size());
-
-    unsigned nof_dup = 0;
+    add_ue_result result;
     for (unsigned offset = time_domain_offset; offset < wheel.size(); offset += period_slots) {
       rnti_list& slot_wheel = wheel[offset];
       if (std::find(slot_wheel.begin(), slot_wheel.end(), rnti) != slot_wheel.end()) {
-        ++nof_dup;
+        ++result.nof_dup;
         continue;
       }
       // The RRM admits a UE only once it has checked that the slot offset has room, so a full list here means the two
-      // went out of sync. Pushing regardless would overrun the static_vector, so drop the entry instead: the UE loses
-      // this occasion rather than the cell losing its scheduler state.
-      ocudu_assert(not slot_wheel.full(),
-                   "rnti={}: no room left for a CG grant at slot offset={}, which already holds {} UEs",
-                   rnti,
-                   offset,
-                   slot_wheel.size());
+      // went out of sync. Pushing regardless would overrun the static_vector, so drop the entry instead and report it:
+      // the UE loses this occasion rather than the cell losing its scheduler state.
       if (slot_wheel.full()) {
+        ++result.nof_full;
         continue;
       }
       slot_wheel.push_back(rnti);
     }
-    return nof_dup;
+    return result;
   }
 
   /// \brief Removes a UE's CG grant positions from the wheel.
   ///
-  /// \c time_domain_offset and \c period_slots must be the same values that were passed to add_ue(), otherwise stale
-  /// entries are left behind.
+  /// \c time_domain_offset must be the same value that was passed to add_ue(), otherwise stale entries are left behind.
   /// \return Number of offsets at which the UE was not found. This is expected to be non-zero for a UE that was never
   /// added to the wheel, e.g. a CG Type 2 UE still pending activation.
-  unsigned rem_ue(rnti_t rnti, unsigned time_domain_offset, unsigned period_slots)
+  unsigned rem_ue(rnti_t rnti, unsigned time_domain_offset)
   {
     unsigned nof_missing = 0;
     for (unsigned offset = time_domain_offset; offset < wheel.size(); offset += period_slots) {
@@ -123,8 +128,8 @@ public:
 
   /// \brief Removes a UE from every position of the wheel.
   ///
-  /// Scans the whole wheel, so it is meant as a recovery path for when the offset and period the UE was added with can
-  /// no longer be recovered; prefer rem_ue() otherwise.
+  /// Scans the whole wheel, so it is meant as a recovery path for when the offset the UE was added with can no longer
+  /// be recovered; prefer rem_ue() otherwise.
   /// \return Number of offsets from which the UE was removed.
   unsigned rem_ue_everywhere(rnti_t rnti)
   {
@@ -160,6 +165,8 @@ public:
   }
 
 private:
+  /// CG periodicity of the cell, in slots. Shared by every UE of the cell.
+  unsigned                   period_slots;
   circular_vector<rnti_list> wheel;
 };
 

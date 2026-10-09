@@ -157,6 +157,13 @@ private:
   /// \param[in] msg The AMF Status Indication message.
   void handle_amf_status_indication(const asn1::ngap::amf_status_ind_s& msg);
 
+  /// \brief Handle the reception of an Overload Start message.
+  /// \param[in] msg The Overload Start message.
+  void handle_overload_start(const asn1::ngap::overload_start_s& msg);
+
+  /// \brief Handle the reception of an Overload Stop message.
+  void handle_overload_stop();
+
   /// \brief Handle the reception of a Reroute NAS Request message.
   /// \param[in] msg The Reroute NAS Request message.
   void handle_reroute_nas_request(const asn1::ngap::reroute_nas_request_s& msg);

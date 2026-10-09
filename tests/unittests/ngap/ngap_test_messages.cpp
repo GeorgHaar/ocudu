@@ -120,6 +120,31 @@ ngap_message ocudu::ocucp::generate_amf_status_indication(const guami_t&        
   return msg;
 }
 
+ngap_message
+ocudu::ocucp::generate_overload_start(std::optional<asn1::ngap::overload_action_opts::options> overload_action,
+                                      std::optional<uint8_t>                                   traffic_load_reduction)
+{
+  ngap_message msg;
+  msg.pdu.set_init_msg().load_info_obj(ASN1_NGAP_ID_OVERLOAD_START);
+  auto& overload_start = msg.pdu.init_msg().value.overload_start();
+  if (overload_action.has_value()) {
+    overload_start->amf_overload_resp_present                     = true;
+    overload_start->amf_overload_resp.set_overload_action().value = *overload_action;
+  }
+  if (traffic_load_reduction.has_value()) {
+    overload_start->amf_traffic_load_reduction_ind_present = true;
+    overload_start->amf_traffic_load_reduction_ind         = *traffic_load_reduction;
+  }
+  return msg;
+}
+
+ngap_message ocudu::ocucp::generate_overload_stop()
+{
+  ngap_message msg;
+  msg.pdu.set_init_msg().load_info_obj(ASN1_NGAP_ID_OVERLOAD_STOP);
+  return msg;
+}
+
 ngap_message ocudu::ocucp::generate_reroute_nas_request(ran_ue_id_t         ran_ue_id,
                                                         const ngap_message& initial_ue_message,
                                                         uint16_t            amf_set_id)

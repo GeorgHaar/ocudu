@@ -29,6 +29,7 @@ set(SOURCES
         ngap_write_replace_warning_test.cpp
         ngap_amf_configuration_update_test.cpp
         ngap_amf_status_indication_test.cpp
+        ngap_overload_test.cpp
         )
 
 add_executable(ngap_test ${SOURCES})

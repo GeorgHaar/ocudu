@@ -138,6 +138,7 @@ ngap_ng_setup_result ng_setup_procedure::create_ng_setup_result()
   context.plmn_support_list     = response.plmn_support_list;
   context.amf_name              = response.amf_name;
   context.unavailable_guami_list.clear();
+  context.overload.reset();
 
   // Capture packed request bytes.
   {

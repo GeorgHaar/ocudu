@@ -101,6 +101,16 @@ ngap_message generate_amf_configuration_update();
 ngap_message generate_amf_status_indication(const guami_t&                    guami,
                                             const std::optional<std::string>& backup_amf_name = std::nullopt);
 
+/// \brief Generate an Overload Start message.
+/// \param[in] overload_action The AMF Overload Response, if any.
+/// \param[in] traffic_load_reduction The AMF Traffic Load Reduction Indication, if any.
+ngap_message
+generate_overload_start(std::optional<asn1::ngap::overload_action_opts::options> overload_action        = std::nullopt,
+                        std::optional<uint8_t>                                   traffic_load_reduction = std::nullopt);
+
+/// \brief Generate an Overload Stop message.
+ngap_message generate_overload_stop();
+
 /// \brief Generate a Reroute NAS Request message.
 /// \param[in] ran_ue_id The RAN UE NGAP ID of the UE.
 /// \param[in] initial_ue_message The INITIAL UE MESSAGE to reroute.

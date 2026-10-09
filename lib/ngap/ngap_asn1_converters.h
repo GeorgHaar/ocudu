@@ -7,6 +7,7 @@
 
 #include "ngap_asn1_utils.h"
 #include "ocudu/asn1/ngap/ngap_ies.h"
+#include "ocudu/ngap/ngap_context.h"
 #include "ocudu/ngap/ngap_handover.h"
 #include "ocudu/ngap/ngap_pdu_session.h"
 #include "ocudu/ngap/ngap_setup.h"
@@ -458,6 +459,25 @@ inline expected<guami_t, std::string> asn1_to_guami(const asn1::ngap::guami_s& a
   guami.amf_pointer   = asn1_guami.amf_pointer.to_number();
 
   return guami;
+}
+
+/// \brief Converts an ASN.1 overload action to the common type.
+/// \param[in] asn1_action The ASN.1 overload action.
+/// \return The overload action, or std::nullopt if the value is unknown.
+inline std::optional<ngap_overload_action_t> asn1_to_overload_action(const asn1::ngap::overload_action_e& asn1_action)
+{
+  switch (asn1_action.value) {
+    case asn1::ngap::overload_action_opts::reject_non_emergency_mo_dt:
+      return ngap_overload_action_t::reject_non_emergency_mo_data;
+    case asn1::ngap::overload_action_opts::reject_rrc_cr_sig:
+      return ngap_overload_action_t::reject_signalling;
+    case asn1::ngap::overload_action_opts::permit_emergency_sessions_and_mobile_terminated_services_only:
+      return ngap_overload_action_t::only_emergency_and_mt;
+    case asn1::ngap::overload_action_opts::permit_high_prio_sessions_and_mobile_terminated_services_only:
+      return ngap_overload_action_t::only_high_priority_and_mt;
+    default:
+      return std::nullopt;
+  }
 }
 
 /// \brief Converts an ASN.1 served GUAMI list to the common type.

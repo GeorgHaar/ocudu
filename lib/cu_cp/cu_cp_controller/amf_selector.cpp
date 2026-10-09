@@ -5,6 +5,7 @@
 
 #include "amf_selector.h"
 #include <algorithm>
+#include <limits>
 
 using namespace ocudu;
 using namespace ocucp;
@@ -56,18 +57,42 @@ std::optional<cu_cp_amf_index_t> amf_selector::pick_by_capacity(span<const amf_c
   return pool[distribution(rng)]->amf_index;
 }
 
-template <typename CandidateMatch>
-std::optional<cu_cp_amf_index_t> amf_selector::pick_available_by_capacity(span<const amf_candidate> candidates,
-                                                                          const CandidateMatch&     matches)
+/// Ranks an AMF for new UEs. An AMF that is available and not overloaded has rank 0, an overloaded AMF has rank 1, and
+/// an AMF whose served GUAMIs are all unavailable has rank 2.
+static unsigned get_preference_rank(const amf_candidate& candidate)
 {
-  std::vector<const amf_candidate*> available;
-  std::vector<const amf_candidate*> unavailable;
-  for (const amf_candidate& candidate : candidates) {
-    if (candidate.connected and matches(candidate)) {
-      (has_available_guami(candidate) ? available : unavailable).push_back(&candidate);
+  if (not has_available_guami(candidate)) {
+    return 2;
+  }
+  return candidate.overload.has_value() ? 1 : 0;
+}
+
+std::optional<cu_cp_amf_index_t> amf_selector::pick_preferred_by_capacity(span<const amf_candidate* const> pool)
+{
+  unsigned best_rank = std::numeric_limits<unsigned>::max();
+  for (const amf_candidate* candidate : pool) {
+    best_rank = std::min(best_rank, get_preference_rank(*candidate));
+  }
+  std::vector<const amf_candidate*> preferred;
+  for (const amf_candidate* candidate : pool) {
+    if (get_preference_rank(*candidate) == best_rank) {
+      preferred.push_back(candidate);
     }
   }
-  return pick_by_capacity(available.empty() ? unavailable : available);
+  return pick_by_capacity(preferred);
+}
+
+template <typename CandidateMatch>
+std::optional<cu_cp_amf_index_t> amf_selector::pick_matching_by_capacity(span<const amf_candidate> candidates,
+                                                                         const CandidateMatch&     matches)
+{
+  std::vector<const amf_candidate*> pool;
+  for (const amf_candidate& candidate : candidates) {
+    if (candidate.connected and matches(candidate)) {
+      pool.push_back(&candidate);
+    }
+  }
+  return pick_preferred_by_capacity(pool);
 }
 
 template <typename GuamiMatch, typename CandidateMatch>
@@ -95,7 +120,7 @@ std::optional<cu_cp_amf_index_t> amf_selector::find_amf_of_guami(span<const amf_
     }
   }
   if (not pool.empty()) {
-    return pick_by_capacity(pool);
+    return pick_preferred_by_capacity(pool);
   }
 
   if (backup_amf_name.has_value()) {
@@ -108,9 +133,48 @@ std::optional<cu_cp_amf_index_t> amf_selector::find_amf_of_guami(span<const amf_
   return std::nullopt;
 }
 
-std::optional<cu_cp_amf_index_t> amf_selector::select_amf(span<const amf_candidate>    candidates,
+/// Checks if the overload action rejects the establishment cause (TS 38.413 section 8.7.7.2).
+static bool is_rejected_by_overload_action(ngap_overload_action_t action, establishment_cause_t cause)
+{
+  bool is_mo_data = cause == establishment_cause_t::mo_data or cause == establishment_cause_t::mo_sms or
+                    cause == establishment_cause_t::mo_video_call or cause == establishment_cause_t::mo_voice_call;
+  switch (action) {
+    case ngap_overload_action_t::reject_non_emergency_mo_data:
+      return is_mo_data;
+    case ngap_overload_action_t::reject_signalling:
+      return is_mo_data or cause == establishment_cause_t::mo_sig;
+    case ngap_overload_action_t::only_emergency_and_mt:
+      return cause != establishment_cause_t::emergency and cause != establishment_cause_t::mt_access;
+    case ngap_overload_action_t::only_high_priority_and_mt:
+      return cause != establishment_cause_t::high_prio_access and cause != establishment_cause_t::mps_prio_access and
+             cause != establishment_cause_t::mcs_prio_access and cause != establishment_cause_t::mt_access;
+  }
+  return false;
+}
+
+bool amf_selector::accepts_ue(const amf_candidate& candidate, establishment_cause_t cause)
+{
+  if (not candidate.overload.has_value() or not candidate.overload->action.has_value() or
+      not is_rejected_by_overload_action(*candidate.overload->action, cause)) {
+    return true;
+  }
+  if (not candidate.overload->traffic_load_reduction.has_value()) {
+    return false;
+  }
+  std::bernoulli_distribution is_rejected(*candidate.overload->traffic_load_reduction / 100.0);
+  return not is_rejected(rng);
+}
+
+std::optional<cu_cp_amf_index_t> amf_selector::select_amf(span<const amf_candidate>    all_candidates,
                                                           const amf_selection_request& request)
 {
+  std::vector<amf_candidate> candidates;
+  for (const amf_candidate& candidate : all_candidates) {
+    if (accepts_ue(candidate, request.establishment_cause)) {
+      candidates.push_back(candidate);
+    }
+  }
+
   auto supports_selected_plmn = [&request](const amf_candidate& candidate) {
     return supports_plmn(candidate, request.plmn);
   };
@@ -165,11 +229,11 @@ std::optional<cu_cp_amf_index_t> amf_selector::select_amf(span<const amf_candida
     }
   }
   if (not pool.empty()) {
-    return pick_by_capacity(pool);
+    return pick_preferred_by_capacity(pool);
   }
 
   // Rule 4: Any AMF that supports the selected PLMN.
-  return pick_available_by_capacity(
+  return pick_matching_by_capacity(
       candidates, [&request](const amf_candidate& candidate) { return supports_plmn(candidate, request.plmn); });
 }
 
@@ -185,7 +249,7 @@ std::optional<cu_cp_amf_index_t> amf_selector::select_amf_for_guami(span<const a
   }
 
   // Another AMF of the AMF Set serves the UE.
-  return pick_available_by_capacity(candidates, [&guami](const amf_candidate& candidate) {
+  return pick_matching_by_capacity(candidates, [&guami](const amf_candidate& candidate) {
     return std::any_of(candidate.served_guamis.begin(),
                        candidate.served_guamis.end(),
                        [&guami](const ngap_served_guami_item& served) { return is_same_amf_set(served.guami, guami); });
@@ -204,5 +268,5 @@ std::optional<cu_cp_amf_index_t> amf_selector::select_amf_for_amf_set(span<const
                                                                    served.guami.amf_set_id == amf_set_id;
                                                           });
   };
-  return pick_available_by_capacity(candidates, serves_amf_set);
+  return pick_matching_by_capacity(candidates, serves_amf_set);
 }

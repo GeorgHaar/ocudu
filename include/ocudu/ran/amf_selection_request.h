@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "ocudu/ran/cause/common.h"
 #include "ocudu/ran/five_g_s_tmsi.h"
 #include "ocudu/ran/guami.h"
 #include "ocudu/ran/plmn_identity.h"
@@ -22,6 +23,8 @@ struct amf_selection_request {
   guami_type_t registered_guami_type = guami_type_t::native;
   /// 5G-S-TMSI of the UE.
   std::optional<five_g_s_tmsi_t> five_g_s_tmsi;
+  /// Establishment cause of the RRC connection of the UE (TS 38.331 section 6.2.2).
+  establishment_cause_t establishment_cause = establishment_cause_t::unknown;
 };
 
 } // namespace ocudu::ocucp

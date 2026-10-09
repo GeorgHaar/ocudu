@@ -500,7 +500,7 @@ bool cu_cp_impl::handle_ue_setup_complete_received(cu_cp_ue_index_t ue_index, co
 {
   std::optional<cu_cp_amf_index_t> amf_index = controller.select_amf(request);
   if (not amf_index.has_value()) {
-    logger.warning("ue={}: No connected AMF supports PLMN {}, rejecting UE", ue_index, request.plmn);
+    logger.warning("ue={}: No connected AMF for PLMN {} accepts the UE, rejecting UE", ue_index, request.plmn);
     return false;
   }
 

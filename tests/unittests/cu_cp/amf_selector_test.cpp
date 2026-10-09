@@ -5,6 +5,7 @@
 
 #include "lib/cu_cp/cu_cp_controller/amf_selector.h"
 #include "tests/test_doubles/utils/test_rng.h"
+#include <algorithm>
 #include <gtest/gtest.h>
 
 using namespace ocudu;
@@ -176,6 +177,106 @@ TEST_F(amf_selector_test, when_the_guamis_of_all_amfs_are_unavailable_then_an_am
 
   ASSERT_EQ(select({.plmn = plmn_a}), uint_to_cu_cp_amf_index(0));
   ASSERT_EQ(selector.select_amf_for_amf_set(candidates, plmn_a, 1), uint_to_cu_cp_amf_index(0));
+}
+
+TEST_F(amf_selector_test, when_overload_action_rejects_the_establishment_cause_then_another_amf_is_selected)
+{
+  candidates             = {make_candidate(0, make_guami(1, 0)), make_candidate(1, make_guami(1, 1))};
+  candidates[0].overload = ngap_amf_overload{ngap_overload_action_t::reject_signalling, std::nullopt};
+
+  ASSERT_EQ(
+      select(
+          {.plmn = plmn_a, .registered_guami = make_guami(1, 0), .establishment_cause = establishment_cause_t::mo_sig}),
+      uint_to_cu_cp_amf_index(1));
+  ASSERT_EQ(select({.plmn                = plmn_a,
+                    .registered_guami    = make_guami(1, 0),
+                    .establishment_cause = establishment_cause_t::mt_access}),
+            uint_to_cu_cp_amf_index(0));
+}
+
+TEST_F(amf_selector_test, when_amf_is_overloaded_then_its_overload_action_decides_the_rejected_establishment_causes)
+{
+  using cause  = establishment_cause_t;
+  using action = ngap_overload_action_t;
+  struct test_case {
+    action             overload_action;
+    std::vector<cause> rejected;
+  };
+  // Mapping of TS 38.413 section 8.7.7.2.
+  const std::vector<test_case> test_cases = {
+      {action::reject_non_emergency_mo_data,
+       {cause::mo_data, cause::mo_sms, cause::mo_video_call, cause::mo_voice_call}},
+      {action::reject_signalling,
+       {cause::mo_data, cause::mo_sms, cause::mo_video_call, cause::mo_voice_call, cause::mo_sig}},
+      {action::only_emergency_and_mt,
+       {cause::high_prio_access,
+        cause::mo_sig,
+        cause::mo_data,
+        cause::mo_voice_call,
+        cause::mo_video_call,
+        cause::mo_sms,
+        cause::mps_prio_access,
+        cause::mcs_prio_access}},
+      {action::only_high_priority_and_mt,
+       {cause::emergency, cause::mo_sig, cause::mo_data, cause::mo_voice_call, cause::mo_video_call, cause::mo_sms}},
+  };
+  const std::vector<cause> all_causes = {cause::emergency,
+                                         cause::high_prio_access,
+                                         cause::mt_access,
+                                         cause::mo_sig,
+                                         cause::mo_data,
+                                         cause::mo_voice_call,
+                                         cause::mo_video_call,
+                                         cause::mo_sms,
+                                         cause::mps_prio_access,
+                                         cause::mcs_prio_access};
+
+  candidates = {make_candidate(0, make_guami(1, 0))};
+  for (const test_case& test : test_cases) {
+    candidates[0].overload = ngap_amf_overload{test.overload_action, std::nullopt};
+    for (cause establishment_cause : all_causes) {
+      bool is_rejected =
+          std::find(test.rejected.begin(), test.rejected.end(), establishment_cause) != test.rejected.end();
+      ASSERT_EQ(select({.plmn = plmn_a, .establishment_cause = establishment_cause}).has_value(), not is_rejected)
+          << "action=" << static_cast<unsigned>(test.overload_action)
+          << " cause=" << static_cast<unsigned>(establishment_cause);
+    }
+  }
+}
+
+TEST_F(amf_selector_test, when_amf_has_traffic_load_reduction_then_this_share_of_the_rejected_ues_is_dropped)
+{
+  candidates             = {make_candidate(0, make_guami(1, 0))};
+  candidates[0].overload = ngap_amf_overload{ngap_overload_action_t::reject_signalling, 25};
+
+  unsigned nof_rejected = 0;
+  for (unsigned i = 0; i != 4000; ++i) {
+    if (not select({.plmn = plmn_a, .establishment_cause = establishment_cause_t::mo_sig}).has_value()) {
+      ++nof_rejected;
+    }
+    ASSERT_TRUE(select({.plmn = plmn_a, .establishment_cause = establishment_cause_t::mt_access}).has_value());
+  }
+
+  EXPECT_NEAR(nof_rejected, 1000, 150);
+}
+
+TEST_F(amf_selector_test, when_amf_is_overloaded_then_another_amf_gets_the_new_ues)
+{
+  // Without the overload, the selection picks AMF 0.
+  candidates             = {make_candidate(0, make_guami(1, 0), 255), make_candidate(1, make_guami(1, 1), 0)};
+  candidates[0].overload = ngap_amf_overload{};
+
+  ASSERT_EQ(select({.plmn = plmn_a}), uint_to_cu_cp_amf_index(1));
+  ASSERT_EQ(selector.select_amf_for_amf_set(candidates, plmn_a, 1), uint_to_cu_cp_amf_index(1));
+}
+
+TEST_F(amf_selector_test, when_all_amfs_are_overloaded_without_action_then_an_amf_is_still_selected)
+{
+  candidates             = {make_candidate(0, make_guami(1, 0))};
+  candidates[0].overload = ngap_amf_overload{};
+
+  ASSERT_EQ(select({.plmn = plmn_a, .establishment_cause = establishment_cause_t::mo_data}),
+            uint_to_cu_cp_amf_index(0));
 }
 
 TEST_F(amf_selector_test, when_ue_identifies_no_amf_then_selection_is_weighted_by_relative_amf_capacity)

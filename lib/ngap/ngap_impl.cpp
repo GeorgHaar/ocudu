@@ -441,6 +441,34 @@ void ngap_impl::handle_amf_status_indication(const asn1::ngap::amf_status_ind_s&
   }
 }
 
+void ngap_impl::handle_overload_start(const asn1::ngap::overload_start_s& msg)
+{
+  // A new Overload Start replaces the stored overload state (TS 38.413 section 8.7.7.2).
+  ngap_amf_overload overload;
+  if (msg->amf_overload_resp_present and
+      msg->amf_overload_resp.type().value == asn1::ngap::overload_resp_c::types_opts::overload_action) {
+    overload.action = asn1_to_overload_action(msg->amf_overload_resp.overload_action());
+  }
+  if (msg->amf_traffic_load_reduction_ind_present) {
+    overload.traffic_load_reduction = msg->amf_traffic_load_reduction_ind;
+  }
+  if (msg->overload_start_nssai_list_present) {
+    logger.warning("Ignoring Overload Start NSSAI List. Cause: Slice overload is not supported");
+  }
+  context.overload = overload;
+
+  logger.debug("AMF is overloaded. Overload action: {}. Traffic load reduction: {}",
+               overload.action.has_value() ? msg->amf_overload_resp.overload_action().to_string() : "none",
+               overload.traffic_load_reduction.has_value() ? fmt::format("{}%", *overload.traffic_load_reduction)
+                                                           : std::string("none"));
+}
+
+void ngap_impl::handle_overload_stop()
+{
+  context.overload.reset();
+  logger.debug("AMF is no longer overloaded");
+}
+
 void ngap_impl::handle_reroute_nas_request(const asn1::ngap::reroute_nas_request_s& msg)
 {
   const ran_ue_id_t                ran_ue_id = uint_to_ran_ue_id(msg->ran_ue_ngap_id);
@@ -730,6 +758,12 @@ void ngap_impl::handle_initiating_message(const init_msg_s& msg)
       break;
     case ngap_elem_procs_o::init_msg_c::types_opts::amf_status_ind:
       handle_amf_status_indication(msg.value.amf_status_ind());
+      break;
+    case ngap_elem_procs_o::init_msg_c::types_opts::overload_start:
+      handle_overload_start(msg.value.overload_start());
+      break;
+    case ngap_elem_procs_o::init_msg_c::types_opts::overload_stop:
+      handle_overload_stop();
       break;
     case ngap_elem_procs_o::init_msg_c::types_opts::ue_context_mod_request:
       handle_ue_context_modification_request(msg.value.ue_context_mod_request());

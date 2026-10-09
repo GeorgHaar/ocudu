@@ -200,6 +200,7 @@ std::vector<amf_candidate> amf_connection_manager::get_amf_candidates() const
     candidate.served_guamis         = context.served_guami_list;
     candidate.unavailable_guamis    = context.unavailable_guami_list;
     candidate.relative_amf_capacity = context.relative_amf_capacity;
+    candidate.overload              = context.overload;
 
     // A PLMN is served through the AMF if the CU-CP configures it for the AMF and the AMF supports it (TS 38.413
     // section 9.2.6.2, PLMN Support List).

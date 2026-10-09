@@ -409,3 +409,15 @@ TEST_F(cu_cp_amf_pooling_test, when_guami_of_the_ue_is_unavailable_then_the_ue_i
 
   ASSERT_EQ(attach_ue_with_5g_s_tmsi(int_to_gnb_du_ue_f1ap_id(0), 0), 1);
 }
+
+TEST_F(cu_cp_amf_pooling_test, when_amf_rejects_the_establishment_cause_then_the_ue_is_served_by_the_other_amf)
+{
+  start_cu_cp(255, 255);
+
+  // AMF 0 rejects the RRC connection establishments for signalling (TS 38.413 section 8.7.7). The UE sends the
+  // establishment cause mo-Signalling.
+  get_amf(0).push_tx_pdu(generate_overload_start(asn1::ngap::overload_action_opts::reject_rrc_cr_sig));
+
+  // Without the overload, the UE would go to AMF 0, which serves its AMF Pointer.
+  ASSERT_EQ(attach_ue_with_5g_s_tmsi(int_to_gnb_du_ue_f1ap_id(0), 0), 1);
+}

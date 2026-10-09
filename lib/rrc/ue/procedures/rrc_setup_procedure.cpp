@@ -97,7 +97,7 @@ void rrc_setup_procedure::operator()(coro_context<async_task<void>>& ctx)
   // Notify the CU-CP about the selected PLMN and the identities that select the AMF.
   store_five_g_s_tmsi();
   if (!cu_cp_notifier.on_ue_setup_complete_received(get_amf_selection_request())) {
-    logger.log_warning("PLMN {} not supported, rejecting UE", selected_plmn);
+    logger.log_warning("No AMF for PLMN {} accepts the UE, rejecting UE", selected_plmn);
     metrics_notifier.on_failed_rrc_connection_establishment(establishment_fail_cause_t::other);
     rrc_ue.on_ue_release_required(ngap_cause_radio_network_t::unspecified);
     CORO_EARLY_RETURN();
@@ -225,7 +225,8 @@ amf_selection_request rrc_setup_procedure::get_amf_selection_request() const
   const auto& rrc_setup_complete = rrc_setup_complete_msg.crit_exts.rrc_setup_complete();
 
   amf_selection_request request;
-  request.plmn = selected_plmn;
+  request.plmn                = selected_plmn;
+  request.establishment_cause = context.connection_cause;
 
   // The UE sends either the 5G-S-TMSI or the registered GUAMI (TS 24.501 section 5.3.1.1).
   request.five_g_s_tmsi = context.five_g_s_tmsi;

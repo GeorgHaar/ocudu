@@ -47,8 +47,9 @@ void ngap_handover_resource_allocation_procedure::operator()(coro_context<async_
       ngap_ue_context& ue_ctxt = ue_ctxt_list[ho_ack.ue_index];
       ue_ctxt_list.update_amf_ue_id(ue_ctxt.ue_ids.ran_ue_id, amf_ue_id);
 
-      // Store the GUAMI of the AMF that serves the UE.
+      // Store the GUAMI of the AMF that serves the UE, and the Allowed NSSAI of the UE.
       ue_ctxt.serving_guami = request.guami;
+      ue_ctxt.allowed_nssai = request.allowed_nssai;
 
       // Store Core Network Assist Info for Inactive if present.
       if (request.core_network_assist_info_for_inactive.has_value()) {

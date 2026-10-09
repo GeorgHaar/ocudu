@@ -67,8 +67,8 @@ public:
 
   /// \brief Determines whether the CU-CP should accept the resume of an RRC_INACTIVE UE.
   ///
-  /// The CU-CP rejects the UE if the AMF of the UE rejects its resume cause because of an overload.
-  bool request_ue_resume(cu_cp_amf_index_t amf_index, resume_cause_t resume_cause);
+  /// The CU-CP rejects the UE if the overload of the AMF of the UE rejects the resume cause or the Allowed NSSAI.
+  bool request_ue_resume(cu_cp_amf_index_t amf_index, resume_cause_t resume_cause, span<const s_nssai_t> allowed_nssai);
 
   /// \brief Selects the AMF for a UE that accesses the CU-CP.
   /// \return The index of the AMF, or std::nullopt if no connected AMF supports the selected PLMN of the UE.

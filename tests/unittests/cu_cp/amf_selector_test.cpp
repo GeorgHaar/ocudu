@@ -359,14 +359,14 @@ TEST_F(amf_selector_test, when_amf_rejects_the_resume_cause_then_the_resume_is_n
   amf_candidate candidate = make_candidate(0, make_guami(1, 0));
   candidate.overload      = ngap_amf_overload{ngap_overload_action_t::reject_signalling, std::nullopt};
 
-  ASSERT_FALSE(selector.is_ue_resume_accepted(candidate, resume_cause_t::mo_sig));
-  ASSERT_FALSE(selector.is_ue_resume_accepted(candidate, resume_cause_t::mo_data));
-  ASSERT_TRUE(selector.is_ue_resume_accepted(candidate, resume_cause_t::mt_access));
+  ASSERT_FALSE(selector.is_ue_resume_accepted(candidate, resume_cause_t::mo_sig, {}));
+  ASSERT_FALSE(selector.is_ue_resume_accepted(candidate, resume_cause_t::mo_data, {}));
+  ASSERT_TRUE(selector.is_ue_resume_accepted(candidate, resume_cause_t::mt_access, {}));
   // An RNA update sends no signalling to the AMF.
-  ASSERT_TRUE(selector.is_ue_resume_accepted(candidate, resume_cause_t::rna_upd));
+  ASSERT_TRUE(selector.is_ue_resume_accepted(candidate, resume_cause_t::rna_upd, {}));
 
   candidate.overload.reset();
-  ASSERT_TRUE(selector.is_ue_resume_accepted(candidate, resume_cause_t::mo_sig));
+  ASSERT_TRUE(selector.is_ue_resume_accepted(candidate, resume_cause_t::mo_sig, {}));
 }
 
 TEST_F(amf_selector_test, when_ue_requests_a_slice_then_an_amf_that_supports_it_is_selected)
@@ -475,6 +475,20 @@ TEST_F(amf_selector_test, when_slice_overload_has_traffic_load_reduction_then_th
   }
 
   EXPECT_NEAR(nof_rejected, 1000, 150);
+}
+
+TEST_F(amf_selector_test, when_all_allowed_slices_of_an_inactive_ue_are_overloaded_then_the_resume_is_not_accepted)
+{
+  amf_candidate     candidate = make_candidate(0, make_guami(1, 0));
+  ngap_amf_overload overload;
+  overload.overload_start_nssai_list = {ngap_overload_start_nssai_item{{make_s_nssai(2)}, std::nullopt, std::nullopt}};
+  candidate.overload                 = overload;
+
+  const std::vector<s_nssai_t> overloaded_slices = {make_s_nssai(2)};
+  const std::vector<s_nssai_t> mixed_slices      = {make_s_nssai(1), make_s_nssai(2)};
+  ASSERT_FALSE(selector.is_ue_resume_accepted(candidate, resume_cause_t::mo_data, overloaded_slices));
+  ASSERT_TRUE(selector.is_ue_resume_accepted(candidate, resume_cause_t::mo_data, mixed_slices));
+  ASSERT_TRUE(selector.is_ue_resume_accepted(candidate, resume_cause_t::mo_data, {}));
 }
 
 TEST_F(amf_selector_test, when_ue_identifies_no_amf_then_selection_is_weighted_by_relative_amf_capacity)

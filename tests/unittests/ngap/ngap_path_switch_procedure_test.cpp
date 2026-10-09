@@ -142,6 +142,21 @@ TEST_F(ngap_path_switch_procedure_test, when_path_switch_request_ack_received_th
   ASSERT_TRUE(std::holds_alternative<cu_cp_path_switch_request_ack>(t.get()));
 }
 
+TEST_F(ngap_path_switch_procedure_test, when_path_switch_request_ack_is_received_then_allowed_nssai_is_stored)
+{
+  cu_cp_ue_index_t                       ue_index = create_ue();
+  async_task<cu_cp_path_switch_response> t =
+      ngap->handle_path_switch_request_required(generate_path_switch_request(ue_index), guami_t{});
+  lazy_task_launcher<cu_cp_path_switch_response> t_launcher(t);
+
+  ngap->handle_message(generate_path_switch_request_ack(amf_ue_id_t::min, ran_ue_id_t::min));
+
+  ASSERT_TRUE(t.ready());
+  std::vector<s_nssai_t> allowed_nssai = ngap->get_allowed_nssai(ue_index);
+  ASSERT_EQ(allowed_nssai.size(), 1);
+  ASSERT_EQ(allowed_nssai[0].sst.value(), 1);
+}
+
 /// Test that the procedure survives the removal of the NGAP UE context while it awaits the Path Switch Request Ack.
 /// Destroying the UE context cancels the pending transaction, which resumes this procedure from within the destructor.
 TEST_F(ngap_path_switch_procedure_test, when_ue_context_is_removed_then_path_switch_procedure_fails)

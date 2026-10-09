@@ -30,6 +30,8 @@ struct ngap_ue_context {
   /// True while a new AMF can take over the UE association (TS 38.413 sections 8.6.2.2 and 8.3.1.2): this NGAP sent
   /// the INITIAL UE MESSAGE of the UE, and the UE got no INITIAL CONTEXT SETUP REQUEST yet.
   bool take_over_allowed = false;
+  /// Allowed NSSAI of the UE (TS 38.413 section 9.3.1.31).
+  std::vector<s_nssai_t> allowed_nssai;
 
   unique_timer                                               request_pdu_session_timer;
   bool                                                       release_requested                     = false;

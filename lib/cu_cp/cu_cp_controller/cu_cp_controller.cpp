@@ -99,7 +99,9 @@ cu_cp_controller::admit_ue_setup(establishment_cause_t establishment_cause)
   return amf_sel.admit_ue_setup(amf_mng.get_amf_candidates(), establishment_cause);
 }
 
-bool cu_cp_controller::request_ue_resume(cu_cp_amf_index_t amf_index, resume_cause_t resume_cause)
+bool cu_cp_controller::request_ue_resume(cu_cp_amf_index_t     amf_index,
+                                         resume_cause_t        resume_cause,
+                                         span<const s_nssai_t> allowed_nssai)
 {
   std::vector<amf_candidate> candidates = amf_mng.get_amf_candidates();
   auto candidate = std::find_if(candidates.begin(), candidates.end(), [amf_index](const amf_candidate& item) {
@@ -110,8 +112,8 @@ bool cu_cp_controller::request_ue_resume(cu_cp_amf_index_t amf_index, resume_cau
     return true;
   }
 
-  if (not amf_sel.is_ue_resume_accepted(*candidate, resume_cause)) {
-    logger.info("Rejecting UE resume. Cause: amf_index={} rejects the resume cause because of an overload", amf_index);
+  if (not amf_sel.is_ue_resume_accepted(*candidate, resume_cause, allowed_nssai)) {
+    logger.info("Rejecting UE resume. Cause: The overload of amf_index={} rejects the UE", amf_index);
     return false;
   }
   return true;

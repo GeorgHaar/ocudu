@@ -382,6 +382,9 @@ public:
   /// Returns the GUAMI of the AMF that serves the UE, if the AMF has signalled it.
   virtual std::optional<guami_t> get_serving_guami(cu_cp_ue_index_t ue_index) = 0;
 
+  /// Returns the Allowed NSSAI of the UE, if the AMF has signalled it.
+  virtual std::vector<s_nssai_t> get_allowed_nssai(cu_cp_ue_index_t ue_index) = 0;
+
   /// \brief Removes a UE association without signalling, because a new AMF serves the UE.
   ///
   /// The NGAP removes the UE association only if it sent the INITIAL UE MESSAGE of the UE, the UE got no INITIAL

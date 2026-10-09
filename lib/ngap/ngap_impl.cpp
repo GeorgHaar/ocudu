@@ -167,6 +167,14 @@ std::optional<guami_t> ngap_impl::get_serving_guami(cu_cp_ue_index_t ue_index)
   return ue_ctxt_list[ue_index].serving_guami;
 }
 
+std::vector<s_nssai_t> ngap_impl::get_allowed_nssai(cu_cp_ue_index_t ue_index)
+{
+  if (!ue_ctxt_list.contains(ue_index)) {
+    return {};
+  }
+  return ue_ctxt_list[ue_index].allowed_nssai;
+}
+
 bool ngap_impl::handle_amf_tnl_connection_request()
 {
   // This could be a reconnection, so make sure the tx_pdu_notifier is released before creating a new one.
@@ -870,6 +878,14 @@ void ngap_impl::handle_dl_nas_transport_message(const asn1::ngap::dl_nas_transpo
                                                  msg->ue_aggr_max_bit_rate.ue_aggr_max_bit_rate_ul});
   }
 
+  // Store the Allowed NSSAI, for example after a UE Configuration Update (TS 23.502 section 4.2.4.2).
+  if (msg->allowed_nssai_present) {
+    ue_ctxt.allowed_nssai.clear();
+    for (const auto& asn1_item : msg->allowed_nssai) {
+      ue_ctxt.allowed_nssai.push_back(ngap_asn1_to_s_nssai(asn1_item.s_nssai));
+    }
+  }
+
   // Add AMF UE ID to ue ngap context if it is not set (this is the first DL NAS Transport message).
   if (ue_ctxt.ue_ids.amf_ue_id == amf_ue_id_t::invalid) {
     // Set AMF UE ID in the UE context and also in the lookup.
@@ -965,8 +981,10 @@ void ngap_impl::handle_initial_context_setup_request(const asn1::ngap::init_cont
     ue_ctxt.core_network_assist_info_for_inactive = init_ctxt_setup_req.core_network_assist_info_for_inactive.value();
   }
 
-  // Store serving PLMN.
+  // Store the GUAMI of the AMF that serves the UE, and the Allowed NSSAI of the UE. A new AMF cannot take over the UE
+  // any more.
   ue_ctxt.serving_guami     = init_ctxt_setup_req.guami;
+  ue_ctxt.allowed_nssai     = init_ctxt_setup_req.allowed_nssai;
   ue_ctxt.take_over_allowed = false;
 
   // Store RRC inactive transition report request if present.

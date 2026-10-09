@@ -137,6 +137,21 @@ TEST_F(ngap_ue_context_management_procedure_test, when_valid_initial_context_set
   ASSERT_TRUE(was_ue_added());
 }
 
+TEST_F(ngap_ue_context_management_procedure_test,
+       when_initial_context_setup_request_is_received_then_allowed_nssai_is_stored)
+{
+  cu_cp_ue_index_t ue_index = this->start_procedure();
+  auto&            ue       = test_ues.at(ue_index);
+
+  ngap->handle_message(
+      generate_valid_initial_context_setup_request_message(ue.amf_ue_id.value(), ue.ran_ue_id.value()));
+
+  std::vector<s_nssai_t> allowed_nssai = ngap->get_allowed_nssai(ue_index);
+  ASSERT_EQ(allowed_nssai.size(), 1);
+  ASSERT_EQ(allowed_nssai[0].sst.value(), 1);
+  ASSERT_EQ(allowed_nssai[0].sd.value(), 0xdb2700);
+}
+
 /// Test Initial Context Setup Request with PDUSessionResourceSetupListCxtReq.
 TEST_F(ngap_ue_context_management_procedure_test,
        when_initial_context_setup_request_with_pdu_session_received_then_response_send)

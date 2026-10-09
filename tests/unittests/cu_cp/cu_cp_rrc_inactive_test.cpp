@@ -738,6 +738,37 @@ TEST_F(cu_cp_rrc_inactive_test, when_amf_rejects_the_resume_cause_then_resume_is
   ASSERT_TRUE(test_helpers::is_valid_ue_context_setup_request(f1ap_pdu, true)) << "The UE was not resumed";
 }
 
+TEST_F(cu_cp_rrc_inactive_test, when_the_allowed_slice_of_the_ue_is_overloaded_then_resume_is_rejected)
+{
+  // Connect UE with RRC Inactive support and set it to RRC inactive.
+  connect_ue_with_rrc_inactive_support();
+  ASSERT_TRUE(send_ue_level_bearer_context_inactivity_notification_and_await_bearer_context_modification_request());
+  ASSERT_TRUE(send_bearer_context_modification_response_and_await_ue_context_release_command());
+  ASSERT_TRUE(send_f1ap_ue_context_release_complete());
+
+  // The AMF overloads the slice that the Initial Context Setup Request allowed for the UE (TS 23.501 section 5.19.5.2).
+  ngap_message                            overload_start = generate_overload_start();
+  asn1::ngap::overload_start_nssai_item_s item;
+  asn1::ngap::slice_overload_item_s       slice;
+  slice.s_nssai.sst.from_number(1);
+  slice.s_nssai.sd_present = true;
+  slice.s_nssai.sd.from_string("db2700");
+  item.slice_overload_list.push_back(slice);
+  overload_start.pdu.init_msg().value.overload_start()->overload_start_nssai_list_present = true;
+  overload_start.pdu.init_msg().value.overload_start()->overload_start_nssai_list.push_back(item);
+  get_amf().push_tx_pdu(overload_start);
+
+  get_du(du_idx).push_ul_pdu(test_helpers::generate_init_ul_rrc_message_transfer(
+      du_ue_id_2,
+      crnti_2,
+      plmn_identity::test_value(),
+      {},
+      test_helpers::pack_ul_ccch_msg(test_helpers::create_rrc_resume_request(0x4d8000))));
+  ASSERT_TRUE(wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu)) << "No response was sent to the UE";
+  ASSERT_TRUE(test_helpers::is_valid_ue_context_release_command(f1ap_pdu)) << "The resume was not rejected";
+  ASSERT_EQ(f1ap_pdu.pdu.init_msg().value.ue_context_release_cmd()->srb_id, 0);
+}
+
 TEST_F(cu_cp_rrc_inactive_test, when_duplicate_ue_level_inactivity_message_is_received_then_it_is_ignored)
 {
   // Connect UE with RRC Inactive support.

@@ -2269,7 +2269,9 @@ bool cu_cp_impl::handle_ue_resume_admission_request(cu_cp_ue_index_t ue_index, r
   if (ue == nullptr or ue->get_ue_context().amf_index == cu_cp_amf_index_t::invalid) {
     return true;
   }
-  return controller.request_ue_resume(ue->get_ue_context().amf_index, resume_cause);
+  ngap_interface*        ngap          = ngap_db.find_ngap(ue->get_ue_context().amf_index);
+  std::vector<s_nssai_t> allowed_nssai = ngap != nullptr ? ngap->get_allowed_nssai(ue_index) : std::vector<s_nssai_t>{};
+  return controller.request_ue_resume(ue->get_ue_context().amf_index, resume_cause, allowed_nssai);
 }
 
 void cu_cp_impl::handle_rrc_ue_creation(cu_cp_ue_index_t ue_index, rrc_ue_interface& rrc_ue)

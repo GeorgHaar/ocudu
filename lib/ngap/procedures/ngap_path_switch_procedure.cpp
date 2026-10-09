@@ -193,6 +193,9 @@ ngap_path_switch_procedure::handle_successful_outcome(const asn1::ngap::path_swi
   if (ue_ctxt == nullptr) {
     logger.log_debug("Skipping the update of the UE context. Cause: UE context not found");
   } else {
+    // Store the Allowed NSSAI of the UE.
+    ue_ctxt->allowed_nssai = request_ack.allowed_nssai;
+
     // Store Core Network Assist Info for Inactive if present.
     if (request_ack.core_network_assist_info_for_inactive.has_value()) {
       ue_ctxt->core_network_assist_info_for_inactive = request_ack.core_network_assist_info_for_inactive.value();

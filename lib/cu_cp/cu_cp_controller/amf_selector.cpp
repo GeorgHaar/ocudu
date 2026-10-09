@@ -220,16 +220,18 @@ bool amf_selector::is_rejected_by_amf_overload(const amf_candidate& candidate, C
          draw_rejection(candidate.overload->traffic_load_reduction);
 }
 
-bool amf_selector::is_rejected_by_slice_overload(const ngap_amf_overload&     overload,
-                                                 const amf_selection_request& request)
+template <typename Cause>
+bool amf_selector::is_rejected_by_slice_overload(const ngap_amf_overload& overload,
+                                                 span<const s_nssai_t>    requested_nssai,
+                                                 Cause                    cause)
 {
   auto lists_slice = [](const ngap_overload_start_nssai_item& item, const s_nssai_t& s_nssai) {
     return std::find(item.slice_overload_list.begin(), item.slice_overload_list.end(), s_nssai) !=
            item.slice_overload_list.end();
   };
   bool all_slices_overloaded =
-      not request.requested_nssai.empty() and
-      std::all_of(request.requested_nssai.begin(), request.requested_nssai.end(), [&](const s_nssai_t& s_nssai) {
+      not requested_nssai.empty() and
+      std::all_of(requested_nssai.begin(), requested_nssai.end(), [&](const s_nssai_t& s_nssai) {
         return std::any_of(overload.overload_start_nssai_list.begin(),
                            overload.overload_start_nssai_list.end(),
                            [&](const ngap_overload_start_nssai_item& item) { return lists_slice(item, s_nssai); });
@@ -239,11 +241,11 @@ bool amf_selector::is_rejected_by_slice_overload(const ngap_amf_overload&     ov
   }
 
   for (const ngap_overload_start_nssai_item& item : overload.overload_start_nssai_list) {
-    bool lists_requested_slice = std::any_of(request.requested_nssai.begin(),
-                                             request.requested_nssai.end(),
+    bool lists_requested_slice = std::any_of(requested_nssai.begin(),
+                                             requested_nssai.end(),
                                              [&](const s_nssai_t& s_nssai) { return lists_slice(item, s_nssai); });
     bool rejects_cause         = not item.slice_overload_action.has_value() or
-                         is_rejected_by_overload_action(*item.slice_overload_action, request.establishment_cause);
+                         is_rejected_by_overload_action(*item.slice_overload_action, cause);
     if (lists_requested_slice and rejects_cause and draw_rejection(item.slice_traffic_load_reduction)) {
       return true;
     }
@@ -262,7 +264,8 @@ bool amf_selector::accepts_ue(const amf_candidate& candidate, const amf_selectio
   if (rejected) {
     return false;
   }
-  return not candidate.overload.has_value() or not is_rejected_by_slice_overload(*candidate.overload, request);
+  return not candidate.overload.has_value() or
+         not is_rejected_by_slice_overload(*candidate.overload, request.requested_nssai, request.establishment_cause);
 }
 
 std::optional<std::vector<cu_cp_amf_index_t>> amf_selector::admit_ue_setup(span<const amf_candidate> candidates,
@@ -286,12 +289,16 @@ std::optional<std::vector<cu_cp_amf_index_t>> amf_selector::admit_ue_setup(span<
   return rejecting_amfs;
 }
 
-bool amf_selector::is_ue_resume_accepted(const amf_candidate& candidate, resume_cause_t resume_cause)
+bool amf_selector::is_ue_resume_accepted(const amf_candidate&  candidate,
+                                         resume_cause_t        resume_cause,
+                                         span<const s_nssai_t> allowed_nssai)
 {
   if (resume_cause == resume_cause_t::rna_upd) {
     return true;
   }
-  return not is_rejected_by_amf_overload(candidate, resume_cause);
+  return not is_rejected_by_amf_overload(candidate, resume_cause) and
+         (not candidate.overload.has_value() or
+          not is_rejected_by_slice_overload(*candidate.overload, allowed_nssai, resume_cause));
 }
 
 std::optional<cu_cp_amf_index_t> amf_selector::select_amf(span<const amf_candidate>    all_candidates,

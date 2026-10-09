@@ -38,6 +38,7 @@ public:
   get_cn_assist_info_for_inactive(cu_cp_ue_index_t ue_index) override;
 
   std::optional<guami_t> get_serving_guami(cu_cp_ue_index_t ue_index) override;
+  std::vector<s_nssai_t> get_allowed_nssai(cu_cp_ue_index_t ue_index) override;
   cu_cp_ue_index_t       remove_ue_association(ran_ue_id_t ran_ue_id) override;
 
   // NGAP connection manager functions.

@@ -166,6 +166,25 @@ TEST_F(ngap_nas_message_routine_test, when_ue_task_queue_is_full_then_reroute_na
   ASSERT_EQ(ngap->remove_ue_association(ran_ue_id), ue_index);
 }
 
+TEST_F(ngap_nas_message_routine_test, when_dl_nas_transport_has_allowed_nssai_then_it_is_stored)
+{
+  cu_cp_ue_index_t ue_index = this->start_procedure();
+  auto&            ue       = test_ues.at(ue_index);
+  ue.amf_ue_id              = uint_to_amf_ue_id(1);
+
+  ngap_message dl_nas_transport = generate_downlink_nas_transport_message(ue.amf_ue_id.value(), ue.ran_ue_id.value());
+  auto&        dl_nas_msg       = dl_nas_transport.pdu.init_msg().value.dl_nas_transport();
+  dl_nas_msg->allowed_nssai_present = true;
+  asn1::ngap::allowed_nssai_item_s allowed;
+  allowed.s_nssai.sst.from_number(2);
+  dl_nas_msg->allowed_nssai.push_back(allowed);
+  ngap->handle_message(dl_nas_transport);
+
+  std::vector<s_nssai_t> allowed_nssai = ngap->get_allowed_nssai(ue_index);
+  ASSERT_EQ(allowed_nssai.size(), 1);
+  ASSERT_EQ(allowed_nssai[0].sst.value(), 2);
+}
+
 TEST_F(ngap_nas_message_routine_test, when_no_ue_present_dl_nas_transport_is_dropped_and_error_indication_is_sent)
 {
   // Inject DL NAS transport message from AMF.

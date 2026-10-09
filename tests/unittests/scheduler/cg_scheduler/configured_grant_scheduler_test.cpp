@@ -37,6 +37,8 @@ struct cg_test_params {
   bool cell_cg_enabled = true;
   /// Selecting Type 2 CG requires DCI activation before any CG PUSCH is scheduled.
   cg_builder_params::cg_type type = cg_builder_params::cg_type::type1;
+  /// When true, the cell's HARQ-ACK PUCCH resources are configured with repetitions, which the UE always uses.
+  bool pucch_rep_enabled = false;
 };
 
 /// Default CG VRB allocation set by the config factory (see make_default_cg_config() in
@@ -100,6 +102,14 @@ protected:
           .nof_harq_processes = cg_params.nof_harq_procs,
       };
     }
+    if (cg_params.pucch_rep_enabled) {
+      // SINR thresholds that no SINR estimate reaches, so that n4 repetitions are always recommended.
+      auto& pucch_res = cell_req.ran.init_bwp.pucch.resources;
+      pucch_res.harq_ack_rep =
+          pucch_harq_ack_rep_params{.sinr_thresholds = {1000.0F, 1000.0F},
+                                    .factors_per_res = std::vector<pucch_repetition_factor>(
+                                        pucch_res.res_set_size.value(), pucch_repetition_factor::n4)};
+    }
     add_cell(cell_req);
   }
 
@@ -119,6 +129,11 @@ protected:
     auto& ue_cell = ue_req.cfg.cells->front();
     ASSERT_TRUE(ue_cell.serv_cell_cfg.ul_config.has_value());
     ASSERT_TRUE(ue_cell.serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.has_value());
+    if (cg_params.pucch_rep_enabled) {
+      // Same as the UE reporting full support for dynamic PUCCH repetition in its capabilities.
+      ue_cell.init_bwp().ul.pucch.rep_f1_3_4_enabled = true;
+      ue_cell.init_bwp().ul.pucch.rep_f0_2_enabled   = true;
+    }
     ue_cell.serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg->rrc_configured_ul_grant_cfg->time_domain_offset =
         cg_slot_offset.value_or(default_cg_offset_);
     if (cg_start_vrb.has_value()) {
@@ -1075,6 +1090,58 @@ TEST_F(cg_multi_harq_ack_mux_test, cg_pusch_absorbs_multiple_harq_ack_bits)
     break;
   }
   EXPECT_TRUE(found) << "No CG PUSCH carrying >=2 HARQ-ACK bits was observed within 400 slots";
+}
+
+/// Fixture for CG with PUCCH HARQ-ACK repetitions. The UE sends every HARQ-ACK over a multi-slot PUCCH burst.
+class cg_pucch_rep_test : public configured_grant_scheduler_test
+{
+protected:
+  /// CG offset away from the UE's SR and CSI slots, which a PUCCH repetition burst cannot include.
+  static constexpr unsigned cg_offset = 2;
+
+  cg_pucch_rep_test() : configured_grant_scheduler_test(cg_test_params{.pucch_rep_enabled = true}, {}, cg_offset) {}
+};
+
+/// Test: a CG occasion that falls in a slot of a PUCCH repetition burst of the UE is skipped, as the UE would transmit
+/// the PUCCH and drop the PUSCH (TS 38.213, Section 9.2.6). Once the bursts stop, the CG occasions are scheduled again.
+TEST_F(cg_pucch_rep_test, cg_occasion_skipped_in_pucch_repetition_slots)
+{
+  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-BW-16-3");
+
+  auto_uci = true;
+  auto_crc = true;
+  add_cg_ue();
+
+  // Find the first CG grant, before any DL traffic, to anchor the CG occasion pattern.
+  ASSERT_NE(run_until_next_cg_pusch(), nullptr) << "Pre-condition: expected at least one CG grant";
+  const slot_point first_cg_slot = last_result_slot();
+
+  // Keep the DL buffer non-empty, so that the UE sends its HARQ-ACKs in back-to-back PUCCH repetition bursts.
+  unsigned           nof_skipped_occasions = 0;
+  constexpr unsigned nof_periods_to_test   = 10U;
+  for (unsigned i = 0; i != nof_periods_to_test * cg_params.period_slots; ++i) {
+    push_dl_buffer_state(dl_buffer_state_indication_message{to_du_ue_index(0), LCID_SRB1, 10000});
+    run_slot();
+
+    const sched_result&    res           = *last_sched_result();
+    span<const pucch_info> pucchs        = res.ul.pucchs.unsorted();
+    const bool             has_pucch_rep = std::any_of(pucchs.begin(), pucchs.end(), [](const pucch_info& pucch) {
+      return pucch.crnti == ue_crnti and pucch.repetition.has_value();
+    });
+    ASSERT_FALSE(has_pucch_rep and find_ue_pusch(cs_rnti, res) != nullptr)
+        << "Slot " << fmt::format("{}", last_result_slot())
+        << ": CG PUSCH allocated in a slot of a PUCCH repetition burst of the UE";
+
+    const bool is_cg_occasion = (last_result_slot() - first_cg_slot) % cg_params.period_slots == 0;
+    if (is_cg_occasion and has_pucch_rep) {
+      ++nof_skipped_occasions;
+    }
+  }
+  ASSERT_GT(nof_skipped_occasions, 0U) << "No CG occasion fell in a PUCCH repetition burst; the test is not effective";
+
+  // Stop the DL traffic. Once the last bursts are over, the CG occasions must be scheduled again.
+  push_dl_buffer_state(dl_buffer_state_indication_message{to_du_ue_index(0), LCID_SRB1, 0});
+  EXPECT_NE(run_until_next_cg_pusch(), nullptr) << "CG grants should resume once the PUCCH repetition bursts stop";
 }
 
 /// Fixture for a cell without CG configured at cell level. In this case, the CG scheduler is not instantiated

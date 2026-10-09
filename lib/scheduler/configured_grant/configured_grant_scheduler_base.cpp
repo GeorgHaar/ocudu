@@ -165,6 +165,17 @@ bool configured_grant_scheduler_base::validate_cg_opportunity(const cell_slot_re
     return false;
   }
 
+  // As per TS 38.213, Section 9.2.6, if a PUCCH transmission with repetitions overlaps a PUSCH, the UE transmits the
+  // PUCCH and does not transmit the PUSCH in the overlapping slots. The UCI cannot be moved onto the CG PUSCH either,
+  // as Section 9.2.5 scopes UCI multiplexing on PUSCH to PUCCHs "over a single slot without repetitions". So the CG
+  // occasion must be skipped in any slot of an in-flight repetition burst, or the UE would drop it.
+  if (uci_alloc.has_pucch_repetition(rnti, slot_alloc.slot)) {
+    logger.debug("rnti={}: CG PUSCH skipped at slot={}: the slot is part of a PUCCH repetition burst of the UE",
+                 rnti,
+                 slot_alloc.slot);
+    return false;
+  }
+
   // Check that the PUSCH result list has capacity.
   if (slot_alloc.result.ul.puschs.full()) {
     logger.warning("rnti={}: CG PUSCH cannot be allocated at slot={}: PUSCH list is full", rnti, slot_alloc.slot);

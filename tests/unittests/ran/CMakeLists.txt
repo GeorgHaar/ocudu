@@ -143,6 +143,10 @@ add_executable(i_rnti_test i_rnti_test.cpp)
 target_link_libraries(i_rnti_test ocudu_support GTest::gtest ocudu_gtest_main)
 add_test(i_rnti_test i_rnti_test)
 
+add_executable(s_nssai_test s_nssai_test.cpp)
+target_link_libraries(s_nssai_test GTest::gtest ocudu_gtest_main)
+add_test(s_nssai_test s_nssai_test)
+
 add_executable(meas_gap_config_test meas_gap_config_test.cpp)
 target_link_libraries(meas_gap_config_test ocudu_ran GTest::gtest ocudu_gtest_main)
 gtest_discover_tests(meas_gap_config_test)

@@ -25,7 +25,7 @@ public:
   uint8_t value() const { return val; }
 
   bool operator==(const slice_service_type& rhs) const { return val == rhs.val; }
-  bool operator!=(const slice_service_type& rhs) const { return not(val != rhs.val); }
+  bool operator!=(const slice_service_type& rhs) const { return val != rhs.val; }
   bool operator<(const slice_service_type& rhs) const { return val < rhs.val; }
 
 private:
@@ -46,7 +46,7 @@ public:
   uint32_t value() const { return val; }
 
   bool operator==(const slice_differentiator& rhs) const { return val == rhs.val; }
-  bool operator!=(const slice_differentiator& rhs) const { return not(val != rhs.val); }
+  bool operator!=(const slice_differentiator& rhs) const { return val != rhs.val; }
   bool operator<(const slice_differentiator& rhs) const
   {
     if (val == default_val && rhs.val != default_val) {

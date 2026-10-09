@@ -5,7 +5,7 @@
 
 #include "rrc_ue_test_helpers.h"
 #include "tests/ocudu_test_requirements.h"
-#include "ocudu/asn1/rrc_nr/ul_dcch_msg.h"
+#include "tests/test_doubles/rrc/rrc_test_messages.h"
 #include "ocudu/support/async/async_test_utils.h"
 #include <gtest/gtest.h>
 
@@ -28,25 +28,12 @@ protected:
 
   void TearDown() override { ocudulog::flush(); }
 
-  /// The LocationMeasurementInfo with one NR PRS measurement.
-  static asn1::rrc_nr::location_meas_info_c make_nr_prs_location_meas_info()
-  {
-    asn1::rrc_nr::nr_prs_meas_info_r16_s prs_info;
-    prs_info.dl_prs_point_a_r16                               = 643296;
-    prs_info.nr_meas_prs_repeat_and_offset_r16.set_ms40_r16() = 7;
-    prs_info.nr_meas_prs_len_r16.value = asn1::rrc_nr::nr_prs_meas_info_r16_s::nr_meas_prs_len_r16_opts::ms6;
-
-    asn1::rrc_nr::location_meas_info_c info;
-    info.set_nr_prs_meas_r16().push_back(prs_info);
-    return info;
-  }
-
   /// The packed LocationMeasurementInfo with one NR PRS measurement.
   static byte_buffer make_packed_nr_prs_location_meas_info()
   {
     byte_buffer   pdu;
     asn1::bit_ref bref{pdu};
-    EXPECT_EQ(make_nr_prs_location_meas_info().pack(bref), asn1::OCUDUASN_SUCCESS);
+    EXPECT_EQ(test_helpers::create_nr_prs_location_meas_info().pack(bref), asn1::OCUDUASN_SUCCESS);
     return pdu;
   }
 
@@ -54,20 +41,9 @@ protected:
   void receive_location_meas_ind(const std::optional<asn1::rrc_nr::location_meas_info_c>& info,
                                  bool                                                     integrity_verified = true)
   {
-    asn1::rrc_nr::ul_dcch_msg_s            ul_dcch_msg;
-    asn1::rrc_nr::location_meas_ind_ies_s& ies =
-        ul_dcch_msg.msg.set_c1().set_location_meas_ind().crit_exts.set_location_meas_ind();
-    if (info.has_value()) {
-      ies.meas_ind.set_setup() = info.value();
-    } else {
-      ies.meas_ind.set_release();
-    }
-
-    byte_buffer   pdu;
-    asn1::bit_ref bref{pdu};
-    ASSERT_EQ(ul_dcch_msg.pack(bref), asn1::OCUDUASN_SUCCESS);
-
-    rrc_ue->handle_ul_dcch_pdu(srb_id_t::srb1, std::move(pdu), integrity_verified);
+    rrc_ue->handle_ul_dcch_pdu(srb_id_t::srb1,
+                               test_helpers::pack_ul_dcch_msg(test_helpers::create_location_meas_ind(info)),
+                               integrity_verified);
   }
 };
 
@@ -75,7 +51,7 @@ TEST_F(rrc_ue_location_meas_ind, when_location_measurements_start_then_cu_cp_is_
 {
   OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-b");
 
-  receive_location_meas_ind(make_nr_prs_location_meas_info());
+  receive_location_meas_ind(test_helpers::create_nr_prs_location_meas_info());
 
   // The RRC UE keeps the LocationMeasurementInfo of the UE unchanged.
   EXPECT_EQ(rrc_ue_cu_cp_notifier.nof_location_meas_indications, 1);
@@ -88,7 +64,7 @@ TEST_F(rrc_ue_location_meas_ind, when_location_measurements_stop_then_cu_cp_is_n
 {
   OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-b");
 
-  receive_location_meas_ind(make_nr_prs_location_meas_info());
+  receive_location_meas_ind(test_helpers::create_nr_prs_location_meas_info());
   receive_location_meas_ind(std::nullopt);
 
   EXPECT_EQ(rrc_ue_cu_cp_notifier.nof_location_meas_indications, 2);
@@ -110,7 +86,7 @@ TEST_F(rrc_ue_location_meas_ind, when_location_meas_ind_is_not_integrity_protect
 {
   OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-b");
 
-  receive_location_meas_ind(make_nr_prs_location_meas_info(), /* integrity_verified */ false);
+  receive_location_meas_ind(test_helpers::create_nr_prs_location_meas_info(), /* integrity_verified */ false);
 
   EXPECT_EQ(rrc_ue_cu_cp_notifier.nof_location_meas_indications, 0);
   EXPECT_FALSE(rrc_ue->get_packed_location_meas_info().has_value());
@@ -129,7 +105,7 @@ TEST_F(rrc_ue_location_meas_ind, when_ue_moves_to_another_rrc_ue_then_ongoing_lo
   receive_ue_capability_information(2);
   ASSERT_TRUE(t.ready());
 
-  receive_location_meas_ind(make_nr_prs_location_meas_info());
+  receive_location_meas_ind(test_helpers::create_nr_prs_location_meas_info());
 
   // The source RRC UE puts the LocationMeasurementInfo into the transfer context.
   rrc_ue_transfer_context transfer_context = rrc_ue->get_transfer_context();

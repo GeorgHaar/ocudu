@@ -427,6 +427,32 @@ asn1::rrc_nr::ul_dcch_msg_s ocudu::test_helpers::create_rrc_reconfiguration_comp
   return msg;
 }
 
+location_meas_info_c ocudu::test_helpers::create_nr_prs_location_meas_info()
+{
+  nr_prs_meas_info_r16_s prs_info;
+  prs_info.dl_prs_point_a_r16                               = 643296;
+  prs_info.nr_meas_prs_repeat_and_offset_r16.set_ms40_r16() = 7;
+  prs_info.nr_meas_prs_len_r16.value                        = nr_prs_meas_info_r16_s::nr_meas_prs_len_r16_opts::ms6;
+
+  location_meas_info_c info;
+  info.set_nr_prs_meas_r16().push_back(prs_info);
+  return info;
+}
+
+ul_dcch_msg_s ocudu::test_helpers::create_location_meas_ind(const std::optional<location_meas_info_c>& info)
+{
+  ul_dcch_msg_s msg;
+
+  location_meas_ind_ies_s& ies = msg.msg.set_c1().set_location_meas_ind().crit_exts.set_location_meas_ind();
+  if (info.has_value()) {
+    ies.meas_ind.set_setup() = info.value();
+  } else {
+    ies.meas_ind.set_release();
+  }
+
+  return msg;
+}
+
 byte_buffer ocudu::test_helpers::pack_ul_ccch_msg(const ul_ccch_msg_s& msg)
 {
   byte_buffer   pdu;

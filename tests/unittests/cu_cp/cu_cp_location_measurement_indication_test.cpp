@@ -13,7 +13,6 @@
 #include "tests/unittests/ngap/ngap_test_messages.h"
 #include "ocudu/asn1/f1ap/f1ap_pdu_contents_ue.h"
 #include "ocudu/asn1/rrc_nr/dl_dcch_msg.h"
-#include "ocudu/asn1/rrc_nr/ul_dcch_msg.h"
 #include "ocudu/cu_cp/cu_cp_command_handler.h"
 #include "ocudu/e1ap/common/e1ap_message.h"
 #include "ocudu/f1ap/f1ap_message.h"
@@ -60,19 +59,6 @@ public:
     EXPECT_NE(ue_ctx, nullptr);
   }
 
-  /// The LocationMeasurementInfo with one NR PRS measurement.
-  static asn1::rrc_nr::location_meas_info_c make_nr_prs_location_meas_info()
-  {
-    asn1::rrc_nr::nr_prs_meas_info_r16_s prs_info;
-    prs_info.dl_prs_point_a_r16                               = 643296;
-    prs_info.nr_meas_prs_repeat_and_offset_r16.set_ms40_r16() = 7;
-    prs_info.nr_meas_prs_len_r16.value = asn1::rrc_nr::nr_prs_meas_info_r16_s::nr_meas_prs_len_r16_opts::ms6;
-
-    asn1::rrc_nr::location_meas_info_c info;
-    info.set_nr_prs_meas_r16().push_back(prs_info);
-    return info;
-  }
-
   /// The packed MeasGapConfig the DU returns: an FR2 gap of 6 ms every 40 ms, or the release of the FR2 gap.
   static byte_buffer make_packed_meas_gap_cfg(bool release = false)
   {
@@ -97,20 +83,11 @@ public:
   /// The UE sends a LocationMeasurementIndication. It indicates a start with \c info, or a stop without it.
   void send_location_measurement_indication(const std::optional<asn1::rrc_nr::location_meas_info_c>& info)
   {
-    asn1::rrc_nr::ul_dcch_msg_s            ul_dcch_msg;
-    asn1::rrc_nr::location_meas_ind_ies_s& ies =
-        ul_dcch_msg.msg.set_c1().set_location_meas_ind().crit_exts.set_location_meas_ind();
-    if (info.has_value()) {
-      ies.meas_ind.set_setup() = info.value();
-    } else {
-      ies.meas_ind.set_release();
-    }
-
-    get_du(du_idx).push_ul_pdu(
-        test_helpers::generate_ul_rrc_message_transfer(ue_ctx->du_ue_id.value(),
-                                                       ue_ctx->cu_ue_id.value(),
-                                                       srb_id_t::srb1,
-                                                       generate_protected_ul_dcch_pdu(ul_dcch_msg, ul_count++)));
+    get_du(du_idx).push_ul_pdu(test_helpers::generate_ul_rrc_message_transfer(
+        ue_ctx->du_ue_id.value(),
+        ue_ctx->cu_ue_id.value(),
+        srb_id_t::srb1,
+        generate_protected_ul_dcch_pdu(test_helpers::create_location_meas_ind(info), ul_count++)));
   }
 
   /// \brief Waits for the UE Context Modification Request and checks its CU to DU RRC Information.
@@ -147,7 +124,7 @@ public:
     // The DU receives the LocationMeasurementInfo of the UE unchanged.
     byte_buffer   expected_info;
     asn1::bit_ref bref{expected_info};
-    if (make_nr_prs_location_meas_info().pack(bref) != asn1::OCUDUASN_SUCCESS) {
+    if (test_helpers::create_nr_prs_location_meas_info().pack(bref) != asn1::OCUDUASN_SUCCESS) {
       return false;
     }
     return req->cu_to_du_rrc_info.ie_exts.location_meas_info == expected_info;
@@ -198,7 +175,7 @@ public:
   /// The UE starts the location measurements, and the DU configures a measurement gap for them.
   [[nodiscard]] bool start_location_measurements()
   {
-    send_location_measurement_indication(make_nr_prs_location_meas_info());
+    send_location_measurement_indication(test_helpers::create_nr_prs_location_meas_info());
     if (!await_ue_context_modification_request(/* with_location_meas_info */ true)) {
       return false;
     }
@@ -234,7 +211,7 @@ TEST_F(cu_cp_location_measurement_indication_test,
 {
   OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-b");
 
-  send_location_measurement_indication(make_nr_prs_location_meas_info());
+  send_location_measurement_indication(test_helpers::create_nr_prs_location_meas_info());
   ASSERT_TRUE(await_ue_context_modification_request(/* with_location_meas_info */ true));
 
   send_ue_context_modification_response(make_packed_meas_gap_cfg());
@@ -342,7 +319,7 @@ TEST_F(cu_cp_location_measurement_indication_test,
   ASSERT_TRUE(req->cu_to_du_rrc_info.ie_exts.location_meas_info_present);
   byte_buffer   expected_info;
   asn1::bit_ref bref{expected_info};
-  ASSERT_EQ(make_nr_prs_location_meas_info().pack(bref), asn1::OCUDUASN_SUCCESS);
+  ASSERT_EQ(test_helpers::create_nr_prs_location_meas_info().pack(bref), asn1::OCUDUASN_SUCCESS);
   EXPECT_EQ(req->cu_to_du_rrc_info.ie_exts.location_meas_info, expected_info);
 }
 
@@ -351,7 +328,7 @@ TEST_F(cu_cp_location_measurement_indication_test,
 {
   OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-b");
 
-  send_location_measurement_indication(make_nr_prs_location_meas_info());
+  send_location_measurement_indication(test_helpers::create_nr_prs_location_meas_info());
   ASSERT_TRUE(await_ue_context_modification_request(/* with_location_meas_info */ true));
 
   send_ue_context_modification_response(byte_buffer{});
@@ -365,7 +342,7 @@ TEST_F(cu_cp_location_measurement_indication_test,
 {
   OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-b");
 
-  send_location_measurement_indication(make_nr_prs_location_meas_info());
+  send_location_measurement_indication(test_helpers::create_nr_prs_location_meas_info());
   ASSERT_TRUE(await_ue_context_modification_request(/* with_location_meas_info */ true));
 
   get_du(du_idx).push_ul_pdu(

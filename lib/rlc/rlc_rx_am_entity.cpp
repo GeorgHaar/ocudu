@@ -24,9 +24,7 @@ rlc_rx_am_entity::rlc_rx_am_entity(gnb_du_id_t                       gnb_du_id,
   mod(cardinality(to_number(cfg.sn_field_length))),
   am_window_size(window_size(to_number(cfg.sn_field_length))),
   rx_window(logger, window_size(to_number(cfg.sn_field_length)), window_seg_pool),
-  status_buf({rlc_am_status_pdu(cfg.sn_field_length),
-              rlc_am_status_pdu(cfg.sn_field_length),
-              rlc_am_status_pdu(cfg.sn_field_length)}),
+  status_storage(rlc_am_status_pdu(cfg.sn_field_length)),
   status_prohibit_timer(ue_timer_factory.create_timer()),
   reassembly_timer(ue_timer_factory.create_timer()),
   ue_executor(ue_executor_),
@@ -61,14 +59,6 @@ rlc_rx_am_entity::rlc_rx_am_entity(gnb_du_id_t                       gnb_du_id,
   } else {
     max_nof_sn_per_status_report = window_size(to_number(cfg.sn_field_length));
   }
-
-  // initialize cached status report
-  if (!std::atomic<rlc_am_status_pdu*>::is_always_lock_free) {
-    logger.log_error("The status PDU exchange is not lock free. TX real-time performance can be impaired.");
-  }
-  rlc_am_status_pdu& init_status_for_exchange = *status_for_exchange.load(std::memory_order_relaxed);
-  init_status_for_exchange.ack_sn             = st.rx_next_highest;
-  status_report_size.store(init_status_for_exchange.get_packed_size(), std::memory_order_relaxed);
 
   logger.log_info("RLC AM configured. {}", cfg);
 }
@@ -112,13 +102,11 @@ void rlc_rx_am_entity::handle_data_pdu(byte_buffer_slice buf)
   bool status_requested = false;
   auto on_function_exit = make_scope_exit([&]() {
     logger.log_debug("Post-processing for AMD PDU: stored={} status_requested={}", stored, status_requested);
+    if (status_requested) {
+      status_request_id++;
+    }
     if (stored || status_requested) {
       refresh_status_report();
-    }
-    if (status_requested) {
-      do_status.store(true, std::memory_order_relaxed);
-    }
-    if (stored || status_requested) {
       notify_status_report_changed();
     }
   });
@@ -553,7 +541,8 @@ expected<byte_buffer_chain> rlc_rx_am_entity::reassemble_sdu(rlc_rx_am_sdu_info&
 
 void rlc_rx_am_entity::refresh_status_report()
 {
-  status_owned_by_writer->reset();
+  rlc_am_status_pdu& status_report = status_storage.write();
+  status_report.reset();
   /*
    * - for the RLC SDUs with SN such that RX_Next <= SN < RX_Highest_Status that has not been completely
    *   received yet, in increasing SN order of RLC SDUs and increasing byte segment order within RLC SDUs,
@@ -577,7 +566,7 @@ void rlc_rx_am_entity::refresh_status_report()
         nack.nack_sn = i;
         nack.has_so  = false;
         logger.log_debug("Adding nack={}.", nack);
-        status_owned_by_writer->push_nack(nack);
+        status_report.push_nack(nack);
       } else if (not rx_window[i].fully_received) {
         ocudu_assert(std::holds_alternative<rlc_rx_am_sdu_info::segment_set_t>(rx_window[i].sdu_data),
                      "Invalid sdu_data variant of incomplete SDU in rx_window. sn={}",
@@ -597,7 +586,7 @@ void rlc_rx_am_entity::refresh_status_report()
             nack.so_start = last_so;
             nack.so_end   = segm->so - 1; // set to last missing byte
             logger.log_debug("Adding nack={}.", nack);
-            status_owned_by_writer->push_nack(nack);
+            status_report.push_nack(nack);
 
             // Sanity check
             if (nack.so_start > nack.so_end) {
@@ -626,7 +615,7 @@ void rlc_rx_am_entity::refresh_status_report()
           nack.so_start = last_so;
           nack.so_end   = rlc_am_status_nack::so_end_of_sdu;
           logger.log_debug("Adding nack={}.", nack);
-          status_owned_by_writer->push_nack(nack);
+          status_report.push_nack(nack);
           // Sanity check
           ocudu_assert(nack.so_start <= nack.so_end, "Invalid segment offsets in nack={}.", nack);
         }
@@ -638,46 +627,47 @@ void rlc_rx_am_entity::refresh_status_report()
    * - set the ACK_SN to the SN of the next not received RLC SDU which is not
    * indicated as missing in the resulting STATUS PDU.
    */
-  status_owned_by_writer->ack_sn = stop_sn;
-  logger.log_debug("Refreshed status_report. {}", *status_owned_by_writer);
-  store_status_report();
-}
+  status_report.ack_sn = stop_sn;
+  status_report.id     = status_request_id;
 
-void rlc_rx_am_entity::store_status_report()
-{
-  // Minor inacurracy between status_report_size and status_for_exchange is tolerated here
-  uint32_t latest_status_report_size = status_owned_by_writer->get_packed_size();
-  status_owned_by_writer             = status_for_exchange.exchange(status_owned_by_writer, std::memory_order_release);
-  status_report_size.store(latest_status_report_size, std::memory_order_release);
+  if (logger.get_basic_logger().debug.enabled()) {
+    logger.log_debug("Refreshed status_report. {}", status_report);
+  }
+  status_storage.commit();
 }
 
 rlc_am_status_pdu& rlc_rx_am_entity::get_status_pdu()
 {
-  do_status.store(false, std::memory_order_relaxed);
+  rlc_am_status_pdu& status_report = status_storage.read();
   if (status_prohibit_timer.is_valid() && cfg.t_status_prohibit > 0) {
     if (not ue_executor.defer([&]() { status_prohibit_timer.run(); })) {
       logger.log_warning("Unable to start prohibit timer");
     }
     status_prohibit_timer_is_running.store(true, std::memory_order_relaxed);
   }
-  status_owned_by_reader = status_for_exchange.exchange(status_owned_by_reader, std::memory_order_acquire);
-  return *status_owned_by_reader;
+  status_report_id.store(status_report.id, std::memory_order_relaxed);
+  return status_report;
 }
 
 uint32_t rlc_rx_am_entity::get_status_pdu_length()
 {
-  return status_report_size.load(std::memory_order_acquire);
+  rlc_am_status_pdu& status_report = status_storage.read();
+  if (status_report.is_valid()) {
+    return status_report.get_packed_size();
+  }
+  return 0;
 }
 
 bool rlc_rx_am_entity::status_report_required()
 {
-  return do_status.load(std::memory_order_relaxed) &&
-         not status_prohibit_timer_is_running.load(std::memory_order_relaxed);
+  return !status_prohibit_timer_is_running.load(std::memory_order_relaxed) &&
+         status_storage.read().id != status_report_id.load(std::memory_order_relaxed);
 }
 
 void rlc_rx_am_entity::notify_status_report_changed()
 {
-  if (status_report_required()) {
+  if (!status_prohibit_timer_is_running.load(std::memory_order_relaxed) &&
+      status_request_id != status_report_id.load(std::memory_order_relaxed)) {
     logger.log_debug("Notifying TX that status report has changed.");
     status_notifier->on_status_report_changed();
   }
@@ -750,8 +740,8 @@ void rlc_rx_am_entity::on_expired_reassembly_timer()
    *   NOTE 2: The expiry of t-Reassembly triggers both RX_Highest_Status to be updated and a STATUS report to be
    *   triggered, but the STATUS report shall be triggered after RX_Highest_Status is updated.
    */
+  status_request_id++;
   refresh_status_report();
-  do_status.store(true, std::memory_order_relaxed);
   notify_status_report_changed();
 
   log_state(ocudulog::basic_levels::debug);

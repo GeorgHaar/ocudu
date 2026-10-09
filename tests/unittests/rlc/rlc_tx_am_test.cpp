@@ -1903,9 +1903,10 @@ TEST_P(rlc_tx_am_test, status_report_priority)
   size_t               pdu_len;
 
   // Read PDU, expect to be the status PDU
-  pdu_buf.resize(tester->status.get_packed_size());
+  uint32_t packed_size = tester->status.get_packed_size();
+  pdu_buf.resize(packed_size);
   pdu_len = rlc->pull_pdu(pdu_buf);
-  EXPECT_EQ(pdu_len, tester->status.get_packed_size());
+  EXPECT_EQ(pdu_len, packed_size);
 
   // The tester does not unflag status_required automatically, hence rlc still assumes that status PDU is needed
   EXPECT_EQ(rlc->get_buffer_state().pending_bytes, tester->status.get_packed_size() + pdu_size);
@@ -1963,10 +1964,14 @@ TEST_P(rlc_tx_am_test, status_report_trim)
   pdu_len = rlc->pull_pdu(pdu_buf);
   EXPECT_EQ(pdu_len, trimmed_size);
 
-  // Read untrimmed status PDU
+  // The status report shall be marked as invalid and further retransmissions shall be rejected.
   pdu_buf.resize(tester->status.get_packed_size());
   pdu_len = rlc->pull_pdu(pdu_buf);
-  EXPECT_EQ(pdu_len, tester->status.get_packed_size());
+  EXPECT_EQ(pdu_len, 0);
+
+  // Error shall be logged.
+  EXPECT_EQ(test_spy.get_warning_counter(), 0);
+  EXPECT_EQ(test_spy.get_error_counter(), 1);
 }
 
 // Expired poll retransmit timer should trigger a ReTx if no fresh SDUs or ReTx are available.

@@ -126,6 +126,8 @@ public:
   rlc_control_pdu_type cpt = rlc_control_pdu_type::status_pdu;
   /// SN of the next not received RLC Data PDU
   uint32_t ack_sn = INVALID_RLC_SN;
+  /// ID of the status request; Holds the value of status_request_id by the time the report is generated.
+  uint32_t id = 0;
 
   rlc_am_status_pdu(rlc_am_sn_size sn_size_);
   /// Explicit copy ctor to avoid implicit copies.
@@ -137,7 +139,12 @@ public:
   /// Move assignment of byte_buffer.
   rlc_am_status_pdu& operator=(rlc_am_status_pdu&& other) = default;
 
+  /// \brief Resets and invalidates the status report by clearing ACK SN, NACKs and size.
   void reset();
+
+  /// \brief Checks whether the status report is valid (true) or if it has been reset (false).
+  bool is_valid() const;
+
   /// \brief Checks whether the two NACKs can be merged into one NACK.
   ///
   /// This first checks whether both NACKs form as continuous sequence and then also validates
@@ -336,7 +343,8 @@ struct formatter<ocudu::rlc_am_status_pdu> {
   auto format(const ocudu::rlc_am_status_pdu& status, FormatContext& ctx) const
   {
     memory_buffer buffer;
-    format_to(std::back_inserter(buffer), "ack_sn={} n_nack={}", status.ack_sn, status.get_nacks().size());
+    format_to(
+        std::back_inserter(buffer), "id={} ack_sn={} n_nack={}", status.id, status.ack_sn, status.get_nacks().size());
     if (!status.get_nacks().empty()) {
       format_to(std::back_inserter(buffer), " nack=");
       for (auto nack : status.get_nacks()) {

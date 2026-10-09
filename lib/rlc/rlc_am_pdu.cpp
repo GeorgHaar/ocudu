@@ -20,9 +20,15 @@ rlc_am_status_pdu::rlc_am_status_pdu(rlc_am_sn_size sn_size_) :
 void rlc_am_status_pdu::reset()
 {
   cpt    = rlc_control_pdu_type::status_pdu;
+  id     = 0;
   ack_sn = INVALID_RLC_SN;
   nacks.clear();
   packed_size = rlc_am_nr_status_pdu_sizeof_header_ack_sn;
+}
+
+bool rlc_am_status_pdu::is_valid() const
+{
+  return ack_sn != INVALID_RLC_SN;
 }
 
 bool rlc_am_status_pdu::can_be_merged(const rlc_am_status_nack& left, const rlc_am_status_nack& right) const

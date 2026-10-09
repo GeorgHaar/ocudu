@@ -172,20 +172,30 @@ size_t rlc_tx_am_entity::pull_pdu(span<uint8_t> rlc_pdu_buf) noexcept OCUDU_RTSA
       logger.log_debug("Cannot fit status PDU into small grant_len={}.", grant_len);
       return 0;
     }
-    rlc_am_status_pdu& status_pdu = status_provider->get_status_pdu(); // this also resets status_report_required
+    size_t pdu_len = 0;
+    {
+      rlc_am_status_pdu& status_pdu       = status_provider->get_status_pdu(); // Restarts status prohibit timer.
+      auto               on_function_exit = make_scope_exit([&]() { status_pdu.reset(); });
 
-    if (status_pdu.get_packed_size() > grant_len) {
-      if (not status_pdu.trim(grant_len)) {
-        logger.log_warning("Could not trim status PDU down to grant_len={}.", grant_len);
+      if (!status_pdu.is_valid()) {
+        logger.log_error("Status report required but no valid report provided.");
         return 0;
       }
-      logger.log_info("Trimmed status PDU to fit into grant_len={}.", grant_len);
-      logger.log_debug("Trimmed status PDU. {}", status_pdu);
-    }
-    size_t pdu_len = status_pdu.pack(rlc_pdu_buf);
-    if (pdu_len == 0) {
-      logger.log_error("Could not pack status pdu. {}", status_pdu);
-      return 0;
+      if (status_pdu.get_packed_size() > grant_len) {
+        if (not status_pdu.trim(grant_len)) {
+          logger.log_warning("Could not trim status PDU down to grant_len={}.", grant_len);
+          return 0;
+        }
+        logger.log_info("Trimmed status PDU to fit into grant_len={}.", grant_len);
+        if (logger.get_basic_logger().debug.enabled()) {
+          logger.log_debug("Trimmed status PDU. {}", status_pdu);
+        }
+      }
+      pdu_len = status_pdu.pack(rlc_pdu_buf);
+      if (pdu_len == 0) {
+        logger.log_error("Could not pack status pdu. {}", status_pdu);
+        return 0;
+      }
     }
     logger.log_info(rlc_pdu_buf.data(), pdu_len, "TX status PDU. pdu_len={} grant_len={}", pdu_len, grant_len);
 

@@ -9,6 +9,7 @@
 #include "rlc_am_pdu.h"
 #include "rlc_rx_entity.h"
 #include "ocudu/adt/expected.h"
+#include "ocudu/adt/lockfree_triple_buffer.h"
 #include "ocudu/rlc/rlc_window_seg_pools.h"
 #include "ocudu/support/executors/task_executor.h"
 #include "ocudu/support/segmented_sdu_window.h"
@@ -85,8 +86,6 @@ private:
   rlc_tx_am_status_handler* status_handler = nullptr;
   /// Status notifier
   rlc_tx_am_status_notifier* status_notifier = nullptr;
-  /// Indicates whether a status report is required
-  std::atomic<bool> do_status = {false};
 
   /// Rx counter modulus
   const uint32_t mod;
@@ -100,19 +99,18 @@ private:
   /// Indicates the rx_window has been changed, i.e. need to rebuild status report.
   static constexpr bool rx_window_changed = true;
 
-  /// Pre-allocated status reports for (re)-building, caching, and sharing with TX entity
-  std::array<rlc_am_status_pdu, 3> status_buf;
+  /// Status report storage for lock-free passing of latest status reports to the TX entity
+  lockfree_triple_buffer<rlc_am_status_pdu> status_storage;
 
-  /// Status report owned by writer for (re)-building
-  rlc_am_status_pdu* status_owned_by_writer = &status_buf[0];
-  /// Status report for exchange that is accessed by writer and reader
-  std::atomic<rlc_am_status_pdu*> status_for_exchange = &status_buf[1];
-  /// Status report owned by reader for transmission
-  rlc_am_status_pdu* status_owned_by_reader = &status_buf[2];
+  /// Counts status report requests from the peer; incremented on each received PDU with P=1.
+  /// The value is added to each status report that is commited to the status storage.
+  uint32_t status_request_id = 0;
 
-  /// Size of the cached status report
-  std::atomic<uint32_t> status_report_size;
-  std::atomic<bool>     status_prohibit_timer_is_running{false};
+  /// Stores the ID of the last status report that was read for transmission by the TX entity via
+  /// get_status_pdu().
+  std::atomic<uint32_t> status_report_id{0};
+
+  std::atomic<bool> status_prohibit_timer_is_running{false};
 
   /// \brief t-StatusProhibit
   /// This timer is used by the receiving side of an AM RLC entity in order to prohibit transmission of a STATUS PDU

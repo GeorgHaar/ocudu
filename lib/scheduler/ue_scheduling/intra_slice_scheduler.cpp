@@ -764,10 +764,10 @@ std::optional<ue_newtx_candidate> intra_slice_scheduler::create_newtx_dl_candida
   // A process is only usable when it carries the feedback the logical channels of the slice need, so the grant is
   // dropped here rather than after a PDCCH and a PUCCH have been booked for it.
   if (not ue_cc.harqs.has_empty_dl_harqs(harq_utils::to_harq_mode(u.select_normal_dl_harq_mode()))) {
-    // No available HARQs.
-    if (not ue_cc.harqs.find_pending_dl_retx().has_value()) {
-      // All HARQs are waiting for their respective HARQ-ACK. This may be a symptom of a long RTT for the PDSCH
-      // and HARQ-ACK.
+    // No available HARQs. A process free in the other mode owes no HARQ-ACK, so the feedback only runs late once no
+    // process at all is free.
+    if (not ue_cc.harqs.has_empty_dl_harqs() and not ue_cc.harqs.find_pending_dl_retx().has_value()) {
+      // A long PDSCH to HARQ-ACK round trip can leave every process waiting for its feedback.
       logger.info(
           "ue={} rnti={} PDSCH allocation skipped. Cause: All the HARQs are allocated and waiting for their "
           "respective HARQ-ACK. Check if any HARQ-ACK went missing in the lower layers or is arriving too late to "

@@ -324,6 +324,71 @@ TEST_F(cu_cp_location_measurement_indication_test,
 }
 
 TEST_F(cu_cp_location_measurement_indication_test,
+       when_ue_reestablishes_during_location_measurements_then_du_configures_the_measurement_gap_again)
+{
+  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-b");
+
+  ASSERT_TRUE(start_location_measurements());
+
+  // The UE reestablishes the connection in the same cell.
+  const gnb_du_ue_f1ap_id_t new_du_ue_id = int_to_gnb_du_ue_f1ap_id(1);
+  const rnti_t              new_crnti    = to_rnti(0x4602);
+  get_du(du_idx).push_ul_pdu(test_helpers::generate_init_ul_rrc_message_transfer(
+      new_du_ue_id,
+      new_crnti,
+      plmn_identity::test_value(),
+      {},
+      test_helpers::pack_ul_ccch_msg(test_helpers::create_rrc_reestablishment_request(crnti, 0, "1111010001000010"))));
+  ASSERT_TRUE(this->wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu));
+  ASSERT_TRUE(test_helpers::is_valid_dl_rrc_message_transfer_with_msg4(f1ap_pdu));
+  ASSERT_EQ(f1ap_pdu.pdu.init_msg().value.dl_rrc_msg_transfer()->srb_id, 1) << "CU-CP did not accept reestablishment";
+  const gnb_cu_ue_f1ap_id_t new_cu_ue_id =
+      int_to_gnb_cu_ue_f1ap_id(f1ap_pdu.pdu.init_msg().value.dl_rrc_msg_transfer()->gnb_cu_ue_f1ap_id);
+
+  // The UE completes the reestablishment. The PDCP header and MAC-I fit the keys of the reestablished UE.
+  byte_buffer reest_complete = test_helpers::pack_ul_dcch_msg(test_helpers::create_rrc_reestablishment_complete());
+  ASSERT_TRUE(reest_complete.prepend(std::array<uint8_t, 2>{0x00U, 0x00U}));
+  ASSERT_TRUE(reest_complete.append(std::array<uint8_t, 4>{0x85, 0xc1, 0x04, 0xf1}));
+  get_du(du_idx).push_ul_pdu(test_helpers::generate_ul_rrc_message_transfer(
+      new_du_ue_id, new_cu_ue_id, srb_id_t::srb1, std::move(reest_complete)));
+
+  // The CU-UP gives the new UL tunnels.
+  e1ap_message e1ap_pdu;
+  ASSERT_TRUE(this->wait_for_e1ap_tx_pdu(cu_up_idx, e1ap_pdu));
+  const auto& bearer_mod_req = e1ap_pdu.pdu.init_msg().value.bearer_context_mod_request();
+  const auto  cu_cp_e1ap_id  = int_to_gnb_cu_cp_ue_e1ap_id(bearer_mod_req->gnb_cu_cp_ue_e1ap_id);
+  const auto  new_cu_up_id   = int_to_gnb_cu_up_ue_e1ap_id(bearer_mod_req->gnb_cu_up_ue_e1ap_id);
+  get_cu_up(cu_up_idx).push_tx_pdu(generate_bearer_context_modification_response(cu_cp_e1ap_id, new_cu_up_id));
+
+  // The UE Context Modification Request carries the location measurements of the UE.
+  ASSERT_TRUE(this->wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu));
+  ASSERT_TRUE(test_helpers::is_valid_ue_context_modification_request(f1ap_pdu));
+  const auto& req = f1ap_pdu.pdu.init_msg().value.ue_context_mod_request();
+  ASSERT_TRUE(req->cu_to_du_rrc_info_present);
+  ASSERT_TRUE(req->cu_to_du_rrc_info.ie_exts_present);
+  ASSERT_TRUE(req->cu_to_du_rrc_info.ie_exts.location_meas_info_present);
+  byte_buffer   expected_info;
+  asn1::bit_ref bref{expected_info};
+  ASSERT_EQ(test_helpers::create_nr_prs_location_meas_info().pack(bref), asn1::OCUDUASN_SUCCESS);
+  EXPECT_EQ(req->cu_to_du_rrc_info.ie_exts.location_meas_info, expected_info);
+
+  // The DU configures the measurement gap again.
+  f1ap_message resp = test_helpers::generate_ue_context_modification_response(new_du_ue_id, new_cu_ue_id, new_crnti);
+  resp.pdu.successful_outcome().value.ue_context_mod_resp()->du_to_cu_rrc_info.meas_gap_cfg =
+      make_packed_meas_gap_cfg();
+  get_du(du_idx).push_ul_pdu(resp);
+  ASSERT_TRUE(this->wait_for_e1ap_tx_pdu(cu_up_idx, e1ap_pdu));
+  get_cu_up(cu_up_idx).push_tx_pdu(generate_bearer_context_modification_response(cu_cp_e1ap_id, new_cu_up_id));
+
+  // The RRC Reconfiguration after the reestablishment carries the measurement gap.
+  std::optional<asn1::rrc_nr::rrc_recfg_s> rrc_recfg = await_rrc_reconfiguration_with_meas_gap_cfg();
+  ASSERT_TRUE(rrc_recfg.has_value());
+  const asn1::rrc_nr::meas_gap_cfg_s& meas_gap_cfg = rrc_recfg->crit_exts.rrc_recfg().meas_cfg.meas_gap_cfg;
+  ASSERT_TRUE(meas_gap_cfg.gap_fr2_present);
+  EXPECT_EQ(meas_gap_cfg.gap_fr2.setup().gap_offset, 7);
+}
+
+TEST_F(cu_cp_location_measurement_indication_test,
        when_du_configures_no_measurement_gap_then_no_rrc_reconfiguration_is_sent_to_ue)
 {
   OCUDU_TEST_REQUIREMENTS("MVP-FUNC-POS-16-3-b");

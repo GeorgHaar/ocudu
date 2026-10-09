@@ -288,6 +288,11 @@ void rrc_reestablishment_procedure::transfer_reestablishment_context_and_update_
   // Transfer UP context from old UE.
   cu_cp_notifier.on_up_context_setup_required(old_ue_reest_context.up_ctx);
 
+  // Transfer the ongoing location measurements from old UE.
+  if (old_ue_reest_context.location_meas_info.has_value()) {
+    context.location_meas_info = old_ue_reest_context.location_meas_info->copy();
+  }
+
   // Update security keys.
   // freq_and_timing must be present, otherwise the RRC UE would've never been created.
   uint32_t ssb_arfcn = context.cfg.meas_timings.begin()->freq_and_timing.value().carrier_freq;

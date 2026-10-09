@@ -459,6 +459,8 @@ struct rrc_ue_reestablishment_context_response {
   up_context                                     up_ctx;
   bool                                           old_ue_fully_attached   = false;
   bool                                           reestablishment_ongoing = false;
+  /// Packed LocationMeasurementInfo of the ongoing location measurements of the UE (TS 38.331 section 5.5.6).
+  std::optional<byte_buffer> location_meas_info;
 };
 
 /// \brief Identity of a UE that reestablished at this node, as it appeared in the RRCReestablishmentRequest. The peer

@@ -1162,7 +1162,8 @@ rrc_ue_reestablishment_context_response rrc_ue_impl::get_context()
   if (context.capabilities_list.has_value()) {
     rrc_reest_context.capabilities_list = asn1_to_ue_cap_rat_container_list(context.capabilities_list.value());
   }
-  rrc_reest_context.up_ctx = cu_cp_notifier.on_up_context_required();
+  rrc_reest_context.up_ctx             = cu_cp_notifier.on_up_context_required();
+  rrc_reest_context.location_meas_info = get_packed_location_meas_info();
 
   // TODO: Handle scenario with multiple reestablishments for the same UE.
   rrc_reest_context.reestablishment_ongoing = context.reestablishment_ongoing;

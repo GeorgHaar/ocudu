@@ -65,6 +65,12 @@ void reestablishment_context_modification_routine::operator()(coro_context<async
   {
     // Prepare UE Context Modification Request and call F1 notifier.
     ue_context_mod_request.ue_index = ue_index;
+    // Add the ongoing location measurements of the UE. The UE releases its measurement gaps at the reestablishment
+    // (TS 38.331 section 5.3.7.5), so the DU configures them again.
+    if (std::optional<byte_buffer> location_meas_info = rrc_ue->get_packed_location_meas_info()) {
+      ue_context_mod_request.cu_to_du_rrc_info.emplace().ie_exts.emplace().location_meas_info =
+          std::move(location_meas_info);
+    }
 
     CORO_AWAIT_VALUE(ue_context_modification_response,
                      f1ap_ue_ctxt_mng.handle_ue_context_modification_request(ue_context_mod_request));

@@ -990,6 +990,52 @@ TEST_P(pdcp_tx_test, tx_buffer)
   EXPECT_EQ(test_spy.get_error_counter(), 0);
 }
 
+// Test PDCP forwarding of PDUs from source durign handover.
+TEST_P(pdcp_tx_test, tx_forwarding)
+{
+  OCUDU_TEST_REQUIREMENTS("MVP-SEC-O-CU-13");
+  init(GetParam());
+
+  // Set state of PDCP entiy.
+  pdcp_tx_state st = {0, 0, 0, 0, 0};
+  pdcp_tx->set_state(st);
+  pdcp_tx->configure_security(sec_cfg, security::integrity_enabled::on, security::ciphering_enabled::on);
+
+  // Push four SDUs.
+  uint32_t n_sdus = 4;
+  for (uint32_t i = 0; i < n_sdus; i++) {
+    byte_buffer sdu1_buf = byte_buffer::create(sdu1).value();
+    pdcp_tx->handle_sdu(std::move(sdu1_buf));
+    wait_pending_crypto();
+    worker.run_pending_tasks();
+  }
+
+  // Deliver ACK notifications for two SDUs.
+  pdcp_tx->handle_transmit_notification(pdcp_compute_sn(1, sn_size));
+  pdcp_tx->handle_delivery_notification(pdcp_compute_sn(1, sn_size));
+
+  pdcp_tx->start_dl_forwarding(&test_frame);
+
+  ASSERT_EQ(test_frame.forwarding_queue.size(), 2);
+  ASSERT_EQ(test_frame.pdu_queue.size(), 4);
+
+  // Push two SDUs after starting forwarding.
+  uint32_t n_sdus_after_forwarding = 2;
+  for (uint32_t i = 0; i < n_sdus_after_forwarding; i++) {
+    byte_buffer sdu1_buf = byte_buffer::create(sdu1).value();
+    pdcp_tx->handle_sdu(std::move(sdu1_buf));
+    wait_pending_crypto();
+    worker.run_pending_tasks();
+  }
+
+  ASSERT_EQ(test_frame.forwarding_queue.size(), 4);
+  ASSERT_EQ(test_frame.pdu_queue.size(), 4);
+
+  // No warnings or errors.
+  EXPECT_EQ(test_spy.get_warning_counter(), 0);
+  EXPECT_EQ(test_spy.get_error_counter(), 0);
+}
+
 ///////////////////////////////////////////////////////////////////
 // Finally, instantiate all testcases for each supported SN size //
 ///////////////////////////////////////////////////////////////////

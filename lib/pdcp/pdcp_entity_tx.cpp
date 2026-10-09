@@ -198,7 +198,14 @@ bool pdcp_entity_tx::resume()
 
 void pdcp_entity_tx::start_dl_forwarding(pdcp_tx_forward_notifier* tx_forward_)
 {
-  logger.log_info("Starting DL forwarding. st={}", st);
+  forward_dn = tx_forward_;
+  for (uint32_t count = st.tx_next_ack; count < st.tx_next; ++count) {
+    // Forward each stored SDU.
+    if (tx_window.has_sn(count) && !tx_window[count].sdu_info.sdu.empty()) {
+      forward_dn->on_new_pdu(std::move(tx_window[count].sdu_info.sdu), SN(tx_window[count].sdu_info.count));
+    }
+  }
+  logger.log_info("DL forwarding started. st={}", st);
 }
 
 manual_event_flag& pdcp_entity_tx::crypto_awaitable()
@@ -305,6 +312,14 @@ void pdcp_entity_tx::handle_sdu(byte_buffer buf)
     }
   }
 
+  /// Forwarding is enabled. Forward the SDU target gNB and return.
+  if (forward_dn) {
+    forward_dn->on_new_pdu(std::move(buf), SN(st.tx_next));
+    logger.log_info("Forward SDU. count={}", st.tx_next);
+    st.tx_next++;
+    return;
+  }
+
   // Wrap SDU with meta information.
   pdcp_tx_window_sdu_info sdu_info = {
       .sdu                   = {}, // we will store a copy of the SDU here later if required.
@@ -388,6 +403,12 @@ void pdcp_entity_tx::apply_reordering(pdcp_tx_buffer_info buf_info)
 {
   if (OCUDU_UNLIKELY(stopped)) {
     logger.log_debug("Dropping security protected PDU. Entity is stopped");
+    return;
+  }
+
+  /// Forwarding enabled already. Drop PDU, it is being forwarded to the target already.
+  if (forward_dn) {
+    logger.log_debug("Dropping security protected PDU. Entity is forwarding. count={}", buf_info.count);
     return;
   }
 

@@ -60,11 +60,13 @@ public:
 /// Mocking class of the surrounding layers invoked by the PDCP.
 class pdcp_tx_test_frame : public pdcp_rx_status_provider,
                            public pdcp_tx_lower_notifier,
-                           public pdcp_tx_upper_control_notifier
+                           public pdcp_tx_upper_control_notifier,
+                           public pdcp_tx_forward_notifier
 {
 public:
   std::queue<byte_buffer> pdu_queue;
   std::queue<byte_buffer> retx_queue;
+  std::queue<byte_buffer> forwarding_queue;
   uint32_t                nof_max_count_reached = 0;
   uint32_t                nof_protocol_failure  = 0;
   uint32_t                nof_resume_required   = 0;
@@ -105,6 +107,9 @@ public:
       pdu_queue.push(std::move(pdu));
     }
   }
+
+  void on_new_pdu(byte_buffer pdu, uint32_t pdcp_sn) override { forwarding_queue.push(std::move(pdu)); }
+
   void on_discard_pdu(uint32_t pdcp_sn) final { sdu_discard_queue.push(pdcp_sn); }
 };
 
@@ -255,8 +260,8 @@ private:
   unsigned           crypto_queue_size = 128;
 
   task_worker_pool<concurrent_queue_policy::lockfree_mpmc>          crypto_worker_pool{"crypto",
-                                                                              nof_crypto_threads,
-                                                                              crypto_queue_size};
+                                                                                       nof_crypto_threads,
+                                                                                       crypto_queue_size};
   task_worker_pool_executor<concurrent_queue_policy::lockfree_mpmc> crypto_worker =
       task_worker_pool_executor<concurrent_queue_policy::lockfree_mpmc>(crypto_worker_pool);
 };

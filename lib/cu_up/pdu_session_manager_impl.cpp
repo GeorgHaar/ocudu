@@ -631,16 +631,23 @@ pdu_session_manager_impl::modify_pdu_session(const e1ap_pdu_session_res_to_modif
     // This is done after extracting the PDCP count info, so that the count info is accurate.
     if (drb_to_mod.drb_data_forwarding_info.has_value() and
         drb_to_mod.drb_data_forwarding_info->dl_data_forwarding.has_value()) {
-      drb->egress_dl_data_forwarding_tnl_info = drb_to_mod.drb_data_forwarding_info->dl_data_forwarding;
+      if (xnu_session_mngr) {
+        drb->egress_dl_data_forwarding_tnl_info = drb_to_mod.drb_data_forwarding_info->dl_data_forwarding;
 
-      auto gtpu_fwd_cfg = gtpu_tunnel_pdcp_creation_message{
-          .ue_index = ue_index, .cfg = {}, .gtpu_pcap = nullptr, .rx_lower = nullptr, .tx_upper = nullptr};
-      drb->gtpu_fwd = create_gtpu_tunnel_pdcp(gtpu_fwd_cfg);
-      // Connect SDAP to forwarding tunnel?
-      logger.log_info("Received DL data forwarding tunnel for {}. tnl_info={}",
-                      drb_to_mod.drb_id,
-                      drb->egress_dl_data_forwarding_tnl_info.value());
-      drb->pdcp->get_tx_upper_control_interface().start_dl_forwarding(&drb->pdcp_to_gtpu_forwarding_adapter);
+        auto gtpu_fwd_cfg = gtpu_tunnel_pdcp_creation_message{.ue_index  = ue_index,
+                                                              .cfg       = {},
+                                                              .gtpu_pcap = nullptr,
+                                                              .rx_lower  = nullptr,
+                                                              .tx_upper  = &drb->xnu_gtpu_to_udp_adapter};
+        drb->gtpu_fwd     = create_gtpu_tunnel_pdcp(gtpu_fwd_cfg);
+        // Connect GTP-U TX to Xn-U network gateway.
+        gtpu_tnl_pdu_session& xnu_gw = xnu_session_mngr->get_next_xnu_gateway();
+        drb->xnu_gtpu_to_udp_adapter.connect_network_gateway(xnu_gw);
+        logger.log_info("Received DL data forwarding tunnel for {}. tnl_info={}",
+                        drb_to_mod.drb_id,
+                        drb->egress_dl_data_forwarding_tnl_info.value());
+        drb->pdcp->get_tx_upper_control_interface().start_dl_forwarding(&drb->pdcp_to_gtpu_forwarding_adapter);
+      }
     }
 
     // Apply re-establishment at PDCP

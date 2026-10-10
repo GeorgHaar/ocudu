@@ -6,6 +6,7 @@
 #pragma once
 
 #include "adapters/f1u_adapters.h"
+#include "adapters/gtpu_adapters.h"
 #include "adapters/gw_adapters.h"
 #include "adapters/pdcp_adapters.h"
 #include "qos_flow_context.h"
@@ -86,6 +87,9 @@ struct drb_context {
 
   // Adapter F1-U gateway -> NR-U
   f1u_gateway_rx_nru_adapter f1u_gateway_rx_to_nru_adapter;
+
+  // Adapter GTP-U -> Xn-U gateway
+  gtpu_network_gateway_adapter xnu_gtpu_to_udp_adapter;
 
   uint8_t cell_group_id; /// This can/should be a list of cell groups.
 

@@ -26,6 +26,7 @@ public:
   void on_new_pdu(byte_buffer pdu, const sockaddr_storage& addr) override
   {
     if (gw_handler == nullptr) {
+      /// TODO use prefixed logger to tell the interface.
       ocudulog::fetch_basic_logger("GTPU", false).debug("Dropped UL GTP-U PDU. Adapter is disconnected.");
       return;
     }

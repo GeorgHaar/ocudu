@@ -49,7 +49,18 @@ add_custom_command(
   DEPENDS flatc ${FBS_SCHEMA_PATHS}
   COMMENT "Generating FlatBuffers headers for schedtrace schemas")
 
-add_custom_target(schedtrace_fbs_gen DEPENDS ${FBS_GEN_HEADERS})
+# Binary schema, used to detect schema changes that lack a file format version bump. Filenames are recorded relative
+# to the source directory, so that the output does not depend on the build location.
+set(FBS_BINARY_SCHEMA ${FBS_OUT_DIR}/cell_event.bfbs)
+add_custom_command(
+  OUTPUT ${FBS_BINARY_SCHEMA}
+  COMMAND $<TARGET_FILE:flatc> --binary --schema --bfbs-filenames ${CMAKE_CURRENT_SOURCE_DIR}
+          -I ${CMAKE_CURRENT_SOURCE_DIR} -o ${FBS_OUT_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/cell_event.fbs
+  DEPENDS flatc ${FBS_SCHEMA_PATHS}
+  COMMENT "Generating FlatBuffers binary schema for schedtrace schemas")
+set_property(GLOBAL PROPERTY SCHEDTRACE_BINARY_SCHEMA ${FBS_BINARY_SCHEMA})
+
+add_custom_target(schedtrace_fbs_gen DEPENDS ${FBS_GEN_HEADERS} ${FBS_BINARY_SCHEMA})
 
 # Headers are included as "fbs/<name>_generated.h", so expose the parent of FBS_OUT_DIR.
 get_filename_component(FBS_INCLUDE_DIR ${FBS_OUT_DIR} DIRECTORY)

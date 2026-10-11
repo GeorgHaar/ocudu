@@ -8,8 +8,11 @@ add_executable(sched_event_tracer_test
                event_builder_pool_test.cpp
                event_converter_test.cpp
                event_trace_writer_registry_test.cpp
-               sched_event_tracer_file_test.cpp)
+               sched_event_tracer_file_test.cpp
+               trace_file_format_test.cpp)
 target_link_libraries(sched_event_tracer_test schedtrace schedtrace_fbs scheduler_test_utils ocudu_support ocudulog gtest gtest_main)
+get_property(SCHEDTRACE_BINARY_SCHEMA GLOBAL PROPERTY SCHEDTRACE_BINARY_SCHEMA)
+target_compile_definitions(sched_event_tracer_test PRIVATE SCHEDTRACE_BINARY_SCHEMA="${SCHEDTRACE_BINARY_SCHEMA}")
 gtest_discover_tests(sched_event_tracer_test)
 
 add_executable(trace_to_log_test trace_to_log_test.cpp)

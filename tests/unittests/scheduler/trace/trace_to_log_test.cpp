@@ -6,6 +6,7 @@
 #include "fbs/cell_event_generated.h"
 #include "lib/scheduler/logging/scheduler_result_logger.h"
 #include "lib/scheduler/trace/event_converter.h"
+#include "lib/scheduler/trace/trace_file_format.h"
 #include "roundtrip/full_sched_result.h"
 #include "tests/test_doubles/scheduler/trace/test_messages.h"
 #include "ocudu/ocudulog/ocudulog.h"
@@ -55,8 +56,17 @@ private:
 class cell_trace_stream_builder
 {
 public:
-  cell_trace_stream_builder(uint16_t pci_, const bwp_configuration& dl_bwp, const bwp_configuration& ul_bwp) : pci(pci_)
+  cell_trace_stream_builder(uint16_t                          pci_,
+                            const bwp_configuration&          dl_bwp,
+                            const bwp_configuration&          ul_bwp,
+                            std::optional<trace_file_version> version = trace_file_version{trace_file_version_major,
+                                                                                           trace_file_version_minor}) :
+    pci(pci_)
   {
+    if (version.has_value()) {
+      const auto header = make_trace_file_header(*version);
+      buf.write(reinterpret_cast<const char*>(header.data()), header.size());
+    }
     // The standard test PUCCH resource list lets scheduled PUCCHs be resolved on replay.
     schedtrace::cell_configuration cell_cfg = make_test_schedtrace_cell_cfg();
     cell_cfg.pci                            = pci;
@@ -240,4 +250,30 @@ TEST_F(trace_to_log_test, logged_slot_decisions_survive_the_trace_roundtrip)
       });
   ASSERT_NE(replayed, shared_sink().messages().end());
   EXPECT_EQ(expected, *replayed);
+}
+
+TEST_F(trace_to_log_test, when_file_header_is_missing_then_returns_false)
+{
+  cell_trace_stream_builder builder{0, make_test_bwp_cfg(), make_test_bwp_cfg(), std::nullopt};
+  ASSERT_FALSE(run(builder.get_stream()));
+  ASSERT_FALSE(messages_contain("Cell started"));
+}
+
+TEST_F(trace_to_log_test, when_major_version_differs_then_returns_false)
+{
+  cell_trace_stream_builder builder{
+      0, make_test_bwp_cfg(), make_test_bwp_cfg(), trace_file_version{trace_file_version_major + 1, 0}};
+  ASSERT_FALSE(run(builder.get_stream()));
+  ASSERT_FALSE(messages_contain("Cell started"));
+}
+
+TEST_F(trace_to_log_test, when_minor_version_is_newer_then_trace_is_decoded)
+{
+  cell_trace_stream_builder builder{0,
+                                    make_test_bwp_cfg(),
+                                    make_test_bwp_cfg(),
+                                    trace_file_version{trace_file_version_major, trace_file_version_minor + 1}};
+  ASSERT_TRUE(run(builder.get_stream()));
+  ASSERT_TRUE(messages_contain("Cell started"));
+  ASSERT_TRUE(messages_contain("Cell stopped"));
 }

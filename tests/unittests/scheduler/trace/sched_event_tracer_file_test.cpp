@@ -5,6 +5,7 @@
 
 #include "fbs/cell_event_generated.h"
 #include "lib/scheduler/logging/cell_event_tracer.h"
+#include "lib/scheduler/trace/trace_file_format.h"
 #include "tests/test_doubles/scheduler/trace/test_messages.h"
 #include "trace_test_utils.h"
 #include "ocudu/instrumentation/traces/scheduler_event_tracer.h"
@@ -26,6 +27,16 @@ static std::vector<std::vector<uint8_t>> read_cell_events(const std::filesystem:
 {
   std::ifstream f(dir / fmt::format("schedtrace_cell{}.bin", cell_idx), std::ios::binary);
   EXPECT_TRUE(f.is_open());
+
+  std::array<uint8_t, trace_file_header_size> header;
+  f.read(reinterpret_cast<char*>(header.data()), header.size());
+  EXPECT_TRUE(f.good());
+  const std::optional<trace_file_version> version = parse_trace_file_header(header);
+  EXPECT_TRUE(version.has_value());
+  if (version.has_value()) {
+    EXPECT_EQ(version->major, trace_file_version_major);
+    EXPECT_EQ(version->minor, trace_file_version_minor);
+  }
 
   std::vector<std::vector<uint8_t>> events;
   while (true) {

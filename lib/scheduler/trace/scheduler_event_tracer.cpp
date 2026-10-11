@@ -7,6 +7,7 @@
 #include "../logging/cell_event_tracer.h"
 #include "event_trace_writer_registry.h"
 #include "fbs/cell_event_generated.h"
+#include "trace_file_format.h"
 #include "ocudu/support/executors/task_executor.h"
 #include "ocudu/support/timers.h"
 #include <chrono>
@@ -29,6 +30,8 @@ public:
   {
     report_fatal_error_if_not(
         fptr.is_open(), "Failed to open scheduler cell tracer with path {} for cell {}", base_path, cell_index);
+    const auto header = make_trace_file_header();
+    fptr.write(reinterpret_cast<const char*>(header.data()), header.size());
   }
 
   ~file_trace_writer() override

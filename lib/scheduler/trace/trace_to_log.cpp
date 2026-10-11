@@ -8,6 +8,7 @@
 #include "../logging/scheduler_result_logger.h"
 #include "event_converter.h"
 #include "fbs/cell_event_generated.h"
+#include "trace_file_format.h"
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/ran/bwp/bwp_configuration.h"
 #include "ocudu/ran/pdcch/coreset.h"
@@ -62,6 +63,27 @@ static read_status read_record(std::istream& input, std::vector<uint8_t>& record
 
 bool schedtrace::trace_to_log(std::istream& input, ocudulog::basic_logger& logger)
 {
+  std::array<uint8_t, trace_file_header_size> header;
+  input.read(reinterpret_cast<char*>(header.data()), header.size());
+  if (input.gcount() == 0 and input.eof()) {
+    fmt::print("Warning: Schedtrace file is empty\n");
+    return true;
+  }
+  const std::optional<trace_file_version> version =
+      static_cast<size_t>(input.gcount()) == header.size() ? parse_trace_file_header(header) : std::nullopt;
+  if (not version.has_value()) {
+    fmt::print(stderr, "ERROR: Invalid schedtrace file format. Cause: Missing file header\n");
+    return false;
+  }
+  if (version->major != trace_file_version_major) {
+    fmt::print(stderr,
+               "ERROR: Unsupported schedtrace file format version {}.{}. Supported major version: {}\n",
+               version->major,
+               version->minor,
+               trace_file_version_major);
+    return false;
+  }
+
   // Read first event.
   std::vector<uint8_t> record;
   switch (read_record(input, record)) {

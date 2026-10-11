@@ -120,65 +120,327 @@ static ofdm_symbol_range make_symbols(const Table& ev)
   return ofdm_symbol_range{ev.sym_start(), static_cast<uint8_t>(ev.sym_start() + ev.sym_length())};
 }
 
+/// Converts a CRB interval to the respective flatbuffer struct.
+static fbs::CrbInterval convert_crbs_to_fb(const crb_interval& crbs)
+{
+  return {crbs.start(), static_cast<uint16_t>(crbs.length())};
+}
+
+/// Converts a flatbuffer CRB interval into the original CRB interval.
+static crb_interval convert_fb_to_crbs(const fbs::CrbInterval& fb)
+{
+  return crb_interval::start_and_len(fb.start(), fb.length());
+}
+
+/// Converts a CORESET configuration into its trace representation, resolving its CRBs.
+static cell_coreset make_cell_coreset(const coreset_configuration& cs_cfg, const bwp_configuration& dl_bwp)
+{
+  cell_coreset cs{cs_cfg.get_id(), {}, static_cast<uint8_t>(cs_cfg.duration()), cs_cfg.interleaved_mapping()};
+  if (cs_cfg.get_id() == to_coreset_id(0)) {
+    cs.crbs.push_back(cs_cfg.coreset0_crbs());
+    return cs;
+  }
+  // Each bit of frequencyDomainResources is a group of 6 RBs, counted from the start of the BWP.
+  for_each_interval(cs_cfg.freq_domain_resources(), [&cs, &dl_bwp](size_t start, size_t stop) {
+    cs.crbs.push_back(
+        crb_interval{dl_bwp.crbs.start() + static_cast<unsigned>(start) * pdcch_constants::NOF_RB_PER_FREQ_RESOURCE,
+                     dl_bwp.crbs.start() + static_cast<unsigned>(stop) * pdcch_constants::NOF_RB_PER_FREQ_RESOURCE});
+  });
+  return cs;
+}
+
+/// Converts a search space configuration into its trace representation.
+static cell_search_space make_cell_search_space(const search_space_configuration& ss_cfg)
+{
+  cell_search_space ss{ss_cfg.get_id(), ss_cfg.get_coreset_id(), ss_cfg.is_common_search_space(), {}};
+  const unsigned    nof_entries = ss_cfg.is_search_space0() ? MAX_NOF_SS0_SSB_CANDIDATES : 1;
+  for (unsigned ssb_idx = 0; ssb_idx != nof_entries; ++ssb_idx) {
+    ss.monitoring_symbols.push_back(ss_cfg.get_monitoring_symbols_within_slot(ssb_idx));
+  }
+  return ss;
+}
+
+/// Adds the CORESET to the DL BWP, unless one with the same ID is already present.
+static void add_cell_coreset(dl_bwp_configuration& dl_bwp, const coreset_configuration& cs_cfg)
+{
+  const auto same_id = [&cs_cfg](const cell_coreset& cs) { return cs.id == cs_cfg.get_id(); };
+  if (std::none_of(dl_bwp.coresets.begin(), dl_bwp.coresets.end(), same_id)) {
+    dl_bwp.coresets.push_back(make_cell_coreset(cs_cfg, dl_bwp.generic_params));
+  }
+}
+
+/// Adds the search space to the DL BWP, unless one with the same ID is already present.
+static void add_cell_search_space(dl_bwp_configuration& dl_bwp, const search_space_configuration& ss_cfg)
+{
+  const auto same_id = [&ss_cfg](const cell_search_space& ss) { return ss.id == ss_cfg.get_id(); };
+  if (std::none_of(dl_bwp.search_spaces.begin(), dl_bwp.search_spaces.end(), same_id)) {
+    dl_bwp.search_spaces.push_back(make_cell_search_space(ss_cfg));
+  }
+}
+
 flatbuffers::Offset<fbs::CellStartEvent> schedtrace::convert_cell_cfg_to_fb(flatbuffers::FlatBufferBuilder&  fbb,
                                                                             const ocudu::cell_configuration& cell_cfg)
 {
   schedtrace::cell_configuration trace_cfg;
-  trace_cfg.pci                          = cell_cfg.params.pci;
-  trace_cfg.init_ul_bwp                  = cell_cfg.init_bwp.ul.cfg();
-  trace_cfg.init_dl_bwp                  = cell_cfg.init_bwp.dl.cfg();
+  trace_cfg.pci = cell_cfg.params.pci;
+
+  dl_bwp_configuration& dl_bwp = trace_cfg.init_dl_bwp;
+  dl_bwp.generic_params        = cell_cfg.init_bwp.dl.cfg();
+  // Common CORESETs and search spaces first, so that they take the ID when a UE-dedicated one reuses it.
+  const pdcch_config_common& pdcch_common = cell_cfg.params.dl_cfg_common.init_dl_bwp.pdcch_common;
+  if (pdcch_common.coreset0.has_value()) {
+    add_cell_coreset(dl_bwp, *pdcch_common.coreset0);
+  }
+  if (pdcch_common.common_coreset.has_value()) {
+    add_cell_coreset(dl_bwp, *pdcch_common.common_coreset);
+  }
+  for (const search_space_configuration& ss_cfg : pdcch_common.search_spaces) {
+    add_cell_search_space(dl_bwp, ss_cfg);
+  }
+  for (const pdcch_config& ded_pdcch : cell_cfg.bwp_res[to_bwp_id(0)].dl().ded_pdcchs) {
+    for (const coreset_configuration& cs_cfg : ded_pdcch.coresets) {
+      add_cell_coreset(dl_bwp, cs_cfg);
+    }
+    for (const search_space_configuration& ss_cfg : ded_pdcch.search_spaces) {
+      add_cell_search_space(dl_bwp, ss_cfg);
+    }
+  }
+  dl_bwp.pdsch_vrb_to_prb = cell_cfg.params.init_bwp.pdsch.interleaving_bundle_size;
+
+  ul_bwp_configuration& ul_bwp           = trace_cfg.init_ul_bwp;
+  ul_bwp.generic_params                  = cell_cfg.init_bwp.ul.cfg();
   const cell_pucch_res_config& pucch_res = cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch;
   for (const pucch_resource& res : pucch_res.common) {
-    trace_cfg.pucch_resources.push_back(res);
+    ul_bwp.pucch_resources.push_back(res);
   }
   for (const pucch_resource& res : pucch_res.dedicated) {
-    trace_cfg.pucch_resources.push_back(res);
+    ul_bwp.pucch_resources.push_back(res);
   }
+  if (const auto& rach_cfg = cell_cfg.params.ul_cfg_common.init_ul_bwp.rach_cfg_common; rach_cfg.has_value()) {
+    ul_bwp.prach = cell_prach_config{rach_cfg->rach_cfg_generic.prach_config_index,
+                                     rach_cfg->rach_cfg_generic.msg1_frequency_start,
+                                     rach_cfg->msg1_scs};
+  }
+
   return convert_cell_cfg_to_fb(fbb, trace_cfg);
+}
+
+/// Converts a trace-side DL BWP to the respective flatbuffer table.
+static flatbuffers::Offset<fbs::DlBwp> convert_dl_bwp_to_fb(flatbuffers::FlatBufferBuilder& fbb,
+                                                            const dl_bwp_configuration&     dl_bwp)
+{
+  std::vector<flatbuffers::Offset<fbs::Coreset>> coreset_offs;
+  coreset_offs.reserve(dl_bwp.coresets.size());
+  for (const cell_coreset& cs : dl_bwp.coresets) {
+    std::vector<fbs::CrbInterval> crbs;
+    crbs.reserve(cs.crbs.size());
+    for (const crb_interval& crb_range : cs.crbs) {
+      crbs.push_back(convert_crbs_to_fb(crb_range));
+    }
+    const auto crbs_vec = fbb.CreateVectorOfStructs(crbs);
+
+    flatbuffers::Offset<fbs::CoresetInterleaving> interleaving;
+    if (cs.interleaving.has_value()) {
+      interleaving = fbs::CreateCoresetInterleaving(
+          fbb, cs.interleaving->reg_bundle_sz, cs.interleaving->interleaver_sz, cs.interleaving->shift_index);
+    }
+    coreset_offs.push_back(fbs::CreateCoreset(fbb, cs.id, crbs_vec, cs.duration, interleaving));
+  }
+  const auto coresets_vec = fbb.CreateVector(coreset_offs);
+
+  std::vector<flatbuffers::Offset<fbs::SearchSpace>> ss_offs;
+  ss_offs.reserve(dl_bwp.search_spaces.size());
+  for (const cell_search_space& ss : dl_bwp.search_spaces) {
+    std::vector<uint16_t> symbols;
+    symbols.reserve(ss.monitoring_symbols.size());
+    for (const auto& symbol_bitmap : ss.monitoring_symbols) {
+      uint16_t mask = 0;
+      for (unsigned i_symb = 0; i_symb != symbol_bitmap.size(); ++i_symb) {
+        mask |= static_cast<uint16_t>(symbol_bitmap.test(i_symb)) << i_symb;
+      }
+      symbols.push_back(mask);
+    }
+    ss_offs.push_back(fbs::CreateSearchSpace(fbb, ss.id, ss.cs_id, ss.is_common, fbb.CreateVector(symbols)));
+  }
+  const auto ss_vec = fbb.CreateVector(ss_offs);
+
+  const fbs::BwpConfiguration generic_params = convert_bwp_cfg_to_fb(dl_bwp.generic_params);
+  return fbs::CreateDlBwp(fbb, &generic_params, coresets_vec, ss_vec, static_cast<uint8_t>(dl_bwp.pdsch_vrb_to_prb));
+}
+
+/// Converts a trace-side UL BWP to the respective flatbuffer table.
+static flatbuffers::Offset<fbs::UlBwp> convert_ul_bwp_to_fb(flatbuffers::FlatBufferBuilder& fbb,
+                                                            const ul_bwp_configuration&     ul_bwp)
+{
+  std::vector<flatbuffers::Offset<fbs::PucchResource>> pucch_res_offs;
+  pucch_res_offs.reserve(ul_bwp.pucch_resources.size());
+  for (const pucch_resource& res : ul_bwp.pucch_resources) {
+    pucch_res_offs.push_back(convert_pucch_resource_to_fb(fbb, res));
+  }
+  const auto pucch_res_vec = fbb.CreateVector(pucch_res_offs);
+
+  flatbuffers::Offset<fbs::PrachConfig> prach;
+  if (ul_bwp.prach.has_value()) {
+    prach = fbs::CreatePrachConfig(
+        fbb,
+        ul_bwp.prach->config_index,
+        ul_bwp.prach->frequency_start,
+        is_scs_valid(ul_bwp.prach->scs)
+            ? flatbuffers::Optional<fbs::SubcarrierSpacing>(static_cast<fbs::SubcarrierSpacing>(ul_bwp.prach->scs))
+            : flatbuffers::nullopt);
+  }
+
+  const fbs::BwpConfiguration generic_params = convert_bwp_cfg_to_fb(ul_bwp.generic_params);
+  return fbs::CreateUlBwp(fbb, &generic_params, pucch_res_vec, prach);
 }
 
 flatbuffers::Offset<fbs::CellStartEvent>
 schedtrace::convert_cell_cfg_to_fb(flatbuffers::FlatBufferBuilder& fbb, const schedtrace::cell_configuration& cell_cfg)
 {
-  const fbs::BwpConfiguration ul_bwp = convert_bwp_cfg_to_fb(cell_cfg.init_ul_bwp);
-  const fbs::BwpConfiguration dl_bwp = convert_bwp_cfg_to_fb(cell_cfg.init_dl_bwp);
-
-  std::vector<flatbuffers::Offset<fbs::PucchResource>> pucch_res_offs;
-  pucch_res_offs.reserve(cell_cfg.pucch_resources.size());
-  for (const pucch_resource& res : cell_cfg.pucch_resources) {
-    pucch_res_offs.push_back(convert_pucch_resource_to_fb(fbb, res));
-  }
-  const auto pucch_res_vec = fbb.CreateVector(pucch_res_offs);
-
-  return fbs::CreateCellStartEvent(fbb, cell_cfg.pci, &ul_bwp, &dl_bwp, pucch_res_vec);
+  const auto dl_bwp = convert_dl_bwp_to_fb(fbb, cell_cfg.init_dl_bwp);
+  const auto ul_bwp = convert_ul_bwp_to_fb(fbb, cell_cfg.init_ul_bwp);
+  return fbs::CreateCellStartEvent(fbb, cell_cfg.pci, dl_bwp, ul_bwp);
 }
 
-void schedtrace::convert_fb_to_cell_cfg(cell_configuration& cell_cfg, const fbs::CellStartEvent& start_event)
+/// Converts a flatbuffer DL BWP into the trace-side DL BWP.
+static void convert_fb_to_dl_bwp(dl_bwp_configuration& dl_bwp, const fbs::DlBwp& fb)
 {
-  cell_cfg.pci = start_event.pci();
-  if (start_event.init_dl_bwp() != nullptr) {
-    convert_fb_to_bwp_cfg(cell_cfg.init_dl_bwp, *start_event.init_dl_bwp());
+  if (fb.generic_params() != nullptr) {
+    convert_fb_to_bwp_cfg(dl_bwp.generic_params, *fb.generic_params());
   }
-  if (start_event.init_ul_bwp() != nullptr) {
-    convert_fb_to_bwp_cfg(cell_cfg.init_ul_bwp, *start_event.init_ul_bwp());
+
+  dl_bwp.coresets.clear();
+  if (fb.coresets() != nullptr) {
+    for (const fbs::Coreset* fb_cs : *fb.coresets()) {
+      if (dl_bwp.coresets.full()) {
+        break;
+      }
+      cell_coreset cs{to_coreset_id(fb_cs->id()), {}, fb_cs->duration(), std::nullopt};
+      if (fb_cs->crbs() != nullptr) {
+        for (const fbs::CrbInterval* fb_crbs : *fb_cs->crbs()) {
+          if (cs.crbs.full()) {
+            break;
+          }
+          cs.crbs.push_back(convert_fb_to_crbs(*fb_crbs));
+        }
+      }
+      if (const fbs::CoresetInterleaving* fb_il = fb_cs->interleaving(); fb_il != nullptr) {
+        cs.interleaving = coreset_configuration::interleaved_mapping_type{
+            fb_il->reg_bundle_size(), fb_il->interleaver_size(), fb_il->shift_index()};
+      }
+      dl_bwp.coresets.push_back(cs);
+    }
+  }
+
+  dl_bwp.search_spaces.clear();
+  if (fb.search_spaces() != nullptr) {
+    for (const fbs::SearchSpace* fb_ss : *fb.search_spaces()) {
+      if (dl_bwp.search_spaces.full()) {
+        break;
+      }
+      cell_search_space ss{to_search_space_id(fb_ss->id()), to_coreset_id(fb_ss->coreset_id()), fb_ss->is_common(), {}};
+      if (fb_ss->monitoring_symbols() != nullptr) {
+        for (uint16_t mask : *fb_ss->monitoring_symbols()) {
+          if (ss.monitoring_symbols.full()) {
+            break;
+          }
+          search_space_configuration::monitoring_symbols_within_slot_t symbols(NOF_OFDM_SYM_PER_SLOT_NORMAL_CP);
+          for (unsigned i_symb = 0; i_symb != symbols.size(); ++i_symb) {
+            if ((mask >> i_symb) & 1U) {
+              symbols.set(i_symb);
+            }
+          }
+          ss.monitoring_symbols.push_back(symbols);
+        }
+      }
+      dl_bwp.search_spaces.push_back(ss);
+    }
+  }
+
+  dl_bwp.pdsch_vrb_to_prb = static_cast<vrb_to_prb::mapping_type>(fb.pdsch_vrb_to_prb_bundle_size());
+}
+
+/// Converts a flatbuffer UL BWP into the trace-side UL BWP.
+static void convert_fb_to_ul_bwp(ul_bwp_configuration& ul_bwp, const fbs::UlBwp& fb)
+{
+  if (fb.generic_params() != nullptr) {
+    convert_fb_to_bwp_cfg(ul_bwp.generic_params, *fb.generic_params());
   }
 
   // The PUCCH resource list contains first the common resources, followed by the dedicated ones. The resource ID is
   // derived from the position of the resource in the list.
-  cell_cfg.pucch_resources.clear();
-  if (start_event.pucch_resources() != nullptr) {
+  ul_bwp.pucch_resources.clear();
+  if (fb.pucch_resources() != nullptr) {
     unsigned cell_res_idx = 0;
-    for (const fbs::PucchResource* fb_res : *start_event.pucch_resources()) {
+    for (const fbs::PucchResource* fb_res : *fb.pucch_resources()) {
       pucch_res_id_t res_id =
           cell_res_idx < pucch_constants::MAX_NOF_CELL_COMMON_PUCCH_RESOURCES
               ? pucch_res_id_t::make_cmn(cell_res_idx)
               : pucch_res_id_t::make_ded(cell_res_idx - pucch_constants::MAX_NOF_CELL_COMMON_PUCCH_RESOURCES, 0);
       pucch_resource res;
       convert_fb_to_pucch_resource(res, *fb_res, res_id);
-      cell_cfg.pucch_resources.push_back(res);
+      ul_bwp.pucch_resources.push_back(res);
       ++cell_res_idx;
     }
   }
+
+  ul_bwp.prach.reset();
+  if (const fbs::PrachConfig* fb_prach = fb.prach(); fb_prach != nullptr) {
+    ul_bwp.prach =
+        cell_prach_config{fb_prach->config_index(),
+                          fb_prach->frequency_start(),
+                          fb_prach->scs().has_value() ? static_cast<subcarrier_spacing>(fb_prach->scs().value())
+                                                      : subcarrier_spacing::invalid};
+  }
+}
+
+void schedtrace::convert_fb_to_cell_cfg(cell_configuration& cell_cfg, const fbs::CellStartEvent& start_event)
+{
+  cell_cfg.pci = start_event.pci();
+  if (start_event.init_dl_bwp() != nullptr) {
+    convert_fb_to_dl_bwp(cell_cfg.init_dl_bwp, *start_event.init_dl_bwp());
+  }
+  if (start_event.init_ul_bwp() != nullptr) {
+    convert_fb_to_ul_bwp(cell_cfg.init_ul_bwp, *start_event.init_ul_bwp());
+  }
+}
+
+std::vector<coreset_configuration> schedtrace::make_coreset_cfgs(const dl_bwp_configuration& dl_bwp)
+{
+  std::vector<coreset_configuration> cfgs;
+  for (const cell_coreset& cs : dl_bwp.coresets) {
+    // CORESET#0 is only constructible from the MIB parameters, which the trace does not carry.
+    if (cs.id == to_coreset_id(0)) {
+      continue;
+    }
+    freq_resource_bitmap freq_res(pdcch_constants::MAX_NOF_FREQ_RESOURCES);
+    for (const crb_interval& crbs : cs.crbs) {
+      // Skip ranges that do not fit the bitmap, which only a corrupted trace contains.
+      if (crbs.start() < dl_bwp.generic_params.crbs.start()) {
+        continue;
+      }
+      const unsigned first_group =
+          (crbs.start() - dl_bwp.generic_params.crbs.start()) / pdcch_constants::NOF_RB_PER_FREQ_RESOURCE;
+      const unsigned last_group = first_group + crbs.length() / pdcch_constants::NOF_RB_PER_FREQ_RESOURCE;
+      if (last_group <= freq_res.size()) {
+        freq_res.fill(first_group, last_group);
+      }
+    }
+    cfgs.emplace_back(cs.id,
+                      freq_res,
+                      cs.duration,
+                      cs.interleaving,
+                      coreset_configuration::precoder_granularity_type::same_as_reg_bundle);
+  }
+  return cfgs;
+}
+
+/// Returns the CORESET with the given ID from \p coresets, or a stub CORESET if absent.
+static const coreset_configuration& find_coreset_cfg(span<const coreset_configuration> coresets, unsigned cs_id)
+{
+  const auto* it = std::find_if(
+      coresets.begin(), coresets.end(), [cs_id](const coreset_configuration& cs) { return cs.get_id() == cs_id; });
+  return it != coresets.end() ? *it : get_stub_coreset_cfg(cs_id);
 }
 
 flatbuffers::Offset<fbs::PucchResource> schedtrace::convert_pucch_resource_to_fb(flatbuffers::FlatBufferBuilder& fbb,
@@ -268,15 +530,14 @@ fbs::BwpConfiguration schedtrace::convert_bwp_cfg_to_fb(const bwp_configuration&
 {
   return fbs::BwpConfiguration(static_cast<fbs::CyclicPrefix>(bwp.cp.value),
                                static_cast<fbs::SubcarrierSpacing>(bwp.scs),
-                               bwp.crbs.start(),
-                               bwp.crbs.length());
+                               convert_crbs_to_fb(bwp.crbs));
 }
 
 void schedtrace::convert_fb_to_bwp_cfg(bwp_configuration& bwp, const fbs::BwpConfiguration& fb)
 {
   bwp.cp   = fb.cp() == fbs::CyclicPrefix::Normal ? cyclic_prefix::NORMAL : cyclic_prefix::EXTENDED;
   bwp.scs  = static_cast<subcarrier_spacing>(fb.scs());
-  bwp.crbs = crb_interval::start_and_len(fb.crb_start(), fb.crb_length());
+  bwp.crbs = convert_fb_to_crbs(fb.crbs());
 }
 
 flatbuffers::Offset<fbs::Pucch> schedtrace::convert_pucch_info_to_fb(flatbuffers::FlatBufferBuilder& fbb,
@@ -695,8 +956,7 @@ fbs::CsiRs schedtrace::convert_csi_rs_to_fb(const csi_rs_info& csi)
 {
   // to_uint64() asserts on an empty bitset.
   const uint16_t freq_domain = csi.freq_domain.size() == 0 ? 0 : static_cast<uint16_t>(csi.freq_domain.to_uint64());
-  return {csi.crbs.start(),
-          static_cast<uint16_t>(csi.crbs.length()),
+  return {convert_crbs_to_fb(csi.crbs),
           static_cast<uint8_t>(csi.type),
           csi.row,
           freq_domain,
@@ -713,7 +973,7 @@ fbs::CsiRs schedtrace::convert_csi_rs_to_fb(const csi_rs_info& csi)
 void schedtrace::convert_fb_to_csi_rs(csi_rs_info& csi, const fbs::CsiRs& fb, const bwp_configuration* dl_bwp)
 {
   csi.bwp_cfg     = dl_bwp;
-  csi.crbs        = crb_interval{fb.crb_start(), fb.crb_start() + fb.crb_length()};
+  csi.crbs        = convert_fb_to_crbs(fb.crbs());
   csi.type        = static_cast<csi_rs_type>(fb.type());
   csi.row         = fb.row();
   csi.freq_domain = bounded_bitset<12, false>(fb.freq_domain_nof_bits());
@@ -733,8 +993,7 @@ void schedtrace::convert_fb_to_csi_rs(csi_rs_info& csi, const fbs::CsiRs& fb, co
 fbs::Ssb schedtrace::convert_ssb_to_fb(const ssb_information& ssb)
 {
   return {ssb.ssb_index,
-          ssb.crbs.start(),
-          static_cast<uint16_t>(ssb.crbs.length()),
+          convert_crbs_to_fb(ssb.crbs),
           static_cast<uint8_t>(ssb.symbols.start()),
           static_cast<uint8_t>(ssb.symbols.length())};
 }
@@ -742,7 +1001,7 @@ fbs::Ssb schedtrace::convert_ssb_to_fb(const ssb_information& ssb)
 void schedtrace::convert_fb_to_ssb(ssb_information& ssb, const fbs::Ssb& fb)
 {
   ssb.ssb_index = fb.ssb_index();
-  ssb.crbs      = crb_interval{fb.crb_start(), fb.crb_start() + fb.crb_length()};
+  ssb.crbs      = convert_fb_to_crbs(fb.crbs());
   ssb.symbols   = ofdm_symbol_range{fb.sym_start(), static_cast<uint8_t>(fb.sym_start() + fb.sym_length())};
 }
 
@@ -804,9 +1063,11 @@ fbs::DlPdcch schedtrace::convert_dl_pdcch_to_fb(const pdcch_dl_information& pdcc
           pucch_res_ind};
 }
 
-void schedtrace::convert_fb_to_dl_pdcch(pdcch_dl_information& pdcch, const fbs::DlPdcch& fb)
+void schedtrace::convert_fb_to_dl_pdcch(pdcch_dl_information&             pdcch,
+                                        const fbs::DlPdcch&               fb,
+                                        span<const coreset_configuration> coresets)
 {
-  pdcch.ctx.coreset_cfg   = &get_stub_coreset_cfg(fb.coreset_id());
+  pdcch.ctx.coreset_cfg   = &find_coreset_cfg(coresets, fb.coreset_id());
   pdcch.ctx.rnti          = to_rnti(fb.rnti());
   pdcch.ctx.context.ss_id = to_search_space_id(fb.ss_id());
   pdcch.ctx.cces.ncce     = fb.cce();
@@ -890,9 +1151,11 @@ fbs::UlPdcch schedtrace::convert_ul_pdcch_to_fb(const pdcch_ul_information& pdcc
           mcs};
 }
 
-void schedtrace::convert_fb_to_ul_pdcch(pdcch_ul_information& pdcch, const fbs::UlPdcch& fb)
+void schedtrace::convert_fb_to_ul_pdcch(pdcch_ul_information&             pdcch,
+                                        const fbs::UlPdcch&               fb,
+                                        span<const coreset_configuration> coresets)
 {
-  pdcch.ctx.coreset_cfg   = &get_stub_coreset_cfg(fb.coreset_id());
+  pdcch.ctx.coreset_cfg   = &find_coreset_cfg(coresets, fb.coreset_id());
   pdcch.ctx.rnti          = to_rnti(fb.rnti());
   pdcch.ctx.context.ss_id = to_search_space_id(fb.ss_id());
   pdcch.ctx.cces.ncce     = fb.cce();
@@ -1071,14 +1334,15 @@ flatbuffers::Offset<fbs::SlotDecision> schedtrace::convert_decision_to_fb(flatbu
                                  any_failed_attempts ? &failed_attempts : nullptr);
 }
 
-void schedtrace::convert_fb_to_decision(sched_result&             result,
-                                        const fbs::SlotDecision&  decision,
-                                        const cell_configuration& cell_cfg)
+void schedtrace::convert_fb_to_decision(sched_result&                     result,
+                                        const fbs::SlotDecision&          decision,
+                                        const cell_configuration&         cell_cfg,
+                                        span<const coreset_configuration> coresets)
 {
   if (decision.sib_pdschs() != nullptr) {
     for (const fbs::SibPdsch* sib_ev : *decision.sib_pdschs()) {
       sib_information sib{};
-      convert_fb_to_sib_pdsch(sib, *sib_ev, &cell_cfg.init_dl_bwp);
+      convert_fb_to_sib_pdsch(sib, *sib_ev, &cell_cfg.init_dl_bwp.generic_params);
       result.dl.bc.sibs.push_back(sib);
     }
   }
@@ -1086,7 +1350,7 @@ void schedtrace::convert_fb_to_decision(sched_result&             result,
   if (decision.rar_pdschs() != nullptr) {
     for (const fbs::RarPdsch* rar_ev : *decision.rar_pdschs()) {
       rar_information rar{};
-      convert_fb_to_rar_pdsch(rar, *rar_ev, &cell_cfg.init_dl_bwp);
+      convert_fb_to_rar_pdsch(rar, *rar_ev, &cell_cfg.init_dl_bwp.generic_params);
       result.dl.rar_grants.push_back(rar);
     }
   }
@@ -1094,7 +1358,7 @@ void schedtrace::convert_fb_to_decision(sched_result&             result,
   if (decision.paging_pdschs() != nullptr) {
     for (const fbs::PagingPdsch* pg_ev : *decision.paging_pdschs()) {
       dl_paging_allocation pg{};
-      convert_fb_to_paging_pdsch(pg, *pg_ev, &cell_cfg.init_dl_bwp);
+      convert_fb_to_paging_pdsch(pg, *pg_ev, &cell_cfg.init_dl_bwp.generic_params);
       result.dl.paging_grants.push_back(pg);
     }
   }
@@ -1102,7 +1366,7 @@ void schedtrace::convert_fb_to_decision(sched_result&             result,
   if (decision.ue_pdschs() != nullptr) {
     for (const fbs::Pdsch* pdsch_ev : *decision.ue_pdschs()) {
       dl_msg_alloc alloc{};
-      convert_fb_to_pdsch(alloc, *pdsch_ev, &cell_cfg.init_dl_bwp);
+      convert_fb_to_pdsch(alloc, *pdsch_ev, &cell_cfg.init_dl_bwp.generic_params);
       result.dl.ue_grants.push_back(alloc);
     }
   }
@@ -1110,7 +1374,7 @@ void schedtrace::convert_fb_to_decision(sched_result&             result,
   if (decision.puschs() != nullptr) {
     for (const fbs::Pusch* pusch_ev : *decision.puschs()) {
       ul_sched_info alloc{};
-      convert_fb_to_pusch(alloc, *pusch_ev, &cell_cfg.init_ul_bwp);
+      convert_fb_to_pusch(alloc, *pusch_ev, &cell_cfg.init_ul_bwp.generic_params);
       result.ul.puschs.push_back(alloc);
     }
   }
@@ -1118,7 +1382,8 @@ void schedtrace::convert_fb_to_decision(sched_result&             result,
   if (decision.pucchs() != nullptr) {
     for (const fbs::Pucch* pucch_ev : *decision.pucchs()) {
       pucch_info alloc{};
-      convert_fb_to_pucch_info(alloc, *pucch_ev, &cell_cfg.init_ul_bwp, cell_cfg.pucch_resources);
+      convert_fb_to_pucch_info(
+          alloc, *pucch_ev, &cell_cfg.init_ul_bwp.generic_params, cell_cfg.init_ul_bwp.pucch_resources);
       result.ul.pucchs.emplace(alloc);
     }
   }
@@ -1126,7 +1391,7 @@ void schedtrace::convert_fb_to_decision(sched_result&             result,
   if (decision.dl_pdcchs() != nullptr) {
     for (const fbs::DlPdcch* pdcch_ev : *decision.dl_pdcchs()) {
       pdcch_dl_information pdcch{};
-      convert_fb_to_dl_pdcch(pdcch, *pdcch_ev);
+      convert_fb_to_dl_pdcch(pdcch, *pdcch_ev, coresets);
       result.dl.dl_pdcchs.push_back(pdcch);
     }
   }
@@ -1134,7 +1399,7 @@ void schedtrace::convert_fb_to_decision(sched_result&             result,
   if (decision.ul_pdcchs() != nullptr) {
     for (const fbs::UlPdcch* pdcch_ev : *decision.ul_pdcchs()) {
       pdcch_ul_information pdcch{};
-      convert_fb_to_ul_pdcch(pdcch, *pdcch_ev);
+      convert_fb_to_ul_pdcch(pdcch, *pdcch_ev, coresets);
       result.dl.ul_pdcchs.push_back(pdcch);
     }
   }
@@ -1154,7 +1419,7 @@ void schedtrace::convert_fb_to_decision(sched_result&             result,
   if (decision.csi_rs() != nullptr) {
     for (const fbs::CsiRs* csi_ev : *decision.csi_rs()) {
       csi_rs_info csi;
-      convert_fb_to_csi_rs(csi, *csi_ev, &cell_cfg.init_dl_bwp);
+      convert_fb_to_csi_rs(csi, *csi_ev, &cell_cfg.init_dl_bwp.generic_params);
       result.dl.csi_rs.push_back(csi);
     }
   }
@@ -1170,7 +1435,7 @@ void schedtrace::convert_fb_to_decision(sched_result&             result,
   if (decision.srss() != nullptr) {
     for (const fbs::Srs* srs_ev : *decision.srss()) {
       srs_info srs;
-      convert_fb_to_srs(srs, *srs_ev, &cell_cfg.init_ul_bwp);
+      convert_fb_to_srs(srs, *srs_ev, &cell_cfg.init_ul_bwp.generic_params);
       result.ul.srss.push_back(srs);
     }
   }

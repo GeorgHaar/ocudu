@@ -19,6 +19,7 @@
 #include "ocudu/adt/span.h"
 #include "ocudu/ran/du_cell_index.h"
 #include "ocudu/ran/subcarrier_spacing.h"
+#include <vector>
 
 namespace ocudu {
 
@@ -56,6 +57,11 @@ flatbuffers::Offset<fbs::CellStartEvent> convert_cell_cfg_to_fb(flatbuffers::Fla
 
 /// Convert a flatbuffer start event into the original cell configuration.
 void convert_fb_to_cell_cfg(cell_configuration& cell_cfg, const fbs::CellStartEvent& start_event);
+
+/// \brief Builds the CORESET configurations of a decoded DL BWP, except CORESET#0.
+///
+/// CORESET#0 is only constructible from the MIB parameters, which the trace does not carry.
+std::vector<coreset_configuration> make_coreset_cfgs(const dl_bwp_configuration& dl_bwp);
 
 /// Convert a PUCCH resource to the respective flatbuffer table.
 flatbuffers::Offset<fbs::PucchResource> convert_pucch_resource_to_fb(flatbuffers::FlatBufferBuilder& fbb,
@@ -162,16 +168,24 @@ const coreset_configuration& get_stub_coreset_cfg(unsigned cs_id);
 /// define them.
 fbs::DlPdcch convert_dl_pdcch_to_fb(const pdcch_dl_information& pdcch);
 
-/// Convert a flatbuffer DL PDCCH into the original DL PDCCH allocation, resolving the coreset ID to a stub coreset.
-void convert_fb_to_dl_pdcch(pdcch_dl_information& pdcch, const fbs::DlPdcch& fb);
+/// \brief Convert a flatbuffer DL PDCCH into the original DL PDCCH allocation.
+///
+/// The coreset ID is resolved to the CORESET of \p coresets with that ID, or to a stub CORESET if absent.
+void convert_fb_to_dl_pdcch(pdcch_dl_information&             pdcch,
+                            const fbs::DlPdcch&               fb,
+                            span<const coreset_configuration> coresets = {});
 
 /// \brief Convert a UL PDCCH allocation to the respective flatbuffer struct.
 ///
 /// As with the DL, the wire format carries only a summary of the DCI payload (see fbs::UlPdcch).
 fbs::UlPdcch convert_ul_pdcch_to_fb(const pdcch_ul_information& pdcch);
 
-/// Convert a flatbuffer UL PDCCH into the original UL PDCCH allocation, resolving the coreset ID to a stub coreset.
-void convert_fb_to_ul_pdcch(pdcch_ul_information& pdcch, const fbs::UlPdcch& fb);
+/// \brief Convert a flatbuffer UL PDCCH into the original UL PDCCH allocation.
+///
+/// The coreset ID is resolved as in convert_fb_to_dl_pdcch.
+void convert_fb_to_ul_pdcch(pdcch_ul_information&             pdcch,
+                            const fbs::UlPdcch&               fb,
+                            span<const coreset_configuration> coresets = {});
 
 /// Convert a PRACH occasion to the respective flatbuffer struct.
 fbs::Prach convert_prach_to_fb(const prach_occasion_info& prach);
@@ -189,10 +203,13 @@ void convert_fb_to_failed_attempts(failed_alloc_attempts& failed_attempts, const
 flatbuffers::Offset<fbs::SlotDecision> convert_decision_to_fb(flatbuffers::FlatBufferBuilder& fbb,
                                                               const sched_result&             result);
 
-/// Convert a flatbuffer SlotDecision into the original scheduler decision.
-void convert_fb_to_decision(sched_result&             result,
-                            const fbs::SlotDecision&  decision,
-                            const cell_configuration& cell_cfg);
+/// \brief Convert a flatbuffer SlotDecision into the original scheduler decision.
+///
+/// \p coresets resolves the coreset IDs of the PDCCHs, see convert_fb_to_dl_pdcch.
+void convert_fb_to_decision(sched_result&                     result,
+                            const fbs::SlotDecision&          decision,
+                            const cell_configuration&         cell_cfg,
+                            span<const coreset_configuration> coresets = {});
 
 /// Convert a RACH indication to the respective flatbuffer table.
 flatbuffers::Offset<fbs::RachIndication> convert_rach_indication_to_fb(flatbuffers::FlatBufferBuilder& fbb,

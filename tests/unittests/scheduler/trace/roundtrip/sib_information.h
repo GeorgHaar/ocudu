@@ -51,7 +51,7 @@ struct roundtrip_traits<sib_information> {
     return roundtrip_via<fbs::SibPdsch>(
         sib, convert_sib_pdsch_to_fb, [](sib_information& out, const fbs::SibPdsch& fb) {
           const cell_configuration& cell_cfg = test_helper::make_test_schedtrace_cell_cfg();
-          convert_fb_to_sib_pdsch(out, fb, &cell_cfg.init_dl_bwp);
+          convert_fb_to_sib_pdsch(out, fb, &cell_cfg.init_dl_bwp.generic_params);
         });
   }
 };
@@ -63,7 +63,7 @@ struct test_values<sib_information> {
   {
     sib_information sib{};
     sib.si_indicator      = sib_information::sib1;
-    sib.pdsch_cfg.bwp_cfg = &test_helper::make_test_schedtrace_cell_cfg().init_dl_bwp;
+    sib.pdsch_cfg.bwp_cfg = &test_helper::make_test_schedtrace_cell_cfg().init_dl_bwp.generic_params;
     sib.pdsch_cfg.rbs     = vrb_alloc(vrb_interval{0, 0});
     sib.pdsch_cfg.symbols = ofdm_symbol_range{0, 1};
     pdsch_codeword cw{};

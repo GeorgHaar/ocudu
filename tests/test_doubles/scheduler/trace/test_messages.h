@@ -27,31 +27,31 @@ inline const cell_configuration& make_test_schedtrace_cell_cfg()
 {
   static const cell_configuration cfg = [] {
     cell_configuration c;
-    c.pci         = 1;
-    c.init_dl_bwp = make_test_bwp_cfg();
-    c.init_ul_bwp = make_test_bwp_cfg();
+    c.pci                        = 1;
+    c.init_dl_bwp.generic_params = make_test_bwp_cfg();
+    c.init_ul_bwp.generic_params = make_test_bwp_cfg();
 
     constexpr unsigned pucch_res_common = 11;
-    for (const auto& res :
-         config_helpers::generate_cell_common_pucch_res_list(pucch_res_common, c.init_ul_bwp.crbs.length())) {
-      c.pucch_resources.push_back(res);
+    const unsigned     ul_bwp_nof_crbs  = c.init_ul_bwp.generic_params.crbs.length();
+    for (const auto& res : config_helpers::generate_cell_common_pucch_res_list(pucch_res_common, ul_bwp_nof_crbs)) {
+      c.init_ul_bwp.pucch_resources.push_back(res);
     }
     for (const auto& res : config_helpers::generate_cell_pucch_res_list(
              pucch_resource_builder_params{},
-             c.init_ul_bwp.crbs.length(),
-             get_pucch_default_nof_edge_prbs(pucch_res_common, c.init_ul_bwp.crbs.length()))) {
-      c.pucch_resources.push_back(res);
+             ul_bwp_nof_crbs,
+             get_pucch_default_nof_edge_prbs(pucch_res_common, ul_bwp_nof_crbs))) {
+      c.init_ul_bwp.pucch_resources.push_back(res);
     }
     return c;
   }();
   return cfg;
 }
 
-/// Returns the index, within make_test_schedtrace_cell_cfg().pucch_resources, of the first resource with the given
-/// format. Returns 0 if none is found.
+/// Returns the index, within make_test_schedtrace_cell_cfg().init_ul_bwp.pucch_resources, of the first resource with
+/// the given format. Returns 0 if none is found.
 inline unsigned find_test_pucch_res_idx(pucch_format format)
 {
-  const auto& res_list = make_test_schedtrace_cell_cfg().pucch_resources;
+  const auto& res_list = make_test_schedtrace_cell_cfg().init_ul_bwp.pucch_resources;
   for (unsigned i = 0; i != res_list.size(); ++i) {
     if (res_list[i].format() == format) {
       return i;

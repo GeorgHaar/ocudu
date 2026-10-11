@@ -10,8 +10,11 @@
 #include "fbs/cell_event_generated.h"
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/ran/bwp/bwp_configuration.h"
+#include "ocudu/ran/pdcch/coreset.h"
 #include "ocudu/scheduler/result/sched_result.h"
 #include "ocudu/scheduler/scheduler_rach_handler.h"
+#include "ocudu/support/format/fmt_to_c_str.h"
+#include "fmt/ranges.h"
 #include <vector>
 
 using namespace ocudu;
@@ -82,15 +85,29 @@ bool schedtrace::trace_to_log(std::istream& input, ocudulog::basic_logger& logge
 
   cell_configuration cell_cfg;
   convert_fb_to_cell_cfg(cell_cfg, *ev->value_as_CellStartEvent());
-  const auto dl_scs = cell_cfg.init_dl_bwp.scs;
-  logger.info("pci={}: Cell started. dl_bwp=[scs={} crbs=[{},{})] ul_bwp=[scs={} crbs=[{},{})]",
+  const auto         dl_scs = cell_cfg.init_dl_bwp.generic_params.scs;
+  fmt::memory_buffer coresets_str;
+  for (const cell_coreset& cs : cell_cfg.init_dl_bwp.coresets) {
+    fmt::format_to(std::back_inserter(coresets_str),
+                   "{}[id={} crbs={} dur={}{}]",
+                   coresets_str.size() == 0 ? "" : " ",
+                   fmt::underlying(cs.id),
+                   fmt::join(cs.crbs, ","),
+                   cs.duration,
+                   cs.interleaving.has_value() ? " interleaved" : "");
+  }
+  logger.info("pci={}: Cell started. dl_bwp=[scs={} crbs=[{},{})] ul_bwp=[scs={} crbs=[{},{})] coresets=[{}]",
               cell_cfg.pci,
-              to_string(cell_cfg.init_dl_bwp.scs),
-              cell_cfg.init_dl_bwp.crbs.start(),
-              cell_cfg.init_dl_bwp.crbs.stop(),
-              to_string(cell_cfg.init_ul_bwp.scs),
-              cell_cfg.init_ul_bwp.crbs.start(),
-              cell_cfg.init_ul_bwp.crbs.stop());
+              to_string(cell_cfg.init_dl_bwp.generic_params.scs),
+              cell_cfg.init_dl_bwp.generic_params.crbs.start(),
+              cell_cfg.init_dl_bwp.generic_params.crbs.stop(),
+              to_string(cell_cfg.init_ul_bwp.generic_params.scs),
+              cell_cfg.init_ul_bwp.generic_params.crbs.start(),
+              cell_cfg.init_ul_bwp.generic_params.crbs.stop(),
+              to_c_str(coresets_str));
+
+  // PDCCHs on CORESETs absent from this list refer to stub CORESETs.
+  const std::vector<coreset_configuration> coresets = make_coreset_cfgs(cell_cfg.init_dl_bwp);
 
   // The trace does not carry the DU cell index, as each trace file holds a single cell.
   const du_cell_index_t cell_index = to_du_cell_index(0);
@@ -113,7 +130,7 @@ bool schedtrace::trace_to_log(std::istream& input, ocudulog::basic_logger& logge
         sched_result              result;
         result.success = true;
         if (slot_ev.decision() != nullptr) {
-          convert_fb_to_decision(result, *slot_ev.decision(), cell_cfg);
+          convert_fb_to_decision(result, *slot_ev.decision(), cell_cfg, coresets);
         }
         slot_point sl_tx = {dl_scs, slot_ev.slot_tx()};
         logger.set_context(sl_tx.sfn(), sl_tx.slot_index());
@@ -123,13 +140,13 @@ bool schedtrace::trace_to_log(std::istream& input, ocudulog::basic_logger& logge
             case fbs::SlotInput::RachIndication: {
               const auto*             rach_ind = static_cast<const fbs::RachIndication*>(slot_ev.inputs()->Get(i));
               rach_indication_message msg;
-              convert_fb_to_rach_indication(msg, *rach_ind, cell_cfg.init_ul_bwp.scs, cell_index);
+              convert_fb_to_rach_indication(msg, *rach_ind, cell_cfg.init_ul_bwp.generic_params.scs, cell_index);
               event_logger.enqueue(msg);
             } break;
             case fbs::SlotInput::HarqAckEvent: {
               const auto*    harq_ack = static_cast<const fbs::HarqAckEvent*>(slot_ev.inputs()->Get(i));
               harq_ack_event event;
-              convert_fb_to_harq_ack_event(event, *harq_ack, cell_cfg.init_ul_bwp.scs, cell_index);
+              convert_fb_to_harq_ack_event(event, *harq_ack, cell_cfg.init_ul_bwp.generic_params.scs, cell_index);
               event_logger.enqueue(event);
             } break;
             case fbs::SlotInput::SrEvent: {
@@ -141,7 +158,7 @@ bool schedtrace::trace_to_log(std::istream& input, ocudulog::basic_logger& logge
             case fbs::SlotInput::CsiReportEvent: {
               const auto*      csi_report = static_cast<const fbs::CsiReportEvent*>(slot_ev.inputs()->Get(i));
               csi_report_event event;
-              convert_fb_to_csi_report_event(event, *csi_report, cell_cfg.init_ul_bwp.scs);
+              convert_fb_to_csi_report_event(event, *csi_report, cell_cfg.init_ul_bwp.generic_params.scs);
               event_logger.enqueue(event);
             } break;
             default:

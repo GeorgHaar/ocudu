@@ -77,7 +77,7 @@ struct roundtrip_traits<rar_information> {
     return roundtrip_via<fbs::RarPdsch>(
         rar, convert_rar_pdsch_to_fb, [](rar_information& out, const fbs::RarPdsch& fb) {
           const cell_configuration& cell_cfg = test_helper::make_test_schedtrace_cell_cfg();
-          convert_fb_to_rar_pdsch(out, fb, &cell_cfg.init_dl_bwp);
+          convert_fb_to_rar_pdsch(out, fb, &cell_cfg.init_dl_bwp.generic_params);
         });
   }
 };
@@ -89,7 +89,7 @@ struct test_values<rar_information> {
   {
     rar_information rar{};
     rar.pdsch_cfg.rnti    = rnti_t::INVALID_RNTI;
-    rar.pdsch_cfg.bwp_cfg = &test_helper::make_test_schedtrace_cell_cfg().init_dl_bwp;
+    rar.pdsch_cfg.bwp_cfg = &test_helper::make_test_schedtrace_cell_cfg().init_dl_bwp.generic_params;
     rar.pdsch_cfg.rbs     = vrb_alloc(vrb_interval{0, 0});
     rar.pdsch_cfg.symbols = ofdm_symbol_range{0, 1};
     pdsch_codeword cw{};

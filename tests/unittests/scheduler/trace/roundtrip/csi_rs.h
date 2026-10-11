@@ -58,7 +58,7 @@ struct test_values<csi_rs_info> {
   static std::vector<csi_rs_info> get()
   {
     csi_rs_info base{};
-    base.bwp_cfg = &test_helper::make_test_schedtrace_cell_cfg().init_dl_bwp;
+    base.bwp_cfg = &test_helper::make_test_schedtrace_cell_cfg().init_dl_bwp.generic_params;
     return field_variations_from(base);
   }
 };
@@ -82,7 +82,7 @@ struct roundtrip_traits<csi_rs_info> {
   {
     csi_rs_info               result{};
     const cell_configuration& cell_cfg = test_helper::make_test_schedtrace_cell_cfg();
-    convert_fb_to_csi_rs(result, convert_csi_rs_to_fb(csi), &cell_cfg.init_dl_bwp);
+    convert_fb_to_csi_rs(result, convert_csi_rs_to_fb(csi), &cell_cfg.init_dl_bwp.generic_params);
     return result;
   }
 };

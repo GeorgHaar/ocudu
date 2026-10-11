@@ -13,13 +13,17 @@
 
 namespace ocudu::schedtrace::test_helper {
 
-inline void check_bwp_cfg(const fbs::BwpConfiguration* bwp_ev, const ocudu::bwp_configuration& bwp)
+/// Checks the generic parameters of a DL or UL BWP table against \p bwp.
+template <typename BwpTable>
+void check_bwp_cfg(const BwpTable* bwp_ev, const ocudu::bwp_configuration& bwp)
 {
   ASSERT_NE(bwp_ev, nullptr);
-  EXPECT_EQ(bwp_ev->cp(), static_cast<fbs::CyclicPrefix>(bwp.cp.value));
-  EXPECT_EQ(bwp_ev->scs(), static_cast<fbs::SubcarrierSpacing>(bwp.scs));
-  EXPECT_EQ(bwp_ev->crb_start(), bwp.crbs.start());
-  EXPECT_EQ(bwp_ev->crb_length(), bwp.crbs.length());
+  const fbs::BwpConfiguration* generic_params = bwp_ev->generic_params();
+  ASSERT_NE(generic_params, nullptr);
+  EXPECT_EQ(generic_params->cp(), static_cast<fbs::CyclicPrefix>(bwp.cp.value));
+  EXPECT_EQ(generic_params->scs(), static_cast<fbs::SubcarrierSpacing>(bwp.scs));
+  EXPECT_EQ(generic_params->crbs().start(), bwp.crbs.start());
+  EXPECT_EQ(generic_params->crbs().length(), bwp.crbs.length());
 }
 
 /// Returns a real scheduler cell configuration for the given cell index, suitable for constructing a cell event tracer.

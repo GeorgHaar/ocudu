@@ -76,7 +76,7 @@ struct roundtrip_traits<srs_info> {
   {
     srs_info                  result{};
     const cell_configuration& cell_cfg = test_helper::make_test_schedtrace_cell_cfg();
-    convert_fb_to_srs(result, convert_srs_to_fb(srs), &cell_cfg.init_ul_bwp);
+    convert_fb_to_srs(result, convert_srs_to_fb(srs), &cell_cfg.init_ul_bwp.generic_params);
     return result;
   }
 };
@@ -88,7 +88,7 @@ struct test_values<srs_info> {
   static std::vector<srs_info> get()
   {
     srs_info base{};
-    base.bwp_cfg = &test_helper::make_test_schedtrace_cell_cfg().init_ul_bwp;
+    base.bwp_cfg = &test_helper::make_test_schedtrace_cell_cfg().init_ul_bwp.generic_params;
     return field_variations_from(base);
   }
 };

@@ -42,7 +42,7 @@ struct test_values<pdsch_information> {
   static std::vector<pdsch_information> get()
   {
     pdsch_information base{};
-    base.bwp_cfg = &test_helper::make_test_schedtrace_cell_cfg().init_dl_bwp;
+    base.bwp_cfg = &test_helper::make_test_schedtrace_cell_cfg().init_dl_bwp.generic_params;
     return field_variations_from(base);
   }
 };
@@ -63,7 +63,7 @@ struct roundtrip_traits<dl_msg_alloc> {
   {
     return roundtrip_via<fbs::Pdsch>(pdsch, convert_pdsch_to_fb, [](dl_msg_alloc& out, const fbs::Pdsch& fb) {
       const cell_configuration& cell_cfg = test_helper::make_test_schedtrace_cell_cfg();
-      convert_fb_to_pdsch(out, fb, &cell_cfg.init_dl_bwp);
+      convert_fb_to_pdsch(out, fb, &cell_cfg.init_dl_bwp.generic_params);
     });
   }
 };

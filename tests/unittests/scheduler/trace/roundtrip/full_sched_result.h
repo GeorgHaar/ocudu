@@ -43,9 +43,10 @@ inline sched_result make_full_sched_result()
   // format_params as independent axes, so it also yields pairings that cannot occur (an F2 format_params on a Format 1
   // resource). A field-wise roundtrip does not care, but any consumer that correlates the two -- the scheduler's
   // result logger does, via std::get on the resource's format -- would throw. make_test_pucch keeps them consistent.
-  result.ul.pucchs.emplace(test_helper::make_test_pucch(to_rnti(0x4603), cell_cfg.pucch_resources[0]));
+  result.ul.pucchs.emplace(test_helper::make_test_pucch(to_rnti(0x4603), cell_cfg.init_ul_bwp.pucch_resources[0]));
   result.ul.pucchs.emplace(test_helper::make_test_pucch(
-      to_rnti(0x4604), cell_cfg.pucch_resources[test_helper::find_test_pucch_res_idx(pucch_format::FORMAT_2)]));
+      to_rnti(0x4604),
+      cell_cfg.init_ul_bwp.pucch_resources[test_helper::find_test_pucch_res_idx(pucch_format::FORMAT_2)]));
   result.ul.prachs.push_back(test_values<prach_occasion_info>::get().back());
   result.ul.srss.push_back(test_values<srs_info>::get().back());
 

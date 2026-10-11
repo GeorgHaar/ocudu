@@ -59,7 +59,7 @@ struct roundtrip_traits<dl_paging_allocation> {
     return roundtrip_via<fbs::PagingPdsch>(
         paging, convert_paging_pdsch_to_fb, [](dl_paging_allocation& out, const fbs::PagingPdsch& fb) {
           const cell_configuration& cell_cfg = test_helper::make_test_schedtrace_cell_cfg();
-          convert_fb_to_paging_pdsch(out, fb, &cell_cfg.init_dl_bwp);
+          convert_fb_to_paging_pdsch(out, fb, &cell_cfg.init_dl_bwp.generic_params);
         });
   }
 };
@@ -70,7 +70,7 @@ struct test_values<dl_paging_allocation> {
   static std::vector<dl_paging_allocation> get()
   {
     dl_paging_allocation paging{};
-    paging.pdsch_cfg.bwp_cfg = &test_helper::make_test_schedtrace_cell_cfg().init_dl_bwp;
+    paging.pdsch_cfg.bwp_cfg = &test_helper::make_test_schedtrace_cell_cfg().init_dl_bwp.generic_params;
     paging.pdsch_cfg.rbs     = vrb_alloc(vrb_interval{0, 0});
     paging.pdsch_cfg.symbols = ofdm_symbol_range{0, 1};
     pdsch_codeword cw{};

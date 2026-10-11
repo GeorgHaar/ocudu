@@ -108,7 +108,7 @@ template <>
 struct test_values<const pucch_resource*> {
   static std::vector<const pucch_resource*> get()
   {
-    const auto& res_list = test_helper::make_test_schedtrace_cell_cfg().pucch_resources;
+    const auto& res_list = test_helper::make_test_schedtrace_cell_cfg().init_ul_bwp.pucch_resources;
     // First and last common and dedicated resources.
     return {&res_list.front(),
             &res_list[pucch_constants::MAX_NOF_CELL_COMMON_PUCCH_RESOURCES - 1],
@@ -145,7 +145,7 @@ struct roundtrip_traits<pucch_info> {
         },
         [](pucch_info& out, const fbs::Pucch& fb) {
           const cell_configuration& cell_cfg = test_helper::make_test_schedtrace_cell_cfg();
-          convert_fb_to_pucch_info(out, fb, &cell_cfg.init_ul_bwp, cell_cfg.pucch_resources);
+          convert_fb_to_pucch_info(out, fb, &cell_cfg.init_ul_bwp.generic_params, cell_cfg.init_ul_bwp.pucch_resources);
         });
   }
 };

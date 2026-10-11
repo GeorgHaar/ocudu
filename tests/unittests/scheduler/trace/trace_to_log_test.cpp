@@ -57,16 +57,13 @@ class cell_trace_stream_builder
 public:
   cell_trace_stream_builder(uint16_t pci_, const bwp_configuration& dl_bwp, const bwp_configuration& ul_bwp) : pci(pci_)
   {
+    // The standard test PUCCH resource list lets scheduled PUCCHs be resolved on replay.
+    schedtrace::cell_configuration cell_cfg = make_test_schedtrace_cell_cfg();
+    cell_cfg.pci                            = pci;
+    cell_cfg.init_dl_bwp.generic_params     = dl_bwp;
+    cell_cfg.init_ul_bwp.generic_params     = ul_bwp;
     flatbuffers::FlatBufferBuilder fbb;
-    // Serialize the standard test PUCCH resource list so that scheduled PUCCHs can be resolved on replay.
-    std::vector<flatbuffers::Offset<fbs::PucchResource>> res_offs;
-    for (const auto& res : make_test_schedtrace_cell_cfg().pucch_resources) {
-      res_offs.push_back(convert_pucch_resource_to_fb(fbb, res));
-    }
-    const auto res_vec = fbb.CreateVector(res_offs);
-    const auto ul      = convert_bwp_cfg_to_fb(ul_bwp);
-    const auto dl      = convert_bwp_cfg_to_fb(dl_bwp);
-    const auto start   = fbs::CreateCellStartEvent(fbb, pci, &ul, &dl, res_vec);
+    const auto                     start = convert_cell_cfg_to_fb(fbb, cell_cfg);
     finish_and_append(fbb, fbs::CellEventValue::CellStartEvent, start.Union());
   }
 

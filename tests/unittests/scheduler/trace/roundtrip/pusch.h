@@ -55,7 +55,7 @@ struct test_values<pusch_information> {
   static std::vector<pusch_information> get()
   {
     pusch_information base{};
-    base.bwp_cfg                          = &test_helper::make_test_schedtrace_cell_cfg().init_ul_bwp;
+    base.bwp_cfg                          = &test_helper::make_test_schedtrace_cell_cfg().init_ul_bwp.generic_params;
     std::vector<pusch_information> values = field_variations_from(base);
 
     // Intra-slot frequency hopping, at both extremes of the second hop PRB the wire can represent. Type-1 only, see
@@ -87,7 +87,7 @@ struct roundtrip_traits<ul_sched_info> {
   {
     return roundtrip_via<fbs::Pusch>(pusch, convert_pusch_to_fb, [](ul_sched_info& out, const fbs::Pusch& fb) {
       const cell_configuration& cell_cfg = test_helper::make_test_schedtrace_cell_cfg();
-      convert_fb_to_pusch(out, fb, &cell_cfg.init_ul_bwp);
+      convert_fb_to_pusch(out, fb, &cell_cfg.init_ul_bwp.generic_params);
     });
   }
 };

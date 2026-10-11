@@ -7,6 +7,7 @@
 #include "ocudu/support/error_handling.h"
 #include "CLI/CLI11.hpp"
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <yaml-cpp/yaml.h>
 
@@ -69,16 +70,24 @@ bool is_required(const schema_node& leaf)
   return leaf.option != nullptr && leaf.option->get_required();
 }
 
+/// True for an infinite bound (e.g. a range opened with -infinity), which JSON Schema cannot express; omitting the
+/// keyword leaves that side unbounded.
+bool is_unbounded(const schema_scalar& bound)
+{
+  const double* v = std::get_if<double>(&bound);
+  return v != nullptr && !std::isfinite(*v);
+}
+
 /// Writes the value constraints (minimum/maximum/exclusiveMinimum/enum) onto \c target.
 void add_constraints(const schema_constraints& constraints, YAML::Node& target)
 {
-  if (constraints.minimum) {
+  if (constraints.minimum && !is_unbounded(*constraints.minimum)) {
     target["minimum"] = scalar_node(*constraints.minimum);
   }
-  if (constraints.maximum) {
+  if (constraints.maximum && !is_unbounded(*constraints.maximum)) {
     target["maximum"] = scalar_node(*constraints.maximum);
   }
-  if (constraints.exclusive_minimum) {
+  if (constraints.exclusive_minimum && !is_unbounded(*constraints.exclusive_minimum)) {
     target["exclusiveMinimum"] = scalar_node(*constraints.exclusive_minimum);
   }
   if (constraints.multiple_of) {

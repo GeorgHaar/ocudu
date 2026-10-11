@@ -5,6 +5,7 @@
 #include "apps/helpers/config/config_yaml_schema.h"
 #include "ocudu/support/cli11_utils.h"
 #include <gtest/gtest.h>
+#include <limits>
 #include <yaml-cpp/yaml.h>
 
 using namespace ocudu;
@@ -72,6 +73,11 @@ TEST_F(config_yaml_schema_test, emits_expected_schema)
   unsigned prbs = 24;
   add_option(app, "--prbs", prbs, "a number of PRBs")->capture_default_str()->range(24, 272)->multiple_of(4);
 
+  float level  = -10.0F;
+  float factor = 0.0F;
+  add_option(app, "--level", level, "a level")->range(-std::numeric_limits<float>::infinity(), 0.0F);
+  add_option(app, "--factor", factor, "a factor")->check(CLI::Range(-std::numeric_limits<float>::infinity(), 0.0F));
+
   std::string yaml = app_helpers::generate_yaml_config_schema(root, "Test", "test-app");
 
   // Round-trips as valid YAML and ends with a newline.
@@ -108,6 +114,11 @@ TEST_F(config_yaml_schema_test, emits_expected_schema)
   EXPECT_EQ(props["prbs"]["maximum"].as<int>(), 272);
   EXPECT_EQ(props["prbs"]["multipleOf"].as<int>(), 4);
   EXPECT_FALSE(props["prbs"]["enum"]);
+  // Infinite bounds are omitted, as JSON Schema requires finite numbers.
+  EXPECT_FALSE(props["level"]["minimum"]);
+  EXPECT_EQ(props["level"]["maximum"].as<double>(), 0.0);
+  EXPECT_FALSE(props["factor"]["minimum"]);
+  EXPECT_EQ(props["factor"]["maximum"].as<double>(), 0.0);
   // String constraints: pattern + minLength/maxLength.
   EXPECT_EQ(props["code"]["type"].as<std::string>(), "string");
   EXPECT_EQ(props["code"]["pattern"].as<std::string>(), "^[0-9]{5,6}$");

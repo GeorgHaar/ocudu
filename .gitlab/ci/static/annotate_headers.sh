@@ -74,7 +74,7 @@ fi
 
 # Filter excluded files (if filter is defined)
 if [[ -f "${match_exclude}" ]]; then
-  grep -v -E -f "${match_exclude}" ${files_all} > "${files_filtered}"
+  grep -v -E -f "${match_exclude}" ${files_all} > "${files_filtered}" || true
 else
   cat "${files_all}" > "${files_filtered}"
 fi

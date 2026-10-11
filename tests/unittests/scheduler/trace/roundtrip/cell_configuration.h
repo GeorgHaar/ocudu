@@ -102,6 +102,19 @@ struct roundtrip_traits<cell_prach_config> {
 };
 
 template <>
+struct test_values<cell_prach_config> {
+  static std::vector<cell_prach_config> get()
+  {
+    std::vector<cell_prach_config> values = field_variations_from(cell_prach_config{0, 0, subcarrier_spacing::kHz15});
+    // An invalid SCS stands for an SCS derived from the configuration index, which the wire encodes as absent.
+    cell_prach_config derived_scs = values.back();
+    derived_scs.scs               = subcarrier_spacing::invalid;
+    values.push_back(derived_scs);
+    return values;
+  }
+};
+
+template <>
 struct roundtrip_traits<dl_bwp_configuration> {
   static constexpr auto members = std::make_tuple(field("generic_params", &dl_bwp_configuration::generic_params),
                                                   field("coresets", &dl_bwp_configuration::coresets),

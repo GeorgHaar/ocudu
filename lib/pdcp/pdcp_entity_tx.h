@@ -141,7 +141,10 @@ public:
   /// \returns Returns false if already active or other failure. True otherwise.
   bool resume() override;
 
-  /// TODO
+  /// \brief Start DL forwarding to the GTP-U forwarding tunnel.
+  ///
+  /// When using AM, this will forward all un-acked SDUs to the target. Any SDU that reaches the PDCP after calling this
+  /// function, will also be forwarded to the tunnel.
   void start_dl_forwarding(pdcp_tx_forward_notifier* tx_forward_) override;
 
   /// Get the TX SN size.

@@ -48,7 +48,8 @@ public:
   virtual void on_discard_pdu(uint32_t pdcp_sn)          = 0; ///< Order lower layers to discard PDU
 };
 
-/// This interface represents the data exit point TODO.
+/// This interface represents the data exit point of the PDCP TX entity to a forwarding tunnel.
+/// It is used during handover to forward SDUs from source to target.
 class pdcp_tx_forward_notifier
 {
 public:
@@ -59,7 +60,7 @@ public:
   pdcp_tx_forward_notifier(pdcp_tx_lower_notifier&&)                 = delete;
   pdcp_tx_forward_notifier& operator=(pdcp_tx_lower_notifier&&)      = delete;
 
-  /// TODO.
+  /// Forward DL PDCP SDU to GTP-U tunnel, along the sequence number.
   virtual void on_new_pdu(byte_buffer pdu, uint32_t pdcp_sn) = 0;
 };
 
@@ -194,7 +195,10 @@ public:
   /// `notify_pdu_processing_stopped()`
   virtual void restart_pdu_processing() = 0;
 
-  /// TODO.
+  /// Start DL forwarding to the GTP-U forwarding tunnel.
+  ///
+  /// When using AM, this will forward all un-acked SDUs to the target. Any SDU that reaches the PDCP after calling this
+  /// function, will also be forwarded to the tunnel.
   virtual void start_dl_forwarding(pdcp_tx_forward_notifier* tx_forward) = 0;
 };
 

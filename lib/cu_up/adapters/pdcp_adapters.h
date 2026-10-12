@@ -195,7 +195,8 @@ public:
   void on_new_pdu(byte_buffer pdu, uint32_t sn) override
   {
     if (gtpu_handler == nullptr) {
-      ocudulog::fetch_basic_logger("SDAP").warning("Unconnected PDCP handler. Dropping SDAP PDU");
+      ocudulog::fetch_basic_logger("PDCP").warning(
+          "Unconnected GTP-U handler in forwarding adapter. Dropping PDCP SDU. sn={}", sn);
       return;
     }
 

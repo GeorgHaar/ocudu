@@ -629,17 +629,32 @@ pdu_session_manager_impl::modify_pdu_session(const e1ap_pdu_session_res_to_modif
 
     // Start DL data forwarding from source UP to target.
     // This is done after extracting the PDCP count info, so that the count info is accurate.
+    logger.log_info("About to check data forward. {} {}",
+                    drb_to_mod.drb_data_forwarding_info.has_value(),
+                    drb_to_mod.drb_data_forwarding_info->dl_data_forwarding.has_value());
     if (drb_to_mod.drb_data_forwarding_info.has_value() and
         drb_to_mod.drb_data_forwarding_info->dl_data_forwarding.has_value()) {
       if (xnu_session_mngr) {
         drb->egress_dl_data_forwarding_tnl_info = drb_to_mod.drb_data_forwarding_info->dl_data_forwarding;
 
+        /// Create forwarding GTP-U tunnel.
+        gtpu_tunnel_pdcp_config fwd_cfg = {
+            .rx = {},
+            .tx = {.lif         = gtpu_logical_interface::xnu,
+                   .peer_teid   = drb_to_mod.drb_data_forwarding_info->dl_data_forwarding->gtp_teid,
+                   .peer_addr   = drb_to_mod.drb_data_forwarding_info->dl_data_forwarding->tp_address.to_string(),
+                   .peer_port   = GTPU_PORT,
+                   .pdcp_sn_len = {}}};
         auto gtpu_fwd_cfg = gtpu_tunnel_pdcp_creation_message{.ue_index  = ue_index,
-                                                              .cfg       = {},
+                                                              .cfg       = fwd_cfg,
                                                               .gtpu_pcap = nullptr,
                                                               .rx_lower  = nullptr,
                                                               .tx_upper  = &drb->xnu_gtpu_to_udp_adapter};
         drb->gtpu_fwd     = create_gtpu_tunnel_pdcp(gtpu_fwd_cfg);
+
+        // Connect PDCP to GTP-U TX.
+        drb->pdcp_to_gtpu_forwarding_adapter.connect_gtpu_forward(*drb->gtpu_fwd->get_tx_lower_layer_interface());
+
         // Connect GTP-U TX to Xn-U network gateway.
         gtpu_tnl_pdu_session& xnu_gw = xnu_session_mngr->get_next_xnu_gateway();
         drb->xnu_gtpu_to_udp_adapter.connect_network_gateway(xnu_gw);

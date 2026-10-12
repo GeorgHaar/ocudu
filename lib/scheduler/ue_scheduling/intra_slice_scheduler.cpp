@@ -225,8 +225,12 @@ void intra_slice_scheduler::ul_sched(ul_ran_slice_candidate slice, scheduler_pol
     return;
   }
 
-  if (slice.get_slot_tx() != pusch_slot) {
-    pusch_slot = slice.get_slot_tx();
+  // The used VRBs follow from the symbols of the candidate k2, so a candidate reaching the same slot from another k2
+  // needs them computed again.
+  if (slice.get_slot_tx() != pusch_slot or slice.get_k2() != pusch_k2) {
+    pusch_slot        = slice.get_slot_tx();
+    pusch_k2          = slice.get_k2();
+    pusch_ntn_koffset = slice.get_ntn_koffset();
     update_used_ul_vrbs(slice);
   }
 
@@ -753,6 +757,11 @@ bool intra_slice_scheduler::can_allocate_pdsch(const slice_ue& u, const ue_cell&
 
 bool intra_slice_scheduler::can_allocate_pusch(const slice_ue& u, const ue_cell& ue_cc) const
 {
+  // A UE on another Koffset reaches this slot from a different k2, so the used VRBs, computed for the k2 of the
+  // candidate, do not describe the grant it would be given. It waits for the candidate built for its own Koffset.
+  if (ue_cc.ntn_koffset() != pusch_ntn_koffset) {
+    return false;
+  }
   // Check if PDCCH/PUSCH are possible for the provided slots (e.g. not in UL slot or measGap)
   return ue_cc.is_pusch_enabled(pdcch_slot, pusch_slot);
 }

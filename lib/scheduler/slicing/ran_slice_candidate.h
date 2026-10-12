@@ -18,9 +18,14 @@ class common_ran_slice_candidate
 public:
   common_ran_slice_candidate(ran_slice_instance& instance_,
                              slot_point          slot_tx_,
-                             unsigned            max_rbs_ = 0,
-                             unsigned            k2_      = 0) :
-    inst(&instance_), max_rbs(max_rbs_ == 0 ? inst->cfg.rbs.max() : max_rbs_), slot_tx(slot_tx_), pusch_k2(k2_)
+                             unsigned            max_rbs_     = 0,
+                             unsigned            k2_          = 0,
+                             unsigned            ntn_koffset_ = 0) :
+    inst(&instance_),
+    max_rbs(max_rbs_ == 0 ? inst->cfg.rbs.max() : max_rbs_),
+    slot_tx(slot_tx_),
+    pusch_k2(k2_),
+    ntn_koffset_slots(ntn_koffset_)
   {
   }
 
@@ -70,6 +75,9 @@ public:
   /// Returns the k2 of the PUSCH TD resource this candidate was built from. Zero in downlink.
   unsigned get_k2() const { return pusch_k2; }
 
+  /// Returns the Koffset in slots of the UEs this candidate is for, as per TS 38.213, Section 4.2. Zero in downlink.
+  unsigned get_ntn_koffset() const { return ntn_koffset_slots; }
+
 protected:
   ran_slice_instance* inst    = nullptr;
   unsigned            max_rbs = 0;
@@ -79,6 +87,8 @@ protected:
   slot_point slot_tx;
   /// k2 of the PUSCH TD resource this candidate was built from.
   unsigned pusch_k2 = 0;
+  /// Koffset in slots of the UEs this candidate is for.
+  unsigned ntn_koffset_slots = 0;
 };
 
 } // namespace detail

@@ -82,13 +82,16 @@ private:
     slot_point slot_tx;
     /// k2 of the PUSCH TD resource this candidate was built from. Zero for downlink.
     unsigned k2;
+    /// Koffset in slots of the UEs this candidate is for, as per TS 38.213, Section 4.2. Zero for downlink.
+    unsigned ntn_koffset;
 
     slice_candidate_context(ran_slice_id_t     id_,
                             priority_type      prio_,
                             interval<unsigned> rb_lims_,
                             slot_point         slot_tx_,
-                            unsigned           k2_ = 0) :
-      id(id_), prio(prio_), rb_lims(rb_lims_), slot_tx(slot_tx_), k2(k2_)
+                            unsigned           k2_          = 0,
+                            unsigned           ntn_koffset_ = 0) :
+      id(id_), prio(prio_), rb_lims(rb_lims_), slot_tx(slot_tx_), k2(k2_), ntn_koffset(ntn_koffset_)
     {
     }
 

@@ -140,6 +140,10 @@ private:
 
   slot_point pdsch_slot;
   slot_point pusch_slot;
+  /// k2 of the UL slice candidate \c used_ul_vrbs was computed for.
+  unsigned pusch_k2 = 0;
+  /// Koffset in slots of the UL slice candidate \c used_ul_vrbs was computed for.
+  unsigned   pusch_ntn_koffset = 0;
   vrb_bitmap used_dl_vrbs;
   bool       enable_pdsch_interleaving = false;
   vrb_bitmap used_ul_vrbs;

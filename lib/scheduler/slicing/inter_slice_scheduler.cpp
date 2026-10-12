@@ -202,16 +202,16 @@ void inter_slice_scheduler::slot_indication(slot_point slot_tx, const cell_resou
           const unsigned scaled_min = slice.inst.cfg.rbs.min() * pusch_avail_rbs / cell_nof_rbs;
           rb_lims                   = {pusch_rb_count, scaled_min};
           const auto prio           = slice.get_prio(false, slot_tx, pusch_slot, rb_lims.stop());
-          ul_prio_queue.push(slice_candidate_context{
-              slice.inst.id, prio, rb_lims, pusch_slot, pusch_time_domain_list[pusch_td_res_idx].k2});
+          ul_prio_queue.push(
+              slice_candidate_context{slice.inst.id, prio, rb_lims, pusch_slot, td_res.k2, koffsets[koffset_idx]});
           rb_lims = {scaled_min, scaled_max};
         } else {
           rb_lims = {pusch_rb_count, scaled_max};
         }
         const auto prio = slice.get_prio(false, slot_tx, pusch_slot, rb_lims.stop());
-        allocated_k2[koffset_idx].emplace(pusch_time_domain_list[pusch_td_res_idx].k2);
-        ul_prio_queue.push(slice_candidate_context{
-            slice.inst.id, prio, rb_lims, pusch_slot, pusch_time_domain_list[pusch_td_res_idx].k2});
+        allocated_k2[koffset_idx].emplace(td_res.k2);
+        ul_prio_queue.push(
+            slice_candidate_context{slice.inst.id, prio, rb_lims, pusch_slot, td_res.k2, koffsets[koffset_idx]});
       }
     }
   }
@@ -334,6 +334,7 @@ inter_slice_scheduler::get_next_candidate()
     interval<unsigned>       rb_lims      = prio_queue.top().rb_lims;
     slot_point               pxsch_slot   = prio_queue.top().slot_tx;
     const unsigned           k2           = prio_queue.top().k2;
+    const unsigned           ntn_koffset  = prio_queue.top().ntn_koffset;
     prio_queue.pop();
 
     // Check if two consecutive candidates belong to the same slice. If so, we can combine them into a single candidate.
@@ -377,7 +378,7 @@ inter_slice_scheduler::get_next_candidate()
     }
 
     // Return the candidate.
-    return candidate_type{chosen_slice.inst, pxsch_slot, max_rbs_candidate, k2};
+    return candidate_type{chosen_slice.inst, pxsch_slot, max_rbs_candidate, k2, ntn_koffset};
   }
   return std::nullopt;
 }

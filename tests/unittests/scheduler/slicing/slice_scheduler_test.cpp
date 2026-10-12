@@ -994,10 +994,15 @@ TEST_F(ntn_koffset_slice_scheduler_test, ul_slice_candidate_carries_the_k2_its_s
                               pusch_td_list.end(),
                               [k2](const pusch_time_domain_resource_allocation& td_res) { return td_res.k2 == k2; }))
           << "k2=" << k2 << " of the candidate is not a PUSCH TD resource of the cell";
-      ASSERT_TRUE(delay == k2 + cell_cfg.ntn_cs_koffset or delay == k2 + ue_koffset_slots())
-          << "Candidate scheduled " << delay << " slots after its PDCCH does not follow from k2=" << k2;
+      ASSERT_EQ(delay, k2 + candidate->get_ntn_koffset())
+          << "Candidate scheduled " << delay
+          << " slots after its PDCCH does not follow from the k2 and the Koffset "
+             "it carries";
+      ASSERT_TRUE(candidate->get_ntn_koffset() == cell_cfg.ntn_cs_koffset or
+                  candidate->get_ntn_koffset() == ue_koffset_slots())
+          << "Candidate carries a Koffset no UE of the cell applies";
       ++nof_candidates;
-      nof_ue_koffset_candidates += delay == k2 + ue_koffset_slots() ? 1 : 0;
+      nof_ue_koffset_candidates += candidate->get_ntn_koffset() == ue_koffset_slots() ? 1 : 0;
     }
   }
   ASSERT_GT(nof_candidates, 0U) << "No uplink slice candidate was offered";

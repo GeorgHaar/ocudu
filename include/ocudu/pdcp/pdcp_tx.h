@@ -175,6 +175,9 @@ public:
   virtual bool suspend() = 0;
   virtual bool resume()  = 0;
 
+  /// Get the TX SN size.
+  virtual pdcp_sn_size get_sn_size() const = 0;
+
   /// Get the TX count for status transfer
   virtual pdcp_count_info get_count() const = 0;
 

@@ -116,10 +116,13 @@ public:
   virtual bool suspend() = 0;
   virtual bool resume()  = 0;
 
-  /// Get the RX count for status transfer
+  /// Get the RX PDCP SN size.
+  virtual pdcp_sn_size get_sn_size() const = 0;
+
+  /// Get the RX count for status transfer.
   virtual pdcp_count_info get_count() const = 0;
 
-  /// Set the RX count for status transfer
+  /// Set the RX count for status transfer.
   virtual void set_count(pdcp_count_info count_info) = 0;
 
   /// Tell the PDCP entity to notify when it is finished with processing
@@ -129,7 +132,7 @@ public:
 
   /// Tell the PDCP entity that reconfiguration is finished, and it is safe to
   /// have in-flight PDUs again. Should not be called without previously calling
-  /// `notify_pdu_processing_stopped()`
+  /// `notify_pdu_processing_stopped()`.
   virtual void restart_pdu_processing() = 0;
 };
 } // namespace ocudu

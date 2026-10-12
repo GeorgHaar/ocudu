@@ -49,6 +49,7 @@ pdu_session_manager_impl::pdu_session_manager_impl(cu_up_ue_index_t             
   ue_ctrl_exec(dependencies.ue_ctrl_exec),
   crypto_exec(dependencies.crypto_exec),
   gtpu_pcap(dependencies.gtpu_pcap),
+  xnu_gtpu_pcap(create_null_dlt_pcap()),
   e1ap(dependencies.e1ap),
   f1u_gw(dependencies.f1u_gw),
   ngu_session_mngr(dependencies.ngu_session_mngr),
@@ -629,25 +630,25 @@ pdu_session_manager_impl::modify_pdu_session(const e1ap_pdu_session_res_to_modif
 
     // Start DL data forwarding from source UP to target.
     // This is done after extracting the PDCP count info, so that the count info is accurate.
-    logger.log_info("About to check data forward. {} {}",
-                    drb_to_mod.drb_data_forwarding_info.has_value(),
-                    drb_to_mod.drb_data_forwarding_info->dl_data_forwarding.has_value());
     if (drb_to_mod.drb_data_forwarding_info.has_value() and
         drb_to_mod.drb_data_forwarding_info->dl_data_forwarding.has_value()) {
       if (xnu_session_mngr) {
         drb->egress_dl_data_forwarding_tnl_info = drb_to_mod.drb_data_forwarding_info->dl_data_forwarding;
 
         /// Create forwarding GTP-U tunnel.
+        /// TODO create GTP-U UL forwarding.
         gtpu_tunnel_pdcp_config fwd_cfg = {
-            .rx = {},
+            .rx = {.lif         = gtpu_logical_interface::xnu,
+                   .local_teid  = {},
+                   .pdcp_sn_len = drb->pdcp->get_rx_upper_control_interface().get_sn_size()},
             .tx = {.lif         = gtpu_logical_interface::xnu,
                    .peer_teid   = drb_to_mod.drb_data_forwarding_info->dl_data_forwarding->gtp_teid,
                    .peer_addr   = drb_to_mod.drb_data_forwarding_info->dl_data_forwarding->tp_address.to_string(),
                    .peer_port   = GTPU_PORT,
-                   .pdcp_sn_len = {}}};
+                   .pdcp_sn_len = drb->pdcp->get_tx_upper_control_interface().get_sn_size()}};
         auto gtpu_fwd_cfg = gtpu_tunnel_pdcp_creation_message{.ue_index  = ue_index,
                                                               .cfg       = fwd_cfg,
-                                                              .gtpu_pcap = nullptr,
+                                                              .gtpu_pcap = xnu_gtpu_pcap.get(),
                                                               .rx_lower  = nullptr,
                                                               .tx_upper  = &drb->xnu_gtpu_to_udp_adapter};
         drb->gtpu_fwd     = create_gtpu_tunnel_pdcp(gtpu_fwd_cfg);

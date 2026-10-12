@@ -144,6 +144,9 @@ public:
   /// TODO
   void start_dl_forwarding(pdcp_tx_forward_notifier* tx_forward_) override;
 
+  /// Get the TX SN size.
+  pdcp_sn_size get_sn_size() const override { return cfg.sn_size; }
+
   /// \brief Get the TX count for status transfer.
   pdcp_count_info get_count() const override
   {

@@ -13,6 +13,7 @@
 #include "ocudu/f1u/cu_up/f1u_config.h"
 #include "ocudu/gtpu/gtpu_teid_pool.h"
 #include "ocudu/gtpu/gtpu_tunnel_pdcp.h"
+#include "ocudu/pcap/dlt_pcap.h"
 #include "ocudu/pdcp/pdcp_entity.h"
 #include "ocudu/ran/rb_id.h"
 #include "ocudu/ran/up_transport_layer_info.h"

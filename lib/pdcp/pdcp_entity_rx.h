@@ -110,6 +110,9 @@ public:
   /// \returns Returns false if already active or other failure. True otherwise.
   bool resume() override;
 
+  /// Get the TX SN size.
+  pdcp_sn_size get_sn_size() const override { return cfg.sn_size; }
+
   /// \brief Get the RX count for status transfer
   pdcp_count_info get_count() const override
   {

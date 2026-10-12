@@ -32,6 +32,7 @@ target_link_libraries(ocudu_cu_up
         ocudu_sdap
         ocudu_security
         ocudu_support
+        ocudu_pcap
         ocudulog)
 
 add_library(ocudu_o_cu_up STATIC

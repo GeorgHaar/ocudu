@@ -369,7 +369,8 @@ private:
 static std::unique_ptr<du_high_ue_executor_mapper>
 create_du_high_ue_executor_mapper(const du_high_executor_config& config)
 {
-  ocudu_assert(config.ue_executors.rlc_shared_low_prio_executor != nullptr, "rlc_shared_low_prio_executor must be set");
+  report_error_if_not(config.ue_executors.rlc_shared_low_prio_executor != nullptr,
+                      "rlc_shared_low_prio_executor must be set");
   std::unique_ptr<du_high_ue_executor_mapper> ue_mapper;
   if (config.ue_executors.policy == du_high_executor_config::ue_executor_config::map_policy::per_cell) {
     ue_mapper = std::make_unique<pcell_ue_executor_mapper>(*config.ue_executors.pool_executor,

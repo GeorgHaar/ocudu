@@ -26,7 +26,7 @@ struct schema_version_hash {
 
 /// Binary schema hash of every file format version, oldest first.
 static constexpr schema_version_hash schema_hashes[] = {
-    {1, 0, 0x43dfb75b29831ca4},
+    {1, 0, 0xf95e2d23bcc5bb59},
 };
 
 /// Computes the 64-bit FNV-1a hash of the given bytes.
@@ -71,7 +71,7 @@ TEST(trace_file_format_test, schema_changes_bump_the_file_format_version)
   EXPECT_EQ(latest.major, trace_file_version_major);
   EXPECT_EQ(latest.minor, trace_file_version_minor);
   EXPECT_EQ(latest.hash, hash) << fmt::format(
-      "The schedtrace schema changed. Bump the file format version in trace_file_format.h and append "
+      "The schedtrace schema changed. Bump the file format version in fbs/cell_event.fbs and append "
       "{{{}, {}, {:#x}}} with the new version to schema_hashes. If only the flatc version changed, "
       "update the hash of the latest entry instead.",
       trace_file_version_major,

@@ -9,10 +9,9 @@
 ///
 /// Layout, little-endian: 4-byte magic, uint16 major version, uint16 minor version.
 ///
-/// Bump the major version on schema changes that older readers cannot decode, such as removing, retyping or
-/// reordering fields, and reset the minor version to 0. Bump the minor version on backward compatible changes, such
-/// as appending fields to a table or adding tables.
+/// The version is defined in fbs/cell_event.fbs, together with its bump rules.
 
+#include "fbs/cell_event_generated.h"
 #include <array>
 #include <cstdint>
 #include <optional>
@@ -20,9 +19,9 @@
 namespace ocudu::schedtrace {
 
 /// Major version of the schedtrace file format. Readers reject files with a different major version.
-constexpr uint16_t trace_file_version_major = 1;
+constexpr uint16_t trace_file_version_major = static_cast<uint16_t>(fbs::FileFormatVersionMajor::Value);
 /// Minor version of the schedtrace file format.
-constexpr uint16_t trace_file_version_minor = 0;
+constexpr uint16_t trace_file_version_minor = static_cast<uint16_t>(fbs::FileFormatVersionMinor::Value);
 
 /// Magic bytes at the start of a schedtrace file.
 constexpr std::array<uint8_t, 4> trace_file_magic = {'S', 'C', 'H', 'T'};

@@ -273,14 +273,15 @@ TEST_F(default_slice_scheduler_test, returns_only_ul_pending_bytes_of_bearers_be
       // Default SRB slice has very high priority.
       ASSERT_EQ(next_ul_slice->id(), SRB_RAN_SLICE_ID);
       const slice_ue_repository& srb_slice_ues = next_ul_slice->get_slice_ues();
-      ASSERT_EQ(srb_slice_ues[ue_idx].pending_ul_newtx_bytes(), get_mac_sdu_required_bytes(srb_pending_bytes));
+      ASSERT_EQ(srb_slice_ues[ue_idx].pending_ul_newtx_bytes(),
+                units::bytes{get_mac_sdu_required_bytes(srb_pending_bytes)});
 
       // Default DRB slice is next candidate.
       next_ul_slice = slice_sched.get_next_ul_candidate();
       ASSERT_EQ(next_ul_slice->id(), DEFAULT_DRB_RAN_SLICE_ID);
       const slice_ue_repository& drb_slice_ues = next_ul_slice->get_slice_ues();
       ASSERT_EQ(drb_slice_ues[ue_idx].pending_ul_newtx_bytes(),
-                get_mac_sdu_required_bytes(drb_pending_bytes + RLC_HEADER_SIZE_ESTIMATE));
+                units::bytes{get_mac_sdu_required_bytes(drb_pending_bytes + RLC_HEADER_SIZE_ESTIMATE)});
     }
   }
 }

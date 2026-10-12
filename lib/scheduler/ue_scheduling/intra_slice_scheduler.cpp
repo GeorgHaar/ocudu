@@ -786,7 +786,7 @@ std::optional<ue_newtx_candidate> intra_slice_scheduler::create_newtx_ul_candida
   const ue_cell& ue_cc = u.get_cc();
   ocudu_assert(ue_cc.is_active() and not ue_cc.is_in_fallback_mode(), "Invalid slice UE state");
 
-  units::bytes pending_bytes{u.pending_ul_newtx_bytes()};
+  units::bytes pending_bytes = u.pending_ul_newtx_bytes();
   if (pending_bytes.value() == 0) {
     return std::nullopt;
   }

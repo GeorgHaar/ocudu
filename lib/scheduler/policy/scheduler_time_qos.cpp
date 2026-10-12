@@ -415,7 +415,7 @@ ue_sched_priority scheduler_time_qos::compute_ul_prio(const slice_ue& u, slot_po
 {
   const ue_cell& ue_cc = u.get_cc();
   ocudu_sanity_check(not ue_cc.is_in_fallback_mode() and ue_cc.is_pusch_enabled(pdcch_slot, pusch_slot) and
-                         ue_cc.harqs.has_empty_ul_harqs() and u.pending_ul_newtx_bytes() > 0,
+                         ue_cc.harqs.has_empty_ul_harqs() and u.pending_ul_newtx_bytes().value() > 0,
                      "UE UL candidate in invalid state");
 
   // Calculate UL PF priority.

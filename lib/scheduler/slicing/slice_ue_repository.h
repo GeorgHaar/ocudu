@@ -86,7 +86,7 @@ public:
 
   /// \brief Computes the number of UL pending bytes in bearers belonging to this slice that are not already allocated
   /// in a UL HARQ.
-  unsigned pending_ul_newtx_bytes() const;
+  units::bytes pending_ul_newtx_bytes() const;
 
   /// \brief Computes the number of UL bytes that are yet to be received by the scheduler. This includes the UL bytes
   /// of grants not yet scheduled and the UL bytes of already scheduled grants whose CRC has not reached the scheduled.

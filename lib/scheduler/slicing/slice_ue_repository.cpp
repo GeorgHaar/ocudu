@@ -99,33 +99,25 @@ static units::bytes sum_allocated_ul_harq_bytes(const ue& u)
   return bytes_in_harqs;
 }
 
-unsigned slice_ue::pending_ul_newtx_bytes() const
+units::bytes slice_ue::pending_ul_newtx_bytes() const
 {
-  static constexpr unsigned SR_GRANT_BYTES = 512;
+  static constexpr units::bytes SR_GRANT_BYTES{512};
 
-  int pending_bytes  = u.logical_channels().ul_pending_bytes(slice_id);
-  int harqs_in_bytes = -1;
-
-  if (pending_bytes > 0) {
+  const units::bytes slice_bytes{u.logical_channels().ul_pending_bytes(slice_id)};
+  if (slice_bytes.value() > 0) {
     // Subtract the bytes already allocated in UL HARQs.
-    harqs_in_bytes = static_cast<int>(sum_allocated_ul_harq_bytes(u).value());
-    pending_bytes -= harqs_in_bytes;
-    if (pending_bytes > 0) {
-      return std::max(pending_bytes, 0);
+    const units::bytes in_flight = sum_allocated_ul_harq_bytes(u);
+    if (slice_bytes > in_flight) {
+      return slice_bytes - in_flight;
     }
   }
 
   // In case a SR is pending and this is the SRB slice, we return a minimum SR grant size if no other bearers have
   // pending data.
   if (slice_id == SRB_RAN_SLICE_ID and has_pending_sr()) {
-    pending_bytes = u.logical_channels().ul_pending_bytes();
-    if (harqs_in_bytes < 0) {
-      // In case harq_in_bytes has not been computed earlier.
-      harqs_in_bytes = static_cast<int>(sum_allocated_ul_harq_bytes(u).value());
-    }
-    pending_bytes -= harqs_in_bytes;
-    return pending_bytes <= 0 ? SR_GRANT_BYTES : 0;
+    const units::bytes ue_bytes{u.logical_channels().ul_pending_bytes()};
+    return ue_bytes > sum_allocated_ul_harq_bytes(u) ? units::bytes{0} : SR_GRANT_BYTES;
   }
 
-  return 0;
+  return units::bytes{0};
 }

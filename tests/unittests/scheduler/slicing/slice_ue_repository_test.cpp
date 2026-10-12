@@ -137,12 +137,12 @@ TEST_F(slice_ue_repository_test, if_positive_bsr_added_to_slice_then_slice_ue_ha
   add_ue(ue_idx);
   auto& ue_srb_slice = (*slices[SRB_RAN_SLICE_ID.value()])[ue_idx];
 
-  ASSERT_EQ(ue_srb_slice.pending_ul_newtx_bytes(), 0);
+  ASSERT_EQ(ue_srb_slice.pending_ul_newtx_bytes(), units::bytes{0});
   const unsigned bsr_val = 1000;
   ue_db[ue_idx].handle_bsr_indication(create_short_bsr(ue_idx, ul_bsr_lcg_report_list{{lcg_id_t{0}, bsr_val}}));
-  ASSERT_GE(ue_srb_slice.pending_ul_newtx_bytes(), 1000);
-  ASSERT_EQ((*slices[DEFAULT_DRB_RAN_SLICE_ID.value()])[ue_idx].pending_ul_newtx_bytes(), 0);
-  ASSERT_EQ((*slices[ran_slice_id_t{2}.value()])[ue_idx].pending_ul_newtx_bytes(), 0);
+  ASSERT_GE(ue_srb_slice.pending_ul_newtx_bytes(), units::bytes{1000});
+  ASSERT_EQ((*slices[DEFAULT_DRB_RAN_SLICE_ID.value()])[ue_idx].pending_ul_newtx_bytes(), units::bytes{0});
+  ASSERT_EQ((*slices[ran_slice_id_t{2}.value()])[ue_idx].pending_ul_newtx_bytes(), units::bytes{0});
 }
 
 TEST_F(slice_ue_repository_test, if_sr_detected_and_no_pending_bsr_data_then_pending_data_is_positive_for_srb_slice)
@@ -151,9 +151,9 @@ TEST_F(slice_ue_repository_test, if_sr_detected_and_no_pending_bsr_data_then_pen
   add_ue(ue_idx);
 
   ue_db[ue_idx].handle_sr_indication(next_slot);
-  ASSERT_GT((*slices[SRB_RAN_SLICE_ID.value()])[ue_idx].pending_ul_newtx_bytes(), 0);
-  ASSERT_EQ((*slices[DEFAULT_DRB_RAN_SLICE_ID.value()])[ue_idx].pending_ul_newtx_bytes(), 0);
-  ASSERT_EQ((*slices[ran_slice_id_t{2}.value()])[ue_idx].pending_ul_newtx_bytes(), 0);
+  ASSERT_GT((*slices[SRB_RAN_SLICE_ID.value()])[ue_idx].pending_ul_newtx_bytes(), units::bytes{0});
+  ASSERT_EQ((*slices[DEFAULT_DRB_RAN_SLICE_ID.value()])[ue_idx].pending_ul_newtx_bytes(), units::bytes{0});
+  ASSERT_EQ((*slices[ran_slice_id_t{2}.value()])[ue_idx].pending_ul_newtx_bytes(), units::bytes{0});
 }
 
 TEST_F(slice_ue_repository_test,
@@ -165,9 +165,9 @@ TEST_F(slice_ue_repository_test,
   ue_db[ue_idx].handle_bsr_indication(create_short_bsr(ue_idx, ul_bsr_lcg_report_list{{lcg_id_t{1}, bsr_val}}));
 
   ue_db[ue_idx].handle_sr_indication(next_slot);
-  ASSERT_EQ((*slices[SRB_RAN_SLICE_ID.value()])[ue_idx].pending_ul_newtx_bytes(), 0);
-  ASSERT_GE((*slices[DEFAULT_DRB_RAN_SLICE_ID.value()])[ue_idx].pending_ul_newtx_bytes(), bsr_val);
-  ASSERT_EQ((*slices[ran_slice_id_t{2}.value()])[ue_idx].pending_ul_newtx_bytes(), 0);
+  ASSERT_EQ((*slices[SRB_RAN_SLICE_ID.value()])[ue_idx].pending_ul_newtx_bytes(), units::bytes{0});
+  ASSERT_GE((*slices[DEFAULT_DRB_RAN_SLICE_ID.value()])[ue_idx].pending_ul_newtx_bytes(), units::bytes{bsr_val});
+  ASSERT_EQ((*slices[ran_slice_id_t{2}.value()])[ue_idx].pending_ul_newtx_bytes(), units::bytes{0});
 }
 
 TEST_F(
@@ -190,9 +190,9 @@ TEST_F(
   h_ul->save_grant_params(ctxt, pusch);
 
   ue_db[ue_idx].handle_sr_indication(next_slot);
-  ASSERT_GT((*slices[SRB_RAN_SLICE_ID.value()])[ue_idx].pending_ul_newtx_bytes(), 0);
-  ASSERT_EQ((*slices[DEFAULT_DRB_RAN_SLICE_ID.value()])[ue_idx].pending_ul_newtx_bytes(), 0);
-  ASSERT_EQ((*slices[ran_slice_id_t{2}.value()])[ue_idx].pending_ul_newtx_bytes(), 0);
+  ASSERT_GT((*slices[SRB_RAN_SLICE_ID.value()])[ue_idx].pending_ul_newtx_bytes(), units::bytes{0});
+  ASSERT_EQ((*slices[DEFAULT_DRB_RAN_SLICE_ID.value()])[ue_idx].pending_ul_newtx_bytes(), units::bytes{0});
+  ASSERT_EQ((*slices[ran_slice_id_t{2}.value()])[ue_idx].pending_ul_newtx_bytes(), units::bytes{0});
 }
 
 /// A restricted logical channel with pending data decides the UL HARQ mode of the grants of its slice.

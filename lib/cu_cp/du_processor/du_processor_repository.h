@@ -25,7 +25,7 @@ struct du_repository_config {
   bool                                          force_reestablishment_fallback;
   bool                                          force_resume_fallback;
   std::chrono::milliseconds                     rrc_procedure_guard_time_ms;
-  std::optional<std::chrono::seconds>           rrc_reject_wait_time;
+  std::chrono::seconds                          rrc_reject_wait_time;
   unsigned                                      rrc_version;
   bool                                          enable_rrc_metrics;
   f1ap_configuration                            f1ap;

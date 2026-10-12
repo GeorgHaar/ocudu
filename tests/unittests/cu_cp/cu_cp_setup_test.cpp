@@ -551,17 +551,14 @@ TEST_F(cu_cp_setup_admission_limit_test,
 }
 
 TEST_F(cu_cp_setup_admission_limit_test,
-       when_rrc_reject_wait_time_is_not_configured_then_rrc_reject_has_no_wait_time_ie)
+       when_rrc_reject_wait_time_is_not_configured_then_rrc_reject_carries_the_default_wait_time)
 {
   OCUDU_TEST_REQUIREMENTS("MVP-FUNC-SVCS-16-1");
 
-  // rrc_reject_wait_time is optional and left unset in the default configuration.
-  ASSERT_FALSE(get_cu_cp_cfg().rrc.rrc_reject_wait_time.has_value());
-
   ASSERT_TRUE(send_initial_ul_rrc_message_and_await_ue_context_release_command());
 
-  // The RRC Reject does not carry the waitTime IE.
-  ASSERT_FALSE(get_wait_time_from_last_rrc_reject().has_value());
+  // The RRC Reject always includes the waitTime field (TS 38.331 section 6.2.2, RRCReject-IEs field descriptions).
+  ASSERT_EQ(get_wait_time_from_last_rrc_reject(), 1);
 
   // Injects F1AP UE Context Release Complete.
   auto rel_complete = test_helpers::generate_ue_context_release_complete(cu_ue_id.value(), du_ue_f1ap_id);

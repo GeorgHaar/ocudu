@@ -32,9 +32,9 @@ struct rrc_cfg_t {
   /// Guard time for RRC procedures.
   std::chrono::milliseconds rrc_procedure_guard_time_ms{500};
   /// Configure rrc reject waitTime.
-  /// Default RRC Reject wait time [s], used when none is configured.
-  /// TS 38.331 RejectWaitTime = integer(1..16)
-  std::optional<std::chrono::seconds> rrc_reject_wait_time;
+  /// Wait time (1..16 s) in the waitTime field of the RRC Reject. This field is mandatory
+  /// (TS 38.331 section 6.2.2, RRCReject-IEs field descriptions).
+  std::chrono::seconds rrc_reject_wait_time{1};
 };
 
 } // namespace ocudu::ocucp

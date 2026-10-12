@@ -526,8 +526,8 @@ static void configure_cli11_rrc_args(CLI::App& app, cu_cp_unit_rrc_config& confi
   add_option(app,
              "--rrc_reject_wait_time_s",
              config.rrc_reject_wait_time_s,
-             "Optional: WaitTime [s] (1..16) signalled in the RRC Reject waitTime IE. "
-             "If not provided, no waitTime will be sent with RRC Reject.")
+             "Wait time [s] (1..16) that the RRC Reject carries in the waitTime IE")
+      ->capture_default_str()
       ->range(1, 16);
 }
 

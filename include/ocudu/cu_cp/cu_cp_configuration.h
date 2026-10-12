@@ -134,8 +134,9 @@ struct cu_cp_configuration {
     std::chrono::milliseconds rrc_procedure_guard_time_ms{1000};
     /// Version of the RRC.
     unsigned rrc_version = RRC_VERSION;
-    /// Optional: rrc_reject_wait_time
-    std::optional<std::chrono::seconds> rrc_reject_wait_time;
+    /// Wait time (1..16 s) in the waitTime field of the RRC Reject. This field is mandatory
+    /// (TS 38.331 section 6.2.2, RRCReject-IEs field descriptions).
+    std::chrono::seconds rrc_reject_wait_time{1};
   };
 
   struct security_params {

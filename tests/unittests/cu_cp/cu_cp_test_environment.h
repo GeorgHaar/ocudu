@@ -45,7 +45,7 @@ struct cu_cp_test_env_params {
       bool                                                     trigger_ho_from_measurements_ = true,
       bool                                                     enable_rrc_inactive_          = false,
       bool                                                     enable_xnc_peer_              = false,
-      std::optional<std::chrono::seconds>                      rrc_reject_wait_time_         = std::nullopt,
+      std::chrono::seconds                                     rrc_reject_wait_time_         = std::chrono::seconds{1},
       std::vector<ocucp::cu_cp_logical_cell_config>            logical_cells_                = {},
       bool                                                     add_cho_cond_trigger_         = false) :
     max_nof_cu_ups(max_nof_cu_ups_),
@@ -77,7 +77,7 @@ struct cu_cp_test_env_params {
   bool                                                trigger_ho_from_measurements;
   bool                                                enable_rrc_inactive;
   std::map<unsigned, std::unique_ptr<mock_xnc_cu_cp>> peer_xnc_configs;
-  std::optional<std::chrono::seconds>                 rrc_reject_wait_time;
+  std::chrono::seconds                                rrc_reject_wait_time;
   /// Add a CHO conditional trigger report config to the neighbour cells of cell 1.
   bool     add_cho_cond_trigger;
   uint32_t pws_max_warning_message_segment_size = 150;

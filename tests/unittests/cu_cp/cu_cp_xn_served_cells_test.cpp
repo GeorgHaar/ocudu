@@ -150,7 +150,7 @@ public:
                             /* trigger ho from measurements */ true,
                             /* enable rrc inactive */ false,
                             /* enable xnc peer */ true,
-                            /* rrc reject wait time */ std::nullopt,
+                            /* rrc reject wait time */ std::chrono::seconds{1},
                             /* logical cells */
                             {ocucp::cu_cp_logical_cell_config{nr_cell_identity::create(gnb_id_t{411, 22}, 0).value(),
                                                               ocucp::cell_admin_state::unlocked,

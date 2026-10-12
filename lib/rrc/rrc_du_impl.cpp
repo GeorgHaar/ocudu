@@ -236,16 +236,10 @@ byte_buffer rrc_du_impl::get_rrc_reject()
 {
   // Pack RRC Reconfig.
   dl_ccch_msg_s dl_ccch_msg;
-  if (cfg.rrc_reject_wait_time.has_value()) {
-    //  Send RRCReject including waitTime IE with the provided rrc_reject_wait_time value.
-    //  SRB1 was not created, so we create a RRC Container with RRCReject.
-    rrc_reject_ies_s& reject = dl_ccch_msg.msg.set_c1().set_rrc_reject().crit_exts.set_rrc_reject();
-    // Add waitTime field
-    reject.wait_time_present = true;
-    reject.wait_time         = cfg.rrc_reject_wait_time.value().count();
-  } else {
-    dl_ccch_msg.msg.set_c1().set_rrc_reject().crit_exts.set_rrc_reject();
-  }
+  // The RRC Reject always includes the waitTime field (TS 38.331 section 6.2.2, RRCReject-IEs field descriptions).
+  rrc_reject_ies_s& reject = dl_ccch_msg.msg.set_c1().set_rrc_reject().crit_exts.set_rrc_reject();
+  reject.wait_time_present = true;
+  reject.wait_time         = cfg.rrc_reject_wait_time.count();
   return pack_into_pdu(dl_ccch_msg, "RRCReject");
 }
 

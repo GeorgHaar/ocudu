@@ -1688,3 +1688,35 @@ TEST_F(cg_harq_reservation_test, when_no_harq_id_specified_then_reserved_ids_are
     ASSERT_EQ(h_ul->id(), to_harq_id(id));
   }
 }
+
+/// \brief A mode B transmission is counted for the slice it was sized for alone.
+///
+/// A process in mode B is freed as soon as it is used, so its bytes are held in the allocation history rather than
+/// in the process, and the history has to tell the slices apart just as the processes do.
+TEST_F(single_ntn_ue_ul_harq_mode_b_process_test,
+       mode_b_bytes_waiting_ack_are_counted_for_the_slice_they_were_sized_for)
+{
+  const ran_slice_id_t slice{1};
+  const ran_slice_id_t other_slice{2};
+
+  // The transmission the fixture allocated is bound to no slice.
+  const units::bytes unbound_bytes = pusch_info.tb_size_bytes;
+  ASSERT_EQ(harq_ent.total_ul_bytes_waiting_ack(), unbound_bytes);
+
+  // A second one, in a later slot so that it takes a history entry of its own, is bound to a slice.
+  ul_harq_process_handle h_ul_slice = harq_ent
+                                          .alloc_ul_harq(current_slot + k2 + ntn_cs_koffset + 1,
+                                                         max_retxs,
+                                                         std::nullopt,
+                                                         harq_utils::harq_mode_t::feedback_disabled_or_mode_b)
+                                          .value();
+  ul_harq_alloc_context ctxt{dci_ul_rnti_config_type::c_rnti_f0_0};
+  ctxt.slice_id      = slice;
+  pusch_info.harq_id = h_ul_slice.id();
+  h_ul_slice.save_grant_params(ctxt, pusch_info);
+
+  ASSERT_EQ(harq_ent.total_ul_bytes_waiting_ack(), unbound_bytes + pusch_info.tb_size_bytes);
+  // The one naming no slice counts for both of them, the one naming a slice only for that slice.
+  EXPECT_EQ(harq_ent.total_ul_bytes_waiting_ack(slice), unbound_bytes + pusch_info.tb_size_bytes);
+  EXPECT_EQ(harq_ent.total_ul_bytes_waiting_ack(other_slice), unbound_bytes);
+}

@@ -130,7 +130,7 @@ public:
     return std::nullopt;
   }
 
-  units::bytes sum_pending_ul_tbs(du_ue_index_t ue_idx) const
+  units::bytes sum_pending_ul_tbs(du_ue_index_t ue_idx, std::optional<ran_slice_id_t> slice_id) const
   {
     if (not last_sl_ack.valid() or last_sl_ack < last_sl_ind) {
       return units::bytes{0};
@@ -139,10 +139,15 @@ public:
     unsigned     end_idx = get_current_index(last_sl_ack + 1);
     for (unsigned idx = get_current_index(last_sl_ind); idx != end_idx; idx = mod(idx + 1)) {
       for (const ul_harq_process_impl& h : history[idx]) {
-        if (h.ue_idx == ue_idx and h.status != harq_state_t::empty) {
-          sum += h.prev_tx_params.tbs;
-          break;
+        if (h.ue_idx != ue_idx or h.status == harq_state_t::empty) {
+          continue;
         }
+        if (not slice_id.has_value() or not h.prev_tx_params.slice_id.has_value() or
+            h.prev_tx_params.slice_id == slice_id) {
+          sum += h.prev_tx_params.tbs;
+        }
+        // A UE is granted at most one PUSCH per slot.
+        break;
       }
     }
     return sum;
@@ -1287,19 +1292,24 @@ std::optional<ul_harq_process_handle> unique_ue_harq_entity::find_ul_harq_waitin
   return std::nullopt;
 }
 
-units::bytes unique_ue_harq_entity::total_ul_bytes_waiting_ack() const
+units::bytes unique_ue_harq_entity::total_ul_bytes_waiting_ack(std::optional<ran_slice_id_t> slice_id) const
 {
   units::bytes ntn_mode_b_ul_bytes{0};
   if (cell_harq_mgr->ul.is_ntn_harq_mode_b_enabled()) {
     // Note: HARQs in alloc_hist are still pending ACK.
-    ntn_mode_b_ul_bytes = cell_harq_mgr->ul.alloc_hist->sum_pending_ul_tbs(ue_index);
+    ntn_mode_b_ul_bytes = cell_harq_mgr->ul.alloc_hist->sum_pending_ul_tbs(ue_index, slice_id);
   }
 
   units::bytes harq_bytes{0};
   for (unsigned i = 0, e = nof_ul_harqs(); i != e; ++i) {
-    if (get_ul_ue().harqs[i].status != harq_utils::harq_state_t::empty and
-        get_ul_ue().harqs[i].mode == harq_mode_t::normal) {
-      harq_bytes += get_ul_ue().harqs[i].prev_tx_params.tbs;
+    const ul_harq_process_impl& h = get_ul_ue().harqs[i];
+    if (h.status == harq_utils::harq_state_t::empty or h.mode != harq_mode_t::normal) {
+      continue;
+    }
+    // A transmission no slice claims drains whichever of them the UE fills it from, so it counts against each.
+    if (not slice_id.has_value() or not h.prev_tx_params.slice_id.has_value() or
+        h.prev_tx_params.slice_id == slice_id) {
+      harq_bytes += h.prev_tx_params.tbs;
     }
   }
 

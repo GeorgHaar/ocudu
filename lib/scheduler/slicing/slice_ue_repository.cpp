@@ -89,12 +89,12 @@ void slice_ue_repository::rem_ue(du_ue_index_t ue_index)
   ue_map.erase(ue_index);
 }
 
-static units::bytes sum_allocated_ul_harq_bytes(const ue& u)
+static units::bytes sum_allocated_ul_harq_bytes(const ue& u, std::optional<ran_slice_id_t> slice_id)
 {
   units::bytes bytes_in_harqs{0};
   for (unsigned cell_idx = 0, e = u.nof_cells(); cell_idx != e; ++cell_idx) {
     const ue_cell& cc = u.get_cell(to_serv_cell_index(cell_idx));
-    bytes_in_harqs += cc.harqs.total_ul_bytes_waiting_ack();
+    bytes_in_harqs += cc.harqs.total_ul_bytes_waiting_ack(slice_id);
   }
   return bytes_in_harqs;
 }
@@ -105,8 +105,7 @@ units::bytes slice_ue::pending_ul_newtx_bytes() const
 
   const units::bytes slice_bytes{u.logical_channels().ul_pending_bytes(slice_id)};
   if (slice_bytes.value() > 0) {
-    // Subtract the bytes already allocated in UL HARQs.
-    const units::bytes in_flight = sum_allocated_ul_harq_bytes(u);
+    const units::bytes in_flight = sum_allocated_ul_harq_bytes(u, slice_id);
     if (slice_bytes > in_flight) {
       return slice_bytes - in_flight;
     }
@@ -115,8 +114,9 @@ units::bytes slice_ue::pending_ul_newtx_bytes() const
   // In case a SR is pending and this is the SRB slice, we return a minimum SR grant size if no other bearers have
   // pending data.
   if (slice_id == SRB_RAN_SLICE_ID and has_pending_sr()) {
+    // The SR carries neither its volume nor the bearer it comes from, so every bearer of the UE decides.
     const units::bytes ue_bytes{u.logical_channels().ul_pending_bytes()};
-    return ue_bytes > sum_allocated_ul_harq_bytes(u) ? units::bytes{0} : SR_GRANT_BYTES;
+    return ue_bytes > sum_allocated_ul_harq_bytes(u, std::nullopt) ? units::bytes{0} : SR_GRANT_BYTES;
   }
 
   return units::bytes{0};

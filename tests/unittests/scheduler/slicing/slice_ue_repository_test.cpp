@@ -94,6 +94,22 @@ protected:
     add_ue(ue_idx, lc_chs);
   }
 
+  /// Marks the given number of bytes as allocated in a UL HARQ of the UE, so that they count as already in flight.
+  void allocate_ul_harq_bytes(du_ue_index_t ue_idx, units::bytes tbs, std::optional<ran_slice_id_t> slice_id)
+  {
+    auto h_ul = ue_db[ue_idx].get_pcell().harqs.alloc_ul_harq(next_slot, 4);
+    report_fatal_error_if_not(h_ul.has_value(), "No UL HARQ process available");
+    ul_harq_alloc_context ctxt;
+    ctxt.dci_cfg_type = dci_ul_rnti_config_type::c_rnti_f0_1;
+    ctxt.slice_id     = slice_id;
+    pusch_information pusch;
+    pusch.rnti          = to_rnti(0x4601 + ue_idx);
+    pusch.harq_id       = h_ul->id();
+    pusch.new_data      = true;
+    pusch.tb_size_bytes = tbs;
+    h_ul->save_grant_params(ctxt, pusch);
+  }
+
   ocudulog::basic_logger&                           logger = ocudulog::fetch_basic_logger("TEST");
   const scheduler_expert_config                     expert_cfg;
   test_helpers::test_sched_config_manager           test_cfg;
@@ -178,16 +194,7 @@ TEST_F(
   add_ue(ue_idx);
   const unsigned bsr_val = 1000;
   ue_db[ue_idx].handle_bsr_indication(create_short_bsr(ue_idx, ul_bsr_lcg_report_list{{lcg_id_t{1}, bsr_val}}));
-  auto                  h_ul = ue_db[ue_idx].get_pcell().harqs.alloc_ul_harq(next_slot, 4);
-  ul_harq_alloc_context ctxt;
-  ctxt.dci_cfg_type = dci_ul_rnti_config_type::c_rnti_f0_1;
-  ctxt.slice_id     = DEFAULT_DRB_RAN_SLICE_ID;
-  pusch_information pusch;
-  pusch.rnti          = to_rnti(0x4601 + ue_idx);
-  pusch.harq_id       = h_ul->id();
-  pusch.new_data      = true;
-  pusch.tb_size_bytes = units::bytes{2000};
-  h_ul->save_grant_params(ctxt, pusch);
+  allocate_ul_harq_bytes(ue_idx, units::bytes{2000}, DEFAULT_DRB_RAN_SLICE_ID);
 
   ue_db[ue_idx].handle_sr_indication(next_slot);
   ASSERT_GT((*slices[SRB_RAN_SLICE_ID.value()])[ue_idx].pending_ul_newtx_bytes(), units::bytes{0});
@@ -237,4 +244,63 @@ TEST_F(slice_ue_repository_test, sr_grant_follows_the_configured_restriction)
   ASSERT_TRUE(u.select_normal_ul_harq_mode());
   // The SR is reported per UE, so the other slices see it too and keep following their own channels.
   ASSERT_FALSE((*slices[DEFAULT_DRB_RAN_SLICE_ID.value()])[ue_idx].select_normal_ul_harq_mode());
+}
+
+/// \brief A slice is not held back by the data another slice of the same UE has in flight.
+///
+/// The bytes in flight come off the pending ones so that a buffer status the UE has not refreshed yet is not granted
+/// twice. A transmission of another slice fills a grant this one is not sized for, so it leaves it untouched.
+TEST_F(slice_ue_repository_test, data_in_flight_of_another_slice_does_not_hold_back_a_slice)
+{
+  du_ue_index_t ue_idx = to_du_ue_index(0);
+  add_ue(ue_idx);
+  const unsigned bsr_val = 1000;
+  ue_db[ue_idx].handle_bsr_indication(create_short_bsr(ue_idx, ul_bsr_lcg_report_list{{lcg_id_t{1}, bsr_val}}));
+  const slice_ue& u = (*slices[DEFAULT_DRB_RAN_SLICE_ID.value()])[ue_idx];
+  ASSERT_GE(u.pending_ul_newtx_bytes(), units::bytes{bsr_val});
+
+  // Another slice of the UE holds more in flight than this one reports pending.
+  allocate_ul_harq_bytes(ue_idx, units::bytes{10000}, ran_slice_id_t{2});
+
+  EXPECT_GE(u.pending_ul_newtx_bytes(), units::bytes{bsr_val}) << "held back by the data another slice has in flight";
+}
+
+/// The bytes a slice already has in flight are not granted to it a second time.
+TEST_F(slice_ue_repository_test, data_in_flight_of_a_slice_comes_off_its_own_pending_bytes)
+{
+  du_ue_index_t ue_idx = to_du_ue_index(0);
+  add_ue(ue_idx);
+  const unsigned bsr_val = 4000;
+  ue_db[ue_idx].handle_bsr_indication(create_short_bsr(ue_idx, ul_bsr_lcg_report_list{{lcg_id_t{1}, bsr_val}}));
+  const slice_ue&    u      = (*slices[DEFAULT_DRB_RAN_SLICE_ID.value()])[ue_idx];
+  const units::bytes before = u.pending_ul_newtx_bytes();
+  ASSERT_GE(before, units::bytes{bsr_val});
+
+  const units::bytes in_flight{1000};
+  allocate_ul_harq_bytes(ue_idx, in_flight, DEFAULT_DRB_RAN_SLICE_ID);
+
+  EXPECT_EQ(u.pending_ul_newtx_bytes(), before - in_flight);
+}
+
+/// \brief A transmission no slice claims is charged to every one of them.
+///
+/// Only the grants of the slice scheduler carry the slice that filled them. A UE leaving fallback still owes the
+/// bytes of the grant that served it there, and the slice they belong to must not be given them a second time.
+TEST_F(slice_ue_repository_test, data_in_flight_of_no_slice_counts_against_every_slice)
+{
+  du_ue_index_t ue_idx = to_du_ue_index(0);
+  add_ue(ue_idx);
+  const unsigned bsr_val = 4000;
+  ue_db[ue_idx].handle_bsr_indication(create_short_bsr(ue_idx, ul_bsr_lcg_report_list{{lcg_id_t{1}, bsr_val}}));
+  const slice_ue&    u              = (*slices[DEFAULT_DRB_RAN_SLICE_ID.value()])[ue_idx];
+  const units::bytes before         = u.pending_ul_newtx_bytes();
+  const units::bytes ue_wide_before = ue_db[ue_idx].pending_ul_newtx_bytes();
+  ASSERT_GE(before, units::bytes{bsr_val});
+
+  const units::bytes in_flight{1000};
+  allocate_ul_harq_bytes(ue_idx, in_flight, std::nullopt);
+
+  EXPECT_EQ(u.pending_ul_newtx_bytes(), before - in_flight);
+  // The fallback scheduler, which serves the UE outside of any slice, counts them just the same.
+  EXPECT_EQ(ue_db[ue_idx].pending_ul_newtx_bytes(), ue_wide_before - in_flight);
 }

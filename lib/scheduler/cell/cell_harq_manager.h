@@ -768,7 +768,9 @@ public:
   std::optional<ul_harq_process_handle> find_ul_harq_waiting_ack(slot_point pusch_slot);
 
   /// Determines the sum of the number of bytes that are in active UL HARQ processes.
-  units::bytes total_ul_bytes_waiting_ack() const;
+  /// \param[in] slice_id When set, the processes sized for another RAN slice are left out. The ones naming no
+  /// slice are counted, as the UE may fill them from any slice.
+  units::bytes total_ul_bytes_waiting_ack(std::optional<ran_slice_id_t> slice_id = std::nullopt) const;
 
 private:
   dl_harq_ent_impl&       get_dl_ue() { return *cell_harq_mgr->dl.ues[ue_index]; }

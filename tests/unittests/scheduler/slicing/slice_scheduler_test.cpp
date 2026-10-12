@@ -13,8 +13,10 @@
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/scheduler/config/logical_channel_config_factory.h"
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <gtest/gtest.h>
+#include <set>
 
 using namespace ocudu;
 
@@ -948,21 +950,19 @@ protected:
     return slice_scheduler_test::add_ue(req);
   }
 
-  /// Makes the UE apply \c ue_differential_koffset, so that its uplink reaches a slot earlier than the cell-specific
-  /// Koffset leads to.
-  void apply_differential_koffset(du_ue_index_t ue_idx)
+  /// Makes the UE apply \c koffset, so that its uplink reaches a slot earlier than the cell-specific Koffset leads to.
+  void apply_differential_koffset(du_ue_index_t ue_idx, std::chrono::milliseconds koffset = ue_differential_koffset)
   {
     ue_koffset_tracker& tracker = ues[ue_idx].koffset_tracker();
-    tracker.handle_ce_sent(ue_differential_koffset, next_slot);
+    tracker.handle_ce_sent(koffset, next_slot);
     tracker.handle_ce_acked();
     tracker.slot_indication(next_slot, slot_point{});
   }
 
-  /// Koffset in slots of a UE applying \c ue_differential_koffset.
-  unsigned ue_koffset_slots() const
+  /// Returns the Koffset in slots of a UE applying \c koffset.
+  unsigned ue_koffset_slots(std::chrono::milliseconds koffset = ue_differential_koffset) const
   {
-    return cell_cfg.ntn_cs_koffset -
-           ue_differential_koffset.count() * get_nof_slots_per_subframe(cell_cfg.scs_common());
+    return cell_cfg.ntn_cs_koffset - koffset.count() * get_nof_slots_per_subframe(cell_cfg.scs_common());
   }
 };
 
@@ -1008,4 +1008,39 @@ TEST_F(ntn_koffset_slice_scheduler_test, ul_slice_candidate_carries_the_k2_its_s
   ASSERT_GT(nof_candidates, 0U) << "No uplink slice candidate was offered";
   ASSERT_GT(nof_ue_koffset_candidates, 0U) << "No candidate was offered for the Koffset the UE applies, so the slot "
                                               "the candidates carry says nothing about their k2";
+}
+
+TEST_F(ntn_koffset_slice_scheduler_test, every_koffset_in_use_is_offered_candidates_over_time)
+{
+  // More distinct Koffsets than MAX_NOF_NTN_KOFFSETS_PER_SLICE holds, so no slot can carry a candidate for all of
+  // them. Which ones are left out has to change from slot to slot, or the same UEs are never scheduled.
+  static constexpr std::array<std::chrono::milliseconds, 5> ue_koffsets{std::chrono::milliseconds{2},
+                                                                        std::chrono::milliseconds{4},
+                                                                        std::chrono::milliseconds{6},
+                                                                        std::chrono::milliseconds{8},
+                                                                        std::chrono::milliseconds{10}};
+  ASSERT_GT(ue_koffsets.size() + 1, MAX_NOF_NTN_KOFFSETS_PER_SLICE) << "The Koffsets of this test all fit in a slot";
+
+  for (unsigned ue_count = 0, e = ue_koffsets.size(); ue_count != e; ++ue_count) {
+    const du_ue_index_t ue_idx = to_du_ue_index(ue_count);
+    ASSERT_NE(this->add_ue(ue_idx), nullptr);
+    apply_differential_koffset(ue_idx, ue_koffsets[ue_count]);
+  }
+
+  // Slots over which the offered Koffsets are collected.
+  static constexpr unsigned nof_slots_to_run = 40;
+
+  std::set<unsigned> koffsets_offered;
+  for (unsigned count = 0; count != nof_slots_to_run; ++count) {
+    run_slot();
+    for (auto candidate = slice_sched.get_next_ul_candidate(); candidate.has_value();
+         candidate      = slice_sched.get_next_ul_candidate()) {
+      koffsets_offered.insert(candidate->get_ntn_koffset());
+    }
+  }
+
+  for (const std::chrono::milliseconds koffset : ue_koffsets) {
+    ASSERT_EQ(koffsets_offered.count(ue_koffset_slots(koffset)), 1U)
+        << "No candidate was ever offered for the Koffset of " << koffset.count() << "ms, so its UE is never scheduled";
+  }
 }

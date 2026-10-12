@@ -137,6 +137,20 @@ private:
   // Fetch UE if it is in a state to be added/reconfigured.
   ue* fetch_ue_to_update(du_ue_index_t ue_idx) const;
 
+  /// \brief Adds the UL candidates of a slice for a PUSCH TD resource reached at the given Koffset.
+  /// \param[in,out] allocated_k2 Last k2 given a candidate at this Koffset. Set to \c td_res.k2 when one is added.
+  /// \param[in]     slice        Slice the candidates are for.
+  /// \param[in]     slot_tx      Slot of the PDCCH.
+  /// \param[in]     res_grid     Cell resource grid.
+  /// \param[in]     td_res       PUSCH TD resource the candidates are built from.
+  /// \param[in]     ntn_koffset  Koffset in slots of the UEs the candidates are for.
+  void add_ul_slice_candidates(std::optional<unsigned>&                     allocated_k2,
+                               const ran_slice_sched_context&               slice,
+                               slot_point                                   slot_tx,
+                               const cell_resource_allocator&               res_grid,
+                               const pusch_time_domain_resource_allocation& td_res,
+                               unsigned                                     ntn_koffset);
+
   void add_impl(ue& u);
 
   template <bool IsDownlink>

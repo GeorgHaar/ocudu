@@ -14,12 +14,16 @@
 using namespace ocudu;
 using namespace ocucp;
 
-f1_removal_procedure::f1_removal_procedure(const asn1::f1ap::f1_removal_request_s& request_,
-                                           f1ap_message_notifier&                  pdu_notifier_,
-                                           f1ap_du_processor_notifier&             cu_cp_notifier_,
-                                           f1ap_ue_context_list&                   ue_list_,
-                                           ocudulog::basic_logger&                 logger_) :
-  request(request_), pdu_notifier(pdu_notifier_), cu_cp_notifier(cu_cp_notifier_), ue_list(ue_list_), logger(logger_)
+f1_removal_procedure::f1_removal_procedure(uint8_t                     transaction_id_,
+                                           f1ap_message_notifier&      pdu_notifier_,
+                                           f1ap_du_processor_notifier& cu_cp_notifier_,
+                                           f1ap_ue_context_list&       ue_list_,
+                                           ocudulog::basic_logger&     logger_) :
+  transaction_id(transaction_id_),
+  pdu_notifier(pdu_notifier_),
+  cu_cp_notifier(cu_cp_notifier_),
+  ue_list(ue_list_),
+  logger(logger_)
 {
 }
 
@@ -77,6 +81,6 @@ void f1_removal_procedure::send_f1_removal_response()
   f1ap_message resp;
   resp.pdu.set_successful_outcome().load_info_obj(ASN1_F1AP_ID_F1_REMOVAL);
   asn1::f1ap::f1_removal_resp_s& rem = resp.pdu.successful_outcome().value.f1_removal_resp();
-  rem->transaction_id                = (*request)[0]->transaction_id();
+  rem->transaction_id                = transaction_id;
   pdu_notifier.on_new_message(resp);
 }

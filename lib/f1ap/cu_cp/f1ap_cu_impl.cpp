@@ -276,8 +276,7 @@ void f1ap_cu_impl::handle_initiating_message(const asn1::f1ap::init_msg_s& msg)
       handle_ul_rrc_message(msg.value.ul_rrc_msg_transfer());
       break;
     case asn1::f1ap::f1ap_elem_procs_o::init_msg_c::types_opts::f1_removal_request:
-      du_processor_notifier.schedule_async_task(launch_async<f1_removal_procedure>(
-          msg.value.f1_removal_request(), tx_pdu_notifier, du_processor_notifier, ue_ctxt_list, logger));
+      handle_f1_removal_request(msg);
       break;
     case asn1::f1ap::f1ap_elem_procs_o::init_msg_c::types_opts::options::ue_context_release_request:
       handle_ue_context_release_request(msg.value.ue_context_release_request());
@@ -333,6 +332,20 @@ void f1ap_cu_impl::handle_f1_setup_request(const asn1::f1ap::f1_setup_request_s&
   if (accepted && cfg.ref_time_report_ctrl) {
     handle_ref_time_info_report_ctrl(*cfg.ref_time_report_ctrl);
   }
+}
+
+void f1ap_cu_impl::handle_f1_removal_request(const asn1::f1ap::init_msg_s& msg)
+{
+  // The IE container of the F1 Removal Request can be empty. Discard the message if the Transaction ID IE is missing,
+  // as per TS 38.473 section 10.
+  std::optional<uint8_t> transaction_id = get_transaction_id(msg);
+  if (not transaction_id.has_value()) {
+    logger.warning("Discarding received \"F1RemovalRequest\". Cause: Missing mandatory Transaction ID field");
+    return;
+  }
+
+  du_processor_notifier.schedule_async_task(launch_async<f1_removal_procedure>(
+      transaction_id.value(), tx_pdu_notifier, du_processor_notifier, ue_ctxt_list, logger));
 }
 
 void f1ap_cu_impl::handle_initial_ul_rrc_message(const asn1::f1ap::init_ul_rrc_msg_transfer_s& msg)

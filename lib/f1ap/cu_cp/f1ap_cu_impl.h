@@ -118,6 +118,10 @@ private:
   /// \param[in] request The F1 Setup Request.
   void handle_f1_setup_request(const asn1::f1ap::f1_setup_request_s& request);
 
+  /// \brief Handle the reception of an F1 Removal Request as per TS 38.473 section 8.2.8.
+  /// \param[in] msg The initiating message that contains the F1 Removal Request.
+  void handle_f1_removal_request(const asn1::f1ap::init_msg_s& msg);
+
   /// \brief Handle the reception of an Initial UL RRC Message Transfer message.
   /// This starts the UE and SRB creation at the DU processor, F1 and RRC UE.
   /// @see rrc_setup_procedure.

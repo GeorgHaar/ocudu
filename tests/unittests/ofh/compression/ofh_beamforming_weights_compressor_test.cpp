@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 
 #include "beamforming_weights_compressor.h"
+#include "ofh_compression_test_helpers.h"
 #include "tests/ocudu_test_requirements.h"
 #include "ocudu/ofh/compression/compression_properties.h"
 #include "ocudu/support/math/math_utils.h"
@@ -14,74 +15,23 @@
 using namespace ocudu;
 using namespace ocudu::ofh;
 
-// Quantizes a floating point value in the range [-1, +1] into a fixed point value of the given bit width.
-static int16_t quantize_reference(float value, unsigned bit_width)
-{
-  float gain    = static_cast<float>(1U << (bit_width - 1U)) - 1.0F;
-  float clipped = (std::abs(value) > 1.0F) ? std::copysign(1.0F, value) : value;
-
-  return static_cast<int16_t>(std::round(clipped * gain));
-}
-
-// Appends the given number of bits of a value to the buffer, most significant bit first.
-static void append_bits(std::vector<uint8_t>& buffer, unsigned& bit_pos, uint16_t value, unsigned nof_bits)
-{
-  for (unsigned i = 0; i != nof_bits; ++i) {
-    if ((value >> (nof_bits - 1U - i)) & 1U) {
-      buffer[bit_pos / 8U] |= static_cast<uint8_t>(0x80U >> (bit_pos % 8U));
-    }
-    ++bit_pos;
-  }
-}
-
-// Determines the shared exponent of a compression block following O-RAN.WG4.CUS, Annex A.1.2.
-static uint8_t determine_exponent_reference(const std::vector<int16_t>& quantized, unsigned iq_width)
-{
-  int max_v = *std::max_element(quantized.begin(), quantized.end());
-  int min_v = *std::min_element(quantized.begin(), quantized.end());
-
-  // The most significant bit of a negative value can be one higher.
-  int max_value = std::max(max_v, std::abs(min_v) - 1);
-  if (max_value <= 0) {
-    return 0;
-  }
-
-  int raw_exp = static_cast<int>(std::floor(std::log2(static_cast<double>(max_value)))) + 1;
-
-  return static_cast<uint8_t>(std::max(raw_exp - static_cast<int>(iq_width) + 1, 0));
-}
-
 // Compresses the given beamforming weights following O-RAN.WG4.CUS, Annex A.1.2 and the bit ordering of Annex D.1.
 static std::vector<uint8_t> compress_reference(span<const cf_t> weights, const ru_compression_params& params)
 {
-  bool is_bfp = (params.type == compression_type::BFP);
-
   // Block floating point quantizes at the full bit width and scales the block down by the shared exponent.
-  unsigned quantization_width = is_bfp ? MAX_IQ_WIDTH : params.data_width;
+  unsigned quantization_width = (params.type == compression_type::BFP) ? MAX_IQ_WIDTH : params.data_width;
 
   std::vector<int16_t> quantized;
   for (const cf_t weight : weights) {
-    quantized.push_back(quantize_reference(weight.real(), quantization_width));
-    quantized.push_back(quantize_reference(weight.imag(), quantization_width));
+    quantized.push_back(ofh::testing::quantize_weight_reference(weight.real(), quantization_width));
+    quantized.push_back(ofh::testing::quantize_weight_reference(weight.imag(), quantization_width));
   }
 
+  // The entire weight vector is one compression block (O-RAN.WG4.CUS, 7.7.1.2), and the bfwCompParam field holds the
+  // shared exponent.
   std::vector<uint8_t> compressed(get_packed_beamforming_weights_size(weights.size(), params).value(), 0);
-
-  unsigned bit_pos = 0;
-  if (is_bfp) {
-    uint8_t exponent = determine_exponent_reference(quantized, params.data_width);
-    for (int16_t& value : quantized) {
-      value >>= exponent;
-    }
-
-    // The bfwCompParam field holds the shared exponent.
-    append_bits(compressed, bit_pos, exponent, 8);
-  }
-
-  uint16_t mask = static_cast<uint16_t>((1U << params.data_width) - 1U);
-  for (const int16_t value : quantized) {
-    append_bits(compressed, bit_pos, static_cast<uint16_t>(value) & mask, params.data_width);
-  }
+  unsigned             bit_pos = 0;
+  ofh::testing::compress_block_reference(compressed, bit_pos, quantized, params);
 
   return compressed;
 }

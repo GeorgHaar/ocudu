@@ -162,6 +162,12 @@ struct iq_byte_order_case {
   std::vector<uint8_t> expected_bytes;
 };
 
+/// Prints the case for GoogleTest, which would otherwise dump the raw object bytes, padding included.
+void PrintTo(const iq_byte_order_case& test_case, std::ostream* os)
+{
+  *os << (test_case.order == difi_iq_byte_order::big ? "big" : "little") << " endian";
+}
+
 class DifiIqByteOrder : public ::testing::TestWithParam<iq_byte_order_case>
 {};
 

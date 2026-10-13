@@ -8,7 +8,8 @@
 #include "ocudu/phy/upper/log_likelihood_ratio.h"
 #include "ocudu/support/math/complex_math_utils.h"
 
-#if defined(__AVX512F__) && defined(__AVX512BW__) && (!defined(__GNUC__) || (__GNUC__ > 9))
+#if defined(__AVX512F__) && defined(__AVX512BW__) &&                                                                   \
+    ((defined(__clang__) && (__clang_major__ > 4)) || (defined(__GNUC__) && (__GNUC__ > 9)))
 #define HAVE_AVX512
 #include "avx512_helpers.h"
 #endif
@@ -29,118 +30,132 @@ static const float M_SQRT1_170 = 1.0F / std::sqrt(170.0F);
 // Maximum (absolute) value considered for quantization. Larger values will be clipped.
 static constexpr float RANGE_LIMIT_FLOAT = 20;
 
-static const float                                   INTERVAL_WIDTH_01 = 2 * M_SQRT1_170;
-static constexpr unsigned                            NOF_INTERVALS_01  = 16;
-static const std::array<float, NOF_INTERVALS_01>     SLOPE_01          = {32 * M_SQRT1_170,
-                                                                          28 * M_SQRT1_170,
-                                                                          24 * M_SQRT1_170,
-                                                                          20 * M_SQRT1_170,
-                                                                          16 * M_SQRT1_170,
-                                                                          12 * M_SQRT1_170,
-                                                                          8 * M_SQRT1_170,
-                                                                          4 * M_SQRT1_170,
-                                                                          4 * M_SQRT1_170,
-                                                                          8 * M_SQRT1_170,
-                                                                          12 * M_SQRT1_170,
-                                                                          16 * M_SQRT1_170,
-                                                                          20 * M_SQRT1_170,
-                                                                          24 * M_SQRT1_170,
-                                                                          28 * M_SQRT1_170,
-                                                                          32 * M_SQRT1_170};
-static constexpr std::array<float, NOF_INTERVALS_01> INTERCEPT_01      = {112.0F / 85,
-                                                                          84.0F / 85,
-                                                                          60.0F / 85,
-                                                                          40.0F / 85,
-                                                                          24.0F / 85,
-                                                                          12.0F / 85,
-                                                                          4.0F / 85,
-                                                                          0.0F,
-                                                                          0.0F,
-                                                                          -4.0F / 85,
-                                                                          -12.0F / 85,
-                                                                          -24.0F / 85,
-                                                                          -40.0F / 85,
-                                                                          -60.0F / 85,
-                                                                          -84.0F / 85,
-                                                                          -112.0F / 85};
-static const float                                   INTERVAL_WIDTH_23 = 2 * M_SQRT1_170;
-static constexpr unsigned                            NOF_INTERVALS_23  = 16;
-static const std::array<float, NOF_INTERVALS_23>     SLOPE_23          = {16 * M_SQRT1_170,
-                                                                          12 * M_SQRT1_170,
-                                                                          8 * M_SQRT1_170,
-                                                                          4 * M_SQRT1_170,
-                                                                          4 * M_SQRT1_170,
-                                                                          8 * M_SQRT1_170,
-                                                                          12 * M_SQRT1_170,
-                                                                          16 * M_SQRT1_170,
-                                                                          -16 * M_SQRT1_170,
-                                                                          -12 * M_SQRT1_170,
-                                                                          -8 * M_SQRT1_170,
-                                                                          -4 * M_SQRT1_170,
-                                                                          -4 * M_SQRT1_170,
-                                                                          -8 * M_SQRT1_170,
-                                                                          -12 * M_SQRT1_170,
-                                                                          -16 * M_SQRT1_170};
-static constexpr std::array<float, NOF_INTERVALS_23> INTERCEPT_23      = {88.0F / 85,
-                                                                          60.0F / 85,
-                                                                          36.0F / 85,
-                                                                          16.0F / 85,
-                                                                          16.0F / 85,
-                                                                          28.0F / 85,
-                                                                          36.0F / 85,
-                                                                          40.0F / 85,
-                                                                          40.0F / 85,
-                                                                          36.0F / 85,
-                                                                          28.0F / 85,
-                                                                          16.0F / 85,
-                                                                          16.0F / 85,
-                                                                          36.0F / 85,
-                                                                          60.0F / 85,
-                                                                          88.0F / 85};
-static const float                                   INTERVAL_WIDTH_45 = 2 * M_SQRT1_170;
-static constexpr unsigned                            NOF_INTERVALS_45  = 16;
-static const std::array<float, NOF_INTERVALS_45>     SLOPE_45          = {8 * M_SQRT1_170,
-                                                                          4 * M_SQRT1_170,
-                                                                          4 * M_SQRT1_170,
-                                                                          8 * M_SQRT1_170,
-                                                                          -8 * M_SQRT1_170,
-                                                                          -4 * M_SQRT1_170,
-                                                                          -4 * M_SQRT1_170,
-                                                                          -8 * M_SQRT1_170,
-                                                                          8 * M_SQRT1_170,
-                                                                          4 * M_SQRT1_170,
-                                                                          4 * M_SQRT1_170,
-                                                                          8 * M_SQRT1_170,
-                                                                          -8 * M_SQRT1_170,
-                                                                          -4 * M_SQRT1_170,
-                                                                          -4 * M_SQRT1_170,
-                                                                          -8 * M_SQRT1_170};
-static const std::array<float, NOF_INTERVALS_45>     INTERCEPT_45      = {52.0F / 85,
-                                                                          24.0F / 85,
-                                                                          24.0F / 85,
-                                                                          44.0F / 85,
-                                                                          -20.0F / 85,
-                                                                          -8.0F / 85,
-                                                                          -8.0F / 85,
-                                                                          -12.0F / 85,
-                                                                          -12.0F / 85,
-                                                                          -8.0F / 85,
-                                                                          -8.0F / 85,
-                                                                          -20.0F / 85,
-                                                                          44.0F / 85,
-                                                                          24.0F / 85,
-                                                                          24.0F / 85,
-                                                                          52.0F / 85};
-static const float                                   INTERVAL_WIDTH_67 = 4 * M_SQRT1_170;
-static constexpr unsigned                            NOF_INTERVALS_67  = 8;
-static const std::array<float, NOF_INTERVALS_67>     SLOPE_67          = {4 * M_SQRT1_170,
-                                                                          -4 * M_SQRT1_170,
-                                                                          4 * M_SQRT1_170,
-                                                                          -4 * M_SQRT1_170,
-                                                                          4 * M_SQRT1_170,
-                                                                          -4 * M_SQRT1_170,
-                                                                          4 * M_SQRT1_170,
-                                                                          -4 * M_SQRT1_170};
+static const float                               INTERVAL_WIDTH_01 = 2 * M_SQRT1_170;
+static constexpr unsigned                        NOF_INTERVALS_01  = 16;
+static const std::array<float, NOF_INTERVALS_01> SLOPE_01          = {
+    32 * M_SQRT1_170,
+    28 * M_SQRT1_170,
+    24 * M_SQRT1_170,
+    20 * M_SQRT1_170,
+    16 * M_SQRT1_170,
+    12 * M_SQRT1_170,
+    8 * M_SQRT1_170,
+    4 * M_SQRT1_170,
+    4 * M_SQRT1_170,
+    8 * M_SQRT1_170,
+    12 * M_SQRT1_170,
+    16 * M_SQRT1_170,
+    20 * M_SQRT1_170,
+    24 * M_SQRT1_170,
+    28 * M_SQRT1_170,
+    32 * M_SQRT1_170,
+};
+static constexpr std::array<float, NOF_INTERVALS_01> INTERCEPT_01 = {
+    112.0F / 85,
+    84.0F / 85,
+    60.0F / 85,
+    40.0F / 85,
+    24.0F / 85,
+    12.0F / 85,
+    4.0F / 85,
+    0.0F,
+    0.0F,
+    -4.0F / 85,
+    -12.0F / 85,
+    -24.0F / 85,
+    -40.0F / 85,
+    -60.0F / 85,
+    -84.0F / 85,
+    -112.0F / 85,
+};
+static const float                               INTERVAL_WIDTH_23 = 2 * M_SQRT1_170;
+static constexpr unsigned                        NOF_INTERVALS_23  = 16;
+static const std::array<float, NOF_INTERVALS_23> SLOPE_23          = {
+    16 * M_SQRT1_170,
+    12 * M_SQRT1_170,
+    8 * M_SQRT1_170,
+    4 * M_SQRT1_170,
+    4 * M_SQRT1_170,
+    8 * M_SQRT1_170,
+    12 * M_SQRT1_170,
+    16 * M_SQRT1_170,
+    -16 * M_SQRT1_170,
+    -12 * M_SQRT1_170,
+    -8 * M_SQRT1_170,
+    -4 * M_SQRT1_170,
+    -4 * M_SQRT1_170,
+    -8 * M_SQRT1_170,
+    -12 * M_SQRT1_170,
+    -16 * M_SQRT1_170,
+};
+static constexpr std::array<float, NOF_INTERVALS_23> INTERCEPT_23 = {
+    88.0F / 85,
+    60.0F / 85,
+    36.0F / 85,
+    16.0F / 85,
+    16.0F / 85,
+    28.0F / 85,
+    36.0F / 85,
+    40.0F / 85,
+    40.0F / 85,
+    36.0F / 85,
+    28.0F / 85,
+    16.0F / 85,
+    16.0F / 85,
+    36.0F / 85,
+    60.0F / 85,
+    88.0F / 85,
+};
+static const float                               INTERVAL_WIDTH_45 = 2 * M_SQRT1_170;
+static constexpr unsigned                        NOF_INTERVALS_45  = 16;
+static const std::array<float, NOF_INTERVALS_45> SLOPE_45          = {
+    8 * M_SQRT1_170,
+    4 * M_SQRT1_170,
+    4 * M_SQRT1_170,
+    8 * M_SQRT1_170,
+    -8 * M_SQRT1_170,
+    -4 * M_SQRT1_170,
+    -4 * M_SQRT1_170,
+    -8 * M_SQRT1_170,
+    8 * M_SQRT1_170,
+    4 * M_SQRT1_170,
+    4 * M_SQRT1_170,
+    8 * M_SQRT1_170,
+    -8 * M_SQRT1_170,
+    -4 * M_SQRT1_170,
+    -4 * M_SQRT1_170,
+    -8 * M_SQRT1_170,
+};
+static const std::array<float, NOF_INTERVALS_45> INTERCEPT_45 = {
+    52.0F / 85,
+    24.0F / 85,
+    24.0F / 85,
+    44.0F / 85,
+    -20.0F / 85,
+    -8.0F / 85,
+    -8.0F / 85,
+    -12.0F / 85,
+    -12.0F / 85,
+    -8.0F / 85,
+    -8.0F / 85,
+    -20.0F / 85,
+    44.0F / 85,
+    24.0F / 85,
+    24.0F / 85,
+    52.0F / 85,
+};
+static const float                               INTERVAL_WIDTH_67 = 4 * M_SQRT1_170;
+static constexpr unsigned                        NOF_INTERVALS_67  = 8;
+static const std::array<float, NOF_INTERVALS_67> SLOPE_67          = {
+    4 * M_SQRT1_170,
+    -4 * M_SQRT1_170,
+    4 * M_SQRT1_170,
+    -4 * M_SQRT1_170,
+    4 * M_SQRT1_170,
+    -4 * M_SQRT1_170,
+    4 * M_SQRT1_170,
+    -4 * M_SQRT1_170,
+};
 static constexpr std::array<float, NOF_INTERVALS_67> INTERCEPT_67 =
     {28.0F / 85, -20.0F / 85, 12.0F / 85, -4.0F / 85, -4.0F / 85, 12.0F / 85, -20.0F / 85, 28.0F / 85};
 
@@ -183,10 +198,12 @@ static void demod_QAM256_avx512(log_likelihood_ratio* llr, const cf_t* symbol, c
   __m512i llr_i8 = mm512::quantize_ps(l_value_01, l_value_23, l_value_45, l_value_67, RANGE_LIMIT_FLOAT);
 
   // Recolocate LLR within the 512-bit register.
-  uint16_t idx_[32]  = {0x00, 0x02, 0x04, 0x06, 0x01, 0x03, 0x05, 0x07, 0x08, 0x0a, 0x0c, 0x0e, 0x09, 0x0b, 0x0d, 0x0f,
-                        0x10, 0x12, 0x14, 0x16, 0x11, 0x13, 0x15, 0x17, 0x18, 0x1a, 0x1c, 0x1e, 0x19, 0x1b, 0x1d, 0x1f};
-  __m512i  idx       = _mm512_loadu_si512(idx_);
-  __m512i  reordered = _mm512_permutexvar_epi16(idx, llr_i8);
+  uint16_t idx_[32] = {
+      0x00, 0x02, 0x04, 0x06, 0x01, 0x03, 0x05, 0x07, 0x08, 0x0a, 0x0c, 0x0e, 0x09, 0x0b, 0x0d, 0x0f,
+      0x10, 0x12, 0x14, 0x16, 0x11, 0x13, 0x15, 0x17, 0x18, 0x1a, 0x1c, 0x1e, 0x19, 0x1b, 0x1d, 0x1f,
+  };
+  __m512i idx       = _mm512_loadu_si512(idx_);
+  __m512i reordered = _mm512_permutexvar_epi16(idx, llr_i8);
 
   _mm512_storeu_si512(reinterpret_cast<__m512i*>(llr), reordered);
 }

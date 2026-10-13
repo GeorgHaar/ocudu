@@ -5,6 +5,9 @@
 
 #pragma once
 
+#include "ocudu/phy/upper/log_likelihood_ratio.h"
+#include "ocudu/support/math/math_utils.h"
+#include <array>
 #include <immintrin.h>
 
 #ifndef __AVX512F__
@@ -15,9 +18,13 @@
 #error "Architecture missmatch. Missing avx512bw."
 #endif // __AVX512BW__
 
-#if defined(__GNUC__) && (__GNUC__ <= 9)
+#if defined(__clang__)
+#if (__clang_major__ <= 4)
+#error "CLANG version must be greater than 4."
+#endif
+#elif defined(__GNUC__) && (__GNUC__ <= 9)
 #error "GCC version must be greater than 9."
-#endif // defined(__GNUC__) && (__GNUC__ <= 9)
+#endif
 
 namespace ocudu {
 
@@ -188,6 +195,19 @@ inline __m512 look_up_table(const std::array<float, 16>& table, __m512i indices)
   __m512 table_m512 = _mm512_loadu_ps(table.data());
   // Read the table.
   return _mm512_permutexvar_ps(indices, table_m512);
+}
+
+/// \brief Gets values from a look-up table.
+/// \param[in] table   Look-up table containing thirty-two single-precision values.
+/// \param[in] indices AVX512 register containing sixteen indices.
+/// \return A single-precision AVX512 register containing the sixteen values corresponding to the given indices.
+inline __m512 look_up_table(const std::array<float, 32>& table, __m512i indices)
+{
+  // Load the table into two 512-bit registers.
+  __m512 table_lower = _mm512_loadu_ps(table.data());
+  __m512 table_upper = _mm512_loadu_ps(table.data() + 16);
+  // Read the table.
+  return _mm512_permutex2var_ps(table_lower, indices, table_upper);
 }
 
 /// \brief Applies a piecewise defined function (provided by look-up tables) to a series of values.

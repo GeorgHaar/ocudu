@@ -5,6 +5,9 @@
 
 #pragma once
 
+#include "ocudu/phy/upper/log_likelihood_ratio.h"
+#include "ocudu/support/math/math_utils.h"
+#include <array>
 #include <immintrin.h>
 
 namespace ocudu {
@@ -202,6 +205,30 @@ inline __m256 look_up_table(const std::array<float, 16>& table, __m256i indices)
 
   // Select upper or lower value.
   return _mm256_blendv_ps(lower, upper, (__m256)mask);
+}
+
+/// \brief Gets values from a look-up table.
+/// \param[in] table   Look-up table containing thirty-two single-precision values.
+/// \param[in] indices AVX register containing eight indices.
+/// \return A single-precision AVX register containing the eight values corresponding to the given indices.
+inline __m256 look_up_table(const std::array<float, 32>& table, __m256i indices)
+{
+  // Get the values from each of the four eight-entry blocks of the table.
+  __m256 block_0 = _mm256_permutevar8x32_ps(_mm256_loadu_ps(table.data()), indices);
+  __m256 block_1 = _mm256_permutevar8x32_ps(_mm256_loadu_ps(table.data() + 8), indices);
+  __m256 block_2 = _mm256_permutevar8x32_ps(_mm256_loadu_ps(table.data() + 16), indices);
+  __m256 block_3 = _mm256_permutevar8x32_ps(_mm256_loadu_ps(table.data() + 24), indices);
+
+  // Select the block within each half of the table. Set to true if the bit 3 of the index is set.
+  __m256i mask_block = _mm256_slli_epi32(indices, 28);
+  __m256  lower      = _mm256_blendv_ps(block_0, block_1, (__m256)mask_block);
+  __m256  upper      = _mm256_blendv_ps(block_2, block_3, (__m256)mask_block);
+
+  // Select the half of the table. Set to true if the index is greater than fifteen.
+  __m256i mask_half = _mm256_cmpgt_epi32(indices, _mm256_set1_epi32(0b1111));
+
+  // Select upper or lower value.
+  return _mm256_blendv_ps(lower, upper, (__m256)mask_half);
 }
 
 /// \brief Applies a piecewise defined function (provided by look-up tables) to a series of values.

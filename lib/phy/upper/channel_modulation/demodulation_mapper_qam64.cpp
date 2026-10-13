@@ -8,7 +8,8 @@
 #include "ocudu/phy/upper/log_likelihood_ratio.h"
 #include "ocudu/support/math/complex_math_utils.h"
 
-#if defined(__AVX512F__) && defined(__AVX512BW__) && (!defined(__GNUC__) || (__GNUC__ > 9))
+#if defined(__AVX512F__) && defined(__AVX512BW__) &&                                                                   \
+    ((defined(__clang__) && (__clang_major__ > 4)) || (defined(__GNUC__) && (__GNUC__ > 9)))
 #define HAVE_AVX512
 #include "avx512_helpers.h"
 #endif
@@ -29,29 +30,33 @@ static const float M_SQRT1_42 = 1.0F / std::sqrt(42.0F);
 // Maximum (absolute) value considered for quantization. Larger values will be clipped.
 static constexpr float RANGE_LIMIT_FLOAT = 20;
 
-static constexpr unsigned             NOF_INTERVALS_01  = 8;
-static const float                    INTERVAL_WIDTH_01 = 2 * M_SQRT1_42;
-static const std::array<float, 8>     SLOPE_01          = {16 * M_SQRT1_42,
-                                                           12 * M_SQRT1_42,
-                                                           8 * M_SQRT1_42,
-                                                           4 * M_SQRT1_42,
-                                                           4 * M_SQRT1_42,
-                                                           8 * M_SQRT1_42,
-                                                           12 * M_SQRT1_42,
-                                                           16 * M_SQRT1_42};
+static constexpr unsigned         NOF_INTERVALS_01  = 8;
+static const float                INTERVAL_WIDTH_01 = 2 * M_SQRT1_42;
+static const std::array<float, 8> SLOPE_01          = {
+    16 * M_SQRT1_42,
+    12 * M_SQRT1_42,
+    8 * M_SQRT1_42,
+    4 * M_SQRT1_42,
+    4 * M_SQRT1_42,
+    8 * M_SQRT1_42,
+    12 * M_SQRT1_42,
+    16 * M_SQRT1_42,
+};
 static constexpr std::array<float, 8> INTERCEPT_01 =
     {24.0F / 21, 12.0F / 21, 4.0F / 21, 0.0F, 0.0F, -4.0F / 21, -12.0F / 21, -24.0F / 21};
 
-static constexpr unsigned             NOF_INTERVALS_23  = 8;
-static const float                    INTERVAL_WIDTH_23 = 2 * M_SQRT1_42;
-static const std::array<float, 8>     SLOPE_23          = {8 * M_SQRT1_42,
-                                                           4 * M_SQRT1_42,
-                                                           4 * M_SQRT1_42,
-                                                           8 * M_SQRT1_42,
-                                                           -8 * M_SQRT1_42,
-                                                           -4 * M_SQRT1_42,
-                                                           -4 * M_SQRT1_42,
-                                                           -8 * M_SQRT1_42};
+static constexpr unsigned         NOF_INTERVALS_23  = 8;
+static const float                INTERVAL_WIDTH_23 = 2 * M_SQRT1_42;
+static const std::array<float, 8> SLOPE_23          = {
+    8 * M_SQRT1_42,
+    4 * M_SQRT1_42,
+    4 * M_SQRT1_42,
+    8 * M_SQRT1_42,
+    -8 * M_SQRT1_42,
+    -4 * M_SQRT1_42,
+    -4 * M_SQRT1_42,
+    -8 * M_SQRT1_42,
+};
 static constexpr std::array<float, 8> INTERCEPT_23 =
     {20.0F / 21, 8.0F / 21, 8.0F / 21, 12.0F / 21, 12.0F / 21, 8.0F / 21, 8.0F / 21, 20.0F / 21};
 
@@ -70,7 +75,7 @@ static void demod_QAM64_avx512(log_likelihood_ratio* llr, const cf_t* symbol, co
       0x10, 0x12, 0x14, 0x11, 0x13, 0x15, // 24 - 35
       0x18, 0x1a, 0x1c, 0x19, 0x1b, 0x1d, // 36 - 47
       0x20, 0x22, 0x24, 0x21, 0x23, 0x25, // 48 - 59
-      0x28, 0x2a                          // 60 - 63
+      0x28, 0x2a,                         // 60 - 63
   };
   alignas(64) static constexpr std::array<uint16_t, 32> idx1_ = {
       0x0c, 0x09, 0x0b, 0x0d,             // 0 - 7
@@ -78,7 +83,7 @@ static void demod_QAM64_avx512(log_likelihood_ratio* llr, const cf_t* symbol, co
       0x18, 0x1a, 0x1c, 0x19, 0x1b, 0x1d, // 20 - 31
       0x20, 0x22, 0x24, 0x21, 0x23, 0x25, // 32 - 43
       0x28, 0x2a, 0x2c, 0x29, 0x2b, 0x2d, // 44 - 55
-      0x30, 0x32, 0x34, 0x31              // 56 - 63
+      0x30, 0x32, 0x34, 0x31,             // 56 - 63
   };
   alignas(64) static constexpr std::array<uint16_t, 32> idx2_ = {
       0x13, 0x15,                         // 0 - 3
@@ -86,7 +91,7 @@ static void demod_QAM64_avx512(log_likelihood_ratio* llr, const cf_t* symbol, co
       0x20, 0x22, 0x24, 0x21, 0x23, 0x25, // 16 - 27
       0x28, 0x2a, 0x2c, 0x29, 0x2b, 0x2d, // 28 - 39
       0x30, 0x32, 0x34, 0x31, 0x33, 0x35, // 40 - 41
-      0x38, 0x3a, 0x3c, 0x39, 0x3b, 0x3d  // 52 - 63
+      0x38, 0x3a, 0x3c, 0x39, 0x3b, 0x3d, // 52 - 63
   };
 
   __m512i rcp_noise_idx = _mm512_setr_epi32(0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7);

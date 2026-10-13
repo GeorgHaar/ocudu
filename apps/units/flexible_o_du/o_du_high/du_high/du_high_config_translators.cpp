@@ -885,13 +885,17 @@ std::vector<odu::du_cell_config> ocudu::generate_du_cell_config(const du_high_un
     }
     out_cell.ran.ul_cfg_common.init_ul_bwp.pucch_cfg_common.value().p0_nominal = base_cell.pucch_cfg.p0_nominal;
     // If not provided, set a default common resource set index depending on the format used for Resource Set 0.
-    // The indices are chosen to maximize the number of symbols and minimize the number of cyclic shifts.
+    // The indices are chosen to maximize the number of symbols and minimize the number of cyclic shifts. For narrow
+    // BWPs, more cyclic shifts are used to reduce the PRBs at the BWP edges reserved for the common PUCCH resources,
+    // leaving room for the dedicated PUCCH resources and the PRACH.
+    static constexpr unsigned max_nof_crbs_narrow_bwp = 50;
+    const bool                is_narrow_bwp           = nof_crbs < max_nof_crbs_narrow_bwp;
     if (pucch_f0f1_format(base_cell.pucch_cfg.formats) == pucch_format::FORMAT_0) {
       out_cell.ran.ul_cfg_common.init_ul_bwp.pucch_cfg_common.value().pucch_resource_common =
-          base_cell.pucch_cfg.pucch_resource_common.value_or(0);
+          base_cell.pucch_cfg.pucch_resource_common.value_or(is_narrow_bwp ? 1 : 0);
     } else {
       out_cell.ran.ul_cfg_common.init_ul_bwp.pucch_cfg_common.value().pucch_resource_common =
-          base_cell.pucch_cfg.pucch_resource_common.value_or(11);
+          base_cell.pucch_cfg.pucch_resource_common.value_or(is_narrow_bwp ? 12 : 11);
     }
 
     // Common PDCCH config.
@@ -1046,14 +1050,15 @@ std::vector<odu::du_cell_config> ocudu::generate_du_cell_config(const du_high_un
     const du_high_unit_pucch_config& user_pucch_cfg_pre_processing = base_cell.pucch_cfg;
     du_high_unit_pucch_config        user_pucch_cfg                = user_pucch_cfg_pre_processing;
     // For 5MHz BW or for 10MHz TDD, the default PUCCH configuration would use too many PRBs, we need to reduce them not
-    // to waste the useful UL BW.
+    // to waste the useful UL BW. The resource set 1 and CSI resources are sized to fit a single PRB of PUCCH F2, so
+    // that the short PRACH and its guardbands fit in between the PUCCH resources.
     if ((param.dl_carrier.carrier_bw < bs_channel_bandwidth::MHz10 or
          (is_tdd and param.dl_carrier.carrier_bw <= bs_channel_bandwidth::MHz10)) and
         user_pucch_cfg_pre_processing == du_high_unit_pucch_config{}) {
-      constexpr unsigned res_set_size_5mhz             = 7;
+      constexpr unsigned res_set_size_5mhz             = 4;
       constexpr unsigned nof_cell_res_set_configs_5mhz = 1;
       constexpr unsigned nof_cell_sr_res_5mhz          = 7;
-      constexpr unsigned nof_cell_csi_res_5mhz         = 7;
+      constexpr unsigned nof_cell_csi_res_5mhz         = 3;
       user_pucch_cfg.nof_cell_res_set_configs          = nof_cell_res_set_configs_5mhz;
       user_pucch_cfg.res_set_size = std::min(res_set_size_5mhz, user_pucch_cfg_pre_processing.res_set_size);
       user_pucch_cfg.nof_cell_sr_resources =

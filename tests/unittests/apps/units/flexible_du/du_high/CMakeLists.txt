@@ -52,6 +52,16 @@ target_link_libraries(du_high_coreset0_config_test
         gtest_main)
 add_test(du_high_coreset0_config_test du_high_coreset0_config_test)
 
+add_executable(du_high_pucch_prach_config_test du_high_pucch_prach_config_test.cpp)
+target_include_directories(du_high_pucch_prach_config_test PRIVATE ${CMAKE_SOURCE_DIR})
+target_link_libraries(du_high_pucch_prach_config_test
+        ocudu_du_high_unit_helpers
+        ocudu_app_services
+        ocudu_du_config_validators
+        gtest
+        gtest_main)
+gtest_discover_tests(du_high_pucch_prach_config_test)
+
 add_executable(du_high_config_autoderivation_test du_high_config_autoderivation_test.cpp)
 target_include_directories(du_high_config_autoderivation_test PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(du_high_config_autoderivation_test

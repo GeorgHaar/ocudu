@@ -274,17 +274,33 @@ static std::vector<periodic_uci_config> collect_ul_occasions(const ue_cell_confi
   return out;
 }
 
-void du_meas_config_manager::update(du_ue_resource_config&       ue_cfg,
-                                    const byte_buffer&           packed_meas_cfg,
+bool du_meas_config_manager::update(du_ue_resource_config&       ue_cfg,
+                                    const byte_buffer&           meas_cfg,
+                                    const byte_buffer&           location_meas_info,
                                     const ue_capability_summary* ue_caps)
 {
-  if (packed_meas_cfg.empty()) {
-    return;
-  }
-
   const supported_meas_gap_patterns supported_patterns =
       ue_caps != nullptr ? ue_caps->supported_meas_gaps : supported_meas_gap_patterns{};
 
+  if (not meas_cfg.empty()) {
+    update_ssb_meas_gap(ue_cfg, meas_cfg, supported_patterns);
+    if (location_meas_info.empty()) {
+      // The CU-CP sends the LocationMeasurementInfo with each measConfig until the UE stops the location measurements.
+      ue_cfg.prs_meas_gaps.clear();
+      ue_cfg.meas_gap = ue_cfg.ssb_meas_gap;
+      return true;
+    }
+  }
+  if (location_meas_info.empty()) {
+    return true;
+  }
+  return update_location_meas(ue_cfg, location_meas_info, supported_patterns);
+}
+
+void du_meas_config_manager::update_ssb_meas_gap(du_ue_resource_config&             ue_cfg,
+                                                 const byte_buffer&                 packed_meas_cfg,
+                                                 const supported_meas_gap_patterns& supported_patterns)
+{
   meas_cfg_s meas_cfg;
   if (not unpack_meas_cfg(meas_cfg, packed_meas_cfg)) {
     logger.error("Failed to unpack meas config. Discarding it...");
@@ -335,8 +351,6 @@ void du_meas_config_manager::update(du_ue_resource_config&       ue_cfg,
                                           ul_ta,
                                           supported_patterns);
   }
-
-  apply_meas_gap(ue_cfg, supported_patterns);
 }
 
 // Returns the measurement gap required by the PRS of one frequency layer, whose fields share the values of a GapConfig,
@@ -428,17 +442,10 @@ static std::optional<meas_gap_config> make_prs_gap(const std::optional<meas_gap_
   return make_enclosing_gap(gaps, max_mgl, supported_patterns);
 }
 
-bool du_meas_config_manager::update_location_meas(du_ue_resource_config&       ue_cfg,
-                                                  const byte_buffer&           packed_location_meas_info,
-                                                  const ue_capability_summary* ue_caps)
+bool du_meas_config_manager::update_location_meas(du_ue_resource_config&             ue_cfg,
+                                                  const byte_buffer&                 packed_location_meas_info,
+                                                  const supported_meas_gap_patterns& supported_patterns)
 {
-  if (packed_location_meas_info.empty()) {
-    return true;
-  }
-
-  const supported_meas_gap_patterns supported_patterns =
-      ue_caps != nullptr ? ue_caps->supported_meas_gaps : supported_meas_gap_patterns{};
-
   location_meas_info_c location_meas_info;
   asn1::cbit_ref       bref{packed_location_meas_info};
   if (location_meas_info.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
@@ -471,27 +478,4 @@ bool du_meas_config_manager::update_location_meas(du_ue_resource_config&       u
   ue_cfg.prs_meas_gaps = std::move(prs_meas_gaps);
   ue_cfg.meas_gap      = gap;
   return true;
-}
-
-void du_meas_config_manager::apply_meas_gap(du_ue_resource_config&             ue_cfg,
-                                            const supported_meas_gap_patterns& supported_patterns)
-{
-  if (ue_cfg.prs_meas_gaps.empty()) {
-    ue_cfg.meas_gap = ue_cfg.ssb_meas_gap;
-    return;
-  }
-
-  const std::optional<meas_gap_config> gap =
-      make_prs_gap(ue_cfg.ssb_meas_gap, ue_cfg.prs_meas_gaps, supported_patterns);
-  if (gap.has_value()) {
-    ue_cfg.meas_gap = gap;
-    return;
-  }
-
-  // The measConfig takes priority, as when the location measurements are rejected for not fitting.
-  logger.warning(
-      "Dropping the PRS from the measurement gap. Cause: They do not fit in a single gap supported by the UE "
-      "with the SSB measurement gap");
-  ue_cfg.prs_meas_gaps.clear();
-  ue_cfg.meas_gap = ue_cfg.ssb_meas_gap;
 }

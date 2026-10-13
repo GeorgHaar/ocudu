@@ -27,6 +27,7 @@ variables:
     ATTESTATION_FILE: ""
     ATTESTATION_EXPECTED_FILES: ""
     GRYPE_SKIP: "false"
+    BUILDKITD_FLAGS: "--root ${CI_BUILDS_DIR}/.buildkit-${CI_CONCURRENT_ID}" # Non-overlay root so BuildKit can use the overlayfs snapshotter
     COSIGN_YES: "true" # Used by Cosign to skip confirmation prompts for non-destructive operations
     REGISTRY_URI: ${CI_REGISTRY_IMAGE}
     REGISTRY_AUTH_SERVER: ${CI_REGISTRY}
@@ -41,6 +42,8 @@ variables:
       - grype-report.json
     expire_in: 7 days
     when: always
+  after_script:
+    - rm -rf "${CI_BUILDS_DIR}/.buildkit-${CI_CONCURRENT_ID}"
   script:
     - |
       check_if_image_exists() {
@@ -120,6 +123,7 @@ variables:
       [ -n "${DOCKER_TARGET}" ] && TARGET_OPT="--opt target=${DOCKER_TARGET}"
     - |
       if [ "${SKIP_IMAGE_BUILD}" != "true" ]; then
+        rm -rf "${CI_BUILDS_DIR}/.buildkit-${CI_CONCURRENT_ID}" # Leftover from a killed job in this slot
         sh -c "buildctl-daemonless.sh build \
           --progress=plain \
           --opt platform=${PLATFORM_OS}/${PLATFORM} \

@@ -14,6 +14,9 @@ Do not copy the rules of a page of this directory into an `AGENTS.md` file. Add 
 file. For example, the root `AGENTS.md` file has the line
 `Follow [docs/agents/code_comments.md](docs/agents/code_comments.md).`
 
+Put shared instructions in `AGENTS.md`, not in `CLAUDE.md`. Put personal or Claude-specific instructions in a
+`CLAUDE.local.md` file, which git ignores.
+
 ## Guidelines
 
 - One topic per file, named after the topic.

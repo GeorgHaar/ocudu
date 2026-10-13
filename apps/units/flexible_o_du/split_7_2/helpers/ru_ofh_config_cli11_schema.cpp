@@ -203,14 +203,16 @@ static void configure_cli11_ru_ofh_base_cell_args(CLI::App& app, ru_ofh_unit_bas
   add_option(app,
              "--fs_offset_dl",
              config.fs_offset_dl,
-             "O-RAN FS_Offset of the downlink IQ full scale in 3 dB steps. Must match the RU. If not set, the OCUDU "
-             "full scale is used, i.e., 0 without compression and 2*(bitwidth-1) for BFP")
+             "O-RAN FS_Offset of the downlink IQ full scale in 3 dB steps. Must match the RU. If not set, no scaling "
+             "is applied and the OCUDU native full scale is used, i.e., 0 without compression and 2*(bitwidth-1) for "
+             "BFP (16 for BFP9). Not setting it differs from setting it to the O-RAN default of 0")
       ->range(0, 255);
   add_option(app,
              "--fs_offset_ul",
              config.fs_offset_ul,
-             "O-RAN FS_Offset of the uplink and PRACH IQ full scale in 3 dB steps. Must match the RU. If not set, the "
-             "OCUDU full scale is used, i.e., 0 without compression and 2*(bitwidth-1) for BFP")
+             "O-RAN FS_Offset of the uplink and PRACH IQ full scale in 3 dB steps. Must match the RU. If not set, no "
+             "scaling is applied and the OCUDU native full scale is used, i.e., 0 without compression and "
+             "2*(bitwidth-1) for BFP (16 for BFP9). Not setting it differs from setting it to the O-RAN default of 0")
       ->range(0, 255);
 
   add_option_function<float>(

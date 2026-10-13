@@ -131,15 +131,23 @@ struct ru_ofh_unit_base_cell_config {
   ///
   /// Sets the full scale that the downlink IQ data refer to as \f$FS_0 2^{-\text{FS\_Offset}}\f$, where \f$FS_0\f$ is
   /// the largest IQ power of the compression format and each step is 3.01 dB. It must match the downlink FS_Offset
-  /// configured in the RU. If not set, the OCUDU IQ full scale is used, which corresponds to an FS_Offset of 0 without
-  /// compression and \f$2(m-1)\f$ for BFP compression with an \f$m\f$-bit mantissa.
+  /// configured in the RU.
+  ///
+  /// If not set, no full scale scaling is applied and the IQ data keep the OCUDU native full scale, as in previous
+  /// OCUDU versions. This corresponds to an FS_Offset of 0 without compression and \f$2(m-1)\f$ for BFP compression
+  /// with an \f$m\f$-bit mantissa, e.g., 16 for BFP9, which is the FS_Offset used by FlexRAN. Setting this value to
+  /// the native FS_Offset is therefore equivalent to leaving it unset.
+  ///
+  /// \note Leaving it unset is not the same as setting it to 0, even though 0 is the O-RAN default. RUs that follow
+  /// the O-RAN default with BFP compression need this value to be set to 0 explicitly.
   ///
   /// \warning Check the RU documentation before setting this parameter, as incorrect values may damage the RU.
   std::optional<unsigned> fs_offset_dl;
   /// \brief O-RAN FS_Offset of the uplink IQ full scale (O-RAN.WG4.CUS, clause 8.1.3.1).
   ///
   /// Same as \ref fs_offset_dl, but applies to the uplink IQ data, including PRACH. It must match the uplink
-  /// FS_Offset configured in the RU.
+  /// FS_Offset configured in the RU. If not set, the native FS_Offset is derived separately from the uplink and the
+  /// PRACH compression parameters.
   ///
   /// \warning Check the RU documentation before setting this parameter, as incorrect values may damage the RU.
   std::optional<unsigned> fs_offset_ul;

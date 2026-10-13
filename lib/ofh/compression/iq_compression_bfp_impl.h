@@ -73,8 +73,8 @@ protected:
   /// from O-RAN.WG4.CUS, Annex A.1.2.
   ///
   /// \param[out] c_prb          Compressed PRB.
-  /// \param input_quantized     Span of quantized IQ samples of a resource block to be compressed.
-  /// \param data_width          BFP compression bit width.
+  /// \param[in] input_quantized Span of quantized IQ samples of a resource block to be compressed.
+  /// \param[in] data_width      BFP compression bit width.
   /// \param[in] exponent_offset Offset added to the serialized exponent.
   static void compress_prb_generic(span<uint8_t>       c_prb,
                                    span<const int16_t> input_quantized,
@@ -84,11 +84,11 @@ protected:
   /// \brief Decompresses one resource block using a generic implementation of the algorithm
   /// from O-RAN.WG4.CUS, Annex A.1.3.
   ///
-  /// \param[out] output     Span of decompressed complex samples of a resource block (12 samples).
-  /// \param[in]  comp_prb   Compressed PRB IQ samples and compression parameter.
-  /// \param[in]  q          Quantizer object.
-  /// \param data_width      Bit width of compressed samples.
-  /// \param[in] iq_scaling  Scaling factor applied to the decompressed samples.
+  /// \param[out] output    Span of decompressed complex samples of a resource block (12 samples).
+  /// \param[in] comp_prb   Compressed PRB IQ samples and compression parameter.
+  /// \param[in] q          Quantizer object.
+  /// \param[in] data_width Bit width of compressed samples.
+  /// \param[in] iq_scaling Scaling factor applied to the decompressed samples.
   static void decompress_prb_generic(span<cbf16_t>       output,
                                      span<const uint8_t> comp_prb,
                                      const quantizer&    q,

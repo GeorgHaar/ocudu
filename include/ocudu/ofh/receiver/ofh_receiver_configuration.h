@@ -46,7 +46,7 @@ struct receiver_config {
   /// Uplink static compression header flag.
   bool is_uplink_static_compr_hdr_enabled = true;
   /// O-RAN FS_Offset of the uplink and PRACH IQ full scale (O-RAN.WG4.CUS, clause 8.1.3.1).
-  std::optional<unsigned> fs_offset_ul;
+  std::optional<unsigned> ul_fs_offset;
   /// Enables the Control-Plane PRACH message signalling.
   bool is_prach_control_plane_enabled = false;
   /// Ignore the start symbol value received in the PRACH U-Plane packets.

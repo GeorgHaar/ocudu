@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ocudu/ofh/compression/compression_properties.h"
+#include "ocudu/support/ocudu_assert.h"
 #include <array>
 #include <cstdint>
 #include <optional>
@@ -40,13 +41,25 @@ public:
   }
 
   /// Returns the scaling factor applied to IQ data prior to compression with the given IQ bit width.
-  float get_compression_iq_scaling(unsigned data_width) const { return compression_iq_scaling[data_width]; }
+  float get_compression_iq_scaling(unsigned data_width) const
+  {
+    ocudu_assert(data_width <= MAX_IQ_WIDTH, "Invalid IQ bit width {}", data_width);
+    return compression_iq_scaling[data_width];
+  }
 
   /// Returns the offset added to the BFP exponent of every PRB compressed with the given IQ bit width.
-  uint8_t get_compression_exponent_offset(unsigned data_width) const { return compression_exponent_offset[data_width]; }
+  uint8_t get_compression_exponent_offset(unsigned data_width) const
+  {
+    ocudu_assert(data_width <= MAX_IQ_WIDTH, "Invalid IQ bit width {}", data_width);
+    return compression_exponent_offset[data_width];
+  }
 
   /// Returns the scaling factor applied to IQ data decompressed from the given IQ bit width.
-  float get_decompression_iq_scaling(unsigned data_width) const { return decompression_iq_scaling[data_width]; }
+  float get_decompression_iq_scaling(unsigned data_width) const
+  {
+    ocudu_assert(data_width <= MAX_IQ_WIDTH, "Invalid IQ bit width {}", data_width);
+    return decompression_iq_scaling[data_width];
+  }
 
 private:
   /// Scaling factor applied to IQ data prior to compression, indexed by IQ bit width.

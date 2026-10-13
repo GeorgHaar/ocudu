@@ -18,6 +18,8 @@
 #include "ocudu/phy/support/shared_resource_grid.h"
 #include "ocudu/ran/slot_point.h"
 #include "ocudu/support/executors/task_executor.h"
+#include "ocudu/support/synchronization/stop_event.h"
+#include <algorithm>
 #include <vector>
 
 namespace ocudu {
@@ -56,7 +58,17 @@ public:
   void connect(puxch_processor_notifier& notifier_) override { notifier = &notifier_; }
 
   // See interface for documentation.
-  void stop() override { stopped = true; }
+  void stop() override
+  {
+    // Don't allow further processing requests.
+    stop_control.stop();
+
+    // Close the current slot, if any.
+    current_demodulator.release();
+
+    // Wait for all demodulators to complete their pending tasks.
+    std::for_each(demodulators.begin(), demodulators.end(), [](const auto& demodulator) { demodulator->stop(); });
+  }
 
   // See interface for documentation.
   puxch_processor_request_handler& get_request_handler() override { return *this; }
@@ -88,8 +100,8 @@ private:
   void on_demodulation_completion(const shared_resource_grid&        grid,
                                   const lower_phy_rx_symbol_context& context) override;
 
-  /// Set to true when upper layers request to stop.
-  std::atomic<bool> stopped = false;
+  /// Stop control.
+  rt_stop_event_source stop_control;
   /// Number of OFDM symbols per slot.
   unsigned nof_symbols_per_slot;
   /// Physical channel baseband processor event notifier.

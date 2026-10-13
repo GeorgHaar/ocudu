@@ -18,6 +18,7 @@
 #include "ocudu/phy/support/resource_grid_writer.h"
 #include "ocudu/phy/support/shared_resource_grid.h"
 #include "ocudu/support/executors/task_executor.h"
+#include "ocudu/support/synchronization/stop_event.h"
 #include <array>
 #include <atomic>
 
@@ -86,6 +87,9 @@ public:
     return puxch_baseband_demodulator_scoped(*this);
   }
 
+  /// Stops the demodulator. It blocks until all the pending demodulation tasks are completed.
+  void stop() { stop_control.stop(); }
+
 private:
   /// \brief Demodulates an OFDM symbol of the current slot.
   ///
@@ -125,7 +129,18 @@ private:
 
     // Demodulate asynchronously each of the ports.
     for (unsigned i_port = 0; i_port != nof_ports; ++i_port) {
-      bool success = executor.defer([this, i_symbol, i_symbol_sf, i_port]() {
+      // The task keeps a stop token until it is destroyed, so the demodulator does not stop with pending tasks.
+      auto token = stop_control.get_token();
+
+      // Skip the demodulation of the port if the demodulator is stopped.
+      if (token.is_stop_requested()) {
+        ocuduvec::zero(current_grid.get().get_writer().get_view(i_port, i_symbol_sf));
+        entry.is_valid = false;
+        complete_port_task(i_symbol);
+        continue;
+      }
+
+      bool success = executor.defer([this, i_symbol, i_symbol_sf, i_port, tk = std::move(token)]() {
         // Start tracing.
         trace_point tp = ru_tracer.now();
 
@@ -257,6 +272,8 @@ private:
   ofdm_symbol_demodulator& demodulator;
   /// Notifier of the demodulated OFDM symbols.
   puxch_processor_demodulator_notifier& notifier;
+  /// Stop control.
+  rt_stop_event_source stop_control;
 };
 
 } // namespace ocudu

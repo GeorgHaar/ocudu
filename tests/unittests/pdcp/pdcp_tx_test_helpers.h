@@ -260,8 +260,8 @@ private:
   unsigned           crypto_queue_size = 128;
 
   task_worker_pool<concurrent_queue_policy::lockfree_mpmc>          crypto_worker_pool{"crypto",
-                                                                                       nof_crypto_threads,
-                                                                                       crypto_queue_size};
+                                                                              nof_crypto_threads,
+                                                                              crypto_queue_size};
   task_worker_pool_executor<concurrent_queue_policy::lockfree_mpmc> crypto_worker =
       task_worker_pool_executor<concurrent_queue_policy::lockfree_mpmc>(crypto_worker_pool);
 };

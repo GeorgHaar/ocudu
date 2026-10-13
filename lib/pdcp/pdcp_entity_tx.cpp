@@ -312,7 +312,7 @@ void pdcp_entity_tx::handle_sdu(byte_buffer buf)
     }
   }
 
-  /// Forwarding is enabled. Forward the SDU target gNB and return.
+  // Forwarding is enabled. Forward the SDU target gNB and return.
   if (forward_dn) {
     forward_dn->on_new_pdu(std::move(buf), SN(st.tx_next));
     logger.log_info("Forward SDU. count={}", st.tx_next);
@@ -406,7 +406,7 @@ void pdcp_entity_tx::apply_reordering(pdcp_tx_buffer_info buf_info)
     return;
   }
 
-  /// Forwarding enabled already. Drop PDU, it is being forwarded to the target already.
+  // Forwarding enabled already. Drop PDU, it is being forwarded to the target already.
   if (forward_dn) {
     logger.log_debug("Dropping security protected PDU. Entity is forwarding. count={}", buf_info.count);
     return;

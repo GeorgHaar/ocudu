@@ -157,7 +157,7 @@ public:
     uint32_t        count = st.tx_next;
     count_info.sn         = SN(count);
     count_info.hfn        = HFN(count);
-    logger.log_info("Getting PDCP COUNT info. hfn={} sn={}", count_info.sn, count_info.hfn);
+    logger.log_info("Getting PDCP COUNT info. hfn={} sn={}", count_info.hfn, count_info.sn);
     return count_info;
   }
 

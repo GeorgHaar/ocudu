@@ -53,12 +53,12 @@ public:
 class pdcp_tx_forward_notifier
 {
 public:
-  pdcp_tx_forward_notifier()                                         = default;
-  virtual ~pdcp_tx_forward_notifier()                                = default;
-  pdcp_tx_forward_notifier(const pdcp_tx_lower_notifier&)            = delete;
-  pdcp_tx_forward_notifier& operator=(const pdcp_tx_lower_notifier&) = delete;
-  pdcp_tx_forward_notifier(pdcp_tx_lower_notifier&&)                 = delete;
-  pdcp_tx_forward_notifier& operator=(pdcp_tx_lower_notifier&&)      = delete;
+  pdcp_tx_forward_notifier()                                           = default;
+  virtual ~pdcp_tx_forward_notifier()                                  = default;
+  pdcp_tx_forward_notifier(const pdcp_tx_forward_notifier&)            = delete;
+  pdcp_tx_forward_notifier& operator=(const pdcp_tx_forward_notifier&) = delete;
+  pdcp_tx_forward_notifier(pdcp_tx_forward_notifier&&)                 = delete;
+  pdcp_tx_forward_notifier& operator=(pdcp_tx_forward_notifier&&)      = delete;
 
   /// Forward DL PDCP SDU to GTP-U tunnel, along the sequence number.
   virtual void on_new_pdu(byte_buffer pdu, uint32_t pdcp_sn) = 0;

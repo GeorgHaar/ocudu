@@ -46,6 +46,9 @@ struct drb_context {
       if (f1u_gw_bearer) {
         f1u_gw_bearer->stop();
       }
+      if (gtpu_fwd) {
+        gtpu_fwd->stop();
+      }
       stopped = true;
     }
   }

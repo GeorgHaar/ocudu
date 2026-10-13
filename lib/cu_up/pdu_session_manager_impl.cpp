@@ -355,8 +355,8 @@ drb_setup_result pdu_session_manager_impl::handle_drb_to_setup_item(pdu_session&
   security::sec_128_as_config sec_128 = security::truncate_config(security_info);
   auto                        integrity_enabled =
       new_session.security_ind.integrity_protection_ind == integrity_protection_indication_t::not_needed
-          ? security::integrity_enabled::off
-          : security::integrity_enabled::on;
+                                 ? security::integrity_enabled::off
+                                 : security::integrity_enabled::on;
   auto ciphering_enabled =
       new_session.security_ind.confidentiality_protection_ind == confidentiality_protection_indication_t::not_needed
           ? security::ciphering_enabled::off
@@ -635,8 +635,8 @@ pdu_session_manager_impl::modify_pdu_session(const e1ap_pdu_session_res_to_modif
       if (xnu_session_mngr) {
         drb->egress_dl_data_forwarding_tnl_info = drb_to_mod.drb_data_forwarding_info->dl_data_forwarding;
 
-        /// Create forwarding GTP-U tunnel.
-        /// TODO create GTP-U UL forwarding.
+        // Create forwarding GTP-U tunnel.
+        // TODO create GTP-U UL forwarding.
         gtpu_tunnel_pdcp_config fwd_cfg = {
             .rx = {.lif         = gtpu_logical_interface::xnu,
                    .local_teid  = {},

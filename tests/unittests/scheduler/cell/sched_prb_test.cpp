@@ -49,9 +49,45 @@ TEST(prb_grant_test, test_all)
   ASSERT_EQ("0x10000", fmt::format("0x{:x}", grant3));
 }
 
+TEST(convert_rbgs_to_prbs_test, when_bwp_start_is_not_aligned_to_rbg_size_then_first_and_last_rbgs_are_shorter)
+{
+  // BWP of 100 PRBs starting at CRB 3, with P=8. The first RBG has 5 PRBs and the last RBG has 7 PRBs.
+  const crb_interval     bwp_crbs{3, 103};
+  const nominal_rbg_size P = get_nominal_rbg_size(bwp_crbs.length(), rbg_size::config1);
+  ASSERT_EQ(P, nominal_rbg_size::P8);
+  rbg_bitmap rbgs(get_nof_rbgs(bwp_crbs, P));
+  ASSERT_EQ(rbgs.size(), 13);
+  rbgs.set(0);
+  rbgs.set(1);
+  rbgs.set(12);
+
+  prb_bitmap expected(bwp_crbs.length());
+  expected.fill(0, 13);
+  expected.fill(93, 100);
+  ASSERT_EQ(convert_rbgs_to_prbs(rbgs, bwp_crbs, P), expected);
+}
+
+TEST(bwp_rb_bitmap, when_bwp_start_is_not_aligned_to_rbg_size_then_rbgs_map_to_shorter_edge_rbgs)
+{
+  bwp_rb_bitmap rb_bitmap(crb_interval{3, 103}, rbg_size::config1);
+  ASSERT_EQ(rb_bitmap.P(), 8);
+  ASSERT_EQ(rb_bitmap.nof_rbgs(), 13);
+
+  rbg_bitmap rbgs(rb_bitmap.nof_rbgs());
+  rbgs.set(0);
+  rbgs.set(12);
+  rb_bitmap |= rbgs;
+
+  prb_bitmap expected(rb_bitmap.nof_prbs());
+  expected.fill(0, 5);
+  expected.fill(93, 100);
+  ASSERT_EQ(rb_bitmap.prbs(), expected);
+  ASSERT_EQ(rb_bitmap.rbgs(), rbgs);
+}
+
 TEST(bwp_rb_bitmap, test_all)
 {
-  bwp_rb_bitmap rb_bitmap(275, 0, true);
+  bwp_rb_bitmap rb_bitmap(crb_interval{0, 275}, rbg_size::config1);
 
   ASSERT_TRUE(rb_bitmap.P() == 16);
   ASSERT_TRUE(rb_bitmap.rbgs().none());
@@ -96,7 +132,7 @@ TEST(bwp_rb_bitmap, test_all)
 
 TEST(bwp_rb_bitmap, search)
 {
-  bwp_rb_bitmap rb_bitmap(275, 0, true);
+  bwp_rb_bitmap rb_bitmap(crb_interval{0, 275}, rbg_size::config1);
 
   prb_interval prbs = rb_helper::find_empty_interval_of_length(rb_bitmap.prbs(), 5);
   ASSERT_TRUE(prbs == prb_interval(0, 5));

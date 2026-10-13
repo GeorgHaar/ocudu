@@ -10,12 +10,12 @@
 
 using namespace ocudu;
 
-bwp_rb_bitmap::bwp_rb_bitmap(uint32_t bwp_nof_prbs, uint32_t bwp_prb_start_, bool config1_or_2) :
-  prbs_(bwp_nof_prbs),
-  rbgs_(get_nof_rbgs(crb_interval(bwp_prb_start_, bwp_prb_start_ + bwp_nof_prbs), config1_or_2)),
-  P_(get_nominal_rbg_size(bwp_nof_prbs, config1_or_2)),
+bwp_rb_bitmap::bwp_rb_bitmap(crb_interval bwp_crbs, rbg_size rbg_sz) :
+  prbs_(bwp_crbs.length()),
+  rbgs_(get_nof_rbgs(bwp_crbs, rbg_sz)),
+  P_(get_nominal_rbg_size(bwp_crbs.length(), rbg_sz)),
   Pnofbits(std::log2(to_underlying(P_))),
-  first_rbg_size(get_rbg_size(crb_interval(bwp_prb_start_, bwp_prb_start_ + bwp_nof_prbs), P_, 0))
+  first_rbg_size(get_rbg_size(bwp_crbs, P_, 0))
 {
 }
 
@@ -53,9 +53,9 @@ void bwp_rb_bitmap::add_rbgs_to_prbs(const rbg_bitmap& grant)
     if (idx < 0) {
       return;
     }
-    uint32_t prb_idx = (idx - 1) * to_underlying(P_) + first_rbg_size;
+    uint32_t prb_idx = (idx == 0) ? 0 : (idx - 1) * to_underlying(P_) + first_rbg_size;
     uint32_t prb_end = std::min(prb_idx + ((idx == 0) ? first_rbg_size : to_underlying(P_)), (uint32_t)prbs_.size());
     prbs_.fill(prb_idx, prb_end);
     idx++;
-  } while (idx != (int)prbs_.size());
+  } while (idx != (int)grant.size());
 }

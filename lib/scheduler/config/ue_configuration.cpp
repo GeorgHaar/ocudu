@@ -187,7 +187,7 @@ static dci_size_config get_dci_size_config(const ue_cell_configuration& ue_cell_
         case pusch_config::resource_allocation::resource_allocation_type_0: {
           dci_sz_cfg.pusch_res_allocation_type = resource_allocation::resource_allocation_type_0;
           // TODO: Once rbg-Size is declared in PUSCH-Config, use the value from config.
-          dci_sz_cfg.nof_ul_rb_groups = static_cast<unsigned>(get_nominal_rbg_size(active_ul_bwp.crbs.length(), true));
+          dci_sz_cfg.nof_ul_rb_groups = get_nof_rbgs(active_ul_bwp.crbs, rbg_size::config1);
           break;
         }
         case pusch_config::resource_allocation::resource_allocation_type_1: {
@@ -197,7 +197,7 @@ static dci_size_config get_dci_size_config(const ue_cell_configuration& ue_cell_
         case pusch_config::resource_allocation::dynamic_switch: {
           dci_sz_cfg.pusch_res_allocation_type = resource_allocation::dynamic_switch;
           // TODO: Once rbg-Size is defined in PUSCH-Config, use the value from config.
-          dci_sz_cfg.nof_ul_rb_groups = static_cast<unsigned>(get_nominal_rbg_size(active_ul_bwp.crbs.length(), true));
+          dci_sz_cfg.nof_ul_rb_groups = get_nof_rbgs(active_ul_bwp.crbs, rbg_size::config1);
           break;
         }
       }
@@ -284,8 +284,7 @@ static dci_size_config get_dci_size_config(const ue_cell_configuration& ue_cell_
     switch (opt_pdsch_cfg->res_alloc) {
       case pdsch_config::resource_allocation::resource_allocation_type_0: {
         dci_sz_cfg.pdsch_res_allocation_type = resource_allocation::resource_allocation_type_0;
-        dci_sz_cfg.nof_dl_rb_groups          = static_cast<unsigned>(
-            get_nominal_rbg_size(active_dl_bwp.crbs.length(), opt_pdsch_cfg->rbg_sz == rbg_size::config1));
+        dci_sz_cfg.nof_dl_rb_groups          = get_nof_rbgs(active_dl_bwp.crbs, opt_pdsch_cfg->rbg_sz);
         break;
       }
       case pdsch_config::resource_allocation::resource_allocation_type_1: {
@@ -298,8 +297,7 @@ static dci_size_config get_dci_size_config(const ue_cell_configuration& ue_cell_
       }
       case pdsch_config::resource_allocation::dynamic_switch: {
         dci_sz_cfg.pdsch_res_allocation_type = resource_allocation::dynamic_switch;
-        dci_sz_cfg.nof_dl_rb_groups          = static_cast<unsigned>(
-            get_nominal_rbg_size(active_dl_bwp.crbs.length(), opt_pdsch_cfg->rbg_sz == rbg_size::config1));
+        dci_sz_cfg.nof_dl_rb_groups          = get_nof_rbgs(active_dl_bwp.crbs, opt_pdsch_cfg->rbg_sz);
         // NOTE: dci_sz_cfg.interleaved_vrb_prb_mapping is expected to be set (true or false depends on
         // opt_pdsch_cfg) in case of \ref dynamic_switch.
         dci_sz_cfg.interleaved_vrb_prb_mapping =

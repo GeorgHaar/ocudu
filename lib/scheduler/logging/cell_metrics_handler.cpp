@@ -551,7 +551,7 @@ void cell_metrics_handler::handle_slot_result(slot_point_extended       sl_tx,
     if (dl_grant.pdsch_cfg.rbs.is_type0()) {
       grant_prbs = convert_rbgs_to_prbs(dl_grant.pdsch_cfg.rbs.type0(),
                                         {0, cell_cfg.nof_dl_prbs},
-                                        get_nominal_rbg_size(cell_cfg.nof_dl_prbs, true))
+                                        get_nominal_rbg_size(cell_cfg.nof_dl_prbs, rbg_size::config1))
                        .count();
     } else {
       grant_prbs = (dl_grant.pdsch_cfg.rbs.type1().length());
@@ -580,7 +580,7 @@ void cell_metrics_handler::handle_slot_result(slot_point_extended       sl_tx,
     if (ul_grant.pusch_cfg.rbs.is_type0()) {
       grant_prbs = convert_rbgs_to_prbs(ul_grant.pusch_cfg.rbs.type0(),
                                         {0, cell_cfg.nof_dl_prbs},
-                                        get_nominal_rbg_size(cell_cfg.nof_dl_prbs, true))
+                                        get_nominal_rbg_size(cell_cfg.nof_dl_prbs, rbg_size::config1))
                        .count();
     } else {
       grant_prbs = (ul_grant.pusch_cfg.rbs.type1().length());

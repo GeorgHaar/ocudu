@@ -147,6 +147,28 @@ TEST_F(ue_configuration_test, when_td_alloc_list_r16_is_configured_then_dci_tdra
   }
 }
 
+TEST_F(ue_configuration_test, when_resource_allocation_type_0_is_configured_then_dci_frequency_field_size_is_nof_rbgs)
+{
+  serving_cell_config& serv_cell                        = ue_create_msg.cfg.cells->at(0).serv_cell_cfg;
+  serv_cell.init_dl_bwp.pdsch_cfg->res_alloc            = pdsch_config::resource_allocation::resource_allocation_type_0;
+  serv_cell.init_dl_bwp.pdsch_cfg->rbg_sz               = rbg_size::config1;
+  serv_cell.ul_config->init_ul_bwp.pusch_cfg->res_alloc = pusch_config::resource_allocation::resource_allocation_type_0;
+
+  const cell_configuration& cell_cfg = add_cell();
+  ue_cell_configuration ue_cfg{to_rnti(0x4601), cell_cfg, cfg_pool.add_ue(ue_create_msg).cells[cell_cfg.cell_index]};
+
+  const search_space_info& ss          = ue_cfg.search_space(to_search_space_id(2));
+  const crb_interval       dl_bwp_crbs = ss.bwp->dl.cfg().crbs;
+  const crb_interval       ul_bwp_crbs = ss.bwp->ul.cfg().crbs;
+  // Ensure the test discriminates between the number of RBGs and the nominal RBG size.
+  ASSERT_NE(get_nof_rbgs(dl_bwp_crbs, rbg_size::config1),
+            to_underlying(get_nominal_rbg_size(dl_bwp_crbs.length(), rbg_size::config1)));
+  ASSERT_TRUE(ss.dci_sz.format1_1_ue_size.has_value());
+  ASSERT_EQ(ss.dci_sz.format1_1_ue_size->frequency_resource, units::bits(get_nof_rbgs(dl_bwp_crbs, rbg_size::config1)));
+  ASSERT_TRUE(ss.dci_sz.format0_1_ue_size.has_value());
+  ASSERT_EQ(ss.dci_sz.format0_1_ue_size->frequency_resource, units::bits(get_nof_rbgs(ul_bwp_crbs, rbg_size::config1)));
+}
+
 TEST_F(ue_configuration_test, when_reconfiguration_is_received_then_ue_updates_logical_channel_states)
 {
   // Test Preamble.

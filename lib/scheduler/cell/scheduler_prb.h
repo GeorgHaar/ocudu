@@ -16,7 +16,7 @@ namespace ocudu {
 struct bwp_rb_bitmap {
 public:
   bwp_rb_bitmap() = default;
-  bwp_rb_bitmap(uint32_t bwp_nof_prbs, uint32_t bwp_prb_start_, bool config1_or_2);
+  bwp_rb_bitmap(crb_interval bwp_crbs, rbg_size rbg_sz);
 
   void reset()
   {

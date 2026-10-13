@@ -808,3 +808,12 @@ TEST(mac_ul_processor, redcap_ccch_rejection_precedes_crnti_dispatch)
     }
   }
 }
+
+TEST(mac_ul_processor, ordinary_ccch_indication_does_not_claim_redcap_identity)
+{
+  test_bench bench(to_du_cell_index(0));
+  auto       pdu = byte_buffer::create({52, 1, 2, 3, 4, 5, 6}).value();
+  bench.send_rx_indication_msg(bench.allocate_tc_rnti(), pdu);
+  ASSERT_TRUE(bench.last_ul_ccch_msg().has_value());
+  EXPECT_FALSE(bench.last_ul_ccch_msg()->is_redcap);
+}

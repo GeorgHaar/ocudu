@@ -396,9 +396,10 @@ void f1ap_cu_impl::handle_initial_ul_rrc_message(const asn1::f1ap::init_ul_rrc_m
 
   // Request RRC UE entity creation.
   ue_rrc_context_creation_request req;
-  req.ue_index = ue_index;
-  req.c_rnti   = crnti;
-  req.cgi      = cgi.value();
+  req.ue_index  = ue_index;
+  req.c_rnti    = crnti;
+  req.cgi       = cgi.value();
+  req.is_redcap = msg->nr_red_cap_ue_ind_present;
   if (msg->du_to_cu_rrc_container_present) {
     req.du_to_cu_rrc_container = byte_buffer(msg->du_to_cu_rrc_container);
   } else {

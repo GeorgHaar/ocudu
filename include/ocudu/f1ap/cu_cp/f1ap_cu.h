@@ -85,6 +85,8 @@ struct ue_rrc_context_creation_request {
   std::optional<rrc_ue_transfer_context> prev_context;
   // This is necessary to deterimine whether this is a RRC Resume request and to use the previous context accordingly.
   byte_buffer rrc_container;
+  /// NR RedCap UE identification from Initial UL RRC Message Transfer.
+  bool is_redcap = false;
 };
 
 /// \brief Response by CU-CP to F1AP-CU request to create UE RRC context.

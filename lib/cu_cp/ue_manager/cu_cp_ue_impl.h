@@ -33,6 +33,8 @@ struct cu_cp_ue_context {
   /// \brief Pending NR redirect target set before the NGAP round-trip (NGAP carries no redirectedCarrierInfo).
   /// Consumed by ue_context_release_routine once the AMF responds with UE Context Release Command.
   std::optional<cu_cp_release_redirect_nr_info> pending_redirect_nr_info;
+  /// Early RedCap indication received in Initial UL RRC Message Transfer.
+  bool is_redcap = false;
 };
 
 /// Holds the CU-CP UE handover context.

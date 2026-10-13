@@ -166,6 +166,7 @@ public:
     last_ue_creation_msg.cgi                    = msg.cgi;
     last_ue_creation_msg.du_to_cu_rrc_container = msg.du_to_cu_rrc_container.copy();
     last_ue_creation_msg.c_rnti                 = msg.c_rnti;
+    last_ue_creation_msg.is_redcap              = msg.is_redcap;
 
     ocucp::ue_rrc_context_creation_response response{
         msg.ue_index, f1ap_srb0_notifier.get(), f1ap_srb1_notifier.get(), f1ap_srb2_notifier.get()};

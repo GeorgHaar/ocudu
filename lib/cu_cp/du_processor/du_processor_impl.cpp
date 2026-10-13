@@ -624,6 +624,10 @@ du_processor_impl::handle_ue_rrc_context_creation_request(const ue_rrc_context_c
     ue = ue_mng.find_ue(req.ue_index);
   }
 
+  if (ue != nullptr and req.is_redcap) {
+    ue->get_ue_context().is_redcap = true;
+  }
+
   // If this is not a RRCResume, create an RRC UE. If the DU-to-CU-RRC-Container is empty, the UE will be rejected.
   if (!is_resume_request) {
     if (!ue) {

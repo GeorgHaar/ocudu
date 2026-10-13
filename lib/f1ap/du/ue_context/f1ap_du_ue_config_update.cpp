@@ -23,7 +23,8 @@ f1ap_ue_creation_response ocudu::odu::create_f1ap_ue(const f1ap_ue_creation_requ
   // Create an F1c bearer for each requested SRB.
   for (const f1c_bearer_to_addmod& srb : req.f1c_bearers_to_add) {
     if (srb.srb_id == srb_id_t::srb0) {
-      u.bearers.add_srb0_f1c_bearer(*srb.rx_sdu_notifier, ue_pcell.nr_cgi, req.du_cu_rrc_container, ev_mng);
+      u.bearers.add_srb0_f1c_bearer(
+          *srb.rx_sdu_notifier, ue_pcell.nr_cgi, req.du_cu_rrc_container, ev_mng, req.is_redcap);
     } else {
       u.bearers.add_f1c_bearer(srb.srb_id, *srb.rx_sdu_notifier);
     }

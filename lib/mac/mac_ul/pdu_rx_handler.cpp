@@ -97,7 +97,7 @@ bool pdu_rx_handler::handle_rx_pdu(slot_point sl_rx, du_cell_index_t cell_index,
     logger.info("{} subPDUs: [{}]", create_prefix(ctx), to_c_str(fmtbuf));
   }
 
-  // The DU creation interface cannot preserve RedCap identity. Reject the whole PDU before any dispatch side effects.
+  // RedCap admission requires the access profile and conservative bearer configuration.
   for (const mac_ul_sch_subpdu& subpdu : ctx.decoded_subpdus) {
     if (subpdu.lcid().is_redcap_ccch()) {
       logger.info("{}: Discarding PDU. Cause: RedCap UE creation is not supported", create_prefix(ctx, subpdu));
@@ -385,6 +385,7 @@ bool pdu_rx_handler::handle_ccch_msg(const decoded_mac_rx_pdu& ctx, const mac_ul
   msg.tc_rnti    = tc_rnti;
   msg.cell_index = ctx.cell_index_rx;
   msg.slot_rx    = ctx.slot_rx;
+  msg.is_redcap  = sdu.lcid().is_redcap_ccch();
 
   if (!msg.subpdu.append(sdu.payload())) {
     logger.warning("{}: Unable to append SDU into sub-PDU", create_prefix(ctx, sdu));

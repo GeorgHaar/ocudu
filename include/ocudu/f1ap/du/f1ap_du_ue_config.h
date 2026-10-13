@@ -35,6 +35,8 @@ struct f1ap_ue_creation_request {
   rnti_t                            c_rnti;
   byte_buffer                       du_cu_rrc_container;
   std::vector<f1c_bearer_to_addmod> f1c_bearers_to_add;
+  /// NR RedCap UE identification, as per TS 38.473, Section 8.4.1.2.
+  bool is_redcap = false;
 };
 
 /// \brief Response from the DU F1AP to the request to create a new UE.

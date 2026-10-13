@@ -67,14 +67,18 @@ void du_ue_manager::handle_ue_create_request(const ul_ccch_indication_message& m
   }
 
   // Enqueue UE creation procedure
-  ue_ctrl_loop[ue_idx_candidate].schedule<ue_creation_procedure>(
-      du_ue_creation_request{
-          ue_idx_candidate, msg.cell_index, msg.tc_rnti, msg.subpdu.copy(), msg.msg3_mac_ces, msg.slot_rx},
-      *this,
-      cfg,
-      mem_resources,
-      cell_res_alloc,
-      metrics);
+  ue_ctrl_loop[ue_idx_candidate].schedule<ue_creation_procedure>(du_ue_creation_request{ue_idx_candidate,
+                                                                                        msg.cell_index,
+                                                                                        msg.tc_rnti,
+                                                                                        msg.subpdu.copy(),
+                                                                                        msg.msg3_mac_ces,
+                                                                                        msg.slot_rx,
+                                                                                        msg.is_redcap},
+                                                                 *this,
+                                                                 cfg,
+                                                                 mem_resources,
+                                                                 cell_res_alloc,
+                                                                 metrics);
 }
 
 async_task<f1ap_ue_context_creation_response>

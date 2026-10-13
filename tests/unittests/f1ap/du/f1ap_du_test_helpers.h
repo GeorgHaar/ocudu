@@ -344,7 +344,7 @@ protected:
   void run_f1_removal_procedure();
 
   /// \brief Create new UE in F1AP.
-  ue_test_context* run_f1ap_ue_create(du_ue_index_t ue_index);
+  ue_test_context* run_f1ap_ue_create(du_ue_index_t ue_index, bool is_redcap = false);
 
   void run_ue_context_setup_procedure(du_ue_index_t ue_index, const f1ap_message& msg);
 

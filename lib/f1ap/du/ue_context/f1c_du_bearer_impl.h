@@ -30,7 +30,8 @@ public:
                      f1ap_du_configurator&      du_configurator_,
                      task_executor&             ctrl_exec_,
                      task_executor&             ue_exec_,
-                     timer_manager&             timers_);
+                     timer_manager&             timers_,
+                     bool                       is_redcap_);
 
   /// \brief Packs and forwards the initial UL RRC message transfer as per TS 38.473 section 8.4.1.
   /// \param[in] sdu contains the UL-CCCH message that is packed in the RRC container of the initial UL RRC message
@@ -52,14 +53,16 @@ private:
   f1ap_ue_context&          ue_ctxt;
   const nr_cell_global_id_t nr_cgi;
   byte_buffer               du_cu_rrc_container;
-  f1ap_message_notifier&    f1ap_notifier;
-  f1c_rx_sdu_notifier&      sdu_notifier;
-  f1ap_event_manager&       ev_manager;
-  f1ap_du_configurator&     du_configurator;
-  task_executor&            ctrl_exec;
-  task_executor&            ue_exec;
-  timer_manager&            timers;
-  ocudulog::basic_logger&   logger;
+  /// Early RedCap indication for Initial UL RRC Message Transfer.
+  const bool              is_redcap;
+  f1ap_message_notifier&  f1ap_notifier;
+  f1c_rx_sdu_notifier&    sdu_notifier;
+  f1ap_event_manager&     ev_manager;
+  f1ap_du_configurator&   du_configurator;
+  task_executor&          ctrl_exec;
+  task_executor&          ue_exec;
+  timer_manager&          timers;
+  ocudulog::basic_logger& logger;
 };
 
 class f1c_other_srb_du_bearer final : public f1c_bearer

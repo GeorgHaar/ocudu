@@ -125,6 +125,19 @@ TEST_F(du_processor_ue_creation_test, when_init_ul_rrc_message_is_invalid_then_u
   ASSERT_EQ(ue_mng.get_nof_ues(), 0);
 }
 
+TEST_F(du_processor_ue_creation_test, redcap_identity_is_retained_in_cu_context)
+{
+  auto  msg                          = create_valid_ue_creation_message();
+  auto& initial                      = msg.pdu.init_msg().value.init_ul_rrc_msg_transfer();
+  initial->nr_red_cap_ue_ind_present = true;
+  initial->nr_red_cap_ue_ind         = nr_red_cap_ue_ind_opts::true_value;
+  du_processor_obj->get_f1ap_handler().get_f1ap_message_handler().handle_message(msg);
+  ASSERT_EQ(ue_mng.get_nof_ues(), 1);
+  auto* ue = ue_mng.find_ue(cu_cp_ue_index_t::min);
+  ASSERT_NE(ue, nullptr);
+  EXPECT_TRUE(ue->get_ue_context().is_redcap);
+}
+
 //////////////////////////////////////////////////////////////////////////////////////
 /* gNB-DU configuration update                                                      */
 //////////////////////////////////////////////////////////////////////////////////////

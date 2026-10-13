@@ -26,10 +26,12 @@ f1c_srb0_du_bearer::f1c_srb0_du_bearer(f1ap_ue_context&           ue_ctxt_,
                                        f1ap_du_configurator&      du_configurator_,
                                        task_executor&             ctrl_exec_,
                                        task_executor&             ue_exec_,
-                                       timer_manager&             timers_) :
+                                       timer_manager&             timers_,
+                                       bool                       is_redcap_) :
   ue_ctxt(ue_ctxt_),
   nr_cgi(pcell_cgi),
   du_cu_rrc_container(du_cu_rrc_container_.copy()),
+  is_redcap(is_redcap_),
   f1ap_notifier(f1ap_notifier_),
   sdu_notifier(f1c_rx_sdu_notifier_),
   ev_manager(ev_manager_),
@@ -63,6 +65,10 @@ void f1c_srb0_du_bearer::handle_sdu(byte_buffer_chain sdu)
     init_msg->du_to_cu_rrc_container_present = not du_cu_rrc_container.empty();
     if (init_msg->du_to_cu_rrc_container_present) {
       init_msg->du_to_cu_rrc_container = std::move(du_cu_rrc_container);
+    }
+    init_msg->nr_red_cap_ue_ind_present = is_redcap;
+    if (is_redcap) {
+      init_msg->nr_red_cap_ue_ind = asn1::f1ap::nr_red_cap_ue_ind_opts::true_value;
     }
     init_msg->sul_access_ind_present                   = false;
     init_msg->transaction_id                           = transaction.id();

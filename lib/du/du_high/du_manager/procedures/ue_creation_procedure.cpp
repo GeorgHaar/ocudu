@@ -272,6 +272,7 @@ f1ap_ue_creation_response ue_creation_procedure::create_f1ap_ue()
   f1ap_msg.ue_index    = ue_ctx->ue_index;
   f1ap_msg.c_rnti      = ue_ctx->rnti;
   f1ap_msg.pcell_index = ue_ctx->pcell_index;
+  f1ap_msg.is_redcap   = req.is_redcap;
 
   // Create SRBs.
   f1ap_msg.f1c_bearers_to_add.reserve(ue_ctx->bearers.srbs().size());

@@ -316,3 +316,22 @@ TEST_F(f1ap_cu_test, when_f1_removal_request_without_transaction_id_received_the
   // F1AP does not send a response.
   ASSERT_EQ(f1ap_pdu_notifier.last_f1ap_msg.pdu.type().value, asn1::f1ap::f1ap_pdu_c::types::nulltype);
 }
+
+TEST_F(f1ap_cu_test, redcap_initial_ul_rrc_identity_reaches_ue_creation)
+{
+  auto  msg     = test_helpers::generate_init_ul_rrc_message_transfer(int_to_gnb_du_ue_f1ap_id(41255));
+  auto& initial = msg.pdu.init_msg().value.init_ul_rrc_msg_transfer();
+  initial->nr_red_cap_ue_ind_present = true;
+  initial->nr_red_cap_ue_ind         = nr_red_cap_ue_ind_opts::true_value;
+  f1ap->handle_message(msg);
+  ASSERT_EQ(f1ap->get_nof_ues(), 1);
+  EXPECT_TRUE(du_processor_notifier.last_ue_creation_msg.is_redcap);
+}
+
+TEST_F(f1ap_cu_test, absent_redcap_indication_keeps_ordinary_ue_creation)
+{
+  auto msg = test_helpers::generate_init_ul_rrc_message_transfer(int_to_gnb_du_ue_f1ap_id(41255));
+  f1ap->handle_message(msg);
+  ASSERT_EQ(f1ap->get_nof_ues(), 1);
+  EXPECT_FALSE(du_processor_notifier.last_ue_creation_msg.is_redcap);
+}

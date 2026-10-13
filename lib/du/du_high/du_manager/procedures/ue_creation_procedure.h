@@ -31,6 +31,8 @@ struct du_ue_creation_request {
   /// \brief If present, it represents the slot at which the UL-CCCH message was received in the PUSCH. Absent, when
   /// the UE is created by command from upper layers.
   std::optional<slot_point> slot_rx;
+  /// RedCap identification from initial access.
+  bool is_redcap = false;
 };
 
 /// \brief Handles the creation of a UE and respective bearers in the DU UE manager, MAC, F1.

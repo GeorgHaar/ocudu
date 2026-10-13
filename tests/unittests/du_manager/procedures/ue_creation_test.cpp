@@ -39,7 +39,8 @@ protected:
                        rnti_t                    rnti         = to_rnti(0x4601),
                        bool                      success      = true,
                        msg3_mac_ce_list          msg3_mac_ces = {},
-                       std::optional<slot_point> slot_rx      = std::nullopt)
+                       std::optional<slot_point> slot_rx      = std::nullopt,
+                       bool                      is_redcap    = false)
   {
     f1ap.f1ap_ues.emplace(ue_index);
     f1ap.f1ap_ues[ue_index].f1c_bearers.emplace(srb_id_t::srb0);
@@ -52,14 +53,18 @@ protected:
     ul_ccch_indication_message ul_ccch_msg = create_test_ul_ccch_message(rnti);
     const slot_point           msg3_slot   = slot_rx.value_or(ul_ccch_msg.slot_rx);
 
-    proc = launch_async<ue_creation_procedure>(
-        du_ue_creation_request{
-            ue_index, ul_ccch_msg.cell_index, rnti, std::move(ul_ccch_msg.subpdu), std::move(msg3_mac_ces), msg3_slot},
-        ue_mng,
-        params,
-        mem_resources,
-        cell_res_alloc,
-        proc_metrics);
+    proc = launch_async<ue_creation_procedure>(du_ue_creation_request{ue_index,
+                                                                      ul_ccch_msg.cell_index,
+                                                                      rnti,
+                                                                      std::move(ul_ccch_msg.subpdu),
+                                                                      std::move(msg3_mac_ces),
+                                                                      msg3_slot,
+                                                                      is_redcap},
+                                               ue_mng,
+                                               params,
+                                               mem_resources,
+                                               cell_res_alloc,
+                                               proc_metrics);
     proc_launcher.emplace(proc);
   }
 
@@ -290,4 +295,21 @@ TEST_F(du_manager_ntn_ue_creation_tester,
 
   ASSERT_TRUE(this->mac.last_ue_create_msg.has_value());
   EXPECT_EQ(this->mac.last_ue_create_msg->pdsch_harqs_per_cell, 32U);
+}
+
+TEST_F(du_manager_ue_creation_tester, redcap_initial_access_indication_reaches_f1ap)
+{
+  start_procedure(to_du_ue_index(0), to_rnti(0x4601), true, {}, std::nullopt, true);
+  ASSERT_TRUE(cell_res_alloc.last_ue_index.has_value());
+  auto* ue = ue_mng.find_ue(to_du_ue_index(0));
+  ASSERT_NE(ue, nullptr);
+  ASSERT_TRUE(f1ap.last_ue_create.has_value());
+  EXPECT_TRUE(f1ap.last_ue_create->is_redcap);
+}
+
+TEST_F(du_manager_ue_creation_tester, ordinary_initial_access_has_no_redcap_indication)
+{
+  start_procedure();
+  ASSERT_TRUE(f1ap.last_ue_create.has_value());
+  EXPECT_FALSE(f1ap.last_ue_create->is_redcap);
 }

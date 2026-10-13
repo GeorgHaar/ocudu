@@ -55,6 +55,8 @@ struct ul_ccch_indication_message {
   byte_buffer     subpdu;
   /// Decoded MAC CEs whose processing must be deferred until the UE context exists.
   msg3_mac_ce_list msg3_mac_ces;
+  /// RedCap identification from the UL CCCH LCID, as per TS 38.321, Section 6.2.1.
+  bool is_redcap = false;
 };
 
 /// Used to indicate Msg3 C-RNTI CE detection.

@@ -222,7 +222,7 @@ void f1ap_du_test::run_f1_removal_procedure()
   }
 }
 
-f1ap_du_test::ue_test_context* f1ap_du_test::run_f1ap_ue_create(du_ue_index_t ue_index)
+f1ap_du_test::ue_test_context* f1ap_du_test::run_f1ap_ue_create(du_ue_index_t ue_index, bool is_redcap)
 {
   unsigned srb0_idx = srb_id_to_uint(srb_id_t::srb0);
   unsigned srb1_idx = srb_id_to_uint(srb_id_t::srb1);
@@ -238,6 +238,7 @@ f1ap_du_test::ue_test_context* f1ap_du_test::run_f1ap_ue_create(du_ue_index_t ue
   msg.ue_index    = ue_index;
   msg.pcell_index = to_du_cell_index(0);
   msg.c_rnti      = test_ues[ue_index].crnti;
+  msg.is_redcap   = is_redcap;
   EXPECT_TRUE(msg.du_cu_rrc_container.append({0x1, 0x2, 0x3}));
   for (auto& f1c_bearer : test_ues[ue_index].f1c_bearers) {
     f1c_bearer_to_addmod b;

@@ -80,7 +80,8 @@ void security_context::horizontal_key_derivation(pci_t target_pci, unsigned targ
   logger.info("Old K_gNB: {}", k);
 
   // Generate K_NG-RAN*
-  sec_key k_ng_ran_star;
+  sec_key k_ng_ran_star = {};
+
   generate_k_ng_ran_star(k_ng_ran_star, k, target_pci, target_ssb_arfcn);
 
   // K_NG-RAN* becomes K_gNB

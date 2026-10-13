@@ -465,8 +465,8 @@ TEST_F(ngap_validator_test,
   ASSERT_EQ(verification_outcome.response.pdu_session_res_failed_to_setup_items.size(), 1U);
 }
 
-// Test handling of an unsupported PDU session type.
-TEST_F(ngap_validator_test, when_pdu_session_type_is_ipv4v6_then_pdu_session_setup_fails)
+// Test handling of a dual-stack PDU session type.
+TEST_F(ngap_validator_test, when_pdu_session_type_is_ipv4v6_then_pdu_session_setup_succeeds)
 {
   pdu_session_id_t psi       = uint_to_pdu_session_id(1);
   cu_cp_ue_index_t ue_index  = uint_to_ue_index(0);
@@ -485,8 +485,9 @@ TEST_F(ngap_validator_test, when_pdu_session_type_is_ipv4v6_then_pdu_session_set
   // Verify PDU session resource setup request.
   auto verification_outcome = verify_pdu_session_resource_setup_request(request, asn1_request, ue_logger);
 
-  ASSERT_TRUE(verification_outcome.request.pdu_session_res_setup_items.empty());
-  ASSERT_EQ(verification_outcome.response.pdu_session_res_failed_to_setup_items.size(), 1U);
+  ASSERT_EQ(verification_outcome.request.pdu_session_res_setup_items.size(), 1U);
+  ASSERT_EQ(verification_outcome.response.pdu_session_res_setup_response_items.size(), 0U);
+  ASSERT_EQ(verification_outcome.response.pdu_session_res_failed_to_setup_items.size(), 0U);
 }
 
 // Test that the UE Aggregate Maximum Bit Rate doesn't substitute the PDU Session Aggregate Maximum Bit Rate.

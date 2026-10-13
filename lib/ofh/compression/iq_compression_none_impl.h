@@ -21,7 +21,7 @@ public:
   explicit iq_compression_none_impl(ocudulog::basic_logger& logger_,
                                     float                   iq_scaling_ = 1.0,
                                     std::optional<unsigned> fs_offset   = std::nullopt) :
-    logger(logger_), scaling(compression_type::none, iq_scaling_, fs_offset)
+    logger(logger_), scaling_table(compression_type::none, iq_scaling_, fs_offset)
   {
   }
 
@@ -41,7 +41,7 @@ protected:
 
   ocudulog::basic_logger& logger;
   /// IQ data scaling for every IQ bit width.
-  const iq_scaling_table scaling;
+  const iq_scaling_table scaling_table;
 };
 
 } // namespace ofh

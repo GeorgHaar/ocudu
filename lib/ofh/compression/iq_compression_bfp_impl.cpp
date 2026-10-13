@@ -11,7 +11,7 @@
 using namespace ocudu;
 using namespace ofh;
 
-void iq_compression_bfp_impl::quantize_input(span<int16_t> out, span<const bf16_t> in, unsigned data_width)
+void iq_compression_bfp_impl::quantize_input(span<int16_t> out, span<const bf16_t> in, unsigned data_width) const
 {
   ocudu_assert(in.size() == out.size(), "Input and output spans must have the same size");
 
@@ -19,7 +19,7 @@ void iq_compression_bfp_impl::quantize_input(span<int16_t> out, span<const bf16_
   quantizer q(Q_BIT_WIDTH);
 
   // Convert input to int16_t representation.
-  q.to_fixed_point(out, in, scaling.get_compression_iq_scaling(data_width));
+  q.to_fixed_point(out, in, scaling_table.get_compression_iq_scaling(data_width));
 
   if (OCUDU_UNLIKELY(logger.debug.enabled() && !out.empty())) {
     // Calculate and print RMS of quantized samples.
@@ -81,7 +81,7 @@ void iq_compression_bfp_impl::compress(span<uint8_t>                buffer,
   // Performs conversion of input brain float values to signed 16-bit integers.
   quantize_input(input_quantized_span, float_samples_span, params.data_width);
 
-  uint8_t exponent_offset = scaling.get_compression_exponent_offset(params.data_width);
+  uint8_t exponent_offset = scaling_table.get_compression_exponent_offset(params.data_width);
   for (unsigned i = 0; i != nof_prbs; ++i) {
     const auto* in_start_it = input_quantized.begin() + NOF_SAMPLES_PER_PRB * i;
     auto*       out_it      = &buffer[i * prb_size];
@@ -142,8 +142,11 @@ bool iq_compression_bfp_impl::decompress(span<cbf16_t>                iq_data,
 
     span<cbf16_t> out_prb_samples = iq_data.subspan(out_idx, NOF_SUBCARRIERS_PER_RB);
     // Decompress resource block.
-    decompress_prb_generic(
-        out_prb_samples, comp_prb, q_in, params.data_width, scaling.get_decompression_iq_scaling(params.data_width));
+    decompress_prb_generic(out_prb_samples,
+                           comp_prb,
+                           q_in,
+                           params.data_width,
+                           scaling_table.get_decompression_iq_scaling(params.data_width));
     out_idx += NOF_SUBCARRIERS_PER_RB;
   }
 

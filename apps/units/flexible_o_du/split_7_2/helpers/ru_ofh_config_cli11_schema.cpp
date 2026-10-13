@@ -223,7 +223,7 @@ static void configure_cli11_ru_ofh_base_cell_args(CLI::App& app, ru_ofh_unit_bas
         std::get<ru_ofh_scaling_config>(config.iq_scaling_config).ru_reference_level_dBFS = value;
       },
       "IQ power of a single subcarrier mapped to the RU maximum RF power (O-RAN Reference_Level). 0 dBFS is the "
-      "full scale of I or Q before compression")
+      "I or Q full scale before compression set in accordance with fs_offset_dl")
       ->range(-std::numeric_limits<float>::infinity(), 0.0f)
       ->check([&config](const std::string& value) -> std::string {
         if (std::holds_alternative<ru_ofh_legacy_scaling_config>(config.iq_scaling_config)) {

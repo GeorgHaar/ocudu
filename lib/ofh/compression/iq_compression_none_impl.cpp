@@ -30,7 +30,7 @@ void iq_compression_none_impl::compress(span<uint8_t>                buffer,
   span<const bf16_t> float_samples(reinterpret_cast<const bf16_t*>(iq_data.data()), iq_data.size() * 2);
 
   // Scaling factor applied to IQ data prior to quantization.
-  float iq_scaling = scaling.get_compression_iq_scaling(params.data_width);
+  float iq_scaling = scaling_table.get_compression_iq_scaling(params.data_width);
 
   unsigned in_sample_idx = 0;
   for (unsigned rb = 0; rb != nof_prbs; ++rb) {
@@ -63,7 +63,7 @@ bool iq_compression_none_impl::decompress(span<cbf16_t>                output,
   quantizer q(params.data_width);
 
   // Scaling of the decompressed samples, including the quantizer gain.
-  float iq_scaling = q.to_float(1) * scaling.get_decompression_iq_scaling(params.data_width);
+  float iq_scaling = q.to_float(1) * scaling_table.get_decompression_iq_scaling(params.data_width);
 
   // Number of output PRBs.
   unsigned nof_prbs = output.size() / NOF_SUBCARRIERS_PER_RB;

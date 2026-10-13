@@ -24,15 +24,21 @@ struct ru_ofh_scaling_config {
   /// \brief RU reference level in dBFS.
   ///
   /// IQ power level that, carried over a single subcarrier, the RU maps to its maximum RMS output power. It
-  /// corresponds to the O-RAN Reference_Level (O-RAN.WG4.CUS, clause 8.1.3), which is 0 dBFS if the RU does not support
-  /// or configure it.
+  /// corresponds to the O-RAN Reference_Level (O-RAN.WG4.CUS, clauses 8.1.3.2.2 and 8.1.3.3), which is 0 dBFS if the
+  /// RU does not support or configure it. The default of -12 dBFS is a conservative legacy value.
   ///
-  /// If fs_offset_dl is set, 0 dBFS is the O-RAN full scale with that FS_Offset. Otherwise, 0 dBFS is the full scale
-  /// of the I or Q component before compression. Without compression, this is the full scale of the configured IQ bit
-  /// width, as in O-RAN. With BFP compression, the IQ data are quantized to 16 bits before compression, so 0 dBFS is
-  /// the 16-bit full scale and the BFP exponents above it remain unused. For a mantissa of \f$m\f$ bits, this is
-  /// \f$6.02(m-1)\f$ dB below the O-RAN full scale (O-RAN.WG4.CUS, clause 8.1.3.1) and corresponds to an O-RAN
-  /// FS_Offset of \f$2(m-1)\f$, e.g., 48.2 dB and an FS_Offset of 16 for a 9-bit mantissa.
+  /// The dBFS scale follows O-RAN.WG4.CUS, clause 8.1.3.1: 0 dBFS is an IQ power \f$I^2+Q^2 = FS_0 2^{-FS\_Offset}\f$,
+  /// where \f$FS_0 = \max(I^2) = \max(Q^2)\f$ is the largest IQ power that can be represented with arbitrary phase with
+  /// the given IQ bit width and compression. The FS_Offset is:
+  /// - \ref ru_ofh_unit_base_cell_config::fs_offset_dl, if set.
+  /// - Otherwise, the one of the OCUDU native full scale:
+  ///   - 0 without compression, i.e., the full scale of the configured IQ bit width;
+  ///   - \f$2(m-1)\f$ for BFP with an \f$m\f$-bit mantissa, because the IQ data are quantized to 16 bits before
+  ///     compression and the exponents above \f$16-m\f$ are never used. For BFP9, this is 16, i.e., the OCUDU full
+  ///     scale is \f$6.02(m-1) = 48.2\f$ dB below \f$FS_0\f$.
+  ///
+  /// This value equals the RU Reference_Level only if the effective FS_Offset matches the one configured in the RU.
+  /// Otherwise, a level of \f$L\f$ dBFS here is \f$L - 3.01(FS\_Offset_{OCUDU} - FS\_Offset_{RU})\f$ dBFS at the RU.
   ///
   /// \warning Check the RU documentation before setting this parameter, as incorrect values may damage the RU.
   float ru_reference_level_dBFS = -12.0f;

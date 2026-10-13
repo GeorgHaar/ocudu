@@ -82,7 +82,7 @@ void iq_compression_bfp_avx512::compress(span<uint8_t>                buffer,
   quantize_input(input_quantized_span, float_samples_span, params.data_width);
 
   // Offset added to the transmitted exponents.
-  uint8_t exponent_offset = scaling.get_compression_exponent_offset(params.data_width);
+  uint8_t exponent_offset = scaling_table.get_compression_exponent_offset(params.data_width);
 
   // Compression algorithm implemented according to Annex A.1.2 in O-RAN.WG4.CUS.
   unsigned sample_idx = 0;
@@ -185,7 +185,7 @@ bool iq_compression_bfp_avx512::decompress(span<cbf16_t>                iq_data,
 
   const float fixp_gain = (1 << (Q_BIT_WIDTH - 1)) - 1.0f;
   // Scaling of the decompressed samples, including the quantizer gain.
-  const float iq_scaling = scaling.get_decompression_iq_scaling(params.data_width) / fixp_gain;
+  const float iq_scaling = scaling_table.get_decompression_iq_scaling(params.data_width) / fixp_gain;
 
   // Determine array size so that AVX512 store operation doesn't write the data out of array bounds.
   constexpr size_t avx512_size_iqs = 32;

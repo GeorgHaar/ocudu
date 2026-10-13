@@ -83,7 +83,7 @@ void iq_compression_bfp_neon::compress(span<uint8_t>                buffer,
   quantize_input(input_quantized_span, float_samples_span, params.data_width);
 
   // Offset added to the transmitted exponents.
-  uint8_t exponent_offset = scaling.get_compression_exponent_offset(params.data_width);
+  uint8_t exponent_offset = scaling_table.get_compression_exponent_offset(params.data_width);
 
   // Compression algorithm implemented according to Annex A.1.2 in O-RAN.WG4.CUS.
   unsigned sample_idx = 0;
@@ -231,7 +231,7 @@ bool iq_compression_bfp_neon::decompress(span<cbf16_t>                iq_data,
   quantizer q_out(Q_BIT_WIDTH);
 
   // Scaling of the decompressed samples.
-  float iq_scaling = scaling.get_decompression_iq_scaling(params.data_width);
+  float iq_scaling = scaling_table.get_decompression_iq_scaling(params.data_width);
 
   unsigned out_idx = 0;
   for (unsigned c_prb_idx = 0; c_prb_idx != nof_prbs; ++c_prb_idx) {

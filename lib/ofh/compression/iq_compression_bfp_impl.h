@@ -29,7 +29,7 @@ public:
   explicit iq_compression_bfp_impl(ocudulog::basic_logger& logger_,
                                    float                   iq_scaling_ = 1.0,
                                    std::optional<unsigned> fs_offset   = std::nullopt) :
-    scaling(compression_type::BFP, iq_scaling_, fs_offset), logger(logger_)
+    scaling_table(compression_type::BFP, iq_scaling_, fs_offset), logger(logger_)
   {
   }
 
@@ -75,7 +75,7 @@ protected:
   /// \param[out] c_prb          Compressed PRB.
   /// \param input_quantized     Span of quantized IQ samples of a resource block to be compressed.
   /// \param data_width          BFP compression bit width.
-  /// \param[in] exponent_offset Offset added to the transmitted exponent.
+  /// \param[in] exponent_offset Offset added to the serialized exponent.
   static void compress_prb_generic(span<uint8_t>       c_prb,
                                    span<const int16_t> input_quantized,
                                    unsigned            data_width,
@@ -100,10 +100,10 @@ protected:
   /// \param[out] out       Quantized samples.
   /// \param[in] in         Span of input float samples.
   /// \param[in] data_width BFP compression bit width, used to select the IQ scaling.
-  void quantize_input(span<int16_t> out, span<const bf16_t> in, unsigned data_width);
+  void quantize_input(span<int16_t> out, span<const bf16_t> in, unsigned data_width) const;
 
   /// IQ data scaling for every IQ bit width.
-  const iq_scaling_table scaling;
+  const iq_scaling_table scaling_table;
 
 private:
   ocudulog::basic_logger& logger;

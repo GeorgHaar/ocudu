@@ -61,7 +61,8 @@ crb_bitmap ocudu::compute_pucch_crbs(const ran_cell_config& cell_cfg)
   const std::vector<pucch_resource> ded_pucch_resources = config_helpers::generate_cell_pucch_res_list(
       cell_cfg.init_bwp.pucch.resources,
       ul_bwp_crbs.length(),
-      get_pucch_default_nof_edge_prbs(pucch_res_common, ul_bwp_crbs.length()));
+      config_helpers::get_dedicated_pucch_rb_start(
+          cell_cfg.init_bwp.pucch.resources, pucch_res_common, ul_bwp_crbs.length()));
 
   return compute_pucch_crbs(ul_bwp_crbs, pucch_res_common, ded_pucch_resources);
 }

@@ -19,7 +19,6 @@
 #include "ocudu/ran/srs/srs_bandwidth_configuration.h"
 #include "ocudu/ran/ssb/ssb_mapping.h"
 #include "ocudu/scheduler/config/periodic_resource_sched_validator.h"
-#include "ocudu/scheduler/config/pucch_default_resource.h"
 #include "ocudu/scheduler/config/pucch_guardbands.h"
 #include "ocudu/scheduler/config/pucch_resource_generator.h"
 #include "ocudu/scheduler/config/sched_cell_config_helpers.h"
@@ -774,8 +773,10 @@ static check_outcome check_prach_config(const du_cell_config& cell_cfg)
       rach_cfg.rach_cfg_generic.msg1_frequency_start + rach_cfg.rach_cfg_generic.msg1_fdm * prach_nof_prbs;
 
   const unsigned bwp_size                 = cell_cfg.ran.ul_cfg_common.init_ul_bwp.generic_params.crbs.length();
-  const unsigned dedicated_pucch_rb_start = get_pucch_default_nof_edge_prbs(
-      cell_cfg.ran.ul_cfg_common.init_ul_bwp.pucch_cfg_common->pucch_resource_common, bwp_size);
+  const unsigned dedicated_pucch_rb_start = config_helpers::get_dedicated_pucch_rb_start(
+      cell_cfg.ran.init_bwp.pucch.resources,
+      cell_cfg.ran.ul_cfg_common.init_ul_bwp.pucch_cfg_common->pucch_resource_common,
+      bwp_size);
   prb_interval prb_interval_no_pucch = config_helpers::find_largest_prb_interval_without_pucch(
       cell_cfg.ran.init_bwp.pucch.resources, bwp_size, dedicated_pucch_rb_start);
 
@@ -803,7 +804,9 @@ static check_outcome check_pucch_common_ded_overlap(const du_cell_config& cell_c
   // The PRBs reserved at the BWP edges cannot rule out the overlap by themselves, as row 15 places the common
   // resources away from the edges, where the dedicated resources of a crowded edge may reach them.
   const std::vector<pucch_resource> ded_res = config_helpers::generate_cell_pucch_res_list(
-      cell_cfg.ran.init_bwp.pucch.resources, bwp_size, get_pucch_default_nof_edge_prbs(pucch_res_common, bwp_size));
+      cell_cfg.ran.init_bwp.pucch.resources,
+      bwp_size,
+      config_helpers::get_dedicated_pucch_rb_start(cell_cfg.ran.init_bwp.pucch.resources, pucch_res_common, bwp_size));
   const crb_bitmap common_prbs = compute_pucch_crbs(crb_interval{0, bwp_size}, pucch_res_common, {});
   for (const pucch_resource& res : ded_res) {
     const prb_interval hop1 = res.prbs();
@@ -1189,8 +1192,10 @@ check_outcome odu::is_du_cell_config_valid(const du_cell_config& cell_cfg)
   HANDLE_ERROR(config_helpers::pucch_parameters_validator(
       cell_cfg.ran.init_bwp.pucch.resources,
       ul_bwp_size,
-      get_pucch_default_nof_edge_prbs(cell_cfg.ran.ul_cfg_common.init_ul_bwp.pucch_cfg_common->pucch_resource_common,
-                                      ul_bwp_size)));
+      config_helpers::get_dedicated_pucch_rb_start(
+          cell_cfg.ran.init_bwp.pucch.resources,
+          cell_cfg.ran.ul_cfg_common.init_ul_bwp.pucch_cfg_common->pucch_resource_common,
+          ul_bwp_size)));
   HANDLE_ERROR(check_pucch_common_ded_overlap(cell_cfg));
   HANDLE_ERROR(check_prach_config(cell_cfg));
   HANDLE_ERROR(check_srs_config(cell_cfg));

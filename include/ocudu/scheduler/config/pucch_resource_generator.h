@@ -15,6 +15,16 @@ struct serving_cell_config;
 
 namespace config_helpers {
 
+/// \brief Returns the number of PRBs at each BWP edge reserved before the dedicated PUCCH resources.
+/// \param[in] params PUCCH resource builder parameters.
+/// \param[in] pucch_res_common PUCCH default row index (pucch-ResourceCommon in TS 38.331). Range {0, ..., 15}.
+/// \param[in] bwp_size_rbs size of the BWP in RBs.
+/// \return \c params.nof_edge_prbs if set. Otherwise, the number of PRBs at each BWP edge up to the last common PUCCH
+///         PRB, or zero if \c pucch_res_common is 15.
+unsigned get_dedicated_pucch_rb_start(const pucch_resource_builder_params& params,
+                                      unsigned                             pucch_res_common,
+                                      unsigned                             bwp_size_rbs);
+
 /// \brief Validates the user-defined parameters for building the cell PUCCH resource list.
 /// \param[in] params PUCCH resource builder parameters.
 /// \param[in] bwp_size_rbs size of the BWP in RBs.

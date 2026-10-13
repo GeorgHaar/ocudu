@@ -154,6 +154,29 @@ TEST(pucch_resource_generator_common_res_test, dedicated_resources_do_not_overla
   }
 }
 
+TEST(pucch_resource_generator_edge_prbs_test, dedicated_resources_leave_configured_edge_prbs_free)
+{
+  ran_cell_config cell_cfg          = config_helpers::make_default_ran_cell_config(cell_config_builder_params{});
+  const unsigned  bwp_size_rbs      = cell_cfg.ul_cfg_common.init_ul_bwp.generic_params.crbs.length();
+  const unsigned  default_edge_prbs = get_pucch_default_nof_edge_prbs(
+      cell_cfg.ul_cfg_common.init_ul_bwp.pucch_cfg_common->pucch_resource_common, bwp_size_rbs);
+  const unsigned nof_edge_prbs                    = default_edge_prbs + 3;
+  cell_cfg.init_bwp.pucch.resources.nof_edge_prbs = nof_edge_prbs;
+
+  const std::vector<pucch_resource> res_list = make_cell_bwp_res_config(cell_cfg).ul.pucch.dedicated;
+  ASSERT_FALSE(res_list.empty());
+  unsigned min_prb = bwp_size_rbs;
+  unsigned max_prb = 0;
+  for (const auto& res : res_list) {
+    for (unsigned prb : get_res_prbs(res)) {
+      min_prb = std::min(min_prb, prb);
+      max_prb = std::max(max_prb, prb);
+    }
+  }
+  ASSERT_EQ(min_prb, nof_edge_prbs);
+  ASSERT_EQ(max_prb, bwp_size_rbs - 1 - nof_edge_prbs);
+}
+
 TEST_P(pucch_resource_generator_test, f1_resources_have_valid_occ_indices)
 {
   const std::vector<pucch_resource> res_list =

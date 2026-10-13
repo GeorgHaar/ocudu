@@ -16,7 +16,6 @@
 #include "ocudu/ran/ssb/ssb_helper.h"
 #include "ocudu/ran/ssb/ssb_mapping.h"
 #include "ocudu/ran/tdd/tdd_ul_dl_config.h"
-#include "ocudu/scheduler/config/pucch_default_resource.h"
 #include "ocudu/scheduler/config/pucch_guardbands.h"
 #include "ocudu/scheduler/config/pucch_resource_generator.h"
 #include "ocudu/scheduler/config/serving_cell_config_factory.h"
@@ -366,7 +365,8 @@ static unsigned compute_default_msg1_frequency_start(const ran_cell_config& cfg)
   const auto&    ul_bwp           = cfg.ul_cfg_common.init_ul_bwp;
   const unsigned bwp_size         = ul_bwp.generic_params.crbs.length();
   const unsigned pucch_res_common = ul_bwp.pucch_cfg_common->pucch_resource_common;
-  const unsigned ded_rb_start     = get_pucch_default_nof_edge_prbs(pucch_res_common, bwp_size);
+  const unsigned ded_rb_start =
+      config_helpers::get_dedicated_pucch_rb_start(cfg.init_bwp.pucch.resources, pucch_res_common, bwp_size);
 
   // If the dedicated PUCCH resources do not fit in the BWP, only account for the common ones.
   std::vector<pucch_resource> ded_res;

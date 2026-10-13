@@ -6,7 +6,6 @@
 #include "ocudu/scheduler/config/cell_bwp_res_config.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/scheduler/config/bwp_builder_params.h"
-#include "ocudu/scheduler/config/pucch_default_resource.h"
 #include "ocudu/scheduler/config/pucch_resource_generator.h"
 #include "ocudu/scheduler/config/ran_cell_config.h"
 
@@ -32,7 +31,8 @@ cell_bwp_res_config ocudu::make_cell_bwp_res_config(const ran_cell_config& cell_
                  .dedicated = config_helpers::generate_cell_pucch_res_list(
                      cell_cfg.init_bwp.pucch.resources,
                      bwp_size_rbs,
-                     get_pucch_default_nof_edge_prbs(pucch_res_common, bwp_size_rbs)),
+                     config_helpers::get_dedicated_pucch_rb_start(
+                         cell_cfg.init_bwp.pucch.resources, pucch_res_common, bwp_size_rbs)),
 
              }}};
 }

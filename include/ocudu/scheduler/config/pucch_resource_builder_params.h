@@ -226,6 +226,12 @@ struct pucch_resource_builder_params {
   ///         the PUCCH resources do not overlap in symbols with the SRS resources.
   /// \remark This parameter should be computed by the GNB and not exposed to the user configuration interface.
   bounded_integer<unsigned, 1, 14> max_nof_symbols = NOF_OFDM_SYM_PER_SLOT_NORMAL_CP;
+  /// \brief Number of PRBs at each BWP edge reserved before the dedicated PUCCH resources.
+  ///
+  /// \remark If not set, the dedicated resources start after the common PUCCH resources at the BWP edges. For
+  /// pucch-ResourceCommon 15, the common resources are not at the BWP edges, and the dedicated resources start at the
+  /// BWP edges.
+  std::optional<unsigned> nof_edge_prbs;
   /// PUCCH HARQ-ACK repetition configuration. If not set, HARQ-ACK repetition is disabled.
   std::optional<pucch_harq_ack_rep_params> harq_ack_rep;
 

@@ -28,7 +28,7 @@
 #include "ocudu/rlc/rlc_srb_config_factory.h"
 #include "ocudu/scheduler/config/cell_config_builder_params.h"
 #include "ocudu/scheduler/config/csi_helper.h"
-#include "ocudu/scheduler/config/pucch_default_resource.h"
+#include "ocudu/scheduler/config/pucch_resource_generator.h"
 #include "ocudu/scheduler/config/sched_cell_config_helpers.h"
 #include "ocudu/scheduler/config/scheduler_expert_config_factory.h"
 #include "ocudu/scheduler/config/scheduler_expert_config_validator.h"
@@ -1073,6 +1073,7 @@ std::vector<odu::du_cell_config> ocudu::generate_du_cell_config(const du_high_un
     du_pucch_cfg.nof_cell_res_set_configs = user_pucch_cfg.nof_cell_res_set_configs;
     du_pucch_cfg.nof_cell_sr_resources    = user_pucch_cfg.nof_cell_sr_resources;
     du_pucch_cfg.nof_cell_csi_resources   = param.csi_rs_enabled ? user_pucch_cfg.nof_cell_csi_resources : 0U;
+    du_pucch_cfg.nof_edge_prbs            = user_pucch_cfg.nof_edge_prbs;
 
     if (pucch_f0f1_format(user_pucch_cfg.formats) == pucch_format::FORMAT_0) {
       auto& f0_params = du_pucch_cfg.f0_or_f1_params.emplace<pucch_f0_params>();
@@ -1226,8 +1227,8 @@ std::vector<odu::du_cell_config> ocudu::generate_du_cell_config(const du_high_un
 
     if (update_msg1_frequency_start) {
       const unsigned bwp_size                 = out_cell.ran.ul_cfg_common.init_ul_bwp.generic_params.crbs.length();
-      const unsigned dedicated_pucch_rb_start = get_pucch_default_nof_edge_prbs(
-          out_cell.ran.ul_cfg_common.init_ul_bwp.pucch_cfg_common->pucch_resource_common, bwp_size);
+      const unsigned dedicated_pucch_rb_start = config_helpers::get_dedicated_pucch_rb_start(
+          du_pucch_cfg, out_cell.ran.ul_cfg_common.init_ul_bwp.pucch_cfg_common->pucch_resource_common, bwp_size);
       rach_cfg.rach_cfg_generic.msg1_frequency_start = config_helpers::compute_prach_frequency_start(
           du_pucch_cfg, bwp_size, dedicated_pucch_rb_start, is_long_prach);
     }

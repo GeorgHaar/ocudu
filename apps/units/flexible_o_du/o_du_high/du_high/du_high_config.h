@@ -459,6 +459,10 @@ struct du_high_unit_pucch_config {
   unsigned nof_cell_sr_resources = 8;
   /// Number of PUCCH Format 2/3/4 cell resources for CSI.
   unsigned nof_cell_csi_resources = 8;
+  /// \brief Number of PRBs at each BWP edge left free before the dedicated PUCCH resources.
+  /// If not set, the dedicated resources start after the common PUCCH resources. For pucch-ResourceCommon 15, the
+  /// common resources are not at the BWP edges, and the dedicated resources start at the BWP edges.
+  std::optional<unsigned> nof_edge_prbs;
 
   /// \brief \c SR period in milliseconds.
   /// Among all values given in \c periodicityAndOffset, part of \c SchedulingRequestResourceConfig, TS 38.331,
@@ -582,7 +586,7 @@ struct du_high_unit_pucch_config {
            formats == rhs.formats && res_set_size == rhs.res_set_size &&
            nof_cell_res_set_configs == rhs.nof_cell_res_set_configs &&
            nof_cell_sr_resources == rhs.nof_cell_sr_resources && nof_cell_csi_resources == rhs.nof_cell_csi_resources &&
-           almost_equal<float>(sr_period_msec, rhs.sr_period_msec) &&
+           nof_edge_prbs == rhs.nof_edge_prbs && almost_equal<float>(sr_period_msec, rhs.sr_period_msec) &&
            f0_intraslot_freq_hopping == rhs.f0_intraslot_freq_hopping && f1_enable_occ == rhs.f1_enable_occ &&
            f1_nof_cyclic_shifts == rhs.f1_nof_cyclic_shifts &&
            f1_intraslot_freq_hopping == rhs.f1_intraslot_freq_hopping && f2_max_nof_rbs == rhs.f2_max_nof_rbs &&

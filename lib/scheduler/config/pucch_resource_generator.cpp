@@ -20,6 +20,13 @@
 using namespace ocudu;
 using namespace config_helpers;
 
+unsigned config_helpers::get_dedicated_pucch_rb_start(const pucch_resource_builder_params& params,
+                                                      unsigned                             pucch_res_common,
+                                                      unsigned                             bwp_size_rbs)
+{
+  return params.nof_edge_prbs.value_or(get_pucch_default_nof_edge_prbs(pucch_res_common, bwp_size_rbs));
+}
+
 error_type<const char*> config_helpers::pucch_parameters_validator(const pucch_resource_builder_params& params,
                                                                    unsigned                             bwp_size_rbs,
                                                                    unsigned dedicated_pucch_rb_start)

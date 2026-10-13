@@ -1380,6 +1380,14 @@ static void configure_cli11_pucch_args(CLI::App& app, du_high_unit_pucch_config&
              "Number of PUCCH F2/F3/F4 resources available per cell for CSI")
       ->capture_default_str()
       ->range(0, 100);
+  add_option(
+      app,
+      "--nof_edge_prbs",
+      pucch_params.nof_edge_prbs,
+      "Number of PRBs at each BWP edge left free before the dedicated PUCCH resources. If not set, the dedicated "
+      "resources start after the common PUCCH resources, or at the BWP edges if pucch-ResourceCommon is 15")
+      ->capture_default_str()
+      ->range(0U, (unsigned)MAX_NOF_PRBS / 2U);
   add_option(app,
              "--f0_intraslot_freq_hop",
              pucch_params.f0_intraslot_freq_hopping,

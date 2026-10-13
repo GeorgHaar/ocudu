@@ -223,7 +223,7 @@ void ocudu::build_dci_f1_0_c_rnti(dci_dl_info&                  dci,
 void ocudu::build_dci_f1_1_c_rnti(dci_dl_info&                  dci,
                                   const ue_cell_configuration&  ue_cell_cfg,
                                   search_space_id               ss_id,
-                                  vrb_interval                  vrbs,
+                                  const vrb_alloc&              vrbs,
                                   unsigned                      time_resource,
                                   unsigned                      k1,
                                   unsigned                      pucch_res_indicator,
@@ -263,19 +263,33 @@ void ocudu::build_dci_f1_1_c_rnti(dci_dl_info&                  dci,
                                                                 max_len,
                                                                 are_both_cws_enabled);
 
-  // See 38.212, clause 7.3.1.2.2 - N^{DL,BWP}_RB for C-RNTI.
-  f1_1.frequency_resource = ra_frequency_type1_get_riv(
-      ra_frequency_type1_configuration{active_dl_bwp.crbs.length(), vrbs.start(), vrbs.length()});
-  f1_1.time_resource = time_resource;
-
   const dci_size_config& dci_sz_cfg = ss_info.dci_sz_cfg;
   const dci_sizes&       dci_sz     = ss_info.dci_sz;
+
+  if (vrbs.is_type0()) {
+    ocudu_assert(dci_sz_cfg.pdsch_res_allocation_type != resource_allocation::resource_allocation_type_1,
+                 "Resource allocation type 0 is not configured");
+    // See 38.214, clause 5.1.2.2.1 - The RBG bitmap maps RBG 0 to the MSB.
+    const nominal_rbg_size P = get_nominal_rbg_size(active_dl_bwp.crbs.length(), ss_info.bwp->dl.pdsch().ded()->rbg_sz);
+    f1_1.frequency_resource  = convert_vrbs_to_rbgs(vrbs.type0(), active_dl_bwp.crbs, P).to_uint64();
+  } else {
+    ocudu_assert(dci_sz_cfg.pdsch_res_allocation_type != resource_allocation::resource_allocation_type_0,
+                 "Resource allocation type 1 is not configured");
+    // See 38.212, clause 7.3.1.2.2 - N^{DL,BWP}_RB for C-RNTI.
+    f1_1.frequency_resource = ra_frequency_type1_get_riv(
+        ra_frequency_type1_configuration{active_dl_bwp.crbs.length(), vrbs.type1().start(), vrbs.type1().length()});
+  }
+  if (dci_sz_cfg.pdsch_res_allocation_type == resource_allocation::dynamic_switch) {
+    f1_1.dynamic_pdsch_res_allocation_type =
+        vrbs.is_type0() ? dynamic_resource_allocation::type_0 : dynamic_resource_allocation::type_1;
+  }
+  f1_1.time_resource = time_resource;
 
   // Compute DCI size.
   f1_1.payload_size = dci_sz.format1_1_ue_size.value();
 
   if (dci_sz_cfg.interleaved_vrb_prb_mapping.has_value() and dci_sz_cfg.interleaved_vrb_prb_mapping.value()) {
-    f1_1.vrb_prb_mapping = enable_interleaving;
+    f1_1.vrb_prb_mapping = enable_interleaving and vrbs.is_type1();
   }
 
   // TODO:

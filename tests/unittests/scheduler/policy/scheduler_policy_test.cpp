@@ -17,6 +17,7 @@
 #include "tests/ocudu_test_requirements.h"
 #include "tests/test_doubles/scheduler/cell_config_builder_profiles.h"
 #include "tests/test_doubles/scheduler/scheduler_config_helper.h"
+#include "tests/test_doubles/scheduler/scheduler_result_finder.h"
 #include "tests/test_doubles/utils/test_rng.h"
 #include "tests/unittests/scheduler/test_utils/dummy_test_components.h"
 #include "ocudu/adt/unique_function.h"
@@ -793,6 +794,73 @@ TEST_P(scheduler_policy_alloc_bounds_test, scheduler_allocates_pusch_within_conf
   vrb_interval expected_vrb_interval{expected_prb_interval.start(), expected_prb_interval.stop()};
 
   ASSERT_TRUE(this->res_grid[0].result.ul.puschs.back().pusch_cfg.rbs.type1() == expected_vrb_interval);
+}
+
+class scheduler_policy_ra_type0_test : public base_scheduler_policy_test, public ::testing::Test
+{
+protected:
+  scheduler_policy_ra_type0_test(const scheduler_expert_config& cfg = make_cfg()) :
+    base_scheduler_policy_test(test_params{policy_scheduler_type::time_rr, cfg})
+  {
+  }
+
+  static scheduler_expert_config make_cfg()
+  {
+    scheduler_expert_config cfg = config_helpers::make_default_scheduler_expert_config();
+    // Fewer PDSCH CRBs than the RBG size of the BWP.
+    cfg.ue.pdsch_crb_limits = {0, 3};
+    return cfg;
+  }
+
+  sched_ue_creation_request_message make_ue_req(pdsch_config::resource_allocation res_alloc)
+  {
+    sched_ue_creation_request_message req =
+        make_ue_create_req(to_du_ue_index(0), to_rnti(0x4601), {LCID_MIN_DRB}, uint_to_lcg_id(2));
+    (*req.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdsch_cfg->res_alloc = res_alloc;
+    return req;
+  }
+};
+
+TEST_F(scheduler_policy_ra_type0_test, when_slice_has_fewer_rbs_than_an_rbg_then_type0_only_ue_is_not_given_a_pdcch)
+{
+  const ue&          u        = add_ue(make_ue_req(pdsch_config::resource_allocation::resource_allocation_type_0));
+  const crb_interval bwp_crbs = cell_cfg.params.dl_cfg_common.init_dl_bwp.generic_params.crbs;
+  ASSERT_GT(to_underlying(get_nominal_rbg_size(bwp_crbs.length(), rbg_size::config1)),
+            cell_cfg.expert_cfg.ue.pdsch_crb_limits.length());
+  push_dl_bs(u.ue_index, LCID_MIN_DRB, 1000);
+
+  for (unsigned i = 0; i != 20; ++i) {
+    run_slot();
+    ASSERT_TRUE(res_grid[0].result.dl.dl_pdcchs.empty());
+  }
+}
+
+TEST_F(scheduler_policy_ra_type0_test, when_slice_has_fewer_rbs_than_an_rbg_then_type1_ue_is_still_scheduled)
+{
+  const ue& u = add_ue(make_ue_req(pdsch_config::resource_allocation::resource_allocation_type_1));
+  push_dl_bs(u.ue_index, LCID_MIN_DRB, 1000);
+
+  ASSERT_TRUE(run_until([&]() { return find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
+}
+
+class scheduler_policy_ra_type0_interleaving_test : public scheduler_policy_ra_type0_test
+{
+protected:
+  scheduler_policy_ra_type0_interleaving_test() : scheduler_policy_ra_type0_test(make_interleaving_cfg()) {}
+
+  static scheduler_expert_config make_interleaving_cfg()
+  {
+    scheduler_expert_config cfg           = config_helpers::make_default_scheduler_expert_config();
+    cfg.ue.pdsch_interleaving_bundle_size = vrb_to_prb::mapping_type::interleaved_n2;
+    return cfg;
+  }
+};
+
+TEST_F(scheduler_policy_ra_type0_interleaving_test, when_cell_uses_interleaving_then_ue_with_type0_is_rejected)
+{
+  ASSERT_EQ(cfg_mng.add_ue(make_ue_req(pdsch_config::resource_allocation::resource_allocation_type_0)), nullptr);
+  ASSERT_EQ(cfg_mng.add_ue(make_ue_req(pdsch_config::resource_allocation::dynamic_switch)), nullptr);
+  ASSERT_NE(cfg_mng.add_ue(make_ue_req(pdsch_config::resource_allocation::resource_allocation_type_1)), nullptr);
 }
 
 INSTANTIATE_TEST_SUITE_P(scheduler_policy,

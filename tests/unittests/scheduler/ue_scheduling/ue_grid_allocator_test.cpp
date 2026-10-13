@@ -175,30 +175,32 @@ protected:
                                bool                    interleaving_enabled,
                                std::optional<unsigned> max_nof_rbs = std::nullopt)
   {
-    const auto& init_dl_bwp = cell_cfg.params.dl_cfg_common.init_dl_bwp;
-    auto        result =
+    auto result =
         alloc.allocate_dl_grant(ue_newtx_dl_grant_request{user, current_slot, pending_bytes, interleaving_enabled});
     if (not result.has_value()) {
       return;
     }
     auto& builder = result.value();
 
-    vrb_interval vrbs = builder.recommended_vrbs(used_dl_vrbs);
-
-    // Compute the corresponding CRBs.
-    // Note: VRB-to-PRB interleaving is not supported in this test.
-    std::pair<crb_interval, crb_interval> crbs = {
-        prb_to_crb(init_dl_bwp.generic_params.crbs, vrbs.convert_to<prb_interval>()), {}};
-
-    builder.set_pdsch_params(vrbs, crbs, interleaving_enabled);
-    used_dl_vrbs.fill(vrbs.start(), vrbs.stop());
+    const vrb_alloc vrbs = builder.recommended_vrbs(used_dl_vrbs, MAX_NOF_PRBS, MAX_NOF_PRBS, interleaving_enabled);
+    builder.set_pdsch_params(vrbs, interleaving_enabled);
+    mark_used_dl_vrbs(vrbs);
   }
 
   void allocate_dl_retx_grant(const slice_ue& user, dl_harq_process_handle h_dl)
   {
     auto result = alloc.allocate_dl_grant(ue_retx_dl_grant_request{user, current_slot, h_dl, used_dl_vrbs});
     if (result.has_value()) {
-      used_dl_vrbs.fill(result.value().vrbs.start(), result.value().vrbs.stop());
+      mark_used_dl_vrbs(result.value().vrbs);
+    }
+  }
+
+  void mark_used_dl_vrbs(const vrb_alloc& vrbs)
+  {
+    if (vrbs.is_type0()) {
+      used_dl_vrbs |= vrbs.type0();
+    } else {
+      used_dl_vrbs |= vrbs.type1();
     }
   }
 
@@ -343,7 +345,7 @@ TEST_P(ue_grid_allocator_default_cfg_test, allocates_pdsch_restricted_to_recomme
   const unsigned            max_nof_rbs_to_schedule = 10U;
 
   ASSERT_TRUE(
-      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u1.ue_index], sched_bytes, max_nof_rbs_to_schedule); },
+      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u1.ue_index], sched_bytes, false, max_nof_rbs_to_schedule); },
                 [&]() { return find_ue_pdsch(u1.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
   // Successfully allocates PDSCH corresponding to the grant.
   ASSERT_GE(find_ue_pdsch(u1.crnti, res_grid[0].result.dl.ue_grants)->pdsch_cfg.rbs.type1().length(),
@@ -397,7 +399,7 @@ TEST_P(ue_grid_allocator_default_cfg_test,
         auto grant =
             alloc.allocate_dl_grant(ue_newtx_dl_grant_request{slice_ues[u.ue_index], current_slot, newtx_bytes, false});
         if (grant.has_value()) {
-          grant.value().set_pdsch_params({}, {}, false);
+          grant.value().set_pdsch_params(vrb_interval{}, false);
           cancelled = true;
         }
       },
@@ -741,7 +743,7 @@ TEST_P(ue_grid_allocator_expert_cfg_pxsch_nof_rbs_limits_tester,
   const unsigned            max_nof_rbs_to_schedule = 10U;
 
   ASSERT_TRUE(
-      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u1.ue_index], sched_bytes, max_nof_rbs_to_schedule); },
+      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u1.ue_index], sched_bytes, false, max_nof_rbs_to_schedule); },
                 [&]() { return find_ue_pdsch(u1.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
   // Successfully allocates PDSCH.
   ASSERT_EQ(find_ue_pdsch(u1.crnti, res_grid[0].result.dl.ue_grants)->pdsch_cfg.rbs.type1().length(),
@@ -762,7 +764,7 @@ TEST_P(ue_grid_allocator_expert_cfg_pxsch_nof_rbs_limits_tester,
   const unsigned            max_nof_rbs_to_schedule = 273U;
 
   ASSERT_TRUE(
-      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u1.ue_index], sched_bytes, max_nof_rbs_to_schedule); },
+      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u1.ue_index], sched_bytes, false, max_nof_rbs_to_schedule); },
                 [&]() { return find_ue_pdsch(u1.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
   // Successfully allocates PDSCH.
   ASSERT_EQ(find_ue_pdsch(u1.crnti, res_grid[0].result.dl.ue_grants)->pdsch_cfg.rbs.type1().length(),
@@ -852,7 +854,7 @@ TEST_P(ue_grid_allocator_expert_cfg_pxsch_crb_limits_tester, allocates_pdsch_wit
   const unsigned            max_nof_rbs_to_schedule = 273U;
 
   ASSERT_TRUE(
-      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u1.ue_index], sched_bytes, max_nof_rbs_to_schedule); },
+      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u1.ue_index], sched_bytes, false, max_nof_rbs_to_schedule); },
                 [&]() { return find_ue_pdsch(u1.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
   // Successfully allocates PDSCH within RB limits.
   ASSERT_EQ(find_ue_pdsch(u1.crnti, res_grid[0].result.dl.ue_grants)->pdsch_cfg.rbs.type1(), pdsch_vrb_limits);
@@ -1006,7 +1008,7 @@ TEST_P(ue_grid_allocator_pdsch_repetition_test,
   auto result = alloc.allocate_dl_grant(
       ue_newtx_dl_grant_request{slice_ues[u.ue_index], current_slot, units::bytes{1000}, false});
   ASSERT_TRUE(result.has_value());
-  result.value().set_pdsch_params({}, {}, false);
+  result.value().set_pdsch_params(vrb_interval{}, false);
 
   ASSERT_FALSE(ue_cc.harqs.last_pdsch_slot().valid());
 
@@ -1015,7 +1017,7 @@ TEST_P(ue_grid_allocator_pdsch_repetition_test,
   auto retry = alloc.allocate_dl_grant(
       ue_newtx_dl_grant_request{slice_ues[u.ue_index], current_slot, units::bytes{1000}, false});
   ASSERT_TRUE(retry.has_value());
-  retry.value().set_pdsch_params({}, {}, false);
+  retry.value().set_pdsch_params(vrb_interval{}, false);
 }
 
 INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
@@ -1024,6 +1026,211 @@ INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
 
 // An NTN cell with a UE whose HARQ processes split between DL HARQ feedback enabled and disabled, so that the
 // allocator has to pick a process by the feedback the logical channels of the grant need.
+class ue_grid_allocator_ra_type0_test : public ue_grid_allocator_default_cfg_test
+{
+protected:
+  const crb_interval     bwp_crbs = cell_cfg.params.dl_cfg_common.init_dl_bwp.generic_params.crbs;
+  const nominal_rbg_size P        = get_nominal_rbg_size(bwp_crbs.length(), rbg_size::config1);
+
+  const ue& add_ue_with_res_alloc(pdsch_config::resource_allocation res_alloc,
+                                  unsigned                          max_pdsch_nof_rbs = MAX_NOF_PRBS)
+  {
+    sched_ue_creation_request_message req =
+        sched_config_helper::create_default_sched_ue_creation_request(cell_cfg.params);
+    req.ue_index            = to_du_ue_index(0);
+    req.crnti               = to_rnti(0x4601);
+    pdsch_config& pdsch_cfg = (*req.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdsch_cfg.value();
+    pdsch_cfg.res_alloc     = res_alloc;
+    pdsch_cfg.rbg_sz        = rbg_size::config1;
+    req.cfg.res_alloc_cfg.emplace().pdsch_grant_size_limits = {0, max_pdsch_nof_rbs};
+    return add_ue(req);
+  }
+
+  // Marks the first VRB of every even RBG as used, so that only the odd RBGs are free.
+  vrb_bitmap block_even_rbgs()
+  {
+    vrb_bitmap blocked(bwp_crbs.length());
+    for (unsigned rbg_idx = 0, nof_rbgs = get_nof_rbgs(bwp_crbs, P); rbg_idx < nof_rbgs; rbg_idx += 2) {
+      rbg_bitmap rbg(nof_rbgs);
+      rbg.set(rbg_idx);
+      blocked.set(convert_rbgs_to_vrbs(rbg, bwp_crbs, P).find_lowest());
+    }
+    used_dl_vrbs |= blocked;
+    return blocked;
+  }
+
+  const dl_msg_alloc* ue_pdsch(rnti_t rnti) const { return find_ue_pdsch(rnti, res_grid[0].result.dl.ue_grants); }
+
+  const dci_1_1_configuration& ue_dci(rnti_t rnti) const
+  {
+    return find_ue_dl_pdcch(rnti, res_grid[0].result.dl)->dci.as_c_rnti_f1_1();
+  }
+};
+
+TEST_P(ue_grid_allocator_ra_type0_test,
+       when_free_rbgs_fit_more_vrbs_than_any_free_interval_then_dynamic_switch_selects_type0)
+{
+  const ue&  u = add_ue_with_res_alloc(pdsch_config::resource_allocation::dynamic_switch);
+  vrb_bitmap blocked;
+  ASSERT_TRUE(run_until(
+      [&]() {
+        blocked = block_even_rbgs();
+        allocate_dl_newtx_grant(slice_ues[u.ue_index], units::bytes{100000}, false);
+      },
+      [&]() { return ue_pdsch(u.crnti) != nullptr; }));
+
+  const vrb_alloc& rbs = ue_pdsch(u.crnti)->pdsch_cfg.rbs;
+  ASSERT_TRUE(rbs.is_type0());
+  // The largest free VRB interval spans the end of an even RBG and a full odd RBG.
+  ASSERT_GT(rbs.nof_vrbs(), 2 * to_underlying(P) - 1);
+  vrb_bitmap overlap = rbs.type0();
+  overlap &= blocked;
+  ASSERT_TRUE(overlap.none());
+  const rbg_bitmap rbgs = convert_vrbs_to_rbgs(rbs.type0(), bwp_crbs, P);
+  ASSERT_EQ(convert_rbgs_to_vrbs(rbgs, bwp_crbs, P), rbs.type0()) << "Type 0 grants must span whole RBGs";
+
+  const dci_1_1_configuration& dci = ue_dci(u.crnti);
+  ASSERT_EQ(dci.dynamic_pdsch_res_allocation_type, dynamic_resource_allocation::type_0);
+  ASSERT_EQ(dci.frequency_resource, rbgs.to_uint64());
+}
+
+TEST_P(ue_grid_allocator_ra_type0_test, when_a_free_interval_fits_the_grant_then_dynamic_switch_selects_type1)
+{
+  const ue& u = add_ue_with_res_alloc(pdsch_config::resource_allocation::dynamic_switch);
+  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], units::bytes{20}, false); },
+                        [&]() { return ue_pdsch(u.crnti) != nullptr; }));
+
+  const vrb_alloc& rbs = ue_pdsch(u.crnti)->pdsch_cfg.rbs;
+  ASSERT_TRUE(rbs.is_type1());
+  const dci_1_1_configuration& dci = ue_dci(u.crnti);
+  ASSERT_EQ(dci.dynamic_pdsch_res_allocation_type, dynamic_resource_allocation::type_1);
+  ASSERT_EQ(dci.frequency_resource,
+            ra_frequency_type1_get_riv(
+                ra_frequency_type1_configuration{bwp_crbs.length(), rbs.type1().start(), rbs.type1().length()}));
+}
+
+TEST_P(ue_grid_allocator_ra_type0_test, when_only_type0_is_configured_then_small_grants_use_whole_rbgs)
+{
+  const ue& u = add_ue_with_res_alloc(pdsch_config::resource_allocation::resource_allocation_type_0);
+  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], units::bytes{20}, false); },
+                        [&]() { return ue_pdsch(u.crnti) != nullptr; }));
+
+  const vrb_alloc& rbs = ue_pdsch(u.crnti)->pdsch_cfg.rbs;
+  ASSERT_TRUE(rbs.is_type0());
+  const rbg_bitmap rbgs = convert_vrbs_to_rbgs(rbs.type0(), bwp_crbs, P);
+  ASSERT_EQ(convert_rbgs_to_vrbs(rbgs, bwp_crbs, P), rbs.type0()) << "Type 0 grants must span whole RBGs";
+  const dci_1_1_configuration& dci = ue_dci(u.crnti);
+  ASSERT_FALSE(dci.dynamic_pdsch_res_allocation_type.has_value());
+  ASSERT_EQ(dci.frequency_resource, rbgs.to_uint64());
+}
+
+TEST_P(ue_grid_allocator_ra_type0_test, when_type0_newtx_is_retransmitted_then_retx_keeps_nof_vrbs_and_can_use_type1)
+{
+  const ue& u     = add_ue_with_res_alloc(pdsch_config::resource_allocation::dynamic_switch);
+  ue_cell&  ue_cc = ues[u.ue_index].get_pcell();
+  ASSERT_TRUE(run_until(
+      [&]() {
+        block_even_rbgs();
+        allocate_dl_newtx_grant(slice_ues[u.ue_index], units::bytes{100000}, false);
+      },
+      [&]() { return ue_pdsch(u.crnti) != nullptr; }));
+  const dl_msg_alloc& newtx = *ue_pdsch(u.crnti);
+  ASSERT_TRUE(newtx.pdsch_cfg.rbs.is_type0());
+  const unsigned nof_vrbs = newtx.pdsch_cfg.rbs.nof_vrbs();
+
+  std::optional<dl_harq_process_handle> h_dl = ue_cc.harqs.dl_harq(newtx.pdsch_cfg.harq_id);
+  ASSERT_TRUE(h_dl.has_value());
+  ASSERT_TRUE(h_dl->dl_ack_info(mac_harq_ack_report_status::nack, std::nullopt));
+
+  // Without fragmentation, the reTx fits in a contiguous VRB interval.
+  ASSERT_TRUE(run_until(
+      [&]() {
+        std::optional<dl_harq_process_handle> h_retx = ue_cc.harqs.find_pending_dl_retx();
+        if (h_retx.has_value()) {
+          allocate_dl_retx_grant(slice_ues[u.ue_index], *h_retx);
+        }
+      },
+      [&]() {
+        const dl_msg_alloc* grant = ue_pdsch(u.crnti);
+        return grant != nullptr and grant->context.nof_retxs > 0;
+      }));
+  const vrb_alloc& retx_rbs = ue_pdsch(u.crnti)->pdsch_cfg.rbs;
+  ASSERT_TRUE(retx_rbs.is_type1());
+  ASSERT_EQ(retx_rbs.nof_vrbs(), nof_vrbs);
+  ASSERT_EQ(ue_dci(u.crnti).dynamic_pdsch_res_allocation_type, dynamic_resource_allocation::type_1);
+}
+
+TEST_P(ue_grid_allocator_ra_type0_test, when_slot_uses_interleaving_then_type0_only_ue_is_not_scheduled)
+{
+  const ue& u = add_ue_with_res_alloc(pdsch_config::resource_allocation::resource_allocation_type_0);
+
+  for (unsigned i = 0; i != 10; ++i) {
+    slot_indication([&]() {
+      ASSERT_FALSE(alloc
+                       .allocate_dl_grant(ue_newtx_dl_grant_request{
+                           slice_ues[u.ue_index], current_slot, units::bytes{1000}, /* interleaving_enabled */ true})
+                       .has_value());
+    });
+    ASSERT_EQ(ue_pdsch(u.crnti), nullptr);
+  }
+}
+
+TEST_P(ue_grid_allocator_ra_type0_test, when_type0_only_grant_budget_is_below_rbg_size_then_a_whole_rbg_is_allocated)
+{
+  const ue& u = add_ue_with_res_alloc(pdsch_config::resource_allocation::resource_allocation_type_0);
+
+  ASSERT_TRUE(run_until(
+      [&]() {
+        auto result = alloc.allocate_dl_grant(
+            ue_newtx_dl_grant_request{slice_ues[u.ue_index], current_slot, units::bytes{100000}, false});
+        if (not result.has_value()) {
+          return;
+        }
+        // The grant budget is below the RBG size, but the slice still has RBs left for a whole RBG.
+        const vrb_alloc vrbs = result.value().recommended_vrbs(used_dl_vrbs, 1, MAX_NOF_PRBS, false);
+        result.value().set_pdsch_params(vrbs, false);
+      },
+      [&]() { return ue_pdsch(u.crnti) != nullptr; }));
+
+  const vrb_alloc& rbs = ue_pdsch(u.crnti)->pdsch_cfg.rbs;
+  ASSERT_TRUE(rbs.is_type0());
+  const rbg_bitmap rbgs = convert_vrbs_to_rbgs(rbs.type0(), bwp_crbs, P);
+  ASSERT_EQ(rbgs.count(), 1);
+  ASSERT_EQ(convert_rbgs_to_vrbs(rbgs, bwp_crbs, P), rbs.type0());
+}
+
+TEST_P(ue_grid_allocator_ra_type0_test, when_ue_rb_limit_is_not_a_multiple_of_rbg_size_then_type0_grant_and_retx_fit_it)
+{
+  const unsigned max_ue_rbs = 2 * to_underlying(P) + 1;
+  const ue&      u = add_ue_with_res_alloc(pdsch_config::resource_allocation::resource_allocation_type_0, max_ue_rbs);
+  ue_cell&       ue_cc = ues[u.ue_index].get_pcell();
+  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], units::bytes{100000}, false); },
+                        [&]() { return ue_pdsch(u.crnti) != nullptr; }));
+  const dl_msg_alloc& newtx = *ue_pdsch(u.crnti);
+  ASSERT_TRUE(newtx.pdsch_cfg.rbs.is_type0());
+  ASSERT_LE(newtx.pdsch_cfg.rbs.nof_vrbs(), max_ue_rbs);
+
+  std::optional<dl_harq_process_handle> h_dl = ue_cc.harqs.dl_harq(newtx.pdsch_cfg.harq_id);
+  ASSERT_TRUE(h_dl.has_value());
+  ASSERT_TRUE(h_dl->dl_ack_info(mac_harq_ack_report_status::nack, std::nullopt));
+
+  ASSERT_TRUE(run_until(
+      [&]() {
+        std::optional<dl_harq_process_handle> h_retx = ue_cc.harqs.find_pending_dl_retx();
+        if (h_retx.has_value()) {
+          allocate_dl_retx_grant(slice_ues[u.ue_index], *h_retx);
+        }
+      },
+      [&]() {
+        const dl_msg_alloc* grant = ue_pdsch(u.crnti);
+        return grant != nullptr and grant->context.nof_retxs > 0;
+      }));
+}
+
+INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
+                         ue_grid_allocator_ra_type0_test,
+                         testing::Values(duplex_mode::FDD, duplex_mode::TDD));
+
 class ue_grid_allocator_dl_harq_feedback_test : public ue_grid_allocator_test
 {
 protected:

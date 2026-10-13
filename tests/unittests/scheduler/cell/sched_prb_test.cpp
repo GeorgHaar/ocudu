@@ -83,6 +83,48 @@ TEST(convert_vrbs_to_rbgs_test, when_any_vrb_of_an_rbg_is_set_then_the_rbg_is_se
   ASSERT_EQ(convert_vrbs_to_rbgs(convert_rbgs_to_vrbs(expected, bwp_crbs, P), bwp_crbs, P), expected);
 }
 
+TEST(find_free_rbgs_with_nof_vrbs_test, when_short_first_rbg_is_free_then_full_rbgs_are_still_selected)
+{
+  // BWP of 50 PRBs starting at CRB 2, with P=4. RBG sizes are 2, 4, ..., 4.
+  const crb_interval     bwp_crbs{2, 52};
+  const nominal_rbg_size P = nominal_rbg_size::P4;
+  rbg_bitmap             used_rbgs(get_nof_rbgs(bwp_crbs, P));
+  used_rbgs.fill(2, used_rbgs.size());
+
+  // A greedy selection takes the 2-VRB first RBG and then cannot reach 4 VRBs.
+  rbg_bitmap expected(used_rbgs.size());
+  expected.set(1);
+  ASSERT_EQ(find_free_rbgs_with_nof_vrbs(used_rbgs, bwp_crbs, P, 4), expected);
+}
+
+TEST(find_free_rbgs_with_nof_vrbs_test, when_short_edge_rbgs_are_needed_then_they_are_selected)
+{
+  // BWP of 49 PRBs starting at CRB 2, with P=4. RBG sizes are 2, 4, ..., 4, 3.
+  const crb_interval     bwp_crbs{2, 51};
+  const nominal_rbg_size P = nominal_rbg_size::P4;
+  const rbg_bitmap       used_rbgs(get_nof_rbgs(bwp_crbs, P));
+
+  rbg_bitmap expected(used_rbgs.size());
+  expected.set(0);
+  expected.set(1);
+  expected.set(used_rbgs.size() - 1);
+  const rbg_bitmap rbgs = find_free_rbgs_with_nof_vrbs(used_rbgs, bwp_crbs, P, 9);
+  ASSERT_EQ(rbgs, expected);
+  ASSERT_EQ(convert_rbgs_to_vrbs(rbgs, bwp_crbs, P).count(), 9);
+}
+
+TEST(find_free_rbgs_with_nof_vrbs_test, when_no_free_rbgs_add_up_to_nof_vrbs_then_no_rbg_is_selected)
+{
+  // BWP of 50 PRBs starting at CRB 2, with P=4. RBG sizes are 2, 4, ..., 4.
+  const crb_interval     bwp_crbs{2, 52};
+  const nominal_rbg_size P = nominal_rbg_size::P4;
+  rbg_bitmap             used_rbgs(get_nof_rbgs(bwp_crbs, P));
+  used_rbgs.set(0);
+
+  ASSERT_TRUE(find_free_rbgs_with_nof_vrbs(used_rbgs, bwp_crbs, P, 6).none());
+  ASSERT_TRUE(find_free_rbgs_with_nof_vrbs(used_rbgs, bwp_crbs, P, 3).none());
+}
+
 TEST(bwp_rb_bitmap, when_bwp_start_is_not_aligned_to_rbg_size_then_rbgs_map_to_shorter_edge_rbgs)
 {
   bwp_rb_bitmap rb_bitmap(crb_interval{3, 103}, rbg_size::config1);
@@ -178,4 +220,19 @@ TEST(get_nof_rbgs_test, when_bwp_does_not_start_at_rbg_boundary_then_nof_rbgs_ca
   const crb_interval bwp_crbs{7, 151};
   ASSERT_EQ(get_nominal_rbg_size(bwp_crbs.length(), rbg_size::config1), nominal_rbg_size::P8);
   ASSERT_EQ(get_nof_rbgs(bwp_crbs, rbg_size::config1), MAX_NOF_RBGS);
+}
+
+TEST(prb_to_crb_test, when_prb_bitmap_is_converted_then_crbs_are_offset_by_bwp_start)
+{
+  const crb_interval bwp_crbs{70, 140};
+  prb_bitmap         prbs(bwp_crbs.length());
+  prbs.set(0);
+  prbs.fill(10, 20);
+  prbs.set(bwp_crbs.length() - 1);
+
+  crb_bitmap expected(bwp_crbs.stop());
+  expected.set(70);
+  expected.fill(80, 90);
+  expected.set(139);
+  ASSERT_EQ(prb_to_crb(bwp_crbs, prbs), expected);
 }

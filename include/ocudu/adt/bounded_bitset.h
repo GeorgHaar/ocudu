@@ -281,6 +281,44 @@ public:
     return sliced;
   }
 
+  /// \brief Returns bounded_bitset<> of size \c new_size where bit \c i of this bitset is placed at position
+  /// <tt>offset + i</tt>. Bits shifted beyond \c new_size are discarded.
+  ///
+  /// \param[in] offset Position of the first bit of this bitset in the returned bitset.
+  /// \param[in] new_size Size of the returned bitset.
+  /// \remark \c new_size must not exceed \c N2. Neither \c new_size nor \c offset is constrained by the size of this
+  /// bitset. If <tt>offset >= new_size</tt>, the returned bitset has no bits set.
+  template <size_t N2 = N, typename NewTag = Tag>
+  bounded_bitset<N2, LowestInfoBitIsMSB, NewTag> shifted(size_t offset, size_t new_size) const noexcept
+  {
+    bounded_bitset<N2, LowestInfoBitIsMSB, NewTag> result(new_size);
+    const unsigned                                 word_offset = offset / bits_per_word;
+    const unsigned                                 bit_offset  = offset % bits_per_word;
+    const unsigned                                 res_nwords  = result.nof_words_();
+
+    for (unsigned i = 0, nw = this->nof_words_(); i != nw and i + word_offset < res_nwords; ++i) {
+      ocudu_assume(i + word_offset < result.buffer.size());
+      if (bit_offset == 0) {
+        result.buffer[i + word_offset] = this->buffer[i];
+        continue;
+      }
+      // A word of this bitset spans two words of the result.
+      if constexpr (LowestInfoBitIsMSB) {
+        result.buffer[i + word_offset] |= this->buffer[i] >> bit_offset;
+        if (i + word_offset + 1 < res_nwords) {
+          result.buffer[i + word_offset + 1] |= this->buffer[i] << (bits_per_word - bit_offset);
+        }
+      } else {
+        result.buffer[i + word_offset] |= this->buffer[i] << bit_offset;
+        if (i + word_offset + 1 < res_nwords) {
+          result.buffer[i + word_offset + 1] |= this->buffer[i] >> (bits_per_word - bit_offset);
+        }
+      }
+    }
+    result.sanitize_();
+    return result;
+  }
+
 private:
   template <size_t N2, bool reversed2, typename Tag2>
   friend class bounded_bitset;

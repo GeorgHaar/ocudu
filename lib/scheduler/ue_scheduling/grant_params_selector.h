@@ -14,6 +14,7 @@ namespace ocudu {
 
 class ue_cell;
 class slice_ue;
+struct search_space_info;
 
 namespace sched_helper {
 
@@ -28,6 +29,8 @@ struct dl_sched_context {
   sch_mcs_index recommended_mcs;
   /// Recommended number of layers.
   unsigned recommended_ri;
+  /// Limits for grant size in RBs.
+  interval<unsigned> nof_rb_lims;
   /// Expected number of RBs to allocate.
   unsigned expected_nof_rbs;
   /// Pending bytes for newTx.
@@ -56,13 +59,26 @@ std::optional<dl_sched_context> get_retx_dl_sched_context(const slice_ue&       
                                                           const dl_harq_process_handle& h_dl,
                                                           unsigned                      max_rbs = MAX_NOF_PRBS);
 
-/// Select DL VRBs to allocate for a newTx.
-vrb_interval compute_newtx_dl_vrbs(const dl_sched_context& decision_ctxt,
-                                   const vrb_bitmap&       used_vrbs,
-                                   unsigned                max_nof_rbs = MAX_NOF_PRBS);
+/// Minimum number of VRBs of a DL newTx grant.
+unsigned get_min_newtx_dl_nof_vrbs(const search_space_info& ss_info, bool interleaving_enabled);
 
-/// Select DL VRBs to allocate for a reTx.
-vrb_interval compute_retx_dl_vrbs(const dl_sched_context& decision_ctxt, const vrb_bitmap& used_vrbs);
+/// \brief Select DL VRBs to allocate for a newTx, using resource allocation type 0 or 1.
+///
+/// \param[in] max_nof_rbs Maximum number of VRBs of the grant.
+/// \param[in] nof_rbs_remaining Hard limit on the VRBs of a type 0 grant, which may exceed \c max_nof_rbs to fit whole
+/// RBGs.
+vrb_alloc compute_newtx_dl_vrbs(const dl_sched_context&  decision_ctxt,
+                                const search_space_info& ss_info,
+                                const vrb_bitmap&        used_vrbs,
+                                bool                     interleaving_enabled,
+                                unsigned                 max_nof_rbs,
+                                unsigned                 nof_rbs_remaining);
+
+/// Select DL VRBs to allocate for a reTx, keeping the number of VRBs of the previous transmission.
+vrb_alloc compute_retx_dl_vrbs(const dl_sched_context&  decision_ctxt,
+                               const search_space_info& ss_info,
+                               const vrb_bitmap&        used_vrbs,
+                               bool                     interleaving_enabled);
 
 /// PDCCH and PUSCH parameters recommended for a UL grant.
 struct ul_sched_context {

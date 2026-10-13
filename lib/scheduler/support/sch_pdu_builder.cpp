@@ -450,7 +450,7 @@ void ocudu::build_pdsch_f1_1_c_rnti(pdsch_information&              pdsch,
                                     const ue_cell_configuration&    ue_cell_cfg,
                                     search_space_id                 ss_id,
                                     const dci_1_1_configuration&    dci_cfg,
-                                    const vrb_interval&             vrbs,
+                                    const vrb_alloc&                vrbs,
                                     bool                            is_new_data,
                                     const ue_channel_state_manager& cs_mgr)
 {

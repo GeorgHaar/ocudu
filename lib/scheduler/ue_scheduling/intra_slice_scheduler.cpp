@@ -329,14 +329,14 @@ unsigned intra_slice_scheduler::schedule_dl_retx_candidates(dl_ran_slice_candida
     }
 
     if (result.has_value()) {
-      vrb_interval alloc_vrbs = result.value().vrbs;
-      used_dl_vrbs.fill(alloc_vrbs.start(), alloc_vrbs.stop());
-      slice.store_grant(alloc_vrbs.length());
+      const vrb_alloc& alloc_vrbs = result.value().vrbs;
+      mark_used_dl_vrbs(alloc_vrbs);
+      slice.store_grant(alloc_vrbs.nof_vrbs());
       // PDSCH repetition occasions land in future slots that are not covered by this slice candidate's own
       // remaining_rbs() budget (scoped to pdsch_slot); register their RB usage against the slice's budget for those
       // slots directly.
       for (slot_point occasion_slot : result.value().repetition_slots) {
-        slice.store_grant(alloc_vrbs.length(), occasion_slot);
+        slice.store_grant(alloc_vrbs.nof_vrbs(), occasion_slot);
       }
       if (++alloc_count >= max_ue_grants_to_alloc or slice.remaining_rbs() == 0) {
         // Maximum number of allocations reached.
@@ -505,6 +505,15 @@ unsigned intra_slice_scheduler::schedule_dl_newtx_candidates(dl_ran_slice_candid
       }
     }
 
+    // A grant with resource allocation type 0 only takes whole RBGs, which may not fit in the RBs left in the slice.
+    // [Implementation-defined] UE DL grants of this scheduler always use SearchSpace 2.
+    static constexpr search_space_id ue_ded_ss_id      = to_search_space_id(2);
+    const unsigned                   min_grant_nof_rbs = sched_helper::get_min_newtx_dl_nof_vrbs(
+        ue_candidate.ue->get_cc().cfg().search_space(ue_ded_ss_id), enable_pdsch_interleaving);
+    if (rbs_to_alloc - rb_count < min_grant_nof_rbs) {
+      continue;
+    }
+
     // Create DL grant builder.
     auto result =
         ue_alloc.allocate_dl_grant(ue_newtx_dl_grant_request{*ue_candidate.ue, pdsch_slot, ue_candidate.pending_bytes});
@@ -512,7 +521,7 @@ unsigned intra_slice_scheduler::schedule_dl_newtx_candidates(dl_ran_slice_candid
     if (result.has_value()) {
       // Allocation was successful. Move grant builder to list of pending newTx grants.
       auto& grant_builder = result.value();
-      rb_count += std::min(grant_builder.context().expected_nof_rbs, max_rbs_per_grant);
+      rb_count += std::max(std::min(grant_builder.context().expected_nof_rbs, max_rbs_per_grant), min_grant_nof_rbs);
 
       pending_dl_newtxs.push_back(std::move(grant_builder));
       if (rb_count >= rbs_to_alloc) {
@@ -561,37 +570,38 @@ unsigned intra_slice_scheduler::schedule_dl_newtx_candidates(dl_ran_slice_candid
     } else {
       max_grant_size = max_rbs_per_grant + rbs_missing;
     }
-    ocudu_assert(max_grant_size > 0, "Invalid grant size.");
+    if (max_grant_size <= 0) {
+      // Earlier type 0 grants exceeded their share by more than this grant's share, to fit whole RBGs.
+      logger.debug("ue={} c-rnti={}: Skipping PDSCH grant at slot={}. Cause: RB share taken by earlier RBG grants",
+                   grant_builder.ue().ue_index(),
+                   grant_builder.ue().crnti(),
+                   slice.get_slot_tx());
+      grant_builder.set_pdsch_params(vrb_interval{}, enable_pdsch_interleaving);
+      // The skipped grant takes no RBs, so its share carries over to the next grants.
+      rbs_missing = max_grant_size;
+      continue;
+    }
 
-    // Derive recommended parameters for the DL newTx grant.
-    vrb_interval alloc_vrbs = grant_builder.recommended_vrbs(used_dl_vrbs, max_grant_size);
+    // Derive recommended parameters for the DL newTx grant. A type 0 grant may exceed its share to fit whole RBGs, as
+    // long as it fits in the RBs left in the slice.
+    const vrb_alloc alloc_vrbs = grant_builder.recommended_vrbs(
+        used_dl_vrbs, max_grant_size, rbs_to_alloc - rb_count, enable_pdsch_interleaving);
     if (alloc_vrbs.empty()) {
       logger.warning("ue={} c-rnti={}: Failed to allocate RBs for PDSCH grant at slot={}",
                      grant_builder.ue().ue_index(),
                      grant_builder.ue().crnti(),
                      slice.get_slot_tx());
       // We let the grant be empty. It will be skipped in the post-processing scheduling step.
-      grant_builder.set_pdsch_params({}, {}, enable_pdsch_interleaving);
+      grant_builder.set_pdsch_params(vrb_interval{}, enable_pdsch_interleaving);
       continue;
     }
 
-    // Compute the corresponding CRBs.
-    static constexpr search_space_id      ue_ded_ss_id = to_search_space_id(2);
-    const auto&                           ss_info      = grant_builder.ue().get_cc().cfg().search_space(ue_ded_ss_id);
-    std::pair<crb_interval, crb_interval> alloc_crbs;
-    if (enable_pdsch_interleaving) {
-      const auto prbs = ss_info.interleaved_mapping.value().vrb_to_prb(alloc_vrbs);
-      alloc_crbs      = {prb_to_crb(ss_info.dl_crb_lims, prbs.first), prb_to_crb(ss_info.dl_crb_lims, prbs.second)};
-    } else {
-      alloc_crbs = {prb_to_crb(ss_info.dl_crb_lims, alloc_vrbs.convert_to<prb_interval>()), {}};
-    }
-
     // Save CRBs, MCS and RI.
-    auto committed_repetition_slots = grant_builder.set_pdsch_params(alloc_vrbs, alloc_crbs, enable_pdsch_interleaving);
+    auto committed_repetition_slots = grant_builder.set_pdsch_params(alloc_vrbs, enable_pdsch_interleaving);
 
     // Fill used VRBs.
-    const unsigned nof_rbs_alloc = alloc_vrbs.length();
-    used_dl_vrbs.fill(alloc_vrbs.start(), alloc_vrbs.stop());
+    const unsigned nof_rbs_alloc = alloc_vrbs.nof_vrbs();
+    mark_used_dl_vrbs(alloc_vrbs);
 
     // Update slice state.
     slice.store_grant(nof_rbs_alloc);
@@ -602,7 +612,7 @@ unsigned intra_slice_scheduler::schedule_dl_newtx_candidates(dl_ran_slice_candid
       slice.store_grant(nof_rbs_alloc, occasion_slot);
     }
     rb_count += nof_rbs_alloc;
-    rbs_missing = (max_grant_size - nof_rbs_alloc);
+    rbs_missing = max_grant_size - static_cast<int>(nof_rbs_alloc);
   }
 
   // Clear grant builders.
@@ -936,6 +946,15 @@ void intra_slice_scheduler::update_used_dl_vrbs(const dl_ran_slice_candidate& sl
     used_dl_vrbs                    = interleaved_mapping.prb_to_vrb(used_prbs);
   } else {
     used_dl_vrbs = used_prbs.convert_to<vrb_bitmap>();
+  }
+}
+
+void intra_slice_scheduler::mark_used_dl_vrbs(const vrb_alloc& vrbs)
+{
+  if (vrbs.is_type0()) {
+    used_dl_vrbs |= vrbs.type0();
+  } else {
+    used_dl_vrbs |= vrbs.type1();
   }
 }
 

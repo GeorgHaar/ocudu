@@ -105,6 +105,12 @@ validator_result validate_bwp_ded_cfg(const serving_cell_config& ue_cell_cfg, co
       return make_unexpected("Inconsistent PDCCH config");
     }
   }
+  // [Implementation-defined] Resource allocation type 0 and interleaved VRB-to-PRB mapping are not used in the same
+  // cell.
+  VERIFY(not ue_bwp_ded.pdsch_cfg.has_value() or
+             ue_bwp_ded.pdsch_cfg->res_alloc == pdsch_config::resource_allocation::resource_allocation_type_1 or
+             cell_cfg.expert_cfg.ue.pdsch_interleaving_bundle_size == vrb_to_prb::mapping_type::non_interleaved,
+         "PDSCH resource allocation type 0 is not supported with interleaved VRB-to-PRB mapping");
   return {};
 }
 

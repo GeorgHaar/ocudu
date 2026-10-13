@@ -10,6 +10,7 @@
 #include "ocudu/ran/resource_allocation/resource_allocation_frequency.h"
 #include "ocudu/scheduler/config/bwp_configuration.h"
 #include "ocudu/scheduler/result/dci_info.h"
+#include "ocudu/scheduler/result/vrb_alloc.h"
 
 namespace ocudu {
 
@@ -83,7 +84,7 @@ void build_dci_f1_0_c_rnti(dci_dl_info&                  dci,
 void build_dci_f1_1_c_rnti(dci_dl_info&                  dci,
                            const ue_cell_configuration&  ue_cell_cfg,
                            search_space_id               ss_id,
-                           vrb_interval                  vrbs,
+                           const vrb_alloc&              vrbs,
                            unsigned                      time_resource,
                            unsigned                      k1,
                            unsigned                      pucch_res_indicator,

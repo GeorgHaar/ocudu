@@ -191,7 +191,7 @@ compute_retx_nof_rbs_mcs(const pdsch_config_params&                  pdsch_cfg,
 {
   if (pdsch_cfg.symbols.length() == prev_h_params.nof_symbols) {
     // Number of symbols did not change. Reuse the same MCS and TBS of previous HARQ transmission.
-    const unsigned nof_rbs = prev_h_params.rbs.type1().length();
+    const unsigned nof_rbs = prev_h_params.rbs.nof_vrbs();
     if (nof_rbs > rb_lims.stop()) {
       // If we are exceeding imposed RB limits, postpone reTx.
       return std::nullopt;
@@ -228,6 +228,14 @@ static std::optional<dl_sched_context> get_dl_sched_context(const slice_ue&     
     // ReTx case.
     ocudu_assert(ss.get_dl_dci_format() == get_dci_format(h_dl->get_grant_params().dci_cfg_type),
                  "DCI type cannot change across reTxs");
+  }
+
+  // [Implementation-defined] A UE with only resource allocation type 0, which uses the non-interleaved VRB-to-PRB
+  // mapping as per TS 38.214, Section 5.1.2.3, is not scheduled in a slot with interleaving, since the bitmap of used
+  // VRBs is then in the interleaved VRB domain.
+  if (interleaving_enabled and ss.get_dl_dci_format() == dci_dl_format::f1_1 and ss.bwp->dl.pdsch().ded() != nullptr and
+      ss.bwp->dl.pdsch().ded()->res_alloc == pdsch_config::resource_allocation::resource_allocation_type_0) {
+    return std::nullopt;
   }
 
   // For a newTx, link adaptation decides how many Rel-16 PDSCH repetitions to request, or nullopt for a single
@@ -329,6 +337,7 @@ static std::optional<dl_sched_context> get_dl_sched_context(const slice_ue&     
   ctxt.pdsch_td_res_index = *selected_pdsch_td_index;
   ctxt.recommended_mcs    = mcs_prbs_sel->mcs;
   ctxt.recommended_ri     = nof_layers;
+  ctxt.nof_rb_lims        = nof_rb_lims;
   ctxt.expected_nof_rbs   = mcs_prbs_sel->nof_prbs;
   ctxt.pending_bytes      = units::bytes{pending_bytes};
   ctxt.nof_repetitions    = dl_td_mapper.pdsch_td_resources(dci_format)[*selected_pdsch_td_index].rep_number;
@@ -354,31 +363,125 @@ std::optional<dl_sched_context> sched_helper::get_retx_dl_sched_context(const sl
   return get_dl_sched_context(u, pdcch_slot, pdsch_slot, interleaving_enabled, &h_dl, units::bytes{0}, max_rbs);
 }
 
-static vrb_interval
-find_available_vrbs(const dl_sched_context& space_cfg, const vrb_bitmap& used_vrbs, unsigned max_rbs = MAX_NOF_PRBS)
+/// Gets the PDSCH resource allocation type that can be used in a DL grant.
+static pdsch_config::resource_allocation get_dl_resource_allocation(const search_space_info& ss_info,
+                                                                    bool                     interleaving_enabled)
 {
-  // Compute recommended number of layers, MCS and PRBs.
-  unsigned nof_rbs = std::min(space_cfg.expected_nof_rbs, max_rbs);
-
-  // Compute PRB allocation interval.
-  return rb_helper::find_empty_interval_of_length(used_vrbs, nof_rbs);
+  const pdsch_config* pdsch_ded = ss_info.bwp->dl.pdsch().ded();
+  // Resource allocation type 0 is only available in DCI format 1_1 and with non-interleaved VRB-to-PRB mapping, as per
+  // TS 38.212, Section 7.3.1.2.2, and TS 38.214, Section 5.1.2.3.
+  if (pdsch_ded == nullptr or ss_info.get_dl_dci_format() != dci_dl_format::f1_1 or interleaving_enabled) {
+    return pdsch_config::resource_allocation::resource_allocation_type_1;
+  }
+  return pdsch_ded->res_alloc;
 }
 
-vrb_interval sched_helper::compute_newtx_dl_vrbs(const dl_sched_context& decision_ctxt,
-                                                 const vrb_bitmap&       used_vrbs,
-                                                 unsigned                max_nof_rbs)
+/// \brief Selects free RBGs of the BWP, from lowest to highest, until \c target_nof_rbs VRBs are reached.
+///
+/// RBGs with any used VRB are skipped, and so are RBGs that would make the allocation exceed \c max_nof_rbs VRBs.
+static vrb_bitmap find_available_rbgs(const search_space_info& ss_info,
+                                      const vrb_bitmap&        used_vrbs,
+                                      unsigned                 target_nof_rbs,
+                                      unsigned                 max_nof_rbs)
 {
-  return find_available_vrbs(decision_ctxt, used_vrbs, max_nof_rbs);
+  const crb_interval     bwp_crbs  = ss_info.bwp->dl.cfg().crbs;
+  const nominal_rbg_size P         = get_nominal_rbg_size(bwp_crbs.length(), ss_info.bwp->dl.pdsch().ded()->rbg_sz);
+  const rbg_bitmap       used_rbgs = convert_vrbs_to_rbgs(used_vrbs, bwp_crbs, P);
+
+  rbg_bitmap selected_rbgs(used_rbgs.size());
+  unsigned   nof_rbs = 0;
+  for (unsigned rbg_idx = 0, nof_rbgs = used_rbgs.size(); rbg_idx != nof_rbgs and nof_rbs < target_nof_rbs; ++rbg_idx) {
+    const unsigned rbg_size = get_rbg_size(bwp_crbs, P, rbg_idx);
+    if (used_rbgs.test(rbg_idx) or nof_rbs + rbg_size > max_nof_rbs) {
+      continue;
+    }
+    selected_rbgs.set(rbg_idx);
+    nof_rbs += rbg_size;
+  }
+  return convert_rbgs_to_vrbs(selected_rbgs, bwp_crbs, P);
 }
 
-vrb_interval sched_helper::compute_retx_dl_vrbs(const dl_sched_context& decision_ctxt, const vrb_bitmap& used_vrbs)
+/// \brief Selects the VRBs of a DL grant.
+///
+/// \param[in] target_nof_rbs Number of VRBs to allocate.
+/// \param[in] nof_rbs_remaining Hard limit on the VRBs of a type 0 grant, which may exceed \c target_nof_rbs to fit
+/// whole RBGs.
+static vrb_alloc find_available_vrbs(const search_space_info& ss_info,
+                                     const vrb_bitmap&        used_vrbs,
+                                     bool                     interleaving_enabled,
+                                     unsigned                 target_nof_rbs,
+                                     unsigned                 nof_rbs_remaining)
 {
-  vrb_interval vrbs = find_available_vrbs(decision_ctxt, used_vrbs, decision_ctxt.expected_nof_rbs);
-  if (vrbs.length() != decision_ctxt.expected_nof_rbs) {
-    // In case of Retx, the #CRBs need to stay the same.
-    return {};
+  const pdsch_config::resource_allocation res_alloc = get_dl_resource_allocation(ss_info, interleaving_enabled);
+  if (res_alloc == pdsch_config::resource_allocation::resource_allocation_type_0) {
+    return find_available_rbgs(ss_info, used_vrbs, target_nof_rbs, nof_rbs_remaining);
+  }
+
+  const vrb_interval vrbs = rb_helper::find_empty_interval_of_length(used_vrbs, target_nof_rbs);
+  if (res_alloc == pdsch_config::resource_allocation::resource_allocation_type_1 or vrbs.length() >= target_nof_rbs) {
+    return vrbs;
+  }
+
+  // [Implementation-defined] With dynamic switch, type 0 is only used when it fits more VRBs than type 1.
+  const vrb_bitmap rbg_vrbs = find_available_rbgs(ss_info, used_vrbs, target_nof_rbs, nof_rbs_remaining);
+  if (rbg_vrbs.count() > vrbs.length()) {
+    return rbg_vrbs;
   }
   return vrbs;
+}
+
+unsigned sched_helper::get_min_newtx_dl_nof_vrbs(const search_space_info& ss_info, bool interleaving_enabled)
+{
+  if (get_dl_resource_allocation(ss_info, interleaving_enabled) !=
+      pdsch_config::resource_allocation::resource_allocation_type_0) {
+    return 1;
+  }
+  const crb_interval bwp_crbs = ss_info.bwp->dl.cfg().crbs;
+  return to_underlying(get_nominal_rbg_size(bwp_crbs.length(), ss_info.bwp->dl.pdsch().ded()->rbg_sz));
+}
+
+vrb_alloc sched_helper::compute_newtx_dl_vrbs(const dl_sched_context&  decision_ctxt,
+                                              const search_space_info& ss_info,
+                                              const vrb_bitmap&        used_vrbs,
+                                              bool                     interleaving_enabled,
+                                              unsigned                 max_nof_rbs,
+                                              unsigned                 nof_rbs_remaining)
+{
+  // A reTx keeps the VRB count of the newTx, so rounding up to whole RBGs must not exceed the UE RB limits.
+  const unsigned max_type0_nof_rbs =
+      std::min(std::max(max_nof_rbs, nof_rbs_remaining), decision_ctxt.nof_rb_lims.stop());
+  return find_available_vrbs(ss_info,
+                             used_vrbs,
+                             interleaving_enabled,
+                             std::min(decision_ctxt.expected_nof_rbs, max_nof_rbs),
+                             max_type0_nof_rbs);
+}
+
+vrb_alloc sched_helper::compute_retx_dl_vrbs(const dl_sched_context&  decision_ctxt,
+                                             const search_space_info& ss_info,
+                                             const vrb_bitmap&        used_vrbs,
+                                             bool                     interleaving_enabled)
+{
+  // In case of Retx, the #VRBs need to stay the same.
+  const unsigned                          nof_rbs   = decision_ctxt.expected_nof_rbs;
+  const pdsch_config::resource_allocation res_alloc = get_dl_resource_allocation(ss_info, interleaving_enabled);
+  if (res_alloc != pdsch_config::resource_allocation::resource_allocation_type_0) {
+    const vrb_interval vrbs = rb_helper::find_empty_interval_of_length(used_vrbs, nof_rbs);
+    if (vrbs.length() == nof_rbs) {
+      return vrbs;
+    }
+    if (res_alloc == pdsch_config::resource_allocation::resource_allocation_type_1) {
+      return vrb_interval{};
+    }
+  }
+  const crb_interval     bwp_crbs = ss_info.bwp->dl.cfg().crbs;
+  const nominal_rbg_size P        = get_nominal_rbg_size(bwp_crbs.length(), ss_info.bwp->dl.pdsch().ded()->rbg_sz);
+  const rbg_bitmap       rbgs =
+      find_free_rbgs_with_nof_vrbs(convert_vrbs_to_rbgs(used_vrbs, bwp_crbs, P), bwp_crbs, P, nof_rbs);
+  if (rbgs.none()) {
+    return vrb_interval{};
+  }
+  return convert_rbgs_to_vrbs(rbgs, bwp_crbs, P);
 }
 
 static std::optional<mcs_prbs_selection>
@@ -389,7 +492,7 @@ compute_retx_nof_rbs_mcs(const pusch_config_params&                  pusch_cfg,
 {
   if (pusch_cfg.symbols.length() == prev_h_params.nof_symbols) {
     // Number of symbols did not change. Reuse the same MCS and TBS of previous HARQ transmission.
-    const unsigned nof_rbs = prev_h_params.rbs.type1().length();
+    const unsigned nof_rbs = prev_h_params.rbs.nof_vrbs();
     if (nof_rbs > rb_lims.stop()) {
       // ReTx would exceed the assigned RB limits. Postpone it.
       return std::nullopt;

@@ -57,10 +57,11 @@ inline vrb_bitmap& operator|=(vrb_bitmap& vrb_bits, const vrb_interval& grant)
   return vrb_bits;
 }
 
+/// Converts a bitmap of BWP PRBs to a bitmap of the CRBs in <tt>[0, bwp_crb_lims.stop())</tt>.
 inline crb_bitmap prb_to_crb(const crb_interval bwp_crb_lims, const prb_bitmap& prb_bits)
 {
-  // TODO.
-  return prb_bits.convert_to<crb_bitmap>();
+  ocudu_sanity_check(prb_bits.size() == bwp_crb_lims.length(), "PRB bitmap size does not match the BWP size");
+  return prb_bits.shifted(bwp_crb_lims.start(), bwp_crb_lims.stop()).convert_to<crb_bitmap>();
 }
 
 } // namespace ocudu

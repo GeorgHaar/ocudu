@@ -103,6 +103,8 @@ private:
 
   // Called when bitmap of used VRBs needs to be recalculated.
   void update_used_dl_vrbs(const dl_ran_slice_candidate& slice);
+  // Marks the VRBs of a PDSCH grant as used. A type 0 bitmap must have the size of used_dl_vrbs.
+  void mark_used_dl_vrbs(const vrb_alloc& vrbs);
   void update_used_ul_vrbs(const ul_ran_slice_candidate& slice);
 
   const scheduler_ue_expert_config& expert_cfg;

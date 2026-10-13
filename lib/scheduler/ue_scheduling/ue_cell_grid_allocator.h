@@ -149,7 +149,7 @@ public:
   /// Result of a successful reTx DL grant allocation.
   struct dl_retx_grant_result {
     /// Allocated VRBs for the (direct) reTx grant.
-    vrb_interval vrbs;
+    vrb_alloc vrbs;
     /// Slots of any PDSCH repetition occasions actually committed to the resource grid (see \ref
     /// dl_repetition_occasion_list).
     dl_repetition_occasion_list repetition_slots;
@@ -177,15 +177,25 @@ public:
 
     /// \brief Sets the final VRBs for the PDSCH allocation. Returns the slots of any PDSCH repetition occasions that
     /// were actually committed to the resource grid (see \ref dl_repetition_occasion_list).
-    dl_repetition_occasion_list set_pdsch_params(vrb_interval                                 alloc_vrbs,
-                                                 const std::pair<crb_interval, crb_interval>& alloc_crbs,
-                                                 bool                                         enable_interleaving);
+    dl_repetition_occasion_list set_pdsch_params(const vrb_alloc& alloc_vrbs, bool enable_interleaving);
 
-    /// For a given max number of RBs and a bitmap of used VRBs, returns the recommended parameters for the PDSCH grant.
-    vrb_interval recommended_vrbs(const vrb_bitmap& used_vrbs, unsigned max_nof_rbs = MAX_NOF_PRBS) const
+    /// \brief Returns the recommended VRBs of the PDSCH grant, of resource allocation type 0 or 1.
+    ///
+    /// \param[in] max_nof_rbs Maximum number of VRBs of the grant.
+    /// \param[in] nof_rbs_remaining Hard limit on the VRBs of a type 0 grant, which may exceed \c max_nof_rbs to fit
+    /// whole RBGs.
+    vrb_alloc recommended_vrbs(const vrb_bitmap& used_vrbs,
+                               unsigned          max_nof_rbs,
+                               unsigned          nof_rbs_remaining,
+                               bool              interleaving_enabled) const
     {
       const dl_grant_info& grant = grant_info();
-      return compute_newtx_dl_vrbs(grant.cfg, used_vrbs, max_nof_rbs);
+      return compute_newtx_dl_vrbs(grant.cfg,
+                                   grant.user->get_cc().cfg().search_space(grant.cfg.ss_id),
+                                   used_vrbs,
+                                   interleaving_enabled,
+                                   max_nof_rbs,
+                                   nof_rbs_remaining);
     }
 
     /// Getters for grant immutable parameters.
@@ -324,20 +334,18 @@ private:
 
   // Set final PDSCH parameters and allocate remaining DL grant resources. Returns the slots of any PDSCH repetition
   // occasions actually committed to the resource grid.
-  dl_repetition_occasion_list set_pdsch_params(dl_grant_info&                        grant,
-                                               vrb_interval                          vrbs,
-                                               std::pair<crb_interval, crb_interval> crbs,
-                                               bool                                  enable_interleaving) const;
+  dl_repetition_occasion_list
+  set_pdsch_params(dl_grant_info& grant, const vrb_alloc& vrbs, bool enable_interleaving) const;
 
   // Set final PUSCH parameters and allocate remaining UL grant resources. Returns the committed occasion slots.
   ul_repetition_occasion_list set_pusch_params(ul_grant_info& grant, const vrb_interval& vrbs) const;
 
-  std::optional<sch_mcs_tbs> calculate_dl_mcs_tbs(const cell_slot_resource_allocator&          pdsch_alloc,
-                                                  const search_space_info&                     ss_info,
-                                                  uint8_t                                      pdsch_td_res_index,
-                                                  const std::pair<crb_interval, crb_interval>& crbs,
-                                                  sch_mcs_index                                mcs,
-                                                  unsigned                                     nof_layers) const;
+  std::optional<sch_mcs_tbs> calculate_dl_mcs_tbs(const cell_slot_resource_allocator& pdsch_alloc,
+                                                  const search_space_info&            ss_info,
+                                                  uint8_t                             pdsch_td_res_index,
+                                                  const prb_bitmap&                   prbs,
+                                                  sch_mcs_index                       mcs,
+                                                  unsigned                            nof_layers) const;
 
   expected<pdcch_dl_information*, alloc_status> alloc_dl_pdcch(const ue_cell&           ue_cc,
                                                                const search_space_info& ss_info) const;

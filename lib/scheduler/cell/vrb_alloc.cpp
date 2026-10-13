@@ -41,3 +41,49 @@ rbg_bitmap ocudu::convert_vrbs_to_rbgs(const vrb_bitmap& vrbs, crb_interval bwp_
   }
   return rbgs;
 }
+
+rbg_bitmap ocudu::find_free_rbgs_with_nof_vrbs(const rbg_bitmap& used_rbgs,
+                                               crb_interval      bwp_rbs,
+                                               nominal_rbg_size  P,
+                                               unsigned          nof_vrbs)
+{
+  const unsigned P_rbs    = to_underlying(P);
+  const unsigned last_rbg = used_rbgs.size() - 1;
+
+  // Only the first and last RBGs may be smaller than P, so the RBGs in between are interchangeable. A greedy selection
+  // could pick a short edge RBG that makes the exact size unreachable.
+  unsigned nof_free_mid_rbgs = 0;
+  for (unsigned rbg_idx = 1; rbg_idx < last_rbg; ++rbg_idx) {
+    nof_free_mid_rbgs += used_rbgs.test(rbg_idx) ? 0 : 1;
+  }
+
+  rbg_bitmap selected_rbgs(used_rbgs.size());
+  for (unsigned edge_mask = 0; edge_mask != 4; ++edge_mask) {
+    const bool use_first = (edge_mask & 1U) != 0;
+    const bool use_last  = (edge_mask & 2U) != 0;
+    if ((use_first and used_rbgs.test(0)) or (use_last and (last_rbg == 0 or used_rbgs.test(last_rbg)))) {
+      continue;
+    }
+    const unsigned edge_vrbs =
+        (use_first ? get_rbg_size(bwp_rbs, P, 0) : 0) + (use_last ? get_rbg_size(bwp_rbs, P, last_rbg) : 0);
+    if (edge_vrbs > nof_vrbs or (nof_vrbs - edge_vrbs) % P_rbs != 0 or
+        (nof_vrbs - edge_vrbs) / P_rbs > nof_free_mid_rbgs) {
+      continue;
+    }
+
+    if (use_first) {
+      selected_rbgs.set(0);
+    }
+    if (use_last) {
+      selected_rbgs.set(last_rbg);
+    }
+    for (unsigned rbg_idx = 1, nof_mid_rbgs = (nof_vrbs - edge_vrbs) / P_rbs; nof_mid_rbgs != 0; ++rbg_idx) {
+      if (not used_rbgs.test(rbg_idx)) {
+        selected_rbgs.set(rbg_idx);
+        --nof_mid_rbgs;
+      }
+    }
+    return selected_rbgs;
+  }
+  return selected_rbgs;
+}

@@ -35,13 +35,63 @@ ue_cell_grid_allocator::ue_cell_grid_allocator(const scheduler_ue_expert_config&
   ul_grants.reserve(MAX_PUSCH_PDUS_PER_SLOT);
 }
 
-std::optional<sch_mcs_tbs>
-ue_cell_grid_allocator::calculate_dl_mcs_tbs(const cell_slot_resource_allocator&          pdsch_alloc,
-                                             const search_space_info&                     ss_info,
-                                             uint8_t                                      pdsch_td_res_index,
-                                             const std::pair<crb_interval, crb_interval>& crbs,
-                                             sch_mcs_index                                mcs,
-                                             unsigned                                     nof_layers) const
+/// Computes the PRBs of a PDSCH allocation, relative to the start of the RB limits of the searchSpace.
+static prb_bitmap compute_pdsch_prbs(const search_space_info& ss_info, const vrb_alloc& vrbs, bool enable_interleaving)
+{
+  if (vrbs.is_type0()) {
+    // Resource allocation type 0 always uses the non-interleaved VRB-to-PRB mapping. It requires DCI format 1_1, whose
+    // RB limits are the BWP CRBs, as per TS 38.214, Section 5.1.2.2.
+    ocudu_sanity_check(ss_info.dl_crb_lims == ss_info.bwp->dl.cfg().crbs, "Type 0 RB limits must match the BWP CRBs");
+    return vrbs.type0().convert_to<prb_bitmap>();
+  }
+  prb_bitmap prbs(ss_info.dl_crb_lims.length());
+  if (enable_interleaving) {
+    const auto prb_intervals = ss_info.interleaved_mapping.value().vrb_to_prb(vrbs.type1());
+    prbs |= prb_intervals.first;
+    prbs |= prb_intervals.second;
+  } else {
+    prbs |= vrbs.type1().convert_to<prb_interval>();
+  }
+  return prbs;
+}
+
+/// Calls \c func with each CRB interval of the PDSCH PRBs.
+template <typename Func>
+static void for_each_pdsch_crb_interval(const search_space_info& ss_info, const prb_bitmap& prbs, Func&& func)
+{
+  for_each_interval(
+      prbs, [&](size_t start, size_t stop) { func(prb_to_crb(ss_info.dl_crb_lims, prb_interval(start, stop))); });
+}
+
+/// Checks whether any PRB of the PDSCH collides with other allocations of the resource grid.
+static bool pdsch_collides(const cell_slot_resource_grid& grid,
+                           const search_space_info&       ss_info,
+                           ofdm_symbol_range              symbols,
+                           const prb_bitmap&              prbs)
+{
+  const subcarrier_spacing scs      = ss_info.bwp->dl.cfg().scs;
+  bool                     collides = false;
+  for_each_pdsch_crb_interval(
+      ss_info, prbs, [&](crb_interval crbs) { collides = collides or grid.collides(scs, symbols, crbs); });
+  return collides;
+}
+
+/// Marks the PRBs of the PDSCH as used in the resource grid.
+static void fill_pdsch_prbs(cell_slot_resource_grid& grid,
+                            const search_space_info& ss_info,
+                            ofdm_symbol_range        symbols,
+                            const prb_bitmap&        prbs)
+{
+  const subcarrier_spacing scs = ss_info.bwp->dl.cfg().scs;
+  for_each_pdsch_crb_interval(ss_info, prbs, [&](crb_interval crbs) { grid.fill(grant_info{scs, symbols, crbs}); });
+}
+
+std::optional<sch_mcs_tbs> ue_cell_grid_allocator::calculate_dl_mcs_tbs(const cell_slot_resource_allocator& pdsch_alloc,
+                                                                        const search_space_info&            ss_info,
+                                                                        uint8_t           pdsch_td_res_index,
+                                                                        const prb_bitmap& prbs,
+                                                                        sch_mcs_index     mcs,
+                                                                        unsigned          nof_layers) const
 {
   // Reduce estimated MCS by 1 whenever CSI-RS is sent over a particular slot to account for the overhead of CSI-RS
   // REs.
@@ -68,11 +118,11 @@ ue_cell_grid_allocator::calculate_dl_mcs_tbs(const cell_slot_resource_allocator&
   const std::optional<unsigned>& tx_dc =
       cell_alloc.cfg.params.dl_cfg_common.freq_info_dl.scs_carrier_list.back().tx_direct_current_location;
   if (tx_dc.has_value()) {
-    contains_dc = dc_offset_helper::is_contained(tx_dc.value(), crbs.first) ||
-                  dc_offset_helper::is_contained(tx_dc.value(), crbs.second);
+    for_each_pdsch_crb_interval(ss_info, prbs, [&](crb_interval crbs) {
+      contains_dc = contains_dc or dc_offset_helper::is_contained(tx_dc.value(), crbs);
+    });
   }
-  auto mcs_tbs_info =
-      compute_dl_mcs_tbs(pdsch_cfg, adjusted_mcs, crbs.first.length() + crbs.second.length(), contains_dc);
+  auto mcs_tbs_info = compute_dl_mcs_tbs(pdsch_cfg, adjusted_mcs, prbs.count(), contains_dc);
 
   return mcs_tbs_info;
 }
@@ -334,10 +384,7 @@ ue_cell_grid_allocator::setup_dl_grant_builder(const slice_ue&                  
 }
 
 ue_cell_grid_allocator::dl_repetition_occasion_list
-ue_cell_grid_allocator::set_pdsch_params(dl_grant_info&                        grant,
-                                         vrb_interval                          vrbs,
-                                         std::pair<crb_interval, crb_interval> crbs,
-                                         bool                                  enable_interleaving) const
+ue_cell_grid_allocator::set_pdsch_params(dl_grant_info& grant, const vrb_alloc& vrbs, bool enable_interleaving) const
 {
   // Derive remaining parameters from \c dl_grant_params.
   ue&                                          u                  = ues[grant.user->ue_index()];
@@ -369,12 +416,11 @@ ue_cell_grid_allocator::set_pdsch_params(dl_grant_info&                        g
     return {};
   }
 
-  ocudu_sanity_check(not(pdsch_alloc.dl_res_grid.collides(scs, pdsch_td_cfg.symbols, crbs.first) or
-                         pdsch_alloc.dl_res_grid.collides(scs, pdsch_td_cfg.symbols, crbs.second)),
-                     "Invalid calculation of PDSCH RBs. Used CRBs={:i}. Allocated CRBs={}{}.",
+  const prb_bitmap prbs = compute_pdsch_prbs(ss_info, vrbs, enable_interleaving);
+  ocudu_sanity_check(not pdsch_collides(pdsch_alloc.dl_res_grid, ss_info, pdsch_td_cfg.symbols, prbs),
+                     "Invalid calculation of PDSCH RBs. Used CRBs={:i}. Allocated CRBs={:i}.",
                      pdsch_alloc.dl_res_grid.used_crbs(scs, {0, cell_cfg.nof_dl_prbs}, pdsch_td_cfg.symbols),
-                     crbs.first,
-                     crbs.second);
+                     prb_to_crb(ss_info.dl_crb_lims, prbs));
 
   sch_mcs_tbs mcs_tbs_info;
   if (is_retx) {
@@ -382,7 +428,7 @@ ue_cell_grid_allocator::set_pdsch_params(dl_grant_info&                        g
     mcs_tbs_info = {grant.h_dl.get_grant_params().mcs, grant.h_dl.get_grant_params().tbs};
   } else {
     // It is a newTx.
-    auto mcs_or_error = calculate_dl_mcs_tbs(pdsch_alloc, ss_info, pdsch_td_res_index, crbs, mcs, nof_layers);
+    auto mcs_or_error = calculate_dl_mcs_tbs(pdsch_alloc, ss_info, pdsch_td_res_index, prbs, mcs, nof_layers);
     if (not mcs_or_error.has_value()) {
       // We give up on more reTxs of this HARQ.
       grant.h_dl.cancel_retxs();
@@ -396,10 +442,7 @@ ue_cell_grid_allocator::set_pdsch_params(dl_grant_info&                        g
   }
 
   // Mark resources as occupied in the ResourceGrid.
-  pdsch_alloc.dl_res_grid.fill(grant_info{scs, pdsch_td_cfg.symbols, crbs.first});
-  if (not crbs.second.empty()) {
-    pdsch_alloc.dl_res_grid.fill(grant_info{scs, pdsch_td_cfg.symbols, crbs.second});
-  }
+  fill_pdsch_prbs(pdsch_alloc.dl_res_grid, ss_info, pdsch_td_cfg.symbols, prbs);
 
   // Compute TPC for PUCCH. With PDSCH repetitions, the PUCCH takes place k1 slots after the last occasion.
   const unsigned last_occasion_offset = grant.reps.has_value() ? grant.reps->nof_occasions - 1 : 0;
@@ -427,7 +470,7 @@ ue_cell_grid_allocator::set_pdsch_params(dl_grant_info&                        g
       build_dci_f1_0_c_rnti(grant.pdcch->dci,
                             ss_info,
                             cell_cfg.params.dl_cfg_common.init_dl_bwp,
-                            vrbs,
+                            vrbs.type1(),
                             pdsch_td_res_index,
                             k1,
                             pucch_res_indicator,
@@ -480,7 +523,7 @@ ue_cell_grid_allocator::set_pdsch_params(dl_grant_info&                        g
                               cell_cfg,
                               ss_info,
                               grant.pdcch->dci.as_c_rnti_f1_0(),
-                              vrbs,
+                              vrbs.type1(),
                               not is_retx);
       break;
     case dci_dl_rnti_config_type::c_rnti_f1_1:
@@ -536,18 +579,14 @@ ue_cell_grid_allocator::set_pdsch_params(dl_grant_info&                        g
       const unsigned nof_other_grants = rep_alloc.result.dl.bc.sibs.size() + rep_alloc.result.dl.paging_grants.size() +
                                         rep_alloc.result.dl.rar_grants.size() + rep_alloc.result.dl.ue_grants.size();
       if (rep_alloc.result.dl.ue_grants.full() or nof_other_grants >= expert_cfg.max_pdschs_per_slot or
-          rep_alloc.dl_res_grid.collides(scs, pdsch_td_cfg.symbols, crbs.first) or
-          (not crbs.second.empty() and rep_alloc.dl_res_grid.collides(scs, pdsch_td_cfg.symbols, crbs.second))) {
+          pdsch_collides(rep_alloc.dl_res_grid, ss_info, pdsch_td_cfg.symbols, prbs)) {
         logger.debug("ue={} rnti={}: Skipping PDSCH repetition occasion at slot={}. Cause: No space in the grid.",
                      u.ue_index,
                      u.crnti,
                      rep_alloc.slot);
         continue;
       }
-      rep_alloc.dl_res_grid.fill(grant_info{scs, pdsch_td_cfg.symbols, crbs.first});
-      if (not crbs.second.empty()) {
-        rep_alloc.dl_res_grid.fill(grant_info{scs, pdsch_td_cfg.symbols, crbs.second});
-      }
+      fill_pdsch_prbs(rep_alloc.dl_res_grid, ss_info, pdsch_td_cfg.symbols, prbs);
       dl_msg_alloc& rep_msg                     = rep_alloc.result.dl.ue_grants.emplace_back();
       rep_msg.context                           = msg.context;
       rep_msg.context.buffer_occupancy          = 0;
@@ -594,7 +633,8 @@ ue_cell_grid_allocator::allocate_dl_grant(const ue_retx_dl_grant_request& reques
   }
 
   // Select DL CRBs.
-  const vrb_interval vrbs = sched_helper::compute_retx_dl_vrbs(sched_ctxt.value(), request.used_dl_vrbs);
+  const vrb_alloc vrbs = sched_helper::compute_retx_dl_vrbs(
+      sched_ctxt.value(), ss_info, request.used_dl_vrbs, request.interleaving_enabled);
   if (vrbs.empty()) {
     return make_unexpected(dl_alloc_failure_cause::pdcch_alloc_failed);
   }
@@ -605,18 +645,9 @@ ue_cell_grid_allocator::allocate_dl_grant(const ue_retx_dl_grant_request& reques
     return make_unexpected(grant.error());
   }
 
-  // Compute the corresponding CRBs.
-  std::pair<crb_interval, crb_interval> crbs;
-  if (request.interleaving_enabled) {
-    const auto prbs = ss_info.interleaved_mapping.value().vrb_to_prb(vrbs);
-    crbs            = {prb_to_crb(ss_info.dl_crb_lims, prbs.first), prb_to_crb(ss_info.dl_crb_lims, prbs.second)};
-  } else {
-    crbs = {prb_to_crb(ss_info.dl_crb_lims, vrbs.convert_to<prb_interval>()), {}};
-  }
-
   // Set PDSCH parameters.
   dl_repetition_occasion_list committed_repetition_slots =
-      set_pdsch_params(grant.value(), vrbs, crbs, request.interleaving_enabled);
+      set_pdsch_params(grant.value(), vrbs, request.interleaving_enabled);
   return dl_retx_grant_result{vrbs, committed_repetition_slots};
 }
 
@@ -1383,14 +1414,12 @@ void ue_cell_grid_allocator::post_process_results()
   ul_grants.clear();
 }
 
-ue_cell_grid_allocator::dl_repetition_occasion_list ue_cell_grid_allocator::dl_newtx_grant_builder::set_pdsch_params(
-    vrb_interval                                 alloc_vrbs,
-    const std::pair<crb_interval, crb_interval>& alloc_crbs,
-    bool                                         enable_interleaving)
+ue_cell_grid_allocator::dl_repetition_occasion_list
+ue_cell_grid_allocator::dl_newtx_grant_builder::set_pdsch_params(const vrb_alloc& alloc_vrbs, bool enable_interleaving)
 {
   // Transfer the PDSCH parameters to the parent DL grant.
   dl_repetition_occasion_list committed_repetition_slots =
-      parent->set_pdsch_params(parent->dl_grants[grant_index], alloc_vrbs, alloc_crbs, enable_interleaving);
+      parent->set_pdsch_params(parent->dl_grants[grant_index], alloc_vrbs, enable_interleaving);
 
   // Set PDSCH parameters and set parent as nullptr to avoid further modifications.
   parent = nullptr;

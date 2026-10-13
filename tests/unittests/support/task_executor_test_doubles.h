@@ -6,6 +6,7 @@
 
 #include "ocudu/adt/blocking_queue.h"
 #include "ocudu/support/executors/task_executor.h"
+#include <deque>
 
 namespace ocudu {
 
@@ -98,6 +99,52 @@ private:
 
   std::thread::id             t_id;
   blocking_queue<unique_task> pending_tasks;
+};
+
+/// \brief Task executor that implements the executor interface and requires manual calls to run pending deferred tasks.
+/// Useful for unit testing.
+/// \note This implementation always queues the tasks, either by calling execute or defer.
+/// \note This implementation allows running tasks from the queue in any order, with \c run_oldest and \c run_newest.
+class manual_task_executor_unordered : public task_executor
+{
+public:
+  bool execute(unique_task task) override { return defer(std::move(task)); }
+
+  bool defer(unique_task task) override
+  {
+    tasks.push_back(std::move(task));
+    return true;
+  }
+
+  /// Runs the oldest pending task. Returns false if there are no pending tasks.
+  bool run_oldest()
+  {
+    if (tasks.empty()) {
+      return false;
+    }
+    unique_task task = std::move(tasks.front());
+    tasks.pop_front();
+    task();
+    return true;
+  }
+
+  /// Runs the newest pending task. Returns false if there are no pending tasks.
+  bool run_newest()
+  {
+    if (tasks.empty()) {
+      return false;
+    }
+    unique_task task = std::move(tasks.back());
+    tasks.pop_back();
+    task();
+    return true;
+  }
+
+  /// Gets the number of pending tasks.
+  unsigned get_nof_pending_tasks() const { return tasks.size(); }
+
+private:
+  std::deque<unique_task> tasks;
 };
 
 } // namespace ocudu

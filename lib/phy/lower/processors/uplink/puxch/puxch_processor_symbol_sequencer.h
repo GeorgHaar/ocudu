@@ -20,7 +20,7 @@ namespace ocudu {
 class puxch_processor_symbol_sequencer
 {
 public:
-  puxch_processor_symbol_sequencer(unsigned nof_symbols_per_slot) : nof_symbols(nof_symbols_per_slot), cursor(0) {}
+  puxch_processor_symbol_sequencer(unsigned nof_symbols_per_slot) : nof_symbols(nof_symbols_per_slot) {}
 
   /// \brief Marks a symbol as ready and notifies, in order, the symbols that become ready as a consequence. It is safe
   /// to call from different threads.
@@ -31,14 +31,14 @@ public:
   template <typename Notify>
   bool set_symbol(const lower_phy_rx_symbol_context& context, Notify&& notify)
   {
-    uint32_t symbol_mask = 1U << context.nof_symbols;
+    uint32_t this_symbol_mask = 1U << context.nof_symbols;
 
     // Store the context before marking the symbol as ready.
     contexts[context.nof_symbols] = context;
 
     // Mark the symbol as ready and try to become the notifying thread.
-    uint32_t previous = state.fetch_or(symbol_mask | state_notifying_mask);
-    bool     is_new   = (previous & symbol_mask) == 0;
+    uint32_t previous = state.fetch_or(this_symbol_mask | state_notifying_mask);
+    bool     is_new   = (previous & this_symbol_mask) == 0;
 
     // Another thread is notifying symbols, and it will notify this one too.
     if (is_notifying(previous)) {
@@ -46,13 +46,14 @@ public:
     }
 
     // Current state value, i.e., previous state with the new symbol and the notifying mask.
-    uint32_t current = previous | symbol_mask | state_notifying_mask;
+    uint32_t current = previous | this_symbol_mask | state_notifying_mask;
 
     // Check if new symbols were demodulated while triggering notifications. Keep the loop until no more symbols are
     // notified in the meanwhile.
     uint32_t idle_state;
     do {
-      // Notify, in order, the consecutive ready symbols.
+      // Advance cursor to the next incomplete symbol. Notify the completion of each complete symbol and advance the
+      // cursor to the next OFDM symbol.
       while ((cursor != nof_symbols) && (current & (1U << cursor))) {
         notify(contexts[cursor]);
         ++cursor;
@@ -76,7 +77,7 @@ private:
   /// State value mask when the sequencer is notifying symbols.
   static constexpr uint32_t state_notifying_mask = 1U << 31;
 
-  /// Get if the state value contains the notifying mask.
+  /// Return true if the value contains the notifying mask.
   bool is_notifying(uint32_t value) { return (value & state_notifying_mask) != 0; }
 
   /// Number of OFDM symbols per slot.
@@ -86,7 +87,7 @@ private:
   /// Receive symbol context of each symbol.
   std::array<lower_phy_rx_symbol_context, MAX_NSYMB_PER_SLOT> contexts;
   /// Next symbol to notify. Only the notifying thread accesses it.
-  unsigned cursor;
+  unsigned cursor = 0;
 };
 
 } // namespace ocudu

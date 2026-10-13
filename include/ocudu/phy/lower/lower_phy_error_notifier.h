@@ -23,7 +23,7 @@ inline const char* to_string(puxch_request_discard_reason reason)
   switch (reason) {
     case puxch_request_discard_reason::demodulator_busy:
     default:
-      return "demodulator busy";
+      return "the demodulator is busy";
   }
 }
 

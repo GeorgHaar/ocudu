@@ -115,6 +115,7 @@ private:
     entry.samples       = samples.clone();
     entry.context       = context;
     entry.pending_ports = nof_ports;
+    entry.is_valid      = true;
 
     // Set the number of pending tasks.
     current_state.fetch_add(nof_ports);
@@ -124,7 +125,7 @@ private:
 
     // Demodulate asynchronously each of the ports.
     for (unsigned i_port = 0; i_port != nof_ports; ++i_port) {
-      bool success = executor.defer([this, i_symbol, i_symbol_sf, i_port, &entry]() {
+      bool success = executor.defer([this, i_symbol, i_symbol_sf, i_port]() {
         // Start tracing.
         trace_point tp = ru_tracer.now();
 
@@ -135,7 +136,6 @@ private:
         ru_tracer << trace_event("PUxCH demodulation", tp);
 
         // Indicate completion of the task.
-        entry.context.is_valid = true;
         complete_port_task(i_symbol);
       });
 
@@ -146,7 +146,7 @@ private:
                      i_symbol_sf,
                      i_port);
         ocuduvec::zero(current_grid.get().get_writer().get_view(i_port, i_symbol_sf));
-        entry.context.is_valid = false;
+        entry.is_valid = false;
         complete_port_task(i_symbol);
       }
     }
@@ -179,6 +179,8 @@ private:
     lower_phy_rx_symbol_context context;
     /// Number of port tasks pending for completion.
     std::atomic<unsigned> pending_ports = 0;
+    /// Set to true if the demodulation tasks of all ports could be executed.
+    bool is_valid;
   };
 
   /// Helper method called upon the completion of the demodulation of an OFDM symbol port.
@@ -189,6 +191,9 @@ private:
     // Release the samples buffer if this is the last task of the symbol.
     if (entry.pending_ports.fetch_sub(1) == 1) {
       entry.samples.release();
+
+      // The symbol is valid if all its ports are demodulated.
+      entry.context.is_valid = entry.is_valid;
 
       // Notify the completed symbol to the sequencer, and trigger the notification of symbols enabled by this one.
       [[maybe_unused]] bool success =

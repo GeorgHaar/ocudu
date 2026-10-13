@@ -7,9 +7,11 @@
 #include "../../../modulation/ofdm_demodulator_test_doubles.h"
 #include "puxch_processor_notifier_test_doubles.h"
 #include "support/compare_sequences.h"
+#include "support/task_executor_test_doubles.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/gateways/baseband/buffer/baseband_gateway_buffer_ptr_view.h"
 #include "ocudu/ocuduvec/conversion.h"
+#include "ocudu/ocuduvec/copy.h"
 #include "ocudu/phy/antenna_ports.h"
 #include "ocudu/phy/lower/lower_phy_rx_symbol_context.h"
 #include "ocudu/phy/lower/processors/uplink/puxch/puxch_processor_baseband.h"
@@ -17,9 +19,10 @@
 #include "ocudu/phy/lower/processors/uplink/uplink_processor_baseband.h"
 #include "ocudu/phy/lower/processors/uplink/uplink_processor_factories.h"
 #include "ocudu/support/executors/manual_task_worker.h"
+#include "ocudu/support/executors/task_worker_pool.h"
 #include "fmt/ostream.h"
-#include <deque>
 #include <gtest/gtest.h>
+#include <mutex>
 #include <random>
 
 using namespace ocudu;
@@ -106,47 +109,35 @@ using LowerPhyUplinkProcessorParams = std::tuple<unsigned, sampling_rate, subcar
 
 namespace {
 
-/// Task executor that keeps the deferred tasks, so the tests choose the order in which they run.
-class task_executor_spy : public task_executor
+/// PUxCH processor notifier spy that serializes the notifications from several threads.
+class puxch_processor_notifier_concurrent_spy : public puxch_processor_notifier
 {
 public:
-  bool execute(unique_task task) override { return defer(std::move(task)); }
-
-  bool defer(unique_task task) override
+  void on_puxch_request_late(const resource_grid_context& context) override
   {
-    tasks.push_back(std::move(task));
-    return true;
+    std::lock_guard<std::mutex> lock(mutex);
+    spy.on_puxch_request_late(context);
   }
 
-  /// Runs the oldest pending task. Returns false if there are no pending tasks.
-  bool run_oldest()
+  void on_puxch_request_discarded(const resource_grid_context& context, puxch_request_discard_reason reason) override
   {
-    if (tasks.empty()) {
-      return false;
-    }
-    unique_task task = std::move(tasks.front());
-    tasks.pop_front();
-    task();
-    return true;
+    std::lock_guard<std::mutex> lock(mutex);
+    spy.on_puxch_request_discarded(context, reason);
   }
 
-  /// Runs the newest pending task. Returns false if there are no pending tasks.
-  bool run_newest()
+  void
+  on_rx_symbol(const shared_resource_grid& grid, const lower_phy_rx_symbol_context& context, bool is_valid) override
   {
-    if (tasks.empty()) {
-      return false;
-    }
-    unique_task task = std::move(tasks.back());
-    tasks.pop_back();
-    task();
-    return true;
+    std::lock_guard<std::mutex> lock(mutex);
+    spy.on_rx_symbol(grid, context, is_valid);
   }
 
-  /// Gets the number of pending tasks.
-  unsigned get_nof_pending_tasks() const { return tasks.size(); }
+  /// Gets the notifications. It must be called when no other thread is notifying.
+  const puxch_processor_notifier_spy& get_spy() const { return spy; }
 
 private:
-  std::deque<unique_task> tasks;
+  std::mutex                   mutex;
+  puxch_processor_notifier_spy spy;
 };
 
 class LowerPhyUplinkProcessorFixture : public ::testing::TestWithParam<LowerPhyUplinkProcessorParams>
@@ -563,7 +554,7 @@ TEST_P(LowerPhyUplinkProcessorFixture, OutOfOrderDemodulation)
   slot_point slot(to_numerology_value(scs), 0);
 
   // Create a processor whose demodulation tasks run in the order selected by the test.
-  task_executor_spy                demodulation_executor_spy;
+  manual_task_executor_unordered   demodulation_executor_spy;
   std::unique_ptr<puxch_processor> processor = puxch_proc_factory->create(config, demodulation_executor_spy);
   ofdm_symbol_demodulator_spy&     demod_spy = *ofdm_demod_factory_spy->get_demodulators().back();
   puxch_processor_notifier_spy     notifier_spy;
@@ -640,7 +631,7 @@ TEST_P(LowerPhyUplinkProcessorFixture, ConcurrentSlots)
   slot_point first_slot(to_numerology_value(scs), 0);
 
   // Create a processor whose demodulation tasks run in the order selected by the test.
-  task_executor_spy                demodulation_executor_spy;
+  manual_task_executor_unordered   demodulation_executor_spy;
   std::unique_ptr<puxch_processor> processor = puxch_proc_factory->create(config, demodulation_executor_spy);
   puxch_processor_notifier_spy     notifier_spy;
   processor->connect(notifier_spy);
@@ -737,7 +728,7 @@ TEST_P(LowerPhyUplinkProcessorFixture, MissingSymbols)
   slot_point slot(to_numerology_value(scs), 0);
 
   // Create a processor whose demodulation tasks run in the order selected by the test.
-  task_executor_spy                demodulation_executor_spy;
+  manual_task_executor_unordered   demodulation_executor_spy;
   std::unique_ptr<puxch_processor> processor = puxch_proc_factory->create(config, demodulation_executor_spy);
   puxch_processor_notifier_spy     notifier_spy;
   processor->connect(notifier_spy);
@@ -787,6 +778,118 @@ TEST_P(LowerPhyUplinkProcessorFixture, MissingSymbols)
     ASSERT_EQ(rx_symbols[i_symbol].context.nof_symbols, i_symbol);
     ASSERT_EQ(rx_symbols[i_symbol].context.is_valid, i_symbol < nof_rx_symbols);
   }
+}
+
+TEST_P(LowerPhyUplinkProcessorFixture, MultithreadedDemodulation)
+{
+  static constexpr unsigned nof_workers = 4;
+  static constexpr unsigned nof_slots   = puxch_processor::max_nof_concurrent_slots;
+
+  unsigned           nof_rx_ports = std::get<0>(GetParam());
+  sampling_rate      srate        = std::get<1>(GetParam());
+  subcarrier_spacing scs          = std::get<2>(GetParam());
+  cyclic_prefix      cp           = std::get<3>(GetParam());
+
+  unsigned   base_symbol_size         = srate.get_dft_size(scs);
+  unsigned   nof_symbols_per_slot     = get_nsymb_per_slot(cp);
+  unsigned   nof_symbols_per_subframe = nof_symbols_per_slot * get_nof_slots_per_subframe(scs);
+  unsigned   sector_id                = dist_sector_id(rgen);
+  slot_point first_slot(to_numerology_value(scs), 0);
+
+  // Create a worker pool and task executor using multiple threads.
+  task_worker_pool<concurrent_queue_policy::locking_mpmc> worker_pool(
+      "demod", nof_workers, nof_slots * MAX_NSYMB_PER_SLOT * MAX_PORTS);
+  task_worker_pool_executor<concurrent_queue_policy::locking_mpmc> executor(worker_pool);
+
+  // Create a pool of PUxCH processors with a pool of OFDM demodulators.
+  std::shared_ptr<ofdm_demodulator_factory_spy> demod_factory_spy = std::make_shared<ofdm_demodulator_factory_spy>();
+  std::unique_ptr<puxch_processor>              processor =
+      create_puxch_processor_factory_sw(create_ofdm_demodulator_pool_factory(demod_factory_spy, nof_workers))
+          ->create(config, executor);
+  ASSERT_NE(processor, nullptr);
+
+  // Connect the notifier.
+  puxch_processor_notifier_concurrent_spy notifier_spy;
+  processor->connect(notifier_spy);
+
+  // Scaling factor to convert between float-based complex to 16-bit integer.
+  static constexpr int16_t cf_to_int16_scaling = std::numeric_limits<int16_t>::max();
+
+  // Create sequences of random samples for each OFDM symbol and port.
+  std::vector<std::vector<ci16_t>> expected_samples;
+  for (unsigned i_symbol_sf = 0; i_symbol_sf != nof_symbols_per_subframe; ++i_symbol_sf) {
+    unsigned symbol_size = cp.get_length(i_symbol_sf, scs).to_samples(srate.to_Hz()) + base_symbol_size;
+    for (unsigned i_port = 0; i_port != nof_rx_ports; ++i_port) {
+      std::vector<ci16_t>& expected = expected_samples.emplace_back(symbol_size);
+      std::generate(expected.begin(), expected.end(), []() {
+        return to_ci16(cf_t(dist_sample(rgen) * cf_to_int16_scaling, dist_sample(rgen) * cf_to_int16_scaling));
+      });
+    }
+  }
+
+  // Create a pool of baseband buffers.
+  baseband_gateway_buffer_pool buffer_pool(nof_slots * nof_symbols_per_slot, nof_rx_ports, 2 * base_symbol_size);
+
+  // Process all OFDM symbols of all slots.
+  shared_resource_grid shared_rg = shared_rg_spy.get_grid();
+  for (unsigned i_slot = 0; i_slot != nof_slots; ++i_slot) {
+    slot_point slot = first_slot + i_slot;
+    processor->get_request_handler().handle_request(shared_rg.copy(), {.slot = slot, .sector = sector_id});
+
+    for (unsigned i_symbol = 0; i_symbol != nof_symbols_per_slot; ++i_symbol) {
+      unsigned i_symbol_sf = i_symbol + slot.subframe_slot_index() * nof_symbols_per_slot;
+      unsigned symbol_size = cp.get_length(i_symbol_sf, scs).to_samples(srate.to_Hz()) + base_symbol_size;
+
+      baseband_gateway_buffer_ptr buffer = buffer_pool.get();
+      ASSERT_TRUE(buffer);
+      buffer->resize(symbol_size);
+      for (unsigned i_port = 0; i_port != nof_rx_ports; ++i_port) {
+        ocuduvec::copy((*buffer)[i_port], expected_samples[i_symbol_sf * nof_rx_ports + i_port]);
+      }
+
+      lower_phy_rx_symbol_context context = {
+          .slot = slot, .sector = sector_id, .nof_symbols = i_symbol, .is_valid = true};
+      ASSERT_TRUE(processor->get_baseband().process_symbol(
+          baseband_gateway_buffer_ptr_view(std::move(buffer), 0, symbol_size), context));
+    }
+  }
+
+  // Wait for the completion of all the demodulation tasks.
+  worker_pool.wait_pending_tasks();
+  worker_pool.stop();
+
+  // The buffers are released after the demodulation.
+  ASSERT_TRUE(buffer_pool.get());
+
+  // No request is late or discarded.
+  const puxch_processor_notifier_spy& notifications = notifier_spy.get_spy();
+  ASSERT_TRUE(notifications.get_request_late().empty());
+  ASSERT_TRUE(notifications.get_request_discarded().empty());
+
+  // The OFDM symbols of each slot are notified in ascending order.
+  std::vector<unsigned> nof_notified_symbols(nof_slots, 0);
+  for (const auto& rx_symbol : notifications.get_rx_symbol()) {
+    unsigned i_slot = rx_symbol.context.slot - first_slot;
+    ASSERT_LT(i_slot, nof_slots);
+    ASSERT_EQ(rx_symbol.context.nof_symbols, nof_notified_symbols[i_slot]);
+    ASSERT_TRUE(rx_symbol.context.is_valid);
+    ++nof_notified_symbols[i_slot];
+  }
+  for (unsigned i_slot = 0; i_slot != nof_slots; ++i_slot) {
+    ASSERT_EQ(nof_notified_symbols[i_slot], nof_symbols_per_slot);
+  }
+
+  // Each demodulation receives the samples of its OFDM symbol and port.
+  unsigned nof_demodulations = 0;
+  for (const ofdm_symbol_demodulator_spy* demod_spy : demod_factory_spy->get_demodulators()) {
+    for (const auto& entry : demod_spy->get_demodulate_entries()) {
+      span<const ci16_t>      expected(expected_samples[entry.symbol_index * nof_rx_ports + entry.port_index]);
+      error_type<std::string> compare_result = compare_sequences(span<const ci16_t>(entry.input), expected);
+      ASSERT_TRUE(compare_result.has_value()) << compare_result.error();
+      ++nof_demodulations;
+    }
+  }
+  ASSERT_EQ(nof_demodulations, nof_slots * nof_symbols_per_slot * nof_rx_ports);
 }
 
 // Creates test suite that combines all possible parameters.

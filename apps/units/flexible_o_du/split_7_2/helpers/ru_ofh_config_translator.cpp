@@ -126,7 +126,8 @@ static void generate_config(ru_ofh_configuration&                            out
                                                   ofh_cell_cfg.cell.compression_bitwidth_dl};
     sector_cfg.prach_compression_params        = {ofh::to_compression_type(ofh_cell_cfg.cell.compression_method_prach),
                                                   ofh_cell_cfg.cell.compression_bitwidth_prach};
-    sector_cfg.fs_offset                       = ofh_cell_cfg.cell.fs_offset;
+    sector_cfg.fs_offset_dl                    = ofh_cell_cfg.cell.fs_offset_dl;
+    sector_cfg.fs_offset_ul                    = ofh_cell_cfg.cell.fs_offset_ul;
 
     if (ofh_cell_cfg.vlan_tag_cp.has_value()) {
       sector_cfg.vlan_cfg_cp =

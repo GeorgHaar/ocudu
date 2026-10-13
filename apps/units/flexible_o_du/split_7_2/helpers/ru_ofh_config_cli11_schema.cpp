@@ -201,10 +201,16 @@ static void configure_cli11_ru_ofh_base_cell_args(CLI::App& app, ru_ofh_unit_bas
              "Downlink static compression header enabled flag")
       ->capture_default_str();
   add_option(app,
-             "--fs_offset",
-             config.fs_offset,
-             "O-RAN FS_Offset of the uplink and downlink IQ full scale in 3 dB steps. Must match the RU. If not set, "
-             "the OCUDU full scale is used, i.e., 0 without compression and 2*(bitwidth-1) for BFP")
+             "--fs_offset_dl",
+             config.fs_offset_dl,
+             "O-RAN FS_Offset of the downlink IQ full scale in 3 dB steps. Must match the RU. If not set, the OCUDU "
+             "full scale is used, i.e., 0 without compression and 2*(bitwidth-1) for BFP")
+      ->range(0, 255);
+  add_option(app,
+             "--fs_offset_ul",
+             config.fs_offset_ul,
+             "O-RAN FS_Offset of the uplink and PRACH IQ full scale in 3 dB steps. Must match the RU. If not set, the "
+             "OCUDU full scale is used, i.e., 0 without compression and 2*(bitwidth-1) for BFP")
       ->range(0, 255);
 
   add_option_function<float>(

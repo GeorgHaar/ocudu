@@ -96,8 +96,11 @@ static void fill_ru_ofh_base_cell_section(YAML::Node node, const ru_ofh_unit_bas
   node["enable_ul_static_compr_hdr"] = config.is_uplink_static_comp_hdr_enabled;
   node["enable_dl_static_compr_hdr"] = config.is_downlink_static_comp_hdr_enabled;
   node["cplane_prach_fft_len"]       = translate_c_plane_prach_fft_len(config.c_plane_prach_fft_len);
-  if (config.fs_offset.has_value()) {
-    node["fs_offset"] = *config.fs_offset;
+  if (config.fs_offset_dl.has_value()) {
+    node["fs_offset_dl"] = *config.fs_offset_dl;
+  }
+  if (config.fs_offset_ul.has_value()) {
+    node["fs_offset_ul"] = *config.fs_offset_ul;
   }
   if (const auto* scaling_params = std::get_if<ru_ofh_scaling_config>(&config.iq_scaling_config)) {
     node["ru_reference_level_dBFS"] = scaling_params->ru_reference_level_dBFS;

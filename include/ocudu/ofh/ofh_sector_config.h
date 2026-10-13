@@ -99,8 +99,10 @@ struct sector_configuration {
   bool is_uplink_static_compr_hdr_enabled = true;
   /// IQ data scaling to be applied prior to Downlink data compression.
   float iq_scaling;
-  /// O-RAN FS_Offset of the IQ full scale, used in uplink and downlink (O-RAN.WG4.CUS, clause 8.1.3.1).
-  std::optional<unsigned> fs_offset;
+  /// O-RAN FS_Offset of the downlink IQ full scale (O-RAN.WG4.CUS, clause 8.1.3.1).
+  std::optional<unsigned> fs_offset_dl;
+  /// O-RAN FS_Offset of the uplink and PRACH IQ full scale (O-RAN.WG4.CUS, clause 8.1.3.1).
+  std::optional<unsigned> fs_offset_ul;
   /// C-Plane PRACH FFT size (to be used in Type 3 messages).
   ofh::cplane_fft_size c_plane_prach_fft_len = ofh::cplane_fft_size::fft_4096;
   /// \brief Number of slots the timing handler is notified in advance of the transmission time.

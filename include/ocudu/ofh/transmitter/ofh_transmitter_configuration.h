@@ -77,8 +77,8 @@ struct transmitter_config {
   bool is_uplink_static_compr_hdr_enabled;
   /// IQ samples scaling factor.
   float iq_scaling;
-  /// O-RAN FS_Offset of the IQ full scale, used in uplink and downlink (O-RAN.WG4.CUS, clause 8.1.3.1).
-  std::optional<unsigned> fs_offset;
+  /// O-RAN FS_Offset of the downlink IQ full scale (O-RAN.WG4.CUS, clause 8.1.3.1).
+  std::optional<unsigned> fs_offset_dl;
   /// C-Plane PRACH FFT size (to be used in Type 3 messages).
   cplane_fft_size c_plane_prach_fft_len;
   /// Downlink processing time in microseconds.

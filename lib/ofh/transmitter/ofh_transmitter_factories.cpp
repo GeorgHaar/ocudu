@@ -109,7 +109,7 @@ create_data_flow_uplane_data(const transmitter_config&              tx_config,
   std::array<std::unique_ptr<iq_compressor>, NOF_COMPRESSION_TYPES_SUPPORTED> compressors;
   for (unsigned i = 0; i != NOF_COMPRESSION_TYPES_SUPPORTED; ++i) {
     compressors[i] =
-        create_iq_compressor(static_cast<compression_type>(i), logger, tx_config.iq_scaling, tx_config.fs_offset);
+        create_iq_compressor(static_cast<compression_type>(i), logger, tx_config.iq_scaling, tx_config.fs_offset_dl);
   }
   dependencies.compressor_sel = create_iq_compressor_selector(std::move(compressors));
 

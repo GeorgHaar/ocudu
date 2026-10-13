@@ -27,8 +27,8 @@ struct ru_ofh_scaling_config {
   /// corresponds to the O-RAN Reference_Level (O-RAN.WG4.CUS, clause 8.1.3), which is 0 dBFS if the RU does not support
   /// or configure it.
   ///
-  /// If fs_offset is set, 0 dBFS is the O-RAN full scale with that FS_Offset. Otherwise, 0 dBFS is the full scale of
-  /// the I or Q component before compression. Without compression, this is the full scale of the configured IQ bit
+  /// If fs_offset_dl is set, 0 dBFS is the O-RAN full scale with that FS_Offset. Otherwise, 0 dBFS is the full scale
+  /// of the I or Q component before compression. Without compression, this is the full scale of the configured IQ bit
   /// width, as in O-RAN. With BFP compression, the IQ data are quantized to 16 bits before compression, so 0 dBFS is
   /// the 16-bit full scale and the BFP exponents above it remain unused. For a mantissa of \f$m\f$ bits, this is
   /// \f$6.02(m-1)\f$ dB below the O-RAN full scale (O-RAN.WG4.CUS, clause 8.1.3.1) and corresponds to an O-RAN
@@ -121,13 +121,22 @@ struct ru_ofh_unit_base_cell_config {
   bool is_downlink_static_comp_hdr_enabled = true;
   /// Uplink static compression header flag.
   bool is_uplink_static_comp_hdr_enabled = true;
-  /// \brief O-RAN FS_Offset of the IQ full scale (O-RAN.WG4.CUS, clause 8.1.3.1).
+  /// \brief O-RAN FS_Offset of the downlink IQ full scale (O-RAN.WG4.CUS, clause 8.1.3.1).
   ///
-  /// Sets the full scale that the uplink and downlink IQ data refer to as \f$FS_0 2^{-\text{FS\_Offset}}\f$, where
-  /// \f$FS_0\f$ is the largest IQ power of the compression format and each step is 3.01 dB. It must match the
-  /// FS_Offset configured in the RU. If not set, the OCUDU IQ full scale is used, which corresponds to an FS_Offset of
-  /// 0 without compression and \f$2(m-1)\f$ for BFP compression with an \f$m\f$-bit mantissa.
-  std::optional<unsigned> fs_offset;
+  /// Sets the full scale that the downlink IQ data refer to as \f$FS_0 2^{-\text{FS\_Offset}}\f$, where \f$FS_0\f$ is
+  /// the largest IQ power of the compression format and each step is 3.01 dB. It must match the downlink FS_Offset
+  /// configured in the RU. If not set, the OCUDU IQ full scale is used, which corresponds to an FS_Offset of 0 without
+  /// compression and \f$2(m-1)\f$ for BFP compression with an \f$m\f$-bit mantissa.
+  ///
+  /// \warning Check the RU documentation before setting this parameter, as incorrect values may damage the RU.
+  std::optional<unsigned> fs_offset_dl;
+  /// \brief O-RAN FS_Offset of the uplink IQ full scale (O-RAN.WG4.CUS, clause 8.1.3.1).
+  ///
+  /// Same as \ref fs_offset_dl, but applies to the uplink IQ data, including PRACH. It must match the uplink
+  /// FS_Offset configured in the RU.
+  ///
+  /// \warning Check the RU documentation before setting this parameter, as incorrect values may damage the RU.
+  std::optional<unsigned> fs_offset_ul;
   /// Scaling configuration parameters.
   std::variant<std::monostate, ru_ofh_scaling_config, ru_ofh_legacy_scaling_config> iq_scaling_config;
   /// PRACH FFT size (to be used in the C-plane Type 3 messages).

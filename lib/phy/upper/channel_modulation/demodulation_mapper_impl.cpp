@@ -4,13 +4,12 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "demodulation_mapper_impl.h"
+#include "demodulation_mapper_qam1024.h"
 #include "demodulation_mapper_qam16.h"
 #include "demodulation_mapper_qam256.h"
 #include "demodulation_mapper_qam64.h"
 #include "demodulation_mapper_qpsk.h"
-#include "ocudu/support/math/math_utils.h"
 #include "ocudu/support/ocudu_assert.h"
-#include <cmath>
 
 using namespace ocudu;
 
@@ -83,6 +82,9 @@ void demodulation_mapper_impl::demodulate_soft(span<log_likelihood_ratio> llrs,
       break;
     case modulation_scheme::QAM256:
       demodulate_soft_QAM256(llrs, symbols, noise_vars);
+      break;
+    case modulation_scheme::QAM1024:
+      demodulate_soft_QAM1024(llrs, symbols, noise_vars);
       break;
     default:
       ocudu_assertion_failure("Invalid modulation scheme.");

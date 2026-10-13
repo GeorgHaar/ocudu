@@ -10,6 +10,7 @@ set(SOURCES
         demodulation_mapper_qam16.cpp
         demodulation_mapper_qam64.cpp
         demodulation_mapper_qam256.cpp
+        demodulation_mapper_qam1024.cpp
         demodulation_mapper_qpsk.cpp
         evm_calculator_generic_impl.cpp
         modulation_mapper_lut_impl.cpp)

@@ -699,7 +699,7 @@ ocucp::cu_cp_configuration ocudu::generate_cu_cp_config(const cu_cp_unit_config&
 
   out_cfg.ntn_location_mappings = generate_ntn_location_mappings(cu_cfg);
 
-  if (!config_helpers::is_valid_configuration(out_cfg)) {
+  if (!config_helpers::is_valid_configuration(out_cfg, ocudulog::fetch_basic_logger("CU-CP"))) {
     report_error("Invalid CU-CP configuration.\n");
   }
 

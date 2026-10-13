@@ -9,9 +9,9 @@
 
 namespace ocudu::config_helpers {
 
-inline bool is_valid_configuration(const ocucp::mobility_configuration& config)
+inline bool is_valid_configuration(const ocucp::mobility_configuration& config, ocudulog::basic_logger& logger)
 {
-  if (!is_valid_configuration(config.meas_mgr_config)) {
+  if (!is_valid_configuration(config.meas_mgr_config, logger)) {
     fmt::print("Invalid meas manager configuration.\n");
     return false;
   }
@@ -20,7 +20,7 @@ inline bool is_valid_configuration(const ocucp::mobility_configuration& config)
 }
 
 /// Returns true if the given CU-CP configuration is valid, otherwise false.
-inline bool is_valid_configuration(const ocucp::cu_cp_configuration& config)
+inline bool is_valid_configuration(const ocucp::cu_cp_configuration& config, ocudulog::basic_logger& logger)
 {
   // Notifiers aren't checked here.
   if (config.node.ran_node_name.empty()) {
@@ -28,7 +28,7 @@ inline bool is_valid_configuration(const ocucp::cu_cp_configuration& config)
     return false;
   }
 
-  if (!is_valid_configuration(config.mobility)) {
+  if (!is_valid_configuration(config.mobility, logger)) {
     fmt::print("Invalid mobility configuration.\n");
     return false;
   }

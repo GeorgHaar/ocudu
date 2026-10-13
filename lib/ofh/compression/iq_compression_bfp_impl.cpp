@@ -40,7 +40,9 @@ void iq_compression_bfp_impl::compress_prb_generic(span<uint8_t>       comp_prb_
   const auto* start_it = input_quantized.begin();
   const auto* max_it   = std::max_element(start_it, start_it + NOF_SAMPLES_PER_PRB);
   const auto* min_it   = std::min_element(start_it, start_it + NOF_SAMPLES_PER_PRB);
-  unsigned    max_abs  = std::max(std::abs(*max_it), std::abs(*min_it) - 1);
+  // O-RAN.WG4.CUS, Annex A.1.2: the most significant bit of a negative value can be one higher. As the minimum does not
+  // exceed the maximum, the result is not negative.
+  unsigned max_abs = std::max(static_cast<int>(*max_it), std::abs(*min_it) - 1);
 
   uint8_t exponent = determine_exponent(max_abs, data_width);
 

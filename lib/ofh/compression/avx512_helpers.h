@@ -16,11 +16,10 @@ namespace mm512 {
 /// Type of AVX512 intrinsic calculating min or max values between two vectors.
 using _mm512_comparator = __m512i (*)(__m512i a, __m512i b);
 
-/// \brief Finds the maximum (or minimum) 16bit sample in each of the four input resource blocks, returns its absolute
-/// value.
+/// \brief Finds the maximum (or minimum) 16bit sample in each of the four input resource blocks.
 ///
-/// Finds absolute maximum (or minimum, depending on the comparator passed as the template argument) values for each of
-/// the four RBs passed in three AVX512 registers.
+/// Finds maximum (or minimum, depending on the comparator passed as the template argument) values for each of the four
+/// RBs passed in three AVX512 registers.
 ///
 /// AVX512 register bits are evenly divided between four RBs so that IQ samples of each RB occupy one 128bit lane.
 /// The following diagram shows the input format. Here RBx stands for one unique RE (a pair of IQ samples, 32 bits long)
@@ -32,8 +31,7 @@ using _mm512_comparator = __m512i (*)(__m512i a, __m512i b);
 /// | \c v2_epi16: | RB0 RB0 | RB0 RB0 | RB1 RB1 | RB1 RB1 | RB2 RB2 | RB2 RB2 | RB3 RB3 | RB3 RB3 |
 ///
 /// The function first performs vertical min/max search across the three registers (comparing 16bit samples), then
-/// horizontal min/max across elements in each 128bit lane of the resulting vector. Finally, the function takes the
-/// absolute value of the four 16bit samples computed thus far.
+/// horizontal min/max across elements in each 128bit lane of the resulting vector.
 ///
 /// \tparam COMPARE     AVX512 intrinsic used for comparison, either \c _mm512_min_epi16 or \c _mm512_max_epi16.
 /// \param[in] v0_epi16 AVX512 register storing first four IQ pairs of each of the four RB.
@@ -42,7 +40,7 @@ using _mm512_comparator = __m512i (*)(__m512i a, __m512i b);
 ///
 /// \return An AVX512 register storing the result for each of the four RBs in every 128bit lane.
 template <_mm512_comparator COMPARE>
-inline __m512i find_abs_min_max_values(__m512i v0_epi16, __m512i v1_epi16, __m512i v2_epi16)
+inline __m512i find_min_max_values(__m512i v0_epi16, __m512i v1_epi16, __m512i v2_epi16)
 {
   // Find vertical min/max across every 8 16bit values pertaining to the same PRB.
   __m512i cmp_8val_epi16 = COMPARE(COMPARE(v0_epi16, v1_epi16), v2_epi16);
@@ -68,7 +66,7 @@ inline __m512i find_abs_min_max_values(__m512i v0_epi16, __m512i v1_epi16, __m51
                                                  0x0d0c0f0e09080b0a);
 
   __m512i cmp_2val_swp_epi16 = _mm512_shuffle_epi8(cmp_2val_epi16, shuffle_mask);
-  return _mm512_abs_epi16(COMPARE(cmp_2val_epi16, cmp_2val_swp_epi16));
+  return COMPARE(cmp_2val_epi16, cmp_2val_swp_epi16);
 }
 
 /// \brief Finds maximum absolute value across 16bit IQ samples in each of the four input resource blocks passed in
@@ -101,13 +99,16 @@ inline __m512i calculate_max_abs(__m512i r0_epi16, __m512i r1_epi16, __m512i r2_
   __m512i v2_epi16 =
       _mm512_mask_shuffle_i64x2(r2_epi16, 0b00111111, r0_epi16, r1_epi16, (_MM_PERM_ENUM)_MM_SHUFFLE(0, 3, 3, 2));
 
-  __m512i abs_min_epu16 = find_abs_min_max_values<_mm512_min_epi16>(v0_epi16, v1_epi16, v2_epi16);
-  __m512i abs_max_epu16 = find_abs_min_max_values<_mm512_max_epi16>(v0_epi16, v1_epi16, v2_epi16);
+  __m512i min_epi16 = find_min_max_values<_mm512_min_epi16>(v0_epi16, v1_epi16, v2_epi16);
+  __m512i max_epi16 = find_min_max_values<_mm512_max_epi16>(v0_epi16, v1_epi16, v2_epi16);
 
-  // Subtract 1 from absolute minimum value.
-  abs_min_epu16 = _mm512_subs_epu16(abs_min_epu16, ONE_EPI16);
+  // Subtract 1 from the absolute minimum value, as the most significant bit of a negative value can be one higher
+  // (O-RAN.WG4.CUS, Annex A.1.2). The absolute value of -32768 is 32768 as an unsigned value.
+  __m512i abs_min_epu16 = _mm512_subs_epu16(_mm512_abs_epi16(min_epi16), ONE_EPI16);
 
-  return _mm512_max_epu16(abs_min_epu16, abs_max_epu16);
+  // The absolute minimum minus one does not exceed 32767, so the signed comparison is valid. As the minimum does not
+  // exceed the maximum, the result is not negative.
+  return _mm512_max_epi16(max_epi16, abs_min_epu16);
 }
 /// \brief Determines BFP exponent for each of the four input RBs passed in three AVX512 registers.
 ///

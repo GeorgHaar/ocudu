@@ -17,11 +17,10 @@ namespace mm256 {
 /// Type of AVX2 intrinsic calculating min or max values between two vectors.
 using _mm256_comparator = __m256i (*)(__m256i a, __m256i b);
 
-/// \brief Finds the maximum (or minimum) 16bit sample in each of the two input resource blocks, returns its absolute
-/// value.
+/// \brief Finds the maximum (or minimum) 16bit sample in each of the two input resource blocks.
 ///
-/// Finds absolute maximum (or minimum, depending on the comparator passed as the template argument) values
-/// for each of the two RBs passed in a three AVX2 registers.
+/// Finds maximum (or minimum, depending on the comparator passed as the template argument) values for each of the two
+/// RBs passed in a three AVX2 registers.
 ///
 /// Registers are evenly divided between two RBs so that IQ samples of each RB occupy one 128bit lane.
 /// The following diagram shows the input format. Here RBx stands for one unique RE (a pair of IQ samples, 32 bits long)
@@ -33,17 +32,16 @@ using _mm256_comparator = __m256i (*)(__m256i a, __m256i b);
 /// | \c v2_epi16: | RB0 RB0 | RB0 RB0 | RB1 RB1 | RB1 RB1 |
 ///
 /// The function first performs vertical min/max search across the three registers (comparing 16bit samples), then
-/// horizontal min/max across elements in each 128bit lane of the resulting vector. Finally, the function takes the
-/// absolute value of the two 16bit samples computed thus far and stores them in the output span.
+/// horizontal min/max across elements in each 128bit lane of the resulting vector. Finally, the function stores the two
+/// 16bit samples computed thus far in the output span.
 ///
 /// \tparam    COMPARE  AVX2 intrinsic used for comparison, either \c mm256_min_epi16 or \c _mm256_max_epi16.
-/// \tparam    OFFSET   Subtracts an offset to the resultant absolute value.
-/// \param[out] abs     A span of two absolute values of max (or min) samples in each of the two input RBs.
+/// \param[out] values  A span of the max (or min) samples in each of the two input RBs.
 /// \param[in] v0_epi16 AVX2 register storing first four IQ pairs of each of the two RB.
 /// \param[in] v1_epi16 AVX2 register storing second four IQ pairs of each of the two RB.
 /// \param[in] v2_epi16 AVX2 register storing last four IQ pairs of each of the two RB.
-template <_mm256_comparator COMPARE, unsigned OFFSET>
-inline void find_rbs_abs_min_max_values(span<uint16_t> abs, __m256i v0_epi16, __m256i v1_epi16, __m256i v2_epi16)
+template <_mm256_comparator COMPARE>
+inline void find_rbs_min_max_values(span<int16_t> values, __m256i v0_epi16, __m256i v1_epi16, __m256i v2_epi16)
 {
   // Find vertical min/max across every 3 16bit values in each resource block.
   __m256i cmp_8val_epi16 = COMPARE(COMPARE(v0_epi16, v1_epi16), v2_epi16);
@@ -61,15 +59,10 @@ inline void find_rbs_abs_min_max_values(span<uint16_t> abs, __m256i v0_epi16, __
       2, 3, 0, 1, 6, 7, 4, 5, 8, 9, 10, 11, 14, 15, 12, 13, 2, 3, 0, 1, 6, 7, 4, 5, 8, 9, 10, 11, 14, 15, 12, 13);
   __m256i cmp_2val_swp_epi16 = _mm256_shuffle_epi8(cmp_2val_epi16, shuffle_mask);
   __m256i cmp_rb0_rb1_epi16  = COMPARE(cmp_2val_epi16, cmp_2val_swp_epi16);
-  __m256i cmp_rb0_rb1_epu16  = _mm256_abs_epi16(cmp_rb0_rb1_epi16);
 
-  if (OFFSET != 0) {
-    cmp_rb0_rb1_epu16 = _mm256_subs_epu16(cmp_rb0_rb1_epu16, _mm256_set1_epi16(OFFSET));
-  }
-
-  // Extract absolute minimum/maximum values for each RB.
-  abs[0] = _mm256_extract_epi16(cmp_rb0_rb1_epu16, 0);
-  abs[1] = _mm256_extract_epi16(cmp_rb0_rb1_epu16, 8);
+  // Extract minimum/maximum values for each RB.
+  values[0] = static_cast<int16_t>(_mm256_extract_epi16(cmp_rb0_rb1_epi16, 0));
+  values[1] = static_cast<int16_t>(_mm256_extract_epi16(cmp_rb0_rb1_epi16, 8));
 }
 
 /// \brief Finds maximum absolute value across 16bit IQ samples in each of the two input resource blocks passed in three
@@ -89,8 +82,8 @@ inline void find_rbs_abs_min_max_values(span<uint16_t> abs, __m256i v0_epi16, __
 /// \param[in] rb1_epi16  AVX2 register storing 16bit IQ pairs of the second RB.
 inline void calculate_max_abs(span<unsigned> max_abs, __m256i rb0_epi16, __m256i rb01_epi16, __m256i rb1_epi16)
 {
-  std::array<uint16_t, 2> abs_min_values;
-  std::array<uint16_t, 2> abs_max_values;
+  std::array<int16_t, 2> min_values;
+  std::array<int16_t, 2> max_values;
 
   // Reorganize vectors to be able to vertically compare 16bit samples pertaining to the same resource block:
   // [ RB0 RB0 | RB0 RB0 | RB1 RB1 | RB1 RB1 ]
@@ -100,11 +93,14 @@ inline void calculate_max_abs(span<unsigned> max_abs, __m256i rb0_epi16, __m256i
   __m256i v2_epi16 = _mm256_permute2f128_si256(rb0_epi16, rb1_epi16, 0x31);
   __m256i v1_epi16 = rb01_epi16;
 
-  find_rbs_abs_min_max_values<_mm256_min_epi16, 1>(abs_min_values, v0_epi16, v1_epi16, v2_epi16);
-  find_rbs_abs_min_max_values<_mm256_max_epi16, 0>(abs_max_values, v0_epi16, v1_epi16, v2_epi16);
+  find_rbs_min_max_values<_mm256_min_epi16>(min_values, v0_epi16, v1_epi16, v2_epi16);
+  find_rbs_min_max_values<_mm256_max_epi16>(max_values, v0_epi16, v1_epi16, v2_epi16);
 
-  max_abs[0] = std::max<unsigned>(abs_max_values[0], abs_min_values[0]);
-  max_abs[1] = std::max<unsigned>(abs_max_values[1], abs_min_values[1]);
+  // O-RAN.WG4.CUS, Annex A.1.2: the most significant bit of a negative value can be one higher. As the minimum does not
+  // exceed the maximum, the result is not negative.
+  for (unsigned i_rb = 0, e = max_abs.size(); i_rb != e; ++i_rb) {
+    max_abs[i_rb] = std::max(static_cast<int>(max_values[i_rb]), std::abs(min_values[i_rb]) - 1);
+  }
 }
 
 } // namespace mm256

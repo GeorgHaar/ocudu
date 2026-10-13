@@ -45,8 +45,9 @@ inline uint8_t determine_bfp_exponent(int16x8x3_t vec_s16x3, unsigned data_width
   int16x8_t tmp_min_s16 = vminq_s16(vminq_s16(vec_s16x3.val[0], vec_s16x3.val[1]), vec_s16x3.val[2]);
   int16_t   min_s16     = vminvq_s16(tmp_min_s16);
 
-  // Calculate maximum absolute value.
-  uint16_t max_abs = std::max(std::abs(max_s16), std::abs(min_s16) - 1);
+  // Calculate maximum absolute value following O-RAN.WG4.CUS, Annex A.1.2: the most significant bit of a negative value
+  // can be one higher. As the minimum does not exceed the maximum, the result is not negative.
+  uint16_t max_abs = std::max(static_cast<int>(max_s16), std::abs(min_s16) - 1);
 
   // Calculate number of leading zeros.
   uint16x4_t lzc_u16 = vclz_u16(vdup_n_u16(max_abs));

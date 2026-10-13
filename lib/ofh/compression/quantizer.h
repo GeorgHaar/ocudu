@@ -5,18 +5,29 @@
 #pragma once
 
 #include "ocudu/ocuduvec/conversion.h"
+#include "ocudu/ocuduvec/simd.h"
+#include "ocudu/ofh/compression/compression_params.h"
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 
 namespace ocudu {
 namespace ofh {
 
-/// Describes quantization of floating point number in the range [-1; +1] to a fixed point number of a given bit width.
+/// \brief Describes quantization of floating point number in the range [-1; +1] to a fixed point number of a given bit
+/// width.
+///
+/// Values are rounded to the nearest integer with ties to even, and values outside the range saturate at the symmetric
+/// full scale \f$\pm(2^{w-1}-1)\f$. The only exception is the quantization of sequences into 16 bits, where the
+/// negative values saturate at -32768.
 class quantizer
 {
 public:
   /// Constructor receives width in bits of a resulting fixed point number.
-  explicit quantizer(unsigned bit_width_) : bit_width(bit_width_), gain((1 << (bit_width - 1)) - 1.0f) {}
+  explicit quantizer(unsigned bit_width_) :
+    bit_width(bit_width_), full_scale((1 << (bit_width - 1)) - 1), gain(static_cast<float>(full_scale))
+  {
+  }
 
   /// \brief Quantizes a floating point value into 16-bit integer.
   ///
@@ -28,7 +39,7 @@ public:
     if (std::abs(value) > 1.0) {
       clipped = std::copysign(1.0, value);
     }
-    return static_cast<int16_t>(std::round(clipped * gain));
+    return static_cast<int16_t>(std::nearbyint(clipped * gain));
   }
 
   /// \brief Quantizes a brain float value into a 16-bit integer.
@@ -52,6 +63,7 @@ public:
   {
     float scale = gain * in_scale;
     ocuduvec::convert(z, x, scale);
+    saturate(z);
   }
 
   /// \brief Quantizes a sequence of brain float values into 16-bit integers.
@@ -65,6 +77,7 @@ public:
   {
     float scale = gain * in_scale;
     ocuduvec::convert(z, x, scale);
+    saturate(z);
   }
 
   /// \brief Converts fixed point value to floating point.
@@ -100,8 +113,35 @@ public:
   }
 
 private:
+  /// \brief Saturates the converted values at the full scale of the bit width.
+  ///
+  /// A scaled input value outside [-1; +1] converts to a value beyond the full scale of the bit width. The conversion
+  /// only saturates at the 16-bit range, so for narrower bit widths such a value would wrap around when packed.
+  void saturate(span<int16_t> z) const
+  {
+    // For 16 bits, the saturation during the conversion is enough.
+    if (bit_width == MAX_IQ_WIDTH) {
+      return;
+    }
+
+    unsigned i = 0;
+#if OCUDU_SIMD_S_SIZE
+    simd_i16_t upper = ocudu_simd_s_set1(full_scale);
+    simd_i16_t lower = ocudu_simd_s_set1(-full_scale);
+    for (unsigned i_end = (z.size() / OCUDU_SIMD_S_SIZE) * OCUDU_SIMD_S_SIZE; i != i_end; i += OCUDU_SIMD_S_SIZE) {
+      simd_i16_t value = ocudu_simd_s_loadu(z.data() + i);
+      ocudu_simd_s_storeu(z.data() + i, ocudu_simd_s_max(ocudu_simd_s_min(value, upper), lower));
+    }
+#endif // OCUDU_SIMD_S_SIZE
+    for (unsigned i_end = z.size(); i != i_end; ++i) {
+      z[i] = std::clamp(z[i], static_cast<int16_t>(-full_scale), full_scale);
+    }
+  }
+
   /// Width of fixed point number in bits.
   const unsigned bit_width;
+  /// Largest quantized magnitude.
+  const int16_t full_scale;
   /// Quantization gain.
   const float gain;
 };

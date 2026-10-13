@@ -4,9 +4,33 @@
 
 #include "ocudu/ocuduvec/conversion.h"
 #include "ocudu/ocuduvec/simd.h"
+#include <algorithm>
+#include <cmath>
+#include <limits>
 
 using namespace ocudu;
 using namespace ocuduvec;
+
+/// Range of the 16-bit signed integer in single precision, for saturating the conversions.
+static constexpr float int16_min_float = static_cast<float>(std::numeric_limits<int16_t>::min());
+static constexpr float int16_max_float = static_cast<float>(std::numeric_limits<int16_t>::max());
+
+/// \brief Rounds to the nearest integer with halfway cases to even, as the SIMD conversions.
+///
+/// Unlike \c std::nearbyint and \c std::rint, the result does not depend on the floating-point rounding mode.
+static float round_half_even(float value)
+{
+  if (std::abs(value - std::trunc(value)) == 0.5F) {
+    return 2.0F * std::round(value / 2.0F);
+  }
+  return std::round(value);
+}
+
+/// Rounds and saturates a single-precision value to a 16-bit signed integer, as the SIMD conversions.
+static int16_t convert_to_int16_saturate(float value)
+{
+  return static_cast<int16_t>(std::clamp(round_half_even(value), int16_min_float, int16_max_float));
+}
 
 static void convert_fi_simd(const float* x, int16_t* z, float scale, unsigned len)
 {
@@ -42,7 +66,7 @@ static void convert_fi_simd(const float* x, int16_t* z, float scale, unsigned le
 #endif /* OCUDU_SIMD_F_SIZE && OCUDU_SIMD_S_SIZE */
 
   for (; i != len; ++i) {
-    z[i] = static_cast<int16_t>(std::round(x[i] * scale));
+    z[i] = convert_to_int16_saturate(x[i] * scale);
   }
 }
 
@@ -204,7 +228,7 @@ static void convert_bf16_to_int16_simd(int16_t* out, const bf16_t* in, float sca
 #endif // OCUDU_SIMD_F_SIZE && OCUDU_SIMD_S_SIZE
 
   for (; i != len; ++i) {
-    out[i] = static_cast<int16_t>(std::round(to_float(in[i]) * scale));
+    out[i] = convert_to_int16_saturate(to_float(in[i]) * scale);
   }
 }
 

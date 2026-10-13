@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ocudu/adt/complex.h"
+#include <limits>
 
 // Enables intel intrinsics, it includes AVX, AVX2, FMA, AVX512.
 #ifdef __SSE4_1__
@@ -2527,6 +2528,9 @@ inline simd_c16_t ocudu_simd_c16_zero()
 inline simd_i16_t ocudu_simd_convert_2f_s(simd_f_t a, simd_f_t b)
 {
 #ifdef __AVX512F__
+  // The conversion gives the most negative integer for the values above the range, clamp them to saturate.
+  a         = _mm512_min_ps(a, _mm512_set1_ps(static_cast<float>(std::numeric_limits<int16_t>::max())));
+  b         = _mm512_min_ps(b, _mm512_set1_ps(static_cast<float>(std::numeric_limits<int16_t>::max())));
   __m512 aa = _mm512_permutex2var_ps(
       a,
       _mm512_setr_epi32(0x00, 0x01, 0x02, 0x03, 0x08, 0x09, 0x0a, 0x0b, 0x10, 0x11, 0x12, 0x13, 0x18, 0x19, 0x1a, 0x1b),
@@ -2540,6 +2544,8 @@ inline simd_i16_t ocudu_simd_convert_2f_s(simd_f_t a, simd_f_t b)
   return _mm512_packs_epi32(ai, bi);
 #else /* __AVX512F__ */
 #ifdef __AVX2__
+  a          = _mm256_min_ps(a, _mm256_set1_ps(static_cast<float>(std::numeric_limits<int16_t>::max())));
+  b          = _mm256_min_ps(b, _mm256_set1_ps(static_cast<float>(std::numeric_limits<int16_t>::max())));
   __m256  aa = _mm256_round_ps(_mm256_permute2f128_ps(a, b, 0x20), _MM_FROUND_NINT);
   __m256  bb = _mm256_round_ps(_mm256_permute2f128_ps(a, b, 0x31), _MM_FROUND_NINT);
   __m256i ai = _mm256_cvtps_epi32(aa);
@@ -2547,6 +2553,8 @@ inline simd_i16_t ocudu_simd_convert_2f_s(simd_f_t a, simd_f_t b)
   return _mm256_packs_epi32(ai, bi);
 #else
 #ifdef __SSE4_1__
+  a          = _mm_min_ps(a, _mm_set1_ps(static_cast<float>(std::numeric_limits<int16_t>::max())));
+  b          = _mm_min_ps(b, _mm_set1_ps(static_cast<float>(std::numeric_limits<int16_t>::max())));
   __m128  aa = _mm_round_ps(a, _MM_FROUND_NINT);
   __m128  bb = _mm_round_ps(b, _MM_FROUND_NINT);
   __m128i ai = _mm_cvtps_epi32(aa);
@@ -2568,6 +2576,9 @@ inline simd_i16_t ocudu_simd_convert_2f_s(simd_f_t a, simd_f_t b)
 inline simd_i16_t ocudu_simd_convert_2f_interleaved_s(simd_f_t a, simd_f_t b)
 {
 #ifdef __AVX512F__
+  // The conversion gives the most negative integer for the values above the range, clamp them to saturate.
+  a          = _mm512_min_ps(a, _mm512_set1_ps(static_cast<float>(std::numeric_limits<int16_t>::max())));
+  b          = _mm512_min_ps(b, _mm512_set1_ps(static_cast<float>(std::numeric_limits<int16_t>::max())));
   __m512  aa = _mm512_unpacklo_ps(a, b);
   __m512  bb = _mm512_unpackhi_ps(a, b);
   __m512i ai = _mm512_cvt_roundps_epi32(aa, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
@@ -2575,6 +2586,8 @@ inline simd_i16_t ocudu_simd_convert_2f_interleaved_s(simd_f_t a, simd_f_t b)
   return _mm512_packs_epi32(ai, bi);
 #else /* __AVX512F__ */
 #ifdef __AVX2__
+  a          = _mm256_min_ps(a, _mm256_set1_ps(static_cast<float>(std::numeric_limits<int16_t>::max())));
+  b          = _mm256_min_ps(b, _mm256_set1_ps(static_cast<float>(std::numeric_limits<int16_t>::max())));
   __m256  aa = _mm256_round_ps(_mm256_unpacklo_ps(a, b), _MM_FROUND_NINT);
   __m256  bb = _mm256_round_ps(_mm256_unpackhi_ps(a, b), _MM_FROUND_NINT);
   __m256i ai = _mm256_cvtps_epi32(aa);
@@ -2582,6 +2595,8 @@ inline simd_i16_t ocudu_simd_convert_2f_interleaved_s(simd_f_t a, simd_f_t b)
   return _mm256_packs_epi32(ai, bi);
 #else
 #ifdef __SSE4_1__
+  a          = _mm_min_ps(a, _mm_set1_ps(static_cast<float>(std::numeric_limits<int16_t>::max())));
+  b          = _mm_min_ps(b, _mm_set1_ps(static_cast<float>(std::numeric_limits<int16_t>::max())));
   __m128  aa = _mm_round_ps(_mm_unpacklo_ps(a, b), _MM_FROUND_NINT);
   __m128  bb = _mm_round_ps(_mm_unpackhi_ps(a, b), _MM_FROUND_NINT);
   __m128i ai = _mm_cvtps_epi32(aa);

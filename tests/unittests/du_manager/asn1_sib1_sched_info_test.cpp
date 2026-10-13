@@ -286,3 +286,93 @@ int main(int argc, char** argv)
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
+
+static du_cell_config make_redcap_cell()
+{
+  cell_config_builder_params params;
+  params.scs_common  = subcarrier_spacing::kHz30;
+  params.dl_carrier  = {bs_channel_bandwidth::MHz20, 642024, nr_band::n78, 1};
+  auto cfg           = config_helpers::make_default_du_cell_config(params);
+  cfg.redcap.enabled = true;
+  return cfg;
+}
+
+TEST(asn1_sib1_sched_info_test, redcap_broadcast_is_opt_in)
+{
+  for (bool enabled : {false, true}) {
+    auto cfg                    = make_redcap_cell();
+    cfg.redcap.enabled          = enabled;
+    byte_buffer          packed = asn1_packer::pack_sib1(cfg);
+    asn1::cbit_ref       reader{packed};
+    asn1::rrc_nr::sib1_s sib1;
+    ASSERT_EQ(sib1.unpack(reader), asn1::OCUDUASN_SUCCESS);
+    const auto& r17 = sib1.non_crit_ext.non_crit_ext.non_crit_ext;
+    EXPECT_EQ(r17.intra_freq_resel_red_cap_r17_present, enabled);
+    EXPECT_EQ(r17.red_cap_cfg_common_r17_present, enabled);
+    if (enabled) {
+      EXPECT_TRUE(sib1.non_crit_ext_present);
+      EXPECT_TRUE(sib1.non_crit_ext.non_crit_ext_present);
+      EXPECT_TRUE(sib1.non_crit_ext.non_crit_ext.non_crit_ext_present);
+      EXPECT_EQ(r17.intra_freq_resel_red_cap_r17,
+                asn1::rrc_nr::sib1_v1700_ies_s::intra_freq_resel_red_cap_r17_opts::allowed);
+      const auto& common = r17.red_cap_cfg_common_r17;
+      ASSERT_TRUE(common.cell_barred_red_cap_r17_present);
+      using barring = asn1::rrc_nr::red_cap_cfg_common_sib_r17_s::cell_barred_red_cap_r17_s_;
+      EXPECT_EQ(common.cell_barred_red_cap_r17.cell_barred_red_cap1_rx_r17,
+                barring::cell_barred_red_cap1_rx_r17_opts::not_barred);
+      EXPECT_EQ(common.cell_barred_red_cap_r17.cell_barred_red_cap2_rx_r17,
+                barring::cell_barred_red_cap2_rx_r17_opts::not_barred);
+    }
+  }
+}
+
+TEST(asn1_sib1_sched_info_test, redcap_rejects_carriers_or_initial_bwps_above_20_mhz)
+{
+  const auto valid = make_redcap_cell();
+  ASSERT_TRUE(is_du_cell_config_valid(valid).has_value());
+  auto cfg           = valid;
+  cfg.redcap.enabled = false;
+  EXPECT_TRUE(is_du_cell_config_valid(cfg).has_value());
+  cfg                           = valid;
+  cfg.ran.dl_carrier.carrier_bw = bs_channel_bandwidth::MHz40;
+  EXPECT_FALSE(is_du_cell_config_valid(cfg).has_value());
+  cfg                           = valid;
+  cfg.ran.ul_carrier.carrier_bw = bs_channel_bandwidth::MHz40;
+  EXPECT_FALSE(is_du_cell_config_valid(cfg).has_value());
+  cfg                                                   = valid;
+  cfg.ran.dl_cfg_common.init_dl_bwp.generic_params.crbs = crb_interval(0, 106);
+  EXPECT_FALSE(is_du_cell_config_valid(cfg).has_value());
+  cfg                                                   = valid;
+  cfg.ran.ul_cfg_common.init_ul_bwp.generic_params.crbs = crb_interval(0, 106);
+  EXPECT_FALSE(is_du_cell_config_valid(cfg).has_value());
+}
+
+TEST(asn1_sib1_sched_info_test, redcap_barring_and_reselection_choices_are_encoded)
+{
+  using reselection = asn1::rrc_nr::sib1_v1700_ies_s::intra_freq_resel_red_cap_r17_opts;
+  using barring     = asn1::rrc_nr::red_cap_cfg_common_sib_r17_s::cell_barred_red_cap_r17_s_;
+  for (bool barred : {false, true}) {
+    for (bool allowed : {false, true}) {
+      auto cfg                          = make_redcap_cell();
+      cfg.redcap.cell_barred            = barred;
+      cfg.redcap.intra_freq_reselection = allowed;
+      byte_buffer          packed       = asn1_packer::pack_sib1(cfg);
+      asn1::cbit_ref       reader{packed};
+      asn1::rrc_nr::sib1_s sib1;
+      ASSERT_EQ(sib1.unpack(reader), asn1::OCUDUASN_SUCCESS);
+      const auto& r17 = sib1.non_crit_ext.non_crit_ext.non_crit_ext;
+      ASSERT_TRUE(r17.intra_freq_resel_red_cap_r17_present);
+      EXPECT_EQ(r17.intra_freq_resel_red_cap_r17, allowed ? reselection::allowed : reselection::not_allowed);
+      ASSERT_TRUE(r17.red_cap_cfg_common_r17_present);
+      const auto& common = r17.red_cap_cfg_common_r17;
+      ASSERT_TRUE(common.cell_barred_red_cap_r17_present);
+      EXPECT_EQ(common.cell_barred_red_cap_r17.cell_barred_red_cap1_rx_r17,
+                barred ? barring::cell_barred_red_cap1_rx_r17_opts::barred
+                       : barring::cell_barred_red_cap1_rx_r17_opts::not_barred);
+      EXPECT_EQ(common.cell_barred_red_cap_r17.cell_barred_red_cap2_rx_r17,
+                barred ? barring::cell_barred_red_cap2_rx_r17_opts::barred
+                       : barring::cell_barred_red_cap2_rx_r17_opts::not_barred);
+      EXPECT_FALSE(common.half_duplex_red_cap_allowed_r17_present);
+    }
+  }
+}

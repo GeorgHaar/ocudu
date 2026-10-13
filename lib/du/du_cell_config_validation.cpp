@@ -1153,6 +1153,27 @@ static check_outcome check_prs_config(const du_cell_config& cell_cfg)
   return {};
 }
 
+static check_outcome check_redcap_config(const du_cell_config& cell_cfg)
+{
+  const auto& ran = cell_cfg.ran;
+  CHECK_TRUE(band_helper::get_freq_range(ran.dl_carrier.band) == frequency_range::FR1 and
+                 band_helper::get_freq_range(ran.ul_carrier.band) == frequency_range::FR1,
+             "RedCap requires FR1");
+  CHECK_TRUE(ran.dl_carrier.carrier_bw <= bs_channel_bandwidth::MHz20 and
+                 ran.ul_carrier.carrier_bw <= bs_channel_bandwidth::MHz20,
+             "RedCap requires DL and UL carriers of at most 20 MHz");
+  const auto& dl = ran.dl_cfg_common.init_dl_bwp.generic_params;
+  const auto& ul = ran.ul_cfg_common.init_ul_bwp.generic_params;
+  CHECK_TRUE(
+      dl.crbs.length() <= band_helper::get_n_rbs_from_bw(bs_channel_bandwidth::MHz20, dl.scs, frequency_range::FR1) and
+          ul.crbs.length() <= band_helper::get_n_rbs_from_bw(bs_channel_bandwidth::MHz20, ul.scs, frequency_range::FR1),
+      "RedCap requires initial DL and UL BWPs of at most 20 MHz");
+  CHECK_TRUE(not band_helper::is_ntn_band(ran.dl_carrier.band) and not band_helper::is_ntn_band(ran.ul_carrier.band) and
+                 not ran.ntn_params.has_value() and not ran.init_bwp.cg_cfg.has_value(),
+             "RedCap does not support NTN or configured grants");
+  return {};
+}
+
 check_outcome odu::is_du_cell_config_valid(const du_cell_config& cell_cfg)
 {
   CHECK_EQ_OR_BELOW(cell_cfg.ran.pci, MAX_PCI, "cell PCI");
@@ -1183,6 +1204,9 @@ check_outcome odu::is_du_cell_config_valid(const du_cell_config& cell_cfg)
   HANDLE_ERROR(check_tac_list(cell_cfg));
   HANDLE_ERROR(check_prs_config(cell_cfg));
   HANDLE_ERROR(check_periodic_resource_collisions(cell_cfg.ran));
+  if (cell_cfg.redcap.enabled) {
+    HANDLE_ERROR(check_redcap_config(cell_cfg));
+  }
   // TODO: Remaining.
   return {};
 }

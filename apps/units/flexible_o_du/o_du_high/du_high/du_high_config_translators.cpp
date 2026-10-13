@@ -728,8 +728,11 @@ std::vector<odu::du_cell_config> ocudu::generate_du_cell_config(const du_high_un
 
     // Overwrite the parameters that the cell config builder set as default.
     // > MIB
-    out_cell.cell_barred            = base_cell.cell_barred;
-    out_cell.intra_freq_reselection = base_cell.intra_freq_reselection;
+    out_cell.cell_barred                   = base_cell.cell_barred;
+    out_cell.intra_freq_reselection        = base_cell.intra_freq_reselection;
+    out_cell.redcap.enabled                = base_cell.redcap_cfg.enabled;
+    out_cell.redcap.intra_freq_reselection = base_cell.redcap_cfg.intra_freq_reselection;
+    out_cell.redcap.cell_barred            = base_cell.redcap_cfg.cell_barred;
 
     // > PLMN/TAC/NCI.
     out_cell.nr_cgi.plmn_id = plmn_identity::parse(base_cell.plmn).value();

@@ -1356,6 +1356,17 @@ struct du_high_unit_rlm_config {
   rlm_resource_type resource_type = rlm_resource_type::default_type;
 };
 
+/// RedCap configuration for a cell.
+struct du_high_unit_redcap_config {
+  /// [Implementation-defined] Enables RedCap broadcast on cells up to 20 MHz in FR1.
+  bool enabled = false;
+  /// SIB1 intraFreqReselectionRedCap-r17, as per TS 38.331, Section 6.2.2. True means allowed.
+  bool intra_freq_reselection = true;
+  /// SIB1 cellBarredRedCap1Rx-r17 and cellBarredRedCap2Rx-r17, as per TS 38.331, Section 6.2.2.
+  /// Both fields use the same value. True means barred.
+  bool cell_barred = false;
+};
+
 /// Slice configuration for a cell.
 struct du_high_unit_cell_slice_config {
   /// Slice/Service Type.
@@ -1465,6 +1476,8 @@ struct du_high_unit_base_cell_config {
   std::optional<du_high_unit_cell_ntn_config> ntn_cfg;
   /// Radio Link Monitoring configuration.
   du_high_unit_rlm_config rlm_cfg;
+  /// RedCap configuration.
+  du_high_unit_redcap_config redcap_cfg;
 };
 
 struct du_high_unit_test_mode_ue_config {

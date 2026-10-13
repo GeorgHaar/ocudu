@@ -6,6 +6,7 @@
 #include "apps/units/flexible_o_du/o_du_high/du_high/du_high_config_cli11_schema.h"
 #include "apps/units/flexible_o_du/o_du_high/du_high/du_high_config_translators.h"
 #include "apps/units/flexible_o_du/o_du_high/du_high/du_high_config_validator.h"
+#include "apps/units/flexible_o_du/o_du_high/du_high/du_high_config_yaml_writer.h"
 #include "tests/ocudu_test_requirements.h"
 #include "ocudu/support/config_parsers.h"
 #include <cstdio>
@@ -242,4 +243,135 @@ cells:
       << "The second cell must keep the default message ID, not the one the first cell set";
   EXPECT_EQ(second->test->warning_message, etws_config::test_config{}.warning_message)
       << "The second cell must keep the default warning message, not the one the first cell set";
+}
+
+TEST(du_high_sib_config_test, redcap_configuration_is_not_limited_to_the_lab_band_or_antenna_count)
+{
+  auto cfg = parse_config(R"(
+cell_cfg:
+  band: 77
+  dl_arfcn: 642024
+  channel_bandwidth_MHz: 20
+  common_scs: 30
+  nof_antennas_dl: 2
+  nof_antennas_ul: 2
+  redcap:
+    enabled: true
+)");
+  ASSERT_TRUE(validate_du_high_config(cfg));
+  auto cells = generate_du_cell_config(cfg);
+  ASSERT_EQ(cells.size(), 1);
+  EXPECT_TRUE(cells[0].redcap.enabled);
+  cfg.cells_cfg[0].cell.channel_bw_mhz = bs_channel_bandwidth::MHz40;
+  EXPECT_FALSE(validate_du_high_config(cfg));
+}
+
+TEST(du_high_sib_config_test, redcap_accepts_an_arfcn_derived_band)
+{
+  auto cfg = parse_config(R"(
+cell_cfg:
+  dl_arfcn: 642024
+  channel_bandwidth_MHz: 20
+  common_scs: 30
+  redcap:
+    enabled: true
+)");
+  cfg.cells_cfg[0].cell.band.reset();
+  EXPECT_TRUE(validate_du_high_config(cfg));
+}
+
+TEST(du_high_sib_config_test, redcap_settings_have_a_dedicated_cli_section)
+{
+  const auto cfg = parse_config(R"(
+cell_cfg:
+  dl_arfcn: 642024
+  channel_bandwidth_MHz: 20
+  common_scs: 30
+  redcap:
+    enabled: true
+    intra_freq_reselection: false
+    cell_barred: true
+)");
+  EXPECT_TRUE(validate_du_high_config(cfg));
+}
+
+TEST(du_high_sib_config_test, redcap_supports_a_narrow_fr1_cell_at_15_khz)
+{
+  const auto cfg = parse_config(R"(
+cell_cfg:
+  band: 1
+  dl_arfcn: 428000
+  channel_bandwidth_MHz: 10
+  common_scs: 15
+  redcap:
+    enabled: true
+)");
+  ASSERT_TRUE(validate_du_high_config(cfg));
+  const auto cells = generate_du_cell_config(cfg);
+  ASSERT_EQ(cells.size(), 1);
+  EXPECT_TRUE(cells[0].redcap.enabled);
+}
+
+TEST(du_high_sib_config_test, redcap_settings_survive_yaml_serialization_and_translation)
+{
+  du_high_parsed_config parsed;
+  parsed.config = parse_config(R"(
+cell_cfg:
+  dl_arfcn: 642024
+  channel_bandwidth_MHz: 20
+  common_scs: 30
+  redcap:
+    enabled: true
+    intra_freq_reselection: false
+    cell_barred: true
+)");
+  YAML::Node node;
+  fill_du_high_config_in_yaml_schema(node, parsed);
+  const auto roundtrip = parse_config(YAML::Dump(node));
+  ASSERT_EQ(roundtrip.cells_cfg.size(), 1);
+  EXPECT_TRUE(roundtrip.cells_cfg[0].cell.redcap_cfg.enabled);
+  EXPECT_FALSE(roundtrip.cells_cfg[0].cell.redcap_cfg.intra_freq_reselection);
+  EXPECT_TRUE(roundtrip.cells_cfg[0].cell.redcap_cfg.cell_barred);
+  const auto cells = generate_du_cell_config(roundtrip);
+  ASSERT_EQ(cells.size(), 1);
+  EXPECT_TRUE(cells[0].redcap.enabled);
+  EXPECT_FALSE(cells[0].redcap.intra_freq_reselection);
+  EXPECT_TRUE(cells[0].redcap.cell_barred);
+  EXPECT_FALSE(cells[0].cell_barred);
+}
+
+TEST(du_high_sib_config_test, redcap_cell_settings_do_not_leak_into_the_next_cell)
+{
+  const auto cfg = parse_config(R"(
+cells:
+  - pci: 1
+    redcap:
+      enabled: true
+      intra_freq_reselection: false
+      cell_barred: true
+  - pci: 2
+)");
+  ASSERT_EQ(cfg.cells_cfg.size(), 2);
+  EXPECT_TRUE(cfg.cells_cfg[0].cell.redcap_cfg.enabled);
+  EXPECT_FALSE(cfg.cells_cfg[1].cell.redcap_cfg.enabled);
+  EXPECT_TRUE(cfg.cells_cfg[1].cell.redcap_cfg.intra_freq_reselection);
+  EXPECT_FALSE(cfg.cells_cfg[1].cell.redcap_cfg.cell_barred);
+}
+
+TEST(du_high_sib_config_test, rlm_resource_type_survives_yaml_serialization)
+{
+  for (const auto* value : {"default_type", "ssb", "csi_rs", "ssb_and_csi_rs"}) {
+    SCOPED_TRACE(value);
+    du_high_parsed_config parsed;
+    parsed.config =
+        parse_config(std::string("cells:\n  - pci: 1\n    rlm:\n      rlm_resource_type: ") + value + "\n  - pci: 2\n");
+    YAML::Node node;
+    fill_du_high_config_in_yaml_schema(node, parsed);
+    ASSERT_TRUE(node["cells"][0]["rlm"]["rlm_resource_type"]);
+    EXPECT_EQ(node["cells"][0]["rlm"]["rlm_resource_type"].as<std::string>(), value);
+    const auto roundtrip = parse_config(YAML::Dump(node));
+    ASSERT_EQ(roundtrip.cells_cfg.size(), 2);
+    EXPECT_EQ(roundtrip.cells_cfg[0].cell.rlm_cfg.resource_type, parsed.config.cells_cfg[0].cell.rlm_cfg.resource_type);
+    EXPECT_EQ(roundtrip.cells_cfg[1].cell.rlm_cfg.resource_type, rlm_resource_type::default_type);
+  }
 }

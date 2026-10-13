@@ -2599,6 +2599,19 @@ configure_cli11_antenna_orientation_args(CLI::App&                              
   });
 }
 
+static void configure_cli11_redcap_args(CLI::App& app, du_high_unit_redcap_config& config)
+{
+  add_option(app, "--enabled", config.enabled, "Enable RedCap broadcast on FR1 cells up to 20 MHz")
+      ->capture_default_str();
+  add_option(app,
+             "--intra_freq_reselection",
+             config.intra_freq_reselection,
+             "Allow RedCap intra-frequency cell reselection when this cell is barred")
+      ->capture_default_str();
+  add_option(app, "--cell_barred", config.cell_barred, "Bar this cell for RedCap UEs with one or two Rx branches")
+      ->capture_default_str();
+}
+
 static void configure_cli11_common_cell_args(CLI::App& app, du_high_unit_base_cell_config& cell_params)
 {
   add_option(app, "--pci", cell_params.pci, "PCI")->capture_default_str()->range(0, 1007);
@@ -2812,6 +2825,9 @@ static void configure_cli11_common_cell_args(CLI::App& app, du_high_unit_base_ce
   // Radio Link Monitoring configuration.
   CLI::App* rlm_subcmd = add_subcommand(app, "rlm", "Radio Link Monitoring parameters");
   configure_cli11_rlm_args(*rlm_subcmd, cell_params.rlm_cfg);
+
+  CLI::App* redcap_subcmd = add_subcommand(app, "redcap", "RedCap parameters");
+  configure_cli11_redcap_args(*redcap_subcmd, cell_params.redcap_cfg);
 }
 
 static void configure_cli11_cells_args(CLI::App& app, du_high_unit_cell_config& cell_params)

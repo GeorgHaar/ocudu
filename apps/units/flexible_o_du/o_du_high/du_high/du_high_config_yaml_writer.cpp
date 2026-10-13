@@ -887,6 +887,24 @@ static YAML::Node build_cell_entry(const du_high_unit_base_cell_config& config)
     node["slicing"].push_back(build_du_high_slice(slice));
   }
 
+  switch (config.rlm_cfg.resource_type) {
+    case rlm_resource_type::default_type:
+      node["rlm"]["rlm_resource_type"] = "default_type";
+      break;
+    case rlm_resource_type::ssb:
+      node["rlm"]["rlm_resource_type"] = "ssb";
+      break;
+    case rlm_resource_type::csi_rs:
+      node["rlm"]["rlm_resource_type"] = "csi_rs";
+      break;
+    case rlm_resource_type::ssb_and_csi_rs:
+      node["rlm"]["rlm_resource_type"] = "ssb_and_csi_rs";
+      break;
+  }
+  node["redcap"]["enabled"]                = config.redcap_cfg.enabled;
+  node["redcap"]["intra_freq_reselection"] = config.redcap_cfg.intra_freq_reselection;
+  node["redcap"]["cell_barred"]            = config.redcap_cfg.cell_barred;
+
   return node;
 }
 

@@ -25,6 +25,17 @@ struct phy_cell_group_params {
   std::optional<bounded_integer<int, -30, 33>> p_nr_fr1;
 };
 
+/// RedCap broadcast configuration, as per TS 38.331, Section 6.2.2.
+struct du_cell_redcap_config {
+  /// [Implementation-defined] Enables RedCap broadcast.
+  bool enabled = false;
+  /// SIB1 intraFreqReselectionRedCap-r17, as per TS 38.331, Section 6.2.2. True means allowed.
+  bool intra_freq_reselection = true;
+  /// SIB1 cellBarredRedCap1Rx-r17 and cellBarredRedCap2Rx-r17, as per TS 38.331, Section 6.2.2.
+  /// Both fields use the same value. True means barred.
+  bool cell_barred = false;
+};
+
 /// Cell Configuration, including common and UE-dedicated configs, that the DU will use to generate other configs for
 /// other layers (e.g. scheduler).
 struct du_cell_config {
@@ -45,6 +56,8 @@ struct du_cell_config {
   bool cell_barred = false;
   /// MIB intraFreqReselection field (TS 38.331): true=allowed, false=notAllowed.
   bool intra_freq_reselection = true;
+  /// RedCap broadcast configuration.
+  du_cell_redcap_config redcap;
 
   /// Information for UE cell access and SI scheduling.
   si_acquisition_info si;

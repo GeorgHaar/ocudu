@@ -566,6 +566,28 @@ static asn1::rrc_nr::sib1_s make_asn1_rrc_cell_sib1(const du_cell_config& du_cfg
     sib1.non_crit_ext.non_crit_ext.non_crit_ext.edrx_allowed_idle_r17_present = true;
   }
 
+  if (du_cfg.redcap.enabled) {
+    sib1.non_crit_ext_present                           = true;
+    sib1.non_crit_ext.non_crit_ext_present              = true;
+    sib1.non_crit_ext.non_crit_ext.non_crit_ext_present = true;
+    auto& redcap                                        = sib1.non_crit_ext.non_crit_ext.non_crit_ext;
+    redcap.intra_freq_resel_red_cap_r17_present         = true;
+    redcap.intra_freq_resel_red_cap_r17 =
+        du_cfg.redcap.intra_freq_reselection
+            ? asn1::rrc_nr::sib1_v1700_ies_s::intra_freq_resel_red_cap_r17_opts::allowed
+            : asn1::rrc_nr::sib1_v1700_ies_s::intra_freq_resel_red_cap_r17_opts::not_allowed;
+    redcap.red_cap_cfg_common_r17_present  = true;
+    auto& common                           = redcap.red_cap_cfg_common_r17;
+    common.cell_barred_red_cap_r17_present = true;
+    using barring                          = asn1::rrc_nr::red_cap_cfg_common_sib_r17_s::cell_barred_red_cap_r17_s_;
+    common.cell_barred_red_cap_r17.cell_barred_red_cap1_rx_r17 =
+        du_cfg.redcap.cell_barred ? barring::cell_barred_red_cap1_rx_r17_opts::barred
+                                  : barring::cell_barred_red_cap1_rx_r17_opts::not_barred;
+    common.cell_barred_red_cap_r17.cell_barred_red_cap2_rx_r17 =
+        du_cfg.redcap.cell_barred ? barring::cell_barred_red_cap2_rx_r17_opts::barred
+                                  : barring::cell_barred_red_cap2_rx_r17_opts::not_barred;
+  }
+
   return sib1;
 }
 

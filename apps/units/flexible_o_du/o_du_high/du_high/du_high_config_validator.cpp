@@ -1962,6 +1962,23 @@ static bool validate_additional_tacs(const du_high_unit_base_cell_config& config
   return true;
 }
 
+static bool validate_redcap_config(const du_high_unit_base_cell_config& config, nr_band band)
+{
+  if (not config.redcap_cfg.enabled) {
+    return true;
+  }
+  if (band_helper::get_freq_range(band) != frequency_range::FR1 or
+      config.channel_bw_mhz > bs_channel_bandwidth::MHz20) {
+    fmt::print("RedCap requires FR1 cells with at most 20 MHz bandwidth.\n");
+    return false;
+  }
+  if (band_helper::is_ntn_band(band) or config.ntn_cfg.has_value() or config.cg_cfg.periodicity_slots.has_value()) {
+    fmt::print("RedCap does not support NTN or configured grants.\n");
+    return false;
+  }
+  return true;
+}
+
 /// Validates the given cell application configuration. Returns true on success, otherwise false.
 static bool validate_base_cell_unit_config(const du_high_unit_base_cell_config& config)
 {
@@ -2124,7 +2141,7 @@ static bool validate_base_cell_unit_config(const du_high_unit_base_cell_config& 
     return false;
   }
 
-  return true;
+  return validate_redcap_config(config, band);
 }
 
 static bool validate_cell_unit_config(const du_high_unit_cell_config& config)

@@ -63,6 +63,9 @@ public:
     // Don't allow further processing requests.
     stop_control.stop();
 
+    // Release the stored requests.
+    requests.clear();
+
     // Close the current slot, if any.
     current_demodulator.release();
 

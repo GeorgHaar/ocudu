@@ -54,6 +54,16 @@ public:
     return requests[request.slot.system_slot()].exchange(std::move(request));
   }
 
+  /// \brief Clears all the requests in the pool.
+  ///
+  /// All contained requests are exchanged by an empty request.
+  void clear()
+  {
+    for (unsigned i_request = 0, i_request_end = requestArraySize; i_request != i_request_end; ++i_request) {
+      requests[i_request].exchange({});
+    }
+  }
+
 private:
   /// Wraps a request in a lock-free, non-blocking access guard.
   class request_wrapper

@@ -2184,6 +2184,46 @@ inline simd_i16_t ocudu_simd_s_sub(simd_i16_t a, simd_i16_t b)
 #endif /* __AVX512F__ */
 }
 
+/// Returns the element-wise maximum of two SIMD registers of signed 16-bit integers.
+inline simd_i16_t ocudu_simd_s_max(simd_i16_t a, simd_i16_t b)
+{
+#ifdef __AVX512F__
+  return _mm512_max_epi16(a, b);
+#else /* __AVX512F__ */
+#ifdef __AVX2__
+  return _mm256_max_epi16(a, b);
+#else /* __AVX2__ */
+#ifdef __SSE4_1__
+  return _mm_max_epi16(a, b);
+#else /* __SSE4_1__ */
+#ifdef __ARM_NEON
+  return vmaxq_s16(a, b);
+#endif /* __ARM_NEON */
+#endif /* __SSE4_1__ */
+#endif /* __AVX2__ */
+#endif /* __AVX512F__ */
+}
+
+/// Returns the element-wise minimum of two SIMD registers of signed 16-bit integers.
+inline simd_i16_t ocudu_simd_s_min(simd_i16_t a, simd_i16_t b)
+{
+#ifdef __AVX512F__
+  return _mm512_min_epi16(a, b);
+#else /* __AVX512F__ */
+#ifdef __AVX2__
+  return _mm256_min_epi16(a, b);
+#else /* __AVX2__ */
+#ifdef __SSE4_1__
+  return _mm_min_epi16(a, b);
+#else /* __SSE4_1__ */
+#ifdef __ARM_NEON
+  return vminq_s16(a, b);
+#endif /* __ARM_NEON */
+#endif /* __SSE4_1__ */
+#endif /* __AVX2__ */
+#endif /* __AVX512F__ */
+}
+
 inline simd_i16_t ocudu_simd_s_set1(int16_t x)
 {
 #ifdef __AVX512F__

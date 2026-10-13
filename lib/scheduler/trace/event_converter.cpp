@@ -21,6 +21,7 @@
 #include "ocudu/scheduler/result/sched_result.h"
 #include "ocudu/scheduler/result/srs_info.h"
 #include "ocudu/scheduler/scheduler_rach_handler.h"
+#include "ocudu/support/math/math_utils.h"
 
 using namespace ocudu;
 using namespace schedtrace;
@@ -68,9 +69,12 @@ static rb_alloc_offset convert_rbs_to_fb(flatbuffers::FlatBufferBuilder& fbb,
     return {fbs::RbAlloc::VrbAlloc,
             fbs::CreateVrbAlloc(fbb, vrbs.start(), static_cast<uint16_t>(vrbs.length()), vrb_second_hop_start).Union()};
   }
-  const rbg_bitmap& rbgs = rbs.type0();
-  return {fbs::RbAlloc::RbgAlloc,
-          fbs::CreateRbgAlloc(fbb, static_cast<uint8_t>(rbgs.size()), static_cast<uint32_t>(rbgs.to_uint64())).Union()};
+  const vrb_bitmap&                                   vrbs = rbs.type0();
+  std::array<uint64_t, divide_ceil(MAX_NOF_PRBS, 64)> words{};
+  vrbs.for_each(0, vrbs.size(), [&words](size_t i) { words[i / 64] |= uint64_t{1} << (i % 64); });
+  const auto bitmap = fbb.CreateVector(words.data(), divide_ceil(vrbs.size(), 64));
+  return {fbs::RbAlloc::VrbBitmapAlloc,
+          fbs::CreateVrbBitmapAlloc(fbb, static_cast<uint16_t>(vrbs.size()), bitmap).Union()};
 }
 
 /// Applies a flatbuffer RbAlloc union to a native resource allocation.
@@ -82,10 +86,14 @@ static void convert_fb_to_rbs(vrb_alloc& rbs, const RbsTable& ev)
       const auto& vrb = *ev.rbs_as_VrbAlloc();
       rbs             = vrb_interval{vrb.vrb_start(), static_cast<unsigned>(vrb.vrb_start()) + vrb.vrb_length()};
     } break;
-    case fbs::RbAlloc::RbgAlloc: {
-      const auto& rbg_alloc = *ev.rbs_as_RbgAlloc();
-      rbg_bitmap  bm(rbg_alloc.nof_rbgs());
-      bm.from_uint64(static_cast<uint64_t>(rbg_alloc.bitmap()));
+    case fbs::RbAlloc::VrbBitmapAlloc: {
+      const auto& vrb_alloc_fb = *ev.rbs_as_VrbBitmapAlloc();
+      vrb_bitmap  bm(vrb_alloc_fb.nof_vrbs());
+      for (unsigned i = 0, e = bm.size(); i != e; ++i) {
+        if ((vrb_alloc_fb.bitmap()->Get(i / 64) >> (i % 64)) & 1U) {
+          bm.set(i);
+        }
+      }
       rbs = bm;
     } break;
     default:

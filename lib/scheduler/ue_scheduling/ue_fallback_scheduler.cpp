@@ -671,7 +671,7 @@ ue_fallback_scheduler::alloc_grant(ue&                                   u,
   if (is_retx) {
     // Use the same MCS, nof PRBs and TBS as the last allocation.
     mcs_idx            = h_dl_retx->get_grant_params().mcs;
-    prbs_tbs.nof_prbs  = h_dl_retx->get_grant_params().rbs.type1().length();
+    prbs_tbs.nof_prbs  = h_dl_retx->get_grant_params().rbs.nof_vrbs();
     prbs_tbs.tbs_bytes = h_dl_retx->get_grant_params().tbs;
 
     if (unused_crbs.length() < prbs_tbs.nof_prbs) {
@@ -1235,7 +1235,7 @@ ue_fallback_scheduler::schedule_ul_srb(ue&                                      
   crb_interval ue_grant_crbs;
   sch_mcs_tbs  final_mcs_tbs;
   if (is_retx) {
-    const unsigned final_nof_prbs = h_ul_retx->get_grant_params().rbs.type1().length();
+    const unsigned final_nof_prbs = h_ul_retx->get_grant_params().rbs.nof_vrbs();
     final_mcs_tbs.mcs             = h_ul_retx->get_grant_params().mcs;
     final_mcs_tbs.tbs             = h_ul_retx->get_grant_params().tbs;
 

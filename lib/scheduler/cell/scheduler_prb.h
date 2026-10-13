@@ -48,7 +48,7 @@ public:
   void add(const vrb_alloc& grant)
   {
     if (grant.is_type0()) {
-      add(grant.type0());
+      add(grant.type0().convert_to<prb_bitmap>());
     } else {
       add(grant.type1());
     }
@@ -56,7 +56,9 @@ public:
   bool collides(const vrb_alloc& grant) const
   {
     if (grant.is_type0()) {
-      return (rbgs() & grant.type0()).any();
+      prb_bitmap overlap = grant.type0().convert_to<prb_bitmap>();
+      overlap &= prbs();
+      return overlap.any();
     }
     return prbs().any(grant.type1().start(), grant.type1().stop());
   }

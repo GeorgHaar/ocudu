@@ -549,15 +549,7 @@ void cell_metrics_handler::handle_slot_result(slot_point_extended       sl_tx,
       ++u.data.nof_dl_cws;
     }
 
-    unsigned grant_prbs;
-    if (dl_grant.pdsch_cfg.rbs.is_type0()) {
-      grant_prbs = convert_rbgs_to_prbs(dl_grant.pdsch_cfg.rbs.type0(),
-                                        {0, cell_cfg.nof_dl_prbs},
-                                        get_nominal_rbg_size(cell_cfg.nof_dl_prbs, rbg_size::config1))
-                       .count();
-    } else {
-      grant_prbs = (dl_grant.pdsch_cfg.rbs.type1().length());
-    }
+    const unsigned grant_prbs = dl_grant.pdsch_cfg.rbs.nof_vrbs();
     u.data.tot_dl_prbs_used += grant_prbs;
     if (not dl_prbs_used_per_tdd_slot_idx.empty()) {
       dl_prbs_used_per_tdd_slot_idx[last_slot_tx.count() % dl_prbs_used_per_tdd_slot_idx.size()] += grant_prbs;
@@ -578,15 +570,7 @@ void cell_metrics_handler::handle_slot_result(slot_point_extended       sl_tx,
       // UE not found.
       continue;
     }
-    unsigned grant_prbs;
-    if (ul_grant.pusch_cfg.rbs.is_type0()) {
-      grant_prbs = convert_rbgs_to_prbs(ul_grant.pusch_cfg.rbs.type0(),
-                                        {0, cell_cfg.nof_dl_prbs},
-                                        get_nominal_rbg_size(cell_cfg.nof_dl_prbs, rbg_size::config1))
-                       .count();
-    } else {
-      grant_prbs = (ul_grant.pusch_cfg.rbs.type1().length());
-    }
+    const unsigned grant_prbs = ul_grant.pusch_cfg.rbs.nof_vrbs();
     ues[it->second].data.tot_ul_prbs_used += grant_prbs;
     if (not ul_prbs_used_per_tdd_slot_idx.empty()) {
       ul_prbs_used_per_tdd_slot_idx[last_slot_tx.count() % ul_prbs_used_per_tdd_slot_idx.size()] += grant_prbs;

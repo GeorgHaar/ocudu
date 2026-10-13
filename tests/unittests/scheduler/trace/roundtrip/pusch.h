@@ -20,9 +20,11 @@ struct test_values<vrb_alloc> {
   static std::vector<vrb_alloc> get()
   {
     constexpr uint16_t max_vrb = std::numeric_limits<uint16_t>::max();
-    rbg_bitmap         rbgs(4);
-    rbgs.from_uint64(0b1001);
-    return {vrb_alloc(vrb_interval{0, 0}), vrb_alloc(vrb_interval{0, max_vrb}), vrb_alloc(rbgs)};
+    vrb_bitmap         vrbs(MAX_NOF_PRBS);
+    vrbs.set(0);
+    vrbs.fill(70, 140);
+    vrbs.set(MAX_NOF_PRBS - 1);
+    return {vrb_alloc(vrb_interval{0, 0}), vrb_alloc(vrb_interval{0, max_vrb}), vrb_alloc(vrbs)};
   }
 };
 

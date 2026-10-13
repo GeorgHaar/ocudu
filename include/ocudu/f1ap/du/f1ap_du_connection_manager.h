@@ -71,7 +71,6 @@ struct f1_setup_request_message {
   std::string                       gnb_du_name;
   uint8_t                           rrc_version;
   std::vector<f1_cell_setup_params> served_cells;
-  unsigned                          max_setup_retries = 5;
 };
 
 /// Outcome of the F1 Setup procedure.

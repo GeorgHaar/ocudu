@@ -12,7 +12,6 @@
 #include "ocudu/asn1/asn1_utils.h"
 #include "ocudu/asn1/f1ap/common.h"
 #include "ocudu/f1ap/f1ap_message.h"
-#include "ocudu/support/async/async_timer.h"
 
 using namespace ocudu;
 using namespace ocudu::odu;
@@ -23,14 +22,12 @@ static constexpr std::chrono::milliseconds f1_setup_response_timeout{3000};
 f1ap_du_setup_procedure::f1ap_du_setup_procedure(const f1_setup_request_message& request_,
                                                  f1ap_message_notifier&          cu_notif_,
                                                  f1ap_event_manager&             ev_mng_,
-                                                 timer_factory&                  timers,
                                                  f1ap_du_context&                du_ctxt_) :
   request(request_),
   cu_notifier(cu_notif_),
   ev_mng(ev_mng_),
   logger(ocudulog::fetch_basic_logger("DU-F1")),
-  du_ctxt(du_ctxt_),
-  f1_setup_wait_timer(timers.create_timer())
+  du_ctxt(du_ctxt_)
 {
 }
 
@@ -38,31 +35,17 @@ void f1ap_du_setup_procedure::operator()(coro_context<async_task<f1_setup_result
 {
   CORO_BEGIN(ctx);
 
-  while (true) {
-    transaction = ev_mng.transactions.create_transaction(f1_setup_response_timeout);
-    if (not transaction.valid()) {
-      CORO_EARLY_RETURN(create_f1_setup_result());
-    }
-
-    // Send request to CU.
-    send_f1_setup_request();
-
-    // Await CU response.
-    CORO_AWAIT(transaction);
-
-    if (not retry_required()) {
-      // No more attempts. Exit loop.
-      break;
-    }
-
-    // Await timer.
-    logger.debug("Received F1SetupFailure with Time to Wait IE - reinitiating F1 setup in {}s (retry={}/{})",
-                 time_to_wait.count(),
-                 f1_setup_retry_no,
-                 request.max_setup_retries);
-    CORO_AWAIT(
-        async_wait_for(f1_setup_wait_timer, std::chrono::duration_cast<std::chrono::milliseconds>(time_to_wait)));
+  transaction = ev_mng.transactions.create_transaction(f1_setup_response_timeout);
+  if (not transaction.valid()) {
+    CORO_EARLY_RETURN(create_f1_setup_result());
   }
+
+  // Send request to CU.
+  send_f1_setup_request();
+
+  // Await CU response.
+  // Note: The caller retries a failed F1 Setup, honouring the Time to Wait commanded by the CU-CP.
+  CORO_AWAIT(transaction);
 
   // Forward procedure result to DU manager.
   CORO_RETURN(create_f1_setup_result());
@@ -119,42 +102,6 @@ void f1ap_du_setup_procedure::send_f1_setup_request()
   // send request
   logger.info("F1 Setup: Sending F1 Setup Request to CU-CP...");
   cu_notifier.on_new_message(msg);
-}
-
-bool f1ap_du_setup_procedure::retry_required()
-{
-  if (transaction.aborted()) {
-    // Timeout or cancellation case.
-    return false;
-  }
-
-  const f1ap_transaction_response& cu_pdu_response = transaction.response();
-  if (cu_pdu_response.has_value()) {
-    // Success case.
-    return false;
-  }
-
-  if (cu_pdu_response.error().value.type().value !=
-      f1ap_elem_procs_o::unsuccessful_outcome_c::types_opts::f1_setup_fail) {
-    // Invalid response type.
-    return false;
-  }
-
-  const f1_setup_fail_ies_container& f1_setup_fail = *cu_pdu_response.error().value.f1_setup_fail();
-  if (not f1_setup_fail.time_to_wait_present) {
-    // CU didn't command a waiting time.
-    logger.debug("CU-CP did not set any retry waiting time");
-    return false;
-  }
-  if (f1_setup_retry_no++ >= request.max_setup_retries) {
-    // Number of retries exceeded, or there is no time to wait.
-    // Note: The caller reports the failure.
-    logger.info("Reached maximum number of F1 Setup connection retries ({})", request.max_setup_retries);
-    return false;
-  }
-
-  time_to_wait = std::chrono::seconds{f1_setup_fail.time_to_wait.to_number()};
-  return true;
 }
 
 static bool validate_f1_response(const f1ap_transaction_response& transaction_resp)

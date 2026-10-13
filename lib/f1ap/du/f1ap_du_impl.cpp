@@ -116,7 +116,7 @@ async_task<void> f1ap_du_impl::disconnect_from_cu_cp()
 
 async_task<f1_setup_result> f1ap_du_impl::handle_f1_setup_request(const f1_setup_request_message& request)
 {
-  return launch_async<f1ap_du_setup_procedure>(request, *tx_pdu_notifier, *events, du_mng.get_timer_factory(), ctxt);
+  return launch_async<f1ap_du_setup_procedure>(request, *tx_pdu_notifier, *events, ctxt);
 }
 
 async_task<void> f1ap_du_impl::handle_f1_removal_request()

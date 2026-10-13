@@ -217,6 +217,7 @@ TEST_F(f1ap_du_test, when_retry_limit_reached_then_du_not_connected)
   ASSERT_TRUE(t.ready());
   ASSERT_FALSE(t.get().has_value());
   ASSERT_EQ(t.get().error().result, f1_setup_failure::result_code::f1_setup_failure);
+  ASSERT_EQ(t.get().error().time_to_wait, std::chrono::seconds{10});
   ASSERT_EQ(f1c_gw.pop_tx_pdu(), std::nullopt);
 
   async_task<void>         sctp_disconnect = f1ap->disconnect_from_cu_cp();

@@ -42,10 +42,16 @@ public:
   void operator()(coro_context<async_task<void>>& ctx);
 
 private:
+  /// Establishes the F1-C TNL association with the CU-CP, unless a stop is requested first.
+  async_task<void> connect_to_cu_cp();
+
   async_task<f1_setup_result> start_f1_setup_request();
 
   // Handle F1 setup response with list of cells to activate.
   async_task<void> handle_f1_setup_response(const f1_setup_result& resp);
+
+  /// Waits before a failed F1 Setup is retried, or closes the application if the F1 Setup is not retried.
+  async_task<void> wait_for_f1_setup_retry();
 
   const du_proc_context_view& ctxt;
   const du_start_request      request;
@@ -55,17 +61,12 @@ private:
 
   unique_timer timer;
 
-  /// [Implementation-defined] Maximum exponent of the F1 Setup retry backoff.
-  static constexpr unsigned max_setup_backoff_exponent = 5;
-  /// [Implementation-defined] Number of F1 Setup failures between two warnings.
-  static constexpr unsigned setup_failure_log_period = 60;
-
   unsigned    count = 0;
   std::string failure_cause;
-  /// Number of failed F1 Setup attempts.
-  unsigned nof_setup_failures = 0;
   /// Number of retry waits left before the next F1 Setup attempt.
   unsigned nof_retry_waits = 0;
+  /// Whether a failed F1 Setup was already announced in STDOUT.
+  bool setup_failure_reported = false;
 };
 
 } // namespace odu

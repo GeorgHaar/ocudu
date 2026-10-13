@@ -148,7 +148,8 @@ bool f1ap_du_setup_procedure::retry_required()
   }
   if (f1_setup_retry_no++ >= request.max_setup_retries) {
     // Number of retries exceeded, or there is no time to wait.
-    logger.error("Reached maximum number of F1 Setup connection retries ({})", request.max_setup_retries);
+    // Note: The caller reports the failure.
+    logger.info("Reached maximum number of F1 Setup connection retries ({})", request.max_setup_retries);
     return false;
   }
 
@@ -209,6 +210,9 @@ f1_setup_result f1ap_du_setup_procedure::create_f1_setup_result()
     f1_setup_failure failure{};
     failure.result                 = f1_setup_failure::result_code::f1_setup_failure;
     failure.f1_setup_failure_cause = get_cause_str(asn1_fail.cause);
+    if (asn1_fail.time_to_wait_present) {
+      failure.time_to_wait = std::chrono::seconds{asn1_fail.time_to_wait.to_number()};
+    }
     logger.debug("{}: F1 Setup Failure with cause \"{}\"", name(), get_cause_str(asn1_fail.cause));
     du_ctxt.du_id = gnb_du_id_t::invalid;
 

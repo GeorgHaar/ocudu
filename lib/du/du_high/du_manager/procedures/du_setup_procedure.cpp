@@ -18,6 +18,8 @@
 #include "ocudu/support/async/async_no_op_task.h"
 #include "ocudu/support/async/async_timer.h"
 #include "ocudu/support/async/coroutine.h"
+#include "ocudu/support/math/math_utils.h"
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -130,6 +132,42 @@ void du_setup_procedure::operator()(coro_context<async_task<void>>& ctx)
 
   while (true) {
     // Establish TNL association with the CU-CP.
+    CORO_AWAIT(connect_to_cu_cp());
+    if (ctxt.ctxt.stop_command_received) {
+      // DU is being shutdown.
+      CORO_EARLY_RETURN();
+    }
+
+    // Initiate F1 Setup.
+    CORO_AWAIT_VALUE(response_msg, start_f1_setup_request());
+
+    // Handle F1 setup result and activate cells.
+    CORO_AWAIT(handle_f1_setup_response(response_msg));
+    if (response_msg.has_value()) {
+      break;
+    }
+
+    CORO_AWAIT(wait_for_f1_setup_retry());
+  }
+
+  // Notify successful setup and deliver packed F1 setup PDU bytes via notifier.
+  if (ctxt.params.f1ap.f1_setup_complete_notifier != nullptr) {
+    ctxt.params.f1ap.f1_setup_complete_notifier->on_f1_setup_complete(
+        std::move(response_msg.value().packed_f1_setup_request),
+        std::move(response_msg.value().packed_f1_setup_response),
+        ctxt.params.ran.gnb_du_id);
+  }
+
+  proc_logger.log_proc_completed();
+
+  CORO_RETURN();
+}
+
+async_task<void> du_setup_procedure::connect_to_cu_cp()
+{
+  return launch_async([this](coro_context<async_task<void>>& ctx) {
+    CORO_BEGIN(ctx);
+
     for (count = 0; not ctxt.ctxt.stop_command_received and not ctxt.params.f1ap.conn_mng.connect_to_cu_cp(); ++count) {
       if (count + 1 >= request.max_f1c_tnl_connection_retries) {
         // No attempt is left, so the failure is final and the gateway already reported its cause.
@@ -150,59 +188,42 @@ void du_setup_procedure::operator()(coro_context<async_task<void>>& ctx)
       }
       CORO_AWAIT(async_wait_for(timer, request.f1c_tnl_connection_retry_wait));
     }
-    if (ctxt.ctxt.stop_command_received) {
-      // DU is being shutdown.
-      CORO_EARLY_RETURN();
-    }
 
-    // Initiate F1 Setup.
-    CORO_AWAIT_VALUE(response_msg, start_f1_setup_request());
+    CORO_RETURN();
+  });
+}
 
-    // Handle F1 setup result and activate cells.
-    CORO_AWAIT(handle_f1_setup_response(response_msg));
-    if (response_msg.has_value()) {
-      break;
-    }
+async_task<void> du_setup_procedure::wait_for_f1_setup_retry()
+{
+  // Without retries, close the DU rather than leave it running with no served cell.
+  if (request.max_f1c_tnl_connection_retries != du_start_request::unlimited_retries) {
+    report_error("F1 Setup failed. Cause: {}", failure_cause);
+  }
 
-    // Without retries, close the DU rather than leave it running with no served cell.
-    if (request.max_f1c_tnl_connection_retries != du_start_request::unlimited_retries) {
-      report_error("F1 Setup failed. Cause: {}", failure_cause);
-    }
+  // The CU-CP may accept the DU later, e.g. once it is set up with the AMF. Wait at least the Time to Wait, if the
+  // CU-CP commanded one, as per TS 38.473, Section 8.2.3.3.
+  const std::chrono::milliseconds time_to_wait = response_msg.error().time_to_wait.value_or(std::chrono::seconds{0});
+  nof_retry_waits =
+      std::max<unsigned>(1, divide_ceil(time_to_wait.count(), request.f1c_tnl_connection_retry_wait.count()));
+  ctxt.logger.warning("F1 Setup failed. Cause: {}. Retrying in {} ms...",
+                      failure_cause,
+                      nof_retry_waits * request.f1c_tnl_connection_retry_wait.count());
+  if (not setup_failure_reported) {
+    // Only the first failure is announced in STDOUT, so that a lasting rejection does not flood it.
+    fmt::print("F1 Setup failed. Cause: {}. Retrying in the background\n", failure_cause);
+    setup_failure_reported = true;
+  }
 
-    // The CU-CP may accept the DU later, e.g. once it is set up with the AMF. Back off exponentially to spare the
-    // CU-CP, and throttle the warnings so a lasting misconfiguration stays visible without flooding the log.
-    ++nof_setup_failures;
-    nof_retry_waits =
-        1U << (nof_setup_failures <= max_setup_backoff_exponent ? nof_setup_failures - 1 : max_setup_backoff_exponent);
-    if (nof_setup_failures == 1 or nof_setup_failures % setup_failure_log_period == 0) {
-      ctxt.logger.warning("F1 Setup attempt {} failed. Cause: {}. Retrying in {} ms...",
-                          nof_setup_failures,
-                          failure_cause,
-                          nof_retry_waits * request.f1c_tnl_connection_retry_wait.count());
-    } else {
-      ctxt.logger.debug("F1 Setup attempt {} failed. Cause: {}. Retrying in {} ms...",
-                        nof_setup_failures,
-                        failure_cause,
-                        nof_retry_waits * request.f1c_tnl_connection_retry_wait.count());
-    }
+  return launch_async([this](coro_context<async_task<void>>& ctx) {
+    CORO_BEGIN(ctx);
 
-    // Wait in steps, so a stop request does not wait for the whole backoff.
+    // Wait in steps, so a stop request does not wait for the whole Time to Wait.
     for (; nof_retry_waits != 0 and not ctxt.ctxt.stop_command_received; --nof_retry_waits) {
       CORO_AWAIT(async_wait_for(timer, request.f1c_tnl_connection_retry_wait));
     }
-  }
 
-  // Notify successful setup and deliver packed F1 setup PDU bytes via notifier.
-  if (ctxt.params.f1ap.f1_setup_complete_notifier != nullptr) {
-    ctxt.params.f1ap.f1_setup_complete_notifier->on_f1_setup_complete(
-        std::move(response_msg.value().packed_f1_setup_request),
-        std::move(response_msg.value().packed_f1_setup_response),
-        ctxt.params.ran.gnb_du_id);
-  }
-
-  proc_logger.log_proc_completed();
-
-  CORO_RETURN();
+    CORO_RETURN();
+  });
 }
 
 void odu::configure_du_cells(const du_proc_context_view& ctxt)

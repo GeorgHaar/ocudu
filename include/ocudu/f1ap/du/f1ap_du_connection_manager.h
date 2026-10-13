@@ -89,6 +89,8 @@ struct f1_setup_failure {
   result_code result;
   /// Cause provided by CU-CP in case of F1 Setup Failure.
   std::string f1_setup_failure_cause;
+  /// Time to wait before the F1 Setup is retried, if the CU-CP commanded one.
+  std::optional<std::chrono::seconds> time_to_wait;
 };
 using f1_setup_result = expected<f1_setup_success, f1_setup_failure>;
 

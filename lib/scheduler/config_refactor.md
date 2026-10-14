@@ -37,12 +37,21 @@ The refactor puts each parameter at one level. Each level has a structure that h
 `pucch_resource_manager::alloc_resources` shows the pattern. It writes the SR offset to `ue_pucch_config` for the
 scheduler, and to `serv_cell_cfg` for RRC.
 
-One exception stays. Some code reads `pucch_cfg.has_value()` to find a UE configuration that is not complete, for
-example `uci_scheduler_impl` and `is_cfg_dedicated_complete`. Do not change these tests to a test of `ue_cfg()`, because
-the two structures do not agree. See Open points.
-
 `ue_cell_config` holds `serv_cell_cfg` and `bwps` at the same time. This is temporary. One later change removes
 `serv_cell_cfg`. Do not remove the fields of `serving_cell_config` one at a time.
+
+### Give a UE all its dedicated configuration of a cell, or none
+
+A UE has a full dedicated configuration in a cell, or no dedicated configuration. There is no partial state.
+
+- If the RRM cannot allocate all the resources of a cell, the DU removes the cell from `cell_group.cells`. The scheduler
+  gets an empty `sched_ue_cell_config::ded`. The UE uses only the common configuration of the cell, for example to get
+  an RRC Reject.
+- To show that the resources of a cell are not allocated or are released, remove the cell entry. Do not reset a field of
+  `serving_cell_config` to show this state. The fields of `serving_cell_config` are RRC data, and the refactor removes
+  that structure. For example, do not reset `pucch_cfg`.
+- To find a UE without dedicated configuration, read `ue_cell_configuration::has_dedicated_cfg()`. Do not read the
+  presence of a `serving_cell_config` field, for example `pucch_cfg.has_value()`.
 
 ### Put each parameter at one level
 
@@ -134,10 +143,6 @@ The PUCCH structures show the correct split. They are not perfect, but use them 
 
 Ask the user before you make one of these decisions:
 
-- The way to show that a UE configuration is not complete. The UE sends no capabilities in fallback mode. Thus the RRM
-  cannot allocate all the resources yet. `is_cfg_dedicated_complete` reads `pucch_cfg.has_value()` now, and the DU
-  removes that field to show the incomplete state. `ue_bwp_config` keeps its values at the same time, thus the two
-  structures do not agree.
 - The future of `cell_config_builder_params` and `cell_config_builder_params_extended`.
 - The correct place for the UE capability code (`ue_capability_manager`).
 - The correct level for `tag_id`, `pdsch_serv_cell_cfg`, `pusch_serv_cell_cfg` and `csi_meas_cfg`.

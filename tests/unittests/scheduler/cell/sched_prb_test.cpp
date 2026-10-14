@@ -155,3 +155,11 @@ TEST(bwp_rb_bitmap, search)
   prbs = rb_helper::find_empty_interval_of_length(rb_bitmap.prbs(), 5);
   ASSERT_TRUE(prbs == prb_interval(5, 10));
 }
+
+TEST(get_nof_rbgs_test, when_bwp_does_not_start_at_rbg_boundary_then_nof_rbgs_can_exceed_bwp_size_over_p)
+{
+  // BWP of 144 PRBs starting at CRB 7, with P=8.
+  const crb_interval bwp_crbs{7, 151};
+  ASSERT_EQ(get_nominal_rbg_size(bwp_crbs.length(), rbg_size::config1), nominal_rbg_size::P8);
+  ASSERT_EQ(get_nof_rbgs(bwp_crbs, rbg_size::config1), MAX_NOF_RBGS);
+}

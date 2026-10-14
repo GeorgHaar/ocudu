@@ -8,7 +8,7 @@ namespace ocudu.schedtrace.fbs;
 /// Type-0 (RBG bitmap) resource allocation.
 table RbgAlloc {
   nof_rbgs: uint8;
-  /// Holds one bit per RBG (up to MAX_NOF_RBGS=18 bits).
+  /// Holds one bit per RBG (up to MAX_NOF_RBGS=19 bits).
   bitmap: uint32;
 }
 

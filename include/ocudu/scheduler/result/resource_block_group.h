@@ -7,15 +7,12 @@
 
 #include "ocudu/adt/bounded_bitset.h"
 #include "ocudu/ran/resource_allocation/rb_interval.h"
+#include "ocudu/ran/resource_block.h"
 #include "ocudu/support/enum_utils.h"
 #include "ocudu/support/math/math_utils.h"
 #include "ocudu/support/ocudu_assert.h"
 
 namespace ocudu {
-
-/// Maximum number of resource block groups per BWP.
-/// \remark See TS 38.214, Sections 5.1.2.2.1 and 6.1.2.2.1.
-const size_t MAX_NOF_RBGS = 18;
 
 /// \brief RBG size types for PDSCH.
 /// \remark See TS 38.331, "rbg-Size".
@@ -25,7 +22,7 @@ enum class rbg_size : uint8_t { config1, config2 };
 /// \remark See TS 38.214, Sections 5.1.2.2 and 6.1.2.2.
 enum class nominal_rbg_size : uint8_t { P2 = 2, P4 = 4, P8 = 8, P16 = 16 };
 
-/// Bitset of RBGs with size up to 18.
+/// Bitset of RBGs with size up to \c MAX_NOF_RBGS.
 using rbg_bitmap = bounded_bitset<MAX_NOF_RBGS, true>;
 
 /// Calculates Nominal RBG size (P) based on the BWP number of PRBs and configuration type.
@@ -59,15 +56,15 @@ inline unsigned get_nof_rbgs(crb_interval bwp_rb_dims, rbg_size rbg_sz)
 
 /// Calculates size of indexed RBG in number of RBs.
 /// \remark See TS 38.214, Sections 5.1.2.2.1 and 6.1.2.2.1.
-inline uint32_t get_rbg_size(crb_interval bwp_rbs, nominal_rbg_size P, uint32_t rbg_idx)
+inline unsigned get_rbg_size(crb_interval bwp_rbs, nominal_rbg_size P, unsigned rbg_idx)
 {
-  uint32_t nof_rbgs = get_nof_rbgs(bwp_rbs, P);
+  unsigned nof_rbgs = get_nof_rbgs(bwp_rbs, P);
   ocudu_sanity_check(rbg_idx < nof_rbgs, "RBG index out-of-bounds ({} >= {})", rbg_idx, nof_rbgs);
   if (rbg_idx == 0) {
     return to_underlying(P) - (bwp_rbs.start() % to_underlying(P));
   }
   if (rbg_idx == nof_rbgs - 1) {
-    uint32_t ret = bwp_rbs.stop() % to_underlying(P);
+    unsigned ret = bwp_rbs.stop() % to_underlying(P);
     return ret > 0 ? ret : to_underlying(P);
   }
   return to_underlying(P);

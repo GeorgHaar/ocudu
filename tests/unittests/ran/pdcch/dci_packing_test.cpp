@@ -282,9 +282,6 @@ protected:
   // Number of test repetitions for each test case.
   static constexpr unsigned nof_repetitions = 100;
 
-  // Maximum number of resource block groups per BWP.
-  const unsigned MAX_NOF_RBGS = 18;
-
   // DCI payload size configuration parameters.
   dci_size_config dci_config;
 

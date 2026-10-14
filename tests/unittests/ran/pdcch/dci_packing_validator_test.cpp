@@ -11,9 +11,6 @@
 
 using namespace ocudu;
 
-// Maximum number of resource block groups per BWP.
-static constexpr unsigned MAX_NOF_RBGS = 18;
-
 // Asserts that the validator returns false on an invalid configuration, and that the assertion message matches the
 // expected message.
 static void test_validator(const dci_size_config& invalid_config, const std::string& expected_assert_message)

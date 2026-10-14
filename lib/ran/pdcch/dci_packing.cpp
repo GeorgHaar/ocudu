@@ -8,13 +8,11 @@
 #include "ocudu/adt/interval.h"
 #include "ocudu/adt/span.h"
 #include "ocudu/ran/pdcch/dci_packing_formatters.h"
+#include "ocudu/ran/resource_block.h"
 #include "ocudu/support/math/math_utils.h"
 #include "fmt/std.h"
 
 using namespace ocudu;
-
-// Maximum number of resource block groups per BWP.
-static constexpr unsigned MAX_NOF_RBGS = 18;
 
 namespace {
 

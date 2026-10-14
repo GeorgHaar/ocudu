@@ -35,7 +35,7 @@ void bwp_rb_bitmap::add_prbs_to_rbgs(const prb_bitmap& grant)
     uint32_t rbg_idx = prb_to_rbg_idx(idx);
     rbgs_.set(rbg_idx, true);
     idx++;
-  } while (idx != (int)prbs_.size());
+  } while (idx != (int)grant.size());
 }
 
 void bwp_rb_bitmap::add_prbs_to_rbgs(const prb_interval& grant)

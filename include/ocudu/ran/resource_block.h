@@ -26,6 +26,10 @@ constexpr std::size_t MAX_NOF_PRBS = MAX_NPRB;
 constexpr std::size_t MAX_NOF_PRBS = 275;
 #endif // MAX_NPRB
 
+/// Maximum number of resource block groups of a BWP.
+/// \remark See TS 38.214, Sections 5.1.2.2.1 and 6.1.2.2.1.
+constexpr std::size_t MAX_NOF_RBGS = 19;
+
 /// See TS 38.211, 4.4.4.1 - Resource Blocks, General.
 constexpr std::size_t NOF_SUBCARRIERS_PER_RB = 12;
 

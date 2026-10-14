@@ -345,7 +345,13 @@ void pdcp_entity_rx::handle_data_pdu(byte_buffer pdu, std::chrono::steady_clock:
   if ((int64_t)hdr.sn < (int64_t)SN(st.rx_deliv) - (int64_t)window_size) {
     rcvd_hfn = HFN(st.rx_deliv) + 1;
   } else if (hdr.sn >= SN(st.rx_deliv) + window_size) {
-    rcvd_hfn = HFN(st.rx_deliv) - 1;
+    uint32_t hfn = HFN(st.rx_deliv);
+    if (hfn == 0) {
+      metrics.add_dropped_pdus(1);
+      logger.log_warning("Discarding PDU. No previous hyperframe. sn={} rx_deliv={}", hdr.sn, st.rx_deliv);
+      return;
+    }
+    rcvd_hfn = hfn - 1;
   } else {
     rcvd_hfn = HFN(st.rx_deliv);
   }

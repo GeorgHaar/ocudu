@@ -127,8 +127,15 @@ bool pucch_resource_manager::alloc_resources(ue_cell_config& cell_cfg)
 
   // Verify where there are SR and CSI resources to allocate a new UE.
   if (free_sr_configs.empty() or (cell_ctx.default_csi_report_cfg.has_value() and free_csi_configs.empty())) {
-    disable_pucch_cfg(serv_cell_cfg, cell_ctx);
     return false;
+  }
+
+  // Size of the periodic CSI report of the UE.
+  std::optional<unsigned> csi_report_nof_bits;
+  if (cell_ctx.default_csi_report_cfg.has_value()) {
+    csi_meas_config csi_meas_cfg     = *serv_cell_cfg.csi_meas_cfg;
+    csi_meas_cfg.csi_report_cfg_list = {*cell_ctx.default_csi_report_cfg};
+    csi_report_nof_bits = get_csi_report_pucch_size(create_csi_report_configuration(csi_meas_cfg)).part1_size.value();
   }
 
   std::optional<periodic_pucch_config> sr_cfg;
@@ -139,18 +146,14 @@ bool pucch_resource_manager::alloc_resources(ue_cell_config& cell_cfg)
       continue;
     }
 
-    if (not cell_ctx.default_csi_report_cfg.has_value()) {
+    if (not csi_report_nof_bits.has_value()) {
       // No CSI report to allocate. Allocation successful.
       sr_cfg = *sr_cfg_it;
       free_sr_configs.erase(sr_cfg_it);
       break;
     }
 
-    serv_cell_cfg.csi_meas_cfg->csi_report_cfg_list = {*cell_ctx.default_csi_report_cfg};
-    const auto csi_report_cfg                       = create_csi_report_configuration(*serv_cell_cfg.csi_meas_cfg);
-    const auto csi_report_size                      = get_csi_report_pucch_size(csi_report_cfg);
-    auto       optimal_res_it =
-        get_compatible_csi_cfg(cell_ctx, *sr_cfg_it, free_csi_configs, csi_report_size.part1_size.value());
+    auto optimal_res_it = get_compatible_csi_cfg(cell_ctx, *sr_cfg_it, free_csi_configs, *csi_report_nof_bits);
 
     if (optimal_res_it != free_csi_configs.end()) {
       // Allocation successful. Remove SR and CSI resources assigned to this UE from the lists of free resources.
@@ -164,7 +167,6 @@ bool pucch_resource_manager::alloc_resources(ue_cell_config& cell_cfg)
 
   if (not sr_cfg.has_value()) {
     // No suitable configuration found. Allocation failed.
-    disable_pucch_cfg(serv_cell_cfg, cell_ctx);
     return false;
   }
 
@@ -242,12 +244,8 @@ void pucch_resource_manager::update_resources(ue_cell_config& cell_cfg, const ue
 void pucch_resource_manager::apply_rep_factor_capabilities(ue_cell_config&                             cell_cfg,
                                                            const std::optional<ue_capability_summary>& ue_caps)
 {
-  serving_cell_config& serv_cell_cfg = cell_cfg.serv_cell_cfg;
-  if (not serv_cell_cfg.ul_config.has_value() or not serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg.has_value()) {
-    return;
-  }
-
-  const cell_resource_context& cell_ctx = cells[serv_cell_cfg.cell_index];
+  serving_cell_config&         serv_cell_cfg = cell_cfg.serv_cell_cfg;
+  const cell_resource_context& cell_ctx      = cells[serv_cell_cfg.cell_index];
 
   bool f1_3_4_supported      = false;
   bool f0_2_supported        = false;
@@ -382,13 +380,4 @@ std::set<unsigned> pucch_resource_manager::compute_periodic_uci_slot_offsets(con
     }
   }
   return slot_offsets;
-}
-
-void pucch_resource_manager::disable_pucch_cfg(serving_cell_config&         serv_cell_cfg,
-                                               const cell_resource_context& cell_ctx)
-{
-  serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg.reset();
-  if (cell_ctx.default_csi_report_cfg.has_value()) {
-    serv_cell_cfg.csi_meas_cfg.value().csi_report_cfg_list.clear();
-  }
 }

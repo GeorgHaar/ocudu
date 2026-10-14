@@ -36,7 +36,7 @@ public:
   /// \brief Allocate PUCCH resources for a given UE. The resources are stored in the UE's cell configuration.
   ///
   /// \remark PUCCH repetition is disabled until \c update_resources is called with the UE's reported capabilities.
-  /// \return true if allocation was successful.
+  /// \return true if allocation was successful. On failure, the UE's cell configuration is not changed.
   bool alloc_resources(ue_cell_config& ue_cell_cfg);
 
   /// \brief Deallocate PUCCH resources previously given to a UE. The resources are returned back to a pool.
@@ -46,6 +46,7 @@ public:
   /// \brief Update the UE's PUCCH resources based on its reported capabilities.
   ///
   /// Enables PUCCH repetition for the resources the UE has indicated support for.
+  /// \remark Call it only for a UE whose \c alloc_resources call succeeded.
   void update_resources(ue_cell_config& ue_cell_cfg, const ue_capability_summary& ue_caps);
 
   /// Gets the current number of free SR configurations for a given cell.
@@ -110,9 +111,6 @@ private:
   /// \remark Slot offsets common to SR and CSI are counted only once, as they will be sent together in one PUCCH.
   static std::set<unsigned>
   compute_periodic_uci_slot_offsets(const cell_resource_context& cell_ctx, unsigned sr_offset, unsigned csi_offset = 0);
-
-  /// Called when PUCCH allocation fails for a given UE.
-  static void disable_pucch_cfg(serving_cell_config& serv_cell_cfg, const cell_resource_context& cell_ctx);
 
   /// \brief Enable PUCCH repetition conditionally based on the UE's reported capabilities.
   ///

@@ -117,10 +117,10 @@ void uci_scheduler_impl::add_ue(const ue_cell_configuration& ue_cfg)
 
 void uci_scheduler_impl::add_ue_to_grid(const ue_cell_configuration& ue_cfg, bool is_reconf)
 {
-  if (ue_cfg.init_bwp().ul.ded() == nullptr or not ue_cfg.init_bwp().ul.ded()->pucch_cfg.has_value()) {
+  const ue_uplink_bwp_config* ue_ul_cfg = ue_cfg.init_bwp().ul.ue_cfg();
+  if (ue_ul_cfg == nullptr) {
     return;
   }
-  const ue_uplink_bwp_config* ue_ul_cfg = ue_cfg.init_bwp().ul.ue_cfg();
 
   // Save SR resource in the slot wheel.
   const unsigned sr_period_slots = sr_periodicity_to_slot(cell_cfg.params.init_bwp.pucch.sr_period);
@@ -143,10 +143,9 @@ void uci_scheduler_impl::add_ue_to_grid(const ue_cell_configuration& ue_cfg, boo
 void uci_scheduler_impl::reconf_ue(const ue_cell_configuration& new_ue_cfg, const ue_cell_configuration& old_ue_cfg)
 {
   // Detect whether there are any differences in the old and new UE cell config that affect periodic UCI scheduling.
-  if (new_ue_cfg.init_bwp().ul.ded() != nullptr and old_ue_cfg.init_bwp().ul.ded() != nullptr and
-      new_ue_cfg.init_bwp().ul.ded()->pucch_cfg.has_value() and old_ue_cfg.init_bwp().ul.ded()->pucch_cfg.has_value()) {
-    const ue_uplink_bwp_config* new_ul_cfg = new_ue_cfg.init_bwp().ul.ue_cfg();
-    const ue_uplink_bwp_config* old_ul_cfg = old_ue_cfg.init_bwp().ul.ue_cfg();
+  const ue_uplink_bwp_config* new_ul_cfg = new_ue_cfg.init_bwp().ul.ue_cfg();
+  const ue_uplink_bwp_config* old_ul_cfg = old_ue_cfg.init_bwp().ul.ue_cfg();
+  if (new_ul_cfg != nullptr and old_ul_cfg != nullptr) {
     if (new_ul_cfg->pucch == old_ul_cfg->pucch and new_ul_cfg->periodic_csi_report == old_ul_cfg->periodic_csi_report) {
       // Nothing changed.
       return;
@@ -159,10 +158,10 @@ void uci_scheduler_impl::reconf_ue(const ue_cell_configuration& new_ue_cfg, cons
 
 void uci_scheduler_impl::rem_ue(const ue_cell_configuration& ue_cfg)
 {
-  if (ue_cfg.init_bwp().ul.ded() == nullptr or not ue_cfg.init_bwp().ul.ded()->pucch_cfg.has_value()) {
+  const ue_uplink_bwp_config* ue_ul_cfg = ue_cfg.init_bwp().ul.ue_cfg();
+  if (ue_ul_cfg == nullptr) {
     return;
   }
-  const ue_uplink_bwp_config* ue_ul_cfg = ue_cfg.init_bwp().ul.ue_cfg();
 
   const unsigned sr_period_slots = sr_periodicity_to_slot(cell_cfg.params.init_bwp.pucch.sr_period);
   rem_resource(ue_cfg.crnti, ue_ul_cfg->pucch.sr_offset, sr_period_slots, true);

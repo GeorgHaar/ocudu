@@ -100,6 +100,24 @@ TEST_F(pucch_resource_manager_tester, when_ues_are_added_their_cfg_have_differen
   ASSERT_TRUE(true);
 }
 
+TEST_F(pucch_resource_manager_tester, when_allocation_fails_then_ue_cell_config_is_not_changed)
+{
+  const ue_cell_config default_cfg = ocudu::config_helpers::make_default_ue_cell_config(cell_cfg.params);
+
+  // Allocate UEs until the cell has no PUCCH resources left.
+  ue_cell_config ue_cfg    = default_cfg;
+  bool           allocated = true;
+  for (unsigned i = 0; i != MAX_NOF_DU_UES and allocated; ++i) {
+    ue_cfg    = default_cfg;
+    allocated = pucch_res_mng.alloc_resources(ue_cfg);
+  }
+  ASSERT_FALSE(allocated);
+
+  ASSERT_EQ(ue_cfg.serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg,
+            default_cfg.serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg);
+  ASSERT_EQ(ue_cfg.serv_cell_cfg.csi_meas_cfg, default_cfg.serv_cell_cfg.csi_meas_cfg);
+}
+
 TEST_F(pucch_resource_manager_tester, repetition_disabled_until_capabilities_confirm_support)
 {
   OCUDU_TEST_REQUIREMENTS("MVP-FUNC-BW-17-1");

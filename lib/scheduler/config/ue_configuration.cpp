@@ -692,10 +692,9 @@ void ue_cell_configuration::configure_bwp_cfg(bwp_id_t bwpid, const sched_bwp_co
   }
 }
 
-bool ue_cell_configuration::is_cfg_dedicated_complete() const
+bool ue_cell_configuration::has_dedicated_cfg() const
 {
-  const auto& bwp = init_bwp();
-  return bwp.dl.has_ded_cfg() and bwp.ul.ded() != nullptr and bwp.ul.ded()->pucch_cfg.has_value();
+  return init_bwp().ul.ue_cfg() != nullptr;
 }
 
 bool ue_cell_configuration::is_ul_enabled(slot_point                               ul_slot,
@@ -812,7 +811,6 @@ bool ue_configuration::is_ue_cfg_complete() const
   if (lc_list->size() == 1 and lc_list.value().contains(lcid_t::LCID_SRB0)) {
     return false;
   }
-  return std::any_of(du_cells.begin(), du_cells.end(), [](const auto& ue_cell_cfg) {
-    return ue_cell_cfg->is_cfg_dedicated_complete();
-  });
+  return std::any_of(
+      du_cells.begin(), du_cells.end(), [](const auto& ue_cell_cfg) { return ue_cell_cfg->has_dedicated_cfg(); });
 }

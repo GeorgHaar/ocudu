@@ -128,10 +128,9 @@ public:
 
   const std::optional<drx_config>& get_drx_cfg() const { return drx_cfg; }
 
-  /// Returns whether UE dedicated configuration is considered complete or not for scheduling the UE as a non-fallback
-  /// UE.
-  /// \remark UE can be scheduled in fallback scheduler even if UE does not have a complete UE dedicated configuration.
-  bool is_cfg_dedicated_complete() const;
+  /// \brief Returns whether the UE has a dedicated configuration in this cell.
+  /// \remark A UE without dedicated configuration uses only the common configuration of the cell, in fallback mode.
+  bool has_dedicated_cfg() const;
 
   /// Get BWP information given a BWP-Id.
   bool                    has_bwp_id(bwp_id_t bwp_id) const { return cell_ded->bwps.contains(bwp_id); }

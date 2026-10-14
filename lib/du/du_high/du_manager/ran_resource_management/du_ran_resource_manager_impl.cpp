@@ -7,7 +7,6 @@
 #include "ocudu/adt/format.h"
 #include "ocudu/mac/config/mac_cell_group_config_factory.h"
 #include "ocudu/ocudulog/ocudulog.h"
-#include "ocudu/ran/csi_report/csi_report_config_helpers.h"
 #include "ocudu/scheduler/config/ran_cell_config_helper.h"
 #include "ocudu/scheduler/config/serving_cell_config_factory.h"
 #include "ocudu/scheduler/rrm/configured_grant_rrm_factory.h"
@@ -56,18 +55,12 @@ void du_ue_ran_resource_updater_impl::clear_cs_rnti()
 
 ///////////////////////////
 
-// Helper that resets the PUCCH and SRS configurations in the serving cell configuration.
+// Helper that removes the SRS and CG configurations from the default serving cell configuration. The SRS resource
+// manager allocates the SRS configuration, and the CG resource manager allocates the CG configuration once the UE has
+// DRBs.
 static void reset_serv_cell_cfg(serving_cell_config& serv_cell_cfg)
 {
-  ocudu_assert(serv_cell_cfg.ul_config.has_value() and
-                   serv_cell_cfg.ul_config.value().init_ul_bwp.pucch_cfg.has_value() and
-                   serv_cell_cfg.ul_config.value().init_ul_bwp.srs_cfg.has_value(),
-               "UL configuration in Serving cell config not configured");
-
-  serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg.reset();
-  if (serv_cell_cfg.csi_meas_cfg.has_value() and not is_pusch_configured(*serv_cell_cfg.csi_meas_cfg)) {
-    serv_cell_cfg.csi_meas_cfg.value().csi_report_cfg_list.clear();
-  }
+  ocudu_assert(serv_cell_cfg.ul_config.has_value(), "UL configuration in Serving cell config not configured");
 
   serv_cell_cfg.ul_config->init_ul_bwp.srs_cfg.reset();
   serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
@@ -483,8 +476,6 @@ error_type<std::string> du_ran_resource_manager_impl::allocate_cell_resources(du
     }
     ue_res.cell_group.pcg_cfg.pdsch_harq_codebook = pdsch_harq_ack_codebook::dynamic;
 
-    // Start with removing PUCCH and SRS configurations. This step simplifies the handling of the allocation failure
-    // path.
     reset_serv_cell_cfg(ue_res.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg);
 
     // On failure, the UE keeps no dedicated configuration. It uses only the common configuration of the cell.

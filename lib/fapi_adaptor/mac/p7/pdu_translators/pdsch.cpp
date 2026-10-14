@@ -61,8 +61,11 @@ static void fill_dmrs(fapi::dl_pdsch_pdu_builder& builder, const dmrs_informatio
 static void
 fill_frequency_allocation(fapi::dl_pdsch_pdu_builder& builder, const vrb_alloc& rbs, vrb_to_prb::mapping_type mapping)
 {
-  const vrb_interval& vrbs = rbs.type1();
-  builder.set_frequency_allocation_type_1(vrbs, mapping);
+  if (rbs.is_type0()) {
+    builder.set_frequency_allocation_type_0(rbs.type0());
+    return;
+  }
+  builder.set_frequency_allocation_type_1(rbs.type1(), mapping);
 }
 
 static void fill_time_allocation(fapi::dl_pdsch_pdu_builder& builder, const ofdm_symbol_range& symbols)

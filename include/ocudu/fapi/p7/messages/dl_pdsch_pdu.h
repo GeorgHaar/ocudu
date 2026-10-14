@@ -95,7 +95,7 @@ struct dl_pdsch_pdu {
   uint8_t                                                              nscid;
   uint8_t                                                              num_dmrs_cdm_grps_no_data;
   dmrs_ports_mask                                                      dmrs_ports;
-  resource_allocation_type_1                                           resource_alloc;
+  std::variant<resource_allocation_type_1, resource_allocation_type_0> resource_alloc;
   vrb_to_prb::mapping_type                                             vrb_to_prb_mapping;
   ofdm_symbol_range                                                    symbols;
   std::variant<power_profile_nr, power_profile_sss>                    power_config;
@@ -156,7 +156,13 @@ struct formatter<ocudu::fapi::dl_pdsch_pdu> {
         pdu.cws.front().rv_index,
         pdu.cws.front().tb_size);
 
-    format_to(ctx.out(), " Resource allocation type 1: vrbs={}", pdu.resource_alloc.vrbs);
+    if (const auto* type0 = std::get_if<ocudu::fapi::resource_allocation_type_0>(&pdu.resource_alloc)) {
+      format_to(ctx.out(), " Resource allocation type 0: vrbs={:i}", type0->vrbs);
+    } else {
+      format_to(ctx.out(),
+                " Resource allocation type 1: vrbs={}",
+                std::get<ocudu::fapi::resource_allocation_type_1>(pdu.resource_alloc).vrbs);
+    }
 
     if (const auto* power_prof_nr = std::get_if<ocudu::fapi::dl_pdsch_pdu::power_profile_nr>(&pdu.power_config)) {
       format_to(ctx.out(),

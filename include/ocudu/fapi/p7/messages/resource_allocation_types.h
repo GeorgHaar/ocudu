@@ -4,10 +4,17 @@
 
 #pragma once
 
+#include "ocudu/ran/resource_allocation/rb_bitmap.h"
 #include "ocudu/ran/resource_allocation/rb_interval.h"
 
 namespace ocudu {
 namespace fapi {
+
+/// Holds the parameters for the Resource Allocation Type 0.
+struct resource_allocation_type_0 {
+  /// Allocated VRBs of the BWP.
+  vrb_bitmap vrbs;
+};
 
 /// Holds the parameters for the Resource Allocation Type 1.
 struct resource_allocation_type_1 {

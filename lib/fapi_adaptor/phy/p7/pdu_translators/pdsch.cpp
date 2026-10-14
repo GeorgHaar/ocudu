@@ -102,8 +102,12 @@ static void fill_rb_allocation(pdsch_processor::pdu_t& proc_pdu, const fapi::dl_
     report_error("Unsupported VRB to PRB mapping in PDSCH PDU");
   }
 
-  proc_pdu.freq_alloc = rb_allocation::make_type1(
-      fapi_pdu.resource_alloc.vrbs.start(), fapi_pdu.resource_alloc.vrbs.length(), vrb_to_prb_config);
+  if (const auto* type0 = std::get_if<fapi::resource_allocation_type_0>(&fapi_pdu.resource_alloc)) {
+    proc_pdu.freq_alloc = rb_allocation::make_type0(type0->vrbs, vrb_to_prb_config);
+    return;
+  }
+  const vrb_interval& vrbs = std::get<fapi::resource_allocation_type_1>(fapi_pdu.resource_alloc).vrbs;
+  proc_pdu.freq_alloc      = rb_allocation::make_type1(vrbs.start(), vrbs.length(), vrb_to_prb_config);
 }
 
 void ocudu::fapi_adaptor::convert_pdsch_fapi_to_phy(pdsch_processor::pdu_t&              proc_pdu,

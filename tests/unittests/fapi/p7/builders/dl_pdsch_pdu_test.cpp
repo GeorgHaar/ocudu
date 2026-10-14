@@ -120,7 +120,22 @@ TEST(dl_pdsch_pdu_builder, valid_freq_allocation_type_1_parameters_passes)
   builder.set_frequency_allocation_type_1(vrbs, vrb_to_prb);
 
   ASSERT_EQ(vrb_to_prb, pdu.vrb_to_prb_mapping);
-  ASSERT_EQ(vrbs, pdu.resource_alloc.vrbs);
+  ASSERT_EQ(vrbs, std::get<resource_allocation_type_1>(pdu.resource_alloc).vrbs);
+}
+
+TEST(dl_pdsch_pdu_builder, valid_freq_allocation_type_0_parameters_passes)
+{
+  dl_pdsch_pdu         pdu;
+  dl_pdsch_pdu_builder builder(pdu);
+
+  vrb_bitmap vrbs(52);
+  vrbs.fill(4, 8);
+  vrbs.fill(20, 24);
+
+  builder.set_frequency_allocation_type_0(vrbs);
+
+  ASSERT_EQ(vrb_to_prb::mapping_type::non_interleaved, pdu.vrb_to_prb_mapping);
+  ASSERT_EQ(vrbs, std::get<resource_allocation_type_0>(pdu.resource_alloc).vrbs);
 }
 
 TEST(dl_pdsch_pdu_builder, valid_time_allocation_parameters_passes)

@@ -264,6 +264,26 @@ TEST(fapi_to_phy_pdsch_conversion_test, valid_pdu_conversion_success)
   }
 }
 
+TEST(fapi_to_phy_pdsch_conversion_test, type0_allocation_is_mapped_to_its_vrb_bitmap)
+{
+  auto pm_tools = generate_precoding_codebooks(pmi_codebook_one_port{}, antenna_topology::one_port, 0);
+  const precoding_codebook_repository& pm_repo = *std::get<std::unique_ptr<precoding_codebook_repository>>(pm_tools);
+
+  fapi::dl_pdsch_pdu fapi_pdu = unittest::build_valid_dl_pdsch_pdu();
+  fapi_pdu.bwp                = {0, 52};
+  vrb_bitmap vrbs(fapi_pdu.bwp.length());
+  vrbs.fill(0, 4);
+  vrbs.fill(12, 20);
+  fapi_pdu.resource_alloc     = fapi::resource_allocation_type_0{vrbs};
+  fapi_pdu.vrb_to_prb_mapping = vrb_to_prb::mapping_type::non_interleaved;
+  fapi_pdu.mapping            = fapi::dl_pdsch_pdu::non_interleaved_other{};
+
+  pdsch_processor::pdu_t proc_pdu;
+  convert_pdsch_fapi_to_phy(proc_pdu, fapi_pdu, slot_point(1, 0), {}, pm_repo);
+
+  ASSERT_EQ(proc_pdu.freq_alloc, rb_allocation::make_type0(vrbs, vrb_to_prb::create_non_interleaved_other()));
+}
+
 TEST(fapi_to_phy_pdsch_conversion_test, beamformed_pdsch_is_mapped_onto_its_beam)
 {
   auto pm_tools = generate_precoding_codebooks(pmi_codebook_one_port{}, antenna_topology::one_port, 0);

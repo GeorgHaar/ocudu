@@ -42,7 +42,11 @@ static void validate_pdsch_information(const pdsch_information& pdsch_cfg, const
   // Frequency allocation.
   const vrb_alloc& prb_cfg = pdsch_cfg.rbs;
   ASSERT_EQ(fapi_pdu.vrb_to_prb_mapping, vrb_to_prb::mapping_type::non_interleaved);
-  ASSERT_EQ(prb_cfg.type1(), fapi_pdu.resource_alloc.vrbs);
+  if (prb_cfg.is_type0()) {
+    ASSERT_EQ(prb_cfg.type0(), std::get<fapi::resource_allocation_type_0>(fapi_pdu.resource_alloc).vrbs);
+  } else {
+    ASSERT_EQ(prb_cfg.type1(), std::get<fapi::resource_allocation_type_1>(fapi_pdu.resource_alloc).vrbs);
+  }
 }
 
 TEST(mac_fapi_pdsch_pdu_conversor_test, valid_sib1_pdu_should_pass)
@@ -130,6 +134,31 @@ TEST(mac_fapi_pdsch_pdu_conversor_test, valid_dl_msg_alloc_pdu_should_pass)
   ASSERT_FALSE(std::get<1>(pm_tools)
                    ->get_precoding_config(std::get<fapi::precoding_matrix_index>(fapi_prec.prg.precoding))
                    .mimo.get_nof_layers() == 0);
+}
+
+TEST(mac_fapi_pdsch_pdu_conversor_test, dl_msg_alloc_pdu_with_type0_allocation_carries_its_vrb_bitmap)
+{
+  dl_msg_allocation_test_helper pdu_test = build_valid_dl_msg_alloc_pdu();
+  dl_msg_alloc                  pdu      = pdu_test.pdu;
+  bwp_configuration             bwp_cfg  = *pdu.pdsch_cfg.bwp_cfg;
+  bwp_cfg.crbs                           = {0, 52};
+  pdu.pdsch_cfg.bwp_cfg                  = &bwp_cfg;
+  vrb_bitmap vrbs(bwp_cfg.crbs.length());
+  vrbs.fill(0, 4);
+  vrbs.fill(12, 20);
+  pdu.pdsch_cfg.rbs             = vrbs;
+  pdu.pdsch_cfg.vrb_prb_mapping = vrb_to_prb::mapping_type::non_interleaved;
+
+  fapi::dl_pdsch_pdu         fapi_pdu;
+  fapi::dl_pdsch_pdu_builder builder(fapi_pdu);
+  auto                       pm_tools = generate_precoding_codebooks(
+      pmi_codebook_typeI_single_panel{pmi_codebook_single_panel_config::two_one, pmi_codebook_typeI_mode::one},
+      antenna_topology::four_ports,
+      0);
+  convert_pdsch_mac_to_fapi(builder, pdu, 0, *std::get<0>(pm_tools), 51U);
+
+  ASSERT_TRUE(std::holds_alternative<fapi::resource_allocation_type_0>(fapi_pdu.resource_alloc));
+  validate_pdsch_information(pdu.pdsch_cfg, fapi_pdu);
 }
 
 TEST(mac_fapi_pdsch_pdu_conversor_test, beamformed_rar_carries_its_beam)

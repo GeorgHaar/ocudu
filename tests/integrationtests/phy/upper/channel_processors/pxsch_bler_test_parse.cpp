@@ -58,7 +58,7 @@ static std::optional<port_channel_estimator_fd_smoothing_strategy> parse_fd_smoo
   return std::nullopt;
 }
 
-std::optional<pxsch_bler_test_configuration> parse_configuration(int argc, char** argv)
+expected<pxsch_bler_test_configuration, int> parse_configuration(int argc, char** argv)
 {
   CLI::App                      app{"OCUDU PxSCH BLER test"};
   pxsch_bler_test_configuration cfg;
@@ -163,8 +163,7 @@ std::optional<pxsch_bler_test_configuration> parse_configuration(int argc, char*
   try {
     app.parse(argc, argv);
   } catch (const CLI::ParseError& e) {
-    app.exit(e);
-    return std::nullopt;
+    return make_unexpected(app.exit(e));
   }
 
   return cfg;

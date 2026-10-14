@@ -5,11 +5,11 @@
 
 #pragma once
 
+#include "ocudu/adt/expected.h"
 #include "ocudu/phy/upper/signal_processors/channel_estimator/port_channel_estimator_parameters.h"
 #include "ocudu/ran/dmrs/dmrs.h"
 #include "ocudu/ran/pdsch/pdsch_mcs.h"
 #include "ocudu/ran/sch/sch_mcs.h"
-#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -46,7 +46,8 @@ struct pxsch_bler_test_configuration {
 
 /// \brief Parse CLI11 arguments into a \c pxsch_bler_test_configuration.
 ///
-/// \return The PxSCH BLER test configuration if the parsing succeds, otherwise \c std::nullopt.
-std::optional<pxsch_bler_test_configuration> parse_configuration(int argc, char** argv);
+/// \return The PxSCH BLER test configuration if the parsing succeeds, otherwise the process exit code (zero if the help
+/// was requested).
+expected<pxsch_bler_test_configuration, int> parse_configuration(int argc, char** argv);
 
 } // namespace ocudu

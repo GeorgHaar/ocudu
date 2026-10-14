@@ -502,8 +502,9 @@ private:
 int main(int argc, char** argv)
 {
   auto cfg = parse_configuration(argc, argv);
-
-  report_fatal_error_if_not(cfg, "Failed to parse CLI arguments");
+  if (!cfg.has_value()) {
+    return cfg.error();
+  }
 
   pxsch_bler_test test(cfg.value());
   test.run();

@@ -63,14 +63,14 @@ public:
     // Don't allow further processing requests.
     stop_control.stop();
 
+    // Wait for all demodulators to complete their pending tasks.
+    std::for_each(demodulators.begin(), demodulators.end(), [](const auto& demodulator) { demodulator->stop(); });
+
     // Release the stored requests.
     requests.clear();
 
     // Close the current slot, if any.
     current_demodulator.release();
-
-    // Wait for all demodulators to complete their pending tasks.
-    std::for_each(demodulators.begin(), demodulators.end(), [](const auto& demodulator) { demodulator->stop(); });
   }
 
   // See interface for documentation.

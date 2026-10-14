@@ -557,7 +557,8 @@ struct rate_matching_geometry {
   int N_cols = 0;
   /// Number of bits the encoder produced, including the punctured columns.
   int N_full = 0;
-  /// Number of bits the circular buffer holds, which is what the punctured columns leave.
+  /// Number of bits of the circular buffer the selection wraps around, N_cb of TS 38.212, Section 5.4.2.1: what the
+  /// punctured columns leave, limited to N_ref with limited-buffer rate matching.
   int N = 0;
   /// Number of bits the punctured columns occupy.
   int puncture_offset = 0;
@@ -616,12 +617,11 @@ static cuda_result derive_geometry(rate_matching_geometry& geometry, const codeb
   geometry.Kd              = Kb * Z - geometry.F;
   geometry.E               = static_cast<int>(cfg.cb_specific.rm_length);
 
-  // A limited buffer shortens the circular buffer the selection wraps around.
-  int N_cb = geometry.N;
+  // A limited buffer shortens the circular buffer the selection wraps around, and the starting positions with it.
   if (cfg.tb_common.Nref > 0) {
-    N_cb = std::min(static_cast<int>(cfg.tb_common.Nref), geometry.N);
+    geometry.N = std::min(static_cast<int>(cfg.tb_common.Nref), geometry.N);
   }
-  geometry.k0 = starting_position(base_graph, Z, cfg.tb_common.rv, N_cb);
+  geometry.k0 = starting_position(base_graph, Z, cfg.tb_common.rv, geometry.N);
 
   return {};
 }

@@ -7,7 +7,9 @@
 #include "ocudu/cuda/adt/device_vector.h"
 #include "ocudu/cuda/phy/upper/channel_coding/ldpc/ldpc_rate_matching.h"
 #include "ocudu/phy/upper/channel_coding/channel_coding_factories.h"
+#include "ocudu/phy/upper/channel_coding/ldpc/ldpc.h"
 #include "ocudu/phy/upper/channel_coding/ldpc/ldpc_encoder_buffer.h"
+#include "ocudu/ran/sch/sch_constants.h"
 #include <cuda_runtime.h>
 #include <gtest/gtest.h>
 #include <random>
@@ -33,7 +35,12 @@ struct matcher_case {
   float                rate;
   modulation_scheme    mod;
   const char*          reaches;
+  /// Limited circular buffer size N_ref of TS 38.212, Section 5.4.2.1, or 0 for the full buffer.
+  unsigned Nref = 0;
 };
+
+/// Limited circular buffer size N_ref the gNB uses for a transport block of 76 code blocks under the default TBS_LBRM.
+const unsigned gnb_Nref = ldpc::compute_N_ref(tbs_lbrm_default, 76).value();
 
 /// Shapes that between them cover both base graphs, every redundancy version, filler bits, and a
 /// rate matched length longer than the circular buffer, which makes the selection wrap.
@@ -77,6 +84,20 @@ const std::vector<matcher_case> cases = {
      modulation_scheme::QAM64,
      "base graph 2, redundancy version 2"},
     {ldpc_base_graph_type::BG2, ldpc::LS128, 0, 64, 0.5F, modulation_scheme::QAM16, "base graph 2 with filler bits"},
+    // Limited-buffer rate matching: N_cb = min(N, N_ref) sets the starting position of each redundancy version and the
+    // point where the selection wraps. The rate matched lengths exceed N_ref, so the selection wraps.
+    {ldpc_base_graph_type::BG1, ldpc::LS384, 0, 0, 0.5F, modulation_scheme::QPSK, "limited buffer, rv 0", 12000},
+    {ldpc_base_graph_type::BG1, ldpc::LS384, 1, 0, 0.5F, modulation_scheme::QAM16, "limited buffer, rv 1", 12000},
+    {ldpc_base_graph_type::BG1, ldpc::LS384, 2, 0, 0.5F, modulation_scheme::QAM64, "limited buffer, rv 2", 12000},
+    {ldpc_base_graph_type::BG1, ldpc::LS384, 3, 0, 0.5F, modulation_scheme::QAM256, "limited buffer, rv 3", 12000},
+    {ldpc_base_graph_type::BG2, ldpc::LS256, 2, 64, 0.5F, modulation_scheme::QPSK, "limited buffer, BG2, filler", 4000},
+    // N_ref as the gNB derives it from the default TBS_LBRM for a transport block of 76 code blocks, the fewest for
+    // which N_ref < N. The rate matched length is shorter than N_ref, so redundancy versions 0 and 1 never reach the
+    // end of the limited buffer, while redundancy versions 2 and 3 start late enough to wrap around it.
+    {ldpc_base_graph_type::BG1, ldpc::LS384, 0, 0, 0.5F, modulation_scheme::QAM64, "default TBS_LBRM, rv 0", gnb_Nref},
+    {ldpc_base_graph_type::BG1, ldpc::LS384, 1, 0, 0.5F, modulation_scheme::QAM64, "default TBS_LBRM, rv 1", gnb_Nref},
+    {ldpc_base_graph_type::BG1, ldpc::LS384, 2, 0, 0.5F, modulation_scheme::QAM256, "default TBS_LBRM, rv 2", gnb_Nref},
+    {ldpc_base_graph_type::BG1, ldpc::LS384, 3, 0, 0.5F, modulation_scheme::QAM256, "default TBS_LBRM, rv 3", gnb_Nref},
 };
 
 class ldpc_rate_matching_kernel_test : public ::testing::Test
@@ -174,7 +195,7 @@ protected:
     cfg.tb_common.lifting_size = c.lifting_size;
     cfg.tb_common.rv           = c.rv;
     cfg.tb_common.mod          = c.mod;
-    cfg.tb_common.Nref         = 0;
+    cfg.tb_common.Nref         = c.Nref;
 
     unsigned Kb                     = (c.base_graph == ldpc_base_graph_type::BG1) ? 22 : 10;
     cfg.cb_specific.full_length     = nof_encoded_bits;
@@ -322,6 +343,67 @@ TEST_F(ldpc_rate_matching_kernel_test, dematching_puts_the_ratios_back_where_the
     ++nof_checked;
   }
   EXPECT_GE(nof_checked, E / 2) << "the dematcher filled too few positions to be meaningful";
+}
+
+TEST_F(ldpc_rate_matching_kernel_test, dematching_matches_the_software_matcher_with_a_limited_buffer)
+{
+  // The receiver must dematch with the same limited circular buffer the transmitter matched with. The reference here is
+  // the software rate matcher with BPSK, whose bit interleaver is the identity, so its output is the selection itself.
+  for (const matcher_case& c : cases) {
+    if (c.Nref == 0) {
+      continue;
+    }
+    unsigned Z  = static_cast<unsigned>(c.lifting_size);
+    unsigned Kb = (c.base_graph == ldpc_base_graph_type::BG1) ? 22 : 10;
+    unsigned K  = Kb * Z;
+
+    dynamic_bit_buffer                 message = make_bits(K, 0x5eed);
+    ocudu::ldpc_encoder::configuration enc_cfg;
+    enc_cfg.base_graph                 = c.base_graph;
+    enc_cfg.lifting_size               = c.lifting_size;
+    const ldpc_encoder_buffer& encoded = encoder->encode(message, enc_cfg);
+
+    std::vector<uint8_t> full = full_codeword(message, encoded, Z);
+    codeblock_metadata   cfg  = make_metadata(c, static_cast<unsigned>(full.size()));
+    cfg.tb_common.mod         = modulation_scheme::BPSK;
+    unsigned E                = cfg.cb_specific.rm_length;
+
+    dynamic_bit_buffer selected(E);
+    reference_matcher->rate_match(selected, encoded, cfg);
+
+    // A clean channel: a 0 bit becomes a positive ratio, a 1 bit a negative one.
+    std::vector<float> received(E);
+    for (unsigned i = 0; i != E; ++i) {
+      received[i] = (selected.extract(i, 1) != 0) ? -1.0F : 1.0F;
+    }
+
+    ASSERT_TRUE(gpu_dematcher.configure(cfg).has_value()) << c.reaches;
+    unsigned nof_output = gpu_dematcher.get_output_bits();
+
+    cuda::cuda_expected<cuda::device_vector<float>> d_in  = cuda::device_vector<float>::create(E);
+    cuda::cuda_expected<cuda::device_vector<float>> d_out = cuda::device_vector<float>::create(nof_output);
+    ASSERT_TRUE(d_in.has_value());
+    ASSERT_TRUE(d_out.has_value());
+    ASSERT_TRUE(cuda::copy_to_device(d_in.value(), span<const float>(received.data(), received.size())).has_value());
+    ASSERT_TRUE(gpu_dematcher.rate_dematch(d_out.value().data(), d_in.value().data(), 1, stream).has_value())
+        << c.reaches;
+    ASSERT_EQ(::cudaDeviceSynchronize(), cudaSuccess) << c.reaches;
+
+    std::vector<float> dematched(nof_output);
+    ASSERT_TRUE(cuda::copy_to_host(span<float>(dematched.data(), dematched.size()), d_out.value()).has_value());
+
+    // Every position the dematcher filled must agree in sign with the codeword bit there. Filler bits, the last
+    // c.nof_filler_bits of the K systematic bits, are reported as known zeros and are checked elsewhere.
+    unsigned nof_checked = 0;
+    for (unsigned i = 2 * Z; i != nof_output; ++i) {
+      if ((dematched[i] == 0.0F) || ((i >= K - c.nof_filler_bits) && (i < K))) {
+        continue;
+      }
+      ASSERT_EQ(static_cast<uint8_t>(dematched[i] <= 0.0F), full[i]) << c.reaches << ", bit " << i;
+      ++nof_checked;
+    }
+    EXPECT_GE(nof_checked, std::min(E, c.Nref) / 2) << "the dematcher filled too few positions, " << c.reaches;
+  }
 }
 
 TEST_F(ldpc_rate_matching_kernel_test, filler_bits_are_reported_as_known_zeros)

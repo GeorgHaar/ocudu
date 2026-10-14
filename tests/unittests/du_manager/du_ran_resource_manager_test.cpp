@@ -456,12 +456,7 @@ TEST_P(du_ran_resource_manager_tester, when_multiple_ues_are_created_then_they_u
     const ue_ran_resource_configurator* ue_res_no_resources = create_ue(next_ue_index);
     ASSERT_NE(ue_res_no_resources, nullptr);
     ASSERT_TRUE(ue_res_no_resources->resource_alloc_failed());
-    ASSERT_FALSE(ue_res_no_resources->value()
-                     .cell_group.cells.at(SERVING_PCELL_IDX)
-                     .serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg.has_value());
-    ASSERT_TRUE(ue_res_no_resources->value()
-                    .cell_group.cells.at(SERVING_PCELL_IDX)
-                    .serv_cell_cfg.csi_meas_cfg->csi_report_cfg_list.empty());
+    ASSERT_FALSE(ue_res_no_resources->value().cell_group.cells.contains(SERVING_PCELL_IDX));
     ues.erase(next_ue_index);
   }
 
@@ -531,6 +526,21 @@ TEST_P(du_ran_resource_manager_tester, when_ue_context_is_released_then_cell_acc
   ASSERT_EQ(create_ue(to_du_ue_index(max_nof_ue_ctxts)), nullptr);
 
   ues.erase(to_du_ue_index(0));
+
+  ASSERT_NE(create_ue(to_du_ue_index(max_nof_ue_ctxts)), nullptr);
+}
+
+TEST_P(du_ran_resource_manager_tester, when_ue_without_resources_is_released_then_its_context_is_reused)
+{
+  // Use all the UE contexts of the cell. No context is left for another UE.
+  const unsigned max_nof_ue_ctxts = get_max_nof_ue_contexts();
+  ASSERT_EQ(fill_cell_ue_contexts(), max_nof_ue_ctxts);
+  ASSERT_EQ(create_ue(to_du_ue_index(max_nof_ue_ctxts)), nullptr);
+
+  // The last UE has a context but no PCell resources.
+  const du_ue_index_t rejected_ue = to_du_ue_index(max_nof_ue_ctxts - 1);
+  ASSERT_TRUE(ues[rejected_ue].resource_alloc_failed());
+  ues.erase(rejected_ue);
 
   ASSERT_NE(create_ue(to_du_ue_index(max_nof_ue_ctxts)), nullptr);
 }
@@ -1134,7 +1144,7 @@ protected:
   }
 };
 
-TEST_P(du_ran_res_mng_pucch_srs_tester, when_alloc_fail_ue_has_no_srs_and_no_pucch_cfgs)
+TEST_P(du_ran_res_mng_pucch_srs_tester, when_alloc_fails_then_ue_has_no_pcell_cfg)
 {
   // This tests how the DU handles the RAN resource allocation failure due to lack of PUCCH or SRS resources.
   for (unsigned i = 0; i != MAX_NOF_DU_UES; ++i) {
@@ -1142,15 +1152,7 @@ TEST_P(du_ran_res_mng_pucch_srs_tester, when_alloc_fail_ue_has_no_srs_and_no_puc
     const ue_ran_resource_configurator* ue_res        = create_ue(next_ue_index);
     ASSERT_NE(ue_res, nullptr);
     if (ue_res->resource_alloc_failed()) {
-      ASSERT_FALSE(ue_res->value()
-                       .cell_group.cells.at(SERVING_PCELL_IDX)
-                       .serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg.has_value());
-      ASSERT_TRUE(ue_res->value()
-                      .cell_group.cells.at(SERVING_PCELL_IDX)
-                      .serv_cell_cfg.csi_meas_cfg->csi_report_cfg_list.empty());
-      ASSERT_FALSE(ue_res->value()
-                       .cell_group.cells.at(SERVING_PCELL_IDX)
-                       .serv_cell_cfg.ul_config->init_ul_bwp.srs_cfg.has_value());
+      ASSERT_FALSE(ue_res->value().cell_group.cells.contains(SERVING_PCELL_IDX));
       break;
     } else {
       ASSERT_TRUE(ue_res->value()

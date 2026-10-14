@@ -231,14 +231,15 @@ unsigned du_ran_resource_manager_impl::compute_max_nof_established_ue_ctxts(du_c
   return std::min(max_nof_ues, max_nof_ue_ctxts_per_cell - max_nof_rejected_ue_ctxts);
 }
 
-void du_ran_resource_manager_impl::move_ue_ctxt_count(du_cell_index_t old_pcell_index, du_cell_index_t new_pcell_index)
+void du_ran_resource_manager_impl::move_ue_ctxt_count(ue_resource_context& u, du_cell_index_t new_pcell_index)
 {
-  if (old_pcell_index != INVALID_DU_CELL_INDEX) {
-    --cell_ue_ctxts[old_pcell_index].nof_allocated;
+  if (u.counted_cell_index != INVALID_DU_CELL_INDEX) {
+    --cell_ue_ctxts[u.counted_cell_index].nof_allocated;
   }
   if (new_pcell_index != INVALID_DU_CELL_INDEX) {
     ++cell_ue_ctxts[new_pcell_index].nof_allocated;
   }
+  u.counted_cell_index = new_pcell_index;
 }
 
 expected<ue_ran_resource_configurator, std::string>
@@ -262,8 +263,9 @@ du_ran_resource_manager_impl::create_ue_resource_configurator(du_ue_index_t   ue
   ++cell_ctxts.nof_allocated;
 
   ue_res_pool.emplace(ue_index, *this);
-  auto& ue_res = ue_res_pool[ue_index];
-  auto& mcg    = ue_res.cg_cfg;
+  auto& ue_res              = ue_res_pool[ue_index];
+  auto& mcg                 = ue_res.cg_cfg;
+  ue_res.counted_cell_index = pcell_index;
 
   // UE initialized PCell.
   // Note: In case of lack of RAN resource availability, the return will be error type.
@@ -275,8 +277,9 @@ du_ran_resource_manager_impl::create_ue_resource_configurator(du_ue_index_t   ue
   // Initialize UE with DRX disabled.
   drx_res_mng.handle_ue_creation(ue_res.cg_cfg.cell_group);
 
-  // Allocate CFRA resources when TC-RNTI was not yet assigned (e.g. during for Handover).
-  if (not has_tc_rnti) {
+  // Allocate CFRA resources when TC-RNTI was not yet assigned (e.g. during for Handover). A UE without PCell resources
+  // cannot complete the handover.
+  if (not has_tc_rnti and err.has_value()) {
     ra_res_alloc.allocate_cfra_resources(ue_res.cg_cfg);
   }
 
@@ -308,7 +311,7 @@ du_ran_resource_manager_impl::update_context(du_ue_index_t                      
     }
 
     // >> Deallocate PCell resources.
-    move_ue_ctxt_count(ue_mcg.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg.cell_index, pcell_idx);
+    move_ue_ctxt_count(u, pcell_idx);
     deallocate_cell_resources(ue_index, SERVING_PCELL_IDX);
   }
   for (serv_cell_index_t scell_idx : upd_req.scells_to_rem) {
@@ -433,11 +436,7 @@ void du_ran_resource_manager_impl::deallocate_context(du_ue_index_t ue_index)
   ocudu_assert(ue_res_pool.contains(ue_index), "This function should only be called for an already allocated UE");
   ue_resource_context&   ue_res = ue_res_pool[ue_index];
   du_ue_resource_config& ue_mcg = ue_res.cg_cfg;
-
-  // The PCell resources are deallocated below, which clears the DU cell index of the UE.
-  const du_cell_index_t pcell_index = ue_mcg.cell_group.cells.contains(SERVING_PCELL_IDX)
-                                          ? ue_mcg.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg.cell_index
-                                          : INVALID_DU_CELL_INDEX;
+  const du_cell_index_t  pcell_index = ue_res.counted_cell_index;
 
   ra_res_alloc.deallocate_cfra_resources(ue_mcg);
   drx_res_mng.handle_ue_removal(ue_mcg.cell_group);
@@ -487,16 +486,15 @@ error_type<std::string> du_ran_resource_manager_impl::allocate_cell_resources(du
     // path.
     reset_serv_cell_cfg(ue_res.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg);
 
+    // On failure, the UE keeps no dedicated configuration. It uses only the common configuration of the cell.
     if (not srs_res_mng->alloc_resources(ue_res.cell_group.cells.at(SERVING_PCELL_IDX))) {
-      // Clear dedicated PDCCH config so the UE falls back to common search spaces only.
-      ue_res.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg.init_dl_bwp.pdcch_cfg.reset();
+      ue_res.cell_group.cells.erase(SERVING_PCELL_IDX);
       return make_unexpected(fmt::format("Unable to allocate SRS resources for cell={}", cell_index));
     }
 
     if (not pucch_res_mng.alloc_resources(ue_res.cell_group.cells.at(SERVING_PCELL_IDX))) {
-      // Deallocate previously allocated SRS resources and clear dedicated PDCCH config.
       srs_res_mng->dealloc_resources(ue_res.cell_group.cells.at(SERVING_PCELL_IDX));
-      ue_res.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg.init_dl_bwp.pdcch_cfg.reset();
+      ue_res.cell_group.cells.erase(SERVING_PCELL_IDX);
       return make_unexpected(fmt::format("Unable to allocate dedicated PUCCH resources for cell={}", cell_index));
     }
 

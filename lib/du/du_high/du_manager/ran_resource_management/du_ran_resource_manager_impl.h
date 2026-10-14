@@ -132,8 +132,10 @@ private:
   // Computes the upper-bound on the number of UEs that a cell can support with dedicated resources.
   unsigned compute_max_nof_established_ue_ctxts(du_cell_index_t cell_index) const;
 
+  struct ue_resource_context;
+
   // Reattributes an allocated UE context from one cell to another, on PCell change.
-  void move_ue_ctxt_count(du_cell_index_t old_pcell_index, du_cell_index_t new_pcell_index);
+  void move_ue_ctxt_count(ue_resource_context& u, du_cell_index_t new_pcell_index);
 
   span<const du_cell_config> cell_cfg_list;
   ocudulog::basic_logger&    logger;
@@ -141,6 +143,9 @@ private:
 
   struct ue_resource_context {
     du_ue_resource_config cg_cfg;
+
+    /// Cell whose UE context count includes this UE.
+    du_cell_index_t counted_cell_index = INVALID_DU_CELL_INDEX;
 
     /// Processor of UE capabilities.
     ue_capability_manager ue_cap_manager;

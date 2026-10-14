@@ -818,7 +818,7 @@ protected:
     auto cell_cfg_req = sched_config_helper::make_default_sched_cell_configuration_request(builder_params);
     add_cell(cell_cfg_req);
 
-    // Create a UE without serv cell config.
+    // Create a UE without dedicated config.
     auto ue_cfg     = sched_config_helper::create_empty_spcell_cfg_sched_ue_creation_request(cell_cfg_req.ran);
     ue_cfg.ue_index = ue_index;
     ue_cfg.crnti    = rnti;
@@ -833,7 +833,7 @@ protected:
   const unsigned        msg4_size  = 128;
 };
 
-TEST_F(scheduler_ue_no_config_test, when_ue_has_no_serv_cell_cfg_then_msg4_and_conres_are_still_scheduled)
+TEST_F(scheduler_ue_no_config_test, when_ue_has_no_dedicated_cfg_then_msg4_and_conres_are_still_scheduled)
 {
   this->push_dl_buffer_state(dl_buffer_state_indication_message{this->ue_index, LCID_SRB0, msg4_size});
 
@@ -861,6 +861,48 @@ TEST_F(scheduler_ue_no_config_test, when_ue_has_no_serv_cell_cfg_then_msg4_and_c
   ASSERT_TRUE(this->run_slot_until([this]() { return find_ue_dl_pdcch(rnti) != nullptr; }));
   const dl_msg_alloc* msg4_retx_alloc = find_ue_pdsch(rnti, *this->last_sched_result());
   ASSERT_FALSE(msg4_retx_alloc->pdsch_cfg.codewords[0].new_data);
+}
+
+/// UE without dedicated configuration in an NTN cell. In an NTN cell, a reconfiguration of the HARQ processes reads
+/// the HARQ modes of the dedicated configuration.
+class scheduler_ue_no_config_ntn_test : public scheduler_test_simulator, public ::testing::Test
+{
+protected:
+  scheduler_ue_no_config_ntn_test() : scheduler_test_simulator(scheduler_test_sim_config{.ntn_cs_koffset = koffset})
+  {
+    auto cell_cfg_req = sched_config_helper::make_default_sched_cell_configuration_request();
+    cell_cfg_req.ran.ntn_params.emplace();
+    cell_cfg_req.ran.ntn_params->ntn_cfg.cell_specific_koffset = koffset;
+    add_cell(cell_cfg_req);
+
+    auto ue_cfg     = sched_config_helper::create_empty_spcell_cfg_sched_ue_creation_request(cell_cfg_req.ran);
+    ue_cfg.ue_index = ue_index;
+    ue_cfg.crnti    = rnti;
+    ue_cfg.starts_in_fallback = true;
+    ue_cfg.ul_ccch_slot_rx    = next_slot.without_hyper_sfn();
+    add_ue(ue_cfg, /*wait_notification=*/true);
+  }
+
+  static constexpr std::chrono::milliseconds koffset{20};
+  const du_ue_index_t                        ue_index = to_du_ue_index(0);
+  const rnti_t                               rnti     = to_rnti(0x4601);
+};
+
+TEST_F(scheduler_ue_no_config_ntn_test, when_ue_has_no_dedicated_cfg_then_a_reconfiguration_without_cells_is_applied)
+{
+  ASSERT_EQ(notif.last_ue_index_cfg, ue_index) << "UE not created";
+
+  // A RIC request changes the RRM policy of a UE without a change to its cells.
+  sched_ue_reconfiguration_message reconf;
+  reconf.ue_index  = ue_index;
+  reconf.crnti     = rnti;
+  reconf.cfg.cause = sched_ue_config_request::causes::not_rrc_proc;
+  reconf.cfg.res_alloc_cfg.emplace();
+  notif.last_ue_index_cfg.reset();
+  sched->handle_ue_reconfiguration_request(reconf);
+
+  ASSERT_TRUE(run_slot_until([this]() { return notif.last_ue_index_cfg == ue_index; }))
+      << "Reconfiguration not applied";
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //

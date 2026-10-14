@@ -66,22 +66,20 @@ void ue_cell::handle_reconfiguration_request(const ue_cell_configuration& ue_cel
   // Cancel HARQ retxs, given that the UE may have changed some critical params (e.g. MCS tables)
   harqs.cancel_retxs();
 
-  // Reconfigure HARQ entity and increase nof HARQ processes if needed.
-  unsigned new_dl_harqs = ue_cell_cfg.pdsch_serving_cell_cfg() != nullptr
-                              ? static_cast<unsigned>(ue_cell_cfg.pdsch_serving_cell_cfg()->nof_harq_proc)
-                              : harqs.nof_dl_harqs();
-  unsigned new_ul_harqs = ue_cell_cfg.pusch_serving_cell_cfg() != nullptr
-                              ? static_cast<unsigned>(ue_cell_cfg.pusch_serving_cell_cfg()->nof_harq_proc)
-                              : harqs.nof_ul_harqs();
-
-  const auto*    ul_ded = ue_cell_cfg.init_bwp().ul.ded();
-  const unsigned nof_cg_reserved_harq =
-      (ul_ded != nullptr and ul_ded->cg_cfg.has_value()) ? ul_ded->cg_cfg->nof_harq_processes : 0U;
-  harqs.reconfigure(new_dl_harqs,
-                    new_ul_harqs,
-                    ue_cell_cfg.pdsch_serving_cell_cfg()->dl_harq_feedback_disabled,
-                    ue_cell_cfg.pusch_serving_cell_cfg()->ul_harq_mode,
-                    nof_cg_reserved_harq);
+  // Reconfigure HARQ entity and increase nof HARQ processes if needed. A UE without dedicated configuration keeps its
+  // HARQ processes.
+  const pdsch_serving_cell_config* pdsch_serv_cell = ue_cell_cfg.pdsch_serving_cell_cfg();
+  const pusch_serving_cell_config* pusch_serv_cell = ue_cell_cfg.pusch_serving_cell_cfg();
+  if (pdsch_serv_cell != nullptr and pusch_serv_cell != nullptr) {
+    const auto*    ul_ded = ue_cell_cfg.init_bwp().ul.ded();
+    const unsigned nof_cg_reserved_harq =
+        (ul_ded != nullptr and ul_ded->cg_cfg.has_value()) ? ul_ded->cg_cfg->nof_harq_processes : 0U;
+    harqs.reconfigure(static_cast<unsigned>(pdsch_serv_cell->nof_harq_proc),
+                      static_cast<unsigned>(pusch_serv_cell->nof_harq_proc),
+                      pdsch_serv_cell->dl_harq_feedback_disabled,
+                      pusch_serv_cell->ul_harq_mode,
+                      nof_cg_reserved_harq);
+  }
 
   get_pusch_power_controller().reconfigure(ue_cell_cfg);
 }

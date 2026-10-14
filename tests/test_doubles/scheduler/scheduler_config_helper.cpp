@@ -67,13 +67,8 @@ sched_config_helper::create_empty_spcell_cfg_sched_ue_creation_request(const ran
   msg.ue_index = to_du_ue_index(0);
   msg.crnti    = to_rnti(0x4601);
 
-  ue_cell_config       cfg;
-  serving_cell_config& serv_cell = cfg.serv_cell_cfg;
-  serv_cell.cell_index           = to_du_cell_index(0);
-  cfg.bwps.emplace_back(ue_bwp_config{});
-
   msg.cfg.cells.emplace();
-  msg.cfg.cells->push_back(make_sched_ue_cell_config(cfg));
+  msg.cfg.cells->push_back(sched_ue_cell_config{.cell_index = to_du_cell_index(0), .ded = std::nullopt});
 
   msg.cfg.lc_config_list.emplace();
   msg.cfg.lc_config_list->resize(1);

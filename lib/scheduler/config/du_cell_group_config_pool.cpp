@@ -147,41 +147,44 @@ ue_cell_res_config& du_cell_config_pool::acquire_ue_cell_cfg()
   return ue_cell_cfg_pool.emplace_back();
 }
 
-ue_cell_config_ptr du_cell_config_pool::update_ue(const ue_cell_config& ue_cell)
+ue_cell_config_ptr du_cell_config_pool::update_ue(const sched_ue_cell_config& ue_cell)
 {
   ue_cell_res_config& ret = acquire_ue_cell_cfg();
-  ret.cell_index          = ue_cell.serv_cell_cfg.cell_index;
-  if (ue_cell.serv_cell_cfg.ul_config.has_value() and
-      ue_cell.serv_cell_cfg.ul_config.value().pusch_serv_cell_cfg.has_value()) {
-    ret.pusch_serv_cell_cfg.emplace(
-        pusch_serv_cell_pool.create(ue_cell.serv_cell_cfg.ul_config.value().pusch_serv_cell_cfg.value()));
-  }
-  if (ue_cell.serv_cell_cfg.pdsch_serv_cell_cfg.has_value()) {
-    ret.pdsch_serv_cell_cfg = pdsch_serv_cell_pool.create(ue_cell.serv_cell_cfg.pdsch_serv_cell_cfg.value());
-  }
-  if (ue_cell.serv_cell_cfg.csi_meas_cfg.has_value()) {
-    ret.csi_meas_cfg = ue_cell.serv_cell_cfg.csi_meas_cfg.value();
-  }
-  ret.tag_id = ue_cell.serv_cell_cfg.tag_id;
+  ret.cell_index          = ue_cell.cell_index;
 
   // TODO: Support more than one BWP.
-  add_bwp(ret,
-          ue_cell.serv_cell_cfg.init_dl_bwp,
-          ue_cell.serv_cell_cfg.ul_config.has_value() ? &ue_cell.serv_cell_cfg.ul_config->init_ul_bwp : nullptr,
-          ue_cell.bwps[0]);
+  if (not ue_cell.ded.has_value()) {
+    // Common config only.
+    add_bwp(ret, cell_bwps[0]->cell_cfg());
+  } else {
+    // Common and dedicated config.
+    const serving_cell_config& serv_cell_cfg = ue_cell.ded->serv_cell_cfg;
+    if (serv_cell_cfg.ul_config.has_value() and serv_cell_cfg.ul_config.value().pusch_serv_cell_cfg.has_value()) {
+      ret.pusch_serv_cell_cfg.emplace(
+          pusch_serv_cell_pool.create(serv_cell_cfg.ul_config.value().pusch_serv_cell_cfg.value()));
+    }
+    if (serv_cell_cfg.pdsch_serv_cell_cfg.has_value()) {
+      ret.pdsch_serv_cell_cfg = pdsch_serv_cell_pool.create(serv_cell_cfg.pdsch_serv_cell_cfg.value());
+    }
+    if (serv_cell_cfg.csi_meas_cfg.has_value()) {
+      ret.csi_meas_cfg = serv_cell_cfg.csi_meas_cfg.value();
+    }
+    ret.tag_id = serv_cell_cfg.tag_id;
+
+    add_bwp(
+        ret,
+        cell_bwps[0]->add_ded_cfg(&serv_cell_cfg.init_dl_bwp,
+                                  serv_cell_cfg.ul_config.has_value() ? &serv_cell_cfg.ul_config->init_ul_bwp : nullptr,
+                                  ue_cell.ded->bwps[0]));
+  }
 
   // Hand out an intrusive_ptr to the pool-owned slot. Dropping the last reference (possibly on the RT thread) only
   // decrements ref_cnt; the slot is reused on a later acquire, never freed off the config path.
   return ue_cell_config_ptr{&ret};
 }
 
-void du_cell_config_pool::add_bwp(ue_cell_res_config&           out,
-                                  const bwp_downlink_dedicated& dl_bwp_ded,
-                                  const bwp_uplink_dedicated*   ul_bwp_ded,
-                                  const ue_bwp_config&          ue_bwp_cfg)
+void du_cell_config_pool::add_bwp(ue_cell_res_config& out, sched_bwp_config bwp_cfg)
 {
-  sched_bwp_config bwp_cfg = cell_bwps[0]->add_ded_cfg(&dl_bwp_ded, ul_bwp_ded, ue_bwp_cfg);
-
   // Generate cell-wide lookups of CORESETs and SearchSpaces for this UE. These reference the (shared, pooled) PDCCH
   // config, so they stay valid after the BWP config is moved into the owned list below.
   for (const auto& cs : bwp_cfg.dl.pdcch().coresets()) {
@@ -221,7 +224,7 @@ ue_creation_params du_cell_group_config_pool::add_ue(const sched_ue_creation_req
   slotted_id_vector<du_cell_index_t, ue_cell_config_ptr> cell_cfgs;
   if (ue_creation_req.cfg.cells.has_value()) {
     for (const auto& cell : ue_creation_req.cfg.cells.value()) {
-      cell_cfgs.emplace(cell.cell_index, cells[cell.cell_index]->update_ue(*cell.ded));
+      cell_cfgs.emplace(cell.cell_index, cells[cell.cell_index]->update_ue(cell));
     }
   }
 
@@ -239,11 +242,12 @@ ue_reconfig_params du_cell_group_config_pool::reconf_ue(const sched_ue_reconfigu
   slotted_id_vector<du_cell_index_t, ue_cell_config_ptr> cell_cfgs;
   if (ue_reconf_req.cfg.cells.has_value()) {
     for (const auto& cell : ue_reconf_req.cfg.cells.value()) {
+      // An RRC Reconfiguration cannot remove the dedicated configuration of a serving cell.
       ocudu_assert(cell.ded.has_value(),
-                   "ue={} cell={}: A UE without dedicated configuration is not supported",
+                   "ue={} cell={}: Reconfiguration without dedicated configuration",
                    ue_reconf_req.ue_index,
                    cell.cell_index);
-      cell_cfgs.emplace(cell.cell_index, cells[cell.cell_index]->update_ue(*cell.ded));
+      cell_cfgs.emplace(cell.cell_index, cells[cell.cell_index]->update_ue(cell));
     }
   }
 

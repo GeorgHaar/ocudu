@@ -116,7 +116,13 @@ ocudu::config_validators::validate_sched_ue_creation_request_message(const sched
   VERIFY(msg.cfg.cells.has_value() and not msg.cfg.cells->empty(), "Empty list of ServingCellConfig");
 
   for (const sched_ue_cell_config& cell : *msg.cfg.cells) {
-    VERIFY(cell.ded.has_value(), "cell={}: A UE without dedicated configuration is not supported", cell.cell_index);
+    if (not cell.ded.has_value()) {
+      // The UE uses only the common configuration of its PCell, e.g. a UE that gets an RRC Reject.
+      VERIFY(msg.cfg.cells->size() == 1,
+             "cell={}: A UE without dedicated configuration cannot have SCells",
+             cell.cell_index);
+      continue;
+    }
     const auto& serv_cell_cfg = cell.ded->serv_cell_cfg;
     VERIFY(serv_cell_cfg.cell_index == cell.cell_index,
            "cell={}: The ServingCellConfig is for cell={}",

@@ -21,6 +21,7 @@
 namespace ocudu {
 
 struct sched_cell_configuration_request_message;
+struct sched_ue_cell_config;
 struct sched_ue_creation_request_message;
 struct sched_ue_reconfiguration_message;
 struct serving_cell_config;
@@ -76,14 +77,13 @@ public:
   const cell_configuration& cell_cfg() const { return cell_cfg_inst; }
   cell_configuration&       cell_cfg() { return cell_cfg_inst; }
 
-  // Builds a reference-counted UE-dedicated cell config.
-  ue_cell_config_ptr update_ue(const ue_cell_config& ue_cell);
+  /// \brief Builds a reference-counted UE cell config.
+  ///
+  /// Without a dedicated configuration, the UE cell config holds only the common configuration of the cell.
+  ue_cell_config_ptr update_ue(const sched_ue_cell_config& ue_cell);
 
 private:
-  void add_bwp(ue_cell_res_config&           out,
-               const bwp_downlink_dedicated& dl_bwp_ded,
-               const bwp_uplink_dedicated*   ul_bwp_ded,
-               const ue_bwp_config&          ue_bwp_cfg);
+  static void add_bwp(ue_cell_res_config& out, sched_bwp_config bwp_cfg);
 
   /// \brief Returns a reusable ue_cell_res_config slot from the pool, growing the pool if none is free.
   /// The returned slot has its payload cleared, ready to be populated.

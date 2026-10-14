@@ -277,7 +277,7 @@ protected:
     ue_create_req.crnti              = tc_rnti;
     ue_create_req.ue_index           = ue_index;
     ue_create_req.starts_in_fallback = true;
-    if (enable_pusch_transform_precoding) {
+    if (enable_pusch_transform_precoding and not remove_ded_cfg) {
       ue_create_req.cfg.cells.value()[0]
           .ded->serv_cell_cfg.ul_config.value()
           .init_ul_bwp.pusch_cfg.value()

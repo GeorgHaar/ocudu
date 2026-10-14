@@ -84,8 +84,8 @@ inline mac_ue_create_request make_default_ue_creation_request(const cell_config_
   pcg_cfg.pdsch_harq_codebook         = pdsch_harq_ack_codebook::dynamic;
 
   msg.sched_cfg.cells.emplace();
-  msg.sched_cfg.cells->push_back(
-      config_helpers::make_default_ue_cell_config(config_helpers::make_default_ran_cell_config(params)));
+  msg.sched_cfg.cells->push_back(make_sched_ue_cell_config(
+      config_helpers::make_default_ue_cell_config(config_helpers::make_default_ran_cell_config(params))));
 
   return msg;
 }

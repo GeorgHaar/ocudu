@@ -69,7 +69,7 @@ protected:
     auto ue_cfg           = sched_config_helper::create_default_sched_ue_creation_request(cell_req.ran, {ue_drb_lcid});
     ue_cfg.ue_index       = ue_idx;
     ue_cfg.crnti          = ue_rnti;
-    auto&       pusch_cfg = (*ue_cfg.cfg.cells)[0].serv_cell_cfg.ul_config->init_ul_bwp.pusch_cfg.value();
+    auto&       pusch_cfg = (*ue_cfg.cfg.cells)[0].ded->serv_cell_cfg.ul_config->init_ul_bwp.pusch_cfg.value();
     const auto& common_list = cell_req.ran.ul_cfg_common.init_ul_bwp.pusch_cfg_common->pusch_td_alloc_list;
     for (const auto& alloc : common_list) {
       pusch_cfg.pusch_td_alloc_list.push_back(alloc);
@@ -81,7 +81,7 @@ protected:
     pusch_cfg.pusch_td_alloc_list.push_back(rep_alloc);
     // Give the UE dedicated PUCCH resources: a HARQ-ACK on the cell's common resources cannot be multiplexed onto a
     // PUSCH, so a bundle overlapping one is rejected before its DAI is ever considered.
-    report_fatal_error_if_not(pucch_cfg_builder.alloc_resources((*ue_cfg.cfg.cells)[0]),
+    report_fatal_error_if_not(pucch_cfg_builder.alloc_resources(*(*ue_cfg.cfg.cells)[0].ded),
                               "Failed to allocate PUCCH resources");
     this->add_ue(ue_cfg);
   }

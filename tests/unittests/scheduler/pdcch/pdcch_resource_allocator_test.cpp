@@ -92,7 +92,7 @@ protected:
     ue_creation_req.ue_index                          = to_du_ue_index((unsigned)rnti - 0x4601);
     ue_creation_req.crnti                             = rnti;
     ue_creation_req.starts_in_fallback                = false;
-    (*ue_creation_req.cfg.cells)[0]                   = default_ue_cell_req;
+    (*ue_creation_req.cfg.cells)[0]                   = make_sched_ue_cell_config(default_ue_cell_req);
     return ue_creation_req;
   }
 
@@ -630,11 +630,11 @@ protected:
   {
     auto ue_creation_req = super_type::create_ue_cfg(rnti);
     (*ue_creation_req.cfg.cells)[0]
-        .serv_cell_cfg.init_dl_bwp.pdcch_cfg->search_spaces[0]
+        .ded->serv_cell_cfg.init_dl_bwp.pdcch_cfg->search_spaces[0]
         .set_non_ss0_monitored_dci_formats(search_space_configuration::ue_specific_dci_format::f0_1_and_1_1);
     cell_config_builder_params builder_params{};
     builder_params.dl_carrier.carrier_bw = params.cell_bw;
-    (*ue_creation_req.cfg.cells)[0].serv_cell_cfg.init_dl_bwp.pdcch_cfg->coresets[0] =
+    (*ue_creation_req.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdcch_cfg->coresets[0] =
         config_helpers::make_default_coreset_config(builder_params);
     return ue_creation_req;
   }

@@ -107,7 +107,7 @@ sched_ue_config_request ocudu::odu::create_scheduler_ue_config_request(const du_
 
   sched_cfg.cells.emplace();
   sched_cfg.cells->resize(1);
-  (*sched_cfg.cells)[0] = ue_res_cfg.cell_group.cells.at(SERVING_PCELL_IDX);
+  (*sched_cfg.cells)[0] = make_sched_ue_cell_config(ue_res_cfg.cell_group.cells.at(SERVING_PCELL_IDX));
   // Add SRB and DRB logical channels.
   sched_cfg.lc_config_list.emplace();
   for (const auto& srb : ue_res_cfg.srbs) {

@@ -97,12 +97,12 @@ public:
   {
     auto ue_cfg = sched_config_helper::create_default_sched_ue_creation_request(cell_cfg(to_du_cell_index(0)).params,
                                                                                 {LCID_MIN_DRB});
-    ue_cfg.ue_index = to_du_ue_index((unsigned)rnti - 0x4601);
-    ue_cfg.crnti    = rnti;
-    report_fatal_error_if_not(pucch_cfg_builder.alloc_resources(ue_cfg.cfg.cells.value()[0]),
-                              "Failed to allocate PUCCH resources");
+    ue_cfg.ue_index       = to_du_ue_index((unsigned)rnti - 0x4601);
+    ue_cfg.crnti          = rnti;
+    ue_cell_config& pcell = *ue_cfg.cfg.cells.value()[0].ded;
+    report_fatal_error_if_not(pucch_cfg_builder.alloc_resources(pcell), "Failed to allocate PUCCH resources");
     csi_period = std::get<csi_report_config::periodic_or_semi_persistent_report_on_pucch>(
-                     ue_cfg.cfg.cells.value()[0].serv_cell_cfg.csi_meas_cfg->csi_report_cfg_list[0].report_cfg_type)
+                     pcell.serv_cell_cfg.csi_meas_cfg->csi_report_cfg_list[0].report_cfg_type)
                      .report_slot_period;
     scheduler_test_simulator::add_ue(ue_cfg, true);
   }

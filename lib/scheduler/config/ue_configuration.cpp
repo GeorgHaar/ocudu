@@ -768,8 +768,8 @@ void ue_configuration::update(const cell_common_configuration_list& common_cells
     for (const std::unique_ptr<ue_cell_configuration>& ue_cell : du_cells) {
       if (std::none_of(cfg_req.cells->begin(),
                        cfg_req.cells->end(),
-                       [cell_idx = ue_cell->cell_cfg_common.cell_index](const ue_cell_config& ded_cell) {
-                         return ded_cell.serv_cell_cfg.cell_index == cell_idx;
+                       [cell_idx = ue_cell->cell_cfg_common.cell_index](const sched_ue_cell_config& cell) {
+                         return cell.cell_index == cell_idx;
                        })) {
         // Handle cell deletion.
         du_cells.erase(ue_cell->cell_cfg_common.cell_index);
@@ -778,8 +778,7 @@ void ue_configuration::update(const cell_common_configuration_list& common_cells
 
     // Check for cells that have been added/modified.
     for (unsigned i = 0, e = cfg_req.cells->size(); i != e; ++i) {
-      const serving_cell_config& ded_cell   = cfg_req.cells.value()[i].serv_cell_cfg;
-      const du_cell_index_t      cell_index = ded_cell.cell_index;
+      const du_cell_index_t cell_index = cfg_req.cells.value()[i].cell_index;
 
       if (not du_cells.contains(cell_index)) {
         // New Cell.
@@ -795,7 +794,7 @@ void ue_configuration::update(const cell_common_configuration_list& common_cells
     // Update UE cell to DU cell indexing
     ue_cell_to_du_cell_index.resize(cfg_req.cells.value().size());
     for (unsigned i = 0, e = cfg_req.cells->size(); i != e; ++i) {
-      ue_cell_to_du_cell_index[i] = cfg_req.cells.value()[i].serv_cell_cfg.cell_index;
+      ue_cell_to_du_cell_index[i] = cfg_req.cells.value()[i].cell_index;
     }
   }
 

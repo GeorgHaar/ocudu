@@ -181,7 +181,7 @@ protected:
     sched_ue_creation_request_message ue_req = cfg_mng.get_default_ue_config_request();
     pucch_resource_manager            pucch_builder(cell_cfg.expert_cfg.ue.max_pucchs_per_slot);
     pucch_builder.add_cell(to_du_cell_index(0), cell_cfg.params);
-    pucch_builder.alloc_resources(ue_req.cfg.cells.value().front());
+    pucch_builder.alloc_resources(*ue_req.cfg.cells.value().front().ded);
     add_ue(ue_req);
   }
 

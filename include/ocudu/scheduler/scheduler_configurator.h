@@ -92,6 +92,19 @@ struct ue_cell_config {
   ue_bwp_config& init_bwp() { return bwps[0]; }
 };
 
+/// UE configuration of a serving cell.
+struct sched_ue_cell_config {
+  du_cell_index_t cell_index;
+  /// UE-dedicated configuration. Absent when the UE uses only the common configuration of the cell.
+  std::optional<ue_cell_config> ded;
+};
+
+/// Creates the configuration of a serving cell in which the UE has the given dedicated configuration.
+inline sched_ue_cell_config make_sched_ue_cell_config(const ue_cell_config& ded)
+{
+  return sched_ue_cell_config{ded.serv_cell_cfg.cell_index, ded};
+}
+
 /// Request for a new UE configuration provided to the scheduler during UE creation or reconfiguration.
 struct sched_ue_config_request {
   /// Possible contexts which triggered this UE config update.
@@ -101,8 +114,8 @@ struct sched_ue_config_request {
 
   /// List of configured Logical Channels. See \c mac-LogicalChannelConfig, TS38.331.
   std::optional<std::vector<logical_channel_config>> lc_config_list;
-  /// UE-dedicated configuration for the PCell and SCells.
-  std::optional<std::vector<ue_cell_config>> cells;
+  /// Configuration of the PCell and the SCells of the UE. The PCell is the first element.
+  std::optional<std::vector<sched_ue_cell_config>> cells;
   /// Resource allocation configuration for the given UE.
   std::optional<sched_ue_resource_alloc_config> res_alloc_cfg;
   /// DRX-Config.

@@ -66,7 +66,7 @@ TEST_F(ue_configuration_test, configuration_valid_on_creation)
   ASSERT_TRUE(ue_cfg.find_coreset(to_coreset_id(2)) == nullptr);
   ASSERT_EQ(2, fmt::underlying(ue_cfg.search_space(to_search_space_id(2)).cfg->get_id()));
   ASSERT_TRUE(*ue_cfg.search_space(to_search_space_id(2)).cfg ==
-              (*ue_create_msg.cfg.cells)[0].serv_cell_cfg.init_dl_bwp.pdcch_cfg->search_spaces[0]);
+              (*ue_create_msg.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdcch_cfg->search_spaces[0]);
   ASSERT_TRUE(ue_cfg.find_search_space(to_search_space_id(3)) == nullptr);
 }
 
@@ -81,8 +81,8 @@ TEST_F(ue_configuration_test, configuration_valid_on_reconfiguration)
   recfg_req.crnti    = ue_create_msg.crnti;
   recfg_req.cfg.cells.emplace();
   recfg_req.cfg.cells.value().push_back(ue_create_msg.cfg.cells->at(0));
-  recfg_req.cfg.cells.value()[0].bwps             = ue_create_msg.cfg.cells->at(0).bwps;
-  serving_cell_config& ue_cell_reconf             = recfg_req.cfg.cells.value()[0].serv_cell_cfg;
+  recfg_req.cfg.cells.value()[0].ded->bwps        = ue_create_msg.cfg.cells->at(0).ded->bwps;
+  serving_cell_config& ue_cell_reconf             = recfg_req.cfg.cells.value()[0].ded->serv_cell_cfg;
   ue_cell_reconf.init_dl_bwp.pdsch_cfg->mcs_table = pdsch_mcs_table::qam64;
   ue_cfg.reconfigure(cfg_pool.reconf_ue(recfg_req).cells[to_du_cell_index(0)]);
 
@@ -111,8 +111,8 @@ TEST_F(ue_configuration_test, when_td_alloc_list_r16_is_configured_then_dci_tdra
   recfg_req.crnti    = ue_create_msg.crnti;
   recfg_req.cfg.cells.emplace();
   recfg_req.cfg.cells.value().push_back(ue_create_msg.cfg.cells->at(0));
-  recfg_req.cfg.cells.value()[0].bwps = ue_create_msg.cfg.cells->at(0).bwps;
-  serving_cell_config& serv_cell      = recfg_req.cfg.cells.value()[0].serv_cell_cfg;
+  recfg_req.cfg.cells.value()[0].ded->bwps = ue_create_msg.cfg.cells->at(0).ded->bwps;
+  serving_cell_config& serv_cell           = recfg_req.cfg.cells.value()[0].ded->serv_cell_cfg;
 
   auto&                        pdsch_cfg = serv_cell.init_dl_bwp.pdsch_cfg.value();
   const dl_time_domain_mapper& dl_mapper = ue_cfg.search_space(to_search_space_id(2)).bwp->dl.td_mapper();
@@ -149,7 +149,7 @@ TEST_F(ue_configuration_test, when_td_alloc_list_r16_is_configured_then_dci_tdra
 
 TEST_F(ue_configuration_test, when_resource_allocation_type_0_is_configured_then_dci_frequency_field_size_is_nof_rbgs)
 {
-  serving_cell_config& serv_cell                        = ue_create_msg.cfg.cells->at(0).serv_cell_cfg;
+  serving_cell_config& serv_cell                        = ue_create_msg.cfg.cells->at(0).ded->serv_cell_cfg;
   serv_cell.init_dl_bwp.pdsch_cfg->res_alloc            = pdsch_config::resource_allocation::resource_allocation_type_0;
   serv_cell.init_dl_bwp.pdsch_cfg->rbg_sz               = rbg_size::config1;
   serv_cell.ul_config->init_ul_bwp.pusch_cfg->res_alloc = pusch_config::resource_allocation::resource_allocation_type_0;

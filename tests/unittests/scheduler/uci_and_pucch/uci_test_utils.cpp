@@ -253,19 +253,20 @@ void test_bench::add_ue()
     ue_req.crnti = to_rnti(static_cast<std::underlying_type_t<rnti_t>>(ue_ded_cfgs.back()->crnti) + 1);
   }
 
-  const bool success = pucch_builder.alloc_resources(ue_req.cfg.cells->back());
+  ue_cell_config& ue_cell = *ue_req.cfg.cells->back().ded;
+  const bool      success = pucch_builder.alloc_resources(ue_cell);
   ocudu_assert(success, "UE PUCCH configuration couldn't be built");
   if (params.ue_caps.has_value()) {
-    pucch_builder.update_resources(ue_req.cfg.cells->back(), *params.ue_caps);
+    pucch_builder.update_resources(ue_cell, *params.ue_caps);
   }
 
   // TODO: rewrite this test, we should never modify the UE cell config like this in unittests.
-  ue_req.cfg.cells->back().init_bwp().ul.pucch.sr_offset                                         = params.sr_offset;
-  ue_req.cfg.cells->back().serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg->sr_res_list[0].offset = params.sr_offset;
+  ue_cell.init_bwp().ul.pucch.sr_offset                                         = params.sr_offset;
+  ue_cell.serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg->sr_res_list[0].offset = params.sr_offset;
   if (params.csi_period.has_value()) {
-    ue_req.cfg.cells->back().init_bwp().ul.periodic_csi_report.value().offset = params.csi_offset;
+    ue_cell.init_bwp().ul.periodic_csi_report.value().offset = params.csi_offset;
     auto& csi_report = std::get<csi_report_config::periodic_or_semi_persistent_report_on_pucch>(
-        ue_req.cfg.cells->back().serv_cell_cfg.csi_meas_cfg.value().csi_report_cfg_list[0].report_cfg_type);
+        ue_cell.serv_cell_cfg.csi_meas_cfg.value().csi_report_cfg_list[0].report_cfg_type);
     csi_report.report_slot_offset = params.csi_offset;
   }
 

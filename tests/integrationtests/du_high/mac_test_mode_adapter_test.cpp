@@ -195,14 +195,14 @@ protected:
     mac_wrapper->get_cell_manager().add_cell(test_helpers::make_default_mac_cell_config(builder));
 
     // create UE
-    mac_ue_create_request req = test_helpers::make_default_ue_creation_request(builder);
-    req.sched_cfg.cells.value()[0] =
-        config_helpers::make_default_ue_cell_config(config_helpers::make_default_ran_cell_config(builder));
+    mac_ue_create_request req      = test_helpers::make_default_ue_creation_request(builder);
+    req.sched_cfg.cells.value()[0] = make_sched_ue_cell_config(
+        config_helpers::make_default_ue_cell_config(config_helpers::make_default_ran_cell_config(builder)));
     mac_wrapper->get_ue_configurator().handle_ue_create_request(req);
     ocudu_assert(mac_events.last_ue_created.has_value(), "UE creation request was not forwarded to MAC");
 
     csi_cfg = create_csi_report_configuration(
-        *mac_events.last_ue_created->sched_cfg.cells.value()[0].serv_cell_cfg.csi_meas_cfg);
+        *mac_events.last_ue_created->sched_cfg.cells.value()[0].ded->serv_cell_cfg.csi_meas_cfg);
   }
 
   void run_slot()

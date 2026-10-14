@@ -155,17 +155,17 @@ protected:
   sched_ue_creation_request_message
   build_ue_request(du_ue_index_t idx, rnti_t rnti, std::initializer_list<lcid_t> lcids)
   {
-    auto ue_cfg     = sched_config_helper::create_default_sched_ue_creation_request(cell_cfg().params, lcids);
-    ue_cfg.ue_index = idx;
-    ue_cfg.crnti    = rnti;
+    auto ue_cfg           = sched_config_helper::create_default_sched_ue_creation_request(cell_cfg().params, lcids);
+    ue_cfg.ue_index       = idx;
+    ue_cfg.crnti          = rnti;
+    ue_cell_config& pcell = *(*ue_cfg.cfg.cells)[0].ded;
     report_fatal_error_if_not(
-        pucch_builder.alloc_resources((*ue_cfg.cfg.cells)[0]), "Failed to allocate PUCCH resources for UE {}", idx);
+        pucch_builder.alloc_resources(pcell), "Failed to allocate PUCCH resources for UE {}", idx);
     if (srs_builder != nullptr) {
       // The SRS resource manager expects the SRS config to be unset before allocating, mirroring the DU manager's own
       // reset_serv_cell_cfg() call ahead of its own srs_res_mng->alloc_resources() call.
-      (*ue_cfg.cfg.cells)[0].serv_cell_cfg.ul_config->init_ul_bwp.srs_cfg.reset();
-      report_fatal_error_if_not(
-          srs_builder->alloc_resources((*ue_cfg.cfg.cells)[0]), "Failed to allocate SRS resources for UE {}", idx);
+      pcell.serv_cell_cfg.ul_config->init_ul_bwp.srs_cfg.reset();
+      report_fatal_error_if_not(srs_builder->alloc_resources(pcell), "Failed to allocate SRS resources for UE {}", idx);
     }
     return ue_cfg;
   }
@@ -652,9 +652,9 @@ protected:
       CORO_AWAIT(launch_run_until(false_until_slots(ack_margin_slots)));
       CORO_AWAIT(launch_rem_ue_task(idx));
       // Free the UE's PUCCH/SRS resources so the next transient UE reusing this index gets a fresh allocation.
-      pucch_builder.dealloc_resources(req.cfg.cells.value()[0]);
+      pucch_builder.dealloc_resources(*req.cfg.cells.value()[0].ded);
       if (srs_builder != nullptr) {
-        srs_builder->dealloc_resources(req.cfg.cells.value()[0]);
+        srs_builder->dealloc_resources(*req.cfg.cells.value()[0].ded);
       }
       transient_pool.push_back(idx);
 

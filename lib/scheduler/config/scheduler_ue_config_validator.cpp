@@ -115,8 +115,13 @@ ocudu::config_validators::validate_sched_ue_creation_request_message(const sched
   // Verify the list of ServingCellConfig contains spCellConfig.
   VERIFY(msg.cfg.cells.has_value() and not msg.cfg.cells->empty(), "Empty list of ServingCellConfig");
 
-  for (const ue_cell_config& cell : *msg.cfg.cells) {
-    const auto& serv_cell_cfg = cell.serv_cell_cfg;
+  for (const sched_ue_cell_config& cell : *msg.cfg.cells) {
+    VERIFY(cell.ded.has_value(), "cell={}: A UE without dedicated configuration is not supported", cell.cell_index);
+    const auto& serv_cell_cfg = cell.ded->serv_cell_cfg;
+    VERIFY(serv_cell_cfg.cell_index == cell.cell_index,
+           "cell={}: The ServingCellConfig is for cell={}",
+           cell.cell_index,
+           serv_cell_cfg.cell_index);
     HANDLE_ERROR(validate_pdcch_cfg(serv_cell_cfg, cell_cfg.params.dl_cfg_common));
     HANDLE_ERROR(validate_bwp_ded_cfg(serv_cell_cfg, cell_cfg));
 

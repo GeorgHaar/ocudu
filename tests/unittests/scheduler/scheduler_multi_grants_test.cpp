@@ -53,7 +53,7 @@ protected:
                                                                                 {LCID_MIN_DRB});
     ue_cfg.ue_index = next_ue_idx;
     ue_cfg.crnti    = to_rnti(0x4601 + (unsigned)next_ue_idx);
-    report_fatal_error_if_not(pucch_cfg_builder.alloc_resources(ue_cfg.cfg.cells.value()[0]),
+    report_fatal_error_if_not(pucch_cfg_builder.alloc_resources(*ue_cfg.cfg.cells.value()[0].ded),
                               "Failed to allocate PUCCH resources");
     ue_cfg.starts_in_fallback = false;
     scheduler_test_simulator::add_ue(ue_cfg);

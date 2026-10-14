@@ -42,11 +42,10 @@ static unsigned compute_c_srs(unsigned nof_ul_crbs)
 
 static void validate_default_ue_cfg_req(const sched_ue_creation_request_message& ue_req)
 {
-  ocudu_assert(ue_req.cfg.cells.value().front().serv_cell_cfg.ul_config.has_value(),
-               "UL config is required for this test");
-  ocudu_assert(ue_req.cfg.cells.value().front().serv_cell_cfg.ul_config.value().init_ul_bwp.srs_cfg.has_value(),
-               "SRS config is required for this test");
-  const auto& srs_cfg = ue_req.cfg.cells.value().front().serv_cell_cfg.ul_config.value().init_ul_bwp.srs_cfg.value();
+  const serving_cell_config& serv_cell_cfg = ue_req.cfg.cells.value().front().ded->serv_cell_cfg;
+  ocudu_assert(serv_cell_cfg.ul_config.has_value(), "UL config is required for this test");
+  ocudu_assert(serv_cell_cfg.ul_config.value().init_ul_bwp.srs_cfg.has_value(), "SRS config is required for this test");
+  const auto& srs_cfg = serv_cell_cfg.ul_config.value().init_ul_bwp.srs_cfg.value();
   ocudu_assert(srs_cfg.srs_res_set_list.size() == 1, "SRS Resource Set is expected to have size 1");
   const auto& srs_set = srs_cfg.srs_res_set_list.front();
   ocudu_assert(srs_set.srs_res_id_list.size() == 1 and
@@ -229,7 +228,7 @@ public:
     // Set SRS resource aperiodic.
     srs_config::srs_resource& srs_res = ue_req.cfg.cells.value()
                                             .front()
-                                            .serv_cell_cfg.ul_config.value()
+                                            .ded->serv_cell_cfg.ul_config.value()
                                             .init_ul_bwp.srs_cfg.value()
                                             .srs_res_list.front();
     srs_res.res_type = srs_resource_type::aperiodic;
@@ -264,7 +263,7 @@ public:
 
     auto& srs_set_cfg = ue_req.cfg.cells.value()
                             .front()
-                            .serv_cell_cfg.ul_config.value()
+                            .ded->serv_cell_cfg.ul_config.value()
                             .init_ul_bwp.srs_cfg.value()
                             .srs_res_set_list.front();
     srs_set_cfg.id      = srs_config::srs_res_set_id::MIN_SRS_RES_SET_ID;

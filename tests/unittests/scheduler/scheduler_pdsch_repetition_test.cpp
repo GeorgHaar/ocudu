@@ -59,7 +59,7 @@ protected:
     auto ue_cfg           = sched_config_helper::create_default_sched_ue_creation_request(cell_req.ran, {ue_drb_lcid});
     ue_cfg.ue_index       = ue_idx;
     ue_cfg.crnti          = ue_rnti;
-    auto&       pdsch_cfg = (*ue_cfg.cfg.cells)[0].serv_cell_cfg.init_dl_bwp.pdsch_cfg.value();
+    auto&       pdsch_cfg = (*ue_cfg.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdsch_cfg.value();
     const auto& common_list = cell_req.ran.dl_cfg_common.init_dl_bwp.pdsch_common.pdsch_td_alloc_list;
     for (const auto& alloc : common_list) {
       pdsch_cfg.pdsch_td_alloc_list.push_back(alloc);

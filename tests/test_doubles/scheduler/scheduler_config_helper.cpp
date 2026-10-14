@@ -37,7 +37,7 @@ sched_config_helper::create_default_sched_ue_creation_request(const ran_cell_con
   msg.crnti    = to_rnti(0x4601);
 
   msg.cfg.cells.emplace();
-  msg.cfg.cells->push_back(config_helpers::make_default_ue_cell_config(cell_cfg));
+  msg.cfg.cells->push_back(make_sched_ue_cell_config(config_helpers::make_default_ue_cell_config(cell_cfg)));
 
   msg.cfg.lc_config_list.emplace();
   msg.cfg.lc_config_list->resize(2);
@@ -73,7 +73,7 @@ sched_config_helper::create_empty_spcell_cfg_sched_ue_creation_request(const ran
   cfg.bwps.emplace_back(ue_bwp_config{});
 
   msg.cfg.cells.emplace();
-  msg.cfg.cells->push_back(cfg);
+  msg.cfg.cells->push_back(make_sched_ue_cell_config(cfg));
 
   msg.cfg.lc_config_list.emplace();
   msg.cfg.lc_config_list->resize(1);

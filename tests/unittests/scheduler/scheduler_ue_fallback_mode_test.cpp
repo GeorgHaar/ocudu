@@ -666,13 +666,13 @@ protected:
     auto ue_req     = sched_config_helper::create_default_sched_ue_creation_request(cell_req.ran);
     ue_req.ue_index = ue_index;
     ue_req.crnti    = rnti;
-    auto& cg_cfg    = ue_req.cfg.cells->front().serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg;
+    auto& cg_cfg    = ue_req.cfg.cells->front().ded->serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg;
     ocudu_assert(cg_cfg.has_value(), "The UE was not given the CG of the cell");
     cg_cfg->rrc_configured_ul_grant_cfg->time_domain_offset = cg_offset;
 
     // An RRC Reconfiguration adds the CG.
     auto ue_req_no_cg = ue_req;
-    ue_req_no_cg.cfg.cells->front().serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
+    ue_req_no_cg.cfg.cells->front().ded->serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
     add_ue(ue_req_no_cg, /*wait_notification=*/true);
 
     // Left unconfirmed, so the UE stays in fallback.
@@ -756,7 +756,7 @@ protected:
 
     // An RRC Reconfiguration disables the DL HARQ feedback, which the UE reports it supports. Left unconfirmed, so the
     // UE stays in fallback.
-    auto& pdsch_serv_cell = ue_cfg.cfg.cells->front().serv_cell_cfg.pdsch_serv_cell_cfg;
+    auto& pdsch_serv_cell = ue_cfg.cfg.cells->front().ded->serv_cell_cfg.pdsch_serv_cell_cfg;
     ocudu_assert(pdsch_serv_cell.has_value(), "The UE was not given a PDSCH serving cell config");
     pdsch_serv_cell->dl_harq_feedback_disabled.fill(true);
     pdsch_serv_cell->dl_harq_feedback_disabled.fill(0, nof_feedback_enabled_harqs, false);

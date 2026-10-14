@@ -104,7 +104,7 @@ public:
     ue_cfg_msg.crnti              = to_rnti(0x4601 + ue_count);
     ue_cfg_msg.starts_in_fallback = false;
 
-    auto& pcell = (*ue_cfg_msg.cfg.cells)[0];
+    auto& pcell = *(*ue_cfg_msg.cfg.cells)[0].ded;
 
     // Generate PUCCH resources for the UE.
     bool success = pucch_res_mng.alloc_resources(pcell);

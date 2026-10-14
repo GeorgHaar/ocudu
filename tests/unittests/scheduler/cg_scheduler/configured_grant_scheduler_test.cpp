@@ -126,7 +126,7 @@ protected:
     ue_req.ue_index = ue_idx;
     ue_req.crnti    = crnti;
     ASSERT_TRUE(ue_req.cfg.cells.has_value() and not ue_req.cfg.cells->empty());
-    auto& ue_cell = ue_req.cfg.cells->front();
+    auto& ue_cell = *ue_req.cfg.cells->front().ded;
     ASSERT_TRUE(ue_cell.serv_cell_cfg.ul_config.has_value());
     ASSERT_TRUE(ue_cell.serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.has_value());
     if (cg_params.pucch_rep_enabled) {
@@ -146,7 +146,7 @@ protected:
     // is deferred to the reconfiguration below. Wait for the creation event to be processed before
     // issuing the reconfiguration, since handle_ue_reconfiguration_request requires the UE to exist.
     auto ue_req_no_cg = ue_req;
-    ue_req_no_cg.cfg.cells->front().serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
+    ue_req_no_cg.cfg.cells->front().ded->serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
     add_ue(ue_req_no_cg, /*wait_notification=*/true);
 
     // Step 2: Reconfigure to install the CG config, which triggers add_reconf_ue() in the scheduler.
@@ -189,7 +189,7 @@ protected:
     auto ue_req     = sched_config_helper::create_default_sched_ue_creation_request(cell_req.ran);
     ue_req.ue_index = to_du_ue_index(0);
     ue_req.crnti    = ue_crnti;
-    auto& cg_cfg    = ue_req.cfg.cells->front().serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.value();
+    auto& cg_cfg    = ue_req.cfg.cells->front().ded->serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.value();
 
     if (new_mcs.has_value()) {
       cg_cfg.rrc_configured_ul_grant_cfg->mcs = new_mcs.value();
@@ -213,7 +213,7 @@ protected:
     auto ue_req     = sched_config_helper::create_default_sched_ue_creation_request(cell_req.ran);
     ue_req.ue_index = to_du_ue_index(0);
     ue_req.crnti    = ue_crnti;
-    ue_req.cfg.cells->front().serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
+    ue_req.cfg.cells->front().ded->serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
 
     sched_ue_reconfiguration_message reconf;
     reconf.ue_index = to_du_ue_index(0);
@@ -399,7 +399,7 @@ TEST_P(cg_duplex_test, ue_with_no_cg_config_produces_no_cg_grants)
   auto ue_req     = sched_config_helper::create_default_sched_ue_creation_request(cell_req.ran);
   ue_req.ue_index = to_du_ue_index(0);
   ue_req.crnti    = ue_crnti;
-  ue_req.cfg.cells->front().serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
+  ue_req.cfg.cells->front().ded->serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
   add_ue(ue_req);
 
   // Run for 2 periods and verify no PUSCH with cs_rnti = 0xe0ef appears.
@@ -1127,7 +1127,7 @@ TEST_F(cg_disabled_cell_test, cell_without_cg_config_runs_and_produces_no_cg_gra
   auto ue_req     = sched_config_helper::create_default_sched_ue_creation_request(cell_req.ran);
   ue_req.ue_index = to_du_ue_index(0);
   ue_req.crnti    = ue_crnti;
-  ASSERT_FALSE(ue_req.cfg.cells->front().serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.has_value())
+  ASSERT_FALSE(ue_req.cfg.cells->front().ded->serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.has_value())
       << "Pre-condition: UE config should have no CG when the cell has no CG";
   add_ue(ue_req, /*wait_notification=*/true);
 
@@ -1171,7 +1171,7 @@ protected:
     ue_req.starts_in_fallback = true;
     ASSERT_EQ(sched_config_helper::to_ue_creation_mode(ue_req), ue_creation_mode::high_layers);
     // Create the UE without CG: the CG config is installed via reconfiguration (see add_cg_ue()).
-    ue_req.cfg.cells->front().serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
+    ue_req.cfg.cells->front().ded->serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
 
     sched->handle_ue_creation_request(ue_req);
     notif.last_ue_index_cfg.reset();
@@ -1188,7 +1188,7 @@ protected:
     ue_req.ue_index = ue_idx;
     ue_req.crnti    = ue_crnti;
     ue_req.cfg.cells->front()
-        .serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg->rrc_configured_ul_grant_cfg->time_domain_offset =
+        .ded->serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg->rrc_configured_ul_grant_cfg->time_domain_offset =
         default_cg_offset_;
 
     sched_ue_reconfiguration_message reconf;

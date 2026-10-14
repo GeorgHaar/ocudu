@@ -258,6 +258,7 @@ struct cell_harq_repository {
   /// \return Pointer to the allocated HARQ process, or \c nullptr if the UE has no free (and, when applicable, no
   /// matching reserved or mode-matching) HARQ process available.
   harq_type* alloc_harq(du_ue_index_t                       ue_idx,
+                        slot_point                          sl_pdcch,
                         slot_point                          sl_tx,
                         slot_point                          sl_ack,
                         slot_point                          sl_ack_end,
@@ -601,6 +602,7 @@ private:
   /// \brief Called on every DL new Tx to allocate an DL HARQ process.
   harq_utils::dl_harq_process_impl* new_dl_tx(du_ue_index_t           ue_idx,
                                               rnti_t                  rnti,
+                                              slot_point              pdcch_slot,
                                               slot_point              pdsch_slot,
                                               unsigned                ack_delay,
                                               unsigned                last_ack_delay,
@@ -612,6 +614,7 @@ private:
   /// \brief Called on every UL new Tx to allocate an UL HARQ process.
   harq_utils::ul_harq_process_impl* new_ul_tx(du_ue_index_t                       ue_idx,
                                               rnti_t                              rnti,
+                                              slot_point                          pdcch_slot,
                                               slot_point                          pusch_slot,
                                               unsigned                            max_harq_nof_retxs,
                                               std::optional<cg_harq_alloc_params> cg_params = std::nullopt,
@@ -727,17 +730,18 @@ public:
   }
 
   /// \brief Allocates a DL HARQ process for a new transmission.
-  /// \param[in] sl_tx Slot of the PDSCH.
+  /// \param[in] sl_pdsch Slot of the PDSCH.
   /// \param[in] ack_delay Delay, in slots, of the HARQ-ACK report with respect to the PDSCH.
   /// \param[in] max_harq_nof_retxs Maximum number of retransmissions for this HARQ process.
   /// \param[in] harq_bit_idx Bit index of the HARQ-ACK in the UCI indication.
   /// \param[in] mode Mode the selected HARQ process must be operating in.
-  /// \param[in] nof_repetitions Number of consecutive slots spanned by this transmission, starting at \c sl_tx
+  /// \param[in] nof_repetitions Number of consecutive slots spanned by this transmission, starting at \c sl_pdsch
   /// (Rel-16 PDSCH repetitions; 1 for a single transmission). See \c cell_harq_repository::alloc_harq.
   /// \param[in] last_ack_delay Delay, in slots, of the last transmission carrying the HARQ-ACK report with respect to
   /// the PDSCH. It only differs from \c ack_delay if the report is repeated over multiple slots. Defaults to
   /// \c ack_delay.
-  std::optional<dl_harq_process_handle> alloc_dl_harq(slot_point              sl_tx,
+  std::optional<dl_harq_process_handle> alloc_dl_harq(slot_point              sl_pdcch,
+                                                      slot_point              sl_pdsch,
                                                       unsigned                ack_delay,
                                                       unsigned                max_harq_nof_retxs,
                                                       unsigned                harq_bit_idx,
@@ -746,7 +750,8 @@ public:
                                                       std::optional<unsigned> last_ack_delay  = std::nullopt);
   /// \param[in] nof_repetitions Slot span of the PUSCH repetition bundle starting at \c sl_tx (1 for a single
   /// transmission).
-  std::optional<ul_harq_process_handle> alloc_ul_harq(slot_point                          sl_tx,
+  std::optional<ul_harq_process_handle> alloc_ul_harq(slot_point                          sl_pdcch,
+                                                      slot_point                          sl_tx,
                                                       unsigned                            max_harq_nof_retxs,
                                                       std::optional<cg_harq_alloc_params> cg_params = std::nullopt,
                                                       harq_utils::harq_mode_t mode = harq_utils::harq_mode_t::normal,

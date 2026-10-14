@@ -101,7 +101,7 @@ TEST_F(ra_ue_repository_test, slot_indication_keeps_entry_alive_while_msg3_harq_
   ra_ue_context* ctx = repo.add(test_helper::create_preamble(0, tc_rnti), sl_tx, ssb_id_t{0});
   ASSERT_NE(ctx, nullptr);
 
-  std::optional<ul_harq_process_handle> h_ul = ctx->harq_ent.alloc_ul_harq(sl_tx, 4);
+  std::optional<ul_harq_process_handle> h_ul = ctx->harq_ent.alloc_ul_harq(sl_tx, sl_tx, 4);
   ASSERT_TRUE(h_ul.has_value());
 
   // Not erased while its Msg3 HARQ still awaits ACK/CRC, even past the ConRes timeout.

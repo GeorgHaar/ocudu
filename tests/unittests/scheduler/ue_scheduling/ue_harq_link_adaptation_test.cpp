@@ -66,7 +66,7 @@ protected:
   {
     const search_space_info& ss = ue_cc->cfg().search_space(to_search_space_id(2));
 
-    dl_harq_process_handle h_dl = ue_cc->harqs.alloc_dl_harq(next_slot, k1, 4, 0).value();
+    dl_harq_process_handle h_dl = ue_cc->harqs.alloc_dl_harq(next_slot, next_slot, k1, 4, 0).value();
 
     // Create dummy PDSCH grant.
     const pdsch_codeword cw{

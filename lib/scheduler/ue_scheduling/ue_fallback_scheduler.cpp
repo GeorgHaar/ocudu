@@ -802,6 +802,7 @@ ue_fallback_scheduler::alloc_grant(ue&                                   u,
 
   // Fill ConRes and/or SRB grant.
   return fill_dl_srb_grant(u,
+                           pdcch_alloc.slot,
                            pdsch_alloc.slot,
                            h_dl_retx,
                            *pdcch,
@@ -910,6 +911,7 @@ ue_fallback_scheduler::select_tbs(const pdsch_config_params&          pdsch_cfg,
 }
 
 dl_harq_process_handle ue_fallback_scheduler::fill_dl_srb_grant(ue&                                   u,
+                                                                slot_point                            pdcch_slot,
                                                                 slot_point                            pdsch_slot,
                                                                 std::optional<dl_harq_process_handle> h_dl,
                                                                 pdcch_dl_information&                 pdcch,
@@ -927,7 +929,7 @@ dl_harq_process_handle ue_fallback_scheduler::fill_dl_srb_grant(ue&             
   // NOTE: We do not multiplex the SRB1 PUCCH with existing PUCCH HARQs, thus both DAI and HARQ-ACK bit index are 0.
   if (not is_retx) {
     h_dl = u.get_pcell().harqs.alloc_dl_harq(
-        pdsch_slot, uci.k1 + cell_cfg.ntn_cs_koffset, expert_cfg.max_nof_dl_harq_retxs, uci.harq_bit_idx);
+        pdcch_slot, pdsch_slot, uci.k1 + cell_cfg.ntn_cs_koffset, expert_cfg.max_nof_dl_harq_retxs, uci.harq_bit_idx);
     ocudu_assert(h_dl.has_value(), "Failed to allocate DL HARQ");
   } else {
     bool result = h_dl->new_retx(pdsch_slot, uci.k1 + cell_cfg.ntn_cs_koffset, uci.harq_bit_idx);
@@ -1370,7 +1372,8 @@ void ue_fallback_scheduler::fill_ul_srb_grant(ue&                               
   } else {
     // It is a new tx.
     h_ul =
-        u.get_pcell().harqs.alloc_ul_harq(pdcch_slot + k2 + cell_cfg.ntn_cs_koffset, expert_cfg.max_nof_ul_harq_retxs);
+        u.get_pcell().harqs.alloc_ul_harq(
+            pdcch_slot, pdcch_slot + k2 + cell_cfg.ntn_cs_koffset, expert_cfg.max_nof_ul_harq_retxs);
     ocudu_assert(h_ul.has_value(), "Failed to allocate UL HARQ");
   }
 

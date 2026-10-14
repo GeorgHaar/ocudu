@@ -311,7 +311,8 @@ ue_cell_grid_allocator::setup_dl_grant_builder(const slice_ue&                  
   // NOTE: With PDSCH repetitions, the HARQ-ACK is expected k1 slots after the last repetition occasion.
   if (not is_retx) {
     // It is a new tx.
-    h_dl = ue_cc.harqs.alloc_dl_harq(pdsch_alloc.slot,
+    h_dl = ue_cc.harqs.alloc_dl_harq(pdcch_alloc.slot,
+                                     pdsch_alloc.slot,
                                      ack_delay,
                                      expert_cfg.max_nof_dl_harq_retxs,
                                      uci.harq_bit_idx,
@@ -1006,7 +1007,8 @@ ue_cell_grid_allocator::setup_ul_grant_builder(const slice_ue&                  
   if (not is_retx) {
     // It is a new tx.
     // NOTE: in this scheduler, we do not request a specific HARQ-ID process.
-    h_ul = ue_cc.harqs.alloc_ul_harq(pusch_alloc.slot,
+    h_ul = ue_cc.harqs.alloc_ul_harq(pdcch_alloc.slot,
+                                     pusch_alloc.slot,
                                      expert_cfg.max_nof_ul_harq_retxs,
                                      /* cg_params */ std::nullopt,
                                      harq_mode,

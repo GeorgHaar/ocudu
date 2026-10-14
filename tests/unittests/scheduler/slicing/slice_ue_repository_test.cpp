@@ -97,7 +97,7 @@ protected:
   /// Marks the given number of bytes as allocated in a UL HARQ of the UE, so that they count as already in flight.
   void allocate_ul_harq_bytes(du_ue_index_t ue_idx, units::bytes tbs, std::optional<ran_slice_id_t> slice_id)
   {
-    auto h_ul = ue_db[ue_idx].get_pcell().harqs.alloc_ul_harq(next_slot, 4);
+    auto h_ul = ue_db[ue_idx].get_pcell().harqs.alloc_ul_harq(next_slot, next_slot, 4);
     report_fatal_error_if_not(h_ul.has_value(), "No UL HARQ process available");
     ul_harq_alloc_context ctxt;
     ctxt.dci_cfg_type = dci_ul_rnti_config_type::c_rnti_f0_1;

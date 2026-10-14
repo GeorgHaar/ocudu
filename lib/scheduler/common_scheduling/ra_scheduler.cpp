@@ -1474,7 +1474,7 @@ void ra_scheduler::fill_rar_grant(cell_resource_allocator&         res_alloc,
 
     // Allocate Msg3 UL HARQ.
     std::optional<ul_harq_process_handle> h_ul =
-        pending_msg3.harq_ent.alloc_ul_harq(msg3_alloc.slot, sched_cfg.max_nof_msg3_harq_retxs);
+        pending_msg3.harq_ent.alloc_ul_harq(pdcch_slot, msg3_alloc.slot, sched_cfg.max_nof_msg3_harq_retxs);
     ocudu_sanity_check(h_ul.has_value(), "Pending Msg3 HARQ must be available when RAR is allocated");
 
     if (rar.grants.full() or msg3_alloc.result.ul.puschs.full()) {
@@ -2043,7 +2043,7 @@ void ra_scheduler::schedule_pending_msgbs(cell_resource_allocator& res_alloc, sl
       }
       ra_ue_context*                        pending_msg3 = &*pending_msg3_it;
       std::optional<ul_harq_process_handle> h_ul =
-          pending_msg3->harq_ent.alloc_ul_harq(msg3_alloc.slot, sched_cfg.max_nof_msg3_harq_retxs);
+          pending_msg3->harq_ent.alloc_ul_harq(pdcch_slot, msg3_alloc.slot, sched_cfg.max_nof_msg3_harq_retxs);
       ocudu_sanity_check(h_ul.has_value(), "Pending Msg3 HARQ must be available for FallbackRAR");
 
       // Fill rar_ul_grant.

@@ -224,7 +224,8 @@ bool configured_grant_scheduler_base::allocate_cg_opportunity(cell_slot_resource
   const harq_id_t           h_id =
       get_cg_harq_id(pusch_slot, pusch_params.symbols.start(), cg_periodicity, cg_cfg.nof_harq_processes);
   const unsigned cg_harq_timeout = cg_configuration::configured_grant_timer * static_cast<unsigned>(cg_periodicity);
-  auto h_ul = ue_cc->harqs.alloc_ul_harq(pusch_slot, nof_harq_retx, cg_harq_alloc_params{h_id, cg_harq_timeout});
+  auto           h_ul =
+      ue_cc->harqs.alloc_ul_harq(pusch_slot, pusch_slot, nof_harq_retx, cg_harq_alloc_params{h_id, cg_harq_timeout});
   ocudu_assert(h_ul.has_value(), "Failed to allocate UL HARQ id={}", fmt::underlying(h_id));
 
   // NOTE: the CG PUSCH RBs and symbols have already been pre-reserved in the UL resource grid, either by

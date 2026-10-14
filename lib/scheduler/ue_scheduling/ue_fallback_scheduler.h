@@ -135,6 +135,7 @@ private:
 
   /// \return A pair with the number of SRB bytes allocated and which DL HARQ process was used.
   dl_harq_process_handle fill_dl_srb_grant(ue&                                   u,
+                                           slot_point                            pdcch_slot,
                                            slot_point                            pdsch_slot,
                                            std::optional<dl_harq_process_handle> h_dl,
                                            pdcch_dl_information&                 pdcch,

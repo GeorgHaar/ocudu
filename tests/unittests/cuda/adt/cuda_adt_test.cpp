@@ -28,12 +28,7 @@ bool has_cuda_device()
 class cuda_adt_test : public ::testing::Test
 {
 protected:
-  void SetUp() override
-  {
-    if (!has_cuda_device()) {
-      FAIL() << "No CUDA device available.";
-    }
-  }
+  void SetUp() override { ASSERT_TRUE(has_cuda_device()) << "No CUDA device available."; }
 };
 
 } // namespace

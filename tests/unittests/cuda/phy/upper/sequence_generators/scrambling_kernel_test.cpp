@@ -41,9 +41,7 @@ class scrambling_kernel_test : public ::testing::Test
 protected:
   void SetUp() override
   {
-    if (!has_cuda_device()) {
-      FAIL() << "No CUDA device available";
-    }
+    ASSERT_TRUE(has_cuda_device()) << "No CUDA device available";
 
     cuda_expected<cuda_stream> created_stream = cuda_stream::create();
     ASSERT_TRUE(created_stream.has_value());

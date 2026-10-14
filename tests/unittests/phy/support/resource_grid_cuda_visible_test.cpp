@@ -31,17 +31,13 @@ class resource_grid_cuda_visible_test : public ::testing::Test
 protected:
   void SetUp() override
   {
-    if (!has_cuda_device()) {
-      FAIL() << "No CUDA device available";
-    }
+    ASSERT_TRUE(has_cuda_device()) << "No CUDA device available";
 
     host_factory = create_resource_grid_factory();
     ASSERT_NE(host_factory, nullptr);
 
     factory = create_resource_grid_factory_cuda_visible(host_factory, {});
-    if (factory == nullptr) {
-      FAIL() << "No CUDA device is available for a shared resource grid";
-    }
+    ASSERT_NE(factory, nullptr) << "No CUDA device is available for a shared resource grid";
 
     grid = factory->create(nof_ports, nof_symbols, nof_subc);
     ASSERT_NE(grid, nullptr);

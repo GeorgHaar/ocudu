@@ -41,9 +41,7 @@ class crc_kernel_test : public ::testing::Test
 protected:
   void SetUp() override
   {
-    if (!has_cuda_device()) {
-      FAIL() << "No CUDA device available";
-    }
+    ASSERT_TRUE(has_cuda_device()) << "No CUDA device available";
 
     // The tables the checksum kernels index are populated once per process.
     ASSERT_TRUE(crc_init_tables().has_value());

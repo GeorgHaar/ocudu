@@ -30,14 +30,10 @@ class prach_buffer_cuda_visible_test : public ::testing::Test
 protected:
   void SetUp() override
   {
-    if (!has_cuda_device()) {
-      FAIL() << "No CUDA device available";
-    }
+    ASSERT_TRUE(has_cuda_device()) << "No CUDA device available";
 
     buffer = create_prach_buffer_cuda_visible(nof_antennas, nof_td_occasions, nof_fd_occasions, true);
-    if (buffer == nullptr) {
-      FAIL() << "No CUDA device is available for a shared PRACH buffer";
-    }
+    ASSERT_NE(buffer, nullptr) << "No CUDA device is available for a shared PRACH buffer";
   }
 
   std::unique_ptr<prach_buffer> buffer;

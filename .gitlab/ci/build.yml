@@ -373,6 +373,27 @@ variables:
     TEST_MODE: default
     MARCH: x86-64-v3
 
+.smoke cuda:
+  extends: .build_and_unit
+  image: nvidia/cuda:12.9.2-devel-ubuntu24.04
+  tags:
+    - saas-linux-medium-amd64-gpu-standard
+  variables:
+    OS: ubuntu-24.04
+    ENABLE_CUDA: "True"
+    MARCH: x86-64-v3
+    TEST_MODE: cuda
+  before_script:
+    - ${CI_PROJECT_DIR}/docker/scripts/install_dependencies.sh
+    - apt-get install -y --no-install-recommends ccache ninja-build lld
+    - cp ${CI_PROJECT_DIR}/docker/scripts/builder.sh ${CI_PROJECT_DIR}/.gitlab/ci/builders/add_junit_properties.py /usr/local/bin/ && chmod +x /usr/local/bin/builder.sh /usr/local/bin/add_junit_properties.py
+    - |
+      command -v curl >/dev/null 2>&1 || { apt-get update && apt-get install -y --no-install-recommends ca-certificates curl; }
+      export VKFFT_ROOT=/opt/vkfft
+      mkdir -p "${VKFFT_ROOT}"
+      curl -fsSL https://github.com/DTolm/VkFFT/archive/refs/heads/master.tar.gz | tar -xz -C "${VKFFT_ROOT}" --strip-components=1
+    - !reference [.build_and_unit_template, before_script]
+
 # Combinations to use in schedules matrix
 
 .combinations: &basic_combinations
@@ -407,6 +428,15 @@ smoke old clang cached:
   rules:
     - if: $CI_MERGE_REQUEST_LABELS =~ /ci-no-old-clang/
       when: never
+    - if: $CI_MERGE_REQUEST_LABELS =~ /ci-no-cache/
+      when: never
+    - if: $ON_MR
+  cache:
+    - *cache_build_get
+
+smoke archlinux cached:
+  extends: .smoke archlinux
+  rules:
     - if: $CI_MERGE_REQUEST_LABELS =~ /ci-no-cache/
       when: never
     - if: $ON_MR
@@ -449,15 +479,6 @@ smoke rtsan cached:
   cache:
     - *cache_build_get
 
-smoke archlinux cached:
-  extends: .smoke archlinux
-  rules:
-    - if: $CI_MERGE_REQUEST_LABELS =~ /ci-no-cache/
-      when: never
-    - if: $ON_MR
-  cache:
-    - *cache_build_get
-
 smoke pretty printers cached:
   extends: .smoke printers
   rules:
@@ -470,6 +491,35 @@ smoke pretty printers cached:
           - tests/utils/gdb/pretty_printers/*
           - utils/gdb/**/*
           - .gdbinit
+    - if: $ON_MR
+      when: manual
+      allow_failure: true
+  cache:
+    - *cache_build_get
+
+smoke cuda cached:
+  extends: .smoke cuda
+  stage: extended
+  rules:
+    - if: $ON_MR_FORK
+      when: never
+    - if: $CI_MERGE_REQUEST_LABELS =~ /ci-no-cache/
+      when: never
+    - if: $ON_MR
+      changes: &cuda_changes
+        paths:
+          - lib/cuda/**/*
+          - include/ocudu/cuda/**/*
+          - tests/unittests/cuda/**/*
+          - lib/phy/support/*cuda_visible*
+          - tests/unittests/phy/support/*cuda_visible*
+          - lib/phy/upper/channel_processors/prach/*cuda*
+          - tests/unittests/phy/upper/channel_processors/prach/*cuda*
+          - cmake/modules/add_cuda_test.cmake
+          - cmake/modules/FindVkFFT.cmake
+    - if: $ON_MR
+      when: manual
+      allow_failure: true
   cache:
     - *cache_build_get
 
@@ -483,6 +533,11 @@ smoke old clang clean:
   rules:
     - if: $CI_MERGE_REQUEST_LABELS =~ /ci-no-old-clang/
       when: never
+    - if: $CI_MERGE_REQUEST_LABELS =~ /ci-no-cache/
+
+smoke archlinux clean:
+  extends: .smoke archlinux
+  rules:
     - if: $CI_MERGE_REQUEST_LABELS =~ /ci-no-cache/
 
 smoke tsan clean:
@@ -509,17 +564,30 @@ smoke rtsan clean:
       when: manual
       allow_failure: true
 
-smoke archlinux clean:
-  extends: .smoke archlinux
-  rules:
-    - if: $CI_MERGE_REQUEST_LABELS =~ /ci-no-cache/
-
 smoke pretty printers clean:
   extends: .smoke printers
+  stage: extended
   rules:
     - if: $CI_MERGE_REQUEST_LABELS =~ /ci-no-cache/
       changes:
         <<: *gdb_printers_changes
+    - if: $CI_MERGE_REQUEST_LABELS =~ /ci-no-cache/
+      when: manual
+      allow_failure: true
+
+smoke cuda clean:
+  extends: .smoke cuda
+  stage: extended
+  rules:
+    - if: $ON_MR_FORK
+      when: never
+    - if: $CI_MERGE_REQUEST_LABELS =~ /ci-no-cache/
+      changes:
+        <<: *cuda_changes
+    - if: $CI_MERGE_REQUEST_LABELS =~ /ci-no-cache/
+      when: manual
+      allow_failure: true
+  cache: []
 
 # Intermediate commits
 
@@ -645,6 +713,11 @@ smoke valgrind:
 
 smoke rtsan:
   extends: .smoke rtsan
+  rules:
+    - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Nightly/
+
+smoke cuda:
+  extends: .smoke cuda
   rules:
     - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Nightly/
 

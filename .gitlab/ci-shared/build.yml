@@ -23,6 +23,7 @@ include:
     ENABLE_UHD: "" # Empty for cmake default
     ENABLE_DPDK: "" # Empty for cmake default
     ENABLE_ZEROMQ: "" # Empty for cmake default
+    ENABLE_CUDA: "" # Empty for cmake default
     ENABLE_ASAN: "" # Empty for cmake default
     ENABLE_TSAN: "" # Empty for cmake default
     ENABLE_GCOV: "" # Empty for cmake default
@@ -32,6 +33,7 @@ include:
     ENABLE_SCHEDTRACE: "" # Empty for cmake default
     ENABLE_WERROR: "" # Empty for cmake default
     ENABLE_SPLIT_DWARF: "" # Empty for cmake default
+    CMAKE_CUDA_ARCHITECTURES: "" # Empty to derive it from the GPU the runner provides
     TEST_GDB_PRINTERS: "" # Empty for cmake default
     FORCE_DEBUG_INFO: "" # Empty for cmake default
     OCUDU_TEST_REQUIREMENT_REPORTS: "" # Empty for cmake default
@@ -60,14 +62,23 @@ include:
     - ${OCUDU_RUNNER_TAG}-amd64
   before_script:
     - |
+      # Reading the architecture from the GPU if it's not set
+      if [ -n "${ENABLE_CUDA}" ] && [ "${ENABLE_CUDA}" != "False" ] && [ -z "${CMAKE_CUDA_ARCHITECTURES}" ]; then
+        CMAKE_CUDA_ARCHITECTURES=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -1 | tr -d '. ')
+        if [ -z "${CMAKE_CUDA_ARCHITECTURES}" ]; then
+          echo "Could not query the CUDA compute capability from nvidia-smi" >&2
+          exit 1
+        fi
+      fi
+    - |
       for var in \
         CMAKE_BUILD_TYPE LINKER \
         ASSERT_LEVEL ENABLE_EXPORT ENABLE_BACKWARD \
         ENABLE_FFTW ENABLE_MKL ENABLE_ARMPL \
-        ENABLE_UHD ENABLE_DPDK ENABLE_ZEROMQ \
+        ENABLE_UHD ENABLE_DPDK ENABLE_ZEROMQ ENABLE_CUDA \
         ENABLE_ASAN ENABLE_TSAN ENABLE_GCOV \
         ENABLE_UBSAN ENABLE_UBSAN_MIN ENABLE_RTSAN \
-        ENABLE_SCHEDTRACE \
+        ENABLE_SCHEDTRACE CMAKE_CUDA_ARCHITECTURES \
         ENABLE_WERROR ENABLE_SPLIT_DWARF TEST_GDB_PRINTERS \
         FORCE_DEBUG_INFO OCUDU_TEST_REQUIREMENT_REPORTS MARCH MTUNE MCPU \
       ; do

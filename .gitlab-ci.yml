@@ -17,6 +17,7 @@ include:
   - local: .gitlab/ci/doxygen/version.yml
   - local: .gitlab/ci/build.yml
   - local: .gitlab/ci/compose.yml
+  - local: .gitlab/ci/scorecard.yml
 
 stages:
   - ci

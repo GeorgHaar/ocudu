@@ -1,0 +1,57 @@
+# SPDX-FileCopyrightText: Copyright (C) 2021-2026 Software Radio Systems Limited
+# SPDX-FileCopyrightText: Copyright (C) 2026 OCUDU contributors
+# SPDX-License-Identifier: BSD-3-Clause-Open-MPI
+
+# Runs OpenSSF Scorecard (https://github.com/ossf/scorecard) against the GitLab project and stores the results as a JSON
+# artifact. Scorecard reads the project through the GitLab API, so no checkout is needed.
+#
+# Uses the GITLAB_TOKEN CI/CD variable of the GitOps setup (see .gitlab/README.md), which has the Maintainer role needed
+# for the Branch-Protection check. The job is skipped when the variable is not set.
+scorecard:
+  stage: extended
+  image: alpine:3.21.3
+  rules:
+    - if: $GITLAB_TOKEN == null || $GITLAB_TOKEN == ""
+      when: never
+    - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Weekly/
+      allow_failure: true
+    - if: $ON_WEB
+      when: manual
+      allow_failure: true
+  needs: []
+  variables:
+    GIT_STRATEGY: none
+    SCORECARD_VERSION: "5.5.0"
+    SCORECARD_SHA256: "83b90a05c1540ef1390db1cd5711e5fd04be9c1d8537fb84d39d02092d6a8dff"
+    # Dangerous-Workflow, SAST and Token-Permissions are not supported on GitLab.
+    SCORECARD_CHECKS: "Binary-Artifacts,Branch-Protection,CI-Tests,CII-Best-Practices,Code-Review,Contributors,Dependency-Update-Tool,Fuzzing,License,Maintained,Packaging,Pinned-Dependencies,Security-Policy,Signed-Releases,Vulnerabilities"
+    # The job fails, without blocking the pipeline, when the aggregate score drops below this value.
+    SCORECARD_MIN_SCORE: "5"
+    SCORECARD_RESULTS: scorecard.json
+  script:
+    - apk add --no-cache curl jq
+    - |
+      SCORECARD_TARBALL="scorecard_${SCORECARD_VERSION}_linux_amd64.tar.gz"
+      curl -sSLf -o "${SCORECARD_TARBALL}" \
+        "https://github.com/ossf/scorecard/releases/download/v${SCORECARD_VERSION}/${SCORECARD_TARBALL}"
+      echo "${SCORECARD_SHA256}  ${SCORECARD_TARBALL}" | sha256sum -c -
+      tar -xzf "${SCORECARD_TARBALL}" scorecard
+    - |
+      # Scorecard exits with an error when a single check fails to run, keep the results of the remaining checks.
+      GITLAB_AUTH_TOKEN="${GITLAB_TOKEN}" ./scorecard --repo="${CI_SERVER_HOST}/${CI_PROJECT_PATH}" \
+        --checks="${SCORECARD_CHECKS}" --show-details --format=json --output="${SCORECARD_RESULTS}" || true
+      if [ ! -s "${SCORECARD_RESULTS}" ]; then
+        echo "Scorecard did not produce any results"
+        exit 1
+      fi
+    - |
+      jq -r '.checks[] | "\(.score)\t\(.name)\t\(.reason)"' "${SCORECARD_RESULTS}"
+      SCORE=$(jq '.score' "${SCORECARD_RESULTS}")
+      echo "Aggregate score: ${SCORE} (minimum: ${SCORECARD_MIN_SCORE})"
+      jq -e --argjson min "${SCORECARD_MIN_SCORE}" '.score >= $min' "${SCORECARD_RESULTS}" > /dev/null
+  artifacts:
+    when: always
+    paths:
+      - $SCORECARD_RESULTS
+    expire_in: 90 days
+  dependencies: []

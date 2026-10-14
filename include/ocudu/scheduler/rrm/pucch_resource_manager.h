@@ -40,7 +40,8 @@ public:
   bool alloc_resources(ue_cell_config& ue_cell_cfg);
 
   /// \brief Deallocate PUCCH resources previously given to a UE. The resources are returned back to a pool.
-  void dealloc_resources(ue_cell_config& ue_cell_cfg);
+  /// \remark Call it only for a UE whose \c alloc_resources call succeeded.
+  void dealloc_resources(const ue_cell_config& ue_cell_cfg);
 
   /// \brief Update the UE's PUCCH resources based on its reported capabilities.
   ///

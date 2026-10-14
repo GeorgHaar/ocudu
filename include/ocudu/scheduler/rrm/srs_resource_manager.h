@@ -27,7 +27,8 @@ public:
   virtual bool alloc_resources(ue_cell_config& ue_cell_cfg) = 0;
 
   /// \brief Deallocate the SRS resources for a given UE and return the used resource to the common pool.
-  virtual void dealloc_resources(ue_cell_config& ue_cell_cfg) = 0;
+  /// \remark Call it only for a UE whose \c alloc_resources call succeeded.
+  virtual void dealloc_resources(const ue_cell_config& ue_cell_cfg) = 0;
 
   /// Gets the current number of free SRS resource ID and offset pairs.
   virtual unsigned get_nof_srs_free_res_offsets(du_cell_index_t cell_idx) const = 0;

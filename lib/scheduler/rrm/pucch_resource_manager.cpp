@@ -204,15 +204,10 @@ bool pucch_resource_manager::alloc_resources(ue_cell_config& cell_cfg)
   return true;
 }
 
-void pucch_resource_manager::dealloc_resources(ue_cell_config& cell_cfg)
+void pucch_resource_manager::dealloc_resources(const ue_cell_config& cell_cfg)
 {
-  auto&       serv_cell_cfg = cell_cfg.serv_cell_cfg;
-  const auto& ul_bwp        = cell_cfg.init_bwp().ul;
-  auto&       cell_ctx      = cells[serv_cell_cfg.cell_index];
-
-  if (not serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg.has_value()) {
-    return;
-  }
+  const auto& ul_bwp   = cell_cfg.bwps[0].ul;
+  auto&       cell_ctx = cells[cell_cfg.serv_cell_cfg.cell_index];
 
   // Return SR resource/offset to the free list.
   cell_ctx.free_sr_configs.emplace_back(periodic_pucch_config{ul_bwp.pucch.sr_res_id.value(), ul_bwp.pucch.sr_offset});
@@ -237,10 +232,6 @@ void pucch_resource_manager::dealloc_resources(ue_cell_config& cell_cfg)
                  offset);
     --cell_ctx.periodic_pucchs_per_slot[offset];
   }
-
-  // Disable the PUCCH configuration in this UE. This makes sure the DU will exit this function immediately when it
-  // gets called again for the same UE (upon destructor's call).
-  disable_pucch_cfg(serv_cell_cfg, cell_ctx);
 }
 
 void pucch_resource_manager::update_resources(ue_cell_config& cell_cfg, const ue_capability_summary& ue_caps)

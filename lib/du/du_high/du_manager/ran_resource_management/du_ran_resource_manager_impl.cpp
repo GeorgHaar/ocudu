@@ -434,15 +434,16 @@ du_ran_resource_manager_impl::update_context(du_ue_index_t                      
 void du_ran_resource_manager_impl::deallocate_context(du_ue_index_t ue_index)
 {
   ocudu_assert(ue_res_pool.contains(ue_index), "This function should only be called for an already allocated UE");
-  ue_resource_context&   ue_res = ue_res_pool[ue_index];
-  du_ue_resource_config& ue_mcg = ue_res.cg_cfg;
+  ue_resource_context&   ue_res      = ue_res_pool[ue_index];
+  du_ue_resource_config& ue_mcg      = ue_res.cg_cfg;
   const du_cell_index_t  pcell_index = ue_res.counted_cell_index;
 
   ra_res_alloc.deallocate_cfra_resources(ue_mcg);
   drx_res_mng.handle_ue_removal(ue_mcg.cell_group);
 
-  for (auto p : ue_mcg.cell_group.cells) {
-    deallocate_cell_resources(ue_index, p.first);
+  // Each deallocation removes the cell from the list.
+  while (not ue_mcg.cell_group.cells.empty()) {
+    deallocate_cell_resources(ue_index, ue_mcg.cell_group.cells.begin()->first);
   }
 
   ue_res_pool.erase(ue_index);
@@ -516,22 +517,21 @@ void du_ran_resource_manager_impl::deallocate_cell_resources(du_ue_index_t ue_in
   ue_resource_context&   ue_res_updater = ue_res_pool[ue_index];
   du_ue_resource_config& ue_res         = ue_res_updater.cg_cfg;
 
-  // Return resources back to free lists.
+  ocudu_assert(ue_res.cell_group.cells.contains(serv_cell_index),
+               "ue={}: Deallocation of serv_cell_index={}, which the UE does not have",
+               ue_index,
+               serv_cell_index);
+
+  // Return resources back to free lists. SCells hold no resources yet.
   if (serv_cell_index == SERVING_PCELL_IDX) {
-    ocudu_assert(not ue_res.cell_group.cells.empty() and
-                     ue_res.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg.cell_index != INVALID_DU_CELL_INDEX,
-                 "Double deallocation of same UE cell resources detected");
     pucch_res_mng.dealloc_resources(ue_res.cell_group.cells.at(SERVING_PCELL_IDX));
     srs_res_mng->dealloc_resources(ue_res.cell_group.cells.at(SERVING_PCELL_IDX));
     pdsch_res_mng.dealloc_resources(ue_res.cell_group);
     pusch_res_mng.dealloc_resources(ue_res.cell_group);
     csi_res_mng.dealloc_resources(ue_res.cell_group);
     cg_res_mng->reset_ue_cg_config(ue_res.cell_group.cells.at(SERVING_PCELL_IDX));
-    ue_res.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg.cell_index = INVALID_DU_CELL_INDEX;
-  } else {
-    // TODO: Remove of SCell params.
-    ue_res.cell_group.cells.erase(serv_cell_index);
   }
+  ue_res.cell_group.cells.erase(serv_cell_index);
 }
 
 du_ran_resource_manager_impl::ue_resource_context::ue_resource_context(du_ran_resource_manager_impl& parent) :

@@ -273,17 +273,16 @@ srs_resource_manager_periodic::cell_context::find_optimal_ue_srs_resource()
   return optimal_res_it;
 }
 
-void srs_resource_manager_periodic::dealloc_resources(ue_cell_config& ue_cell_cfg)
+void srs_resource_manager_periodic::dealloc_resources(const ue_cell_config& ue_cell_cfg)
 {
-  auto& cell_cfg_ded = ue_cell_cfg.serv_cell_cfg;
+  const auto& cell_cfg_ded = ue_cell_cfg.serv_cell_cfg;
   // This is the cell index inside the DU.
   auto& ue_du_cell = cells[cell_cfg_ded.cell_index];
 
   ocudu_assert(ue_du_cell.cell_cfg.init_bwp.srs_cfg.srs_type_enabled != srs_type::aperiodic,
                "This function is not compatible with aperiodic SRS");
 
-  if (ue_du_cell.cell_cfg.init_bwp.srs_cfg.srs_type_enabled != srs_type::periodic or
-      not cell_cfg_ded.ul_config->init_ul_bwp.srs_cfg.has_value()) {
+  if (ue_du_cell.cell_cfg.init_bwp.srs_cfg.srs_type_enabled != srs_type::periodic) {
     return;
   }
 
@@ -299,8 +298,4 @@ void srs_resource_manager_periodic::dealloc_resources(ue_cell_config& ue_cell_cf
                  "The slot resource counter is expected to be non-zero");
     --ue_du_cell.slot_resource_cnt[offset_to_deallocate];
   }
-
-  // Reset the SRS configuration in this UE. This makes sure the DU will exit this function immediately when it gets
-  // called again for the same UE (upon destructor's call).
-  cell_cfg_ded.ul_config->init_ul_bwp.srs_cfg.reset();
 }

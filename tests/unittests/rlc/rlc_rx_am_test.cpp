@@ -162,7 +162,8 @@ protected:
                    uint32_t                         sn,
                    uint32_t                         sdu_size,
                    uint32_t                         segment_size,
-                   uint8_t                          first_byte = 0) const
+                   uint8_t                          first_byte = 0,
+                   bool                             poll       = false) const
   {
     ASSERT_GT(sdu_size, 0) << "Invalid argument: Cannot create PDUs with zero-sized SDU";
     ASSERT_GT(segment_size, 0) << "Invalid argument: Cannot create PDUs with zero-sized SDU segments";
@@ -174,7 +175,7 @@ protected:
 
     rlc_am_pdu_header hdr = {};
     hdr.dc                = rlc_dc_field::data;
-    hdr.p                 = 0;
+    hdr.p                 = poll ? 1 : 0;
     hdr.si                = rlc_si_field::full_sdu;
     hdr.sn_size           = config.sn_field_length;
     hdr.sn                = sn;
@@ -640,11 +641,8 @@ TEST_P(rlc_rx_am_test, rx_polling_bit_sn_inside_rx_window)
   // Create SDU and PDU with full SDU
   std::list<std::vector<uint8_t>> pdu_list = {};
   byte_buffer                     sdu;
-  ASSERT_NO_FATAL_FAILURE(create_pdus(pdu_list, sdu, sn_state, sdu_size, sdu_size, sn_state));
+  ASSERT_NO_FATAL_FAILURE(create_pdus(pdu_list, sdu, sn_state, sdu_size, sdu_size, sn_state, true));
   sn_state++;
-
-  // Change polling bit in first byte of PDU (header)
-  *(pdu_list.front().begin()) |= 0b01000000; // set P = 1;
 
   // Push into RLC
   byte_buffer_slice pdu = byte_buffer_slice::create(std::move(pdu_list.front())).value();
@@ -670,8 +668,7 @@ TEST_P(rlc_rx_am_test, status_report_never_older_than_previous_read)
   auto     rx_polled_pdu = [&](uint32_t sn) {
     std::list<std::vector<uint8_t>> pdu_list = {};
     byte_buffer                     sdu;
-    ASSERT_NO_FATAL_FAILURE(create_pdus(pdu_list, sdu, sn, sdu_size, sdu_size, sn));
-    *(pdu_list.front().begin()) |= 0b01000000; // set P = 1;
+    ASSERT_NO_FATAL_FAILURE(create_pdus(pdu_list, sdu, sn, sdu_size, sdu_size, sn, true));
     rlc->handle_pdu(byte_buffer_slice::create(std::move(pdu_list.front())).value());
   };
 
@@ -750,8 +747,7 @@ TEST_P(rlc_rx_am_test, status_report_never_older_with_concurrent_tx)
     uint32_t                        sn       = n % mod;
     std::list<std::vector<uint8_t>> pdu_list = {};
     byte_buffer                     sdu;
-    ASSERT_NO_FATAL_FAILURE(create_pdus(pdu_list, sdu, sn, 4, 4, sn));
-    *(pdu_list.front().begin()) |= 0b01000000; // set P = 1;
+    ASSERT_NO_FATAL_FAILURE(create_pdus(pdu_list, sdu, sn, 4, 4, sn, true));
     nof_rx_pdus.store(n + 1, std::memory_order_release);
     rlc->handle_pdu(byte_buffer_slice::create(std::move(pdu_list.front())).value());
     tester->sdu_queue = {};
@@ -781,11 +777,8 @@ TEST_P(rlc_rx_am_test, rx_polling_bit_sn_outside_rx_window)
   // Create SDU and PDU with full SDU
   std::list<std::vector<uint8_t>> pdu_list = {};
   byte_buffer                     sdu;
-  ASSERT_NO_FATAL_FAILURE(create_pdus(pdu_list, sdu, sn_state, sdu_size, sdu_size, sn_state));
+  ASSERT_NO_FATAL_FAILURE(create_pdus(pdu_list, sdu, sn_state, sdu_size, sdu_size, sn_state, true));
   sn_state++;
-
-  // Change polling bit in first byte of PDU (header)
-  *(pdu_list.front().begin()) |= 0b01000000; // set P = 1;
 
   // Push into RLC
   byte_buffer_slice pdu = byte_buffer_slice::create(std::move(pdu_list.front())).value();
@@ -858,11 +851,8 @@ TEST_P(rlc_rx_am_test, rx_sdu_duplicate_two_polling_bits)
   // Create SDU and PDU with full SDU
   std::list<std::vector<uint8_t>> pdu_list = {};
   byte_buffer                     sdu;
-  ASSERT_NO_FATAL_FAILURE(create_pdus(pdu_list, sdu, sn_state, sdu_size, sdu_size, sn_state));
+  ASSERT_NO_FATAL_FAILURE(create_pdus(pdu_list, sdu, sn_state, sdu_size, sdu_size, sn_state, true));
   sn_state++;
-
-  // Set polling bit of PDUs
-  *(pdu_list.front().begin()) |= 0b01000000; // set P = 1;
 
   // Push into RLC
   byte_buffer_slice pdu = byte_buffer_slice::create(pdu_list.front()).value();
@@ -1048,11 +1038,8 @@ TEST_P(rlc_rx_am_test, status_prohibit_timer)
   // Create SDU and PDU with full SDU
   std::list<std::vector<uint8_t>> pdu_list = {};
   byte_buffer                     sdu;
-  ASSERT_NO_FATAL_FAILURE(create_pdus(pdu_list, sdu, sn_state, sdu_size, sdu_size, sn_state));
+  ASSERT_NO_FATAL_FAILURE(create_pdus(pdu_list, sdu, sn_state, sdu_size, sdu_size, sn_state, true));
   sn_state++;
-
-  // Change polling bit in first byte of PDU (header)
-  *(pdu_list.front().begin()) |= 0b01000000; // set P = 1;
 
   // Push into RLC
   byte_buffer_slice pdu = byte_buffer_slice::create(std::move(pdu_list.front())).value();
@@ -1393,11 +1380,8 @@ TEST_P(rlc_rx_am_test, status_report)
 
   // Create SDU and PDU with full SDU (set poll bit)
   pdu_list.clear();
-  ASSERT_NO_FATAL_FAILURE(create_pdus(pdu_list, sdu, sn_state, sdu_size, sdu_size, sn_state));
+  ASSERT_NO_FATAL_FAILURE(create_pdus(pdu_list, sdu, sn_state, sdu_size, sdu_size, sn_state, true));
   sn_state++;
-
-  // Change polling bit in first byte of PDU (header)
-  *(pdu_list.front().begin()) |= 0b01000000; // set P = 1;
 
   // Push into RLC
   byte_buffer_slice pdu = byte_buffer_slice::create(std::move(pdu_list.front())).value();

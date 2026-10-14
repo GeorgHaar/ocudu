@@ -90,6 +90,12 @@ ocudu::log_sink_spy& test_spy = []() -> ocudu::log_sink_spy& {
 class rlc_rx_am_test : public ::testing::Test, public ::testing::WithParamInterface<rlc_rx_am_config>
 {
 protected:
+  virtual void init_config()
+  {
+    config  = GetParam();
+    sn_size = config.sn_field_length;
+  }
+
   void SetUp() override
   {
     // init test's logger
@@ -102,6 +108,8 @@ protected:
     // init RLC logger
     ocudulog::fetch_basic_logger("RLC", false).set_level(ocudulog::basic_levels::debug);
     ocudulog::fetch_basic_logger("RLC", false).set_hex_dump_max_size(100);
+
+    init_config();
 
     logger.info("Creating RLC Rx AM entity ({})", config);
 
@@ -435,9 +443,9 @@ protected:
   std::unique_ptr<rlc_drb_rx_window_seg_pool, rlc_pool_deleter> pool =
       make_rlc_drb_rx_window_seg_pool(rlc_drb_rx_window_seg_pool_size, rlc_drb_rx_window_seg_size);
 
-  ocudulog::basic_logger&                       logger  = ocudulog::fetch_basic_logger("TEST", false);
-  rlc_rx_am_config                              config  = GetParam();
-  rlc_am_sn_size                                sn_size = config.sn_field_length;
+  ocudulog::basic_logger&                       logger = ocudulog::fetch_basic_logger("TEST", false);
+  rlc_rx_am_config                              config;
+  rlc_am_sn_size                                sn_size;
   timer_manager                                 timers;
   manual_task_worker                            ue_worker{128};
   std::unique_ptr<rlc_rx_am_test_frame>         tester;
@@ -464,6 +472,18 @@ private:
   };
 
   rlc_rx_am_window_seg_pool_dummy dummy_pool = {};
+};
+
+class rlc_rx_am_test_concurrent_tx : public rlc_rx_am_test
+{
+protected:
+  void init_config() override
+  {
+    rlc_rx_am_test::init_config();
+    config.t_status_prohibit = 0;
+    logger.set_level(ocudulog::basic_levels::info);
+    ocudulog::fetch_basic_logger("RLC", false).set_level(ocudulog::basic_levels::warning);
+  }
 };
 
 /// Test the instantiation of a new entity
@@ -688,27 +708,8 @@ TEST_P(rlc_rx_am_test, status_report_never_older_than_previous_read)
 /// two threads, as in the DU: one thread receives polled PDUs in order while the other reads a status report whenever
 /// one is required. The ACK_SN of the reports read must never go backwards. t-StatusProhibit is disabled (as for SRBs)
 /// so that every trigger is read immediately.
-TEST_P(rlc_rx_am_test, status_report_never_older_with_concurrent_tx)
+TEST_P(rlc_rx_am_test_concurrent_tx, status_report_never_older_with_concurrent_tx)
 {
-  // Silence the per-PDU logs of the 200000 PDUs below.
-  logger.set_level(ocudulog::basic_levels::info);
-  ocudulog::fetch_basic_logger("RLC", false).set_level(ocudulog::basic_levels::warning);
-  rlc_rx_am_config cfg  = config;
-  cfg.t_status_prohibit = 0;
-
-  rlc = std::make_unique<rlc_rx_am_entity>(gnb_du_id_t::min,
-                                           du_ue_index_t::MIN_DU_UE_INDEX,
-                                           srb_id_t::srb0,
-                                           cfg,
-                                           *tester,
-                                           *metrics_coll,
-                                           pcap,
-                                           ue_worker,
-                                           timers,
-                                           get_window_pool());
-  rlc->set_status_handler(tester.get());
-  rlc->set_status_notifier(tester.get());
-
   const uint32_t        mod     = cardinality(to_number(sn_size));
   const uint32_t        nof_pdu = 200000;
   std::atomic<uint32_t> nof_rx_pdus{0};
@@ -1645,6 +1646,11 @@ INSTANTIATE_TEST_SUITE_P(rlc_rx_am_test_each_sn_size,
 
 INSTANTIATE_TEST_SUITE_P(rlc_rx_am_test_each_sn_size_no_window_segments,
                          rlc_rx_am_test_no_window_segments,
+                         ::testing::Values(cfg_12bit, cfg_18bit),
+                         test_param_info_to_string);
+
+INSTANTIATE_TEST_SUITE_P(rlc_rx_am_test_each_sn_size_concurrent_tx,
+                         rlc_rx_am_test_concurrent_tx,
                          ::testing::Values(cfg_12bit, cfg_18bit),
                          test_param_info_to_string);
 

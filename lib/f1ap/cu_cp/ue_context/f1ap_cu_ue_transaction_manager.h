@@ -25,18 +25,7 @@ public:
   {
   }
 
-  void cancel_all()
-  {
-    context_setup_outcome.stop();
-    context_modification_outcome.stop();
-    positioning_information_outcome.stop();
-    positioning_activation_outcome.stop();
-    e_cid_measurement_outcome.stop();
-    // Must run last. Stopping this transaction synchronously resumes, in-line, the UE Context Release Routine that
-    // is awaiting it, which runs to completion up to removing this very UE context (freeing "this"). No member of
-    // this object may be accessed after this call.
-    context_release_complete.stop();
-  }
+  // f1ap_ue_context_list::cancel_ue_transactions() stops each event source. Add new event sources there too.
 
   /// F1AP UE Context Setup Response/Failure Event Source.
   protocol_transaction_event_source<asn1::f1ap::ue_context_setup_resp_s, asn1::f1ap::ue_context_setup_fail_s>

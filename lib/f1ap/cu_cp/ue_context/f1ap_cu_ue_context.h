@@ -169,6 +169,26 @@ public:
     ues.erase(cu_ue_id);
   }
 
+  /// \brief Cancels all running F1AP transactions of a UE.
+  ///
+  /// Each cancellation resumes the waiting procedure in-line. That procedure, or the routine that started it, can
+  /// remove the F1AP UE context. Thus, this function finds the UE context again before each cancellation.
+  void cancel_ue_transactions(cu_cp_ue_index_t ue_index)
+  {
+    auto stop = [this, ue_index](auto f1ap_ue_transaction_manager::* event_source) {
+      if (f1ap_ue_context* u = find(ue_index)) {
+        (u->ev_mng.*event_source).stop();
+      }
+    };
+    stop(&f1ap_ue_transaction_manager::context_setup_outcome);
+    stop(&f1ap_ue_transaction_manager::context_modification_outcome);
+    stop(&f1ap_ue_transaction_manager::positioning_information_outcome);
+    stop(&f1ap_ue_transaction_manager::positioning_activation_outcome);
+    stop(&f1ap_ue_transaction_manager::e_cid_measurement_outcome);
+    // The UE Context Release Routine waits for this transaction and removes the UE context. Thus, cancel it last.
+    stop(&f1ap_ue_transaction_manager::context_release_complete);
+  }
+
   void add_srb0_rrc_notifier(cu_cp_ue_index_t ue_index, f1ap_ul_ccch_notifier* srb0_notifier)
   {
     ocudu_assert(ue_index != cu_cp_ue_index_t::invalid, "Invalid ue_index={}", ue_index);

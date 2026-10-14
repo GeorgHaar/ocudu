@@ -125,6 +125,34 @@ TEST_F(f1ap_cu_ue_context_setup_test, when_f1ap_stopped_while_ue_context_setup_i
 }
 
 TEST_F(f1ap_cu_ue_context_setup_test,
+       when_f1ap_stop_cancels_ue_context_setup_and_caller_removes_ue_then_teardown_does_not_crash)
+{
+  // The caller removes the UE context when the UE context setup fails. The intra-CU handover does this for the target
+  // UE.
+  const f1ap_ue_context_setup_request req = create_ue_context_setup_request({drb_id_t::drb1});
+  async_task<void>                    caller =
+      launch_async([this, req, resp = f1ap_ue_context_setup_response{}](coro_context<async_task<void>>& ctx) mutable {
+        CORO_BEGIN(ctx);
+        CORO_AWAIT_VALUE(resp, f1ap->handle_ue_context_setup_request(req, {}));
+        if (not resp.success) {
+          f1ap->remove_ue_context(req.ue_index);
+        }
+        CORO_RETURN();
+      });
+  lazy_task_launcher<void> caller_launcher(caller);
+  ASSERT_FALSE(caller.ready());
+  ASSERT_EQ(f1ap->get_nof_ues(), 1);
+
+  // The F1AP stop cancels the UE context setup. The caller removes the UE context in-line.
+  async_task<void>         stop_task = f1ap->stop();
+  lazy_task_launcher<void> stop_launcher(stop_task);
+
+  ASSERT_TRUE(caller.ready());
+  ASSERT_TRUE(stop_task.ready());
+  ASSERT_EQ(f1ap->get_nof_ues(), 0);
+}
+
+TEST_F(f1ap_cu_ue_context_setup_test,
        when_ue_setup_failure_received_for_existing_ue_then_ue_context_is_kept_and_can_be_released)
 {
   // Create the UE with an INITIAL UL RRC MESSAGE TRANSFER.

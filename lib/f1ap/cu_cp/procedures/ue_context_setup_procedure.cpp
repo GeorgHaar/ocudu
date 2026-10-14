@@ -212,8 +212,7 @@ f1ap_ue_context_setup_response ue_context_setup_procedure::handle_procedure_resu
 
   } else if (transaction_sink.cancelled()) {
     // The transaction was cancelled because the F1AP UE context is being torn down (e.g. F1AP/DU stop). The
-    // standard UE removal path already owns cleaning up this UE context; removing it here too would erase the
-    // very object whose transaction manager is still unwinding its own cancel_all() call.
+    // standard UE removal path removes this UE context.
     logger.warning("{} cancelled. Cause: F1AP UE context is being torn down",
                    f1ap_ue_log_prefix{ue_ctxt->ue_ids, name()});
     return resp;

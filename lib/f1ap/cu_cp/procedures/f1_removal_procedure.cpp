@@ -61,7 +61,7 @@ async_task<void> f1_removal_procedure::handle_ue_transaction_info_loss()
     auto* u = ue_list.find(ue_idx);
     if (u != nullptr) {
       u->f1_removal_in_progress = true;
-      u->ev_mng.cancel_all();
+      ue_list.cancel_ue_transactions(ue_idx);
     }
   }
   ev.ues_lost.erase(std::remove_if(ev.ues_lost.begin(),

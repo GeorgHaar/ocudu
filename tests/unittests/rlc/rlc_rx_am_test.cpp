@@ -714,7 +714,8 @@ TEST_P(rlc_rx_am_test, status_report_never_older_with_concurrent_tx)
   std::atomic<uint32_t> nof_rx_pdus{0};
   std::atomic<uint32_t> nof_reads{0};
   std::atomic<bool>     done{false};
-  uint32_t              nof_older = 0;
+  uint32_t              nof_older   = 0;
+  uint32_t              nof_skipped = 0;
 
   std::thread tx_thread([&]() {
     bool     first = true;
@@ -732,6 +733,7 @@ TEST_P(rlc_rx_am_test, status_report_never_older_with_concurrent_tx)
       const uint32_t count_after  = nof_rx_pdus.load(std::memory_order_acquire);
       nof_reads.fetch_add(1, std::memory_order_relaxed);
       if (count_after - count_before >= mod / 2) {
+        nof_skipped++;
         continue;
       }
       const uint32_t ack = count_after - (count_after + mod - ack_sn) % mod;
@@ -761,7 +763,11 @@ TEST_P(rlc_rx_am_test, status_report_never_older_with_concurrent_tx)
   done.store(true, std::memory_order_release);
   tx_thread.join();
 
-  logger.info("Read {} status reports, {} older than the previous one", nof_reads.load(), nof_older);
+  logger.info("Read {} status reports ({} skipped as ambiguous), {} older than the previous one",
+              nof_reads.load(),
+              nof_skipped,
+              nof_older);
+  EXPECT_LT(nof_skipped, nof_reads.load()) << "All status report reads were ambiguous; monotonicity was never checked";
   EXPECT_EQ(nof_older, 0);
 }
 

@@ -31,6 +31,9 @@ protected:
 
   // See interface for documentation.
   void deinterleave_qam256(span<log_likelihood_ratio> out, span<const log_likelihood_ratio> in) const override;
+
+  // See interface for documentation.
+  void deinterleave_qam1024(span<log_likelihood_ratio> out, span<const log_likelihood_ratio> in) const override;
 };
 
 } // namespace ocudu

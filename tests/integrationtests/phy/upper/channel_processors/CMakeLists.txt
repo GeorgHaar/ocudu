@@ -34,6 +34,8 @@ add_test(pxsch_bler_test pxsch_bler_test -R 10)
 add_test(pxsch_bler_test_1CBs_32reps pxsch_bler_test -m 0 -R 10 -V [0,2,3,1,0,2,3,1,0,2,3,1,0,2,3,1,0,2,3,1,0,2,3,1,0,2,3,1,0,2,3,1] -B 1)
 # BLER test - many codeblocks, one thread.
 add_test(pxsch_bler_test_manyCBs_4rep pxsch_bler_test -m 28 -R 10 -V [0,2,3,1] -j 1)
+# BLER test - 1024QAM
+add_test(pxsch_bler_test_1024QAM pxsch_bler_test -M qam1024 -m 25 -R 10 -V [0,2,3,1] -j 1)
 
 add_executable(pxsch_chain_test pxsch_chain_test.cpp)
 target_link_libraries(pxsch_chain_test

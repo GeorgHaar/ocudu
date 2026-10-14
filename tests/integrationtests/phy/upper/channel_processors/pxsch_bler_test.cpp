@@ -6,7 +6,6 @@
 #include "pxsch_bler_test_channel_emulator.h"
 #include "pxsch_bler_test_factories.h"
 #include "pxsch_bler_test_parse.h"
-#include "ocudu/adt/bounded_integer.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/phy/support/resource_grid.h"
 #include "ocudu/phy/support/support_factories.h"
@@ -16,7 +15,6 @@
 #include "ocudu/phy/upper/unique_rx_buffer.h"
 #include "ocudu/ran/precoding/precoding_codebooks.h"
 #include "ocudu/ran/pusch/pusch_dmrs_symbol_mask.h"
-#include "ocudu/ran/pusch/pusch_mcs.h"
 #include "ocudu/ran/resource_allocation/rb_interval.h"
 #include "ocudu/ran/resource_block.h"
 #include "ocudu/ran/sch/sch_dmrs_power.h"
@@ -131,13 +129,14 @@ private:
     ocudulog::fetch_basic_logger("PHY", true).set_level(log_level);
 
     // Compute DM-RS symbol mask from higher-layer parameters.
-    dmrs_symbol_mask dmrs_symbols = pusch_dmrs_symbol_mask_mapping_type_A_single_get(
-        {.typeA_pos           = dmrs_typeA_pos,
-         .additional_position = cfg.dmrs_additional_pos,
-         .last_symbol         = static_cast<uint8_t>(start_symbol_index + nof_ofdm_symbols - 1)});
+    dmrs_symbol_mask dmrs_symbols = pusch_dmrs_symbol_mask_mapping_type_A_single_get({
+        .typeA_pos           = dmrs_typeA_pos,
+        .additional_position = cfg.dmrs_additional_pos,
+        .last_symbol         = static_cast<uint8_t>(start_symbol_index + nof_ofdm_symbols - 1),
+    });
 
     // Compute modulation and code scheme.
-    sch_mcs_description mcs_descr = pusch_mcs_get_config(cfg.mcs_table, cfg.mcs_index, false, false);
+    sch_mcs_description mcs_descr = pdsch_mcs_get_config(cfg.mcs_table, cfg.mcs_index);
 
     // Frequency allocation equal to bandwidth part.
     static prb_interval freq_allocation = {bwp_start_rb, cfg.bwp_size_rb};
@@ -185,7 +184,8 @@ private:
         .factory                = pusch_proc_factory,
         .uci_factory            = pusch_proc_factory,
         .nof_regular_processors = static_cast<unsigned>(cfg.rep_rv_sequence.size()),
-        .nof_uci_processors     = static_cast<unsigned>(cfg.rep_rv_sequence.size())};
+        .nof_uci_processors     = static_cast<unsigned>(cfg.rep_rv_sequence.size()),
+    };
     pusch_proc_factory = create_pusch_processor_pool(pusch_proc_pool_config);
     report_fatal_error_if_not(pusch_proc_factory, "Failed to create PUSCH processor pool factory.");
 
@@ -253,15 +253,18 @@ private:
           .ratio_pdsch_dmrs_to_sss_dB  = get_sch_to_dmrs_ratio_dB(nof_cdm_groups_without_data),
           .ratio_pdsch_data_to_sss_dB  = 0.0F,
           .precoding_and_beamforming =
-              precoding_beamforming_configuration::make_wideband(make_identity(cfg.nof_layers))});
+              precoding_beamforming_configuration::make_wideband(make_identity(cfg.nof_layers)),
+      });
 
       static_vector<uint8_t, MAX_PORTS> rx_ports(cfg.nof_rx_ports);
       std::iota(rx_ports.begin(), rx_ports.end(), 0U);
 
-      pusch_processor::dmrs_configuration dmrs_config = {.dmrs                        = dmrs,
-                                                         .scrambling_id               = scrambling_id,
-                                                         .n_scid                      = n_scid,
-                                                         .nof_cdm_groups_without_data = nof_cdm_groups_without_data};
+      pusch_processor::dmrs_configuration dmrs_config = {
+          .dmrs                        = dmrs,
+          .scrambling_id               = scrambling_id,
+          .n_scid                      = n_scid,
+          .nof_cdm_groups_without_data = nof_cdm_groups_without_data,
+      };
 
       pusch_processor::codeword_description cw_descr = {rep_rv, ldpc_base_graph, i_rep == 0, i_rep == rep_end - 1};
 
@@ -288,7 +291,8 @@ private:
           .tbs_lbrm           = tbs_lbrm_default,
           .dc_position =
               cfg.enable_dc_position ? std::optional(cfg.bwp_size_rb * NOF_SUBCARRIERS_PER_RB / 2) : std::nullopt,
-          .n_rapid = std::nullopt});
+          .n_rapid = std::nullopt,
+      });
     }
 
     // Resize data to accomodate the transport block.

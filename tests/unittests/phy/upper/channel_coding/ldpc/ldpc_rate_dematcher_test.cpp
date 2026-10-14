@@ -23,7 +23,6 @@
 #include "ocudu/phy/upper/channel_coding/ldpc/ldpc_rate_dematcher.h"
 #include "ocudu/phy/upper/codeblock_metadata.h"
 #include "ocudu/ran/sch/modulation_scheme.h"
-#include "ocudu/ran/sch/sch_segmentation.h"
 #include "ocudu/support/cpu_features.h"
 #include "fmt/ostream.h"
 #include <gtest/gtest.h>
@@ -292,11 +291,14 @@ TEST_P(RateDematcherFixture, RateDematchAgainstReference)
 static std::vector<rate_dematcher_test_parameters> generate_cases()
 {
   // Modulation list.
-  static constexpr auto modulations = to_array<modulation_scheme>({modulation_scheme::BPSK,
-                                                                   modulation_scheme::QPSK,
-                                                                   modulation_scheme::QAM16,
-                                                                   modulation_scheme::QAM64,
-                                                                   modulation_scheme::QAM256});
+  static constexpr auto modulations = to_array<modulation_scheme>({
+      modulation_scheme::BPSK,
+      modulation_scheme::QPSK,
+      modulation_scheme::QAM16,
+      modulation_scheme::QAM64,
+      modulation_scheme::QAM256,
+      modulation_scheme::QAM1024,
+  });
 
   // Implementation list.
   static constexpr auto implementations = to_array<const char*>({
@@ -368,15 +370,17 @@ static std::vector<rate_dematcher_test_parameters> generate_cases()
                 continue;
               }
 
-              out.push_back({implementation,
-                             base_graph,
-                             lifting_size,
-                             rv,
-                             modulation,
-                             rm_buffer_size,
-                             nof_filler_bits,
-                             nof_rate_matched,
-                             new_data});
+              out.push_back({
+                  implementation,
+                  base_graph,
+                  lifting_size,
+                  rv,
+                  modulation,
+                  rm_buffer_size,
+                  nof_filler_bits,
+                  nof_rate_matched,
+                  new_data,
+              });
             }
           }
         }

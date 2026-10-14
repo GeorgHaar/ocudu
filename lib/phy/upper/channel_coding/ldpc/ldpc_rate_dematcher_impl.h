@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "ldpc_graph_impl.h"
 #include "ocudu/phy/upper/channel_coding/ldpc/ldpc_rate_dematcher.h"
 
 namespace ocudu {
@@ -27,36 +26,42 @@ public:
 protected:
   /// \brief Combines two sequences of soft bits by taking saturated addition.
   ///
-  /// \param[out] out Resulting sequence of soft bits.
-  /// \param[in] in0  First input sequence of soft bits.
-  /// \param[in] in1  Second input sequence of soft bits.
+  /// \param[out] out  Resulting sequence of soft bits.
+  /// \param[in]  in0  First input sequence of soft bits.
+  /// \param[in]  in1  Second input sequence of soft bits.
   virtual void combine_softbits(span<log_likelihood_ratio>       out,
                                 span<const log_likelihood_ratio> in0,
                                 span<const log_likelihood_ratio> in1) const;
 
   /// \brief Deinterleaves a sequence of soft bits with a modulation order of two.
   ///
-  /// \param[out] out Resulting sequence of soft bits.
-  /// \param[in] in   Input sequence of soft bits.
+  /// \param[out] out  Resulting sequence of soft bits.
+  /// \param[in]  in   Input sequence of soft bits.
   virtual void deinterleave_qpsk(span<log_likelihood_ratio> out, span<const log_likelihood_ratio> in) const;
 
   /// \brief Deinterleaves a sequence of soft bits with a modulation order of four.
   ///
-  /// \param[out] out Resulting sequence of soft bits.
-  /// \param[in] in   Input sequence of soft bits.
+  /// \param[out] out  Resulting sequence of soft bits.
+  /// \param[in]  in   Input sequence of soft bits.
   virtual void deinterleave_qam16(span<log_likelihood_ratio> out, span<const log_likelihood_ratio> in) const;
 
   /// \brief Deinterleaves a sequence of soft bits with a modulation order of six.
   ///
-  /// \param[out] out Resulting sequence of soft bits.
-  /// \param[in] in   Input sequence of soft bits.
+  /// \param[out] out  Resulting sequence of soft bits.
+  /// \param[in]  in   Input sequence of soft bits.
   virtual void deinterleave_qam64(span<log_likelihood_ratio> out, span<const log_likelihood_ratio> in) const;
 
   /// \brief Deinterleaves a sequence of soft bits with a modulation order of eight.
   ///
-  /// \param[out] out Resulting sequence of soft bits.
-  /// \param[in] in   Input sequence of soft bits.
+  /// \param[out] out  Resulting sequence of soft bits.
+  /// \param[in]  in   Input sequence of soft bits.
   virtual void deinterleave_qam256(span<log_likelihood_ratio> out, span<const log_likelihood_ratio> in) const;
+
+  /// \brief Deinterleaves a sequence of soft bits with a modulation order of ten.
+  ///
+  /// \param[out] out  Resulting sequence of soft bits.
+  /// \param[in]  in   Input sequence of soft bits.
+  virtual void deinterleave_qam1024(span<log_likelihood_ratio> out, span<const log_likelihood_ratio> in) const;
 
 private:
   /// Initializes the rate dematcher internal state.

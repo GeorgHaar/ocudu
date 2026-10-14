@@ -291,20 +291,6 @@ static YAML::Node build_du_high_pdcch_section(const du_high_unit_pdcch_config& c
   return node;
 }
 
-static std::string to_string(pdsch_mcs_table table)
-{
-  switch (table) {
-    case pdsch_mcs_table::qam64:
-      return "qam64";
-    case pdsch_mcs_table::qam256:
-      return "qam256";
-    default:
-      ocudu_assert(0, "Invalid PDSCH MCS table");
-      break;
-  }
-  return {};
-}
-
 static std::string to_string(dc_offset_t dc_offset)
 {
   switch (dc_offset) {

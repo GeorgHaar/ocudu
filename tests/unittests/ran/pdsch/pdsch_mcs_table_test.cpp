@@ -11,20 +11,7 @@ namespace ocudu {
 
 std::ostream& operator<<(std::ostream& os, const pdsch_mcs_table& mcs_table)
 {
-  switch (mcs_table) {
-    case pdsch_mcs_table::qam64:
-      fmt::print(os, "qam64");
-      break;
-    case pdsch_mcs_table::qam256:
-      fmt::print(os, "qam256");
-      break;
-    case pdsch_mcs_table::qam64LowSe:
-      fmt::print(os, "qam64LowSe");
-      break;
-    case pdsch_mcs_table::qam1024:
-      fmt::print(os, "qam1024");
-      break;
-  }
+  fmt::print(os, to_string(mcs_table));
   return os;
 }
 

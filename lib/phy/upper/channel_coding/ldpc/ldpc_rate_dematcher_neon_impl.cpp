@@ -142,6 +142,58 @@ neon_deinterleave(int8x16_t& out0, int8x16_t& out1, int8x16_t& out2, int8x16_t i
   out2 = vsetq_lane_s8(vgetq_lane_s8(in2, 15), out2, 15);
 }
 
+/// \brief Generates the table look-up indices of the five-way deinterleaver for the given output.
+///
+/// The byte k of output j_out is the input byte 5 * k + j_out. The lower indices address the first four input registers
+/// and the upper indices address the fifth one. Indices that are not addressed are set out of range (0xff).
+static constexpr std::array<uint8_t, NEON_SIZE_BYTE> deinterleave5_table_idx(unsigned j_out, bool upper)
+{
+  std::array<uint8_t, NEON_SIZE_BYTE> idx = {};
+  for (unsigned k = 0; k != NEON_SIZE_BYTE; ++k) {
+    unsigned in_index = 5 * k + j_out;
+    bool     is_upper = in_index >= 4 * NEON_SIZE_BYTE;
+    idx[k]            = 0xff;
+    if (upper && is_upper) {
+      idx[k] = static_cast<uint8_t>(in_index - 4 * NEON_SIZE_BYTE);
+    } else if (!upper && !is_upper) {
+      idx[k] = static_cast<uint8_t>(in_index);
+    }
+  }
+  return idx;
+}
+
+/// Gathers the output OutIdx of the five-way deinterleaver.
+template <unsigned OutIdx>
+static int8x16_t neon_deinterleave5_gather(int8x16x4_t in0123, int8x16_t in4)
+{
+  static constexpr std::array<uint8_t, NEON_SIZE_BYTE> idx_lower = deinterleave5_table_idx(OutIdx, false);
+  static constexpr std::array<uint8_t, NEON_SIZE_BYTE> idx_upper = deinterleave5_table_idx(OutIdx, true);
+
+  // Out-of-range indices return zero in the first look-up and keep the previous value in the second.
+  int8x16_t result = vqtbl4q_s8(in0123, vld1q_u8(idx_lower.data()));
+  return vqtbx1q_s8(result, in4, vld1q_u8(idx_upper.data()));
+}
+
+static void neon_deinterleave(int8x16_t& out0,
+                              int8x16_t& out1,
+                              int8x16_t& out2,
+                              int8x16_t& out3,
+                              int8x16_t& out4,
+                              int8x16_t  in0,
+                              int8x16_t  in1,
+                              int8x16_t  in2,
+                              int8x16_t  in3,
+                              int8x16_t  in4)
+{
+  int8x16x4_t in0123 = {{in0, in1, in2, in3}};
+
+  out0 = neon_deinterleave5_gather<0>(in0123, in4);
+  out1 = neon_deinterleave5_gather<1>(in0123, in4);
+  out2 = neon_deinterleave5_gather<2>(in0123, in4);
+  out3 = neon_deinterleave5_gather<3>(in0123, in4);
+  out4 = neon_deinterleave5_gather<4>(in0123, in4);
+}
+
 void ldpc_rate_dematcher_neon_impl::deinterleave_qpsk(span<log_likelihood_ratio>       out,
                                                       span<const log_likelihood_ratio> in) const
 {
@@ -294,6 +346,7 @@ void ldpc_rate_dematcher_neon_impl::deinterleave_qam64(span<log_likelihood_ratio
     out[K * 5U + i] = in[6U * i + 5];
   }
 }
+
 void ldpc_rate_dematcher_neon_impl::deinterleave_qam256(span<log_likelihood_ratio>       out,
                                                         span<const log_likelihood_ratio> in) const
 {
@@ -396,5 +449,102 @@ void ldpc_rate_dematcher_neon_impl::deinterleave_qam256(span<log_likelihood_rati
     out[K * 5U + i] = in[8U * i + 5];
     out[K * 6U + i] = in[8U * i + 6];
     out[K * 7U + i] = in[8U * i + 7];
+  }
+}
+
+void ldpc_rate_dematcher_neon_impl::deinterleave_qam1024(span<log_likelihood_ratio>       out,
+                                                         span<const log_likelihood_ratio> in) const
+{
+  unsigned E = out.size();
+  unsigned K = E / 10;
+  unsigned i = 0;
+
+  // Reinterpret pointers.
+  neon::neon_const_span neon_in(in, E / NEON_SIZE_BYTE);
+  neon::neon_span       neon_out0(out.subspan(0UL * K, K), K / NEON_SIZE_BYTE);
+  neon::neon_span       neon_out1(out.subspan(1UL * K, K), K / NEON_SIZE_BYTE);
+  neon::neon_span       neon_out2(out.subspan(2UL * K, K), K / NEON_SIZE_BYTE);
+  neon::neon_span       neon_out3(out.subspan(3UL * K, K), K / NEON_SIZE_BYTE);
+  neon::neon_span       neon_out4(out.subspan(4UL * K, K), K / NEON_SIZE_BYTE);
+  neon::neon_span       neon_out5(out.subspan(5UL * K, K), K / NEON_SIZE_BYTE);
+  neon::neon_span       neon_out6(out.subspan(6UL * K, K), K / NEON_SIZE_BYTE);
+  neon::neon_span       neon_out7(out.subspan(7UL * K, K), K / NEON_SIZE_BYTE);
+  neon::neon_span       neon_out8(out.subspan(8UL * K, K), K / NEON_SIZE_BYTE);
+  neon::neon_span       neon_out9(out.subspan(9UL * K, K), K / NEON_SIZE_BYTE);
+
+  // Do SIMD processing.
+  for (unsigned i_end = (K / NEON_SIZE_BYTE), i_in = 0; i != i_end; ++i) {
+    int8x16_t in0 = neon_in.get_at(i_in++);
+    int8x16_t in1 = neon_in.get_at(i_in++);
+    int8x16_t in2 = neon_in.get_at(i_in++);
+    int8x16_t in3 = neon_in.get_at(i_in++);
+    int8x16_t in4 = neon_in.get_at(i_in++);
+    int8x16_t in5 = neon_in.get_at(i_in++);
+    int8x16_t in6 = neon_in.get_at(i_in++);
+    int8x16_t in7 = neon_in.get_at(i_in++);
+    int8x16_t in8 = neon_in.get_at(i_in++);
+    int8x16_t in9 = neon_in.get_at(i_in++);
+
+    int8x16_t deinterleaved_0;
+    int8x16_t deinterleaved_1;
+    int8x16_t deinterleaved_2;
+    int8x16_t deinterleaved_3;
+    int8x16_t deinterleaved_4;
+    neon_deinterleave(
+        deinterleaved_0, deinterleaved_1, deinterleaved_2, deinterleaved_3, deinterleaved_4, in0, in1, in2, in3, in4);
+
+    int8x16_t deinterleaved_5;
+    int8x16_t deinterleaved_6;
+    int8x16_t deinterleaved_7;
+    int8x16_t deinterleaved_8;
+    int8x16_t deinterleaved_9;
+    neon_deinterleave(
+        deinterleaved_5, deinterleaved_6, deinterleaved_7, deinterleaved_8, deinterleaved_9, in5, in6, in7, in8, in9);
+
+    int8x16_t out0;
+    int8x16_t out5;
+    neon_deinterleave(out0, out5, deinterleaved_0, deinterleaved_5);
+
+    int8x16_t out1;
+    int8x16_t out6;
+    neon_deinterleave(out1, out6, deinterleaved_1, deinterleaved_6);
+
+    int8x16_t out2;
+    int8x16_t out7;
+    neon_deinterleave(out2, out7, deinterleaved_2, deinterleaved_7);
+
+    int8x16_t out3;
+    int8x16_t out8;
+    neon_deinterleave(out3, out8, deinterleaved_3, deinterleaved_8);
+
+    int8x16_t out4;
+    int8x16_t out9;
+    neon_deinterleave(out4, out9, deinterleaved_4, deinterleaved_9);
+
+    neon_out0.set_at(i, out0);
+    neon_out1.set_at(i, out1);
+    neon_out2.set_at(i, out2);
+    neon_out3.set_at(i, out3);
+    neon_out4.set_at(i, out4);
+    neon_out5.set_at(i, out5);
+    neon_out6.set_at(i, out6);
+    neon_out7.set_at(i, out7);
+    neon_out8.set_at(i, out8);
+    neon_out9.set_at(i, out9);
+  }
+  i *= NEON_SIZE_BYTE;
+
+  // Remainder of soft bits.
+  for (; i != K; ++i) {
+    out[K * 0U + i] = in[10U * i + 0];
+    out[K * 1U + i] = in[10U * i + 1];
+    out[K * 2U + i] = in[10U * i + 2];
+    out[K * 3U + i] = in[10U * i + 3];
+    out[K * 4U + i] = in[10U * i + 4];
+    out[K * 5U + i] = in[10U * i + 5];
+    out[K * 6U + i] = in[10U * i + 6];
+    out[K * 7U + i] = in[10U * i + 7];
+    out[K * 8U + i] = in[10U * i + 8];
+    out[K * 9U + i] = in[10U * i + 9];
   }
 }

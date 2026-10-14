@@ -7,7 +7,7 @@
 
 #include "ocudu/phy/upper/signal_processors/channel_estimator/port_channel_estimator_parameters.h"
 #include "ocudu/ran/dmrs/dmrs.h"
-#include "ocudu/ran/pusch/pusch_mcs.h"
+#include "ocudu/ran/pdsch/pdsch_mcs.h"
 #include "ocudu/ran/sch/sch_mcs.h"
 #include <optional>
 #include <string>
@@ -29,7 +29,7 @@ struct pxsch_bler_test_configuration {
   unsigned                                         nof_rx_ports                     = 2;
   unsigned                                         nof_layers                       = 1;
   unsigned                                         bwp_size_rb                      = 273;
-  pusch_mcs_table                                  mcs_table                        = pusch_mcs_table::qam64;
+  pdsch_mcs_table                                  mcs_table                        = pdsch_mcs_table::qam64;
   sch_mcs_index                                    mcs_index                        = 20;
   bool                                             enable_dc_position               = false;
   std::string                                      pxsch_type                       = "auto";

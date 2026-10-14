@@ -10,6 +10,7 @@
 #include "ocudu/ocuduvec/fill.h"
 #include "ocudu/ocuduvec/zero.h"
 #include "ocudu/support/ocudu_assert.h"
+#include <algorithm>
 
 using namespace ocudu;
 using namespace ocudu::ldpc;
@@ -154,9 +155,7 @@ void ldpc_rate_dematcher_impl::allot_llrs(span<log_likelihood_ratio> out, span<c
     }
 
     // Skip filler bits.
-    if (tmp_idx < nof_systematic_bits) {
-      tmp_idx = nof_systematic_bits;
-    }
+    tmp_idx = std::max(tmp_idx, nof_systematic_bits);
 
     // Process parity bits. Calculate number of bits between tmp_idx to the end of the buffer.
     unsigned nbits_parity = std::min(buffer_length - tmp_idx, static_cast<unsigned>(in.size()));
@@ -183,7 +182,7 @@ void ldpc_rate_dematcher_impl::allot_llrs(span<log_likelihood_ratio> out, span<c
   }
 
   // If the data is new and the buffer has not been completely filled, then set the remaining bits to zero.
-  if ((is_copy_mode) && (tmp_idx != 0)) {
+  if (is_copy_mode && (tmp_idx != 0)) {
     ocuduvec::zero(out.subspan(tmp_idx, buffer_length - tmp_idx));
   }
 
@@ -230,9 +229,19 @@ void ldpc_rate_dematcher_impl::deinterleave_qam256(span<log_likelihood_ratio>   
   deinterleave_bits_Qm<8>(out, in);
 }
 
+void ldpc_rate_dematcher_impl::deinterleave_qam1024(span<log_likelihood_ratio>       out,
+                                                    span<const log_likelihood_ratio> in) const
+{
+  deinterleave_bits_Qm<10>(out, in);
+}
+
 void ldpc_rate_dematcher_impl::deinterleave_llrs(span<log_likelihood_ratio>       out,
                                                  span<const log_likelihood_ratio> in) const
 {
+  ocudu_assert((modulation_order == 2) || (modulation_order == 4) || (modulation_order == 6) ||
+                   (modulation_order == 8) || (modulation_order == 10),
+               "Invalid modulation order {}.",
+               modulation_order);
   switch (modulation_order) {
     default:
     case 2:
@@ -246,6 +255,9 @@ void ldpc_rate_dematcher_impl::deinterleave_llrs(span<log_likelihood_ratio>     
       break;
     case 8:
       deinterleave_qam256(out, in);
+      break;
+    case 10:
+      deinterleave_qam1024(out, in);
       break;
   }
 }

@@ -7,6 +7,7 @@
 #include "ocudu/adt/format.h"
 #include "ocudu/ocudulog/logger.h"
 #include "ocudu/phy/antenna_ports.h"
+#include "ocudu/ran/pdsch/pdsch_mcs.h"
 #include "ocudu/ran/precoding/precoding_constants.h"
 #include "ocudu/ran/resource_block.h"
 #include "ocudu/support/cli11_utils.h"
@@ -17,11 +18,11 @@ namespace ocudu {
 
 namespace {
 
-std::optional<pusch_mcs_table> to_mcs_table_impl(const char* str)
+std::optional<pdsch_mcs_table> to_mcs_table_impl(const char* str)
 {
   for (unsigned table_idx = 0; table_idx != 5; ++table_idx) {
-    pusch_mcs_table cur_table = static_cast<pusch_mcs_table>(table_idx);
-    if (strcmp(str, pusch_mcs_table_to_string(cur_table)) == 0) {
+    auto cur_table = static_cast<pdsch_mcs_table>(table_idx);
+    if (strcmp(str, to_string(cur_table)) == 0) {
       return cur_table;
     }
   }
@@ -88,13 +89,14 @@ std::optional<pxsch_bler_test_configuration> parse_configuration(int argc, char*
       ->check(CLI::Range(1u, static_cast<unsigned>(MAX_NOF_PRBS)));
 
   app.add_option_function<std::string>(
-      "-M,--mcs-table",
-      [&cfg](const std::string& value) {
-        std::optional<pusch_mcs_table> table = to_mcs_table_impl(value.c_str());
-        report_error_if_not(table, "Invalid MCS table {}", value);
-        cfg.mcs_table = table.value();
-      },
-      "MCS table");
+         "-M,--mcs-table",
+         [&cfg](const std::string& value) {
+           std::optional<pdsch_mcs_table> table = to_mcs_table_impl(value.c_str());
+           report_error_if_not(table, "Invalid MCS table {}", value);
+           cfg.mcs_table = table.value();
+         },
+         "MCS table")
+      ->check(CLI::IsMember(std::array<std::string, 4>({"qam64", "qam256", "qam64LowSe", "qam1024"})));
 
   app.add_option("-m,--mcs-index", cfg.mcs_index, "MCS index")->check(CLI::Range(0u, 31u));
 
@@ -105,7 +107,7 @@ std::optional<pxsch_bler_test_configuration> parse_configuration(int argc, char*
       ->check(CLI::Range(0U, 1024U));
 
   app.add_option("-R,--repetitions", cfg.nof_repetitions, "Number of slots to process")
-      ->check(CLI::Range(1u, static_cast<unsigned>(std::numeric_limits<unsigned>::max())));
+      ->check(CLI::Range(1u, std::numeric_limits<unsigned>::max()));
 
   app.add_option("-T,--pxsch-type", cfg.pxsch_type, "PxSCH implementation type: auto, acc100")
       ->check(CLI::IsMember({"auto", "neon", "avx", "avx512", "acc100"}));

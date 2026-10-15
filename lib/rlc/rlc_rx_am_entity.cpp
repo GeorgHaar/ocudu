@@ -651,7 +651,7 @@ rlc_am_status_pdu& rlc_rx_am_entity::get_status_pdu()
 
 uint32_t rlc_rx_am_entity::get_status_pdu_length()
 {
-  rlc_am_status_pdu& status_report = status_storage.read();
+  const rlc_am_status_pdu& status_report = status_storage.read();
   if (status_report.is_valid()) {
     return status_report.get_packed_size();
   }
@@ -660,8 +660,11 @@ uint32_t rlc_rx_am_entity::get_status_pdu_length()
 
 bool rlc_rx_am_entity::status_report_required()
 {
-  return !status_prohibit_timer_is_running.load(std::memory_order_relaxed) &&
-         status_storage.read().id != status_report_id.load(std::memory_order_relaxed);
+  if (status_prohibit_timer_is_running.load(std::memory_order_relaxed)) {
+    return false;
+  }
+  const rlc_am_status_pdu& status_report = status_storage.read();
+  return status_report.is_valid() && status_report.id != status_report_id.load(std::memory_order_relaxed);
 }
 
 void rlc_rx_am_entity::notify_status_report_changed()

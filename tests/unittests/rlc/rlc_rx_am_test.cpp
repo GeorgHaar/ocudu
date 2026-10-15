@@ -772,6 +772,34 @@ TEST_P(rlc_rx_am_test_concurrent_tx, status_report_never_older_with_concurrent_t
   EXPECT_EQ(nof_older, 0);
 }
 
+/// Verifies that status_report_required() returns false after get_status_pdu() and reset(), with no prohibit
+/// timer (t_status_prohibit=0). After reset(), the front buffer holds id=0 and ack_sn=INVALID_RLC_SN;
+/// is_valid() must guard against treating an invalid report as a pending one.
+TEST_P(rlc_rx_am_test_concurrent_tx, status_report_not_required_after_reset)
+{
+  EXPECT_FALSE(rlc->status_report_required());
+
+  uint32_t sdu_size = 4;
+
+  // Receive a polled PDU to trigger a status report.
+  std::list<std::vector<uint8_t>> pdu_list = {};
+  byte_buffer                     sdu;
+  ASSERT_NO_FATAL_FAILURE(create_pdus(pdu_list, sdu, 0, sdu_size, sdu_size, 0, /*poll=*/true));
+  rlc->handle_pdu(byte_buffer_slice::create(std::move(pdu_list.front())).value());
+
+  ASSERT_TRUE(rlc->status_report_required());
+
+  // Simulate pull_pdu(): consume the report then reset it via make_scope_exit.
+  {
+    rlc_am_status_pdu& status_report = rlc->get_status_pdu();
+    EXPECT_TRUE(status_report.is_valid());
+    status_report.reset();
+  }
+
+  // No new status was requested; the reset front buffer must not be mistaken for a pending report.
+  EXPECT_FALSE(rlc->status_report_required());
+}
+
 /// Verify proper handling of polling bit for PDUs outside the Rx window: The status-required state shall still change
 /// but the included SDU shall be discarded
 TEST_P(rlc_rx_am_test, rx_polling_bit_sn_outside_rx_window)

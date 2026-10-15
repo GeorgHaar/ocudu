@@ -14,7 +14,11 @@ namespace cuda {
 
 namespace detail {
 
-/// Copies \c size bytes between host and device memory blocking until the copy completes.
+/// \brief Copies \c size bytes between host and device memory, blocking until the copy completes.
+///
+/// \remark This waits for the work queued on every stream, so that a copy is ordered against the
+/// streams this library creates. Those are non-blocking streams, which the default stream the copy
+/// itself runs on does not order against.
 cuda_result copy_to_device(void* dst, const void* src, std::size_t size);
 
 /// See \ref copy_to_device().

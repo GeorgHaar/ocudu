@@ -13,3 +13,8 @@ target_link_libraries(config_yaml_schema_test
         ocudu_gtest_main
         ocudu::yaml-cpp)
 add_test(config_yaml_schema_test config_yaml_schema_test)
+
+add_executable(config_file_cli11_utils_test config_file_cli11_utils_test.cpp)
+target_include_directories(config_file_cli11_utils_test PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/external)
+target_link_libraries(config_file_cli11_utils_test ocudu_support ocudu_yaml_util GTest::gtest ocudu_gtest_main)
+gtest_discover_tests(config_file_cli11_utils_test)

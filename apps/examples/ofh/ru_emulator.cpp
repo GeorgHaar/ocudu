@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
+#include "apps/helpers/config/config_file_cli11_utils.h"
 #include "apps/services/application_capabilities.h"
 #include "helpers.h"
 #include "ru_emulator_appconfig.h"
@@ -898,12 +899,8 @@ struct worker_manager {
 
 } // namespace
 
-static std::string config_file;
-
 /// Flag that indicates if the application is running or being shutdown.
 static std::atomic<bool> is_app_running = {true};
-/// Maximum number of configuration files allowed to be concatenated in the command line.
-static constexpr unsigned MAX_CONFIG_FILES = 6;
 
 /// Function to call when the application is interrupted.
 static void interrupt_signal_handler(int signal)
@@ -959,7 +956,7 @@ int main(int argc, char** argv)
   CLI::App app("RU emulator application");
   app.config_formatter(create_yaml_config_parser());
   app.allow_config_extras(CLI::config_extras_mode::error);
-  app.set_config("-c,", config_file, "Read config from file", false)->expected(1, MAX_CONFIG_FILES);
+  app_helpers::add_config_file_option(app);
 
   ru_emulator_appconfig ru_emulator_parsed_cfg;
   // Configure CLI11 with the RU emulator application configuration schema.

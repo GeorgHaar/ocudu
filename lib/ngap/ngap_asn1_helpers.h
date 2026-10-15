@@ -398,8 +398,12 @@ inline bool fill_ngap_initial_context_setup_request(ngap_init_context_setup_requ
 
   // Fill core network assist info for inactive.
   if (asn1_request->core_network_assist_info_for_inactive_present) {
-    request.core_network_assist_info_for_inactive =
+    expected<cu_cp_core_network_assist_info_for_inactive> cn_assist_info =
         asn1_to_core_network_assist_info_for_inactive(asn1_request->core_network_assist_info_for_inactive);
+    if (!cn_assist_info.has_value()) {
+      return false;
+    }
+    request.core_network_assist_info_for_inactive = cn_assist_info.value();
   }
 
   // Fill GUAMI.
@@ -467,7 +471,12 @@ inline bool fill_ngap_initial_context_setup_request(ngap_init_context_setup_requ
 
   // Fill Location Report Request Type.
   if (asn1_request->location_report_request_type_present) {
-    request.location_report_request_type = asn1_to_location_report_request(asn1_request->location_report_request_type);
+    expected<location_report_request> location_report_request_type =
+        asn1_to_location_report_request(asn1_request->location_report_request_type);
+    if (!location_report_request_type.has_value()) {
+      return false;
+    }
+    request.location_report_request_type = std::move(location_report_request_type.value());
   }
 
   // TODO: Add missing optional values.
@@ -929,8 +938,12 @@ inline bool fill_ngap_handover_request(ngap_handover_request& request, const asn
 
   // Fill core network assist info for inactive.
   if (asn1_request->core_network_assist_info_for_inactive_present) {
-    request.core_network_assist_info_for_inactive =
+    expected<cu_cp_core_network_assist_info_for_inactive> cn_assist_info =
         asn1_to_core_network_assist_info_for_inactive(asn1_request->core_network_assist_info_for_inactive);
+    if (!cn_assist_info.has_value()) {
+      return false;
+    }
+    request.core_network_assist_info_for_inactive = cn_assist_info.value();
   }
 
   // Fill UE security cap & security context.
@@ -979,14 +992,22 @@ inline bool fill_ngap_handover_request(ngap_handover_request& request, const asn
     ocudulog::fetch_basic_logger("NGAP").error("Couldn't unpack Source to Target Transparent Container.");
     return false;
   }
-  asn1_to_source_to_target_transport_container(request.source_to_target_transparent_container,
-                                               asn1_transparent_container);
+  if (!asn1_to_source_to_target_transport_container(request.source_to_target_transparent_container,
+                                                    asn1_transparent_container)) {
+    ocudulog::fetch_basic_logger("NGAP").error("Couldn't convert Source to Target Transparent Container.");
+    return false;
+  }
 
   // TODO: Add Mob restrict list.
 
   // Fill Location Report Request Type.
   if (asn1_request->location_report_request_type_present) {
-    request.location_report_request_type = asn1_to_location_report_request(asn1_request->location_report_request_type);
+    expected<location_report_request> location_report_request_type =
+        asn1_to_location_report_request(asn1_request->location_report_request_type);
+    if (!location_report_request_type.has_value()) {
+      return false;
+    }
+    request.location_report_request_type = std::move(location_report_request_type.value());
   }
 
   // Fill RRC Inactive Transition Report Request.
@@ -1129,10 +1150,17 @@ inline void fill_asn1_rrc_inactive_transition_report(asn1::ngap::rrc_inactive_tr
 }
 
 /// \brief Convert NGAP ASN1 Location Reporting Control message to common type.
-inline void fill_ngap_location_report_request(location_report_request&                  location_report_ctrl,
+/// \return True on success, otherwise false.
+inline bool fill_ngap_location_report_request(location_report_request&                  location_report_ctrl,
                                               const asn1::ngap::location_report_ctrl_s& asn1_location_report_ctrl)
 {
-  location_report_ctrl = asn1_to_location_report_request(asn1_location_report_ctrl->location_report_request_type);
+  expected<location_report_request> req =
+      asn1_to_location_report_request(asn1_location_report_ctrl->location_report_request_type);
+  if (!req.has_value()) {
+    return false;
+  }
+  location_report_ctrl = std::move(req.value());
+  return true;
 }
 
 /// \brief Fill ASN1 Location Report IEs from common type.
@@ -1169,8 +1197,12 @@ inline bool ue_context_modification_request_from_asn1(ngap_ue_context_modificati
 
   // Fill core network assist info for inactive.
   if (asn1_request->core_network_assist_info_for_inactive_present) {
-    request.core_network_assist_info_for_inactive =
+    expected<cu_cp_core_network_assist_info_for_inactive> cn_assist_info =
         asn1_to_core_network_assist_info_for_inactive(asn1_request->core_network_assist_info_for_inactive);
+    if (!cn_assist_info.has_value()) {
+      return false;
+    }
+    request.core_network_assist_info_for_inactive = cn_assist_info.value();
   }
 
   // Fill new GUAMI.
@@ -1190,7 +1222,8 @@ inline bool ue_context_modification_request_from_asn1(ngap_ue_context_modificati
 /// \brief Convert NGAP ASN.1 Write-Replace Warning Request to common type.
 /// \param[out] req  The common-type struct to fill.
 /// \param[in]  msg  The ASN.1 Write-Replace Warning Request.
-inline void fill_ngap_write_replace_warning_request(ngap_write_replace_warning_request&                req,
+/// \return True on success, false if the warning area list holds an invalid PLMN identity.
+inline bool fill_ngap_write_replace_warning_request(ngap_write_replace_warning_request&                req,
                                                     const asn1::ngap::write_replace_warning_request_s& msg)
 {
   // Mandatory IEs.
@@ -1206,10 +1239,11 @@ inline void fill_ngap_write_replace_warning_request(ngap_write_replace_warning_r
       case asn1::ngap::warning_area_list_c::types_opts::nr_cgi_list_for_warning: {
         ngap_nr_cgi_list_for_warning cgi_list;
         for (const auto& asn1_cgi : wal.nr_cgi_list_for_warning()) {
-          nr_cell_global_id_t cgi;
-          cgi.plmn_id = plmn_identity::from_bytes(asn1_cgi.plmn_id.to_bytes()).value();
-          cgi.nci     = nr_cell_identity::create(asn1_cgi.nr_cell_id.to_number()).value();
-          cgi_list.push_back(cgi);
+          expected<nr_cell_global_id_t> cgi = ngap_asn1_to_nr_cgi(asn1_cgi);
+          if (!cgi.has_value()) {
+            return false;
+          }
+          cgi_list.push_back(cgi.value());
         }
         req.warning_area_list = std::move(cgi_list);
         break;
@@ -1217,10 +1251,11 @@ inline void fill_ngap_write_replace_warning_request(ngap_write_replace_warning_r
       case asn1::ngap::warning_area_list_c::types_opts::tai_list_for_warning: {
         ngap_tai_list_for_warning tai_list;
         for (const auto& asn1_tai : wal.tai_list_for_warning()) {
-          tai_t tai;
-          tai.plmn_id = plmn_identity::from_bytes(asn1_tai.plmn_id.to_bytes()).value();
-          tai.tac     = asn1_tai.tac.to_number();
-          tai_list.push_back(tai);
+          expected<tai_t> tai = ngap_asn1_to_tai(asn1_tai);
+          if (!tai.has_value()) {
+            return false;
+          }
+          tai_list.push_back(tai.value());
         }
         req.warning_area_list = std::move(tai_list);
         break;
@@ -1251,14 +1286,21 @@ inline void fill_ngap_write_replace_warning_request(ngap_write_replace_warning_r
 
   // Warning Message Contents (optional, bounded_octstring<1,9600>).
   if (msg->warning_msg_contents_present) {
-    const auto& wmc          = msg->warning_msg_contents;
-    req.warning_msg_contents = byte_buffer::create(wmc.data(), wmc.data() + wmc.size()).value();
+    const auto&           wmc = msg->warning_msg_contents;
+    expected<byte_buffer> buf = byte_buffer::create(wmc.data(), wmc.data() + wmc.size());
+    if (!buf.has_value()) {
+      ocudulog::fetch_basic_logger("NGAP").warning("Failed to allocate buffer for Warning Message Contents");
+      return false;
+    }
+    req.warning_msg_contents = std::move(buf.value());
   }
 
   // Concurrent Warning Message Indication (optional).
   if (msg->concurrent_warning_msg_ind_present) {
     req.concurrent_warning_msg_ind = true;
   }
+
+  return true;
 }
 
 /// \brief Fill ASN.1 Write-Replace Warning Response from common type.

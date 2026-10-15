@@ -637,11 +637,17 @@ inline asn1::ngap::s_nssai_s s_nssai_to_asn1(const s_nssai_t& s_nssai)
 
 /// \brief Convert NGAP ASN.1 TAI to common type.
 /// \param[in] asn1_tai The ASN.1 type TAI.
-/// \return The common type TAI.
-inline tai_t ngap_asn1_to_tai(const asn1::ngap::tai_s& asn1_tai)
+/// \return The common type TAI, or an error if the PLMN identity is invalid.
+inline expected<tai_t> ngap_asn1_to_tai(const asn1::ngap::tai_s& asn1_tai)
 {
+  expected<plmn_identity> plmn_id = plmn_identity::from_bytes(asn1_tai.plmn_id.to_bytes());
+  if (!plmn_id.has_value()) {
+    ocudulog::fetch_basic_logger("NGAP").warning("Invalid PLMN ID {} in TAI", asn1_tai.plmn_id.to_string());
+    return make_unexpected(default_error_t{});
+  }
+
   tai_t tai;
-  tai.plmn_id = plmn_identity::from_bytes(asn1_tai.plmn_id.to_bytes()).value();
+  tai.plmn_id = plmn_id.value();
   tai.tac     = asn1_tai.tac.to_number();
 
   return tai;
@@ -669,16 +675,22 @@ inline bool asn1_to_security_context(security::security_context&           sec_c
 
 /// \brief Convert NGAP ASN.1 to \c nr_cell_global_id_t.
 /// \param[in] asn1_nr_cgi The ASN.1 type nr cgi.
-/// \return The common type nr cgi.
-inline nr_cell_global_id_t ngap_asn1_to_nr_cgi(const asn1::ngap::nr_cgi_s& asn1_nr_cgi)
+/// \return The common type nr cgi, or an error if the PLMN identity is invalid.
+inline expected<nr_cell_global_id_t> ngap_asn1_to_nr_cgi(const asn1::ngap::nr_cgi_s& asn1_nr_cgi)
 {
+  expected<plmn_identity> plmn_id = plmn_identity::from_bytes(asn1_nr_cgi.plmn_id.to_bytes());
+  if (!plmn_id.has_value()) {
+    ocudulog::fetch_basic_logger("NGAP").warning("Invalid PLMN ID {} in NR CGI", asn1_nr_cgi.plmn_id.to_string());
+    return make_unexpected(default_error_t{});
+  }
+
   nr_cell_global_id_t nr_cgi;
 
-  // Fill NR cell ID.
+  // Fill NR cell ID. The 36-bit NR cell identity is always valid.
   nr_cgi.nci = nr_cell_identity::create(asn1_nr_cgi.nr_cell_id.to_number()).value();
 
   // Fill PLMN ID.
-  nr_cgi.plmn_id = plmn_identity::from_bytes(asn1_nr_cgi.plmn_id.to_bytes()).value();
+  nr_cgi.plmn_id = plmn_id.value();
 
   return nr_cgi;
 }
@@ -699,7 +711,11 @@ inline asn1::ngap::nr_cgi_s nr_cgi_to_ngap_asn1(const nr_cell_global_id_t& nr_cg
   return asn1_nr_cgi;
 }
 
-inline void asn1_to_source_to_target_transport_container(
+/// \brief Convert NGAP ASN.1 Source NG-RAN Node to Target NG-RAN Node Transparent Container to common type.
+/// \param[out] container     The common type container.
+/// \param[in] asn1_container The ASN.1 container.
+/// \return True on success, false if the container holds unsupported or invalid IEs.
+inline bool asn1_to_source_to_target_transport_container(
     ngap_source_ngran_node_to_target_ngran_node_transparent_container&                container,
     const asn1::ngap::source_ngran_node_to_target_ngran_node_transparent_container_s& asn1_container)
 {
@@ -777,7 +793,15 @@ inline void asn1_to_source_to_target_transport_container(
   }
 
   // Fill target cell ID.
-  container.target_cell_id = ngap_asn1_to_nr_cgi(asn1_container.target_cell_id.nr_cgi());
+  if (asn1_container.target_cell_id.type() != asn1::ngap::ngran_cgi_c::types_opts::nr_cgi) {
+    ocudulog::fetch_basic_logger("NGAP").warning("Unsupported non-NR target cell ID in transparent container");
+    return false;
+  }
+  expected<nr_cell_global_id_t> target_cell_id = ngap_asn1_to_nr_cgi(asn1_container.target_cell_id.nr_cgi());
+  if (!target_cell_id.has_value()) {
+    return false;
+  }
+  container.target_cell_id = target_cell_id.value();
 
   // Fill idx to RFSP.
   if (asn1_container.idx_to_rfsp_present) {
@@ -788,11 +812,22 @@ inline void asn1_to_source_to_target_transport_container(
   for (const auto& asn1_last_item : asn1_container.ue_history_info) {
     ngap_last_visited_cell_item last_item;
 
+    if (asn1_last_item.last_visited_cell_info.type() != asn1::ngap::last_visited_cell_info_c::types_opts::ngran_cell or
+        asn1_last_item.last_visited_cell_info.ngran_cell().global_cell_id.type() !=
+            asn1::ngap::ngran_cgi_c::types_opts::nr_cgi) {
+      ocudulog::fetch_basic_logger("NGAP").warning("Ignoring non-NR cell in UE history information");
+      // TODO: add handling for other types of last visited cells.
+      continue;
+    }
     const auto& asn1_cell_info = asn1_last_item.last_visited_cell_info.ngran_cell();
 
     // Fill last visited cell info.
     // Fill global cell ID.
-    last_item.last_visited_cell_info.global_cell_id = ngap_asn1_to_nr_cgi(asn1_cell_info.global_cell_id.nr_cgi());
+    expected<nr_cell_global_id_t> global_cell_id = ngap_asn1_to_nr_cgi(asn1_cell_info.global_cell_id.nr_cgi());
+    if (!global_cell_id.has_value()) {
+      return false;
+    }
+    last_item.last_visited_cell_info.global_cell_id = global_cell_id.value();
 
     // Fill cell type.
     // Fill cell size.
@@ -830,17 +865,26 @@ inline void asn1_to_source_to_target_transport_container(
 
     container.ue_history_info.push_back(last_item);
   }
+
+  return true;
 }
 
 /// \brief Convert NGAP ASN.1 to \c cu_cp_global_gnb_id.
 /// \param[in] asn1_gnb_id The ASN.1 type global gnb id.
-/// \return The common type global gnb id.
-inline cu_cp_global_gnb_id ngap_asn1_to_global_gnb_id(const asn1::ngap::global_gnb_id_s& asn1_gnb_id)
+/// \return The common type global gnb id, or an error if the PLMN identity is invalid.
+inline expected<cu_cp_global_gnb_id> ngap_asn1_to_global_gnb_id(const asn1::ngap::global_gnb_id_s& asn1_gnb_id)
 {
+  expected<plmn_identity> plmn_id = plmn_identity::from_bytes(asn1_gnb_id.plmn_id.to_bytes());
+  if (!plmn_id.has_value()) {
+    ocudulog::fetch_basic_logger("NGAP").warning("Invalid PLMN ID {} in global gNB ID",
+                                                 asn1_gnb_id.plmn_id.to_string());
+    return make_unexpected(default_error_t{});
+  }
+
   cu_cp_global_gnb_id gnb_id;
 
   // Fill PLMN ID.
-  gnb_id.plmn_id = plmn_identity::from_bytes(asn1_gnb_id.plmn_id.to_bytes()).value();
+  gnb_id.plmn_id = plmn_id.value();
 
   // Fill gNB ID.
   gnb_id.gnb_id.id         = asn1_gnb_id.gnb_id.gnb_id().to_number();
@@ -1183,7 +1227,9 @@ asn1_to_periodic_registration_update_timer(uint8_t asn1_periodic_registration_up
   return periodic_registration_update_timer;
 }
 
-inline cu_cp_core_network_assist_info_for_inactive asn1_to_core_network_assist_info_for_inactive(
+/// \brief Convert NGAP ASN.1 Core Network Assistance Information for RRC INACTIVE to common type.
+/// \return The common type assistance information, or an error if a TAI is invalid.
+inline expected<cu_cp_core_network_assist_info_for_inactive> asn1_to_core_network_assist_info_for_inactive(
     const asn1::ngap::core_network_assist_info_for_inactive_s& asn1_cn_assist_info_for_inactive)
 {
   cu_cp_core_network_assist_info_for_inactive cn_assist_info_for_inactive;
@@ -1202,7 +1248,11 @@ inline cu_cp_core_network_assist_info_for_inactive asn1_to_core_network_assist_i
       asn1_cn_assist_info_for_inactive.mico_mode_ind_present &&
       (asn1_cn_assist_info_for_inactive.mico_mode_ind == asn1::ngap::mico_mode_ind_opts::options::true_value);
   for (const auto& tai_list_for_inactive_item : asn1_cn_assist_info_for_inactive.tai_list_for_inactive) {
-    cn_assist_info_for_inactive.tai_list_for_inactive.push_back(ngap_asn1_to_tai(tai_list_for_inactive_item.tai));
+    expected<tai_t> tai = ngap_asn1_to_tai(tai_list_for_inactive_item.tai);
+    if (!tai.has_value()) {
+      return make_unexpected(default_error_t{});
+    }
+    cn_assist_info_for_inactive.tai_list_for_inactive.push_back(tai.value());
   }
 
   if (asn1_cn_assist_info_for_inactive.ie_exts_present) {
@@ -1249,12 +1299,17 @@ asn1_to_location_reporting_event_type(const asn1::ngap::event_type_e& asn1_repor
 }
 
 /// \brief Convert NGAP ASN1 AreaOfInterest IE to common type.
-inline area_of_interest asn1_to_area_of_interest(const asn1::ngap::area_of_interest_s& asn1_aoi)
+/// \return The common type area of interest, or an error if a TAI, CGI or RAN node ID is invalid.
+inline expected<area_of_interest> asn1_to_area_of_interest(const asn1::ngap::area_of_interest_s& asn1_aoi)
 {
   area_of_interest aoi;
 
   for (const auto& asn1_tai_item : asn1_aoi.area_of_interest_tai_list) {
-    aoi.tai_list.push_back(ngap_asn1_to_tai(asn1_tai_item.tai));
+    expected<tai_t> tai = ngap_asn1_to_tai(asn1_tai_item.tai);
+    if (!tai.has_value()) {
+      return make_unexpected(default_error_t{});
+    }
+    aoi.tai_list.push_back(tai.value());
   }
 
   for (const auto& asn1_cell_item : asn1_aoi.area_of_interest_cell_list) {
@@ -1263,7 +1318,11 @@ inline area_of_interest asn1_to_area_of_interest(const asn1::ngap::area_of_inter
       // TODO: add handling for other types of CGIs
       continue;
     }
-    aoi.cell_list.push_back(ngap_asn1_to_nr_cgi(asn1_cell_item.ngran_cgi.nr_cgi()));
+    expected<nr_cell_global_id_t> nr_cgi = ngap_asn1_to_nr_cgi(asn1_cell_item.ngran_cgi.nr_cgi());
+    if (!nr_cgi.has_value()) {
+      return make_unexpected(default_error_t{});
+    }
+    aoi.cell_list.push_back(nr_cgi.value());
   }
 
   for (const auto& asn1_ran_node_item : asn1_aoi.area_of_interest_ran_node_list) {
@@ -1273,14 +1332,20 @@ inline area_of_interest asn1_to_area_of_interest(const asn1::ngap::area_of_inter
       continue;
     }
 
-    aoi.ran_node_list.push_back(ngap_asn1_to_global_gnb_id(asn1_ran_node_item.global_ran_node_id.global_gnb_id()));
+    expected<cu_cp_global_gnb_id> gnb_id =
+        ngap_asn1_to_global_gnb_id(asn1_ran_node_item.global_ran_node_id.global_gnb_id());
+    if (!gnb_id.has_value()) {
+      return make_unexpected(default_error_t{});
+    }
+    aoi.ran_node_list.push_back(gnb_id.value());
   }
 
   return aoi;
 }
 
 /// \brief Convert NGAP ASN1 LocationReportingRequestType IE to common type.
-inline location_report_request
+/// \return The common type request, or an error if an area of interest is invalid.
+inline expected<location_report_request>
 asn1_to_location_report_request(const asn1::ngap::location_report_request_type_s& asn1_type)
 {
   location_report_request req;
@@ -1293,7 +1358,11 @@ asn1_to_location_report_request(const asn1::ngap::location_report_request_type_s
     for (const auto& asn1_aoi_item : asn1_type.area_of_interest_list) {
       area_of_interest_item aoi_item;
       aoi_item.location_report_ref_id = asn1_aoi_item.location_report_ref_id;
-      aoi_item.aio                    = asn1_to_area_of_interest(asn1_aoi_item.area_of_interest);
+      expected<area_of_interest> aoi  = asn1_to_area_of_interest(asn1_aoi_item.area_of_interest);
+      if (!aoi.has_value()) {
+        return make_unexpected(default_error_t{});
+      }
+      aoi_item.aio = std::move(aoi.value());
       req.area_of_interest_list.push_back(std::move(aoi_item));
     }
   }

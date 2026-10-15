@@ -1373,7 +1373,11 @@ void ngap_impl::handle_paging(const asn1::ngap::paging_s& msg)
 void ngap_impl::handle_write_replace_warning(const asn1::ngap::write_replace_warning_request_s& msg)
 {
   ngap_write_replace_warning_request req = {};
-  fill_ngap_write_replace_warning_request(req, msg);
+  if (!fill_ngap_write_replace_warning_request(req, msg)) {
+    logger.warning("Dropping invalid Write-Replace Warning Request");
+    send_error_indication(tx_pdu_notifier, logger);
+    return;
+  }
 
   if (!cu_cp_notifier.schedule_async_task(launch_async(
           [this, req, resp = ngap_write_replace_warning_response{}](coro_context<async_task<void>>& ctx) mutable {
@@ -1592,7 +1596,13 @@ void ngap_impl::handle_location_reporting_control_message(const asn1::ngap::loca
   cu_cp_ue_index_t        ue_index = ue_ctxt_list[uint_to_ran_ue_id(msg->ran_ue_ngap_id)].ue_ids.ue_index;
   location_report_request location_reporting_ctrl;
 
-  fill_ngap_location_report_request(location_reporting_ctrl, msg);
+  if (!fill_ngap_location_report_request(location_reporting_ctrl, msg)) {
+    logger.warning(
+        "ran_ue={} amf_ue={}: Dropping invalid LocationReportingControl", msg->ran_ue_ngap_id, msg->amf_ue_ngap_id);
+    send_error_indication(
+        tx_pdu_notifier, logger, uint_to_ran_ue_id(msg->ran_ue_ngap_id), uint_to_amf_ue_id(msg->amf_ue_ngap_id));
+    return;
+  }
   cu_cp_notifier.on_location_reporting_control_message(ue_index, location_reporting_ctrl);
 }
 

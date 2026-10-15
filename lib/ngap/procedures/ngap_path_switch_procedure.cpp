@@ -279,8 +279,12 @@ bool ngap_path_switch_procedure::asn1_to_path_switch_request_ack(
 
   // Convert Core Network Assist Info for Inactive if present.
   if (asn1_response->core_network_assist_info_for_inactive_present) {
-    res.core_network_assist_info_for_inactive =
+    expected<cu_cp_core_network_assist_info_for_inactive> cn_assist_info =
         asn1_to_core_network_assist_info_for_inactive(asn1_response->core_network_assist_info_for_inactive);
+    if (!cn_assist_info.has_value()) {
+      return false;
+    }
+    res.core_network_assist_info_for_inactive = cn_assist_info.value();
   }
 
   // Convert RRC inactive transition report request if present.

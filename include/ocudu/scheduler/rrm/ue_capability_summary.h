@@ -134,6 +134,8 @@ struct ue_capability_summary {
   bool short_drx_cycle_supported = false;
   /// Set to true if UE supports \c interleavingVRB-ToPRB-PDSCH, as per TS 38.306, Section 4.2.7.10.
   bool pdsch_interleaving_vrb_to_prb_supported = false;
+  /// Set to true if UE supports \c dynamicSwitchRA-Type0-1-PDSCH, as per TS 38.306, Section 4.2.7.10.
+  bool pdsch_dyn_switch_ra_type0_1_supported = false;
   /// Set to true if UE supports NTN features.
   bool ntn_supported = false;
   /// Indicates whether the UE supports disabled HARQ feedback for downlink transmission.
@@ -164,6 +166,7 @@ struct ue_capability_summary {
            (long_drx_cycle_supported == other.long_drx_cycle_supported) &&
            (short_drx_cycle_supported == other.short_drx_cycle_supported) &&
            (pdsch_interleaving_vrb_to_prb_supported == other.pdsch_interleaving_vrb_to_prb_supported) &&
+           (pdsch_dyn_switch_ra_type0_1_supported == other.pdsch_dyn_switch_ra_type0_1_supported) &&
            (ntn_supported == other.ntn_supported) &&
            (disabled_dl_harq_feedback_supported == other.disabled_dl_harq_feedback_supported) &&
            (ul_harq_mode_b_supported == other.ul_harq_mode_b_supported) &&

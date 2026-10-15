@@ -78,3 +78,43 @@ TEST_F(du_high_pusch_repetition_config_test, the_initial_transmission_counts_tow
   pusch_cfg().max_nof_harq_retxs = 2;
   ASSERT_FALSE(validate());
 }
+
+class du_high_pdsch_res_alloc_config_test : public ::testing::Test
+{
+protected:
+  du_high_pdsch_res_alloc_config_test() : app("du_high config validator test")
+  {
+    configure_cli11_with_du_high_config_schema(app, parsed_cfg);
+    app.parse("");
+    autoderive_du_high_parameters_after_parsing(parsed_cfg.config);
+  }
+
+  du_high_unit_pdsch_config& pdsch_cfg() { return parsed_cfg.config.cells_cfg.front().cell.pdsch_cfg; }
+
+  bool validate() const { return validate_du_high_config(parsed_cfg.config); }
+
+  CLI::App              app;
+  du_high_parsed_config parsed_cfg;
+};
+
+TEST_F(du_high_pdsch_res_alloc_config_test, resource_allocation_type0_without_interleaving_is_valid)
+{
+  pdsch_cfg().res_alloc = pdsch_config::resource_allocation::resource_allocation_type_0;
+  ASSERT_TRUE(validate());
+
+  pdsch_cfg().res_alloc = pdsch_config::resource_allocation::dynamic_switch;
+  ASSERT_TRUE(validate());
+}
+
+TEST_F(du_high_pdsch_res_alloc_config_test, resource_allocation_type0_with_interleaving_is_rejected)
+{
+  pdsch_cfg().interleaving_bundle_size = vrb_to_prb::mapping_type::interleaved_n2;
+  pdsch_cfg().res_alloc                = pdsch_config::resource_allocation::resource_allocation_type_1;
+  ASSERT_TRUE(validate());
+
+  pdsch_cfg().res_alloc = pdsch_config::resource_allocation::resource_allocation_type_0;
+  ASSERT_FALSE(validate());
+
+  pdsch_cfg().res_alloc = pdsch_config::resource_allocation::dynamic_switch;
+  ASSERT_FALSE(validate());
+}

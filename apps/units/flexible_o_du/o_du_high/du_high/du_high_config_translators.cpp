@@ -919,6 +919,8 @@ std::vector<odu::du_cell_config> ocudu::generate_du_cell_config(const du_high_un
     out_cell.ran.init_bwp.pdsch.additional_positions =
         uint_to_dmrs_additional_positions(base_cell.pdsch_cfg.dmrs_add_pos);
     out_cell.ran.init_bwp.pdsch.interleaving_bundle_size = base_cell.pdsch_cfg.interleaving_bundle_size;
+    out_cell.ran.init_bwp.pdsch.res_alloc                = base_cell.pdsch_cfg.res_alloc;
+    out_cell.ran.init_bwp.pdsch.rbg_sz                   = base_cell.pdsch_cfg.rbg_sz;
     // > PUSCH
     out_cell.ran.init_bwp.pusch.min_k2                      = base_cell.pusch_cfg.min_k2;
     out_cell.ran.init_bwp.pusch.transform_precoding_enabled = base_cell.pusch_cfg.enable_transform_precoding;

@@ -291,6 +291,19 @@ static YAML::Node build_du_high_pdcch_section(const du_high_unit_pdcch_config& c
   return node;
 }
 
+static std::string to_string(pdsch_config::resource_allocation res_alloc)
+{
+  switch (res_alloc) {
+    case pdsch_config::resource_allocation::resource_allocation_type_0:
+      return "type0";
+    case pdsch_config::resource_allocation::resource_allocation_type_1:
+      return "type1";
+    case pdsch_config::resource_allocation::dynamic_switch:
+      return "dynamic_switch";
+  }
+  return "";
+}
+
 static std::string to_string(dc_offset_t dc_offset)
 {
   switch (dc_offset) {
@@ -340,6 +353,8 @@ static YAML::Node build_du_high_pdsch_section(const du_high_unit_pdsch_config& c
   node["harq_la_ri_drop_threshold"]        = static_cast<unsigned>(config.harq_la_ri_drop_threshold);
   node["dmrs_additional_position"]         = config.dmrs_add_pos;
   node["interleaving_bundle_size"]         = static_cast<unsigned>(config.interleaving_bundle_size);
+  node["resource_allocation"]              = to_string(config.res_alloc);
+  node["rbg_size"]                         = config.rbg_sz == rbg_size::config1 ? "config1" : "config2";
   node["enable_csi_rs_pdsch_multiplexing"] = config.enable_csi_rs_pdsch_multiplexing;
 
   if (config.max_rank.has_value()) {

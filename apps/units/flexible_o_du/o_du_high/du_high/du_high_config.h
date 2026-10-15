@@ -35,6 +35,7 @@
 #include "ocudu/ran/subcarrier_spacing.h"
 #include "ocudu/ran/tac.h"
 #include "ocudu/scheduler/config/scheduler_expert_config.h"
+#include "ocudu/scheduler/config/serving_cell_config.h"
 #include "ocudu/support/units.h"
 #include <algorithm>
 #include <chrono>
@@ -270,6 +271,12 @@ struct du_high_unit_pdsch_config {
   /// Controls the bundle size used for interleaving for PDSCH transmissions scheduled on dedicated search spaces. If
   /// set to zero, interleaving will be disabled. All other PDSCH transmissions will be always non-interleaved.
   vrb_to_prb::mapping_type interleaving_bundle_size{vrb_to_prb::mapping_type::non_interleaved};
+  /// \brief Frequency domain resource allocation type for PDSCH transmissions scheduled on dedicated search spaces.
+  ///
+  /// UEs that do not support the dynamic switch between types 0 and 1 use type 1 instead.
+  pdsch_config::resource_allocation res_alloc = pdsch_config::resource_allocation::resource_allocation_type_1;
+  /// RBG size configuration for PDSCH resource allocation type 0.
+  rbg_size rbg_sz = rbg_size::config1;
   /// Limits the maximum rank UEs can report. It must not exceed the number of transmit antennas.
   std::optional<unsigned> max_rank;
   /// Enable multiplexing of CSI-RS and PDSCH.

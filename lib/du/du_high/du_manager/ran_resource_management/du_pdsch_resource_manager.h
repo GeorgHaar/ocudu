@@ -36,8 +36,10 @@ private:
   void apply_config(cell_group_config& cell_grp_cfg, const std::optional<ue_capability_summary>& ue_caps);
 
   pdsch_mcs_table select_mcs_table(du_cell_index_t cell_idx, const std::optional<ue_capability_summary>& ue_caps) const;
-  vrb_to_prb::mapping_type select_interleaving(du_cell_index_t                             cell_idx,
-                                               const std::optional<ue_capability_summary>& ue_caps) const;
+  vrb_to_prb::mapping_type          select_interleaving(du_cell_index_t                             cell_idx,
+                                                        const std::optional<ue_capability_summary>& ue_caps) const;
+  pdsch_config::resource_allocation select_res_alloc(du_cell_index_t                             cell_idx,
+                                                     const std::optional<ue_capability_summary>& ue_caps) const;
   unsigned select_max_nof_harqs(du_cell_index_t cell_idx, const std::optional<ue_capability_summary>& ue_caps) const;
   unsigned select_dci_harq_field_size(du_cell_index_t                             cell_idx,
                                       const std::optional<ue_capability_summary>& ue_caps) const;

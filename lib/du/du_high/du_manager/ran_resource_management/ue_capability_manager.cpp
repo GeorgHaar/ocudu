@@ -267,6 +267,8 @@ expected<ue_capability_summary, std::string> odu::decode_ue_nr_cap_container(con
   if (ue_cap.phy_params.phy_params_common_present) {
     ue_caps.pdsch_interleaving_vrb_to_prb_supported =
         ue_cap.phy_params.phy_params_common.interleaving_vrb_to_prb_pdsch_present;
+    ue_caps.pdsch_dyn_switch_ra_type0_1_supported =
+        ue_cap.phy_params.phy_params_common.dyn_switch_ra_type0_1_pdsch_present;
     if (ue_cap.phy_params.phy_params_common.pusch_repeat_type_a_r16.is_present()) {
       ue_caps.pusch_rep_type_a_supported =
           ue_cap.phy_params.phy_params_common.pusch_repeat_type_a_r16->non_shared_spec_ch_access_r16_present;

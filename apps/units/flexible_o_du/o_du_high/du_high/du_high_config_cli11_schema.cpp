@@ -447,6 +447,38 @@ static void configure_cli11_pdsch_args(CLI::App& app, du_high_unit_pdsch_config&
              "PDSCH interleaving bundle size. Valid values: [0, 2, 4]")
       ->capture_default_str()
       ->enum_values({0, 2, 4});
+  add_option_function<std::string>(
+      app,
+      "--resource_allocation",
+      [&pdsch_params](const std::string& value) {
+        if (value == "type0") {
+          pdsch_params.res_alloc = pdsch_config::resource_allocation::resource_allocation_type_0;
+        } else if (value == "type1") {
+          pdsch_params.res_alloc = pdsch_config::resource_allocation::resource_allocation_type_1;
+        } else if (value == "dynamic_switch") {
+          pdsch_params.res_alloc = pdsch_config::resource_allocation::dynamic_switch;
+        } else {
+          report_fatal_error("PDSCH resource_allocation={} not in {{type0,type1,dynamic_switch}}.", value);
+        }
+      },
+      "PDSCH frequency domain resource allocation type for UE-dedicated search spaces")
+      ->default_str("type1")
+      ->check(CLI::IsMember({"type0", "type1", "dynamic_switch"}, CLI::ignore_case));
+  add_option_function<std::string>(
+      app,
+      "--rbg_size",
+      [&pdsch_params](const std::string& value) {
+        if (value == "config1") {
+          pdsch_params.rbg_sz = rbg_size::config1;
+        } else if (value == "config2") {
+          pdsch_params.rbg_sz = rbg_size::config2;
+        } else {
+          report_fatal_error("PDSCH rbg_size={} not in {{config1,config2}}.", value);
+        }
+      },
+      "PDSCH RBG size configuration for resource allocation type 0")
+      ->default_str("config1")
+      ->check(CLI::IsMember({"config1", "config2"}, CLI::ignore_case));
   add_option(app,
              "--max_rank",
              pdsch_params.max_rank,

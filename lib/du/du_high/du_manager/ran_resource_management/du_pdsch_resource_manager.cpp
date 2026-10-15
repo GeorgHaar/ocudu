@@ -52,6 +52,16 @@ static void set_pdsch_interleaving(serving_cell_config& cell_cfg, vrb_to_prb::ma
   }
 }
 
+static void
+set_pdsch_res_alloc(serving_cell_config& cell_cfg, pdsch_config::resource_allocation res_alloc, rbg_size rbg_sz)
+{
+  // Set \c resourceAllocation and \c rbg-Size for PDSCH, as per TS 38.331, \c PDSCH-Config.
+  if (cell_cfg.init_dl_bwp.pdsch_cfg.has_value()) {
+    cell_cfg.init_dl_bwp.pdsch_cfg->res_alloc = res_alloc;
+    cell_cfg.init_dl_bwp.pdsch_cfg->rbg_sz    = rbg_sz;
+  }
+}
+
 static void set_max_dl_nof_harqs(serving_cell_config& cell_cfg, unsigned nof_harqs)
 {
   if (cell_cfg.pdsch_serv_cell_cfg.has_value()) {
@@ -120,6 +130,8 @@ void du_pdsch_resource_manager::apply_config(cell_group_config&                 
 
   set_pdsch_mcs_table(serv_cell, select_mcs_table(cell_idx, ue_caps));
   set_pdsch_interleaving(serv_cell, select_interleaving(cell_idx, ue_caps));
+  set_pdsch_res_alloc(
+      serv_cell, select_res_alloc(cell_idx, ue_caps), cell_cfg_list[cell_idx].ran.init_bwp.pdsch.rbg_sz);
   set_max_dl_nof_harqs(serv_cell, select_max_nof_harqs(cell_idx, ue_caps));
   set_dl_dci_harq_field_size(serv_cell, select_dci_harq_field_size(cell_idx, ue_caps));
   set_dl_harq_feedback_disabled(serv_cell, select_disabled_harq_feedback(cell_idx, ue_caps));
@@ -162,6 +174,26 @@ du_pdsch_resource_manager::select_interleaving(du_cell_index_t                  
 
   // Default to non-interleaved if the UE capabilities are not available.
   return vrb_to_prb::mapping_type::non_interleaved;
+}
+
+pdsch_config::resource_allocation
+du_pdsch_resource_manager::select_res_alloc(du_cell_index_t                             cell_idx,
+                                            const std::optional<ue_capability_summary>& ue_caps) const
+{
+  const pdsch_config::resource_allocation app_res_alloc = cell_cfg_list[cell_idx].ran.init_bwp.pdsch.res_alloc;
+  if (ue_caps.has_value()) {
+    // Resource allocation type 0 is mandatory, while the dynamic switch between types 0 and 1 is a UE capability.
+    if (app_res_alloc != pdsch_config::resource_allocation::dynamic_switch or
+        ue_caps->pdsch_dyn_switch_ra_type0_1_supported) {
+      return app_res_alloc;
+    }
+  } else if (test_cfg.test_ue.has_value() and test_cfg.test_ue->rnti != rnti_t::INVALID_RNTI) {
+    // Has no capabilities but the UE is in test mode.
+    return app_res_alloc;
+  }
+
+  // Default to resource allocation type 1 if the UE capabilities are not available.
+  return pdsch_config::resource_allocation::resource_allocation_type_1;
 }
 
 unsigned du_pdsch_resource_manager::select_max_nof_harqs(du_cell_index_t                             cell_idx,

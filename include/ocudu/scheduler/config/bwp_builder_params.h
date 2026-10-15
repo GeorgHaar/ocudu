@@ -35,6 +35,10 @@ struct pdsch_builder_params {
   dmrs_additional_positions additional_positions{dmrs_additional_positions::pos2};
   /// VRB-to-PRB mapping type for PDSCH. The field vrb-ToPRB-Interleaver applies to DCI format 1_1.
   vrb_to_prb::mapping_type interleaving_bundle_size{vrb_to_prb::mapping_type::non_interleaved};
+  /// Preferred PDSCH frequency domain resource allocation type. The field resourceAllocation applies to DCI format 1_1.
+  pdsch_config::resource_allocation res_alloc = pdsch_config::resource_allocation::resource_allocation_type_1;
+  /// RBG size configuration for PDSCH resource allocation type 0.
+  rbg_size rbg_sz = rbg_size::config1;
   /// See TS 38.331, \c downlinkHARQ-FeedbackDisabled.
   /// A bit set to 1 indicates HARQ processes with disabled DL HARQ feedback; a bit set to 0 indicate feedback enabled.
   harq_dl_feedback_disabled_mask dl_harq_feedback_disabled = harq_dl_feedback_disabled_mask(MAX_NOF_HARQS);

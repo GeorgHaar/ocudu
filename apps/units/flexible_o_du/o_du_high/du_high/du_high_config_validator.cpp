@@ -293,6 +293,13 @@ static bool validate_pdsch_cell_unit_config(const du_high_unit_pdsch_config& con
     return false;
   }
 
+  if (config.res_alloc != pdsch_config::resource_allocation::resource_allocation_type_1 and
+      config.interleaving_bundle_size != vrb_to_prb::mapping_type::non_interleaved) {
+    fmt::print("PDSCH resource allocation type 0 is not supported with interleaving. Set interleaving_bundle_size to 0 "
+               "or resource_allocation to type1.\n");
+    return false;
+  }
+
   unsigned max_ue_mcs = 28;
   if (config.mcs_table == pdsch_mcs_table::qam256) {
     max_ue_mcs = 27;

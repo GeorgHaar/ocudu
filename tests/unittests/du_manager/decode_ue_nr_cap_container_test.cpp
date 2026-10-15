@@ -170,6 +170,7 @@ const auto test_cases = to_array<decode_ue_nr_cap_container_params>(
                                    .long_drx_cycle_supported   = false,
                                    .short_drx_cycle_supported  = false,
                                    .pdsch_interleaving_vrb_to_prb_supported = true,
+                                   .pdsch_dyn_switch_ra_type0_1_supported   = true,
                                    .ntn_supported                           = false,
                                    .disabled_dl_harq_feedback_supported     = false,
                                    .ul_harq_mode_b_supported                = false,

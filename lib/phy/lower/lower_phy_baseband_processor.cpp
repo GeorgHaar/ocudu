@@ -59,10 +59,14 @@ void lower_phy_baseband_processor::start(baseband_gateway_timestamp init_time, b
                             "Failed to execute initial downlink task.");
 }
 
-void lower_phy_baseband_processor::stop()
+void lower_phy_baseband_processor::request_stop()
 {
   rx_state.request_stop();
   tx_state.request_stop();
+}
+
+void lower_phy_baseband_processor::wait_stop()
+{
   rx_state.wait_stop();
   tx_state.wait_stop();
 }

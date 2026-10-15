@@ -77,11 +77,14 @@ public:
   }
 
   // See lower_phy_controller interface for documentation.
-  void stop() override
+  void request_stop() override { controller->request_stop(); }
+
+  // See lower_phy_controller interface for documentation.
+  void wait_stop() override
   {
     downlink_proc->stop();
     uplink_proc->stop();
-    controller->stop();
+    controller->wait_stop();
   }
 
 private:

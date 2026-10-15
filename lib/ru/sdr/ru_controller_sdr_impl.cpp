@@ -82,10 +82,17 @@ void ru_controller_sdr_impl::start()
 
 void ru_controller_sdr_impl::stop()
 {
+  // Request the lower PHY to stop before stopping the radio.
+  for (auto& sector : lower_phy_sectors) {
+    sector->get_controller().request_stop();
+  }
+
+  // Stop the radio.
   radio->stop();
 
+  // Wait for the lower PHY to stop.
   for (auto& sector : lower_phy_sectors) {
-    sector->get_controller().stop();
+    sector->get_controller().wait_stop();
   }
 }
 

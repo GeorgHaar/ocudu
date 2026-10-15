@@ -417,7 +417,7 @@ struct fuzz_state {
     plmn_item               plmn{plmn_identity::test_value(), {nssai}};
     supported_tracking_area ta{7, {plmn}};
 
-    cfg.ngap.ngaps.push_back(cu_cp_configuration::ngap_config{{ta}});
+    cfg.ngap.amfs.push_back(cu_cp_configuration::amf_configuration{.supported_tas = {ta}});
 
     std::vector<n2_connection_client*> n2_gws;
     n2_gws.push_back(&amf);
@@ -428,8 +428,9 @@ struct fuzz_state {
     cu_cp_dependencies deps{.n2_gws            = std::move(n2_gws),
                             .ng_setup_notifier = nullptr,
                             .xnc_gws           = std::move(xnc_gws),
-                            .services = cu_cp_dependencies::service_params{.cu_cp_executor = *exec, .timers = timers},
-                            .metrics_notifier = nullptr};
+                            .cu_cp_executor    = *exec,
+                            .timers            = timers,
+                            .metrics_notifier  = nullptr};
 
     cu_cp_inst = create_cu_cp(cfg, deps);
 

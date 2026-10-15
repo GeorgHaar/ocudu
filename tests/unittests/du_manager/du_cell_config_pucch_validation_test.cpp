@@ -71,3 +71,14 @@ TEST_F(du_cell_config_pucch_validation_test, when_dedicated_pucch_resources_reac
   ASSERT_FALSE(result.has_value());
   ASSERT_NE(result.error().find(common_ded_overlap_error), std::string::npos) << result.error();
 }
+
+TEST_F(du_cell_config_pucch_validation_test,
+       when_nof_edge_prbs_is_set_then_dedicated_pucch_resources_may_overlap_common)
+{
+  // Row 11 places the common resources in the 4 PRBs at each BWP edge. The dedicated resources start at the second PRB.
+  cell_cfg.ran.ul_cfg_common.init_ul_bwp.pucch_cfg_common->pucch_resource_common = 11;
+  cell_cfg.ran.init_bwp.pucch.resources.nof_edge_prbs                            = 1;
+
+  const auto result = is_du_cell_config_valid(cell_cfg);
+  ASSERT_TRUE(result.has_value()) << result.error();
+}

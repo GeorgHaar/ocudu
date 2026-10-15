@@ -795,30 +795,43 @@ static check_outcome check_prach_config(const du_cell_config& cell_cfg)
   return {};
 }
 
-/// Fails if any dedicated PUCCH resource overlaps the common PUCCH PRBs.
+/// Fails if any dedicated PUCCH resource overlaps the PRBs reserved at the BWP edges, if the number of edge PRBs is
+/// set. Otherwise, fails if any dedicated PUCCH resource overlaps the common PUCCH PRBs.
 static check_outcome check_pucch_common_ded_overlap(const du_cell_config& cell_cfg)
 {
+  const auto&    pucch_params     = cell_cfg.ran.init_bwp.pucch.resources;
   const unsigned bwp_size         = cell_cfg.ran.ul_cfg_common.init_ul_bwp.generic_params.crbs.length();
   const unsigned pucch_res_common = cell_cfg.ran.ul_cfg_common.init_ul_bwp.pucch_cfg_common->pucch_resource_common;
 
-  // The PRBs reserved at the BWP edges cannot rule out the overlap by themselves, as row 15 places the common
-  // resources away from the edges, where the dedicated resources of a crowded edge may reach them.
+  // With nof_edge_prbs set, the dedicated resources can overlap the common resources, but not the edge PRBs.
+  // Without it, check the common PRBs directly. Row 15 puts the common resources away from the BWP edges, where many
+  // dedicated resources can reach them.
+  crb_bitmap  reserved_prbs;
+  std::string reserved_prbs_desc;
+  if (pucch_params.nof_edge_prbs.has_value()) {
+    const unsigned nof_edge_prbs = *pucch_params.nof_edge_prbs;
+    CHECK_BELOW(2 * nof_edge_prbs, bwp_size, "number of PUCCH edge PRBs at both BWP edges");
+    reserved_prbs.resize(bwp_size);
+    reserved_prbs.fill(0, nof_edge_prbs);
+    reserved_prbs.fill(bwp_size - nof_edge_prbs, bwp_size);
+    reserved_prbs_desc = fmt::format("{} PRBs reserved at each BWP edge", nof_edge_prbs);
+  } else {
+    reserved_prbs      = compute_pucch_crbs(crb_interval{0, bwp_size}, pucch_res_common, {});
+    reserved_prbs_desc = fmt::format("common PUCCH resources of pucch-ResourceCommon={}", pucch_res_common);
+  }
+
   const std::vector<pucch_resource> ded_res = config_helpers::generate_cell_pucch_res_list(
-      cell_cfg.ran.init_bwp.pucch.resources,
-      bwp_size,
-      config_helpers::get_dedicated_pucch_rb_start(cell_cfg.ran.init_bwp.pucch.resources, pucch_res_common, bwp_size));
-  const crb_bitmap common_prbs = compute_pucch_crbs(crb_interval{0, bwp_size}, pucch_res_common, {});
+      pucch_params, bwp_size, config_helpers::get_dedicated_pucch_rb_start(pucch_params, pucch_res_common, bwp_size));
   for (const pucch_resource& res : ded_res) {
     const prb_interval hop1 = res.prbs();
     const prb_interval hop2 =
         res.second_hop_prb.has_value() ? prb_interval::start_and_len(*res.second_hop_prb, hop1.length()) : hop1;
-    CHECK_TRUE(not common_prbs.any(hop1.start(), hop1.stop()) and not common_prbs.any(hop2.start(), hop2.stop()),
-               "The dedicated PUCCH resource cell_res_id={} in PRBs={} (second hop {}) overlaps the common PUCCH "
-               "resources of pucch-ResourceCommon={}",
+    CHECK_TRUE(not reserved_prbs.any(hop1.start(), hop1.stop()) and not reserved_prbs.any(hop2.start(), hop2.stop()),
+               "The dedicated PUCCH resource cell_res_id={} in PRBs={} (second hop {}) overlaps the {}",
                res.res_id.ded().cell_res_id,
                hop1,
                hop2,
-               pucch_res_common);
+               reserved_prbs_desc);
   }
   return {};
 }

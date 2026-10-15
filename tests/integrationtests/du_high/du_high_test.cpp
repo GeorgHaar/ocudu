@@ -38,6 +38,19 @@ protected:
       }
     }
   }
+
+  void push_pdcp_pdus_to_ue_f1u_bearers(du_ue_index_t ue_index, unsigned nof_pdcp_pdus, unsigned pdcp_pdu_size)
+  {
+    for (unsigned i = 0; i < nof_pdcp_pdus; ++i) {
+      nru_dl_message f1u_pdu{.t_pdu = test_helpers::create_pdcp_pdu(
+                                 pdcp_sn_size::size12bits, /* is_srb = */ false, i, pdcp_pdu_size, i & 0xffU)};
+      for (auto& [key, bearer] : cu_up_sim.bearers) {
+        if (key.first == ue_index) {
+          bearer.rx_notifier->on_new_pdu(f1u_pdu);
+        }
+      }
+    }
+  }
 };
 
 TEST_F(du_high_tester, when_ccch_msg_is_received_then_ue_context_is_created)
@@ -185,6 +198,9 @@ TEST_F(du_high_tester,
     return std::any_of(pdus.begin(), pdus.end(), [](const auto& pair) { return pair.first == LCID_SRB1; });
   }));
   this->test_logger.info("STATUS: UE received RRC Release");
+
+  // UE2 may have drained its DRB buffer while the RRC Release was being scheduled.
+  push_pdcp_pdus_to_ue_f1u_bearers(to_du_ue_index(1), nof_pdcp_pdus, pdcp_pdu_size);
 
   // While UE Context Release Complete has not been sent...
   unsigned ue2_pdsch_count = 0;

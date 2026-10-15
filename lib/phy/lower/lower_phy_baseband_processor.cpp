@@ -181,7 +181,10 @@ void lower_phy_baseband_processor::ul_process()
 
     ru_tracer << trace_event("uplink_baseband", ul_tp);
   });
-  report_fatal_error_if_not(success, "Failed to execute uplink processing task.");
+
+  if (!success) {
+    logger.warning("Failed to execute uplink processing task. Dropping baseband buffer processing...");
+  }
 
   // Enqueue next iteration if it is running.
   report_fatal_error_if_not(rx_executor.defer([this]() { ul_process(); }), "Failed to execute receive task.");

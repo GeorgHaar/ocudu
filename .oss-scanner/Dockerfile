@@ -25,10 +25,10 @@ COPY docker/scripts/ /src/docker/scripts/
 RUN /src/docker/scripts/install_dependencies.sh build \
     && /src/docker/scripts/install_rohc_dependencies.sh build
 
-# Scanner tooling (clang sanitizers, lld, ninja, gdb) and ZeroMQ for the virtual radio.
+# Scanner tooling (clang with the sanitizer and libFuzzer runtimes, lld, ninja, gdb) and ZeroMQ for the virtual radio.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl git python3 gdb less \
-      clang llvm lld ninja-build \
+      clang libclang-rt-dev llvm lld ninja-build \
       libzmq3-dev \
     && rm -rf /var/lib/apt/lists/*
 

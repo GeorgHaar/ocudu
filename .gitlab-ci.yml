@@ -782,3 +782,42 @@ oss-fuzz build:
         python3 infra/helper.py check_build --sanitizer "$sanitizer" ocudu || exit 1
       done
   dependencies: []
+
+# Verify that the OSS Scanner image (.oss-scanner/Dockerfile) still builds against the current
+# commit: dependencies install, OCUDU and the fuzz harnesses compile with ASan + UBSan and the seed
+# corpora are generated. The scanner only builds the image on its own infrastructure, so a break
+# would otherwise only be reported by the scanner itself.
+oss-scanner build:
+  stage: extended
+  image: docker:29.6.1-dind
+  needs: []
+  rules:
+    - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Nightly/
+    - if: $ON_MR_FORK
+      when: never
+    # Manual button on MR pipelines, to try out changes to the Dockerfile before they only get
+    # exercised on the next Nightly pipeline.
+    - if: $ON_MR
+      when: manual
+      allow_failure: true
+  tags:
+    - ${OCUDU_RUNNER_TAG}-amd64
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+  before_script:
+    - |
+      export DOCKER_HOST=unix:///var/run/docker.sock
+      dockerd-entrypoint.sh --host=${DOCKER_HOST} --tls=false 2>&1 &
+    - |
+      i=0
+      while ! docker info >/dev/null 2>&1; do
+        i=$((i+1))
+        if [ "$i" -ge 60 ]; then
+          echo "ERROR: dockerd not ready after 60s"
+          exit 1
+        fi
+        sleep 1
+      done
+  script:
+    - docker build --progress=plain -f .oss-scanner/Dockerfile -t ocudu-oss-scanner:${CI_COMMIT_SHORT_SHA} .
+  dependencies: []

@@ -4,6 +4,7 @@
 
 #include "ocudu/ofh/ethernet/dpdk/dpdk_ethernet_port_context.h"
 #include <charconv>
+#include <memory>
 #include <optional>
 #include <rte_ethdev.h>
 
@@ -14,7 +15,7 @@ using namespace ether;
 static constexpr unsigned MBUF_CACHE_SIZE = 256;
 static constexpr unsigned RX_RING_SIZE    = 1024;
 static constexpr unsigned TX_RING_SIZE    = 1024;
-static constexpr unsigned NUM_MBUFS       = 13824;
+static constexpr unsigned NUM_MBUFS       = 9216;
 
 /// DPDK port initialization routine.
 static bool port_init(const dpdk_port_config& config, ::rte_mempool* mem_pool, unsigned port_id)
@@ -119,7 +120,7 @@ static std::optional<int> parse_int(const std::string& value)
 }
 
 /// On success returns DPDK port identifier resolved based on the passed identifier.
-static std::optional<uint16_t> get_dpdk_port_id(const std::string& port_id)
+static std::optional<uint16_t> resolve_dpdk_port_id(const std::string& port_id)
 {
   // Try to resolve port identifier based on the passed identifier.
   uint16_t dpdk_port_id;
@@ -136,10 +137,31 @@ static std::optional<uint16_t> get_dpdk_port_id(const std::string& port_id)
   return std::nullopt;
 }
 
-/// Configures an Ethernet port managed by DPDK.
-static unsigned dpdk_port_configure(const dpdk_port_config& config, ::rte_mempool* mem_pool)
+/// Creates the mbuf memory pool owned by a single DPDK port context.
+///
+/// The returned shared pointer carries a custom deleter that frees the pool when the owning port context is destroyed
+/// and before the EAL cleanup.
+static std::shared_ptr<::rte_mempool> create_mem_pool(unsigned dpdk_port_id)
 {
-  auto opt_port_id = get_dpdk_port_id(config.id);
+  ::rte_mempool* pool = ::rte_pktmbuf_pool_create(fmt::format("OFH_MBUF_POOL_{}", dpdk_port_id).c_str(),
+                                                  NUM_MBUFS,
+                                                  MBUF_CACHE_SIZE,
+                                                  0,
+                                                  (MAX_BUFFER_SIZE + RTE_PKTMBUF_HEADROOM),
+                                                  ::rte_eth_dev_socket_id(dpdk_port_id));
+  if (pool == nullptr) {
+    ::rte_exit(EXIT_FAILURE,
+               "DPDK - Unable to create the DPDK mbuf pool for port '%u': %s\n",
+               dpdk_port_id,
+               ::rte_strerror(rte_errno));
+  }
+
+  return std::shared_ptr<::rte_mempool>(pool, [](::rte_mempool* pool_) { ::rte_mempool_free(pool_); });
+}
+
+std::shared_ptr<dpdk_port_context> dpdk_port_context::create(const dpdk_port_config& config)
+{
+  auto opt_port_id = resolve_dpdk_port_id(config.id);
   if (!opt_port_id) {
     ::rte_exit(EXIT_FAILURE,
                "DPDK - Unable to find an Ethernet port with device id '%s'. Make sure the device id is valid and "
@@ -148,30 +170,17 @@ static unsigned dpdk_port_configure(const dpdk_port_config& config, ::rte_mempoo
   }
 
   uint16_t dpdk_port_id = *opt_port_id;
-  if (!port_init(config, mem_pool, dpdk_port_id)) {
+
+  auto mem_pool = create_mem_pool(dpdk_port_id);
+  if (!port_init(config, mem_pool.get(), dpdk_port_id)) {
     ::rte_exit(EXIT_FAILURE, "DPDK - Unable to initialize Ethernet port '%u'\n", dpdk_port_id);
   }
 
   if (config.is_link_status_check_enabled) {
     print_link_status(dpdk_port_id);
   }
-  return dpdk_port_id;
-}
 
-std::shared_ptr<dpdk_port_context> dpdk_port_context::create(const dpdk_port_config& config)
-{
-  // Create the mbuf pool only once as it is common for all ports.
-  static ::rte_mempool* mem_pool = [&config]() {
-    ::rte_mempool* pool = ::rte_pktmbuf_pool_create(
-        "OFH_MBUF_POOL", NUM_MBUFS, MBUF_CACHE_SIZE, 0, (MAX_BUFFER_SIZE + RTE_PKTMBUF_HEADROOM), ::rte_socket_id());
-    if (pool == nullptr) {
-      ::rte_exit(EXIT_FAILURE, "DPDK - Unable to create the DPDK mbuf pool for port '%s'\n", config.id.c_str());
-    }
-    return pool;
-  }();
-
-  return std::shared_ptr<dpdk_port_context>(
-      new dpdk_port_context(config.id, dpdk_port_configure(config, mem_pool), mem_pool));
+  return std::shared_ptr<dpdk_port_context>(new dpdk_port_context(config.id, dpdk_port_id, std::move(mem_pool)));
 }
 
 dpdk_port_context::~dpdk_port_context()
@@ -185,7 +194,6 @@ dpdk_port_context::~dpdk_port_context()
   if (ret != 0) {
     fmt::print("rte_eth_dev_close: err '{}', port_id '{}'\n", rte_errno, dpdk_port_id);
   }
-  ::rte_mempool_free(mem_pool);
 
   fmt::print(" Done\n");
 }

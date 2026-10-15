@@ -33,8 +33,8 @@ struct dpdk_port_config {
 /// Encapsulates and manages the lifetime of the internal DPDK resources of an Ethernet port.
 class dpdk_port_context
 {
-  dpdk_port_context(const std::string& port_id_, unsigned dpdk_port_id_, ::rte_mempool* mem_pool_) :
-    port_id(port_id_), dpdk_port_id(dpdk_port_id_), mem_pool(mem_pool_)
+  dpdk_port_context(const std::string& port_id_, unsigned dpdk_port_id_, std::shared_ptr<::rte_mempool> mem_pool_) :
+    port_id(port_id_), dpdk_port_id(dpdk_port_id_), mem_pool(std::move(mem_pool_))
   {
   }
 
@@ -51,15 +51,15 @@ public:
   const std::string& get_port_id() const { return port_id; }
 
   /// Returns the mbuf memory pool of this context.
-  ::rte_mempool* get_mempool() { return mem_pool; }
+  ::rte_mempool* get_mempool() { return mem_pool.get(); }
 
   /// Returns the mbuf memory pool of this context.
-  const ::rte_mempool* get_mempool() const { return mem_pool; }
+  const ::rte_mempool* get_mempool() const { return mem_pool.get(); }
 
 private:
-  const std::string    port_id;
-  const unsigned       dpdk_port_id;
-  ::rte_mempool* const mem_pool;
+  const std::string                    port_id;
+  const unsigned                       dpdk_port_id;
+  const std::shared_ptr<::rte_mempool> mem_pool;
 };
 
 } // namespace ether

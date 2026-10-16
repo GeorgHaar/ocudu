@@ -374,6 +374,18 @@ static slot_point get_next_srb_slot(const cell_configuration& cell_cfg, slot_poi
   return next_candidate_slot;
 }
 
+// Helper to determine DCI type to use in PDSCH.
+static dci_dl_rnti_config_type get_dci_type(const ue& u, const std::optional<dl_harq_process_handle>& h_dl)
+{
+  if (h_dl.has_value()) {
+    return h_dl->get_grant_params().dci_cfg_type;
+  }
+  if (u.logical_channels().is_con_res_id_pending()) {
+    return dci_dl_rnti_config_type::tc_rnti_f1_0;
+  }
+  return dci_dl_rnti_config_type::c_rnti_f1_0;
+}
+
 ue_fallback_scheduler::dl_sched_outcome
 ue_fallback_scheduler::schedule_dl_srb(cell_resource_allocator&              res_alloc,
                                        ue&                                   u,
@@ -382,6 +394,11 @@ ue_fallback_scheduler::schedule_dl_srb(cell_resource_allocator&              res
   // Search valid PDSCH time domain resource.
 
   const bool is_retx = h_dl_retx.has_value();
+  // A TC-RNTI DCI grants its HARQ-ACK at the cell-specific Koffset, as the UE applies no Differential Koffset to one,
+  // as per TS 38.213, Section 9. The slots checked below have to be the ones the grant lands in.
+  const unsigned ack_ntn_koffset = get_dci_type(u, h_dl_retx) == dci_dl_rnti_config_type::tc_rnti_f1_0
+                                       ? cell_cfg.ntn_cs_koffset
+                                       : u.get_pcell().ntn_koffset();
 
   // Search for empty HARQ in normal mode in case of newTx.
   if (not is_retx and not u.get_pcell().harqs.has_empty_dl_harqs(harq_utils::harq_mode_t::normal)) {
@@ -495,7 +512,7 @@ ue_fallback_scheduler::schedule_dl_srb(cell_resource_allocator&              res
     if (last_slot_ack.valid() and last_slot_ack > most_recent_ack_slot) {
       most_recent_ack_slot = last_slot_ack;
     }
-    if (pdsch_alloc.slot + dci_1_0_k1_values.back() + u.get_pcell().ntn_koffset() <= most_recent_ack_slot) {
+    if (pdsch_alloc.slot + dci_1_0_k1_values.back() + ack_ntn_koffset <= most_recent_ack_slot) {
       continue;
     }
 
@@ -520,18 +537,6 @@ ue_fallback_scheduler::schedule_dl_srb(cell_resource_allocator&              res
       starting_slot,
       sched_ref_slot + max_dl_slots_ahead_sched + 1);
   return dl_sched_outcome::next_ue;
-}
-
-// Helper to determine DCI type to use in PDSCH.
-static dci_dl_rnti_config_type get_dci_type(const ue& u, const std::optional<dl_harq_process_handle>& h_dl)
-{
-  if (h_dl.has_value()) {
-    return h_dl->get_grant_params().dci_cfg_type;
-  }
-  if (u.logical_channels().is_con_res_id_pending()) {
-    return dci_dl_rnti_config_type::tc_rnti_f1_0;
-  }
-  return dci_dl_rnti_config_type::c_rnti_f1_0;
 }
 
 // Helper to allocate common (and optionally dedicated) PUCCH.

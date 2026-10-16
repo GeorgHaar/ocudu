@@ -157,20 +157,15 @@ static dci_size_config get_dci_size_config(const ue_cell_configuration& ue_cell_
   dci_sz_cfg.pusch_tx_scheme              = std::nullopt;
   dci_sz_cfg.ptrs_uplink_configured       = false;
   dci_sz_cfg.dynamic_beta_offsets         = false;
-  dci_sz_cfg.transform_precoding_enabled  = false;
   dci_sz_cfg.pusch_res_allocation_type    = resource_allocation::resource_allocation_type_1;
+  dci_sz_cfg.transform_precoding_enabled  = use_pusch_transform_precoding(
+      init_bwp.ul.pusch_ded(), opt_rach_cfg.has_value() and opt_rach_cfg->msg3_transform_precoder);
   if (init_bwp.ul.ded() != nullptr) {
     const std::optional<pusch_config>& opt_pusch_cfg    = init_bwp.ul.ded()->pusch_cfg;
     const std::optional<srs_config>&   opt_srs_cfg      = init_bwp.ul.ded()->srs_cfg;
     const pusch_serving_cell_config*   opt_pusch_sc_cfg = ue_cell_cfg.pusch_serving_cell_cfg();
     if (opt_pusch_cfg.has_value()) {
       dci_sz_cfg.pusch_tx_scheme = opt_pusch_cfg->tx_cfg;
-      if (opt_pusch_cfg.value().trans_precoder != pusch_config::transform_precoder::not_set) {
-        dci_sz_cfg.transform_precoding_enabled =
-            opt_pusch_cfg.value().trans_precoder == pusch_config::transform_precoder::enabled;
-      } else if (opt_rach_cfg.has_value()) {
-        dci_sz_cfg.transform_precoding_enabled = opt_rach_cfg.value().msg3_transform_precoder;
-      }
       if ((opt_pusch_cfg.value().pusch_mapping_type_a_dmrs.has_value() and
            opt_pusch_cfg.value().pusch_mapping_type_a_dmrs.value().ptrs.has_value()) or
           (opt_pusch_cfg.value().pusch_mapping_type_b_dmrs.has_value() and

@@ -187,13 +187,11 @@ void scheduler_impl::handle_ul_ta_report_indication(const ul_ta_report_indicatio
 
 void scheduler_impl::handle_cg_confirmation_message(const cg_confirmation_indication_message& cg_conf_ind)
 {
-  ocudu_assert(
-      cells.contains(cg_conf_ind.cell_index), "cell={} does not exist", fmt::underlying(cg_conf_ind.cell_index));
+  ocudu_assert(cells.contains(cg_conf_ind.cell_index), "cell={} does not exist", cg_conf_ind.cell_index);
 
   // Early return if UE has not been created in the scheduler.
   if (cg_conf_ind.ue_index == INVALID_DU_UE_INDEX) {
-    logger.warning("ue={}: Discarding CG confirmation. Cause: UE Id is not valid",
-                   fmt::underlying(INVALID_DU_UE_INDEX));
+    logger.warning("ue={}: Discarding CG confirmation. Cause: UE Id is not valid", INVALID_DU_UE_INDEX);
     return;
   }
 

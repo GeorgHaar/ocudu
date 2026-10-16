@@ -89,7 +89,7 @@ public:
   /// Notify the scheduler of an acked Configured Grant activation of a UE of the cell group.
   /// \remark This notification can be come either from a MAC-CE Configured Grant Confirmation, or from the reception of
   /// a non-DTX CRC.
-  virtual void handle_cg_activation_indication(du_ue_index_t ue_index) = 0;
+  virtual void handle_cg_activation_complete_indication(du_ue_index_t ue_index) = 0;
 
   /// \brief Apply to the cell group an error indication that a cell received for one of its past slots.
   ///

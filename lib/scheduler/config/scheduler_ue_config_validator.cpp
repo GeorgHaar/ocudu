@@ -52,10 +52,8 @@ static validator_result validate_cg_cfg(const uplink_config& ul_cfg, const cell_
     // the CP-OFDM table. As TS 38.212, Section 7.3.1.1.2 does not state which table the UE applies to an activation
     // DCI when the two waveforms differ, the dedicated PUSCH must be CP-OFDM too.
     const bool ded_tp_enabled =
-        not bwp_ul_ded_cfg.pusch_cfg.has_value() or
-                bwp_ul_ded_cfg.pusch_cfg->trans_precoder == pusch_config::transform_precoder::not_set
-            ? cell_cfg.use_msg3_transform_precoder()
-            : bwp_ul_ded_cfg.pusch_cfg->trans_precoder == pusch_config::transform_precoder::enabled;
+        use_pusch_transform_precoding(bwp_ul_ded_cfg.pusch_cfg.has_value() ? &*bwp_ul_ded_cfg.pusch_cfg : nullptr,
+                                      cell_cfg.use_msg3_transform_precoder());
     VERIFY(not ded_tp_enabled,
            "Configured Grant Type 2 is not supported with transform precoding enabled for the dynamic PUSCH");
   }

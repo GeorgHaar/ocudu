@@ -178,7 +178,7 @@ bool cell_group_event_handler_impl::handle_ue_config_applied(du_ue_index_t ue_id
   if (not ue_db[ue_idx].get_pcell().is_in_fallback_mode()) {
     slice_sched.config_applied(ue_idx);
     if (cg_sched != nullptr) {
-      cg_sched->notify_ue_ready_for_activation(ue_idx);
+      cg_sched->start_ue_cg_activation(ue_idx);
     }
   }
 
@@ -365,7 +365,7 @@ bool cell_group_event_handler_impl::handle_crnti_ce_received(du_ue_index_t ue_in
         // UE is still in fallback. When the configuration was applied before the C-RNTI CE arrived, this is the only
         // chance to catch that up: nothing would send the indication a second time, and the UE would be left with a
         // CG that is never activated. No-op for CG Type 1, which needs no activation.
-        cg_sched->notify_ue_ready_for_activation(ue_index);
+        cg_sched->start_ue_cg_activation(ue_index);
       }
     }
   }
@@ -396,12 +396,11 @@ void cell_group_event_handler_impl::handle_slice_reconfiguration(const du_cell_s
   slice_sched.handle_slice_reconfiguration_request(req);
 }
 
-void cell_group_event_handler_impl::handle_cg_activation_indication(du_ue_index_t ue_index)
+void cell_group_event_handler_impl::handle_cg_activation_complete_indication(du_ue_index_t ue_index)
 {
   if (cg_sched == nullptr) {
     // CG Confirmation received in a cell with no configured grants configured.
-    logger.warning("ue={}: Discarding CG confirmation. Cause: No CG configured in this cell",
-                   fmt::underlying(ue_index));
+    logger.warning("ue={}: Discarding CG confirmation. Cause: No CG configured in this cell", ue_index);
     return;
   }
 
@@ -413,7 +412,7 @@ void cell_group_event_handler_impl::handle_cg_activation_indication(du_ue_index_
     return;
   }
 
-  cg_sched->handle_cg_activation_indication(ue_index);
+  cg_sched->handle_cg_activation_complete_indication(ue_index);
 }
 
 void cell_group_event_handler_impl::handle_error_indication(slot_point                            sl_tx,

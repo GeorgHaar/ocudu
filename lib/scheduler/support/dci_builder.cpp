@@ -13,8 +13,42 @@
 #include "ocudu/scheduler/config/bwp_configuration.h"
 #include "ocudu/scheduler/support/rb_helper.h"
 #include <algorithm>
+#include <type_traits>
+#include <variant>
 
 using namespace ocudu;
+
+// dci_dl_info::type() and dci_ul_info::type() convert the payload variant index into the DCI type. Each enumerator must
+// therefore index the payload alternative it names, and each payload alternative must have an enumerator.
+namespace {
+
+template <dci_dl_rnti_config_type Type, typename Payload>
+constexpr bool dl_dci_type_matches_payload =
+    std::is_same_v<std::variant_alternative_t<static_cast<std::size_t>(Type), dci_dl_info::payload_type>, Payload>;
+
+template <dci_ul_rnti_config_type Type, typename Payload>
+constexpr bool ul_dci_type_matches_payload =
+    std::is_same_v<std::variant_alternative_t<static_cast<std::size_t>(Type), dci_ul_info::payload_type>, Payload>;
+
+} // namespace
+
+static_assert(dl_dci_type_matches_payload<dci_dl_rnti_config_type::si_f1_0, dci_1_0_si_rnti_configuration>);
+static_assert(dl_dci_type_matches_payload<dci_dl_rnti_config_type::ra_f1_0, dci_1_0_ra_rnti_configuration>);
+static_assert(dl_dci_type_matches_payload<dci_dl_rnti_config_type::c_rnti_f1_0, dci_1_0_c_rnti_configuration>);
+static_assert(dl_dci_type_matches_payload<dci_dl_rnti_config_type::tc_rnti_f1_0, dci_1_0_tc_rnti_configuration>);
+static_assert(dl_dci_type_matches_payload<dci_dl_rnti_config_type::p_rnti_f1_0, dci_1_0_p_rnti_configuration>);
+static_assert(dl_dci_type_matches_payload<dci_dl_rnti_config_type::c_rnti_f1_1, dci_1_1_configuration>);
+static_assert(std::variant_size_v<dci_dl_info::payload_type> ==
+                  static_cast<std::size_t>(dci_dl_rnti_config_type::c_rnti_f1_1) + 1,
+              "dci_dl_info::payload_type has alternatives with no matching dci_dl_rnti_config_type");
+
+static_assert(ul_dci_type_matches_payload<dci_ul_rnti_config_type::tc_rnti_f0_0, dci_0_0_tc_rnti_configuration>);
+static_assert(ul_dci_type_matches_payload<dci_ul_rnti_config_type::c_rnti_f0_0, dci_0_0_c_rnti_configuration>);
+static_assert(ul_dci_type_matches_payload<dci_ul_rnti_config_type::c_rnti_f0_1, dci_0_1_configuration>);
+static_assert(ul_dci_type_matches_payload<dci_ul_rnti_config_type::cs_rnti_f0_1, dci_0_1_cs_rnti_configuration>);
+static_assert(std::variant_size_v<dci_ul_info::payload_type> ==
+                  static_cast<std::size_t>(dci_ul_rnti_config_type::cs_rnti_f0_1) + 1,
+              "dci_ul_info::payload_type has alternatives with no matching dci_ul_rnti_config_type");
 
 /// Get PDSCH-to-HARQ-timing-indicator field as per TS38.213, 9.2.3.
 static unsigned get_dci_1_0_pdsch_to_harq_timing_indicator(unsigned k1)
@@ -518,7 +552,6 @@ void ocudu::build_dci_f0_1_cg_activation(dci_ul_info&                 dci,
 
   // TODO: Set values for -
   //  - srs_resource_indicator
-  //  - precoding_info_nof_layers
   //  - beta_offset_indicator
   //  - ptrs_dmrs_association
   //  - cbg_transmission_info

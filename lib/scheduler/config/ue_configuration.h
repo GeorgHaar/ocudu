@@ -202,15 +202,7 @@ public:
   /// Determines the use of transform precoding for DCI Format 0_1 for C-RNTI.
   bool use_pusch_transform_precoding_dci_0_1() const
   {
-    // If the UE is not configured with the higher layer parameter transformPrecoder in pusch-Config, determine the
-    // transform precoder use according to parameter msg3-transformPrecoder.
-    if (init_bwp().ul.pusch_ded() == nullptr or
-        init_bwp().ul.pusch_ded()->trans_precoder == pusch_config::transform_precoder::not_set) {
-      return cell_cfg_common.use_msg3_transform_precoder();
-    }
-
-    // Otherwise, determine the use of transform pecoding according to transformPrecoder in pusch-Config.
-    return init_bwp().ul.pusch_ded()->trans_precoder == pusch_config::transform_precoder::enabled;
+    return use_pusch_transform_precoding(init_bwp().ul.pusch_ded(), cell_cfg_common.use_msg3_transform_precoder());
   }
 
   /// \brief Gets the PUSCH transmit scheme codebook configuration.

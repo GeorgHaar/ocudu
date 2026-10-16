@@ -26,12 +26,12 @@ public:
 
   void add_reconf_ue(const ue_cell_configuration& new_ue_cfg, const ue_cell_configuration* old_ue_cfg) override;
 
-  void notify_ue_ready_for_activation(du_ue_index_t ue_idx) override
+  void start_ue_cg_activation(du_ue_index_t ue_idx) override
   {
     // No-op, only used for CG type2.
   }
 
-  void handle_cg_activation_indication(du_ue_index_t ue_idx) override
+  void handle_cg_activation_complete_indication(du_ue_index_t ue_idx) override
   {
     // No-op, only used for CG type2.
   }

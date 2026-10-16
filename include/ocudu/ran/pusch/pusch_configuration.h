@@ -188,4 +188,18 @@ struct pusch_config {
   bool operator!=(const pusch_config& rhs) const { return !(rhs == *this); }
 };
 
+/// \brief Determines the use of transform precoding for a PUSCH scheduled by DCI Format 0_1, as per TS 38.214,
+/// Section 6.1.3.
+/// \param[in] pusch_cfg Dedicated \e pusch-Config of the BWP, or \c nullptr if not configured.
+/// \param[in] msg3_transform_precoder Value of \e msg3-transformPrecoder, applied when \e transformPrecoder is not set
+/// in \e pusch-Config.
+/// \return True if transform precoding is enabled.
+inline bool use_pusch_transform_precoding(const pusch_config* pusch_cfg, bool msg3_transform_precoder)
+{
+  if (pusch_cfg == nullptr or pusch_cfg->trans_precoder == pusch_config::transform_precoder::not_set) {
+    return msg3_transform_precoder;
+  }
+  return pusch_cfg->trans_precoder == pusch_config::transform_precoder::enabled;
+}
+
 } // namespace ocudu

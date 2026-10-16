@@ -886,7 +886,9 @@ static YAML::Node build_cell_entry(const du_high_unit_base_cell_config& config)
   if (config.drx_cfg.long_cycle != 0) {
     node["drx"] = build_du_high_drx_section(config.drx_cfg);
   }
-  node["cg"] = build_du_high_cg_section(config.cg_cfg);
+  if (config.cg_cfg.periodicity_slots.has_value()) {
+    node["cg"] = build_du_high_cg_section(config.cg_cfg);
+  }
   fill_du_high_sched_expert_section(node, config.scheduler_cfg);
 
   if (config.ntn_cfg) {

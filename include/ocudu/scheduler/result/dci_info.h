@@ -28,10 +28,9 @@ inline dci_dl_format get_dci_format(dci_dl_rnti_config_type rnti_dci_type)
   return rnti_dci_type == dci_dl_rnti_config_type::c_rnti_f1_1 ? dci_dl_format::f1_1 : dci_dl_format::f1_0;
 }
 
-inline const char* dci_dl_rnti_config_rnti_type(dci_dl_rnti_config_type type)
+constexpr const char* format_as(dci_dl_rnti_config_type type)
 {
-  static constexpr std::array<const char*, 6> rnti_types = {
-      "si-rnti", "ra-rnti", "c-rnti", "tc-rnti", "p-rnti", "c-rnti"};
+  constexpr std::array<const char*, 6> rnti_types = {"si-rnti", "ra-rnti", "c-rnti", "tc-rnti", "p-rnti", "c-rnti"};
   return static_cast<unsigned>(type) < rnti_types.size() ? rnti_types[static_cast<unsigned>(type)] : "invalid";
 }
 
@@ -89,12 +88,10 @@ struct dci_dl_info {
   payload_type payload;
 };
 
-/// \brief Defines which fields are stored in the DCI payload, based on the chosen DCI format and RNTI type.
-/// \remark The enumerators must be kept in the same order as the alternatives of \ref dci_ul_info::payload_type, as
-/// \ref dci_ul_info::type() derives the type from the variant index.
+/// Defines which fields are stored in the DCI payload, based on the chosen DCI format and RNTI type.
 enum class dci_ul_rnti_config_type : uint8_t { tc_rnti_f0_0, c_rnti_f0_0, c_rnti_f0_1, cs_rnti_f0_1 };
 
-inline const char* dci_ul_rnti_config_rnti_type(dci_ul_rnti_config_type type)
+constexpr const char* format_as(dci_ul_rnti_config_type type)
 {
   constexpr std::array<const char*, 4> rnti_types = {"tc-rnti", "c-rnti", "c-rnti", "cs-rnti"};
   return static_cast<unsigned>(type) < rnti_types.size() ? rnti_types[static_cast<unsigned>(type)] : "invalid";
@@ -115,8 +112,6 @@ inline const char* dci_ul_rnti_config_format(dci_ul_rnti_config_type type)
 }
 
 struct dci_ul_info {
-  /// \remark The alternatives must be kept in the same order as \ref dci_ul_rnti_config_type, which \ref type()
-  /// derives from the variant index. New alternatives are therefore appended, never inserted.
   using payload_type = std::variant<dci_0_0_tc_rnti_configuration,
                                     dci_0_0_c_rnti_configuration,
                                     dci_0_1_configuration,

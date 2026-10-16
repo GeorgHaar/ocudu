@@ -50,7 +50,18 @@ void f1u_local_connector::attach_dl_teid(const up_transport_layer_info& ul_up_tn
   logger_cu.debug("Connecting DU F1-U bearer. UL GTP Tunnel={}, DL GTP Tunnel={}", ul_up_tnl_info, dl_up_tnl_info);
   f1u_gateway_du_bearer* du_tun = du_map.at(dl_up_tnl_info.gtp_teid);
   f1u_gateway_cu_bearer* cu_tun = cu_map.at(ul_up_tnl_info.gtp_teid);
-  cu_tun->dl_tnl_info           = dl_up_tnl_info;
+
+  // On intra-CU HO the DL TEID changes. Clear the old source DU bearer's UL notifier
+  // so its periodic timer cannot fire into a freed CU-UP f1u_bearer after teardown.
+  if (cu_tun->dl_tnl_info.has_value() && cu_tun->dl_tnl_info.value().gtp_teid != dl_up_tnl_info.gtp_teid) {
+    auto old_du_it = du_map.find(cu_tun->dl_tnl_info.value().gtp_teid);
+    if (old_du_it != du_map.end()) {
+      old_du_it->second->detach_cu_notifier();
+    }
+    cu_tun->detach_du_notifier(cu_tun->dl_tnl_info.value());
+  }
+
+  cu_tun->dl_tnl_info = dl_up_tnl_info;
   cu_tun->attach_du_notifier(*du_tun->f1u_rx, dl_up_tnl_info);
 }
 

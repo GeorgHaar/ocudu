@@ -2,11 +2,11 @@
 # SPDX-FileCopyrightText: Copyright (C) 2026 OCUDU contributors
 # SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 
-
 set_directory_properties(PROPERTIES LABELS "fapi_adaptor")
 
 add_subdirectory(mac/p5)
 add_subdirectory(mac/p7)
+add_subdirectory(phy/dummy)
 add_subdirectory(phy/p7)
 
 add_executable(precoding_codebook_generator_test precoding_codebook_generator_test.cpp)

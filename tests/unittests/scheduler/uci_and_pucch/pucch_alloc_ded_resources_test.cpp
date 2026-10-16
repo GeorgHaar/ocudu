@@ -783,8 +783,12 @@ TEST_P(pucch_alloc_ded_resources_test, test_for_private_fnc_retrieving_existing_
         return pdu.format() == pucch_format::FORMAT_1 and pdu.crnti == rnti and pdu.uci_bits.harq_ack_nof_bits == 1U;
       }));
 
-  auto pri_ue0 = t_bench.pucch_alloc.alloc_common_harq_ack(
-      t_bench.res_grid, t_bench.get_main_ue().crnti, t_bench.k0, k1, t_bench.dci_info);
+  auto pri_ue0 = t_bench.pucch_alloc.alloc_common_harq_ack(t_bench.res_grid,
+                                                           t_bench.get_main_ue().crnti,
+                                                           t_bench.k0,
+                                                           k1,
+                                                           t_bench.dci_info,
+                                                           t_bench.get_main_ue().get_pcell().ntn_koffset());
   ASSERT_TRUE(pri_ue0.has_value());
   // The dedicated resources do not overlap the common ones, so the first common resource is available.
   ASSERT_EQ(0U, pri_ue0.value());

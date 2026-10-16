@@ -540,6 +540,7 @@ static std::optional<uci_allocation> allocate_ue_fallback_pucch(ue&             
                                                                 pucch_allocator&            pucch_alloc,
                                                                 uci_allocator&              uci_alloc,
                                                                 const pdcch_dl_information& pdcch_info,
+                                                                dci_dl_rnti_config_type     dci_type,
                                                                 span<const uint8_t>         k1_values,
                                                                 slot_point                  pdsch_slot,
                                                                 slot_point                  min_ack_slot,
@@ -551,9 +552,8 @@ static std::optional<uci_allocation> allocate_ue_fallback_pucch(ue&             
   // The HARQ-ACK is k1 + Koffset slots after its PDSCH, as per TS 38.213, Section 9. A TC-RNTI DCI grants it at the
   // cell-specific Koffset, as the UE applies no Differential Koffset to one. The slots checked below have to be the
   // ones the grant lands in, so they take the same Koffset the allocation does.
-  const unsigned ntn_koffset = pdcch_info.dci.type() == dci_dl_rnti_config_type::tc_rnti_f1_0
-                                   ? res_alloc.cfg.ntn_cs_koffset
-                                   : u.get_pcell().ntn_koffset();
+  const unsigned ntn_koffset =
+      dci_type == dci_dl_rnti_config_type::tc_rnti_f1_0 ? res_alloc.cfg.ntn_cs_koffset : u.get_pcell().ntn_koffset();
 
   if (not common_alloc and ded_alloc) {
     // UE dedicated-only PUCCH allocation.
@@ -597,7 +597,7 @@ static std::optional<uci_allocation> allocate_ue_fallback_pucch(ue&             
           res_alloc, u.get_pcell().cfg(), pdsch_delay, k1_candidate, pdcch_info, ntn_koffset);
     } else {
       pucch_res_indicator =
-          pucch_alloc.alloc_common_harq_ack(res_alloc, u.crnti, pdsch_delay, k1_candidate, pdcch_info);
+          pucch_alloc.alloc_common_harq_ack(res_alloc, u.crnti, pdsch_delay, k1_candidate, pdcch_info, ntn_koffset);
     }
     if (pucch_res_indicator.has_value()) {
       // Note: the PUCCH grants used during fallback are never repeated over multiple slots.
@@ -781,6 +781,7 @@ ue_fallback_scheduler::alloc_grant(ue&                                   u,
                                                                  pucch_alloc,
                                                                  uci_alloc,
                                                                  *pdcch,
+                                                                 dci_type,
                                                                  dci_1_0_k1_values,
                                                                  pdsch_alloc.slot,
                                                                  most_recent_ack_slot,

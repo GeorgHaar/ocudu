@@ -67,8 +67,13 @@ protected:
 // Tests the output of the PUCCH allocator (or PUCCH PDU).
 TEST_P(pucch_alloc_common_harq_test, test_pucch_output_info)
 {
-  std::optional<unsigned> pucch_res_indicator = t_bench.pucch_alloc.alloc_common_harq_ack(
-      t_bench.res_grid, t_bench.get_main_ue().crnti, t_bench.k0, default_k1, t_bench.dci_info);
+  std::optional<unsigned> pucch_res_indicator =
+      t_bench.pucch_alloc.alloc_common_harq_ack(t_bench.res_grid,
+                                                t_bench.get_main_ue().crnti,
+                                                t_bench.k0,
+                                                default_k1,
+                                                t_bench.dci_info,
+                                                t_bench.get_main_ue().get_pcell().ntn_koffset());
 
   ASSERT_TRUE(pucch_res_indicator.has_value());
   ASSERT_EQ(0, pucch_res_indicator.value());
@@ -113,23 +118,37 @@ TEST_F(pucch_alloc_common_harq_multiple_alloc_test, test_pucch_out_of_resources)
   for (uint16_t n_ue = 0; n_ue != 8; ++n_ue) {
     t_bench.add_ue();
     du_ue_index_t                 ue_idx = to_du_ue_index(static_cast<uint16_t>(t_bench.get_main_ue().ue_index) + n_ue);
-    const std::optional<unsigned> pucch_res_indicator = t_bench.pucch_alloc.alloc_common_harq_ack(
-        t_bench.res_grid, t_bench.get_ue(ue_idx).crnti, t_bench.k0, default_k1, t_bench.dci_info);
+    const std::optional<unsigned> pucch_res_indicator =
+        t_bench.pucch_alloc.alloc_common_harq_ack(t_bench.res_grid,
+                                                  t_bench.get_ue(ue_idx).crnti,
+                                                  t_bench.k0,
+                                                  default_k1,
+                                                  t_bench.dci_info,
+                                                  t_bench.get_ue(ue_idx).get_pcell().ntn_koffset());
     ASSERT_TRUE(pucch_res_indicator.has_value());
   }
 
   // If we allocate an extra UE, the scheduler is expected to fail.
   t_bench.add_ue();
   du_ue_index_t                 ue_idx = to_du_ue_index(static_cast<uint16_t>(t_bench.get_main_ue().ue_index) + 8);
-  const std::optional<unsigned> pucch_res_indicator_1 = t_bench.pucch_alloc.alloc_common_harq_ack(
-      t_bench.res_grid, t_bench.get_ue(ue_idx).crnti, t_bench.k0, default_k1, t_bench.dci_info);
+  const std::optional<unsigned> pucch_res_indicator_1 =
+      t_bench.pucch_alloc.alloc_common_harq_ack(t_bench.res_grid,
+                                                t_bench.get_ue(ue_idx).crnti,
+                                                t_bench.k0,
+                                                default_k1,
+                                                t_bench.dci_info,
+                                                t_bench.get_ue(ue_idx).get_pcell().ntn_koffset());
   ASSERT_FALSE(pucch_res_indicator_1.has_value());
 }
 
 TEST_F(pucch_alloc_common_harq_multiple_alloc_test, test_on_full_grid)
 {
-  t_bench.pucch_alloc.alloc_common_harq_ack(
-      t_bench.res_grid, t_bench.get_main_ue().crnti, t_bench.k0, default_k1, t_bench.dci_info);
+  t_bench.pucch_alloc.alloc_common_harq_ack(t_bench.res_grid,
+                                            t_bench.get_main_ue().crnti,
+                                            t_bench.k0,
+                                            default_k1,
+                                            t_bench.dci_info,
+                                            t_bench.get_main_ue().get_pcell().ntn_koffset());
   ASSERT_FALSE(t_bench.res_grid[t_bench.k0 + default_k1].result.ul.pucchs.empty());
 
   // Increase the slot to  try the allocation in a different slot.
@@ -138,8 +157,12 @@ TEST_F(pucch_alloc_common_harq_multiple_alloc_test, test_on_full_grid)
   // Fill the entire grid and verify the PUCCH doesn't get allocated.
   t_bench.fill_all_grid(t_bench.sl_tx + default_k1);
 
-  auto pri = t_bench.pucch_alloc.alloc_common_harq_ack(
-      t_bench.res_grid, t_bench.get_main_ue().crnti, t_bench.k0, default_k1, t_bench.dci_info);
+  auto pri = t_bench.pucch_alloc.alloc_common_harq_ack(t_bench.res_grid,
+                                                       t_bench.get_main_ue().crnti,
+                                                       t_bench.k0,
+                                                       default_k1,
+                                                       t_bench.dci_info,
+                                                       t_bench.get_main_ue().get_pcell().ntn_koffset());
   ASSERT_FALSE(pri.has_value());
   ASSERT_TRUE(t_bench.res_grid[t_bench.k0 + default_k1].result.ul.pucchs.empty());
 }

@@ -126,10 +126,11 @@ std::optional<unsigned> pucch_allocator_impl::alloc_common_harq_ack(cell_resourc
                                                                     rnti_t                      tcrnti,
                                                                     unsigned                    k0,
                                                                     unsigned                    k1,
-                                                                    const pdcch_dl_information& dci_info)
+                                                                    const pdcch_dl_information& dci_info,
+                                                                    unsigned                    ntn_koffset)
 {
   // Get the slot allocation grid considering the PDSCH delay (k0) and the PUCCH delay wrt PDSCH (k1).
-  cell_slot_resource_allocator& pucch_slot_alloc = res_alloc[k0 + k1 + res_alloc.cfg.ntn_cs_koffset];
+  cell_slot_resource_allocator& pucch_slot_alloc = res_alloc[k0 + k1 + ntn_koffset];
   auto&                         slot_ctx         = slots_ctx[pucch_slot_alloc.slot.count()];
   alloc_context                 alloc_ctx{alloc_context::alloc_type::common_harq_ack, tcrnti, pucch_slot_alloc.slot};
 

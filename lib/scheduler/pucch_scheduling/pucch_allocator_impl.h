@@ -38,7 +38,8 @@ public:
                                                 rnti_t                      tcrnti,
                                                 unsigned                    k0,
                                                 unsigned                    k1,
-                                                const pdcch_dl_information& dci_info) override;
+                                                const pdcch_dl_information& dci_info,
+                                                unsigned                    ntn_koffset) override;
 
   std::optional<unsigned> alloc_common_and_ded_harq_ack(cell_resource_allocator&     res_alloc,
                                                         const ue_cell_configuration& ue_cell_cfg,

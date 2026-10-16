@@ -730,6 +730,7 @@ public:
   }
 
   /// \brief Allocates a DL HARQ process for a new transmission.
+  /// \param[in] sl_pdcch Slot of the PDCCH that schedules the PDSCH.
   /// \param[in] sl_pdsch Slot of the PDSCH.
   /// \param[in] ack_delay Delay, in slots, of the HARQ-ACK report with respect to the PDSCH.
   /// \param[in] max_harq_nof_retxs Maximum number of retransmissions for this HARQ process.
@@ -748,6 +749,13 @@ public:
                                                       harq_utils::harq_mode_t mode = harq_utils::harq_mode_t::normal,
                                                       uint8_t                 nof_repetitions = 1,
                                                       std::optional<unsigned> last_ack_delay  = std::nullopt);
+
+  /// \brief Allocates a UL HARQ process for a new transmission.
+  /// \param[in] sl_pdcch Slot of the PDCCH that schedules the PUSCH.
+  /// \param[in] sl_tx Slot of the PUSCH.
+  /// \param[in] max_harq_nof_retxs Maximum number of retransmissions for this HARQ process.
+  /// \param[in] cg_params If set, forces the allocation of this specific HARQ-id, as a Configured Grant requires.
+  /// \param[in] mode Mode the selected HARQ process must be operating in.
   /// \param[in] nof_repetitions Slot span of the PUSCH repetition bundle starting at \c sl_tx (1 for a single
   /// transmission).
   std::optional<ul_harq_process_handle> alloc_ul_harq(slot_point                          sl_pdcch,

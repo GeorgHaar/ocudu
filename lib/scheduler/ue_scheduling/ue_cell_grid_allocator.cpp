@@ -686,7 +686,7 @@ vrb_bitmap ue_cell_grid_allocator::bundle_used_vrbs(const vrb_bitmap&           
   const pusch_time_domain_resource_allocation& td_res =
       ss_info.bwp->ul.td_mapper().pusch_td_resources(ss_info.get_ul_dci_format())[ctxt.pusch_td_res_index];
   const subcarrier_spacing scs      = ss_info.bwp->ul.common().generic_params.scs;
-  const unsigned           final_k2 = td_res.k2 + cell_alloc.cfg.ntn_cs_koffset;
+  const unsigned           final_k2 = td_res.k2 + ue_cc.ntn_koffset();
 
   for (const uint8_t offset : reps.tx_offsets) {
     // An occasion spans the same symbols and CRB limits as the base grant, so the two bitmaps line up VRB by VRB.
@@ -728,7 +728,7 @@ ue_cell_grid_allocator::select_pusch_repetitions(const ue_cell&           ue_cc,
   const uint8_t                                nof_repetitions = *td_res.nof_repetitions;
 
   const cell_configuration& cell_cfg   = cell_alloc.cfg;
-  const unsigned            final_k2   = td_res.k2 + cell_cfg.ntn_cs_koffset;
+  const unsigned            final_k2   = td_res.k2 + ue_cc.ntn_koffset();
   const slot_point          pusch_slot = cell_alloc[final_k2].slot;
 
   // As per TS 38.213 clause 9, the UE multiplexes in each slot of the bundle the HARQ-ACKs it would have reported on

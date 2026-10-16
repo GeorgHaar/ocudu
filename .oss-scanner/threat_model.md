@@ -59,17 +59,19 @@ Out of scope:
 
 ## How to exercise it
 
-- `/src/build` is a RelWithDebInfo build with ASan + UBSan, `-O1 -g`, frame pointers and normal-level asserts
-  (`ocudu_assert` is active, `ocudu_sanity_check` paranoid asserts are not).
+- `/src/build` is a RelWithDebInfo build with ASan, `-O0 -g`, frame pointers and normal-level asserts (`ocudu_assert` is
+  active, `ocudu_sanity_check` paranoid asserts are not). UBSan is not enabled, to keep the build within the time limit.
 - Unit tests are GoogleTest binaries under `/src/build/tests/unittests/<layer>/`; run them with
-  `cd /src/build && ctest -R <layer>`. They contain the easiest scaffolding for driving a single layer (e.g.
-  `tests/unittests/rlc`, `tests/unittests/pdcp`, `tests/unittests/cu_cp`, `tests/unittests/mac`) and the test doubles
-  under `tests/test_doubles/` build valid messages that can then be mutated.
+  `cd /src/build && ctest -R <layer>`. Only the protocol layers listed in `.oss-scanner/Dockerfile` are built; build
+  another layer's tests with `ninja -C /src/build tests/unittests/<layer>/all`. They contain the easiest scaffolding for
+  driving a single layer (e.g. `tests/unittests/rlc`, `tests/unittests/pdcp`, `tests/unittests/cu_cp`,
+  `tests/unittests/mac`) and the test doubles under `tests/test_doubles/` build valid messages that can then be mutated.
 - libFuzzer harnesses are built under `/src/build/tests/fuzz/{ofh,ngap,rrc}/` with seed corpora in
   `/src/tests/fuzz/<layer>/corpus/`. `rrc_ue_fuzzer`, `rrc_cu_cp_fuzzer` and `ngap_cu_cp_fuzzer` drive a full CU-CP; the
   others drive single decoders. Reproduce a crash with `<harness> <crash-file>`.
-- End-to-end: `/src/build/apps/gnb/gnb` with the ZMQ radio (`ru_sdr: device_driver: zmq`) and
-  `cu_cp: amf: no_core: true` runs a gNB without a core network or RF hardware. `configs/` holds example configurations.
+- End-to-end: the applications are not prebuilt; `ninja -C /src/build gnb` builds the gNB on top of the prebuilt
+  libraries. `/src/build/apps/gnb/gnb` with the ZMQ radio (`ru_sdr: device_driver: zmq`) and `cu_cp: amf: no_core: true`
+  runs a gNB without a core network or RF hardware. `configs/` holds example configurations.
 - Prefer a reproducer as a unit test or a fuzz input over a full gNB run.
 
 ## How we rate severity
@@ -87,8 +89,8 @@ Out of scope:
 
 An assertion (`ocudu_assert`, `ocudu_assertion_failure`, `report_fatal_error`, `report_fatal_error_if_not`) reachable
 from untrusted input is a bug: rate it as the denial of service it causes. A violated `ocudu_assume` is undefined
-behaviour: rate it like the memory corruption it can cause. Undefined behaviour reported by UBSan without memory impact
-(signed overflow, invalid shift) is at most Medium unless it is shown to cause one of the effects above.
+behaviour: rate it like the memory corruption it can cause. Undefined behaviour without memory impact (signed overflow,
+invalid shift) is at most Medium unless it is shown to cause one of the effects above.
 
 ## How we would like reports
 

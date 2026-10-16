@@ -79,6 +79,7 @@ variables:
       if [ "${MODE}" = "publish" ] && [ "${CI_COMMIT_REF_PROTECTED}" = "true" ]; then
         [ -z "${COSIGN_PRIVATE_KEY_B64}" ] && echo "COSIGN_PRIVATE_KEY_B64 is mandatory on protected publish pipelines" && exit 1
         [ -z "${COSIGN_PASSWORD}" ] && echo "COSIGN_PASSWORD is mandatory on protected publish pipelines" && exit 1
+        [ -z "${COSIGN_PUBLIC_KEY}" ] && echo "COSIGN_PUBLIC_KEY is mandatory on protected publish pipelines" && exit 1
 
         COSIGN_KEY_FILE=/tmp/cosign.key
         COSIGN_PUBLIC_KEY_FILE=/tmp/cosign.pub
@@ -86,6 +87,9 @@ variables:
         trap 'rm -f "${COSIGN_KEY_FILE}" "${COSIGN_PUBLIC_KEY_FILE}"' EXIT
         printf '%s' "${COSIGN_PRIVATE_KEY_B64}" | base64 --decode > "${COSIGN_KEY_FILE}"
         cosign public-key --key "${COSIGN_KEY_FILE}" > "${COSIGN_PUBLIC_KEY_FILE}"
+        [ "$(printf '%s' "${COSIGN_PUBLIC_KEY}" | tr -d '[:space:]')" = \
+          "$(tr -d '[:space:]' < "${COSIGN_PUBLIC_KEY_FILE}")" ] ||
+          { echo "COSIGN_PUBLIC_KEY does not match COSIGN_PRIVATE_KEY_B64" >&2; exit 1; }
       fi
 
     # Add docker config
@@ -164,7 +168,10 @@ variables:
         if [ -n "${COSIGN_PUBLIC_KEY_FILE}" ]; then
           cosign verify --key "${COSIGN_PUBLIC_KEY_FILE}" ${IMAGE_DIGEST} > /dev/null 2>&1
         else
-          regctl manifest head "${IMAGE_NAME}:$(echo "${IMAGE_DIGEST##*@}" | tr ':' '-').sig" > /dev/null 2>&1
+          cosign verify \
+            --certificate-identity-regexp "^${CI_SERVER_URL}/${CI_PROJECT_PATH}//" \
+            --certificate-oidc-issuer "${CI_SERVER_URL}" \
+            ${IMAGE_DIGEST} > /dev/null 2>&1
         fi
       }
 
@@ -179,10 +186,9 @@ variables:
       attest_image() {
         local predicate=$1
         local type=$2
-        shift 2
-        cosign attest "$@" --predicate "${predicate}" --type "${type}" ${IMAGE_DIGEST}
+        cosign attest --predicate "${predicate}" --type "${type}" ${IMAGE_DIGEST}
         if [ -n "${COSIGN_KEY_FILE}" ]; then
-          cosign attest "$@" --key "${COSIGN_KEY_FILE}" --predicate "${predicate}" --type "${type}" ${IMAGE_DIGEST}
+          cosign attest --key "${COSIGN_KEY_FILE}" --predicate "${predicate}" --type "${type}" ${IMAGE_DIGEST}
         fi
       }
 
@@ -211,9 +217,8 @@ variables:
       attest_spdx() {
         local predicate=$1
         local type=$2
-        shift 2
         echo "Attesting ${predicate} ($(wc -c < ${predicate}) bytes)"
-        attest_image "${predicate}" "${type}" "$@"
+        attest_image "${predicate}" "${type}"
         publish_signed_file "${predicate}"
       }
 

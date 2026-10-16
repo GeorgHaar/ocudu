@@ -37,6 +37,7 @@ variables:
   variables:
     TEST_EXECUTION_TIMEOUT: 0
     ENABLE_SPLIT_DWARF: "True"
+    UBSAN_OPTIONS: "print_stacktrace=1"
   script:
     - &script_functions |
       build_ocudu_extended() {

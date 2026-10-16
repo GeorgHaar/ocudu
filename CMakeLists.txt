@@ -241,7 +241,7 @@ if (ENABLE_TSAN)
 endif (ENABLE_TSAN)
 
 if (ENABLE_UBSAN)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined -fno-sanitize=vptr")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined -fno-sanitize=vptr -fno-sanitize-recover=undefined")
     add_definitions(-DENABLE_UBSAN)
 endif ()
 

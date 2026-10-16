@@ -76,6 +76,10 @@ void handover_reconfiguration_routine::operator()(coro_context<async_task<bool>>
   CORO_AWAIT_VALUE(ue_context_mod_response,
                    source_f1ap_ue_ctxt_mng.handle_ue_context_modification_request(ue_context_mod_request));
 
+  // Initialize UE release timer for source UE. The source DU can stop the data transmission for the UE also when the
+  // procedure fails.
+  initialize_handover_ue_release_timer(source_ue.get_ue_index());
+
   if (!ue_context_mod_response.success) {
     logger.debug(
         "source_ue={} target_ue={}: UE context modification failed", source_ue.get_ue_index(), target_ue_index);
@@ -85,9 +89,6 @@ void handover_reconfiguration_routine::operator()(coro_context<async_task<bool>>
 
   // Store updated cell group config.
   source_ue.get_rrc_ue()->update_cell_group_config(ue_context_mod_response.du_to_cu_rrc_info.cell_group_cfg.copy());
-
-  // Initialize UE release timer for source UE.
-  initialize_handover_ue_release_timer(source_ue.get_ue_index());
 
   // Store handover context in case of for possible re-establishment.
   logger.debug("ue={}: Storing handover context", source_ue.get_ue_index());

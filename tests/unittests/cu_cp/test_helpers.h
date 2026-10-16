@@ -197,6 +197,7 @@ public:
                                             const cu_cp_ue_context_release_request& ue_context_release_request) override
   {
     logger.info("ue={}: Initializing UE release timer", ue_index);
+    last_handover_ue_release_timer_ue_index = ue_index;
   }
 
   void initialize_rna_update_timer(cu_cp_ue_index_t ue_index) override
@@ -214,7 +215,8 @@ public:
     return launch_no_op_task();
   }
 
-  unsigned last_transaction_id = 99999;
+  unsigned                        last_transaction_id = 99999;
+  std::optional<cu_cp_ue_index_t> last_handover_ue_release_timer_ue_index;
 
 private:
   ocudulog::basic_logger& logger = ocudulog::fetch_basic_logger("TEST");

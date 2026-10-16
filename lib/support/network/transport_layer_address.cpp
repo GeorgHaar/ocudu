@@ -9,7 +9,7 @@ using namespace ocudu;
 
 transport_layer_address::transport_layer_address(const struct sockaddr& addr_, socklen_t socklen) : addrlen(socklen)
 {
-  std::memcpy((struct sockaddr*)&addr_storage, &addr_, addrlen);
+  std::memcpy(&addr_storage, &addr_, addrlen);
 }
 
 transport_layer_address transport_layer_address::create_from_sockaddr(const struct sockaddr& sockaddr,
@@ -25,9 +25,13 @@ transport_layer_address transport_layer_address::create_from_sockaddr(native_typ
 
 transport_layer_address transport_layer_address::create_from_string(const std::string& ip_str)
 {
+  // Explicit hints, as the defaults include AI_ADDRCONFIG, which rejects IPv6 addresses on hosts without IPv6
+  // connectivity.
+  ::addrinfo hints = {};
+  hints.ai_family  = AF_UNSPEC;
   ::addrinfo* results;
 
-  int err = ::getaddrinfo(ip_str.c_str(), nullptr, nullptr, &results);
+  int err = ::getaddrinfo(ip_str.c_str(), nullptr, &hints, &results);
   ocudu_assert(err == 0, "Getaddrinfo error: {} - {}", ip_str, ::gai_strerror(err));
 
   transport_layer_address res(*results->ai_addr, results->ai_addrlen);

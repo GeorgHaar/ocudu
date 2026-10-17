@@ -709,6 +709,68 @@ TEST(asn1_enumerated, bool_to_enum_test)
   ASSERT_TRUE(!enum_to_bool(e2));
 }
 
+namespace {
+
+struct json_payload_test {
+  void to_json(json_writer& j) const
+  {
+    j.start_obj();
+    j.write_int("a", 1);
+    j.end_obj();
+  }
+};
+
+} // namespace
+
+TEST(asn1_json_writer, setup_release_names_the_setup_alternative)
+{
+  setup_release_c<json_payload_test> sr;
+  sr.set_setup();
+  json_writer actual;
+  sr.to_json(actual);
+
+  json_writer expected;
+  expected.start_obj();
+  expected.start_obj("setup");
+  expected.write_int("a", 1);
+  expected.end_obj();
+  expected.end_obj();
+
+  ASSERT_EQ(actual.to_string(), expected.to_string());
+}
+
+TEST(asn1_json_writer, setup_release_names_the_setup_array)
+{
+  setup_release_c<std::array<int64_t, 2>> sr;
+  sr.set_setup() = {3, 4};
+  json_writer actual;
+  sr.to_json(actual);
+
+  json_writer expected;
+  expected.start_obj();
+  expected.start_array("setup");
+  expected.write_int(3);
+  expected.write_int(4);
+  expected.end_array();
+  expected.end_obj();
+
+  ASSERT_EQ(actual.to_string(), expected.to_string());
+}
+
+TEST(asn1_json_writer, setup_release_release_is_an_empty_object)
+{
+  setup_release_c<json_payload_test> sr;
+  sr.set_release();
+  json_writer actual;
+  sr.to_json(actual);
+
+  json_writer expected;
+  expected.start_obj();
+  expected.end_obj();
+
+  ASSERT_EQ(actual.to_string(), expected.to_string());
+}
+
 void test_json_writer()
 {
   json_writer writer;

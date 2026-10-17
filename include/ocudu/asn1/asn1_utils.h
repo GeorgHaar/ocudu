@@ -1755,6 +1755,7 @@ struct setup_release_c {
       case types::release:
         break;
       case types::setup:
+        j.write_fieldname("setup");
         asn1::to_json(j, setup());
         break;
       default:
@@ -1839,6 +1840,7 @@ struct setup_release_c<std::array<T, N>> {
       case types::release:
         break;
       case types::setup:
+        j.write_fieldname("setup");
         asn1::to_json(j, setup());
         break;
       default:

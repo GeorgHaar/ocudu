@@ -126,6 +126,23 @@ public:
     e.state.store(entry_state::empty, std::memory_order_release);
   }
 
+  /// \brief Releases the contexts of a slot without consuming them.
+  ///
+  /// Returns true if the slot had stored contexts.
+  bool discard(slot_point slot)
+  {
+    entry& e = get_entry(slot);
+
+    entry_state expected = entry_state::ready;
+    if (!e.state.compare_exchange_strong(expected, entry_state::reading, std::memory_order_acquire)) {
+      return false;
+    }
+
+    bool found = (e.slot == slot);
+    e.state.store(entry_state::empty, std::memory_order_release);
+    return found;
+  }
+
 private:
   entry& get_entry(slot_point slot) { return entries[slot.count() % entries.size()]; }
 

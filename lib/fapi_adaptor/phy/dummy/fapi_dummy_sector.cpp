@@ -136,7 +136,7 @@ void fapi_dummy_sector::send_stop_request(const fapi::stop_request& msg)
     return;
   }
 
-  // A sector that has not notified any slot yet stops right away.
+  // A sector that has not notified any slot yet also stops at the next slot boundary.
   if (expected == sector_state::start_requested &&
       state.compare_exchange_strong(expected, sector_state::stop_requested, std::memory_order_acq_rel)) {
     return;
@@ -181,11 +181,7 @@ void fapi_dummy_sector::handle_slot_boundary(slot_point_extended slot, std::chro
   slot_notifier->on_slot_indication(fapi::build_slot_indication(slot, time_point));
 }
 
-bool fapi_dummy_sector::check_request(slot_point            slot,
-                                      fapi::message_type_id msg_id,
-                                      fapi::error_indication (*build_error)(slot_point,
-                                                                            fapi::message_type_id,
-                                                                            slot_point))
+bool fapi_dummy_sector::check_request(slot_point slot, fapi::message_type_id msg_id, late_error_builder build_error)
 {
   if (state.load(std::memory_order_acquire) != sector_state::running) {
     return false;
@@ -202,17 +198,35 @@ bool fapi_dummy_sector::check_request(slot_point            slot,
 
   // A request is late once the current time, which lags the last notified slot by the processing delay, has passed its
   // slot.
-  slot_point notified_slot(scs, current_count);
-  if (slot >= notified_slot - int(max_processing_delay_slots)) {
+  if (slot >= slot_point(scs, current_count) - int(max_processing_delay_slots)) {
     return true;
   }
+
+  notify_late_request(slot, msg_id, build_error);
+  return false;
+}
+
+bool fapi_dummy_sector::is_ul_indication_due(slot_point ul_slot) const
+{
+  uint32_t current_count = current_slot.load(std::memory_order_acquire);
+  if (current_count == invalid_slot_count) {
+    return false;
+  }
+
+  return slot_point(scs, current_count) >= ul_slot + max_processing_delay_slots + ul_indication_delay_slots;
+}
+
+void fapi_dummy_sector::notify_late_request(slot_point            slot,
+                                            fapi::message_type_id msg_id,
+                                            late_error_builder    build_error)
+{
+  slot_point notified_slot(scs, current_slot.load(std::memory_order_acquire));
 
   logger.warning("Sector#{}: Real-time failure in FAPI dummy: Received late request with msg_id={} for slot {}",
                  sector_id,
                  fmt::underlying(msg_id),
                  slot);
   error_notifier->on_error_indication(build_error(slot, msg_id, notified_slot));
-  return false;
 }
 
 void fapi_dummy_sector::send_dl_tti_request(const fapi::dl_tti_request& msg)
@@ -306,6 +320,13 @@ void fapi_dummy_sector::send_ul_tti_request(const fapi::ul_tti_request& msg)
   if (!success) {
     logger.warning(
         "Sector#{}: FAPI dummy dropped UL_TTI.request for slot {}. Cause: slot entry is busy", sector_id, msg.slot);
+    return;
+  }
+
+  // The clock may have passed the indication time of the slot before the request was stored. Unless the clock consumed
+  // the stored request, it is reported late so that it is never silently lost.
+  if (late_request_detection && is_ul_indication_due(msg.slot) && ul_repository.discard(msg.slot)) {
+    notify_late_request(msg.slot, fapi::message_type_id::ul_tti_request, fapi::build_out_of_sync_error_indication);
   }
 }
 
@@ -356,7 +377,7 @@ static uci_payload_type get_harq_ack_payload(units::bits nof_bits)
 
 void fapi_dummy_sector::notify_pusch_indications(slot_point slot, const pusch_ind_context& pusch)
 {
-  static const phy_time_unit time_advance = phy_time_unit::from_seconds(0.0);
+  static constexpr phy_time_unit time_advance = phy_time_unit::from_seconds(0.0);
 
   if (pusch.has_uci) {
     fapi::uci_indication         msg;
@@ -416,7 +437,7 @@ void fapi_dummy_sector::notify_pusch_indications(slot_point slot, const pusch_in
 
 void fapi_dummy_sector::notify_pucch_indication(slot_point slot, const pucch_ind_context& pucch)
 {
-  static const phy_time_unit time_advance = phy_time_unit::from_seconds(0.0);
+  static constexpr phy_time_unit time_advance = phy_time_unit::from_seconds(0.0);
 
   fapi::uci_indication         msg;
   fapi::uci_indication_builder builder(msg);
@@ -460,7 +481,7 @@ void fapi_dummy_sector::notify_pucch_indication(slot_point slot, const pucch_ind
 
 void fapi_dummy_sector::notify_srs_indication(slot_point slot, const srs_ind_context& srs)
 {
-  static const phy_time_unit time_advance = phy_time_unit::from_seconds(0.0);
+  static constexpr phy_time_unit time_advance = phy_time_unit::from_seconds(0.0);
 
   fapi::srs_indication         msg;
   fapi::srs_indication_builder builder(msg);

@@ -133,10 +133,17 @@ private:
   // See interface for documentation.
   void on_last_message(slot_point slot) override;
 
-  /// Returns true if a request for the given slot can be accepted, and notifies an error otherwise.
-  bool check_request(slot_point            slot,
-                     fapi::message_type_id msg_id,
-                     fapi::error_indication (*build_error)(slot_point, fapi::message_type_id, slot_point));
+  /// Error indication builder for late requests.
+  using late_error_builder = fapi::error_indication (*)(slot_point, fapi::message_type_id, slot_point);
+
+  /// Returns true if a request for the given slot is accepted. Late requests are notified as errors.
+  bool check_request(slot_point slot, fapi::message_type_id msg_id, late_error_builder build_error);
+
+  /// Returns true if the uplink indications of the given slot have already been due.
+  bool is_ul_indication_due(slot_point ul_slot) const;
+
+  /// Notifies an error indication for a late request.
+  void notify_late_request(slot_point slot, fapi::message_type_id msg_id, late_error_builder build_error);
 
   /// Notifies the uplink indications of the given slot.
   void notify_ul_indications(slot_point slot, const ul_slot_ind_context& context);

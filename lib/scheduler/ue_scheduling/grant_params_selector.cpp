@@ -230,13 +230,12 @@ static std::optional<dl_sched_context> get_dl_sched_context(const slice_ue&     
                  "DCI type cannot change across reTxs");
   }
 
-  // [Implementation-defined] A UE with only resource allocation type 0, which uses the non-interleaved VRB-to-PRB
-  // mapping as per TS 38.214, Section 5.1.2.3, is not scheduled in a slot with interleaving, since the bitmap of used
-  // VRBs is then in the interleaved VRB domain.
-  if (interleaving_enabled and ss.get_dl_dci_format() == dci_dl_format::f1_1 and ss.bwp->dl.pdsch().ded() != nullptr and
-      ss.bwp->dl.pdsch().ded()->res_alloc == pdsch_config::resource_allocation::resource_allocation_type_0) {
-    return std::nullopt;
-  }
+  // The UE configuration validator rejects resource allocation type 0 in cells with interleaved VRB-to-PRB mapping.
+  ocudu_sanity_check(not interleaving_enabled or ss.get_dl_dci_format() != dci_dl_format::f1_1 or
+                         ss.bwp->dl.pdsch().ded() == nullptr or
+                         ss.bwp->dl.pdsch().ded()->res_alloc ==
+                             pdsch_config::resource_allocation::resource_allocation_type_1,
+                     "PDSCH resource allocation type 0 is not supported with interleaved VRB-to-PRB mapping");
 
   // For a newTx, link adaptation decides how many Rel-16 PDSCH repetitions to request, or nullopt for a single
   // transmission. A reTx reuses the scheme of the original transmission, so its count comes from the HARQ grant

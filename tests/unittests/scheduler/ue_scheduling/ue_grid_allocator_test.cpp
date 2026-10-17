@@ -1160,21 +1160,6 @@ TEST_P(ue_grid_allocator_ra_type0_test, when_type0_newtx_is_retransmitted_then_r
   ASSERT_EQ(ue_dci(u.crnti).dynamic_pdsch_res_allocation_type, dynamic_resource_allocation::type_1);
 }
 
-TEST_P(ue_grid_allocator_ra_type0_test, when_slot_uses_interleaving_then_type0_only_ue_is_not_scheduled)
-{
-  const ue& u = add_ue_with_res_alloc(pdsch_config::resource_allocation::resource_allocation_type_0);
-
-  for (unsigned i = 0; i != 10; ++i) {
-    slot_indication([&]() {
-      ASSERT_FALSE(alloc
-                       .allocate_dl_grant(ue_newtx_dl_grant_request{
-                           slice_ues[u.ue_index], current_slot, units::bytes{1000}, /* interleaving_enabled */ true})
-                       .has_value());
-    });
-    ASSERT_EQ(ue_pdsch(u.crnti), nullptr);
-  }
-}
-
 TEST_P(ue_grid_allocator_ra_type0_test, when_type0_only_grant_budget_is_below_rbg_size_then_a_whole_rbg_is_allocated)
 {
   const ue& u = add_ue_with_res_alloc(pdsch_config::resource_allocation::resource_allocation_type_0);

@@ -393,42 +393,6 @@ TEST_F(fapi_dummy_sector_test, late_requests_are_reported_and_dropped)
   ASSERT_TRUE(p7_spy.empty());
 }
 
-TEST(fapi_dummy_sector_no_ul_delay_test, ul_request_after_its_indication_time_is_reported_late)
-{
-  fapi_dummy_sector             sector({.sector_id                  = 0,
-                                        .scs                        = test_scs,
-                                        .ul_indication_delay_slots  = 0,
-                                        .max_processing_delay_slots = test_proc_delay,
-                                        .late_request_detection     = true},
-                           ocudulog::fetch_basic_logger("FAPI"));
-  error_indication_notifier_spy error_spy;
-  p7_indications_notifier_spy   p7_spy;
-  sector.get_p5_sector_adaptor().set_error_indication_notifier(error_spy);
-  sector.get_p7_sector_adaptor().set_p7_indications_notifier(p7_spy);
-  sector.get_p5_sector_adaptor().get_p5_requests_gateway().send_start_request({});
-
-  slot_point_extended notified{test_scs, 1000};
-  sector.handle_slot_boundary(notified, std::chrono::system_clock::now());
-
-  // The slot of the current time passes the late check, but its indications were due at the last slot boundary.
-  fapi::ul_tti_request msg;
-  msg.slot = notified.without_hyper_sfn() - int(test_proc_delay);
-  msg.pdus.push_back({build_pusch_pdu(units::bytes(10), units::bits(0), units::bits(0))});
-  sector.get_p7_sector_adaptor().get_p7_requests_gateway().send_ul_tti_request(msg);
-
-  ASSERT_EQ(error_spy.errors.size(), 1);
-  ASSERT_EQ(error_spy.errors[0].message_id, fapi::message_type_id::ul_tti_request);
-  ASSERT_EQ(error_spy.errors[0].error_code, fapi::error_code_id::out_of_sync);
-
-  // A request for the next slot is notified at the next slot boundary.
-  msg.slot = msg.slot + 1;
-  sector.get_p7_sector_adaptor().get_p7_requests_gateway().send_ul_tti_request(msg);
-  sector.handle_slot_boundary(notified + 1, std::chrono::system_clock::now());
-  ASSERT_EQ(error_spy.errors.size(), 1);
-  ASSERT_EQ(p7_spy.crcs.size(), 1);
-  ASSERT_EQ(p7_spy.crcs[0].slot, msg.slot);
-}
-
 TEST_F(fapi_dummy_sector_test, requests_are_ignored_when_not_running)
 {
   slot_point ul_slot = (current + test_proc_delay).without_hyper_sfn();

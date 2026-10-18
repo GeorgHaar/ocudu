@@ -22,6 +22,7 @@
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/ran/sch/sch_constants.h"
 #include "ocudu/ran/srs/srs_constants.h"
+#include "ocudu/support/ocudu_assert.h"
 #include <algorithm>
 
 using namespace ocudu;
@@ -101,6 +102,7 @@ fapi_dummy_sector::fapi_dummy_sector(const fapi_dummy_sector_config& config, ocu
   slot_notifier(&dummy_slot_notifier),
   p7_notifier(&dummy_p7_notifier)
 {
+  ocudu_assert(ul_indication_delay_slots > 0, "The uplink indication delay must be at least one slot");
 }
 
 void fapi_dummy_sector::send_param_request(const fapi::param_request& msg)
@@ -175,8 +177,9 @@ void fapi_dummy_sector::handle_slot_boundary(slot_point_extended slot, std::chro
   // The notified slot is ahead of the current time by the processing delay, and the uplink indications are delayed with
   // respect to the reception time.
   slot_point ul_slot = notified_slot - int(max_processing_delay_slots + ul_indication_delay_slots);
-  ul_repository.read(ul_slot,
-                     [this, ul_slot](const ul_slot_ind_context& context) { notify_ul_indications(ul_slot, context); });
+  if (auto context = ul_repository.read(ul_slot.count())) {
+    notify_ul_indications(ul_slot, *context);
+  }
 
   slot_notifier->on_slot_indication(fapi::build_slot_indication(slot, time_point));
 }
@@ -305,28 +308,33 @@ void fapi_dummy_sector::send_ul_tti_request(const fapi::ul_tti_request& msg)
     return;
   }
 
-  bool success = ul_repository.write(msg.slot, [&msg](ul_slot_ind_context& context) {
+  {
+    auto context = ul_repository.write(msg.slot.count());
+    if (context == nullptr) {
+      logger.warning(
+          "Sector#{}: FAPI dummy dropped UL_TTI.request for slot {}. Cause: slot entry is busy", sector_id, msg.slot);
+      return;
+    }
+
+    context->clear();
     for (const auto& pdu : msg.pdus) {
       if (const auto* pusch = std::get_if<fapi::ul_pusch_pdu>(&pdu.pdu)) {
-        save_pusch_context(context, *pusch);
+        save_pusch_context(*context, *pusch);
       } else if (const auto* pucch = std::get_if<fapi::ul_pucch_pdu>(&pdu.pdu)) {
-        save_pucch_context(context, *pucch);
+        save_pucch_context(*context, *pucch);
       } else if (const auto* srs = std::get_if<fapi::ul_srs_pdu>(&pdu.pdu)) {
-        save_srs_context(context, *srs);
+        save_srs_context(*context, *srs);
       }
     }
-  });
-
-  if (!success) {
-    logger.warning(
-        "Sector#{}: FAPI dummy dropped UL_TTI.request for slot {}. Cause: slot entry is busy", sector_id, msg.slot);
-    return;
   }
 
-  // The clock may have passed the indication time of the slot before the request was stored. Unless the clock consumed
-  // the stored request, it is reported late so that it is never silently lost.
-  if (late_request_detection && is_ul_indication_due(msg.slot) && ul_repository.discard(msg.slot)) {
-    notify_late_request(msg.slot, fapi::message_type_id::ul_tti_request, fapi::build_out_of_sync_error_indication);
+  // The request passed the late check, but the clock may have passed the indication time of the slot before the request
+  // was stored. The check is best-effort, since it may race with the clock.
+  if (is_ul_indication_due(msg.slot)) {
+    logger.warning("Sector#{}: Real-time failure in FAPI dummy: UL_TTI.request for slot {} stored after its indication "
+                   "time",
+                   sector_id,
+                   msg.slot);
   }
 }
 

@@ -30,7 +30,7 @@ struct fapi_dummy_config {
   unsigned nof_sectors = 1;
   /// Slot clock mode.
   fapi_dummy_clock_mode clock_mode = fapi_dummy_clock_mode::realtime;
-  /// Number of slots between an uplink slot and the notification of its indications.
+  /// Number of slots between an uplink slot and the notification of its indications. Must be at least one.
   unsigned ul_indication_delay_slots = 4;
   /// Number of slots a SLOT.indication is notified in advance of the transmission time.
   unsigned max_processing_delay_slots = 2;

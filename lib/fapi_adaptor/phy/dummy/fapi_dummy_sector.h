@@ -5,7 +5,8 @@
 
 #pragma once
 
-#include "ul_request_repository.h"
+#include "ul_slot_ind_context.h"
+#include "ocudu/adt/spmc_slot_ring.h"
 #include "ocudu/fapi/common/error_indication.h"
 #include "ocudu/fapi/p5/p5_requests_gateway.h"
 #include "ocudu/fapi/p7/p7_last_request_notifier.h"
@@ -28,7 +29,7 @@ namespace fapi_adaptor {
 struct fapi_dummy_sector_config {
   unsigned           sector_id;
   subcarrier_spacing scs;
-  /// Number of slots between an uplink slot and the notification of its indications.
+  /// Number of slots between an uplink slot and the notification of its indications. Must be at least one.
   unsigned ul_indication_delay_slots;
   /// Number of slots a SLOT.indication is notified in advance of the transmission time.
   unsigned max_processing_delay_slots;
@@ -171,8 +172,8 @@ private:
   std::atomic<uint32_t> current_slot{invalid_slot_count};
   /// Count of the last slot whose requests are complete.
   std::atomic<uint32_t> last_completed_slot{invalid_slot_count};
-  /// Uplink indication contexts pending notification.
-  ul_request_repository ul_repository;
+  /// Uplink indication contexts pending notification, indexed by slot count.
+  spmc_slot_ring<ul_slot_ind_context> ul_repository;
   /// Padding-only MAC PDU used as the content of all received transport blocks.
   std::vector<uint8_t>               padding_pdu;
   fapi::p5_responses_notifier*       p5_notifier;

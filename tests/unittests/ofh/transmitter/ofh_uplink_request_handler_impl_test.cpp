@@ -175,7 +175,94 @@ protected:
   }
 };
 
+struct prach_time_offset_test_params {
+  prach_format_type  format;
+  subcarrier_spacing scs;
+  unsigned           slot_index;
+  uint8_t            start_symbol;
+  phy_time_unit      expected_time_offset;
+};
+
+static const prach_time_offset_test_params prach_time_offset_test_cases[] = {
+    // B4 at 30 kHz: symbol 2 starts at 2208 Ts and the unextended PRACH CP is 468 Ts.
+    {prach_format_type::B4, subcarrier_spacing::kHz30, 0, 2, phy_time_unit::from_units_of_kappa(2676)},
+    {prach_format_type::B4, subcarrier_spacing::kHz30, 1, 2, phy_time_unit::from_units_of_kappa(2676)},
+    // At symbol zero, the PRACH CP overlaps a half-millisecond boundary.
+    {prach_format_type::B4, subcarrier_spacing::kHz30, 0, 0, phy_time_unit::from_units_of_kappa(484)},
+    {prach_format_type::B4, subcarrier_spacing::kHz30, 1, 0, phy_time_unit::from_units_of_kappa(484)},
+    // At 15 kHz, symbol 7 starts at 0.5 ms. Cover occasions before, ending at, across and after it.
+    {prach_format_type::A1, subcarrier_spacing::kHz15, 0, 2, phy_time_unit::from_units_of_kappa(4688)},
+    {prach_format_type::A1, subcarrier_spacing::kHz15, 0, 5, phy_time_unit::from_units_of_kappa(11264)},
+    {prach_format_type::A1, subcarrier_spacing::kHz15, 0, 6, phy_time_unit::from_units_of_kappa(13472)},
+    {prach_format_type::A1, subcarrier_spacing::kHz15, 0, 7, phy_time_unit::from_units_of_kappa(15664)},
+    {prach_format_type::A1, subcarrier_spacing::kHz15, 0, 8, phy_time_unit::from_units_of_kappa(17856)},
+    // A B4 occasion at 15 kHz starting at zero overlaps both extension boundaries.
+    {prach_format_type::B4, subcarrier_spacing::kHz15, 0, 0, phy_time_unit::from_units_of_kappa(968)},
+    // At higher numerologies, only some slots contain a longer OFDM CP or a PRACH CP extension.
+    {prach_format_type::A1, subcarrier_spacing::kHz60, 0, 0, phy_time_unit::from_units_of_kappa(88)},
+    {prach_format_type::A1, subcarrier_spacing::kHz60, 1, 0, phy_time_unit::from_units_of_kappa(72)},
+    {prach_format_type::A1, subcarrier_spacing::kHz60, 2, 0, phy_time_unit::from_units_of_kappa(88)},
+    {prach_format_type::A1, subcarrier_spacing::kHz60, 0, 2, phy_time_unit::from_units_of_kappa(1184)},
+    {prach_format_type::A1, subcarrier_spacing::kHz60, 1, 2, phy_time_unit::from_units_of_kappa(1168)},
+    {prach_format_type::A1, subcarrier_spacing::kHz60, 2, 2, phy_time_unit::from_units_of_kappa(1184)},
+    // An occasion ending exactly at the 0.5 ms slot boundary is not extended.
+    {prach_format_type::A1, subcarrier_spacing::kHz60, 1, 12, phy_time_unit::from_units_of_kappa(6648)},
+    {prach_format_type::B4, subcarrier_spacing::kHz120, 0, 2, phy_time_unit::from_units_of_kappa(681)},
+    {prach_format_type::B4, subcarrier_spacing::kHz120, 1, 2, phy_time_unit::from_units_of_kappa(665)},
+    {prach_format_type::B4, subcarrier_spacing::kHz120, 4, 2, phy_time_unit::from_units_of_kappa(681)},
+    // Long preambles use 15 kHz reference symbol timing and never extend the PRACH CP.
+    {prach_format_type::zero, subcarrier_spacing::kHz15, 0, 0, phy_time_unit::from_units_of_kappa(3168)},
+    {prach_format_type::zero, subcarrier_spacing::kHz15, 0, 2, phy_time_unit::from_units_of_kappa(7568)},
+    {prach_format_type::one, subcarrier_spacing::kHz15, 0, 0, phy_time_unit::from_units_of_kappa(21024)},
+    {prach_format_type::three, subcarrier_spacing::kHz30, 0, 2, phy_time_unit::from_units_of_kappa(7568)}};
+
+class ofh_prach_time_offset_test : public ofh_uplink_request_handler_impl_fixture,
+                                   public ::testing::WithParamInterface<prach_time_offset_test_params>
+{};
+
 } // namespace
+
+TEST_P(ofh_prach_time_offset_test, time_offset_is_slot_relative_and_includes_prach_cp)
+{
+  const auto& params = GetParam();
+
+  prach_buffer_context context{};
+  context.nof_fd_occasions = 1;
+  context.nof_td_occasions = 1;
+  context.format           = params.format;
+  context.slot             = slot_point(to_numerology_value(params.scs), 20, params.slot_index);
+  context.pusch_scs        = params.scs;
+  context.start_symbol     = params.start_symbol;
+
+  auto config = get_config_prach_cp_enabled();
+  config.scs  = params.scs;
+  uplink_request_handler_impl prach_handler(config, get_dependencies_prach_cp_enabled());
+
+  slot_symbol_point ota_time(context.slot, 0, nof_symbols);
+  ota_time -= calculate_nof_symbols_before_ota(cp, params.scs, ul_processing_time, tx_timing_params) + 1;
+  prach_handler.get_ota_symbol_boundary_notifier().on_new_symbol({ota_time, {}});
+
+  prach_handler.handle_prach_occasion(context, prach_pool->get());
+  ul_prach_repo->process_pending_contexts();
+
+  ASSERT_TRUE(data_flow_prach->has_enqueue_section_type_3_method_been_called());
+  const auto info = data_flow_prach->get_spy_info();
+  ASSERT_EQ(info.time_offset, params.expected_time_offset.to_samples(30.72e6));
+  if (is_short_preamble(context.format)) {
+    ASSERT_EQ(info.start_symbol, context.start_symbol);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(prach_timing,
+                         ofh_prach_time_offset_test,
+                         ::testing::ValuesIn(prach_time_offset_test_cases),
+                         [](const ::testing::TestParamInfo<prach_time_offset_test_params>& param_info) {
+                           return fmt::format("format{}_{}kHz_slot{}_symbol{}",
+                                              to_string(param_info.param.format),
+                                              scs_to_khz(param_info.param.scs),
+                                              param_info.param.slot_index,
+                                              param_info.param.start_symbol);
+                         });
 
 TEST_F(ofh_uplink_request_handler_impl_fixture,
        handle_prach_request_when_cplane_message_is_disable_for_prach_does_not_generate_cplane_message)

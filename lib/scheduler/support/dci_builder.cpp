@@ -269,6 +269,7 @@ void ocudu::build_dci_f1_1_c_rnti(dci_dl_info&                  dci,
   if (vrbs.is_type0()) {
     ocudu_assert(dci_sz_cfg.pdsch_res_allocation_type != resource_allocation::resource_allocation_type_1,
                  "Resource allocation type 0 is not configured");
+    ocudu_assert(not enable_interleaving, "Resource allocation type 0 requires non-interleaved VRB-to-PRB mapping");
     // See 38.214, clause 5.1.2.2.1 - The RBG bitmap maps RBG 0 to the MSB.
     const nominal_rbg_size P = get_nominal_rbg_size(active_dl_bwp.crbs.length(), ss_info.bwp->dl.pdsch().ded()->rbg_sz);
     f1_1.frequency_resource  = convert_vrbs_to_rbgs(vrbs.type0(), active_dl_bwp.crbs, P).to_uint64();
@@ -289,7 +290,7 @@ void ocudu::build_dci_f1_1_c_rnti(dci_dl_info&                  dci,
   f1_1.payload_size = dci_sz.format1_1_ue_size.value();
 
   if (dci_sz_cfg.interleaved_vrb_prb_mapping.has_value() and dci_sz_cfg.interleaved_vrb_prb_mapping.value()) {
-    f1_1.vrb_prb_mapping = enable_interleaving and vrbs.is_type1();
+    f1_1.vrb_prb_mapping = enable_interleaving;
   }
 
   // TODO:

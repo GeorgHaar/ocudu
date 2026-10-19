@@ -54,6 +54,11 @@ stress_stack::stress_stack(const stress_test_args& args_, uint32_t id, rb_id_t r
   pdcp_msg.rx_upper_dn                  = traffic_sink.get();
   pdcp_msg.rx_upper_cn                  = rrc.get();
   pdcp_msg.ue_ctrl_timer_factory        = timer_factory{timers, *ue_executor};
+  pdcp_msg.ue_dl_executor               = ue_executor.get();
+  pdcp_msg.ue_ul_executor               = ue_executor.get();
+  pdcp_msg.ue_ctrl_executor             = ue_executor.get();
+  pdcp_msg.crypto_executor              = pcell_executor.get();
+  pdcp_msg.max_nof_crypto_workers       = 1;
   pdcp                                  = create_pdcp_entity(pdcp_msg);
   traffic_source->set_pdcp_tx_upper(&pdcp->get_tx_upper_data_interface());
   f1ap->set_pdcp_rx_lower(&pdcp->get_rx_lower_interface());

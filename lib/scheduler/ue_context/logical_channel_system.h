@@ -527,12 +527,7 @@ public:
 
   ue_logical_channel_repository()                                     = default;
   ue_logical_channel_repository(const ue_logical_channel_repository&) = delete;
-  ue_logical_channel_repository(ue_logical_channel_repository&& other) noexcept :
-    ue_logical_channel_repository_view(*other.parent, other.ue_index, other.ue_row_id)
-  {
-    other.parent   = nullptr;
-    other.ue_index = INVALID_DU_UE_INDEX;
-  }
+  ue_logical_channel_repository(ue_logical_channel_repository&& other) noexcept { *this = std::move(other); }
   ue_logical_channel_repository& operator=(const ue_logical_channel_repository&) = delete;
   ue_logical_channel_repository& operator=(ue_logical_channel_repository&& other) noexcept
   {

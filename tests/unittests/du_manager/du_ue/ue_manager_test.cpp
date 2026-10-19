@@ -41,8 +41,8 @@ protected:
     }
 
     // By default F1AP creates two F1-C bearers.
-    f1ap_dummy.next_ue_create_response.result = true;
-    f1ap_dummy.next_ue_create_response.f1c_bearers_added.resize(2);
+    f1ap_dummy.next_ue_create_response.result            = true;
+    f1ap_dummy.next_ue_create_response.f1c_bearers_added = {&f1c_srb0, &f1c_srb1};
   }
   ~du_ue_manager_tester() override { ocudulog::flush(); }
 
@@ -101,6 +101,9 @@ protected:
 
   std::vector<du_cell_config> cells = {config_helpers::make_default_du_cell_config()};
   f1ap_test_dummy             f1ap_dummy;
+  // F1-C bearers that F1AP returns for SRB0 and SRB1 of each UE.
+  dummy_f1c_bearer    f1c_srb0;
+  dummy_f1c_bearer    f1c_srb1;
   gtpu_teid_pool_impl f1u_teid_allocator{MAX_NOF_DU_UES * MAX_NOF_DRBS, GTPU_DEFAULT_TEID_RELEASE_LINGER_TIME, timers};
   f1u_gateway_dummy   f1u_dummy;
   mac_test_dummy      mac_dummy;

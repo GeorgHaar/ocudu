@@ -29,9 +29,11 @@ void e2ap_indication_procedure::operator()(coro_context<eager_async_task<void>>&
                    subscription.request_id.ric_instance_id);
       break;
     }
+
     transaction_sink.subscribe_to(
         *ev_mng.sub_del_reqs[{subscription.request_id.ric_requestor_id, subscription.request_id.ric_instance_id}].get(),
-        (std::chrono::milliseconds)subscription.report_period);
+        subscription.report_period);
+
     CORO_AWAIT(transaction_sink);
     if (!transaction_sink.timeout_expired()) {
       logger.info("Subscription deleted");

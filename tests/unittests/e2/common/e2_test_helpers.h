@@ -609,11 +609,13 @@ public:
     return outcome;
   }
 
-  void start_subscription(const asn1::e2ap::ric_request_id_s& ric_request_id,
+  bool start_subscription(const asn1::e2ap::ric_request_id_s& ric_request_id,
                           uint16_t                            ran_func_id,
                           e2_event_manager&                   ev_mng,
-                          e2_message_notifier&                tx_pdu_notifier) override
+                          e2_message_notifier&                tx_pdu_notifier,
+                          timer_factory                       timers) override
   {
+    return true;
   }
 
   void stop_subscription(const asn1::e2ap::ric_request_id_s&         ric_request_id,
@@ -861,6 +863,10 @@ private:
 
 class dummy_e2sm_handler : public e2sm_handler
 {
+public:
+  e2sm_event_trigger_definition event_trigger_definition = {e2sm_event_trigger_definition::REPORT, 10};
+
+private:
   e2sm_action_definition handle_packed_e2sm_action_definition(const ocudu::byte_buffer& buf) override
   {
     e2sm_action_definition action_def;
@@ -889,9 +895,7 @@ class dummy_e2sm_handler : public e2sm_handler
   }
   e2sm_event_trigger_definition handle_packed_event_trigger_definition(const ocudu::byte_buffer& buf) override
   {
-    e2sm_event_trigger_definition e2sm_event_trigger_def;
-    e2sm_event_trigger_def.report_period = 10;
-    return e2sm_event_trigger_def;
+    return event_trigger_definition;
   }
   asn1::unbounded_octstring<true> pack_ran_function_description() override { return {}; }
 };

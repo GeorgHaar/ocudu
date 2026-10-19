@@ -26,17 +26,24 @@ e2ap_subscription_setup_procedure::e2ap_subscription_setup_procedure(const asn1:
 void e2ap_subscription_setup_procedure::operator()(coro_context<async_task<void>>& ctx)
 {
   CORO_BEGIN(ctx);
-  logger.debug("\"{}\" initialized", name());
-  logger.info("E2AP: Received subscription request");
 
-  e2_subscribe_reponse_message response;
-  response = subscription_mngr.handle_subscription_setup(request);
-  if (response.success) {
-    event_manager.add_sub_del_req(request->ric_request_id, timers);
-    subscription_mngr.start_subscription(response.request_id, request->ran_function_id, event_manager, ric_notif);
-    send_e2_subscription_setup_response(response);
-  } else {
-    send_e2_subscription_setup_failure(response);
+  // Wrap in a scope block to protect local variable lifetimes from coroutine jumps.
+  {
+    logger.debug("\"{}\" initialized", name());
+    logger.info("E2AP: Received subscription request");
+
+    e2_subscribe_reponse_message response = subscription_mngr.handle_subscription_setup(request);
+    if (response.success) {
+      if (subscription_mngr.start_subscription(
+              response.request_id, request->ran_function_id, event_manager, ric_notif, timers)) {
+        send_e2_subscription_setup_response(response);
+      } else {
+        response.success = false;
+        send_e2_subscription_setup_failure(response);
+      }
+    } else {
+      send_e2_subscription_setup_failure(response);
+    }
   }
 
   logger.debug("\"{}\" finalized", name());
@@ -55,7 +62,7 @@ void e2ap_subscription_setup_procedure::send_e2_subscription_setup_response(
   sub_resp->ran_function_id                 = response.ran_function_id;
   sub_resp->ric_actions_admitted.resize(size);
   for (int i = 0; i < size; i++) {
-    sub_resp->ric_actions_admitted[0].value().ric_action_admitted_item().ric_action_id =
+    sub_resp->ric_actions_admitted[i].value().ric_action_admitted_item().ric_action_id =
         response.admitted_list[i].value().ric_action_admitted_item().ric_action_id;
   }
   logger.info("E2AP: Sending subscription response");
@@ -71,7 +78,11 @@ void e2ap_subscription_setup_procedure::send_e2_subscription_setup_failure(const
   sub_fail->ric_request_id.ric_requestor_id = failure.request_id.ric_requestor_id;
   sub_fail->ran_function_id                 = failure.ran_function_id;
   sub_fail->crit_diagnostics_present        = false;
-  sub_fail->cause.set_misc();
+  if (failure.cause.has_value()) {
+    sub_fail->cause = failure.cause.value();
+  } else {
+    sub_fail->cause.set_misc() = cause_misc_e::unspecified;
+  }
   ric_notif.on_new_message(msg);
   logger.info("E2AP: Sending subscription failure");
 }

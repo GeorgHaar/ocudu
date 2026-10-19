@@ -121,8 +121,6 @@ struct du_high_unit_ntn_serving_cell_config {
   bool ue_specific_koffset_enabled = false;
   /// Margin added to the reported T_TA. At least \c ta_report_offset_threshold.
   std::chrono::milliseconds ue_specific_koffset_margin{2};
-  /// Smallest Koffset change that triggers a new MAC CE.
-  std::chrono::milliseconds ue_specific_koffset_hysteresis{2};
   /// Moving reference location for NTN Earth-moving cell (R18).
   std::optional<geodetic_coordinates_t> moving_ref_location;
   /// Satellite switch with resynchronization parameters (R18).

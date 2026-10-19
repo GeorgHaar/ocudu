@@ -18,8 +18,6 @@ namespace ocudu {
 struct ue_koffset_config {
   /// Margin added to the reported T_TA. At least \c tar_config::offset_threshold_ta.
   std::chrono::milliseconds margin;
-  /// Smallest change of the derived value that is signalled to the UE.
-  std::chrono::milliseconds hysteresis;
 };
 
 /// NTN cell-level configuration parameters.

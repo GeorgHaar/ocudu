@@ -525,7 +525,7 @@ static ntn_cell_params make_ntn_cell_params(const du_high_unit_ntn_serving_cell_
   }
 
   if (cfg.ue_specific_koffset_enabled) {
-    ntn.ue_koffset_cfg = ue_koffset_config{cfg.ue_specific_koffset_margin, cfg.ue_specific_koffset_hysteresis};
+    ntn.ue_koffset_cfg = ue_koffset_config{cfg.ue_specific_koffset_margin};
   }
 
   // Derived from PUSCH config.

@@ -26,7 +26,7 @@ du_cell_config create_du_cell_config(const cell_config_builder_params& params, c
   ntn_cell_params ntn;
   ntn.ntn_cfg.cell_specific_koffset = std::chrono::milliseconds{16};
   if (type == cell_type::ntn_with_ue_koffset) {
-    ntn.ue_koffset_cfg = ue_koffset_config{std::chrono::milliseconds{5}, std::chrono::milliseconds{2}};
+    ntn.ue_koffset_cfg = ue_koffset_config{std::chrono::milliseconds{5}};
   }
   cell.ran.ntn_params = ntn;
   return cell;

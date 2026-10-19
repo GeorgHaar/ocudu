@@ -767,7 +767,7 @@ static bool validate_ntn_config(const du_high_unit_base_cell_config& cell_cfg, n
       fmt::print("ntn.ue_specific_koffset_margin must be smaller than ntn.cell_specific_koffset.\n");
       valid = false;
     }
-    // T_TA may grow by the reporting threshold between reports, and the margin has to cover it.
+    // T_TA grows by up to the reporting threshold before the UE reports again, and the margin has to cover it.
     if (serving.ta_report_offset_threshold.has_value() and
         static_cast<float>(serving.ue_specific_koffset_margin.count()) < serving.ta_report_offset_threshold.value()) {
       fmt::print("ntn.ue_specific_koffset_margin must be at least ntn.ta_report_offset_threshold.\n");

@@ -241,15 +241,6 @@ static void configure_cli11_ntn_args(CLI::App&                             app,
       "ta_report_offset_threshold")
       ->range(0U, 63U)
       ->capture_default_str();
-  add_option_function<unsigned>(
-      app,
-      "--ue_specific_koffset_hysteresis",
-      [&serv_cell_ntn_config](unsigned value) {
-        serv_cell_ntn_config.ue_specific_koffset_hysteresis = std::chrono::milliseconds(value);
-      },
-      "Smallest Koffset change [ms] that triggers a new MAC CE")
-      ->range(1U, 63U)
-      ->capture_default_str();
 
   // Broadcast Ephemeris Info type in SIB19.
   add_option(app,

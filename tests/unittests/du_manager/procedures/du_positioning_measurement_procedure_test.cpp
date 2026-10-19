@@ -64,7 +64,7 @@ protected:
     du_positioning_meas_request req;
     req.trp_meas_req_list.push_back(du_trp_meas_request{.trp_id = trp_id_t::min});
     req.pos_meas_quants.push_back(positioning_meas_quantity{.meas_type = pos_meas_type::ul_rtoa});
-    srs_carrier carrier;
+    srs_carrier carrier{};
     carrier.srs_cfg        = make_test_srs_config();
     carrier.ul_bwp_cfg.scs = subcarrier_spacing::kHz15;
     req.srs_carriers.push_back(carrier);

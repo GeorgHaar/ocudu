@@ -180,6 +180,16 @@ protected:
   ocudulog::basic_logger&                         test_logger = ocudulog::fetch_basic_logger("TEST");
 };
 
+TEST_F(e2sm_kpm_meas_provider_metrics_test, measurement_id_is_not_supported)
+{
+  meas_type_c measurement;
+  measurement.set_meas_id() = 1;
+  meas_label_s label;
+  label.no_label_present = true;
+  label.no_label         = meas_label_s::no_label_opts::true_value;
+  EXPECT_FALSE(du_meas_provider->is_metric_supported(measurement, label, E2_NODE_LEVEL, false));
+}
+
 TEST_F(e2sm_kpm_meas_provider_metrics_test, e2sm_kpm_supported_metrics_are_supported)
 {
   e2sm_kpm_metric_level_enum metric_level;
@@ -639,6 +649,18 @@ protected:
   std::unique_ptr<dummy_e2_cu_metrics_notifier>      metrics;
   std::unique_ptr<e2sm_kpm_cu_cp_meas_provider_impl> cu_cp_meas_provider;
 };
+
+TEST_F(e2sm_kpm_cu_cp_meas_provider_metrics_test, measurement_id_is_not_supported)
+{
+  meas_type_c measurement;
+  measurement.set_meas_id() = 1;
+  meas_label_s label;
+  label.no_label_present = true;
+  label.no_label         = meas_label_s::no_label_opts::true_value;
+  EXPECT_FALSE(cu_cp_meas_provider->is_metric_supported(measurement, label, E2_NODE_LEVEL, false));
+  measurement.set_meas_name().from_string("RRC.ConnEstabAtt");
+  EXPECT_TRUE(cu_cp_meas_provider->is_metric_supported(measurement, label, E2_NODE_LEVEL, false));
+}
 
 TEST_F(e2sm_kpm_cu_cp_meas_provider_metrics_test, e2sm_kpm_cu_cp_supported_metrics_are_present)
 {

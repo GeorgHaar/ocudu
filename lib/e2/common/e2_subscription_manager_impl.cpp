@@ -34,7 +34,7 @@ void e2_subscription_manager_impl::stop()
 e2_subscribe_reponse_message
 e2_subscription_manager_impl::handle_subscription_setup(const asn1::e2ap::ric_sub_request_s& msg)
 {
-  e2_subscription_t            subscription = {};
+  e2_subscription_t            subscription                  = {};
   e2_subscribe_reponse_message outcome                       = {};
   outcome.request_id                                         = msg->ric_request_id;
   outcome.ran_function_id                                    = msg->ran_function_id;
@@ -62,10 +62,10 @@ e2_subscription_manager_impl::handle_subscription_setup(const asn1::e2ap::ric_su
     } else {
       subscription.subscription_info.report_period = std::chrono::milliseconds(event_trigger_def.report_period);
     }
-    outcome.request_id.ric_requestor_id          = subscription.subscription_info.request_id.ric_requestor_id;
-    outcome.request_id.ric_instance_id           = subscription.subscription_info.request_id.ric_instance_id;
-    outcome.ran_function_id                      = subscription.subscription_info.ran_function_id;
-    auto insert_result = subscriptions.insert(std::pair<e2_subscription_key_t, e2_subscription_t>(
+    outcome.request_id.ric_requestor_id = subscription.subscription_info.request_id.ric_requestor_id;
+    outcome.request_id.ric_instance_id  = subscription.subscription_info.request_id.ric_instance_id;
+    outcome.ran_function_id             = subscription.subscription_info.ran_function_id;
+    auto insert_result                  = subscriptions.insert(std::pair<e2_subscription_key_t, e2_subscription_t>(
         std::make_tuple(subscription.subscription_info.request_id.ric_requestor_id,
                         subscription.subscription_info.request_id.ric_instance_id),
         std::move(subscription)));
@@ -86,9 +86,9 @@ e2_subscription_manager_impl::handle_subscription_setup(const asn1::e2ap::ric_su
       subscriptions.erase({outcome.request_id.ric_requestor_id, outcome.request_id.ric_instance_id});
     }
   } else {
-    outcome.request_id.ric_requestor_id = subscription.subscription_info.request_id.ric_requestor_id;
-    outcome.request_id.ric_instance_id  = subscription.subscription_info.request_id.ric_instance_id;
-    outcome.success                     = false;
+    outcome.request_id.ric_requestor_id       = subscription.subscription_info.request_id.ric_requestor_id;
+    outcome.request_id.ric_instance_id        = subscription.subscription_info.request_id.ric_instance_id;
+    outcome.success                           = false;
     outcome.cause.emplace().set_ric_request() = cause_ric_request_e::ran_function_id_invalid;
     logger.error("RAN function ID={} not supported", msg->ran_function_id);
   }

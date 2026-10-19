@@ -29,7 +29,7 @@ struct e2_subscription_info_t {
   asn1::e2ap::ric_request_id_s request_id;
   uint16_t                     ran_function_id;
   std::vector<ric_action_t>    action_list;
-  std::chrono::milliseconds    report_period{0};
+  std::chrono::milliseconds    report_period;
 };
 
 struct e2_subscription_t {

@@ -597,7 +597,7 @@ public:
     last_subscription = request;
     logger.info("Received a subscription request with action list size {}",
                 last_subscription->ric_sub_details.ric_action_to_be_setup_list.size());
-    e2_subscribe_reponse_message msg;
+    e2_subscribe_reponse_message msg = {};
     get_subscription_result(msg);
     return msg;
   }

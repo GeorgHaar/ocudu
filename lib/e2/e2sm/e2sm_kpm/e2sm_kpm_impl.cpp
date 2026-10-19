@@ -62,19 +62,21 @@ bool e2sm_kpm_impl::process_action_def_meas_info_list(const meas_info_list_l&   
   std::map<std::string, e2sm_kpm_label_enum> admitted_value_type_labels;
 
   for (uint32_t i = 0; i < meas_info_list.size(); i++) {
-    meas_type_c meas_type = meas_info_list[i].meas_type;
-    std::string meas_name = meas_info_list[i].meas_type.meas_name().to_string();
-
+    const meas_type_c& meas_type = meas_info_list[i].meas_type;
+    if (meas_type.type() != meas_type_c::types::meas_name) {
+      logger.debug("Only measurement names are supported -> do not admit action");
+      return false;
+    }
+    std::string meas_identifier = meas_type.meas_name().to_string();
     for (uint32_t l = 0; l < meas_info_list[i].label_info_list.size(); l++) {
       const meas_label_s& meas_label = meas_info_list[i].label_info_list[l].meas_label;
       if (du_meas_provider.is_metric_supported(meas_type, meas_label, level, cell_scope)) {
-        admitted_value_type_labels[meas_name] = NO_LABEL;
+        admitted_value_type_labels[meas_identifier] = NO_LABEL;
       } else {
         return false;
       }
     }
   }
-
   std::string admitted_action_str = "";
   for (const auto& it : admitted_value_type_labels) {
     admitted_action_str = admitted_action_str + it.first + " [" + e2sm_kpm_label_2_str(it.second) + "], ";
@@ -153,6 +155,10 @@ bool e2sm_kpm_impl::process_action_definition_format3(const e2sm_kpm_action_defi
 
   for (uint32_t i = 0; i < action_definition.meas_cond_list.size(); ++i) {
     const meas_type_c& meas_type = action_definition.meas_cond_list[i].meas_type;
+    if (meas_type.type() != meas_type_c::types::meas_name) {
+      logger.debug("Only measurement names are supported -> do not admit action");
+      return false;
+    }
     for (uint32_t m = 0; m < action_definition.meas_cond_list[i].matching_cond.size(); ++m) {
       const matching_cond_item_s&        matching_cond_item = action_definition.meas_cond_list[i].matching_cond[m];
       matching_cond_item_choice_c::types test_type          = matching_cond_item.matching_cond_choice.type();

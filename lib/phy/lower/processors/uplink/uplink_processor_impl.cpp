@@ -162,6 +162,12 @@ void lower_phy_uplink_processor_impl::process_symbol_boundary(const baseband_gat
     cfo_processor.next_cfo_command();
   }
 
+  // If the input ended at symbol boundary, the next symbol comes with the next received buffer.
+  if (samples.get_nof_samples() == 0) {
+    state = fsm_states::collecting;
+    return;
+  }
+
   // Process baseband.
   process_collecting(samples, timestamp);
 }

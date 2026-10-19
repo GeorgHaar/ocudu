@@ -90,11 +90,11 @@ void pseudo_random_generator_impl::generate(bit_buffer& data)
   // Process spare bits in a batch of the remainder bits.
   unsigned i_bit     = (data.size() / max_nof_bits_step) * max_nof_bits_step;
   unsigned remainder = data.size() - i_bit;
-  unsigned count     = 0;
   while (remainder != 0) {
     unsigned batch_size    = std::min(remainder, pseudo_random_generator_sequence::get_max_step_size());
     unsigned reminder_size = batch_size;
     uint32_t c             = sequence.step(batch_size);
+    unsigned count         = 0;
 
     while (batch_size != 0) {
       // Process per byte basis, ceiling at the remainder.
@@ -261,11 +261,11 @@ void pseudo_random_generator_impl::apply_xor(bit_buffer& out, const bit_buffer& 
   // Process spare bits in a batch of the remainder bits.
   unsigned i_bit     = (in.size() / max_nof_bits_step) * max_nof_bits_step;
   unsigned remainder = in.size() - i_bit;
-  unsigned count     = 0;
   while (remainder != 0) {
     unsigned batch_size    = std::min(remainder, pseudo_random_generator_sequence::get_max_step_size());
     unsigned reminder_size = batch_size;
     uint32_t c             = sequence.step(batch_size);
+    unsigned count         = 0;
 
     // Process bits.
     while (batch_size != 0) {

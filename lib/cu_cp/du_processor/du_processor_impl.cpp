@@ -512,8 +512,16 @@ du_processor_impl::handle_ue_rrc_context_creation_request(const ue_rrc_context_c
 {
   ocudu_assert(req.c_rnti != rnti_t::INVALID_RNTI, "ue={} c-rnti={}: Invalid C-RNTI", req.ue_index, req.c_rnti);
 
+  std::optional<ul_ccch_msg_info_t> ccch_info;
+
   // Lambda to release the UE context in case of any failure during the creation procedure.
-  auto release_ue = [this](cu_cp_ue_index_t ue_index) {
+  auto release_ue = [this, &ccch_info](cu_cp_ue_index_t ue_index) {
+    // Each RRCReject message transmitted from gNB to UE is added to the subcounter for the cause 'NetworkReject'.
+    // TS 28.552 section 5.1.1.15.3.
+    if (ccch_info.has_value() && std::holds_alternative<establishment_cause_t>(*ccch_info)) {
+      rrc->handle_failed_rrc_connection_establishment(establishment_fail_cause_t::network_reject);
+    }
+
     cu_cp_ue_context_release_request release_request;
     release_request.ue_index = ue_index;
     release_request.cause    = ngap_cause_radio_network_t::radio_res_not_available;
@@ -543,15 +551,18 @@ du_processor_impl::handle_ue_rrc_context_creation_request(const ue_rrc_context_c
 
   // Check if this is a RRC Resume request for an existing UE.
   if (!req.rrc_container.empty()) {
-    std::optional<rrc_resume_context_t> resume_context = rrc->get_rrc_resume_context(req.rrc_container.copy());
-    if (!resume_context.has_value()) {
-      logger.warning("ue={}: Could not extract RRC Resume context from UL CCCH Message", req.ue_index);
+    ccch_info = rrc->parse_ul_ccch_msg(req.rrc_container.copy());
+    if (!ccch_info.has_value()) {
+      logger.warning("ue={}: Could not parse UL CCCH Message", req.ue_index);
       // Schedule UE context release and return error response.
       release_ue(req.ue_index);
       return make_unexpected(default_error_t{});
     }
 
-    if (resume_context->is_resume && resume_context->rrc_resume_id.has_value()) {
+    auto*                               resume_context_ptr = std::get_if<rrc_resume_context_t>(&*ccch_info);
+    std::optional<rrc_resume_context_t> resume_context =
+        resume_context_ptr != nullptr ? std::optional<rrc_resume_context_t>(*resume_context_ptr) : std::nullopt;
+    if (resume_context.has_value() && resume_context->rrc_resume_id.has_value()) {
       cu_cp_ue_index_t resume_ue_index;
       if (const auto* full_i_rnti = std::get_if<full_i_rnti_t>(&(*resume_context->rrc_resume_id))) {
         resume_ue_index = ue_mng.get_ue_index(*full_i_rnti);
@@ -601,11 +612,6 @@ du_processor_impl::handle_ue_rrc_context_creation_request(const ue_rrc_context_c
     // Check that UE can be served by this CU.
     if (ue_mng.ue_admission_limit_reached()) {
       logger.warning("ue={}: UE admission limit reached", req.ue_index);
-      // Update the RRC connection establishment attempt cause as unknown, since the real cause isn't known at this
-      // stage.
-      rrc->handle_attempted_rrc_setup(establishment_cause_t::unknown);
-      // Update the RRC connection establishment fail cause.
-      rrc->handle_failed_rrc_connection_establishment(establishment_fail_cause_t::network_reject);
       // Schedule UE context release and return error response.
       release_ue(req.ue_index);
       return make_unexpected(default_error_t{});

@@ -102,6 +102,14 @@ protected:
   }
 };
 
+/// Reads the RRC connection establishment metrics of \c du_proc.
+static rrc_du_metrics collect_rrc_metrics(du_processor& du_proc)
+{
+  rrc_du_metrics metrics;
+  du_proc.get_rrc_du_handler().get_rrc_du_metrics_collector().collect_metrics(metrics);
+  return metrics;
+}
+
 TEST_F(du_processor_ue_creation_test, when_init_ul_rrc_message_is_valid_then_ue_added)
 {
   du_processor_obj->get_f1ap_handler().get_f1ap_message_handler().handle_message(
@@ -123,6 +131,11 @@ TEST_F(du_processor_ue_creation_test, when_init_ul_rrc_message_is_invalid_then_u
   du_processor_obj->get_f1ap_handler().get_f1ap_message_handler().handle_message(release_cmplt);
 
   ASSERT_EQ(ue_mng.get_nof_ues(), 0);
+
+  // the RRC connection establishment attempt and its failure cause counted.
+  rrc_du_metrics metrics = collect_rrc_metrics(*du_processor_obj);
+  ASSERT_EQ(metrics.attempted_rrc_connection_establishments.get_count(establishment_cause_t::mo_sig), 1);
+  ASSERT_EQ(metrics.failed_rrc_connection_establishments.get_count(establishment_fail_cause_t::network_reject), 1);
 }
 
 TEST_F(du_processor_ue_creation_test, redcap_identity_is_retained_in_cu_context)
@@ -136,6 +149,51 @@ TEST_F(du_processor_ue_creation_test, redcap_identity_is_retained_in_cu_context)
   auto* ue = ue_mng.find_ue(cu_cp_ue_index_t::min);
   ASSERT_NE(ue, nullptr);
   EXPECT_TRUE(ue->get_ue_context().is_redcap);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+/* RRC connection establishment metrics                                             */
+//////////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(du_processor_ue_creation_test,
+       when_du_to_cu_rrc_container_is_malformed_then_attempt_and_failure_are_counted_once)
+{
+  f1ap_message msg = this->create_valid_ue_creation_message();
+  msg.pdu.init_msg().value.init_ul_rrc_msg_transfer()->du_to_cu_rrc_container_present = true;
+  msg.pdu.init_msg().value.init_ul_rrc_msg_transfer()->du_to_cu_rrc_container = byte_buffer::create({0x00}).value();
+
+  du_processor_obj->get_f1ap_handler().get_f1ap_message_handler().handle_message(msg);
+
+  // Inject UE Context Release Complete.
+  f1ap_message release_cmplt =
+      test_helpers::generate_ue_context_release_complete(gnb_cu_ue_f1ap_id_t{0}, gnb_du_ue_f1ap_id_t{0});
+  du_processor_obj->get_f1ap_handler().get_f1ap_message_handler().handle_message(release_cmplt);
+
+  // the RRC connection establishment attempt and its failure cause counted.
+  rrc_du_metrics metrics = collect_rrc_metrics(*du_processor_obj);
+  ASSERT_EQ(metrics.attempted_rrc_connection_establishments.get_count(establishment_cause_t::mo_sig), 1);
+  ASSERT_EQ(metrics.failed_rrc_connection_establishments.get_count(establishment_fail_cause_t::network_reject), 1);
+}
+
+TEST_F(du_processor_ue_creation_test, when_pci_and_rnti_already_taken_then_attempt_and_failure_are_counted_once)
+{
+  // First UE takes the (pci, rnti) pair.
+  du_processor_obj->get_f1ap_handler().get_f1ap_message_handler().handle_message(
+      this->create_valid_ue_creation_message());
+
+  // Second UE, different DU UE F1AP ID, collides on the same C-RNTI and cell (hence same PCI).
+  du_processor_obj->get_f1ap_handler().get_f1ap_message_handler().handle_message(
+      test_helpers::generate_init_ul_rrc_message_transfer(gnb_du_ue_f1ap_id_t{1}, rnti_t::MIN_CRNTI));
+
+  // Inject UE Context Release Complete.
+  f1ap_message release_cmplt =
+      test_helpers::generate_ue_context_release_complete(gnb_cu_ue_f1ap_id_t{1}, gnb_du_ue_f1ap_id_t{1});
+  du_processor_obj->get_f1ap_handler().get_f1ap_message_handler().handle_message(release_cmplt);
+
+  // the RRC connection establishment attempt and its failure cause counted.
+  rrc_du_metrics metrics = collect_rrc_metrics(*du_processor_obj);
+  ASSERT_EQ(metrics.attempted_rrc_connection_establishments.get_count(establishment_cause_t::mo_sig), 2);
+  ASSERT_EQ(metrics.failed_rrc_connection_establishments.get_count(establishment_fail_cause_t::network_reject), 1);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////

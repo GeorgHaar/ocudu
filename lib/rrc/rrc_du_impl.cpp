@@ -248,7 +248,7 @@ byte_buffer rrc_du_impl::pack_meas_config(const rrc_meas_cfg& meas_cfg)
   return pack_into_pdu(meas_config_to_rrc_asn1(meas_cfg), "RRCMeasConfig");
 }
 
-std::optional<rrc_resume_context_t> rrc_du_impl::get_rrc_resume_context(byte_buffer rrc_container)
+std::optional<ul_ccch_msg_info_t> rrc_du_impl::parse_ul_ccch_msg(byte_buffer rrc_container)
 {
   if (rrc_container.empty()) {
     return std::nullopt;
@@ -268,28 +268,45 @@ std::optional<rrc_resume_context_t> rrc_du_impl::get_rrc_resume_context(byte_buf
       }
     }
 
-    if (ul_ccch_msg.msg.c1().type().value != ul_ccch_msg_type_c::c1_c_::types_opts::rrc_resume_request) {
-      return rrc_resume_context_t{.is_resume = false};
+    // Handle message.
+    switch (ul_ccch_msg.msg.c1().type().value) {
+      case ul_ccch_msg_type_c::c1_c_::types_opts::rrc_setup_request: {
+        establishment_cause_t cause = asn1_to_establishment_cause(
+            ul_ccch_msg.msg.c1().rrc_setup_request().rrc_setup_request.establishment_cause.value);
+        // Notify metrics about attempted RRC connection establishment.
+        handle_attempted_rrc_setup(cause);
+        return ul_ccch_msg_info_t{cause};
+      }
+      case ul_ccch_msg_type_c::c1_c_::types_opts::rrc_reest_request:
+        // Notify metrics about attempted RRC connection reestablishment.
+        handle_attempted_rrc_reestablishment();
+        return ul_ccch_msg_info_t{rrc_reest_request_t{}};
+      case ul_ccch_msg_type_c::c1_c_::types_opts::rrc_resume_request: {
+        // Notify metrics about attempted RRC connection resume.
+        handle_attempted_rrc_resume(
+            asn1_to_resume_cause(ul_ccch_msg.msg.c1().rrc_resume_request().rrc_resume_request.resume_cause));
+
+        // Extract Short-I-RNTI.
+        expected<short_i_rnti_t> resume_id = short_i_rnti_t::from_uint(
+            static_cast<uint32_t>(ul_ccch_msg.msg.c1().rrc_resume_request().rrc_resume_request.resume_id.to_number()));
+        if (!resume_id.has_value()) {
+          logger.error("Invalid Resume ID in RRC Resume Request (ASN.1 short-i-rnti=0x{:x})",
+                       ul_ccch_msg.msg.c1().rrc_resume_request().rrc_resume_request.resume_id.to_number());
+          return std::nullopt;
+        }
+
+        rrc_resume_context_t resume_context{
+            .is_resume     = true,
+            .rrc_resume_id = resume_id.value(),
+            .resume_cause =
+                asn1_to_resume_cause(ul_ccch_msg.msg.c1().rrc_resume_request().rrc_resume_request.resume_cause),
+        };
+        return ul_ccch_msg_info_t{std::move(resume_context)};
+      }
+      default:
+        logger.error("Unsupported CCCH UL message type");
+        return std::nullopt;
     }
-
-    // Notify metrics about attempted RRC connection resume.
-    handle_attempted_rrc_resume(
-        asn1_to_resume_cause(ul_ccch_msg.msg.c1().rrc_resume_request().rrc_resume_request.resume_cause));
-
-    // Extract Short-I-RNTI.
-    expected<short_i_rnti_t> resume_id = short_i_rnti_t::from_uint(
-        static_cast<uint32_t>(ul_ccch_msg.msg.c1().rrc_resume_request().rrc_resume_request.resume_id.to_number()));
-    if (!resume_id.has_value()) {
-      logger.error("Invalid Resume ID in RRC Resume Request (ASN.1 short-i-rnti=0x{:x})",
-                   ul_ccch_msg.msg.c1().rrc_resume_request().rrc_resume_request.resume_id.to_number());
-      return std::nullopt;
-    }
-
-    return rrc_resume_context_t{
-        .is_resume     = true,
-        .rrc_resume_id = resume_id.value(),
-        .resume_cause = asn1_to_resume_cause(ul_ccch_msg.msg.c1().rrc_resume_request().rrc_resume_request.resume_cause),
-    };
   }
 
   // 64 bits RRC Resume Request containing Full-I-RNTI.
@@ -305,8 +322,14 @@ std::optional<rrc_resume_context_t> rrc_du_impl::get_rrc_resume_context(byte_buf
   }
 
   if (ul_ccch1_msg.msg.c1().type().value != ul_ccch1_msg_type_c::c1_c_::types_opts::rrc_resume_request1) {
-    return rrc_resume_context_t{.is_resume = false};
+    // UL-CCCH1 only ever carries a RRCResumeRequest1; any other message here is unexpected.
+    logger.error("Unsupported CCCH UL message type");
+    return std::nullopt;
   }
+
+  // Notify metrics about attempted RRC connection resume.
+  handle_attempted_rrc_resume(
+      asn1_to_resume_cause(ul_ccch1_msg.msg.c1().rrc_resume_request1().rrc_resume_request1.resume_cause));
 
   // Extract Full-I-RNTI.
   expected<full_i_rnti_t> resume_id =
@@ -317,12 +340,13 @@ std::optional<rrc_resume_context_t> rrc_du_impl::get_rrc_resume_context(byte_buf
     return std::nullopt;
   }
 
-  return rrc_resume_context_t{
+  rrc_resume_context_t resume_context{
       .is_resume     = true,
       .rrc_resume_id = resume_id.value(),
       .resume_cause =
           asn1_to_resume_cause(ul_ccch1_msg.msg.c1().rrc_resume_request1().rrc_resume_request1.resume_cause),
   };
+  return ul_ccch_msg_info_t{std::move(resume_context)};
 }
 
 rrc_ue_interface* rrc_du_impl::add_ue(const rrc_ue_creation_message& msg)

@@ -6,6 +6,7 @@
 #pragma once
 
 #include "ocudu/asn1/rrc_nr/sys_info.h"
+#include "ocudu/asn1/rrc_nr/ul_ccch1_msg.h"
 #include "ocudu/asn1/rrc_nr/ul_ccch_msg.h"
 #include "ocudu/asn1/rrc_nr/ul_ccch_msg_ies.h"
 #include "ocudu/asn1/rrc_nr/ul_dcch_msg.h"
@@ -26,11 +27,17 @@ asn1::rrc_nr::ul_ccch_msg_s create_rrc_reestablishment_request(rnti_t           
                                                                pci_t              old_pci,
                                                                const std::string& short_mac_i = "1100011101010100");
 
-/// \brief Generates a dummy RRC Resume Request message.
+/// \brief Generates a dummy RRC Resume Request message, containing a Short-I-RNTI (TS 38.331 section 6.2.2).
 asn1::rrc_nr::ul_ccch_msg_s
 create_rrc_resume_request(uint64_t                     resume_id,
                           const std::string&           resume_mac_i = "1111010001000010",
                           asn1::rrc_nr::resume_cause_e resume_cause = asn1::rrc_nr::resume_cause_opts::mo_data);
+
+/// \brief Generates a dummy RRC Resume Request1 message, containing a Full-I-RNTI (TS 38.331 section 6.2.2).
+asn1::rrc_nr::ul_ccch1_msg_s
+create_rrc_resume_request1(uint64_t                     resume_id,
+                           const std::string&           resume_mac_i = "1111010001000010",
+                           asn1::rrc_nr::resume_cause_e resume_cause = asn1::rrc_nr::resume_cause_opts::mo_data);
 
 /// \brief Generates a dummy RRC Resume Complete message.
 asn1::rrc_nr::ul_dcch_msg_s create_rrc_resume_complete(uint8_t transaction_id = 0, uint8_t sel_plmn_id = 1);
@@ -60,6 +67,9 @@ asn1::rrc_nr::ul_dcch_msg_s create_location_meas_ind(const std::optional<asn1::r
 
 /// \brief Packs an RRC UL-CCCH message into a byte buffer.
 byte_buffer pack_ul_ccch_msg(const asn1::rrc_nr::ul_ccch_msg_s& msg);
+
+/// \brief Packs an RRC UL-CCCH1 message into a byte buffer.
+byte_buffer pack_ul_ccch1_msg(const asn1::rrc_nr::ul_ccch1_msg_s& msg);
 
 /// \brief Packs an RRC UL-DCCH message into a byte buffer.
 byte_buffer pack_ul_dcch_msg(const asn1::rrc_nr::ul_dcch_msg_s& msg);

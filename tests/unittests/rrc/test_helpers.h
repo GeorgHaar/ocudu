@@ -225,16 +225,12 @@ class dummy_rrc_ue_rrc_du_adapter : public rrc_ue_event_notifier
 public:
   void on_new_rrc_connection() override { ++nof_new_rrc_connections; }
 
-  void on_attempted_rrc_connection_establishment(establishment_cause_t cause) override {}
-
   void on_successful_rrc_connection_establishment(establishment_cause_t     cause,
                                                   std::chrono::milliseconds setup_time) override
   {
   }
 
   void on_failed_rrc_connection_establishment(establishment_fail_cause_t cause) override {}
-
-  void on_attempted_rrc_connection_reestablishment() override {}
 
   void on_successful_rrc_connection_reestablishment() override {}
 

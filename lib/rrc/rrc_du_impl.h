@@ -23,11 +23,6 @@ public:
 
   void on_new_rrc_connection() override { metrics_handler.handle_successful_rrc_setup(); }
 
-  void on_attempted_rrc_connection_establishment(establishment_cause_t cause) override
-  {
-    metrics_handler.handle_attempted_rrc_setup(cause);
-  }
-
   void on_successful_rrc_connection_establishment(establishment_cause_t     cause,
                                                   std::chrono::milliseconds setup_time) override
   {
@@ -38,11 +33,6 @@ public:
   void on_failed_rrc_connection_establishment(establishment_fail_cause_t cause) override
   {
     metrics_handler.handle_failed_rrc_connection_establishment(cause);
-  }
-
-  void on_attempted_rrc_connection_reestablishment() override
-  {
-    metrics_handler.handle_attempted_rrc_reestablishment();
   }
 
   void on_successful_rrc_connection_reestablishment() override
@@ -106,12 +96,12 @@ public:
   std::optional<arfcn_t> get_ssb_arfcn(const byte_buffer& encoded) override;
 
   // rrc_du_ue_repository.
-  byte_buffer                         get_rrc_reject() override;
-  byte_buffer                         pack_meas_config(const rrc_meas_cfg& meas_cfg) override;
-  std::optional<rrc_resume_context_t> get_rrc_resume_context(byte_buffer rrc_container) override;
-  rrc_ue_interface*                   add_ue(const rrc_ue_creation_message& msg) override;
-  void                                release_ues() override;
-  size_t                              get_nof_ues() const override { return ue_db.size(); }
+  byte_buffer                       get_rrc_reject() override;
+  byte_buffer                       pack_meas_config(const rrc_meas_cfg& meas_cfg) override;
+  std::optional<ul_ccch_msg_info_t> parse_ul_ccch_msg(byte_buffer rrc_container) override;
+  rrc_ue_interface*                 add_ue(const rrc_ue_creation_message& msg) override;
+  void                              release_ues() override;
+  size_t                            get_nof_ues() const override { return ue_db.size(); }
 
   // rrc_ue_handler.
   rrc_ue_interface* find_ue(cu_cp_ue_index_t ue_index) override

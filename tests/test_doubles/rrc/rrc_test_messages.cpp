@@ -57,6 +57,21 @@ ul_ccch_msg_s ocudu::test_helpers::create_rrc_resume_request(uint64_t           
   return msg;
 }
 
+ul_ccch1_msg_s ocudu::test_helpers::create_rrc_resume_request1(uint64_t           resume_id,
+                                                               const std::string& resume_mac_i,
+                                                               resume_cause_e     resume_cause)
+{
+  ul_ccch1_msg_s msg;
+
+  rrc_resume_request1_s& req = msg.msg.set_c1().set_rrc_resume_request1();
+
+  req.rrc_resume_request1.resume_id.from_number(resume_id);
+  req.rrc_resume_request1.resume_mac_i.from_string(resume_mac_i);
+  req.rrc_resume_request1.resume_cause = resume_cause;
+
+  return msg;
+}
+
 ul_dcch_msg_s ocudu::test_helpers::create_rrc_resume_complete(uint8_t transaction_id, uint8_t sel_plmn_id)
 {
   ul_dcch_msg_s msg;
@@ -454,6 +469,16 @@ ul_dcch_msg_s ocudu::test_helpers::create_location_meas_ind(const std::optional<
 }
 
 byte_buffer ocudu::test_helpers::pack_ul_ccch_msg(const ul_ccch_msg_s& msg)
+{
+  byte_buffer   pdu;
+  asn1::bit_ref bref{pdu};
+  if (msg.pack(bref) == asn1::OCUDUASN_SUCCESS) {
+    return pdu;
+  }
+  return byte_buffer{};
+}
+
+byte_buffer ocudu::test_helpers::pack_ul_ccch1_msg(const ul_ccch1_msg_s& msg)
 {
   byte_buffer   pdu;
   asn1::bit_ref bref{pdu};

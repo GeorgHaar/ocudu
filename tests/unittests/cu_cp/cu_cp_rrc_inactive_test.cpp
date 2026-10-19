@@ -1009,6 +1009,34 @@ TEST_F(cu_cp_rrc_inactive_test, when_rrc_resume_request_for_unknown_ue_is_receiv
       report.dus[0].rrc_metrics.successful_rrc_connection_resumes_with_fallback.get_count(resume_cause_t::mo_data), 1);
 }
 
+TEST_F(cu_cp_rrc_inactive_test, when_rrc_resume_request1_for_unknown_ue_is_received_then_resume_attempt_is_counted)
+{
+  // Connect UE with RRC Inactive support.
+  connect_ue_with_rrc_inactive_support();
+
+  // Check metrics for RRC inactive transition.
+  auto report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
+  ASSERT_EQ(report.dus[0].rrc_metrics.mean_nof_inactive_rrc_connections, 0);
+  ASSERT_EQ(report.dus[0].rrc_metrics.max_nof_inactive_rrc_connections, 0);
+
+  // Send an Initial UL RRC Message containing an RRCResumeRequest1 with a Full-I-RNTI (TS 38.331) that does not match
+  // any local UE. Because rrc_ue_impl does not handle RRCResumeRequest1, only the resume attempt is counted. This test
+  // does not assert the complete CU-CP path.
+  f1ap_message init_ul_rrc_msg = test_helpers::generate_init_ul_rrc_message_transfer(
+      du_ue_id_2,
+      crnti_2,
+      plmn_identity::test_value(),
+      {},
+      test_helpers::pack_ul_ccch1_msg(test_helpers::create_rrc_resume_request1(0x1122334455ULL)));
+  test_logger.info("c-rnti={} du_ue={}: Injecting Initial UL RRC message", crnti_2, fmt::underlying(du_ue_id_2));
+  get_du(du_idx).push_ul_pdu(init_ul_rrc_msg);
+  ASSERT_TRUE(this->wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu));
+
+  // Check metrics for RRC resume.
+  report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
+  ASSERT_EQ(report.dus[0].rrc_metrics.attempted_rrc_connection_resumes.get_count(resume_cause_t::mo_data), 1);
+}
+
 TEST_F(cu_cp_rrc_inactive_test, when_rrc_resume_request_with_invalid_resume_mac_is_received_then_release_is_sent)
 {
   // Connect UE with RRC Inactive support.

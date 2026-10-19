@@ -7,6 +7,7 @@
 
 #include "ocudu/ocudulog/logger.h"
 #include "ocudu/ran/subcarrier_spacing.h"
+#include <vector>
 
 namespace ocudu {
 
@@ -41,7 +42,9 @@ struct fapi_dummy_dependencies {
   /// Logger.
   ocudulog::basic_logger* logger = nullptr;
   /// Executor that runs the slot clock loop.
-  task_executor* executor = nullptr;
+  task_executor* clock_executor = nullptr;
+  /// Sequential executor of each sector, indexed by sector.
+  std::vector<task_executor*> sector_executors;
 };
 
 } // namespace fapi_adaptor

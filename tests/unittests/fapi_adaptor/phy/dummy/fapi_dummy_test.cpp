@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "fapi_dummy_sector.h"
+#include "ocudu/fapi/common/error_indication.h"
 #include "ocudu/fapi/common/error_indication_notifier.h"
 #include "ocudu/fapi/p5/p5_messages.h"
 #include "ocudu/fapi/p5/p5_responses_notifier.h"
@@ -19,6 +20,7 @@
 #include "ocudu/fapi/p7/p7_slot_indication_notifier.h"
 #include "ocudu/fapi_adaptor/phy/dummy/fapi_dummy_factory.h"
 #include "ocudu/ocudulog/ocudulog.h"
+#include "ocudu/support/executors/manual_task_worker.h"
 #include "ocudu/support/executors/task_worker.h"
 #include <atomic>
 #include <gtest/gtest.h>
@@ -112,7 +114,8 @@ protected:
             .ul_indication_delay_slots  = test_ul_delay,
             .max_processing_delay_slots = test_proc_delay,
             .late_request_detection     = true},
-           ocudulog::fetch_basic_logger("FAPI"))
+           ocudulog::fetch_basic_logger("FAPI"),
+           worker)
   {
     p5_adaptor().set_p5_responses_notifier(p5_spy);
     p5_adaptor().set_error_indication_notifier(error_spy);
@@ -120,7 +123,20 @@ protected:
     p7_adaptor().set_p7_indications_notifier(p7_spy);
   }
 
+  // Pending tasks hold the sector, which waits for them on destruction.
+  ~fapi_dummy_sector_test() override { run_tasks(); }
+
   phy_fapi_p5_sector_adaptor& p5_adaptor() { return sector.get_p5_sector_adaptor(); }
+
+  /// Runs the tasks deferred to the sector executor.
+  void run_tasks() { worker.run_pending_tasks(); }
+
+  /// Notifies the last request of the given slot.
+  void complete_slot(slot_point slot)
+  {
+    p7_adaptor().get_p7_last_request_notifier().on_last_message(slot);
+    run_tasks();
+  }
   phy_fapi_p7_sector_adaptor& p7_adaptor() { return sector.get_p7_sector_adaptor(); }
 
   /// Configures and starts the sector, and notifies the first slot boundary.
@@ -130,15 +146,23 @@ protected:
     config.cell_cfg.carrier_cfg.num_rx_ant = test_nof_rx_ports;
     p5_adaptor().get_p5_requests_gateway().send_config_request(config);
     p5_adaptor().get_p5_requests_gateway().send_start_request({});
+    run_tasks();
     run_slot();
   }
 
-  /// Notifies the next slot boundary and returns the notified slot.
+  /// \brief Notifies the next slot boundary and returns the notified slot.
+  ///
+  /// The last request of the previously notified slot is notified first, unless automatic completion is disabled.
   slot_point run_slot()
   {
+    if (auto_complete && notified_any) {
+      complete_slot(last_notified_slot());
+    }
     slot_point_extended notified = current + test_proc_delay;
     sector.handle_slot_boundary(notified, std::chrono::system_clock::now());
+    run_tasks();
     ++current;
+    notified_any = true;
     return notified.without_hyper_sfn();
   }
 
@@ -166,12 +190,15 @@ protected:
     run_slot();
   }
 
+  manual_task_worker            worker{256, false};
   p5_responses_notifier_spy     p5_spy;
   error_indication_notifier_spy error_spy;
   slot_indication_notifier_spy  slot_spy;
   p7_indications_notifier_spy   p7_spy;
   fapi_dummy_sector             sector;
   slot_point_extended           current{test_scs, 1000};
+  bool                          notified_any  = false;
+  bool                          auto_complete = true;
 };
 
 } // namespace
@@ -180,6 +207,7 @@ TEST_F(fapi_dummy_sector_test, param_and_config_requests_succeed)
 {
   p5_adaptor().get_p5_requests_gateway().send_param_request({});
   p5_adaptor().get_p5_requests_gateway().send_config_request({});
+  run_tasks();
 
   ASSERT_EQ(p5_spy.param_responses.size(), 1);
   ASSERT_EQ(p5_spy.config_responses.size(), 1);
@@ -191,10 +219,8 @@ TEST_F(fapi_dummy_sector_test, slot_indications_are_notified_only_while_running)
 {
   run_slot();
   ASSERT_TRUE(slot_spy.slots.empty());
-  ASSERT_FALSE(sector.is_running());
 
   start();
-  ASSERT_TRUE(sector.is_running());
   slot_point second = run_slot();
   ASSERT_EQ(slot_spy.slots.size(), 2);
   ASSERT_EQ(slot_spy.slots.back(), second);
@@ -202,21 +228,32 @@ TEST_F(fapi_dummy_sector_test, slot_indications_are_notified_only_while_running)
 
   p5_adaptor().get_p5_requests_gateway().send_stop_request({});
   ASSERT_EQ(p5_spy.nof_stop_indications, 0);
-  run_slot();
+  run_tasks();
   ASSERT_EQ(p5_spy.nof_stop_indications, 1);
-  ASSERT_FALSE(sector.is_running());
 
   run_slot();
   ASSERT_EQ(slot_spy.slots.size(), 2);
 }
 
-TEST_F(fapi_dummy_sector_test, last_message_completes_slot)
+TEST_F(fapi_dummy_sector_test, idle_sector_finishes_slot_boundaries_right_away)
+{
+  slot_point slot = run_slot();
+
+  fapi_dummy_sector::slot_boundary_progress progress = sector.get_progress();
+  ASSERT_EQ(progress.slot, slot);
+  ASSERT_FALSE(progress.running);
+}
+
+TEST_F(fapi_dummy_sector_test, running_sector_finishes_slot_boundary_with_last_message)
 {
   start();
   slot_point slot = last_notified_slot();
-  ASSERT_FALSE(sector.is_slot_completed(slot));
-  p7_adaptor().get_p7_last_request_notifier().on_last_message(slot);
-  ASSERT_TRUE(sector.is_slot_completed(slot));
+  ASSERT_NE(sector.get_progress().slot, slot);
+
+  complete_slot(slot);
+  fapi_dummy_sector::slot_boundary_progress progress = sector.get_progress();
+  ASSERT_EQ(progress.slot, slot);
+  ASSERT_TRUE(progress.running);
 }
 
 TEST_F(fapi_dummy_sector_test, pusch_generates_uci_crc_and_rx_data)
@@ -363,34 +400,47 @@ TEST_F(fapi_dummy_sector_test, prach_generates_no_indication)
   ASSERT_TRUE(p7_spy.empty());
 }
 
-TEST_F(fapi_dummy_sector_test, late_requests_are_reported_and_dropped)
+TEST_F(fapi_dummy_sector_test, late_slots_are_reported_and_dropped)
 {
   start();
+  auto_complete = false;
+
+  slot_point late_slot = last_notified_slot();
+  send_ul_tti(late_slot, {{build_pusch_pdu(units::bytes(10), units::bits(0), units::bits(0))}});
+
+  // The last request arrives once the current time, which lags the last notified slot by the processing delay, has
+  // passed the slot.
+  for (unsigned i = 0; i != test_proc_delay + 1; ++i) {
+    run_slot();
+  }
+  complete_slot(late_slot);
+
+  ASSERT_EQ(error_spy.errors.size(), 2);
+  ASSERT_EQ(error_spy.errors[0].message_id, fapi::message_type_id::dl_tti_request);
+  ASSERT_EQ(error_spy.errors[0].error_code, fapi::error_code_id::out_of_sync);
+  ASSERT_EQ(error_spy.errors[0].slot, late_slot);
+  ASSERT_EQ(error_spy.errors[1].message_id, fapi::message_type_id::ul_tti_request);
+  ASSERT_EQ(error_spy.errors[1].error_code, fapi::error_code_id::out_of_sync);
+
+  // A late slot is not completed and its uplink requests generate no indication.
+  ASSERT_NE(sector.get_progress().slot, late_slot);
+  run_until_ul_indications(late_slot);
+  ASSERT_TRUE(p7_spy.empty());
+}
+
+TEST_F(fapi_dummy_sector_test, last_message_in_time_is_not_late)
+{
+  start();
+  auto_complete = false;
+
+  slot_point slot = last_notified_slot();
   for (unsigned i = 0; i != test_proc_delay; ++i) {
     run_slot();
   }
+  complete_slot(slot);
 
-  // The current time is the last notified slot minus the processing delay.
-  slot_point current_time = last_notified_slot() - static_cast<int>(test_proc_delay);
-
-  fapi::dl_tti_request dl_msg;
-  dl_msg.slot = current_time;
-  p7_adaptor().get_p7_requests_gateway().send_dl_tti_request(dl_msg);
   ASSERT_TRUE(error_spy.errors.empty());
-
-  slot_point late_slot = current_time - 1;
-  dl_msg.slot          = late_slot;
-  p7_adaptor().get_p7_requests_gateway().send_dl_tti_request(dl_msg);
-  ASSERT_EQ(error_spy.errors.size(), 1);
-  ASSERT_EQ(error_spy.errors[0].message_id, fapi::message_type_id::dl_tti_request);
-  ASSERT_EQ(error_spy.errors[0].error_code, fapi::error_code_id::out_of_sync);
-
-  send_ul_tti(late_slot, {{build_pusch_pdu(units::bytes(10), units::bits(0), units::bits(0))}});
-  ASSERT_EQ(error_spy.errors.size(), 2);
-  ASSERT_EQ(error_spy.errors[1].message_id, fapi::message_type_id::ul_tti_request);
-
-  run_until_ul_indications(late_slot);
-  ASSERT_TRUE(p7_spy.empty());
+  ASSERT_EQ(sector.get_progress().slot, slot);
 }
 
 TEST_F(fapi_dummy_sector_test, requests_are_ignored_when_not_running)
@@ -450,14 +500,19 @@ class fapi_dummy_clock_test : public ::testing::TestWithParam<fapi_dummy_clock_m
 {
 protected:
   fapi_dummy_clock_test() :
-    worker("fapi_dummy", 16),
-    executor(make_task_executor(worker)),
+    clock_worker("fapi_clock", 16),
+    clock_executor(make_task_executor(clock_worker)),
+    sector_workers{std::make_unique<task_worker>("fapi_sector0", 64),
+                   std::make_unique<task_worker>("fapi_sector1", 64)},
+    sector_executors{make_task_executor(*sector_workers[0]), make_task_executor(*sector_workers[1])},
     dummy(create_fapi_dummy({.scs                        = test_scs,
-                             .nof_sectors                = 2,
+                             .nof_sectors                = nof_sectors,
                              .clock_mode                 = GetParam(),
                              .ul_indication_delay_slots  = test_ul_delay,
                              .max_processing_delay_slots = test_proc_delay},
-                            {.logger = &ocudulog::fetch_basic_logger("FAPI"), .executor = &executor}))
+                            {.logger           = &ocudulog::fetch_basic_logger("FAPI"),
+                             .clock_executor   = &clock_executor,
+                             .sector_executors = {&sector_executors[0], &sector_executors[1]}}))
   {
     for (unsigned i_sector = 0; i_sector != nof_sectors; ++i_sector) {
       phy_fapi_sector_adaptor& sector = dummy->get_sector_adaptor(i_sector);
@@ -469,8 +524,10 @@ protected:
 
   static constexpr unsigned nof_sectors = 2;
 
-  task_worker                                                  worker;
-  task_worker_executor                                         executor;
+  task_worker                                                  clock_worker;
+  task_worker_executor                                         clock_executor;
+  std::array<std::unique_ptr<task_worker>, nof_sectors>        sector_workers;
+  std::array<task_worker_executor, nof_sectors>                sector_executors;
   std::array<p5_responses_notifier_spy, nof_sectors>           p5_spies;
   std::array<completing_slot_indication_notifier, nof_sectors> slot_spies;
   std::unique_ptr<phy_fapi_adaptor>                            dummy;

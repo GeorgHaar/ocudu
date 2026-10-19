@@ -11,6 +11,7 @@
 #include "ocudu/support/synchronization/stop_event.h"
 #include <chrono>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace ocudu {
@@ -51,6 +52,8 @@ private:
   ocudulog::basic_logger&         logger;
   /// Last slot boundary, without the processing delay.
   slot_point_extended current_slot;
+  /// Last slot notified to the sectors.
+  std::optional<slot_point> last_notified_slot;
   /// Time of the last slot advance of the free running clock.
   std::chrono::steady_clock::time_point           last_advance_time;
   std::vector<std::unique_ptr<fapi_dummy_sector>> sectors;

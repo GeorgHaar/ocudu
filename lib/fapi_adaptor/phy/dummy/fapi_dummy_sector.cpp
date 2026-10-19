@@ -22,6 +22,7 @@
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/ran/sch/sch_constants.h"
 #include "ocudu/ran/srs/srs_constants.h"
+#include "ocudu/support/executors/task_executor.h"
 #include "ocudu/support/ocudu_assert.h"
 #include <algorithm>
 
@@ -88,14 +89,18 @@ static unsigned get_repository_size(unsigned ul_indication_delay_slots, unsigned
   return nof_slots;
 }
 
-fapi_dummy_sector::fapi_dummy_sector(const fapi_dummy_sector_config& config, ocudulog::basic_logger& logger_) :
+fapi_dummy_sector::fapi_dummy_sector(const fapi_dummy_sector_config& config,
+                                     ocudulog::basic_logger&         logger_,
+                                     task_executor&                  executor_) :
   sector_id(config.sector_id),
   scs(config.scs),
   ul_indication_delay_slots(config.ul_indication_delay_slots),
   max_processing_delay_slots(config.max_processing_delay_slots),
   late_request_detection(config.late_request_detection),
   logger(logger_),
-  ul_repository(get_repository_size(config.ul_indication_delay_slots, config.max_processing_delay_slots)),
+  executor(executor_),
+  completed_slots(get_repository_size(config.ul_indication_delay_slots, config.max_processing_delay_slots)),
+  ul_repository(completed_slots.size()),
   padding_pdu(tbs_lbrm_default.value(), padding_subheader),
   p5_notifier(&dummy_p5_notifier),
   error_notifier(&dummy_error_notifier),
@@ -105,137 +110,138 @@ fapi_dummy_sector::fapi_dummy_sector(const fapi_dummy_sector_config& config, ocu
   ocudu_assert(ul_indication_delay_slots > 0, "The uplink indication delay must be at least one slot");
 }
 
-void fapi_dummy_sector::send_param_request(const fapi::param_request& msg)
+fapi_dummy_sector::~fapi_dummy_sector()
 {
-  fapi::param_response response;
-  response.error_code = fapi::error_code_id::msg_ok;
-  p5_notifier->on_param_response(response);
+  stop_control.stop();
 }
 
-void fapi_dummy_sector::send_config_request(const fapi::config_request& msg)
+template <typename Func>
+void fapi_dummy_sector::defer_task(const char* task_name, Func&& task)
 {
-  nof_rx_antennas = std::clamp(static_cast<unsigned>(msg.cell_cfg.carrier_cfg.num_rx_ant),
-                               1U,
-                               static_cast<unsigned>(srs_constants::max_nof_rx_ports));
-
-  fapi::config_response response;
-  response.error_code = fapi::error_code_id::msg_ok;
-  p5_notifier->on_config_response(response);
-}
-
-void fapi_dummy_sector::send_start_request(const fapi::start_request& msg)
-{
-  sector_state expected = sector_state::idle;
-  if (!state.compare_exchange_strong(expected, sector_state::start_requested, std::memory_order_acq_rel)) {
-    logger.warning("Sector#{}: FAPI dummy ignored START.request. Cause: sector is not idle", sector_id);
+  if (!executor.defer([token = stop_control.get_token(), task = std::forward<Func>(task)]() mutable {
+        if (!token.is_stop_requested()) {
+          task();
+        }
+      })) {
+    logger.warning("Sector#{}: FAPI dummy failed to dispatch {}. Cause: task queue is full", sector_id, task_name);
   }
-}
-
-void fapi_dummy_sector::send_stop_request(const fapi::stop_request& msg)
-{
-  sector_state expected = sector_state::running;
-  if (state.compare_exchange_strong(expected, sector_state::stop_requested, std::memory_order_acq_rel)) {
-    return;
-  }
-
-  // A sector that has not notified any slot yet also stops at the next slot boundary.
-  if (expected == sector_state::start_requested &&
-      state.compare_exchange_strong(expected, sector_state::stop_requested, std::memory_order_acq_rel)) {
-    return;
-  }
-
-  logger.warning("Sector#{}: FAPI dummy ignored STOP.request. Cause: sector is not running", sector_id);
 }
 
 void fapi_dummy_sector::handle_slot_boundary(slot_point_extended slot, std::chrono::system_clock::time_point time_point)
 {
-  sector_state current_state = state.load(std::memory_order_acquire);
+  defer_task("slot boundary", [this, slot, time_point]() { process_slot_boundary(slot, time_point); });
+}
 
-  if (current_state == sector_state::stop_requested) {
-    current_slot.store(invalid_slot_count, std::memory_order_relaxed);
-    last_completed_slot.store(invalid_slot_count, std::memory_order_relaxed);
-    state.store(sector_state::idle, std::memory_order_release);
-    p5_notifier->on_stop_indication(fapi::stop_indication{});
-    return;
+fapi_dummy_sector::slot_boundary_progress fapi_dummy_sector::get_progress() const
+{
+  uint32_t value = progress.load(std::memory_order_acquire);
+  if (value == invalid_progress) {
+    return {};
   }
+  return {.slot = slot_point(scs, value >> 1U), .running = (value & 1U) != 0};
+}
 
-  if (current_state == sector_state::start_requested) {
-    // The STOP.request may race with the start transition.
-    if (!state.compare_exchange_strong(current_state, sector_state::running, std::memory_order_acq_rel)) {
+void fapi_dummy_sector::publish_progress(slot_point slot)
+{
+  progress.store((slot.count() << 1U) | (running ? 1U : 0U), std::memory_order_release);
+}
+
+void fapi_dummy_sector::send_param_request(const fapi::param_request& msg)
+{
+  defer_task("PARAM.request", [this]() {
+    fapi::param_response response;
+    response.error_code = fapi::error_code_id::msg_ok;
+    p5_notifier->on_param_response(response);
+  });
+}
+
+void fapi_dummy_sector::send_config_request(const fapi::config_request& msg)
+{
+  unsigned nof_rx_ant = std::clamp(static_cast<unsigned>(msg.cell_cfg.carrier_cfg.num_rx_ant),
+                                   1U,
+                                   static_cast<unsigned>(srs_constants::max_nof_rx_ports));
+  defer_task("CONFIG.request", [this, nof_rx_ant]() {
+    nof_rx_antennas = nof_rx_ant;
+
+    fapi::config_response response;
+    response.error_code = fapi::error_code_id::msg_ok;
+    p5_notifier->on_config_response(response);
+  });
+}
+
+void fapi_dummy_sector::send_start_request(const fapi::start_request& msg)
+{
+  defer_task("START.request", [this]() {
+    if (running) {
+      logger.warning("Sector#{}: FAPI dummy ignored START.request. Cause: sector is running", sector_id);
       return;
     }
-    current_state = sector_state::running;
-  }
+    running = true;
+    current_slot.reset();
+    std::fill(completed_slots.begin(), completed_slots.end(), std::nullopt);
+  });
+}
 
-  if (current_state != sector_state::running) {
+void fapi_dummy_sector::send_stop_request(const fapi::stop_request& msg)
+{
+  defer_task("STOP.request", [this]() {
+    if (!running) {
+      logger.warning("Sector#{}: FAPI dummy ignored STOP.request. Cause: sector is not running", sector_id);
+      return;
+    }
+    running = false;
+    p5_notifier->on_stop_indication(fapi::stop_indication{});
+  });
+}
+
+void fapi_dummy_sector::process_slot_boundary(slot_point_extended                   slot,
+                                              std::chrono::system_clock::time_point time_point)
+{
+  slot_point notified_slot = slot.without_hyper_sfn();
+
+  if (!running) {
+    publish_progress(notified_slot);
     return;
   }
 
-  slot_point notified_slot = slot.without_hyper_sfn();
-  current_slot.store(notified_slot.count(), std::memory_order_release);
+  current_slot = notified_slot;
 
   // The notified slot is ahead of the current time by the processing delay, and the uplink indications are delayed with
-  // respect to the reception time.
+  // respect to the reception time. Only slots whose requests completed in time hold valid uplink contexts.
   slot_point ul_slot = notified_slot - static_cast<int>(max_processing_delay_slots + ul_indication_delay_slots);
-  if (auto context = ul_repository.read(ul_slot.count())) {
-    notify_ul_indications(ul_slot, *context);
+  if (completed_slots[ul_slot.count() % completed_slots.size()] == ul_slot) {
+    if (auto context = ul_repository.read(ul_slot.count())) {
+      notify_ul_indications(ul_slot, *context);
+    }
   }
 
+  // Requests of a slot are only valid after its SLOT.indication, so older contexts stored for it are discarded.
+  ul_repository.clear(notified_slot.count());
   slot_notifier->on_slot_indication(fapi::build_slot_indication(slot, time_point));
 }
 
-bool fapi_dummy_sector::check_request(slot_point slot, fapi::message_type_id msg_id, late_error_builder build_error)
+void fapi_dummy_sector::process_last_message(slot_point slot)
 {
-  if (state.load(std::memory_order_acquire) != sector_state::running) {
-    return false;
+  if (!running) {
+    return;
   }
 
-  if (!late_request_detection) {
-    return true;
+  // A slot is late once the current time, which lags the last notified slot by the processing delay, has passed it.
+  if (late_request_detection && current_slot.has_value() &&
+      slot < *current_slot - static_cast<int>(max_processing_delay_slots)) {
+    logger.warning("Sector#{}: Real-time failure in FAPI dummy: Received late requests for slot {}", sector_id, slot);
+    error_notifier->on_error_indication(
+        fapi::build_out_of_sync_error_indication(slot, fapi::message_type_id::dl_tti_request, *current_slot));
+    error_notifier->on_error_indication(
+        fapi::build_out_of_sync_error_indication(slot, fapi::message_type_id::ul_tti_request, *current_slot));
+    return;
   }
 
-  uint32_t current_count = current_slot.load(std::memory_order_acquire);
-  if (current_count == invalid_slot_count) {
-    return true;
-  }
-
-  // A request is late once the current time, which lags the last notified slot by the processing delay, has passed its
-  // slot.
-  if (slot >= slot_point(scs, current_count) - static_cast<int>(max_processing_delay_slots)) {
-    return true;
-  }
-
-  notify_late_request(slot, msg_id, build_error);
-  return false;
+  completed_slots[slot.count() % completed_slots.size()] = slot;
+  publish_progress(slot);
 }
 
-bool fapi_dummy_sector::is_ul_indication_due(slot_point ul_slot) const
-{
-  uint32_t current_count = current_slot.load(std::memory_order_acquire);
-  if (current_count == invalid_slot_count) {
-    return false;
-  }
-
-  return slot_point(scs, current_count) >= ul_slot + max_processing_delay_slots + ul_indication_delay_slots;
-}
-
-void fapi_dummy_sector::notify_late_request(slot_point            slot,
-                                            fapi::message_type_id msg_id,
-                                            late_error_builder    build_error)
-{
-  slot_point notified_slot(scs, current_slot.load(std::memory_order_acquire));
-
-  logger.warning("Sector#{}: Real-time failure in FAPI dummy: Received late request with msg_id={} for slot {}",
-                 sector_id,
-                 fmt::underlying(msg_id),
-                 slot);
-  error_notifier->on_error_indication(build_error(slot, msg_id, notified_slot));
-}
-
-void fapi_dummy_sector::send_dl_tti_request(const fapi::dl_tti_request& msg)
-{
-  check_request(msg.slot, fapi::message_type_id::dl_tti_request, fapi::build_out_of_sync_error_indication);
-}
+void fapi_dummy_sector::send_dl_tti_request(const fapi::dl_tti_request& msg) {}
 
 /// Saves the indication contexts of a PUSCH PDU.
 static void save_pusch_context(ul_slot_ind_context& context, const fapi::ul_pusch_pdu& pdu)
@@ -303,53 +309,32 @@ static void save_srs_context(ul_slot_ind_context& context, const fapi::ul_srs_pd
 
 void fapi_dummy_sector::send_ul_tti_request(const fapi::ul_tti_request& msg)
 {
-  if (!check_request(msg.slot, fapi::message_type_id::ul_tti_request, fapi::build_out_of_sync_error_indication)) {
+  auto context = ul_repository.write(msg.slot.count());
+  if (context == nullptr) {
+    logger.warning(
+        "Sector#{}: FAPI dummy dropped UL_TTI.request for slot {}. Cause: slot entry is busy", sector_id, msg.slot);
     return;
   }
 
-  {
-    auto context = ul_repository.write(msg.slot.count());
-    if (context == nullptr) {
-      logger.warning(
-          "Sector#{}: FAPI dummy dropped UL_TTI.request for slot {}. Cause: slot entry is busy", sector_id, msg.slot);
-      return;
-    }
-
-    context->clear();
-    for (const auto& pdu : msg.pdus) {
-      if (const auto* pusch = std::get_if<fapi::ul_pusch_pdu>(&pdu.pdu)) {
-        save_pusch_context(*context, *pusch);
-      } else if (const auto* pucch = std::get_if<fapi::ul_pucch_pdu>(&pdu.pdu)) {
-        save_pucch_context(*context, *pucch);
-      } else if (const auto* srs = std::get_if<fapi::ul_srs_pdu>(&pdu.pdu)) {
-        save_srs_context(*context, *srs);
-      }
+  context->clear();
+  for (const auto& pdu : msg.pdus) {
+    if (const auto* pusch = std::get_if<fapi::ul_pusch_pdu>(&pdu.pdu)) {
+      save_pusch_context(*context, *pusch);
+    } else if (const auto* pucch = std::get_if<fapi::ul_pucch_pdu>(&pdu.pdu)) {
+      save_pucch_context(*context, *pucch);
+    } else if (const auto* srs = std::get_if<fapi::ul_srs_pdu>(&pdu.pdu)) {
+      save_srs_context(*context, *srs);
     }
   }
-
-  // The request passed the late check, but the clock may have passed the indication time of the slot before the request
-  // was stored. The check is best-effort, since it may race with the clock.
-  if (is_ul_indication_due(msg.slot)) {
-    logger.warning("Sector#{}: Real-time failure in FAPI dummy: UL_TTI.request for slot {} stored after its indication "
-                   "time",
-                   sector_id,
-                   msg.slot);
-  }
 }
 
-void fapi_dummy_sector::send_ul_dci_request(const fapi::ul_dci_request& msg)
-{
-  check_request(msg.slot, fapi::message_type_id::ul_dci_request, fapi::build_invalid_sfn_error_indication);
-}
+void fapi_dummy_sector::send_ul_dci_request(const fapi::ul_dci_request& msg) {}
 
-void fapi_dummy_sector::send_tx_data_request(const fapi::tx_data_request& msg)
-{
-  check_request(msg.slot, fapi::message_type_id::tx_data_request, fapi::build_invalid_sfn_error_indication);
-}
+void fapi_dummy_sector::send_tx_data_request(const fapi::tx_data_request& msg) {}
 
 void fapi_dummy_sector::on_last_message(slot_point slot)
 {
-  last_completed_slot.store(slot.count(), std::memory_order_release);
+  defer_task("last message", [this, slot]() { process_last_message(slot); });
 }
 
 void fapi_dummy_sector::notify_ul_indications(slot_point slot, const ul_slot_ind_context& context)

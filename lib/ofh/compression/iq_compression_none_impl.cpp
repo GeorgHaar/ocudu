@@ -94,7 +94,7 @@ void iq_compression_none_impl::log_post_quantization_rms(span<const int16_t> sam
 {
   if (OCUDU_UNLIKELY(logger.debug.enabled() && !samples.empty())) {
     // Calculate and print RMS of quantized samples.
-    float sum_squares = ocuduvec::dot_prod(samples, samples, 0);
+    float sum_squares = ocuduvec::dot_prod(samples, samples, 0.0F);
     float rms         = std::sqrt(sum_squares / samples.size());
     if (std::isnormal(rms)) {
       logger.debug("Quantized IQ samples RMS value of '{}'", rms);

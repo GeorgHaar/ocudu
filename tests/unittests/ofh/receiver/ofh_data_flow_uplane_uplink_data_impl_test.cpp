@@ -5,7 +5,6 @@
 #include "../../../../lib/ofh/receiver/ofh_data_flow_uplane_uplink_data_impl.h"
 #include "../ofh_uplane_rx_symbol_notifier_test_doubles.h"
 #include "helpers.h"
-#include "ocudu/adt/format.h"
 #include "ocudu/ocudulog/ocudulog.h"
 #include <gtest/gtest.h>
 
@@ -60,28 +59,24 @@ public:
     shared_grid(grid),
     data_flow(get_config(), get_dependencies())
   {
-    ul_cplane_context context;
-    context.filter_index = ocudu::ofh::filter_index_type::standard_channel_filter;
-    context.start_symbol = 0;
-    context.prb_start    = 0;
-    context.nof_prb      = nof_prbs;
-    context.nof_symbols  = 14;
+    ul_cplane_context context = {.filter_index = ocudu::ofh::filter_index_type::standard_channel_filter,
+                                 .start_symbol = 0,
+                                 .prb_start    = 0,
+                                 .nof_prb      = static_cast<uint16_t>(nof_prbs),
+                                 .nof_symbols  = 14};
 
     // Fill the contexts
     ul_cplane_context_repo_ptr->add(slot, eaxc, context);
-    ul_context_repo->add({slot, sector},
+    ul_context_repo->add(resource_grid_context{.slot = slot, .sector = sector},
                          shared_grid.get_grid(),
-                         {context.start_symbol, context.nof_symbols},
+                         ofdm_symbol_range{context.start_symbol, context.nof_symbols},
                          ocudulog::fetch_basic_logger("TEST"));
     ul_context_repo->process_pending_contexts();
   }
 
   data_flow_uplane_uplink_data_impl_config get_config()
   {
-    data_flow_uplane_uplink_data_impl_config config;
-    config.ul_eaxc = ul_eaxc;
-
-    return config;
+    return data_flow_uplane_uplink_data_impl_config{.sector = 0, .are_metrics_enabled = false, .ul_eaxc = ul_eaxc};
   }
 
   data_flow_uplane_uplink_data_impl_dependencies get_dependencies()
@@ -108,17 +103,14 @@ public:
 
   uplane_message_decoder_results build_valid_decoder_results()
   {
-    uplane_message_decoder_results deco_results;
-    deco_results.params.slot          = slot;
-    deco_results.params.direction     = data_direction::uplink;
-    deco_results.params.filter_index  = filter_index_type::standard_channel_filter;
-    deco_results.params.symbol_id     = 0;
-    auto& section                     = deco_results.sections.emplace_back();
-    section.start_prb                 = 0;
-    section.nof_prbs                  = nof_prbs;
-    section.use_current_symbol_number = true;
-    section.is_every_rb_used          = true;
-    section.iq_samples.resize(MAX_NOF_SUBCARRIERS);
+    uplane_message_decoder_results deco_results = {
+        .params   = {.direction    = data_direction::uplink,
+                     .slot         = slot,
+                     .filter_index = filter_index_type::standard_channel_filter,
+                     .symbol_id    = 0},
+        .sections = {
+            {.is_every_rb_used = true, .use_current_symbol_number = true, .start_prb = 0, .nof_prbs = nof_prbs}}};
+    deco_results.sections.back().iq_samples.resize(MAX_NOF_SUBCARRIERS);
 
     return deco_results;
   }

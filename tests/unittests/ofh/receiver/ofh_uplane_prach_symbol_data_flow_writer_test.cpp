@@ -36,13 +36,13 @@ public:
     nof_symbols(get_preamble_duration(format) == 0 ? 1U : get_preamble_duration(format)),
     writer(prach_eaxc, 0, ocudulog::fetch_basic_logger("TEST"), repo)
   {
-    buffer_context.slot   = slot;
-    buffer_context.format = format;
-    buffer_context.ports.push_back(0);
-    buffer_context.nof_td_occasions = 1;
-    buffer_context.nof_fd_occasions = 1;
-    buffer_context.pusch_scs        = ocudu::subcarrier_spacing::kHz30;
-    buffer_context.start_symbol     = 0;
+    buffer_context = prach_buffer_context{.ports            = {0},
+                                          .slot             = slot,
+                                          .start_symbol     = 0,
+                                          .format           = format,
+                                          .nof_td_occasions = 1,
+                                          .nof_fd_occasions = 1,
+                                          .pusch_scs        = ocudu::subcarrier_spacing::kHz30};
 
     repo->add(buffer_context, prach_pool->get(), ocudulog::fetch_basic_logger("TEST"), std::nullopt);
     repo->process_pending_contexts();

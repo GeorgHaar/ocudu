@@ -5,7 +5,6 @@
 #include "../../../../lib/ofh/receiver/ofh_data_flow_uplane_uplink_prach_impl.h"
 #include "../ofh_uplane_rx_symbol_notifier_test_doubles.h"
 #include "helpers.h"
-#include "ocudu/adt/format.h"
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/ofh/serdes/ofh_message_decoder_properties.h"
 #include "ocudu/ofh/serdes/ofh_uplane_message_decoder.h"
@@ -70,13 +69,13 @@ public:
     nof_symbols(get_preamble_duration(format) == 0 ? 1U : get_preamble_duration(format)),
     data_flow(get_config(), get_dependencies())
   {
-    buffer_context.slot             = slot;
-    buffer_context.format           = format;
-    buffer_context.ports            = {0};
-    buffer_context.nof_td_occasions = 1;
-    buffer_context.nof_fd_occasions = 1;
-    buffer_context.pusch_scs        = ocudu::subcarrier_spacing::kHz30;
-    buffer_context.start_symbol     = 0;
+    buffer_context = prach_buffer_context{.ports            = {0},
+                                          .slot             = slot,
+                                          .start_symbol     = 0,
+                                          .format           = format,
+                                          .nof_td_occasions = 1,
+                                          .nof_fd_occasions = 1,
+                                          .pusch_scs        = ocudu::subcarrier_spacing::kHz30};
 
     buffer = prach_pool->get();
 
@@ -89,12 +88,11 @@ public:
     auto& section                           = results.uplane_results.sections.emplace_back();
     section.iq_samples.resize(MAX_NOF_SUBCARRIERS);
 
-    ul_cplane_context context;
-    context.filter_index = ocudu::ofh::filter_index_type::ul_prach_preamble_1p25khz;
-    context.start_symbol = 0;
-    context.prb_start    = 0;
-    context.nof_prb      = 273;
-    context.nof_symbols  = nof_symbols;
+    ul_cplane_context context = {.filter_index = ocudu::ofh::filter_index_type::ul_prach_preamble_1p25khz,
+                                 .start_symbol = 0,
+                                 .prb_start    = 0,
+                                 .nof_prb      = 273,
+                                 .nof_symbols  = static_cast<uint8_t>(nof_symbols)};
 
     // Fill the contexts
     ul_cplane_context_repo_ptr->add(slot, eaxc, context);
@@ -104,12 +102,11 @@ public:
 
   data_flow_uplane_uplink_prach_impl_config get_config()
   {
-    data_flow_uplane_uplink_prach_impl_config config;
-    config.prach_eaxcs               = ul_eaxc;
-    config.is_prach_cplane_enabled   = is_cplane_enabled;
-    config.ignore_prach_start_symbol = ignore_prach_start_symbol;
-
-    return config;
+    return data_flow_uplane_uplink_prach_impl_config{.sector                    = 0,
+                                                     .is_prach_cplane_enabled   = is_cplane_enabled,
+                                                     .ignore_prach_start_symbol = ignore_prach_start_symbol,
+                                                     .are_metrics_enabled       = false,
+                                                     .prach_eaxcs               = ul_eaxc};
   }
 
   data_flow_uplane_uplink_prach_impl_dependencies get_dependencies()
@@ -136,17 +133,13 @@ public:
 
   uplane_message_decoder_results build_valid_decoder_results()
   {
-    uplane_message_decoder_results deco_results;
-    deco_results.params.slot          = slot;
-    deco_results.params.direction     = data_direction::uplink;
-    deco_results.params.filter_index  = filter_index_type::ul_prach_preamble_1p25khz;
-    deco_results.params.symbol_id     = 0;
-    auto& section                     = deco_results.sections.emplace_back();
-    section.start_prb                 = 0;
-    section.nof_prbs                  = 273;
-    section.use_current_symbol_number = true;
-    section.is_every_rb_used          = true;
-    section.iq_samples.resize(MAX_NOF_SUBCARRIERS);
+    uplane_message_decoder_results deco_results = {
+        .params   = {.direction    = data_direction::uplink,
+                     .slot         = slot,
+                     .filter_index = filter_index_type::ul_prach_preamble_1p25khz,
+                     .symbol_id    = 0},
+        .sections = {{.is_every_rb_used = true, .use_current_symbol_number = true, .start_prb = 0, .nof_prbs = 273}}};
+    deco_results.sections.back().iq_samples.resize(MAX_NOF_SUBCARRIERS);
 
     return deco_results;
   }

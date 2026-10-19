@@ -58,7 +58,7 @@ inline uint8x16_t pack_neon_register_9b_big_endian(int16x8_t reg)
 /// \note Each of the input registers stores four unique REs.
 inline void pack_prb_9b_big_endian(span<uint8_t> comp_prb_buffer, int16x8x3_t regs)
 {
-  /// Number of bytes used by 1 packed PRB with IQ samples compressed to 9 bits.
+  // Number of bytes used by 1 packed PRB with IQ samples compressed to 9 bits.
   static constexpr unsigned BYTES_PER_PRB_9BIT_COMPRESSION = 27;
 
   static constexpr unsigned bytes_per_half_reg = 8;
@@ -145,9 +145,9 @@ inline uint8x16_t pack_neon_register_14b_big_endian(int16x8_t reg)
 /// \note Each of the input registers stores four unique REs.
 inline void pack_prb_14b_big_endian(span<uint8_t> comp_prb_buffer, int16x8x3_t regs)
 {
-  /// Number of bytes used by compressed IQ samples in a single NEON register.
+  // Number of bytes used by compressed IQ samples in a single NEON register.
   static constexpr unsigned BYTES_PER_COMPRESSED_REG = 14;
-  /// Number of bytes used by 1 packed PRB with IQ samples compressed to 14 bits.
+  // Number of bytes used by 1 packed PRB with IQ samples compressed to 14 bits.
   static constexpr unsigned BYTES_PER_PRB_14BIT_COMPRESSION = 42;
 
   ocudu_assert(comp_prb_buffer.size() == BYTES_PER_PRB_14BIT_COMPRESSION,
@@ -177,7 +177,7 @@ inline void pack_prb_14b_big_endian(span<uint8_t> comp_prb_buffer, int16x8x3_t r
 /// \note Each of the input registers stores four unique REs.
 inline void pack_prb_16b_big_endian(span<uint8_t> comp_prb_buffer, int16x8x3_t regs)
 {
-  /// Number of bytes used by 1 packed PRB with IQ samples compressed to 16 bits.
+  // Number of bytes used by 1 packed PRB with IQ samples compressed to 16 bits.
   static constexpr unsigned BYTES_PER_PRB_16BIT_COMPRESSION = 48;
   static constexpr unsigned NEON_REG_SIZE_BYTES             = 16;
 
@@ -305,12 +305,12 @@ inline int16x8_t unpack_compressed_14bit_values(uint8x16_t reg)
 /// \param[in]  packed_data      A sequence of 42 packed bytes.
 inline void unpack_prb_14b_big_endian(span<int16_t> unpacked_iq_data, span<const uint8_t> packed_data)
 {
-  /// Number of bytes loaded in a single NEON register. They will be unpacked to eight IQ samples occupy one full NEON
-  /// register.
+  // Number of bytes loaded in a single NEON register. They will be unpacked to eight IQ samples occupy one full NEON
+  // register.
   static constexpr unsigned COMPRESSED_BYTES_PER_NEON_REG = 14;
-  /// Number of bytes used by 1 packed PRB with IQ samples compressed to 14 bits.
+  // Number of bytes used by 1 packed PRB with IQ samples compressed to 14 bits.
   static constexpr unsigned BYTES_PER_PRB_14BIT_COMPRESSION = 42;
-  /// Size in bytes of a NEON register.
+  // Size in bytes of a NEON register.
   static constexpr unsigned BYTES_IN_NEON_REG = 16;
 
   // Load input (we need three NEON register to load 42 bytes).

@@ -60,9 +60,14 @@ protected:
       f1ap_du_cfg_handler.next_ue_context_creation_response.crnti  = to_rnti(0x4601);
     }
 
+    // Create the SRB2 F1-C bearer in the test UE.
+    f1c_test_bearer& srb2 = test_ue->f1c_bearers.emplace(srb_id_to_uint(srb_id_t::srb2));
+    srb2.srb_id           = srb_id_t::srb2;
+
     this->f1ap_du_cfg_handler.next_ue_cfg_req.ue_index = test_ue->ue_index;
     this->f1ap_du_cfg_handler.next_ue_cfg_req.f1c_bearers_to_add.resize(1);
-    this->f1ap_du_cfg_handler.next_ue_cfg_req.f1c_bearers_to_add[0].srb_id = srb_id_t::srb2;
+    this->f1ap_du_cfg_handler.next_ue_cfg_req.f1c_bearers_to_add[0].srb_id          = srb_id_t::srb2;
+    this->f1ap_du_cfg_handler.next_ue_cfg_req.f1c_bearers_to_add[0].rx_sdu_notifier = &srb2.rx_sdu_notifier;
 
     auto& du_to_f1_resp          = this->f1ap_du_cfg_handler.next_ue_context_update_response;
     du_to_f1_resp.result         = du_ue_cfg_success;

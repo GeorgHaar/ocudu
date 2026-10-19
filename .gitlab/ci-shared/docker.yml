@@ -195,7 +195,8 @@ variables:
       upload_package_file() {
         local file=$1
         local name=$2
-        local base_url="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${NAME}/${VERSION}"
+        # The package version is the pushed tag, so each architecture of a multi-arch build keeps its own files
+        local base_url="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${NAME}/${IMAGE_NAME_VERSION##*:}"
         echo "Publishing ${name} to package registry (${base_url})"
         curl --fail --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
           --upload-file "${file}" "${base_url}/${name}"

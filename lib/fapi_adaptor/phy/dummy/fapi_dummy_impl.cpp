@@ -18,7 +18,7 @@ using namespace ocudu;
 using namespace fapi_adaptor;
 
 /// Returns the count of the slot given by the system time.
-static uint64_t get_current_system_slot(std::chrono::microseconds slot_duration, uint64_t nof_slots_in_all_hyper_sfns)
+static uint64_t get_system_time_slot(std::chrono::microseconds slot_duration, uint64_t nof_slots_in_all_hyper_sfns)
 {
   auto time_since_epoch =
       std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
@@ -53,9 +53,12 @@ fapi_dummy_impl::fapi_dummy_impl(const fapi_dummy_config& config, const fapi_dum
         *dependencies.sector_executors[i_sector]));
   }
 
-  current_slot = slot_point_extended(
-      config.scs, get_current_system_slot(slot_duration, current_slot.nof_slots_in_all_hyper_sfns()));
-  last_advance_time = std::chrono::steady_clock::now();
+  // The slots are aligned to the system time once, and then follow the steady clock, so that system time adjustments do
+  // not make the clock jump.
+  origin_system_slot = get_system_time_slot(slot_duration, current_slot.nof_slots_in_all_hyper_sfns());
+  origin_time        = std::chrono::steady_clock::now();
+  current_slot       = slot_point_extended(config.scs, origin_system_slot);
+  last_advance_time  = origin_time;
 
   sync_event start_event;
   if (!dependencies.clock_executor->defer(
@@ -91,9 +94,15 @@ void fapi_dummy_impl::clock_loop(const rt_stop_event_token& token)
   }
 }
 
+uint64_t fapi_dummy_impl::get_current_system_slot() const
+{
+  auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - origin_time);
+  return (origin_system_slot + elapsed / slot_duration) % current_slot.nof_slots_in_all_hyper_sfns();
+}
+
 void fapi_dummy_impl::run_realtime_iteration()
 {
-  uint64_t slot_count = get_current_system_slot(slot_duration, current_slot.nof_slots_in_all_hyper_sfns());
+  uint64_t slot_count = get_current_system_slot();
 
   if (slot_count == current_slot.system_slot()) {
     OCUDU_RTSAN_SCOPED_DISABLER(scoped_disabler);

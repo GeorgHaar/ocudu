@@ -35,8 +35,11 @@ private:
   /// Runs the clock loop until a stop is requested.
   void clock_loop(const rt_stop_event_token& token);
 
-  /// Advances the slot following the system time.
+  /// Advances the slot following the steady clock.
   void run_realtime_iteration();
+
+  /// Returns the system slot count given by the steady clock.
+  uint64_t get_current_system_slot() const;
 
   /// Advances the slot once all the running sectors completed the last notified slot.
   void run_free_running_iteration();
@@ -52,6 +55,10 @@ private:
   ocudulog::basic_logger&         logger;
   /// Last slot boundary, without the processing delay.
   slot_point_extended current_slot;
+  /// Steady clock time of the clock origin.
+  std::chrono::steady_clock::time_point origin_time;
+  /// System slot count at the clock origin, given by the system time.
+  uint64_t origin_system_slot = 0;
   /// Last slot notified to the sectors.
   std::optional<slot_point> last_notified_slot;
   /// Time of the last slot advance of the free running clock.

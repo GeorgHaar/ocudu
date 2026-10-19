@@ -226,13 +226,37 @@ TEST_F(fapi_dummy_sector_test, slot_indications_are_notified_only_while_running)
   ASSERT_EQ(slot_spy.slots.back(), second);
   ASSERT_EQ(slot_spy.slots.front() + 1, second);
 
+  // The sector stops at the next slot boundary.
   p5_adaptor().get_p5_requests_gateway().send_stop_request({});
-  ASSERT_EQ(p5_spy.nof_stop_indications, 0);
   run_tasks();
+  ASSERT_EQ(p5_spy.nof_stop_indications, 0);
+  run_slot();
   ASSERT_EQ(p5_spy.nof_stop_indications, 1);
+  ASSERT_EQ(slot_spy.slots.size(), 2);
 
   run_slot();
   ASSERT_EQ(slot_spy.slots.size(), 2);
+}
+
+TEST_F(fapi_dummy_sector_test, stop_before_the_last_request_of_a_slot_lets_the_slot_complete)
+{
+  start();
+  auto_complete   = false;
+  slot_point slot = run_slot();
+
+  p5_adaptor().get_p5_requests_gateway().send_stop_request({});
+  run_tasks();
+  complete_slot(slot);
+
+  fapi_dummy_sector::slot_boundary_progress progress = sector.get_progress();
+  ASSERT_EQ(progress.slot, slot);
+  ASSERT_TRUE(progress.running);
+
+  slot_point stop_slot = run_slot();
+  progress             = sector.get_progress();
+  ASSERT_EQ(progress.slot, stop_slot);
+  ASSERT_FALSE(progress.running);
+  ASSERT_EQ(p5_spy.nof_stop_indications, 1);
 }
 
 TEST_F(fapi_dummy_sector_test, idle_sector_finishes_slot_boundaries_right_away)
@@ -400,43 +424,44 @@ TEST_F(fapi_dummy_sector_test, prach_generates_no_indication)
   ASSERT_TRUE(p7_spy.empty());
 }
 
-TEST_F(fapi_dummy_sector_test, late_slots_are_reported_and_dropped)
+TEST_F(fapi_dummy_sector_test, late_requests_of_a_slot_are_reported_once_and_dropped)
 {
   start();
   auto_complete = false;
 
+  // The requests arrive once the current time, which lags the last notified slot by the processing delay, has passed
+  // the slot.
   slot_point late_slot = last_notified_slot();
-  send_ul_tti(late_slot, {{build_pusch_pdu(units::bytes(10), units::bits(0), units::bits(0))}});
-
-  // The last request arrives once the current time, which lags the last notified slot by the processing delay, has
-  // passed the slot.
   for (unsigned i = 0; i != test_proc_delay + 1; ++i) {
     run_slot();
   }
+  fapi::dl_tti_request dl_msg;
+  dl_msg.slot = late_slot;
+  p7_adaptor().get_p7_requests_gateway().send_dl_tti_request(dl_msg);
+  send_ul_tti(late_slot, {{build_pusch_pdu(units::bytes(10), units::bits(0), units::bits(0))}});
   complete_slot(late_slot);
 
-  ASSERT_EQ(error_spy.errors.size(), 2);
+  ASSERT_EQ(error_spy.errors.size(), 1);
   ASSERT_EQ(error_spy.errors[0].message_id, fapi::message_type_id::dl_tti_request);
   ASSERT_EQ(error_spy.errors[0].error_code, fapi::error_code_id::out_of_sync);
   ASSERT_EQ(error_spy.errors[0].slot, late_slot);
-  ASSERT_EQ(error_spy.errors[1].message_id, fapi::message_type_id::ul_tti_request);
-  ASSERT_EQ(error_spy.errors[1].error_code, fapi::error_code_id::out_of_sync);
 
-  // A late slot is not completed and its uplink requests generate no indication.
-  ASSERT_NE(sector.get_progress().slot, late_slot);
+  // The uplink requests of a slot with late requests generate no indication.
   run_until_ul_indications(late_slot);
   ASSERT_TRUE(p7_spy.empty());
 }
 
-TEST_F(fapi_dummy_sector_test, last_message_in_time_is_not_late)
+TEST_F(fapi_dummy_sector_test, request_arriving_at_its_slot_is_not_late)
 {
   start();
   auto_complete = false;
 
+  // The current time is the slot of the request.
   slot_point slot = last_notified_slot();
   for (unsigned i = 0; i != test_proc_delay; ++i) {
     run_slot();
   }
+  send_ul_tti(slot, {{build_pusch_pdu(units::bytes(10), units::bits(0), units::bits(0))}});
   complete_slot(slot);
 
   ASSERT_TRUE(error_spy.errors.empty());

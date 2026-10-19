@@ -100,6 +100,7 @@ fapi_dummy_sector::fapi_dummy_sector(const fapi_dummy_sector_config& config,
   logger(logger_),
   executor(executor_),
   completed_slots(get_repository_size(config.ul_indication_delay_slots, config.max_processing_delay_slots)),
+  late_slots(completed_slots.size()),
   ul_repository(completed_slots.size()),
   padding_pdu(tbs_lbrm_default.value(), padding_subheader),
   p5_notifier(&dummy_p5_notifier),
@@ -179,18 +180,19 @@ void fapi_dummy_sector::send_start_request(const fapi::start_request& msg)
     running = true;
     current_slot.reset();
     std::fill(completed_slots.begin(), completed_slots.end(), std::nullopt);
+    std::fill(late_slots.begin(), late_slots.end(), std::nullopt);
   });
 }
 
 void fapi_dummy_sector::send_stop_request(const fapi::stop_request& msg)
 {
   defer_task("STOP.request", [this]() {
-    if (!running) {
+    if (!running || stop_requested) {
       logger.warning("Sector#{}: FAPI dummy ignored STOP.request. Cause: sector is not running", sector_id);
       return;
     }
-    running = false;
-    p5_notifier->on_stop_indication(fapi::stop_indication{});
+    // The sector stops at the next slot boundary, so that the requests of the last notified slot complete.
+    stop_requested = true;
   });
 }
 
@@ -198,6 +200,14 @@ void fapi_dummy_sector::process_slot_boundary(slot_point_extended               
                                               std::chrono::system_clock::time_point time_point)
 {
   slot_point notified_slot = slot.without_hyper_sfn();
+
+  if (running && stop_requested) {
+    running        = false;
+    stop_requested = false;
+    publish_progress(notified_slot);
+    p5_notifier->on_stop_indication(fapi::stop_indication{});
+    return;
+  }
 
   if (!running) {
     publish_progress(notified_slot);
@@ -226,22 +236,54 @@ void fapi_dummy_sector::process_last_message(slot_point slot)
     return;
   }
 
-  // A slot is late once the current time, which lags the last notified slot by the processing delay, has passed it.
-  if (late_request_detection && current_slot.has_value() &&
-      slot < *current_slot - static_cast<int>(max_processing_delay_slots)) {
-    logger.warning("Sector#{}: Real-time failure in FAPI dummy: Received late requests for slot {}", sector_id, slot);
-    error_notifier->on_error_indication(
-        fapi::build_out_of_sync_error_indication(slot, fapi::message_type_id::dl_tti_request, *current_slot));
-    error_notifier->on_error_indication(
-        fapi::build_out_of_sync_error_indication(slot, fapi::message_type_id::ul_tti_request, *current_slot));
-    return;
+  // The uplink contexts of a slot with late requests are discarded.
+  if (late_slots[slot.count() % late_slots.size()] != slot) {
+    completed_slots[slot.count() % completed_slots.size()] = slot;
   }
-
-  completed_slots[slot.count() % completed_slots.size()] = slot;
   publish_progress(slot);
 }
 
-void fapi_dummy_sector::send_dl_tti_request(const fapi::dl_tti_request& msg) {}
+bool fapi_dummy_sector::is_late(slot_point slot) const
+{
+  // The current time lags the last notified slot by the processing delay.
+  return current_slot.has_value() && slot < *current_slot - static_cast<int>(max_processing_delay_slots);
+}
+
+void fapi_dummy_sector::check_request(slot_point slot, fapi::message_type_id msg_id)
+{
+  if (late_request_detection) {
+    defer_task("request check", [this, slot, msg_id]() { process_request(slot, msg_id); });
+  }
+}
+
+void fapi_dummy_sector::process_request(slot_point slot, fapi::message_type_id msg_id)
+{
+  if (!running || !is_late(slot)) {
+    return;
+  }
+
+  logger.warning("Sector#{}: Real-time failure in FAPI dummy: Received late request with msg_id={} for slot {}",
+                 sector_id,
+                 fmt::underlying(msg_id),
+                 slot);
+
+  std::optional<slot_point>& late_slot = late_slots[slot.count() % late_slots.size()];
+  if (late_slot == slot) {
+    return;
+  }
+  late_slot = slot;
+
+  bool is_tti_request =
+      msg_id == fapi::message_type_id::dl_tti_request || msg_id == fapi::message_type_id::ul_tti_request;
+  error_notifier->on_error_indication(is_tti_request
+                                          ? fapi::build_out_of_sync_error_indication(slot, msg_id, *current_slot)
+                                          : fapi::build_invalid_sfn_error_indication(slot, msg_id, *current_slot));
+}
+
+void fapi_dummy_sector::send_dl_tti_request(const fapi::dl_tti_request& msg)
+{
+  check_request(msg.slot, fapi::message_type_id::dl_tti_request);
+}
 
 /// Saves the indication contexts of a PUSCH PDU.
 static void save_pusch_context(ul_slot_ind_context& context, const fapi::ul_pusch_pdu& pdu)
@@ -309,6 +351,8 @@ static void save_srs_context(ul_slot_ind_context& context, const fapi::ul_srs_pd
 
 void fapi_dummy_sector::send_ul_tti_request(const fapi::ul_tti_request& msg)
 {
+  check_request(msg.slot, fapi::message_type_id::ul_tti_request);
+
   auto context = ul_repository.write(msg.slot.count());
   if (context == nullptr) {
     logger.warning(
@@ -328,9 +372,15 @@ void fapi_dummy_sector::send_ul_tti_request(const fapi::ul_tti_request& msg)
   }
 }
 
-void fapi_dummy_sector::send_ul_dci_request(const fapi::ul_dci_request& msg) {}
+void fapi_dummy_sector::send_ul_dci_request(const fapi::ul_dci_request& msg)
+{
+  check_request(msg.slot, fapi::message_type_id::ul_dci_request);
+}
 
-void fapi_dummy_sector::send_tx_data_request(const fapi::tx_data_request& msg) {}
+void fapi_dummy_sector::send_tx_data_request(const fapi::tx_data_request& msg)
+{
+  check_request(msg.slot, fapi::message_type_id::tx_data_request);
+}
 
 void fapi_dummy_sector::on_last_message(slot_point slot)
 {

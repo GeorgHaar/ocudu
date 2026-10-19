@@ -7,6 +7,7 @@
 
 #include "ul_slot_ind_context.h"
 #include "ocudu/adt/spmc_slot_ring.h"
+#include "ocudu/fapi/common/error_indication.h"
 #include "ocudu/fapi/p5/p5_requests_gateway.h"
 #include "ocudu/fapi/p7/p7_last_request_notifier.h"
 #include "ocudu/fapi/p7/p7_requests_gateway.h"
@@ -37,7 +38,7 @@ struct fapi_dummy_sector_config {
   unsigned ul_indication_delay_slots;
   /// Number of slots a SLOT.indication is notified in advance of the transmission time.
   unsigned max_processing_delay_slots;
-  /// Whether requests completing after their transmission time are reported as errors.
+  /// Whether requests arriving after their transmission time are reported as errors.
   bool late_request_detection;
 };
 
@@ -153,6 +154,17 @@ private:
   /// Processes the last request of a slot in the sector executor.
   void process_last_message(slot_point slot);
 
+  /// Defers the late check of a request to the sector executor.
+  void check_request(slot_point slot, fapi::message_type_id msg_id);
+
+  /// \brief Checks in the sector executor whether a request is late.
+  ///
+  /// Every late request is logged, and the first late request of a slot is notified as an error.
+  void process_request(slot_point slot, fapi::message_type_id msg_id);
+
+  /// Returns true if the current time has passed the given slot.
+  bool is_late(slot_point slot) const;
+
   /// Publishes the given slot boundary as processed.
   void publish_progress(slot_point slot);
 
@@ -180,10 +192,14 @@ private:
   unsigned nof_rx_antennas = 1;
   /// Whether the sector notifies slot indications.
   bool running = false;
+  /// Whether a STOP.request takes effect at the next slot boundary.
+  bool stop_requested = false;
   /// Last slot notified in a SLOT.indication.
   std::optional<slot_point> current_slot;
   /// Slots whose requests completed in time while running, indexed like the uplink contexts.
   std::vector<std::optional<slot_point>> completed_slots;
+  /// Slots with late requests while running, indexed like the uplink contexts.
+  std::vector<std::optional<slot_point>> late_slots;
   /// Last processed slot boundary and running flag, packed for the clock.
   std::atomic<uint32_t> progress{invalid_progress};
   /// Uplink indication contexts pending notification, indexed by slot count.

@@ -371,7 +371,7 @@ TEST_F(fapi_dummy_sector_test, late_requests_are_reported_and_dropped)
   }
 
   // The current time is the last notified slot minus the processing delay.
-  slot_point current_time = last_notified_slot() - int(test_proc_delay);
+  slot_point current_time = last_notified_slot() - static_cast<int>(test_proc_delay);
 
   fapi::dl_tti_request dl_msg;
   dl_msg.slot = current_time;

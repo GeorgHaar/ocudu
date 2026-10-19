@@ -19,6 +19,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 namespace ocudu {
@@ -81,7 +82,7 @@ private:
   enum class sector_state : uint8_t { idle, start_requested, running, stop_requested };
 
   /// Value of the slot counters when no slot is set.
-  static constexpr uint32_t invalid_slot_count = UINT32_MAX;
+  static constexpr uint32_t invalid_slot_count = std::numeric_limits<uint32_t>::max();
 
   // See interface for documentation.
   fapi::p5_requests_gateway& get_p5_requests_gateway() override { return *this; }

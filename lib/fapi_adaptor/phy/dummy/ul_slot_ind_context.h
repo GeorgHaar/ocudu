@@ -11,6 +11,7 @@
 #include "ocudu/ran/rnti.h"
 #include "ocudu/ran/slot_pdu_capacity_constants.h"
 #include "ocudu/support/units.h"
+#include <cstdint>
 #include <optional>
 
 namespace ocudu {
@@ -33,19 +34,17 @@ struct pusch_ind_context {
 struct pucch_ind_context {
   rnti_t       rnti;
   pucch_format format;
-  /// SR opportunity flag for PUCCH Formats 0 and 1.
-  bool        sr_present;
-  units::bits sr_bits;
-  units::bits harq_ack_bits;
-  units::bits csi_part1_bits;
+  units::bits  sr_bits;
+  units::bits  harq_ack_bits;
+  units::bits  csi_part1_bits;
 };
 
 /// Uplink PDU information needed to generate the indication of an SRS.
 struct srs_ind_context {
-  rnti_t   rnti;
-  unsigned nof_tx_ports;
-  bool     iq_matrix_report;
-  bool     positioning_report;
+  rnti_t  rnti;
+  uint8_t nof_tx_ports;
+  bool    iq_matrix_report;
+  bool    positioning_report;
 };
 
 /// Uplink indication contexts of a slot.

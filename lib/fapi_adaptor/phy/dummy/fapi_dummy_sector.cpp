@@ -176,7 +176,7 @@ void fapi_dummy_sector::handle_slot_boundary(slot_point_extended slot, std::chro
 
   // The notified slot is ahead of the current time by the processing delay, and the uplink indications are delayed with
   // respect to the reception time.
-  slot_point ul_slot = notified_slot - int(max_processing_delay_slots + ul_indication_delay_slots);
+  slot_point ul_slot = notified_slot - static_cast<int>(max_processing_delay_slots + ul_indication_delay_slots);
   if (auto context = ul_repository.read(ul_slot.count())) {
     notify_ul_indications(ul_slot, *context);
   }
@@ -201,7 +201,7 @@ bool fapi_dummy_sector::check_request(slot_point slot, fapi::message_type_id msg
 
   // A request is late once the current time, which lags the last notified slot by the processing delay, has passed its
   // slot.
-  if (slot >= slot_point(scs, current_count) - int(max_processing_delay_slots)) {
+  if (slot >= slot_point(scs, current_count) - static_cast<int>(max_processing_delay_slots)) {
     return true;
   }
 
@@ -255,17 +255,16 @@ static void save_pucch_context(ul_slot_ind_context& context, const fapi::ul_pucc
 {
   pucch_ind_context pucch{.rnti           = pdu.rnti,
                           .format         = pucch_format::FORMAT_0,
-                          .sr_present     = false,
                           .sr_bits        = units::bits(0),
                           .harq_ack_bits  = units::bits(0),
                           .csi_part1_bits = units::bits(0)};
 
   if (const auto* f0 = std::get_if<fapi::ul_pucch_pdu_format_0>(&pdu.format)) {
-    pucch.sr_present    = f0->sr_present;
+    pucch.sr_bits       = units::bits(f0->sr_present ? 1 : 0);
     pucch.harq_ack_bits = f0->bit_len_harq;
   } else if (const auto* f1 = std::get_if<fapi::ul_pucch_pdu_format_1>(&pdu.format)) {
     pucch.format        = pucch_format::FORMAT_1;
-    pucch.sr_present    = f1->sr_present;
+    pucch.sr_bits       = units::bits(f1->sr_present ? 1 : 0);
     pucch.harq_ack_bits = f1->bit_len_harq;
   } else if (const auto* f2 = std::get_if<fapi::ul_pucch_pdu_format_2>(&pdu.format)) {
     pucch.format         = pucch_format::FORMAT_2;
@@ -297,7 +296,7 @@ static void save_srs_context(ul_slot_ind_context& context, const fapi::ul_srs_pd
   }
 
   context.srss.push_back({.rnti               = pdu.rnti,
-                          .nof_tx_ports       = static_cast<unsigned>(pdu.num_ant_ports),
+                          .nof_tx_ports       = static_cast<uint8_t>(pdu.num_ant_ports),
                           .iq_matrix_report   = pdu.enable_normalized_iq_matrix_report,
                           .positioning_report = pdu.enable_positioning_report});
 }
@@ -455,7 +454,7 @@ void fapi_dummy_sector::notify_pucch_indication(slot_point slot, const pucch_ind
     fapi::uci_pucch_pdu_format_0_1_builder builder_pdu = builder.add_format_0_1_pucch_pdu();
     builder_pdu.set_ue_specific_parameters(pucch.rnti).set_format(pucch.format);
     builder_pdu.set_time_advance(time_advance).set_metrics_parameters(ul_sinr_dB, std::nullopt, std::nullopt);
-    if (pucch.sr_present) {
+    if (pucch.sr_bits.value() > 0) {
       builder_pdu.set_sr_parameters(false);
     }
     if (pucch.harq_ack_bits.value() > 0) {
@@ -499,7 +498,8 @@ void fapi_dummy_sector::notify_srs_indication(slot_point slot, const srs_ind_con
   builder_pdu.set_metrics_parameters(time_advance);
 
   if (srs.iq_matrix_report) {
-    unsigned           nof_tx_ports = std::clamp(srs.nof_tx_ports, 1U, unsigned(srs_constants::max_nof_tx_ports));
+    unsigned nof_tx_ports =
+        std::clamp(static_cast<unsigned>(srs.nof_tx_ports), 1U, static_cast<unsigned>(srs_constants::max_nof_tx_ports));
     srs_channel_matrix matrix(nof_rx_antennas, nof_tx_ports);
     for (unsigned i_port = 0, e = std::min(nof_rx_antennas, nof_tx_ports); i_port != e; ++i_port) {
       matrix.set_coefficient(cf_t(1.0F, 0.0F), i_port, i_port);

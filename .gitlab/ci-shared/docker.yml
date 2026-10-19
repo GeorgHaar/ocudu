@@ -224,6 +224,8 @@ variables:
 
       generate_vuln_predicate() {
         # cosign --type vuln expects the CosignVulnPredicate schema, raw grype JSON is silently dropped
+        # Matches grype ignores stay in grype-report.json only. Kernel header packages carry thousands
+        # of them, enough to make the attestation too large for the transparency log.
         jq -c -n \
           --slurpfile report grype-report.json \
           --arg job_url "${CI_JOB_URL}" \
@@ -236,7 +238,7 @@ variables:
               uri: ("pkg:github/anchore/grype@" + $report[0].descriptor.version),
               version: $report[0].descriptor.version,
               db: {uri: ($report[0].descriptor.db.status.from // ""), version: ($report[0].descriptor.db.status.schemaVersion // "")},
-              result: $report[0]
+              result: ($report[0] | del(.ignoredMatches))
             },
             metadata: {scanStartedOn: $started, scanFinishedOn: $finished}
           }' > vuln-predicate.json

@@ -109,6 +109,9 @@ variables:
       OUTPUT="type=image,name=${IMAGE_NAME_VERSION}"
       if [ "${MODE}" = "publish" ]; then
         OUTPUT="${OUTPUT},push=true"
+      elif [ "${MODE}" = "test" ]; then
+        # Test builds are not pushed, so the scan reads them from an OCI archive
+        OUTPUT="type=oci,dest=image.tar"
       fi
 
     # Check if the image must be built
@@ -146,6 +149,7 @@ variables:
     # Attestation functions
     - |
       generate_container_spdx() {
+        local source=$1
         # Skip package-owned file entries: dpkg file lists inflate the SPDX beyond 19MB, which
         # breaks cosign attest. The syft JSON is kept so grype can scan the same inventory.
         SYFT_REGISTRY_AUTH_USERNAME="${REGISTRY_AUTH_USERNAME}" \
@@ -153,7 +157,7 @@ variables:
           SYFT_REGISTRY_AUTH_AUTHORITY="${REGISTRY_AUTH_SERVER}" \
           SYFT_FILE_METADATA_SELECTION=none \
           SYFT_RELATIONSHIPS_PACKAGE_FILE_OWNERSHIP=false \
-          syft registry:${IMAGE_DIGEST} \
+          syft ${source} \
           -o syft-json=container.syft.json \
           -o spdx-json=container.spdx.json
 
@@ -245,6 +249,31 @@ variables:
           }' > vuln-predicate.json
       }
 
+      scan_container() {
+        # Scan the syft inventory instead of pulling the image again, so the report matches the SBOM
+        grype sbom:container.syft.json -o json > grype-report.json
+        echo "=== Vulnerability summary ==="
+        jq -r '.matches[] | .vulnerability.severity' grype-report.json | sort | uniq -c | awk '{printf "  %s: %d\n", $2, $1}'
+        echo "  Total: $(jq '.matches | length' grype-report.json)"
+      }
+
+      check_fixable_critical() {
+        echo "=== Checking fixable critical vulnerabilities ==="
+        FIXABLE_CRITICAL=$(jq '[.matches[] | select(.vulnerability.severity == "Critical" and .vulnerability.fix.state == "fixed")]' grype-report.json)
+        if [ "$(echo "${FIXABLE_CRITICAL}" | jq 'length')" -gt 0 ]; then
+          echo "${FIXABLE_CRITICAL}" | jq -r '.[] | "  \(.vulnerability.id) \(.artifact.name) \(.artifact.version) -> \(.vulnerability.fix.versions | join(","))"'
+          case ",${CI_MERGE_REQUEST_LABELS:-}," in
+            *",ci-ignore-vulnerabilities,"*)
+              echo "WARNING: Vulnerability failure threshold disabled by ci-ignore-vulnerabilities label"
+              ;;
+            *)
+              echo "Fixable critical vulnerabilities found" >&2
+              exit 1
+              ;;
+          esac
+        fi
+      }
+
     # Attestation functions
     - |
       if [ ${MODE} = "publish" ]; then
@@ -276,7 +305,7 @@ variables:
         cosign clean --type=attestation --force ${IMAGE_DIGEST}
 
         echo "=== Generating container SPDX ==="
-        generate_container_spdx
+        generate_container_spdx "registry:${IMAGE_DIGEST}"
         echo "=== Attesting container SPDX ==="
         attest_spdx container.spdx.json spdxjson
 
@@ -287,34 +316,32 @@ variables:
         fi
 
         if [ "${GRYPE_SKIP}" != "true" ]; then
-          # Scan the syft inventory instead of pulling the image again, so the report matches the attested SBOM
           echo "=== Running grype CVE scan on ${IMAGE_DIGEST} ==="
           SCAN_STARTED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           # Keep every finding in the report, the failure threshold is applied after attesting it
-          grype sbom:container.syft.json -o json > grype-report.json
-          echo "=== Vulnerability summary ==="
-          jq -r '.matches[] | .vulnerability.severity' grype-report.json | sort | uniq -c | awk '{printf "  %s: %d\n", $2, $1}'
-          echo "  Total: $(jq '.matches | length' grype-report.json)"
+          scan_container
           echo "=== Attesting grype report ==="
           generate_vuln_predicate "${SCAN_STARTED}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           attest_image vuln-predicate.json vuln
           publish_signed_file grype-report.json
 
-          echo "=== Checking fixable critical vulnerabilities ==="
-          FIXABLE_CRITICAL=$(jq '[.matches[] | select(.vulnerability.severity == "Critical" and .vulnerability.fix.state == "fixed")]' grype-report.json)
-          if [ "$(echo "${FIXABLE_CRITICAL}" | jq 'length')" -gt 0 ]; then
-            echo "${FIXABLE_CRITICAL}" | jq -r '.[] | "  \(.vulnerability.id) \(.artifact.name) \(.artifact.version) -> \(.vulnerability.fix.versions | join(","))"'
-            case ",${CI_MERGE_REQUEST_LABELS:-}," in
-              *",ci-ignore-vulnerabilities,"*)
-                echo "WARNING: Vulnerability failure threshold disabled by ci-ignore-vulnerabilities label"
-                ;;
-              *)
-                echo "Fixable critical vulnerabilities found" >&2
-                exit 1
-                ;;
-            esac
-          fi
+          check_fixable_critical
         fi
+      fi
+
+    # Scan test builds
+    - |
+      if [ "${MODE}" = "test" ] && [ "${GRYPE_SKIP}" != "true" ]; then
+        # Same inventory and gate as a publish, so a merge request fails where the publish would
+        SCAN_SOURCE="oci-archive:image.tar"
+        if [ "${SKIP_IMAGE_BUILD}" = "true" ]; then
+          SCAN_SOURCE="registry:${IMAGE_NAME_VERSION}"
+        fi
+        echo "=== Generating container SPDX ==="
+        generate_container_spdx "${SCAN_SOURCE}"
+        echo "=== Running grype CVE scan on ${SCAN_SOURCE} ==="
+        scan_container
+        check_fixable_critical
       fi
 
 .docker manifest:

@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "ptrs_pdsch_generator_impl.h"
+#include "../dmrs_helper.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/phy/support/resource_grid_mapper.h"
 #include "ocudu/ran/ptrs/ptrs_pattern.h"
@@ -42,10 +43,10 @@ void ptrs_pdsch_generator_generic_impl::generate(resource_grid_writer& grid, con
   ptrs_pattern pattern = get_ptrs_pattern(ptrs_pattern_config);
 
   // Count number of RB containing PT-RS.
-  unsigned nof_prb_ptrs = divide_ceil(pattern.rb_end - pattern.rb_begin, pattern.rb_stride);
+  unsigned nof_prb_ptrs = pattern.rb_mask.count();
 
-  // Prepare temporary sequence.
-  dmrs_sequence.resize(config.rb_mask.count() * nof_dmrs_prb);
+  // Prepare temporary sequences.
+  dmrs_sequence.resize(nof_prb_ptrs * nof_dmrs_prb);
   sequence.resize(1, nof_prb_ptrs);
 
   // Extract parameters to calculate the PRG initial state.
@@ -58,10 +59,20 @@ void ptrs_pdsch_generator_generic_impl::generate(resource_grid_writer& grid, con
   // Calculate initial sequence state.
   unsigned c_init = ((nsymb * nslot + l_0 + 1) * (2 * nidnscid + 1) * pow2(17) + (2 * nidnscid + nscid)) % pow2(31);
 
-  // Generate sequence for all the symbols.
+  // Generate the DM-RS sequence for the RBs that contain PT-RS only.
   pseudo_random_gen->init(c_init);
-  pseudo_random_gen->advance(2 * (pattern.rb_begin - config.reference_point_k_rb) * nof_dmrs_prb);
-  pseudo_random_gen->generate(dmrs_sequence, M_SQRT1_2 * config.amplitude);
+  dmrs_sequence_generate(dmrs_sequence,
+                         *pseudo_random_gen,
+                         M_SQRT1_2 * config.amplitude,
+                         config.reference_point_k_rb,
+                         nof_dmrs_prb,
+                         pattern.rb_mask);
+
+  // Select the DM-RS sample at the PT-RS subcarrier of each RB.
+  span<cf_t> sequence_slice = sequence.get_slice(0);
+  for (unsigned i_rb = 0; i_rb != nof_prb_ptrs; ++i_rb) {
+    sequence_slice[i_rb] = dmrs_sequence[i_rb * nof_dmrs_prb + pattern.re_offset[0] / 2];
+  }
 
   // Precoding and beamforming of the transmission.
   const precoding_beamforming_configuration& precoding = config.precoding_and_beamforming;
@@ -84,33 +95,20 @@ void ptrs_pdsch_generator_generic_impl::generate(resource_grid_writer& grid, con
     layer_precoding.set_prg({layer_mimo, prg_composite.beams}, i_prg);
   }
 
-  // Select samples from the sequence.
-  span<cf_t> sequence_slice = sequence.get_slice(0);
-  for (unsigned i_re = 0; i_re != nof_prb_ptrs; ++i_re) {
-    sequence_slice[i_re] = dmrs_sequence[i_re * nof_dmrs_prb * pattern.rb_stride + pattern.re_offset[0] / 2];
-  }
+  // Prepare the RE mapping pattern, the PT-RS symbol is set at each iteration.
+  re_pattern map_pattern;
+  map_pattern.symbols.resize(MAX_NSYMB_PER_SLOT);
+  map_pattern.crb_mask = pattern.rb_mask;
+  map_pattern.re_mask.resize(NOF_SUBCARRIERS_PER_RB);
+  map_pattern.re_mask.set(pattern.re_offset[0]);
 
-  // Iterate all the OFDM symbols of the transmission.
-  for (unsigned i_symbol = config.time_allocation.start(), i_symbol_end = config.time_allocation.stop();
-       i_symbol != i_symbol_end;
-       ++i_symbol) {
-    // Skip if the OFDM symbol does not contain PT-RS.
-    if (!pattern.symbol_mask.test(i_symbol)) {
-      continue;
-    }
-
-    // Prepare RE mapping pattern for the symbol.
-    re_pattern map_pattern;
-    map_pattern.crb_mask.resize(config.rb_mask.size());
-    map_pattern.symbols.resize(MAX_NSYMB_PER_SLOT);
+  // Iterate the OFDM symbols that contain PT-RS.
+  pattern.symbol_mask.for_each(0, pattern.symbol_mask.size(), [&](unsigned i_symbol) {
     map_pattern.symbols.set(i_symbol);
-    for (unsigned i_prb = pattern.rb_begin; i_prb < pattern.rb_end; i_prb += pattern.rb_stride) {
-      map_pattern.crb_mask.set(i_prb);
-    }
-    map_pattern.re_mask.resize(NOF_SUBCARRIERS_PER_RB);
-    map_pattern.re_mask.set(pattern.re_offset[0]);
 
     // Map sequence in the resource grid.
     mapper->map(grid, sequence, map_pattern, layer_precoding);
-  }
+
+    map_pattern.symbols.reset(i_symbol);
+  });
 }

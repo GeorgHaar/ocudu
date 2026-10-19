@@ -122,11 +122,6 @@ error_type<std::string> pdsch_processor_validator_impl::is_valid(const pdsch_pro
         get_max_nof_cdm_groups_without_data(dmrs_config)));
   }
 
-  // Only contiguous allocation is currently supported.
-  if (!pdu.freq_alloc.is_vrb_mask_contiguous()) {
-    return make_unexpected("Only contiguous VRB mask allocation is currently supported.");
-  }
-
   // The limited buffer for rate matching size must not be zero.
   if (pdu.tbs_lbrm == 0_bytes) {
     return make_unexpected("Invalid LBRM size (0 bytes).");

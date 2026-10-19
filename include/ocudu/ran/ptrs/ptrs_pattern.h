@@ -40,12 +40,8 @@ struct ptrs_pattern_configuration {
 
 /// PT-RS allocation pattern in a resource grid.
 struct ptrs_pattern {
-  /// Resource block where the pattern begins in frequency domain, the range is {0, ..., 274}.
-  unsigned rb_begin;
-  /// Resource block where the pattern ends in frequency domain (excluded), the range is {1, ..., 275}.
-  unsigned rb_end;
-  /// Resource block index jump.
-  unsigned rb_stride;
+  /// Frequency domain allocation as CRB mask. The active entries mark the PRBs that carry PT-RS.
+  crb_bitmap rb_mask;
   /// RE used within the RB that contains PT-RS for a certain port.
   static_vector<uint8_t, ptrs_constants::max_nof_ports> re_offset;
   /// Symbol mask. True entries indicate the symbols affected by the pattern within the slot.

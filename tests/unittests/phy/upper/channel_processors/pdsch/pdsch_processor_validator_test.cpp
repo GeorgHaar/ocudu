@@ -115,12 +115,6 @@ const std::vector<test_case_t> pdsch_processor_validator_test_data = {
      R"(The number of CDM groups without data \(i\.e\., 3\) must not exceed the maximum supported by the DM-RS type \(i\.e\., 2\)\.)"},
     {[] {
        pdsch_processor::pdu_t pdu = base_pdu;
-       pdu.freq_alloc             = rb_allocation::make_type0({1, 0, 1, 0, 1, 0});
-       return pdu;
-     },
-     R"(Only contiguous VRB mask allocation is currently supported\.)"},
-    {[] {
-       pdsch_processor::pdu_t pdu = base_pdu;
        pdu.tbs_lbrm               = units::bytes(0);
        return pdu;
      },

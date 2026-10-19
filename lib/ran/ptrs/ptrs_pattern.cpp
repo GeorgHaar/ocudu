@@ -38,13 +38,10 @@ static span<const uint8_t> get_k_re_ref(dmrs_config_type dmrs_type, ptrs_re_offs
 
 ptrs_pattern ocudu::get_ptrs_pattern(const ptrs_pattern_configuration& pattern_config)
 {
-  ocudu_assert(pattern_config.rb_mask.is_contiguous(), "Only contiguous allocations are supported.");
-  int rb_begin = pattern_config.rb_mask.find_lowest();
-  int rb_end   = pattern_config.rb_mask.find_highest();
-  ocudu_assert((rb_begin >= 0) && (rb_begin <= rb_end), "Invalid RB mask (i.e., {}).", pattern_config.rb_mask);
-
   // Count number of RB used for the transmission, parameter N_{RB}.
   unsigned N_rb = pattern_config.rb_mask.count();
+
+  ocudu_assert(N_rb > 0, "Invalid RB mask (i.e., {}).", pattern_config.rb_mask);
 
   // Obtain frequency density, parameter K_{PT-RS}.
   unsigned K_ptrs = to_underlying(pattern_config.freq_density);
@@ -67,7 +64,8 @@ ptrs_pattern ocudu::get_ptrs_pattern(const ptrs_pattern_configuration& pattern_c
 
   // Fill the PT-RS time domain allocation.
   // Step 1.
-  int i = 0, l_ref = pattern_config.time_allocation.start();
+  int i     = 0;
+  int l_ref = pattern_config.time_allocation.start();
 
   // Iterate Step 2.
   while (l_ref + i * L_ptrs < pattern_config.time_allocation.stop()) {
@@ -89,9 +87,22 @@ ptrs_pattern ocudu::get_ptrs_pattern(const ptrs_pattern_configuration& pattern_c
   }
 
   // Return pattern.
-  return ptrs_pattern{.rb_begin    = k_rb_ref + rb_begin,
-                      .rb_end      = rb_begin + N_rb,
-                      .rb_stride   = K_ptrs,
-                      .re_offset   = {k_re_ref.begin(), k_re_ref.end()},
-                      .symbol_mask = symbol_mask};
+  ptrs_pattern out = {
+      .rb_mask     = crb_bitmap(pattern_config.rb_mask.size()),
+      .re_offset   = {k_re_ref.begin(), k_re_ref.end()},
+      .symbol_mask = symbol_mask,
+  };
+
+  // Activate only the RBs that contain PT-RS.
+  // The RBs allocated for the transmission are numbered from 0 to N_rb - 1 (TS38.211 Section 7.4.1.2.2). The PT-RS
+  // RBs are the allocated RBs with index k_rb_ref + i * K_ptrs, regardless of gaps in the RB mask.
+  pattern_config.rb_mask.for_each(
+      0, pattern_config.rb_mask.size(), [K_ptrs, k_rb_ref, &out, i_rb = 0U](unsigned i_crb) mutable {
+        if ((i_rb >= k_rb_ref) && ((i_rb - k_rb_ref) % K_ptrs == 0)) {
+          out.rb_mask.set(i_crb);
+        }
+        ++i_rb;
+      });
+
+  return out;
 }

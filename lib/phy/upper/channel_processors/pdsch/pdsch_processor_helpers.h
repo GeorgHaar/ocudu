@@ -36,15 +36,17 @@ pdsch_process_dmrs(resource_grid_writer& grid, dmrs_pdsch_processor& dmrs, const
   }
 
   // Prepare DM-RS configuration.
-  dmrs_pdsch_processor::config_t dmrs_config = {.slot                 = pdu.slot,
-                                                .reference_point_k_rb = dmrs_reference_point_k_rb,
-                                                .type                 = pdu.dmrs,
-                                                .scrambling_id        = pdu.scrambling_id,
-                                                .n_scid               = pdu.n_scid,
-                                                .amplitude = convert_dB_to_amplitude(-pdu.ratio_pdsch_dmrs_to_sss_dB),
-                                                .symbols_mask              = pdu.dmrs_symbol_mask,
-                                                .rb_mask                   = rb_mask_bitset,
-                                                .precoding_and_beamforming = pdu.precoding_and_beamforming};
+  dmrs_pdsch_processor::config_t dmrs_config = {
+      .slot                      = pdu.slot,
+      .reference_point_k_rb      = dmrs_reference_point_k_rb,
+      .type                      = pdu.dmrs,
+      .scrambling_id             = pdu.scrambling_id,
+      .n_scid                    = pdu.n_scid,
+      .amplitude                 = convert_dB_to_amplitude(-pdu.ratio_pdsch_dmrs_to_sss_dB),
+      .symbols_mask              = pdu.dmrs_symbol_mask,
+      .rb_mask                   = rb_mask_bitset,
+      .precoding_and_beamforming = pdu.precoding_and_beamforming,
+  };
 
   // Put DM-RS.
   dmrs.map(grid, dmrs_config);
@@ -141,17 +143,15 @@ inline unsigned pdsch_compute_nof_data_re(const pdsch_processor::pdu_t& pdu)
         .freq_density     = ptrs_config.freq_density,
         .time_density     = ptrs_config.time_density,
         .re_offset        = ptrs_config.re_offset,
-        .nof_ports        = 1};
+        .nof_ports        = 1,
+    };
 
     // Calculate PT-RS pattern and convert it to an RE pattern.
     ptrs_pattern ptrs_reserved_pattern = get_ptrs_pattern(ptrs_pattern_config);
 
     re_pattern ptrs_reserved_re_pattern;
-    for (unsigned i_prb = ptrs_reserved_pattern.rb_begin; i_prb < ptrs_reserved_pattern.rb_end;
-         i_prb += ptrs_reserved_pattern.rb_stride) {
-      ptrs_reserved_re_pattern.crb_mask.set(i_prb);
-    }
-    ptrs_reserved_re_pattern.symbols = ptrs_reserved_pattern.symbol_mask;
+    ptrs_reserved_re_pattern.crb_mask = ptrs_reserved_pattern.rb_mask;
+    ptrs_reserved_re_pattern.symbols  = ptrs_reserved_pattern.symbol_mask;
     ptrs_reserved_re_pattern.re_mask.set(ptrs_reserved_pattern.re_offset.front());
 
     reserved.merge(ptrs_reserved_re_pattern);

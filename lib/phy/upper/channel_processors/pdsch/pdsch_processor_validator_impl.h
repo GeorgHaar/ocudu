@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include "ocudu/phy/upper/channel_processors/pdsch/factories.h"
 #include "ocudu/phy/upper/channel_processors/pdsch/pdsch_processor.h"
 
 namespace ocudu {

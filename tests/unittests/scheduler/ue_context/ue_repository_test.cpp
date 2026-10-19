@@ -277,6 +277,15 @@ TEST_F(cfra_ue_repository_test, cfra_msg3_acked_transitions_to_conres_completed)
   ASSERT_FALSE(is_in_fallback(pcell_st.config_st, pcell_st.conres_st));
 }
 
+TEST_F(cfra_ue_repository_test, crnti_ce_in_pending_cfra_transitions_to_conres_completed)
+{
+  du_ue_index_t ue_idx = add_ue(true, true);
+  ASSERT_TRUE(ue_db.crnti_ce_received(ue_idx));
+  const ue_pcell_state& pcell_st = ue_db[ue_idx].get_pcell().get_pcell_state();
+  ASSERT_EQ(pcell_st.conres_st, ue_conres_state::conres_completed);
+  ASSERT_FALSE(is_in_fallback(pcell_st.config_st, pcell_st.conres_st));
+}
+
 TEST_F(cfra_ue_repository_test, cfra_msg3_acked_is_noop_when_not_in_pending_cfra)
 {
   du_ue_index_t ue_idx = add_ue(false, false);

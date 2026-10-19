@@ -407,14 +407,17 @@ bool cell_group_event_handler_impl::handle_crnti_ce_received(du_ue_index_t ue_in
     return false;
   }
 
+  const bool was_pending_cfra = ue_cc.get_pcell_state().conres_st == ue_conres_state::pending_cfra;
   if (ue_db.crnti_ce_received(ue_index)) {
     // C-RNTI CE received: contention resolution completed for this F1AP-created UE.
 
-    // Initiate UCI and SRS schedulers with the confirmed UE resources.
-    uci_sched.add_ue(ue_cc.cfg());
-    srs_sched.add_ue(ue_cc.cfg());
+    // Initiate UCI and SRS schedulers with the confirmed UE resources. CFRA UEs already have them from creation.
+    if (not was_pending_cfra) {
+      uci_sched.add_ue(ue_cc.cfg());
+      srs_sched.add_ue(ue_cc.cfg());
+    }
 
-    if (cg_sched != nullptr) {
+    if (cg_sched != nullptr and not was_pending_cfra) {
       cg_sched->add_reconf_ue(ue_cc.cfg(), nullptr);
     }
 

@@ -442,6 +442,14 @@ bool ue_repository::update_ue_fsm(du_ue_index_t ue_index, ue_fsm_config_event ev
       u.deactivate();
       return true;
     case events::crnti_ce_received:
+      if (con_st == ue_conres_state::pending_cfra) {
+        // The Msg3 of the CFRA failed and the UE fell back to contention-based RA with a C-RNTI CE (TS 38.321, 5.1.5).
+        con_st = ue_conres_state::conres_completed;
+        logger.debug("ue={} rnti={}: C-RNTI CE received while CFRA pending, contention resolution completed",
+                     ue_index,
+                     ue_cc.rnti());
+        break;
+      }
       if (con_st != ue_conres_state::pending_conres_crnti_ce) {
         // C-RNTI CE not relevant for contention resolution in this context.
         return false;

@@ -972,11 +972,8 @@ void cell_event_manager::handle_error_indication(slot_point sl_tx, scheduler_slo
   auto handle_error_impl = [this, sl_tx, event]() {
     // Handle Error Indication.
 
-    // Forward to the cell group, so that the configured grant scheduler can drop the CRCs it was expecting for a
-    // discarded CG PUSCH and retry an activation whose PDCCH was discarded. Passed unconditionally, as those are two
-    // distinct outcomes of the error indication. This is done before the slot history lookup below, as the configured
-    // grant scheduler does not need the slot result and must also learn about an error indication that arrives after
-    // the slot has left the history.
+    // Forward to the cell group (to the CG scheduler): this is done before the slot history lookup below, as the
+    // configured grant scheduler does not need the slot result.
     ue_ev_handler.handle_error_indication(sl_tx, event);
 
     const cell_slot_resource_allocator* prev_slot_result = res_grid.get_history(sl_tx);

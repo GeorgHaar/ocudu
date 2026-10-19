@@ -86,15 +86,10 @@ public:
                                      phy_time_unit              n_ta_diff,
                                      float                      ul_sinr) = 0;
 
-  /// Notify the scheduler of an acked Configured Grant activation of a UE of the cell group.
-  /// \remark This notification can be come either from a MAC-CE Configured Grant Confirmation, or from the reception of
-  /// a non-DTX CRC.
+  /// Forwards a cell group's UE's Configured Grant activation complete indication to the scheduler.
   virtual void handle_cg_activation_complete_indication(du_ue_index_t ue_index) = 0;
 
-  /// \brief Apply to the cell group an error indication that a cell received for one of its past slots.
-  ///
-  /// The configured grant scheduler needs it to tell apart a CG PUSCH that the UE did not transmit from one that never
-  /// reached the PHY, and to retry an activation whose PDCCH was discarded.
+  /// Forwards an error indication to the cell group for a past slot of the cell.
   virtual void handle_error_indication(slot_point sl_tx, scheduler_slot_handler::error_outcome event) = 0;
 };
 

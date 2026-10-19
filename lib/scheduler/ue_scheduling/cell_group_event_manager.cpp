@@ -398,6 +398,9 @@ void cell_group_event_handler_impl::handle_slice_reconfiguration(const du_cell_s
 
 void cell_group_event_handler_impl::handle_cg_activation_complete_indication(du_ue_index_t ue_index)
 {
+  // This notification can come either from a MAC-CE Configured Grant Confirmation, or from the reception of a non-DTX
+  // CRC.
+
   if (cg_sched == nullptr) {
     // CG Confirmation received in a cell with no configured grants configured.
     logger.warning("ue={}: Discarding CG confirmation. Cause: No CG configured in this cell", ue_index);

@@ -35,8 +35,14 @@ protected:
     return req;
   }
 
+  // Returns a new C-RNTI on each call. A UE holds at most one resource per slot offset, so the tests that drain the
+  // pool must request each resource for a different UE.
+  rnti_t next_rnti() { return to_rnti(0x4700 + nof_drain_ues++); }
+
   static constexpr rnti_t ue1 = to_rnti(0x4601);
   static constexpr rnti_t ue2 = to_rnti(0x4602);
+
+  unsigned nof_drain_ues = 0;
 
   cell_config_builder_params              builder_params;
   test_helpers::test_sched_config_manager cfg_mng;
@@ -61,7 +67,7 @@ TEST_F(cg_type2_resource_manager_test, resources_of_the_same_slot_offset_do_not_
   ASSERT_TRUE(first.has_value()) << "no CG Type 2 resource was available at any slot offset";
 
   std::vector<cg_type2_resource> allocated{first.value()};
-  while (auto res = res_mng.request_resource(cg_offset, ue1)) {
+  while (auto res = res_mng.request_resource(cg_offset, next_rnti())) {
     allocated.push_back(res.value());
   }
   ASSERT_GT(allocated.size(), 1U) << "only one CG resource per slot offset; test cannot detect an overlap";
@@ -90,7 +96,7 @@ TEST_F(cg_type2_resource_manager_test, resource_crbs_are_stable_across_slot_offs
 {
   std::map<cg_type2_resource::res_id, crb_interval> crbs_of_id;
   for (unsigned cg_offset = 0; cg_offset != 40; ++cg_offset) {
-    while (auto res = res_mng.request_resource(cg_offset, ue1)) {
+    while (auto res = res_mng.request_resource(cg_offset, next_rnti())) {
       const auto it = crbs_of_id.find(res->id);
       if (it == crbs_of_id.end()) {
         crbs_of_id.emplace(res->id, res->crbs);
@@ -113,7 +119,7 @@ TEST_F(cg_type2_resource_manager_test, reset_returns_every_outstanding_resource_
   // Drain the pool completely, as a cell holding activated CG UEs would.
   unsigned nof_allocated = 0;
   for (unsigned cg_offset = 0; cg_offset != 40; ++cg_offset) {
-    while (res_mng.request_resource(cg_offset, ue1).has_value()) {
+    while (res_mng.request_resource(cg_offset, next_rnti()).has_value()) {
       ++nof_allocated;
     }
   }
@@ -127,7 +133,7 @@ TEST_F(cg_type2_resource_manager_test, reset_returns_every_outstanding_resource_
   // The reclaimed resources must be handed out again, at the same slot offsets and in the same number.
   unsigned nof_reallocated = 0;
   for (unsigned cg_offset = 0; cg_offset != 40; ++cg_offset) {
-    while (res_mng.request_resource(cg_offset, ue1).has_value()) {
+    while (res_mng.request_resource(cg_offset, next_rnti()).has_value()) {
       ++nof_reallocated;
     }
   }
@@ -199,6 +205,33 @@ TEST_F(cg_type2_resource_manager_test, deallocating_a_free_resource_does_not_gro
   // Second deallocation of the same resource: rejected, so the pool stays at its full size.
   res_mng.deallocate_resource(cg_offset, res->id, ue1);
   EXPECT_EQ(nof_free_at_start, res_mng.get_nof_free_resources());
+}
+
+/// A UE whose activation starts twice requests a resource twice at the same slot offset. It must get back the
+/// resource it already holds: a second one would leak, as the UE only ever returns one.
+TEST_F(cg_type2_resource_manager_test, repeated_request_by_the_same_ue_returns_the_resource_it_holds)
+{
+  std::optional<cg_type2_resource> res;
+  unsigned                         cg_offset = 0;
+  for (; cg_offset != 40; ++cg_offset) {
+    res = res_mng.request_resource(cg_offset, ue1);
+    if (res.has_value()) {
+      break;
+    }
+  }
+  ASSERT_TRUE(res.has_value()) << "no CG Type 2 resource was available at any slot offset";
+
+  const unsigned nof_free_while_held = res_mng.get_nof_free_resources();
+
+  const std::optional<cg_type2_resource> res2 = res_mng.request_resource(cg_offset, ue1);
+  ASSERT_TRUE(res2.has_value());
+  EXPECT_EQ(res->id, res2->id);
+  EXPECT_EQ(res->crbs, res2->crbs);
+  EXPECT_EQ(nof_free_while_held, res_mng.get_nof_free_resources());
+
+  // A single deallocation returns the pool to its full size.
+  res_mng.deallocate_resource(cg_offset, res->id, ue1);
+  EXPECT_EQ(nof_free_while_held + 1, res_mng.get_nof_free_resources());
 }
 
 /// A deallocated resource must become available again at the same slot offset.

@@ -56,19 +56,30 @@ std::optional<cg_type2_resource> cg_type2_resource_manager::request_resource(uns
 
   // Hand out the highest free id first.
   // TODO: optimize the way resources are allocated.
-  auto it = std::find_if(res_at_offset.rbegin(), res_at_offset.rend(), [](const cg_res_occupancy& res) {
-    return not res.owner.has_value();
-  });
-  if (it == res_at_offset.rend()) {
+  auto free_it = res_at_offset.rend();
+  for (auto it = res_at_offset.rbegin(); it != res_at_offset.rend(); ++it) {
+    if (it->owner == rnti) {
+      // Handing out a second resource would leak the first one, as the UE only ever returns one.
+      logger.error("rnti={}: CG resource requested at CG time offset={}, but the UE already holds id={} there",
+                   rnti,
+                   cg_offset,
+                   it->id);
+      return cg_resource_list[it->id];
+    }
+    if (free_it == res_at_offset.rend() and not it->owner.has_value()) {
+      free_it = it;
+    }
+  }
+  if (free_it == res_at_offset.rend()) {
     return std::nullopt;
   }
 
-  it->owner.emplace(rnti);
+  free_it->owner.emplace(rnti);
 
   ocudu_assert(nof_free_resources != 0, "Unexpected nof of free CG type2 resources");
   --nof_free_resources;
   // Resources are stored in order of ID.
-  return cg_resource_list[it->id];
+  return cg_resource_list[free_it->id];
 }
 
 unsigned cg_type2_resource_manager::get_nof_free_resources() const

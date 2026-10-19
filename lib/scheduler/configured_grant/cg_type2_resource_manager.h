@@ -33,6 +33,9 @@ public:
   explicit cg_type2_resource_manager(const cell_configuration& cell_cfg_);
 
   /// \brief Reserves a CG resource for \c rnti at the given slot offset.
+  ///
+  /// If \c rnti already holds a resource at that slot offset, an error is logged and that resource is returned, so that
+  /// a repeated request does not take a second one.
   /// \param[in] cg_offset Slot offset within the CG period at which the resource is to be used.
   /// \param[in] rnti C-RNTI of the UE the resource is reserved for.
   /// \return The reserved resource, or nullopt if no resource is free at that slot offset.

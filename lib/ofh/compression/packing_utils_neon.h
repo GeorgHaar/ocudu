@@ -74,15 +74,15 @@ inline void pack_prb_9b_big_endian(span<uint8_t> comp_prb_buffer, int16x8x3_t re
   uint8_t* data = comp_prb_buffer.data();
 
   // Store first 9 bytes of every register storing packed bytes.
-  vst1_u64(reinterpret_cast<uint64_t*>(data), vreinterpret_u64_u8(vget_low_u8(res_packed_bytes_0_u8)));
+  vst1_u8(data, vget_low_u8(res_packed_bytes_0_u8));
   vst1q_lane_u8(data + bytes_per_half_reg, res_packed_bytes_0_u8, bytes_per_half_reg);
   data += bytes_per_half_reg + 1;
 
-  vst1_u64(reinterpret_cast<uint64_t*>(data), vreinterpret_u64_u8(vget_low_u8(res_packed_bytes_1_u8)));
+  vst1_u8(data, vget_low_u8(res_packed_bytes_1_u8));
   vst1q_lane_u8(data + bytes_per_half_reg, res_packed_bytes_1_u8, bytes_per_half_reg);
   data += bytes_per_half_reg + 1;
 
-  vst1_u64(reinterpret_cast<uint64_t*>(data), vreinterpret_u64_u8(vget_low_u8(res_packed_bytes_2_u8)));
+  vst1_u8(data, vget_low_u8(res_packed_bytes_2_u8));
   vst1q_lane_u8(data + bytes_per_half_reg, res_packed_bytes_2_u8, bytes_per_half_reg);
 }
 

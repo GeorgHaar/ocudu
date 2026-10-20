@@ -5,5 +5,5 @@
 
 add_executable(fapi_dummy_test fapi_dummy_test.cpp)
 target_include_directories(fapi_dummy_test PRIVATE ${CMAKE_SOURCE_DIR}/lib/fapi_adaptor/phy/dummy)
-target_link_libraries(fapi_dummy_test PRIVATE ocudu_fapi_dummy ocudu_support ocudulog gtest)
+target_link_libraries(fapi_dummy_test PRIVATE ocudu_fapi_phy_dummy_adaptor ocudu_support ocudulog gtest)
 gtest_discover_tests(fapi_dummy_test)

@@ -232,8 +232,10 @@ void fapi_dummy_sector::process_slot_boundary(slot_point_extended               
       notify_ul_indications(ul_slot, *context);
     }
   }
-  // Each completed slot is consumed once, so a later slot mapped to the same entry cannot match it.
+  // The completed and late flags of a slot are consumed once, so a later slot mapped to the same entry cannot match
+  // them.
   completed_slot.reset();
+  late_slots[ul_slot.count() % late_slots.size()].reset();
 
   // Requests of a slot are only valid after its SLOT.indication, so older contexts stored for it are discarded.
   ul_repository.clear(notified_slot.count());

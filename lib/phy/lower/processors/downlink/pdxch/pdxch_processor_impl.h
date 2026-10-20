@@ -87,8 +87,11 @@ public:
   lower_phy_center_freq_controller& get_center_freq_control() override;
 
 private:
-  /// Maximum number of slots that can be concurrently modulated.
-  static constexpr unsigned max_slot_modulation_concurrency = 4;
+  /// \brief Maximum number of slots that can be concurrently modulated.
+  ///
+  /// It must divide the request pool size and be greater than the number of slots the TTI boundary is notified in
+  /// advance.
+  static constexpr unsigned max_slot_modulation_concurrency = 8;
 
   /// Buffer request pool alias.
   using buffer_request_pool = resource_request_pool<baseband_gateway_buffer_ptr>;

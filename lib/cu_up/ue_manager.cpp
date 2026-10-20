@@ -140,7 +140,6 @@ ue_context* ue_manager::add_ue(cu_up_e1_index_t e1_index, const ue_context_cfg& 
 
   // Create executor-specific timer factories
   timer_factory ue_dl_timer_factory   = {timers, ue_exec_mapper->dl_pdu_executor()};
-  timer_factory ue_ul_timer_factory   = {timers, ue_exec_mapper->ul_pdu_executor()};
   timer_factory ue_ctrl_timer_factory = {timers, ue_exec_mapper->ctrl_executor()};
 
   // Create UE object
@@ -153,7 +152,6 @@ ue_context* ue_manager::add_ue(cu_up_e1_index_t e1_index, const ue_context_cfg& 
                                                            std::move(ue_exec_mapper),
                                                            *ue_task_schedulers[new_idx],
                                                            ue_dl_timer_factory,
-                                                           ue_ul_timer_factory,
                                                            ue_ctrl_timer_factory,
                                                            f1u_gw,
                                                            ngu_session_mngr,

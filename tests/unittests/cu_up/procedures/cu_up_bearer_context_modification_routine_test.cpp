@@ -36,7 +36,6 @@ protected:
                                                                 task_sched,
                                                                 timers,
                                                                 timers,
-                                                                timers,
                                                                 f1u_gw,
                                                                 ngu_session_mngr,
                                                                 pdcp_if,

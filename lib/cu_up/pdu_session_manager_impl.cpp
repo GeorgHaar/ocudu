@@ -37,7 +37,6 @@ pdu_session_manager_impl::pdu_session_manager_impl(cu_up_ue_index_t             
   logger(dependencies.logger),
   ue_inactivity_timer(dependencies.ue_inactivity_timer),
   ue_dl_timer_factory(dependencies.ue_dl_timer_factory),
-  ue_ul_timer_factory(dependencies.ue_ul_timer_factory),
   ue_ctrl_timer_factory(dependencies.ue_ctrl_timer_factory),
   ngu_teid_allocator(dependencies.ngu_teid_allocator),
   xnu_teid_allocator(dependencies.xnu_teid_allocator),
@@ -342,8 +341,6 @@ drb_setup_result pdu_session_manager_impl::handle_drb_to_setup_item(pdu_session&
   pdcp_msg.tx_upper_cn                         = &new_drb->pdcp_tx_to_cu_up_mngr_adapter;
   pdcp_msg.rx_upper_dn                         = &new_drb->pdcp_to_sdap_adapter;
   pdcp_msg.rx_upper_cn                         = &new_drb->pdcp_rx_to_cu_up_mngr_adapter;
-  pdcp_msg.ue_dl_timer_factory                 = ue_dl_timer_factory;
-  pdcp_msg.ue_ul_timer_factory                 = ue_ul_timer_factory;
   pdcp_msg.ue_ctrl_timer_factory               = ue_ctrl_timer_factory;
   pdcp_msg.ue_dl_executor                      = &ue_dl_exec;
   pdcp_msg.ue_ul_executor                      = &ue_ul_exec;

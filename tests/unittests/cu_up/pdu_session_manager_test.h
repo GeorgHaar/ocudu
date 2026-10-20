@@ -57,7 +57,6 @@ protected:
                                                                                     ue_inactivity_timer,
                                                                                     timers_factory,
                                                                                     timers_factory,
-                                                                                    timers_factory,
                                                                                     *e1ap,
                                                                                     *f1u_gw,
                                                                                     *ngu_session_mngr,

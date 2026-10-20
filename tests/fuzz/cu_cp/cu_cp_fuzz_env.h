@@ -225,8 +225,6 @@ public:
     msg.tx_upper_cn            = this;
     msg.rx_upper_dn            = this;
     msg.rx_upper_cn            = this;
-    msg.ue_dl_timer_factory    = timers;
-    msg.ue_ul_timer_factory    = timers;
     msg.ue_ctrl_timer_factory  = timers;
     msg.ue_dl_executor         = &inline_executor;
     msg.ue_ul_executor         = &inline_executor;

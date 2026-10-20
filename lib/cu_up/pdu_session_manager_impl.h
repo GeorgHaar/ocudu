@@ -28,7 +28,6 @@ struct pdu_session_manager_dependencies {
   cu_up_ue_logger&              logger;
   unique_timer&                 ue_inactivity_timer;
   timer_factory                 ue_dl_timer_factory;
-  timer_factory                 ue_ul_timer_factory;
   timer_factory                 ue_ctrl_timer_factory;
   e1ap_interface&               e1ap;
   f1u_cu_up_gateway&            f1u_gw;
@@ -111,7 +110,6 @@ private:
   std::unique_ptr<token_bucket>                      ue_ambr_limiter;
   unique_timer&                                      ue_inactivity_timer;
   timer_factory                                      ue_dl_timer_factory;
-  timer_factory                                      ue_ul_timer_factory;
   timer_factory                                      ue_ctrl_timer_factory;
   gtpu_teid_pool&                                    ngu_teid_allocator;
   gtpu_teid_pool&                                    xnu_teid_allocator;

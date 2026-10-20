@@ -74,19 +74,13 @@ static constexpr float ul_sinr_dB = 30.0F;
 /// MAC subheader of a padding subPDU, as per TS 38.321, Section 6.2.1.
 static constexpr uint8_t padding_subheader = 0x3f;
 
-/// Returns the number of slots the uplink request repository holds.
-static unsigned get_repository_size(unsigned ul_indication_delay_slots, unsigned max_processing_delay_slots)
+/// Returns the minimum number of consecutive slots the per-slot tables hold.
+static unsigned get_min_nof_tracked_slots(unsigned ul_indication_delay_slots, unsigned max_processing_delay_slots)
 {
   // Margin expressed in number of slots for requests arriving around the slot boundary.
   static constexpr unsigned margin = 4;
 
-  // A power of two divides the number of slots of a slot point period, so slots map to entries without collisions when
-  // the slot count wraps around.
-  unsigned nof_slots = 1;
-  while (nof_slots < ul_indication_delay_slots + max_processing_delay_slots + margin) {
-    nof_slots *= 2;
-  }
-  return nof_slots;
+  return ul_indication_delay_slots + max_processing_delay_slots + margin;
 }
 
 fapi_dummy_sector::fapi_dummy_sector(const fapi_dummy_sector_config& config,
@@ -99,7 +93,9 @@ fapi_dummy_sector::fapi_dummy_sector(const fapi_dummy_sector_config& config,
   late_request_detection(config.late_request_detection),
   logger(logger_),
   executor(executor_),
-  completed_slots(get_repository_size(config.ul_indication_delay_slots, config.max_processing_delay_slots)),
+  // The tables round their size up to a power of two, which divides the number of slots of a slot point period, so
+  // slots map to entries without collisions when the slot count wraps around.
+  completed_slots(get_min_nof_tracked_slots(config.ul_indication_delay_slots, config.max_processing_delay_slots)),
   late_slots(completed_slots.size()),
   ul_repository(completed_slots.size()),
   padding_pdu(tbs_lbrm_default.value(), padding_subheader),
@@ -226,7 +222,7 @@ void fapi_dummy_sector::process_slot_boundary(slot_point_extended               
   // The notified slot is ahead of the current time by the processing delay, and the uplink indications are delayed with
   // respect to the reception time. Only slots whose requests completed in time hold valid uplink contexts.
   slot_point ul_slot = notified_slot - static_cast<int>(max_processing_delay_slots + ul_indication_delay_slots);
-  std::optional<slot_point>& completed_slot = completed_slots[ul_slot.count() % completed_slots.size()];
+  std::optional<slot_point>& completed_slot = completed_slots[ul_slot.count()];
   if (completed_slot == ul_slot) {
     if (auto context = ul_repository.read(ul_slot.count())) {
       notify_ul_indications(ul_slot, *context);
@@ -235,7 +231,7 @@ void fapi_dummy_sector::process_slot_boundary(slot_point_extended               
   // The completed and late flags of a slot are consumed once, so a later slot mapped to the same entry cannot match
   // them.
   completed_slot.reset();
-  late_slots[ul_slot.count() % late_slots.size()].reset();
+  late_slots[ul_slot.count()].reset();
 
   // Requests of a slot are only valid after its SLOT.indication, so older contexts stored for it are discarded.
   ul_repository.clear(notified_slot.count());
@@ -249,8 +245,8 @@ void fapi_dummy_sector::process_last_message(slot_point slot)
   }
 
   // The uplink contexts of a slot with late requests are discarded.
-  if (late_slots[slot.count() % late_slots.size()] != slot) {
-    completed_slots[slot.count() % completed_slots.size()] = slot;
+  if (late_slots[slot.count()] != slot) {
+    completed_slots[slot.count()] = slot;
   }
   mac_completed_slots = true;
   publish_progress(slot);
@@ -280,7 +276,7 @@ void fapi_dummy_sector::process_request(slot_point slot, fapi::message_type_id m
                  fmt::underlying(msg_id),
                  slot);
 
-  std::optional<slot_point>& late_slot = late_slots[slot.count() % late_slots.size()];
+  std::optional<slot_point>& late_slot = late_slots[slot.count()];
   if (late_slot == slot) {
     return;
   }

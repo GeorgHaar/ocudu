@@ -6,6 +6,7 @@
 #pragma once
 
 #include "ul_slot_ind_context.h"
+#include "ocudu/adt/circular_vector.h"
 #include "ocudu/adt/spmc_slot_ring.h"
 #include "ocudu/fapi/common/error_indication.h"
 #include "ocudu/fapi/p5/p5_requests_gateway.h"
@@ -198,10 +199,10 @@ private:
   bool mac_completed_slots = false;
   /// Last slot notified in a SLOT.indication.
   std::optional<slot_point> current_slot;
-  /// Slots whose requests completed in time while running, indexed like the uplink contexts.
-  std::vector<std::optional<slot_point>> completed_slots;
-  /// Slots with late requests while running, indexed like the uplink contexts.
-  std::vector<std::optional<slot_point>> late_slots;
+  /// Slots whose requests completed in time while running, indexed by slot count.
+  circular_vector<std::optional<slot_point>, true> completed_slots;
+  /// Slots with late requests while running, indexed by slot count.
+  circular_vector<std::optional<slot_point>, true> late_slots;
   /// Last processed slot boundary and running flag, packed for the clock.
   std::atomic<uint32_t> progress{invalid_progress};
   /// Uplink indication contexts pending notification, indexed by slot count.

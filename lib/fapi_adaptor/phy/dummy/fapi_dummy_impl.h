@@ -31,6 +31,8 @@ public:
 private:
   /// Minimum time between clock loop iterations.
   static constexpr std::chrono::microseconds minimum_loop_time{10};
+  /// Maximum time the free running clock waits for the sectors to complete a slot.
+  static constexpr std::chrono::milliseconds free_running_timeout{100};
 
   /// Runs the clock loop until a stop is requested.
   void clock_loop(const rt_stop_event_token& token);
@@ -51,10 +53,8 @@ private:
   const std::chrono::microseconds slot_duration;
   const unsigned                  max_processing_delay_slots;
   /// Number of slots in all the hyper system frames.
-  const uint64_t nof_slots_in_all_hyper_sfns;
-  /// Maximum time the free running clock waits for the sectors to complete a slot.
-  const std::chrono::milliseconds free_running_timeout{100};
-  ocudulog::basic_logger&         logger;
+  const uint64_t          nof_slots_in_all_hyper_sfns;
+  ocudulog::basic_logger& logger;
   /// Last slot boundary, without the processing delay.
   slot_point_extended current_slot;
   /// Steady clock time of the clock origin.

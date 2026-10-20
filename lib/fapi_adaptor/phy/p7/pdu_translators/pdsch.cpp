@@ -104,10 +104,11 @@ static void fill_rb_allocation(pdsch_processor::pdu_t& proc_pdu, const fapi::dl_
 
   if (const auto* type0 = std::get_if<fapi::resource_allocation_type_0>(&fapi_pdu.resource_alloc)) {
     proc_pdu.freq_alloc = rb_allocation::make_type0(type0->vrbs, vrb_to_prb_config);
-    return;
+  } else if (const auto* type1 = std::get_if<fapi::resource_allocation_type_1>(&fapi_pdu.resource_alloc)) {
+    proc_pdu.freq_alloc = rb_allocation::make_type1(type1->vrbs.start(), type1->vrbs.length(), vrb_to_prb_config);
+  } else {
+    report_error("Unsupported resource allocation in PDSCH PDU");
   }
-  const vrb_interval& vrbs = std::get<fapi::resource_allocation_type_1>(fapi_pdu.resource_alloc).vrbs;
-  proc_pdu.freq_alloc      = rb_allocation::make_type1(vrbs.start(), vrbs.length(), vrb_to_prb_config);
 }
 
 void ocudu::fapi_adaptor::convert_pdsch_fapi_to_phy(pdsch_processor::pdu_t&              proc_pdu,

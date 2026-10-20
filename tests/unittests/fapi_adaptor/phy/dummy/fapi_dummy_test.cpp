@@ -268,9 +268,28 @@ TEST_F(fapi_dummy_sector_test, idle_sector_finishes_slot_boundaries_right_away)
   ASSERT_FALSE(progress.running);
 }
 
+TEST_F(fapi_dummy_sector_test, running_sector_finishes_slot_boundaries_right_away_until_the_mac_completes_a_slot)
+{
+  start();
+  auto_complete = false;
+
+  // The MAC discards slot indications until the cell is active, so the first slots do not wait for the MAC.
+  slot_point slot = last_notified_slot();
+  ASSERT_EQ(sector.get_progress().slot, slot);
+  ASSERT_FALSE(sector.get_progress().running);
+
+  complete_slot(slot);
+  fapi_dummy_sector::slot_boundary_progress progress = sector.get_progress();
+  ASSERT_EQ(progress.slot, slot);
+  ASSERT_TRUE(progress.running);
+}
+
 TEST_F(fapi_dummy_sector_test, running_sector_finishes_slot_boundary_with_last_message)
 {
   start();
+  run_slot();
+
+  // From the first completed slot on, a slot boundary finishes with its last request.
   slot_point slot = last_notified_slot();
   ASSERT_NE(sector.get_progress().slot, slot);
 

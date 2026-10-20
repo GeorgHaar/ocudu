@@ -58,7 +58,7 @@ public:
   struct slot_boundary_progress {
     /// Slot of the boundary, or an invalid slot if no boundary was processed.
     slot_point slot;
-    /// Whether the sector was running at the boundary.
+    /// Whether the sector was running at the boundary and waits for the last request of each slot.
     bool running = false;
   };
 
@@ -194,6 +194,8 @@ private:
   bool running = false;
   /// Whether a STOP.request takes effect at the next slot boundary.
   bool stop_requested = false;
+  /// Whether the MAC completed a slot since the sector started.
+  bool mac_completed_slots = false;
   /// Last slot notified in a SLOT.indication.
   std::optional<slot_point> current_slot;
   /// Slots whose requests completed in time while running, indexed like the uplink contexts.

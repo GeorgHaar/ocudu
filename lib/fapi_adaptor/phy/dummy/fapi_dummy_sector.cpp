@@ -144,7 +144,7 @@ fapi_dummy_sector::slot_boundary_progress fapi_dummy_sector::get_progress() cons
 
 void fapi_dummy_sector::publish_progress(slot_point slot)
 {
-  progress.store((slot.count() << 1U) | (running ? 1U : 0U), std::memory_order_release);
+  progress.store((slot.count() << 1U) | (running && mac_completed_slots ? 1U : 0U), std::memory_order_release);
 }
 
 void fapi_dummy_sector::send_param_request(const fapi::param_request& msg)
@@ -177,7 +177,8 @@ void fapi_dummy_sector::send_start_request(const fapi::start_request& msg)
       logger.warning("Sector#{}: FAPI dummy ignored START.request. Cause: sector is running", sector_id);
       return;
     }
-    running = true;
+    running             = true;
+    mac_completed_slots = false;
     current_slot.reset();
     std::fill(completed_slots.begin(), completed_slots.end(), std::nullopt);
     std::fill(late_slots.begin(), late_slots.end(), std::nullopt);
@@ -216,6 +217,12 @@ void fapi_dummy_sector::process_slot_boundary(slot_point_extended               
 
   current_slot = notified_slot;
 
+  // The MAC discards the slot indications that precede the activation of the cell, so the clock does not wait for
+  // their last requests.
+  if (!mac_completed_slots) {
+    publish_progress(notified_slot);
+  }
+
   // The notified slot is ahead of the current time by the processing delay, and the uplink indications are delayed with
   // respect to the reception time. Only slots whose requests completed in time hold valid uplink contexts.
   slot_point ul_slot = notified_slot - static_cast<int>(max_processing_delay_slots + ul_indication_delay_slots);
@@ -240,6 +247,7 @@ void fapi_dummy_sector::process_last_message(slot_point slot)
   if (late_slots[slot.count() % late_slots.size()] != slot) {
     completed_slots[slot.count() % completed_slots.size()] = slot;
   }
+  mac_completed_slots = true;
   publish_progress(slot);
 }
 

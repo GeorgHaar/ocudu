@@ -85,12 +85,15 @@ phy_fapi_sector_adaptor& fapi_dummy_impl::get_sector_adaptor(unsigned cell_id)
 
 void fapi_dummy_impl::clock_loop(const rt_stop_event_token& token)
 {
-  while (!token.is_stop_requested()) {
-    if (clock_mode == fapi_dummy_clock_mode::realtime) {
+  if (clock_mode == fapi_dummy_clock_mode::realtime) {
+    while (!token.is_stop_requested()) {
       run_realtime_iteration();
-    } else {
-      run_free_running_iteration();
     }
+    return;
+  }
+
+  while (!token.is_stop_requested()) {
+    run_free_running_iteration();
   }
 }
 

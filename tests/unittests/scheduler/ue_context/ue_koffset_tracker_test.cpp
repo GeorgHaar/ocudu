@@ -232,6 +232,53 @@ TEST(ue_koffset_tracker_test, retransmission_moves_the_slot_the_value_is_applied
   ASSERT_FALSE(tracker.has_pending_ce());
 }
 
+TEST(ue_koffset_tracker_test, a_reported_feedback_releases_the_ue_so_the_retransmission_can_go_out)
+{
+  ue_koffset_tracker tracker;
+  const slot_point   apply_slot{subcarrier_spacing::kHz30, 40};
+
+  tracker.handle_ce_sent(15ms, apply_slot);
+  tracker.handle_ce_nacked();
+
+  // The retransmission needs a PDCCH of its own, so the UE cannot stay held back once a report arrives.
+  ASSERT_TRUE(tracker.is_known_at(apply_slot));
+
+  // Sending it holds the UE back again, since the UE may have decoded the earlier transmission.
+  tracker.handle_ce_retx(apply_slot + 20);
+  ASSERT_FALSE(tracker.is_known_at(apply_slot));
+}
+
+TEST(ue_koffset_tracker_test, a_value_the_ue_has_not_acknowledged_is_given_up_when_its_harq_is_gone)
+{
+  ue_koffset_tracker tracker;
+  const slot_point   apply_slot{subcarrier_spacing::kHz30, 40};
+
+  tracker.handle_ce_sent(15ms, apply_slot);
+  ASSERT_TRUE(tracker.has_unacknowledged_ce()) << "No feedback has been reported yet";
+
+  tracker.handle_ce_nacked();
+  ASSERT_TRUE(tracker.has_unacknowledged_ce());
+
+  // A HARQ process discarded on timeout reports nothing, so the value is given up without a feedback.
+  tracker.handle_ce_dropped();
+  ASSERT_FALSE(tracker.has_unacknowledged_ce());
+  ASSERT_FALSE(tracker.has_pending_ce());
+  ASSERT_EQ(tracker.applied_koffset(), 0ms);
+  ASSERT_TRUE(tracker.is_known_at(apply_slot)) << "The UE is scheduled again once nothing is in flight";
+}
+
+TEST(ue_koffset_tracker_test, an_acknowledged_value_outlives_the_harq_process_that_carried_it)
+{
+  ue_koffset_tracker tracker;
+  const slot_point   apply_slot{subcarrier_spacing::kHz30, 40};
+
+  // The HARQ process is freed as soon as the UE acknowledges it, well before the apply slot.
+  tracker.handle_ce_sent(15ms, apply_slot);
+  tracker.handle_ce_acked();
+
+  ASSERT_FALSE(tracker.has_unacknowledged_ce());
+}
+
 TEST(ue_koffset_tracker_test, a_second_value_is_applied_from_its_own_slot)
 {
   ue_koffset_tracker tracker;

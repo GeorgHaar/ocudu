@@ -310,6 +310,32 @@ TEST_F(scheduler_ue_koffset_tester, a_moved_timing_advance_is_not_signalled_whil
       << "A second Differential Koffset was signalled while the first was in flight";
 }
 
+TEST_F(scheduler_ue_koffset_tester, a_koffset_whose_acknowledgement_is_not_detected_is_not_applied)
+{
+  // Every HARQ-ACK occasion reports DTX. Nothing was detected there, which leaves open whether the UE decoded the
+  // MAC CE, so the scheduler stays on the value it last confirmed and the HARQ retransmits.
+  register_uci_handler([](uci_indication& uci) {
+    for (auto& pdu : uci.ucis) {
+      if (auto* f1 = std::get_if<uci_indication::uci_pdu::uci_pucch_f0_or_f1_pdu>(&pdu.pdu)) {
+        std::fill(f1->harqs.begin(), f1->harqs.end(), mac_harq_ack_report_status::dtx);
+      } else if (auto* f2 = std::get_if<uci_indication::uci_pdu::uci_pucch_f2_or_f3_or_f4_pdu>(&pdu.pdu)) {
+        std::fill(f2->harqs.begin(), f2->harqs.end(), mac_harq_ack_report_status::dtx);
+      }
+    }
+  });
+
+  run_slot();
+  const std::optional<unsigned> before = run_and_measure_min_pusch_delay(nof_slots_at_cell_koffset);
+  ASSERT_TRUE(before.has_value()) << "No PUSCH was scheduled for the UE";
+
+  report_timing_advance();
+  ASSERT_TRUE(run_until_koffset_ce_scheduled(max_slots_to_koffset_ce));
+
+  const std::optional<unsigned> after = run_and_measure_min_pusch_delay(nof_slots_at_ue_koffset);
+  ASSERT_TRUE(after.has_value()) << "No PUSCH was scheduled after the MAC CE went out";
+  ASSERT_EQ(after.value(), before.value()) << "A Koffset with no detected acknowledgement was applied";
+}
+
 TEST_F(scheduler_ue_koffset_tester, a_koffset_whose_acknowledgement_never_reaches_the_scheduler_is_not_applied)
 {
   // Drop every HARQ-ACK on the way, so no report on the MAC CE is ever handled. The UE may have decoded it and

@@ -554,8 +554,8 @@ protected:
                              .clock_mode                 = GetParam(),
                              .ul_indication_delay_slots  = test_ul_delay,
                              .max_processing_delay_slots = test_proc_delay},
-                            {.logger           = &ocudulog::fetch_basic_logger("FAPI"),
-                             .clock_executor   = &clock_executor,
+                            {.logger           = ocudulog::fetch_basic_logger("FAPI"),
+                             .clock_executor   = clock_executor,
                              .sector_executors = {&sector_executors[0], &sector_executors[1]}}))
   {
     for (unsigned i_sector = 0; i_sector != nof_sectors; ++i_sector) {

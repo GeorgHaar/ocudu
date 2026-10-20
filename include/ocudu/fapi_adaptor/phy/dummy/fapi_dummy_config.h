@@ -40,9 +40,9 @@ struct fapi_dummy_config {
 /// FAPI dummy dependencies.
 struct fapi_dummy_dependencies {
   /// Logger.
-  ocudulog::basic_logger* logger = nullptr;
+  ocudulog::basic_logger& logger;
   /// Executor that runs the slot clock loop.
-  task_executor* clock_executor = nullptr;
+  task_executor& clock_executor;
   /// Sequential executor of each sector, indexed by sector. They must run until the FAPI dummy is destroyed.
   std::vector<task_executor*> sector_executors;
 };

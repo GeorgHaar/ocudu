@@ -30,10 +30,9 @@ fapi_dummy_impl::fapi_dummy_impl(const fapi_dummy_config& config, const fapi_dum
   clock_mode(config.clock_mode),
   slot_duration(1000U / pow2(to_numerology_value(config.scs))),
   max_processing_delay_slots(config.max_processing_delay_slots),
-  logger(*dependencies.logger),
+  logger(dependencies.logger),
   current_slot(config.scs, 0)
 {
-  ocudu_assert(dependencies.clock_executor != nullptr, "Invalid clock executor");
   ocudu_assert(config.nof_sectors > 0, "The FAPI dummy requires at least one sector");
   ocudu_assert(dependencies.sector_executors.size() == config.nof_sectors,
                "The number of sector executors (i.e., {}) does not match the number of sectors (i.e., {})",
@@ -61,7 +60,7 @@ fapi_dummy_impl::fapi_dummy_impl(const fapi_dummy_config& config, const fapi_dum
   last_advance_time  = origin_time;
 
   sync_event start_event;
-  if (!dependencies.clock_executor->defer(
+  if (!dependencies.clock_executor.defer(
           [this, start_token = start_event.get_token(), stop_token = stop_control.get_token()]() mutable {
             start_token.reset();
             clock_loop(stop_token);
@@ -163,6 +162,5 @@ void fapi_dummy_impl::advance_slot()
 std::unique_ptr<phy_fapi_adaptor> ocudu::fapi_adaptor::create_fapi_dummy(const fapi_dummy_config&       config,
                                                                          const fapi_dummy_dependencies& dependencies)
 {
-  ocudu_assert(dependencies.logger != nullptr, "Invalid logger");
   return std::make_unique<fapi_dummy_impl>(config, dependencies);
 }

@@ -226,11 +226,14 @@ void fapi_dummy_sector::process_slot_boundary(slot_point_extended               
   // The notified slot is ahead of the current time by the processing delay, and the uplink indications are delayed with
   // respect to the reception time. Only slots whose requests completed in time hold valid uplink contexts.
   slot_point ul_slot = notified_slot - static_cast<int>(max_processing_delay_slots + ul_indication_delay_slots);
-  if (completed_slots[ul_slot.count() % completed_slots.size()] == ul_slot) {
+  std::optional<slot_point>& completed_slot = completed_slots[ul_slot.count() % completed_slots.size()];
+  if (completed_slot == ul_slot) {
     if (auto context = ul_repository.read(ul_slot.count())) {
       notify_ul_indications(ul_slot, *context);
     }
   }
+  // Each completed slot is consumed once, so a later slot mapped to the same entry cannot match it.
+  completed_slot.reset();
 
   // Requests of a slot are only valid after its SLOT.indication, so older contexts stored for it are discarded.
   ul_repository.clear(notified_slot.count());

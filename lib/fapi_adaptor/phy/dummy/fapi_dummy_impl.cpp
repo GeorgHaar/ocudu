@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "fapi_dummy_impl.h"
+#include "ocudu/adt/span.h"
 #include "ocudu/fapi_adaptor/phy/dummy/fapi_dummy_factory.h"
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/support/error_handling.h"
@@ -118,24 +119,45 @@ void fapi_dummy_impl::run_realtime_iteration()
   }
 }
 
+namespace {
+
+/// Progress of all the sectors on the last notified slot boundary.
+struct sectors_progress {
+  /// Whether all the sectors finished the last notified slot boundary.
+  bool all_done = true;
+  /// Whether any sector that finished the last notified slot boundary is running.
+  bool any_running = false;
+};
+
+} // namespace
+
+/// Returns the progress of all the sectors on the last notified slot boundary.
+static sectors_progress get_sectors_progress(span<const std::unique_ptr<fapi_dummy_sector>> sectors,
+                                             std::optional<slot_point>                      last_notified_slot)
+{
+  sectors_progress result;
+  if (!last_notified_slot.has_value()) {
+    return result;
+  }
+
+  for (const auto& sector : sectors) {
+    fapi_dummy_sector::slot_boundary_progress progress = sector->get_progress();
+    bool                                      done     = progress.slot.valid() && progress.slot == *last_notified_slot;
+    result.all_done                                    = result.all_done && done;
+    result.any_running                                 = result.any_running || (done && progress.running);
+  }
+  return result;
+}
+
 void fapi_dummy_impl::run_free_running_iteration()
 {
   auto now = std::chrono::steady_clock::now();
 
-  bool all_done    = true;
-  bool any_running = false;
-  if (last_notified_slot.has_value()) {
-    for (const auto& sector : sectors) {
-      fapi_dummy_sector::slot_boundary_progress progress = sector->get_progress();
-      bool                                      done = progress.slot.valid() && progress.slot == *last_notified_slot;
-      all_done                                       = all_done && done;
-      any_running                                    = any_running || (done && progress.running);
-    }
-  }
+  sectors_progress progress = get_sectors_progress(sectors, last_notified_slot);
 
   // Without running sectors, slot boundaries still advance at the slot rate to process START and STOP requests.
-  bool advance = all_done && (any_running || now - last_advance_time >= slot_duration);
-  if (!all_done && now - last_advance_time >= free_running_timeout) {
+  bool advance = progress.all_done && (progress.any_running || now - last_advance_time >= slot_duration);
+  if (!progress.all_done && now - last_advance_time >= free_running_timeout) {
     logger.warning("FAPI dummy: Advancing slot {} without all sectors completing it", *last_notified_slot);
     advance = true;
   }

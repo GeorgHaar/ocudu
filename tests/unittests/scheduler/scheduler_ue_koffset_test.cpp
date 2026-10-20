@@ -11,8 +11,10 @@
 #include "tests/unittests/scheduler/test_utils/result_test_helpers.h"
 #include "tests/unittests/scheduler/test_utils/scheduler_test_simulator.h"
 #include "ocudu/ran/du_types.h"
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <optional>
+#include <variant>
 
 using namespace ocudu;
 
@@ -36,6 +38,11 @@ constexpr unsigned nof_slots_during_transition = 10;
 constexpr unsigned nof_slots_at_ue_koffset = 80;
 /// Slots run without a T_TA report.
 constexpr unsigned nof_slots_without_ta_report = 100;
+/// \brief Slots run while the UE is held back from a Differential Koffset no feedback ever confirms.
+///
+/// Long enough for the HARQ carrying the MAC CE to time out, which is what gives the value up. The timeout is
+/// \c scheduler_expert_config::dl_harq_retx_timeout.
+constexpr unsigned nof_slots_to_unconfirmed_give_up = 300;
 /// T_TA above \c reported_ul_ta, which derives a smaller Koffset.
 constexpr std::chrono::microseconds grown_ul_ta{15000};
 /// T_TA below \c reported_ul_ta, which derives a larger Koffset.
@@ -82,7 +89,9 @@ protected:
   void refill_buffers()
   {
     constexpr unsigned buffer_bytes = std::numeric_limits<unsigned>::max() / 2;
-    push_dl_buffer_state(dl_buffer_state_indication_message{ue_idx, ue_drb_lcid, buffer_bytes});
+    if (fill_dl_buffer) {
+      push_dl_buffer_state(dl_buffer_state_indication_message{ue_idx, ue_drb_lcid, buffer_bytes});
+    }
     push_bsr(ul_bsr_indication_message{to_du_cell_index(0),
                                        ue_idx,
                                        crnti,
@@ -200,6 +209,10 @@ protected:
     }
   }
 
+  /// Whether the downlink buffer of the UE is refilled. Downlink data occupies every HARQ process, which a test
+  /// dropping the feedback that frees them cannot afford.
+  bool fill_dl_buffer = true;
+
   const du_ue_index_t ue_idx      = to_du_ue_index(0);
   const lcid_t        ue_drb_lcid = LCID_MIN_DRB;
   rnti_t              crnti       = to_rnti(0x4601);
@@ -283,6 +296,49 @@ TEST_F(scheduler_ue_koffset_tester, a_repeated_timing_advance_report_signals_not
   // The derived value has not moved, so the UE has nothing to be told.
   report_timing_advance();
   ASSERT_FALSE(run_until_koffset_ce_scheduled(max_slots_to_koffset_ce)) << "An unchanged Koffset was signalled again";
+}
+
+TEST_F(scheduler_ue_koffset_tester, a_moved_timing_advance_is_not_signalled_while_a_value_is_in_flight)
+{
+  run_slot();
+  report_timing_advance();
+  ASSERT_TRUE(run_until_koffset_ce_scheduled(max_slots_to_koffset_ce));
+
+  // The MAC CE has not reached the UE yet, so the scheduler cannot tell which value the UE is on.
+  report_timing_advance(grown_ul_ta);
+  ASSERT_FALSE(run_until_koffset_ce_scheduled(nof_slots_during_transition))
+      << "A second Differential Koffset was signalled while the first was in flight";
+}
+
+TEST_F(scheduler_ue_koffset_tester, a_koffset_whose_acknowledgement_never_reaches_the_scheduler_is_not_applied)
+{
+  // Drop every HARQ-ACK on the way, so no report on the MAC CE is ever handled. The UE may have decoded it and
+  // applied the value, but the scheduler cannot schedule on one it has no confirmation of.
+  register_uci_handler([](uci_indication& uci) { uci.ucis.clear(); });
+
+  // Downlink data occupies every HARQ process, and none is freed while its feedback is dropped, so no PDSCH would be
+  // left to carry the MAC CE. The MAC CE is downlink data of its own.
+  fill_dl_buffer = false;
+  push_dl_buffer_state(dl_buffer_state_indication_message{ue_idx, ue_drb_lcid, 0});
+
+  run_slot();
+  const std::optional<unsigned> before = run_and_measure_min_pusch_delay(nof_slots_at_cell_koffset);
+  ASSERT_TRUE(before.has_value()) << "No PUSCH was scheduled for the UE";
+
+  report_timing_advance();
+  ASSERT_TRUE(run_until_koffset_ce_scheduled(max_slots_to_koffset_ce));
+
+  const std::optional<unsigned> after = run_and_measure_min_pusch_delay(nof_slots_at_ue_koffset);
+  ASSERT_TRUE(after.has_value()) << "No PUSCH was scheduled after the MAC CE went out";
+  ASSERT_EQ(after.value(), before.value()) << "A Koffset with no acknowledgement was applied";
+
+  // A window the UE was scheduled somewhere in says nothing on its own, as the grants of the slots before the MAC CE
+  // went out already fill it. The UE has to be scheduled in a window that starts well past the apply slot too. It is
+  // held back until the HARQ carrying the MAC CE times out and the value is given up, and is then scheduled again at
+  // the Koffset it was on all along.
+  const std::optional<unsigned> tail = run_and_measure_min_pusch_delay(nof_slots_to_unconfirmed_give_up);
+  ASSERT_TRUE(tail.has_value()) << "The UE was never scheduled again after the Koffset in flight was given up";
+  ASSERT_EQ(tail.value(), before.value());
 }
 
 TEST_F(scheduler_ue_koffset_tester, a_moved_timing_advance_signals_a_new_koffset)

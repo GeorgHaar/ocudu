@@ -232,6 +232,50 @@ TEST(ue_koffset_tracker_test, retransmission_moves_the_slot_the_value_is_applied
   ASSERT_FALSE(tracker.has_pending_ce());
 }
 
+TEST(ue_koffset_tracker_test, a_second_value_is_applied_from_its_own_slot)
+{
+  ue_koffset_tracker tracker;
+  const slot_point   apply_slot{subcarrier_spacing::kHz30, 40};
+  const slot_point   next_apply_slot = apply_slot + 40;
+  const slot_point   last_ul_slot    = next_apply_slot + 25;
+
+  tracker.handle_ce_sent(15ms, apply_slot);
+  tracker.handle_ce_acked();
+  tracker.slot_indication(apply_slot, {});
+  ASSERT_EQ(tracker.applied_koffset(), 15ms);
+
+  // Each MAC CE carries a value that replaces the previous one rather than adding to it. A larger one shortens the
+  // UE uplink delay further, so the uplink granted at the smaller one is still ordered first.
+  tracker.handle_ce_sent(20ms, next_apply_slot);
+  tracker.handle_ce_acked();
+  tracker.slot_indication(next_apply_slot, last_ul_slot);
+
+  ASSERT_EQ(tracker.applied_koffset(), 20ms);
+  ASSERT_FALSE(tracker.is_known_at(last_ul_slot));
+  ASSERT_TRUE(tracker.is_known_at(last_ul_slot + 1));
+}
+
+TEST(ue_koffset_tracker_test, a_smaller_value_holds_back_no_uplink)
+{
+  ue_koffset_tracker tracker;
+  const slot_point   apply_slot{subcarrier_spacing::kHz30, 40};
+  const slot_point   next_apply_slot = apply_slot + 40;
+  const slot_point   last_ul_slot    = next_apply_slot + 25;
+
+  tracker.handle_ce_sent(15ms, apply_slot);
+  tracker.handle_ce_acked();
+  tracker.slot_indication(apply_slot, {});
+
+  // A smaller value leaves the UE a longer Koffset, so its uplink moves later and keeps its order on its own.
+  tracker.handle_ce_sent(9ms, next_apply_slot);
+  tracker.handle_ce_acked();
+  tracker.slot_indication(next_apply_slot, last_ul_slot);
+
+  ASSERT_EQ(tracker.applied_koffset(), 9ms);
+  ASSERT_TRUE(tracker.is_known_at(next_apply_slot));
+  ASSERT_TRUE(tracker.is_known_at(last_ul_slot));
+}
+
 TEST(ue_koffset_tracker_test, applied_value_survives_a_slot_indication_carrying_no_value_in_flight)
 {
   ue_koffset_tracker tracker;

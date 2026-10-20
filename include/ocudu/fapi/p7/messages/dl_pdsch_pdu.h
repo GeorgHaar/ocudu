@@ -158,10 +158,8 @@ struct formatter<ocudu::fapi::dl_pdsch_pdu> {
 
     if (const auto* type0 = std::get_if<ocudu::fapi::resource_allocation_type_0>(&pdu.resource_alloc)) {
       format_to(ctx.out(), " Resource allocation type 0: vrbs={:i}", type0->vrbs);
-    } else {
-      format_to(ctx.out(),
-                " Resource allocation type 1: vrbs={}",
-                std::get<ocudu::fapi::resource_allocation_type_1>(pdu.resource_alloc).vrbs);
+    } else if (const auto* type1 = std::get_if<ocudu::fapi::resource_allocation_type_1>(&pdu.resource_alloc)) {
+      format_to(ctx.out(), " Resource allocation type 1: vrbs={}", type1->vrbs);
     }
 
     if (const auto* power_prof_nr = std::get_if<ocudu::fapi::dl_pdsch_pdu::power_profile_nr>(&pdu.power_config)) {

@@ -30,6 +30,7 @@ fapi_dummy_impl::fapi_dummy_impl(const fapi_dummy_config& config, const fapi_dum
   clock_mode(config.clock_mode),
   slot_duration(1000U / pow2(to_numerology_value(config.scs))),
   max_processing_delay_slots(config.max_processing_delay_slots),
+  nof_slots_in_all_hyper_sfns(slot_point_extended(config.scs, 0).nof_slots_in_all_hyper_sfns()),
   logger(dependencies.logger),
   current_slot(config.scs, 0)
 {
@@ -54,7 +55,7 @@ fapi_dummy_impl::fapi_dummy_impl(const fapi_dummy_config& config, const fapi_dum
 
   // The slots are aligned to the system time once, and then follow the steady clock, so that system time adjustments do
   // not make the clock jump.
-  origin_system_slot = get_system_time_slot(slot_duration, current_slot.nof_slots_in_all_hyper_sfns());
+  origin_system_slot = get_system_time_slot(slot_duration, nof_slots_in_all_hyper_sfns);
   origin_time        = std::chrono::steady_clock::now();
   current_slot       = slot_point_extended(config.scs, origin_system_slot);
   last_advance_time  = origin_time;
@@ -96,7 +97,7 @@ void fapi_dummy_impl::clock_loop(const rt_stop_event_token& token)
 uint64_t fapi_dummy_impl::get_current_system_slot() const
 {
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - origin_time);
-  return (origin_system_slot + elapsed / slot_duration) % current_slot.nof_slots_in_all_hyper_sfns();
+  return (origin_system_slot + elapsed / slot_duration) % nof_slots_in_all_hyper_sfns;
 }
 
 void fapi_dummy_impl::run_realtime_iteration()

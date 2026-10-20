@@ -50,6 +50,8 @@ private:
   const fapi_dummy_clock_mode     clock_mode;
   const std::chrono::microseconds slot_duration;
   const unsigned                  max_processing_delay_slots;
+  /// Number of slots in all the hyper system frames.
+  const uint64_t nof_slots_in_all_hyper_sfns;
   /// Maximum time the free running clock waits for the sectors to complete a slot.
   const std::chrono::milliseconds free_running_timeout{100};
   ocudulog::basic_logger&         logger;

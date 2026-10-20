@@ -53,7 +53,7 @@ TEST_P(OcuduvecBitFixture, OcuduvecBitTestUnpack)
     GTEST_SKIP();
   }
 
-  std::uniform_int_distribution<unsigned> dist(0, (1U << size) - 1U);
+  std::uniform_int_distribution<unsigned> dist(0, static_cast<unsigned>((uint64_t(1) << size) - 1ULL));
 
   // Create random value to unpack
   unsigned value = dist(rgen);

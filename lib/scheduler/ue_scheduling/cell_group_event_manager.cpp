@@ -224,7 +224,13 @@ void cell_group_event_handler_impl::handle_conres_ce_acked(du_ue_index_t ue_inde
     log_invalid_ue_index(ue_index, "ConRes CE ACKed");
     return;
   }
+  const bool was_in_fallback = ue_db[ue_index].get_pcell().is_in_fallback_mode();
   ue_db.handle_conres_ce_outcome(ue_index, true);
+
+  // The UE exits fallback once both the ConRes CE is ACKed and its config is applied, in any order.
+  if (was_in_fallback and not ue_db[ue_index].get_pcell().is_in_fallback_mode()) {
+    slice_sched.config_applied(ue_index);
+  }
 }
 
 void cell_group_event_handler_impl::handle_sr_detected(du_ue_index_t ue_index, slot_point uci_slot)

@@ -171,6 +171,49 @@ TEST_F(scheduler_conres_without_pdu_test, when_conres_ce_is_enqueued_and_no_msg4
   ASSERT_TRUE(this->last_sched_result()->dl.csi_rs.empty());
 }
 
+/// \brief Test to verify that the UE leaves fallback mode and is scheduled with dedicated resources regardless of the
+/// order in which the ConRes CE ACK and the UE config applied events are processed.
+class scheduler_fallback_exit_test : public base_single_ue_scheduler_conres_test, public ::testing::TestWithParam<bool>
+{
+protected:
+  bool config_applied_before_conres_ack() const { return GetParam(); }
+};
+
+TEST_P(scheduler_fallback_exit_test, when_ue_exits_fallback_then_it_is_scheduled_with_dedicated_resources)
+{
+  static constexpr unsigned msg4_size = 128;
+  this->push_dl_buffer_state(dl_buffer_state_indication_message{this->ue_index, LCID_SRB1, msg4_size});
+
+  ASSERT_TRUE(run_until_conres_msg4_scheduled(rnti, lcid_dl_sch_t::UE_CON_RES_ID)) << "ConRes not scheduled";
+  if (get_msg4_msg_lc_info(rnti, LCID_SRB1) == nullptr) {
+    // The ConRes CE was scheduled alone, so the Msg4 needs its own PDSCH, which requires the ConRes CE ACK.
+    ASSERT_TRUE(run_until_pucch_scheduled_and_received(rnti, ue_index, /* ACK */ true));
+    ASSERT_TRUE(run_until_conres_msg4_scheduled(rnti, LCID_SRB1)) << "Msg4 not scheduled";
+  }
+
+  if (config_applied_before_conres_ack()) {
+    this->sched->handle_ue_config_applied(ue_index);
+  }
+  ASSERT_TRUE(run_until_pucch_scheduled_and_received(rnti, ue_index, /* ACK */ true));
+  if (not config_applied_before_conres_ack()) {
+    this->sched->handle_ue_config_applied(ue_index);
+  }
+
+  // Outside fallback mode, SRB1 data is scheduled with a UE-dedicated DCI format.
+  this->push_dl_buffer_state(dl_buffer_state_indication_message{this->ue_index, LCID_SRB1, msg4_size});
+  ASSERT_TRUE(this->run_slot_until([this]() {
+    const pdcch_dl_information* dl_pdcch = find_ue_dl_pdcch(rnti);
+    return dl_pdcch != nullptr and dl_pdcch->dci.type() == dci_dl_rnti_config_type::c_rnti_f1_1;
+  })) << "UE not scheduled with dedicated resources after leaving fallback";
+}
+
+INSTANTIATE_TEST_SUITE_P(scheduler_fallback_exit_test,
+                         scheduler_fallback_exit_test,
+                         ::testing::Values(false, true),
+                         [](const ::testing::TestParamInfo<bool>& param_info) {
+                           return param_info.param ? "config_applied_first" : "conres_ack_first";
+                         });
+
 // ------------------------------------------------------------------------------------------------------------------ //
 
 struct conres_test_params {

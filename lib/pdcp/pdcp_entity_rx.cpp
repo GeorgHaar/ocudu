@@ -18,7 +18,7 @@ pdcp_entity_rx::pdcp_entity_rx(uint32_t                        ue_index,
                                pdcp_rx_config                  cfg_,
                                pdcp_rx_upper_data_notifier&    upper_dn_,
                                pdcp_rx_upper_control_notifier& upper_cn_,
-                               timer_factory                   ue_ul_timer_factory_,
+                               timer_factory                   ue_ctrl_timer_factory_,
                                task_executor&                  ue_ul_executor_,
                                task_executor&                  crypto_executor_,
                                uint32_t                        max_nof_crypto_workers_,
@@ -31,7 +31,7 @@ pdcp_entity_rx::pdcp_entity_rx(uint32_t                        ue_index,
   rx_window(logger, pdcp_window_size(pdcp_sn_size_to_uint(cfg.sn_size))),
   upper_dn(upper_dn_),
   upper_cn(upper_cn_),
-  ue_ul_timer_factory(ue_ul_timer_factory_),
+  ue_ctrl_timer_factory(ue_ctrl_timer_factory_),
   ue_ul_executor(ue_ul_executor_),
   crypto_executor(crypto_executor_),
   max_nof_crypto_workers(max_nof_crypto_workers_),
@@ -39,7 +39,7 @@ pdcp_entity_rx::pdcp_entity_rx(uint32_t                        ue_index,
   metrics_agg(metrics_agg_)
 {
   if (metrics_agg.get_metrics_period().count()) {
-    metrics_timer = ue_ul_timer_factory.create_timer();
+    metrics_timer = ue_ctrl_timer_factory.create_timer();
     metrics_timer.set(std::chrono::milliseconds(metrics_agg.get_metrics_period().count()), [this]() {
       if (stopped) {
         return;
@@ -82,7 +82,7 @@ pdcp_entity_rx::pdcp_entity_rx(uint32_t                        ue_index,
 
   // t-Reordering timer
   if (cfg.t_reordering != pdcp_t_reordering::ms0 && cfg.t_reordering != pdcp_t_reordering::infinity) {
-    reordering_timer = ue_ul_timer_factory.create_timer();
+    reordering_timer = ue_ctrl_timer_factory.create_timer();
     if (static_cast<uint32_t>(cfg.t_reordering) > 0) {
       reordering_timer.set(std::chrono::milliseconds{static_cast<unsigned>(cfg.t_reordering)},
                            reordering_callback{this});

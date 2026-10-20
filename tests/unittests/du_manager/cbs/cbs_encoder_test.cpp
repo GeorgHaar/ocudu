@@ -8,7 +8,6 @@
 #include "ocudu/support/math/math_utils.h"
 #include "ocudu/support/ocudu_assert.h"
 #include "ocudu/support/units.h"
-#include <arpa/inet.h>
 #include <gtest/gtest.h>
 #include <random>
 
@@ -115,7 +114,7 @@ protected:
   }
 
   /// Checks that the encoded CB-Data IE matches the expected message.
-  static void check_ucs2_encoded_message(std::vector<uint8_t>& cb_data_ucs2, const std::u16string& expected_message)
+  static void check_ucs2_encoded_message(span<const uint8_t> cb_data_ucs2, const std::u16string& expected_message)
   {
     // Obtain the number of unicode characters in the expected message.
     std::size_t total_message_length = expected_message.length();
@@ -150,8 +149,8 @@ protected:
       units::bytes i_page_enc_msg_begin =
           units::bytes(1) + (cb_data_info_page_nof_bytes + cb_data_info_len_nof_bytes) * i_page;
 
-      ocudu::span<uint8_t> enc_msg_in_page(&cb_data_ucs2[i_page_enc_msg_begin.value()],
-                                           cb_data_info_page_nof_bytes.value());
+      span<const uint8_t> enc_msg_in_page =
+          cb_data_ucs2.subspan(i_page_enc_msg_begin.value(), cb_data_info_page_nof_bytes.value());
 
       // Extract the information page length from the encoded message. It is the last byte after the CB-Data information
       // page. This gives the number of data bytes in the information page (excluding the padding).
@@ -171,17 +170,18 @@ protected:
       }
 
       // Convert the UCS-2 characters in the current information page into UTF-16 format. Recall that UCS-2
-      // characters are encoded in big endian order inside the CB-Data IE.
-      ocudu::span<char16_t> ucs2_view(reinterpret_cast<char16_t*>(enc_msg_in_page.data()), i_page_nof_ucs2_chars);
-
-      // Swap bytes.
-      std::for_each(ucs2_view.begin(), ucs2_view.end(), [](auto& ucs2_char) { ucs2_char = ntohs(ucs2_char); });
+      // characters are encoded in big endian order inside the CB-Data IE. The bytes are combined explicitly, since the
+      // information page is not guaranteed to be aligned to a char16_t boundary.
+      std::u16string decoded_msg_in_page(i_page_nof_ucs2_chars, u'\0');
+      for (std::size_t i_char = 0; i_char != i_page_nof_ucs2_chars; ++i_char) {
+        decoded_msg_in_page[i_char] =
+            static_cast<char16_t>((enc_msg_in_page[2 * i_char] << 8U) | enc_msg_in_page[2 * i_char + 1]);
+      }
 
       // Count the number of extracted UCS-2 characters.
-      decoded_message_len += ucs2_view.size();
+      decoded_message_len += i_page_nof_ucs2_chars;
 
-      span<char16_t> expected_message_view(expected_msg_in_page);
-      ASSERT_EQ(ucs2_view, expected_message_view) << "Encoded message does not match the expected message.";
+      ASSERT_EQ(decoded_msg_in_page, expected_msg_in_page) << "Encoded message does not match the expected message.";
     }
 
     ASSERT_EQ(decoded_message_len, total_message_length)

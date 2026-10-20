@@ -118,7 +118,7 @@ public:
   /// These parameters are specified in SCF-222 v4.0 section 3.4.2.2, in table PDSCH PDU.
   dl_pdsch_pdu_builder& set_frequency_allocation_type_1(vrb_interval vrbs, vrb_to_prb::mapping_type vrb_to_prb_mapping)
   {
-    pdu.resource_alloc     = resource_allocation_type_1{vrbs};
+    pdu.resource_alloc     = resource_allocation_type_1{.vrbs = vrbs};
     pdu.vrb_to_prb_mapping = vrb_to_prb_mapping;
 
     return *this;
@@ -129,7 +129,7 @@ public:
   /// These parameters are specified in SCF-222 v4.0 section 3.4.2.2, in table PDSCH PDU.
   dl_pdsch_pdu_builder& set_frequency_allocation_type_0(const vrb_bitmap& vrbs)
   {
-    pdu.resource_alloc     = resource_allocation_type_0{vrbs};
+    pdu.resource_alloc     = resource_allocation_type_0{.vrbs = vrbs};
     pdu.vrb_to_prb_mapping = vrb_to_prb::mapping_type::non_interleaved;
 
     return *this;

@@ -23,8 +23,8 @@ if (TARGET ocudu_doa_estimator)
     target_link_libraries(doa_estimator_test ocudu_doa_estimator ocudu_support ocudulog GTest::gtest ocudu_gtest_main)
     gtest_discover_tests(doa_estimator_test)
 
-    add_executable(srs_estimator_doa_test srs/srs_estimator_doa_test.cpp)
-    target_link_libraries(srs_estimator_doa_test
+    add_executable(srs_estimator_test srs/srs_estimator_test.cpp)
+    target_link_libraries(srs_estimator_test
             ocudu_srs_estimator
             ocudu_doa_estimator
             ocudu_phy_support
@@ -33,5 +33,5 @@ if (TARGET ocudu_doa_estimator)
             ocudulog
             GTest::gtest
             ocudu_gtest_main)
-    gtest_discover_tests(srs_estimator_doa_test)
+    gtest_discover_tests(srs_estimator_test)
 endif (TARGET ocudu_doa_estimator)

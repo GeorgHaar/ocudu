@@ -77,7 +77,7 @@ static constexpr uint8_t padding_subheader = 0x3f;
 /// Returns the number of slots the uplink request repository holds.
 static unsigned get_repository_size(unsigned ul_indication_delay_slots, unsigned max_processing_delay_slots)
 {
-  // Margin for requests arriving around the slot boundary.
+  // Margin expressed in number of slots for requests arriving around the slot boundary.
   static constexpr unsigned margin = 4;
 
   // A power of two divides the number of slots of a slot point period, so slots map to entries without collisions when

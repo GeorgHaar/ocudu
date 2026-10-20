@@ -347,9 +347,11 @@ void scheduler_event_logger::log_impl()
     return;
   }
   if (mode == mode_t::debug) {
-    logger.debug("Processed slot events pci={}:{:d}", pci, slot_buffer_writer->pop_event_list());
+    log_with_event_time(
+        logger.debug, event_time, "Processed slot events pci={}:{:d}", pci, slot_buffer_writer->pop_event_list());
   } else if (mode == mode_t::info) {
-    logger.info("Processed slot events pci={}:{}", pci, slot_buffer_writer->pop_event_list());
+    log_with_event_time(
+        logger.info, event_time, "Processed slot events pci={}:{}", pci, slot_buffer_writer->pop_event_list());
   }
 }
 

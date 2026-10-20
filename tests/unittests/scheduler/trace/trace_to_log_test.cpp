@@ -30,7 +30,7 @@ namespace {
 class capturing_sink : public ocudulog::sink
 {
 public:
-  capturing_sink() : ocudulog::sink(ocudulog::create_text_formatter()) {}
+  capturing_sink() : ocudulog::sink(ocudulog::create_contextual_text_formatter()) {}
 
   ocudulog::detail::error_string write(ocudulog::detail::memory_buffer buffer) override
   {
@@ -84,6 +84,9 @@ public:
     }
   }
 
+  /// Sets the timestamp, in microseconds since the Unix epoch, of the events appended from now on.
+  void set_event_time(int64_t timestamp_us_) { timestamp_us = timestamp_us_; }
+
   void handle_slot(slot_point sl, sched_slot_result_reader result, std::chrono::microseconds latency)
   {
     flatbuffers::FlatBufferBuilder fbb;
@@ -111,11 +114,12 @@ private:
 
   void finish_and_append(flatbuffers::FlatBufferBuilder& fbb, fbs::CellEventValue type, flatbuffers::Offset<void> value)
   {
-    fbs::FinishSizePrefixedCellEventBuffer(fbb, fbs::CreateCellEvent(fbb, 0, type, value));
+    fbs::FinishSizePrefixedCellEventBuffer(fbb, fbs::CreateCellEvent(fbb, timestamp_us, type, value));
     buf.write(reinterpret_cast<const char*>(fbb.GetBufferPointer()), fbb.GetSize());
   }
 
   const uint16_t     pci;
+  int64_t            timestamp_us = 0;
   std::ostringstream buf;
   bool               finalised = false;
 };
@@ -241,6 +245,8 @@ TEST_F(trace_to_log_test, logged_slot_decisions_survive_the_trace_roundtrip)
   ASSERT_EQ(shared_sink().messages().size(), 1U);
   const std::string expected = shared_sink().messages().front();
   shared_sink().clear();
+  // The log prefix (timestamp and context) differs between the direct and the replayed log.
+  const auto strip_prefix = [](const std::string& m) { return m.substr(m.find("Slot decisions")); };
 
   cell_trace_stream_builder builder{0, make_test_bwp_cfg(), make_test_bwp_cfg()};
   builder.handle_slot(slot_point{0, 1}, result, std::chrono::microseconds(10));
@@ -251,7 +257,37 @@ TEST_F(trace_to_log_test, logged_slot_decisions_survive_the_trace_roundtrip)
         return m.find("Slot decisions") != std::string::npos;
       });
   ASSERT_NE(replayed, shared_sink().messages().end());
-  EXPECT_EQ(expected, *replayed);
+  EXPECT_EQ(strip_prefix(expected), strip_prefix(*replayed));
+}
+
+TEST_F(trace_to_log_test, log_entries_are_stamped_with_the_recorded_event_time)
+{
+  full_sched_result full;
+  const auto        result = full.result();
+
+  cell_trace_stream_builder builder{0, make_test_bwp_cfg(), make_test_bwp_cfg()};
+  builder.set_event_time(1700000000123456);
+  builder.handle_slot(slot_point{0, 1}, result, std::chrono::microseconds(10));
+  builder.set_event_time(1700000000125000);
+  builder.handle_slot(slot_point{0, 2}, result, std::chrono::microseconds(10));
+  builder.set_event_time(1700000000200000);
+
+  ASSERT_TRUE(run(builder.get_stream()));
+
+  // Each message starts with its timestamp, formatted as "YYYY-MM-DDTHH:MM:SS.uuuuuu".
+  constexpr size_t         timestamp_len = 26;
+  std::vector<std::string> decision_times;
+  for (const std::string& m : shared_sink().messages()) {
+    if (m.find("Slot decisions") != std::string::npos) {
+      decision_times.push_back(m.substr(0, timestamp_len));
+    }
+    if (m.find("Cell stopped") != std::string::npos) {
+      EXPECT_EQ(m.substr(0, timestamp_len), "2023-11-14T22:13:20.200000");
+    }
+  }
+  ASSERT_EQ(decision_times.size(), 2U);
+  EXPECT_EQ(decision_times[0], "2023-11-14T22:13:20.123456");
+  EXPECT_EQ(decision_times[1], "2023-11-14T22:13:20.125000");
 }
 
 TEST_F(trace_to_log_test, when_file_header_is_missing_then_returns_false)

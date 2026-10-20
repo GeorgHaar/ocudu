@@ -26,6 +26,13 @@ namespace {
 /// Outcome of reading one record from the input stream.
 enum class read_status { ok, clean_eof, truncated, corrupted };
 
+/// Returns the time at which the event was recorded.
+std::chrono::system_clock::time_point get_event_time(const fbs::CellEvent& ev)
+{
+  return std::chrono::system_clock::time_point{
+      std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::microseconds{ev.timestamp_us()})};
+}
+
 } // namespace
 
 /// Sanity cap on the record size, to bail out early on garbage input.
@@ -118,15 +125,16 @@ bool schedtrace::trace_to_log(std::istream& input, ocudulog::basic_logger& logge
                    cs.duration,
                    cs.interleaving.has_value() ? " interleaved" : "");
   }
-  logger.info("pci={}: Cell started. dl_bwp=[scs={} crbs=[{},{})] ul_bwp=[scs={} crbs=[{},{})] coresets=[{}]",
-              cell_cfg.pci,
-              to_string(cell_cfg.init_dl_bwp.generic_params.scs),
-              cell_cfg.init_dl_bwp.generic_params.crbs.start(),
-              cell_cfg.init_dl_bwp.generic_params.crbs.stop(),
-              to_string(cell_cfg.init_ul_bwp.generic_params.scs),
-              cell_cfg.init_ul_bwp.generic_params.crbs.start(),
-              cell_cfg.init_ul_bwp.generic_params.crbs.stop(),
-              to_c_str(coresets_str));
+  logger.info.log_at(get_event_time(*ev),
+                     "pci={}: Cell started. dl_bwp=[scs={} crbs=[{},{})] ul_bwp=[scs={} crbs=[{},{})] coresets=[{}]",
+                     cell_cfg.pci,
+                     to_string(cell_cfg.init_dl_bwp.generic_params.scs),
+                     cell_cfg.init_dl_bwp.generic_params.crbs.start(),
+                     cell_cfg.init_dl_bwp.generic_params.crbs.stop(),
+                     to_string(cell_cfg.init_ul_bwp.generic_params.scs),
+                     cell_cfg.init_ul_bwp.generic_params.crbs.start(),
+                     cell_cfg.init_ul_bwp.generic_params.crbs.stop(),
+                     to_c_str(coresets_str));
 
   // PDCCHs on CORESETs absent from this list refer to stub CORESETs.
   const std::vector<coreset_configuration> coresets = make_coreset_cfgs(cell_cfg.init_dl_bwp);
@@ -142,7 +150,10 @@ bool schedtrace::trace_to_log(std::istream& input, ocudulog::basic_logger& logge
   bool                    stop_received   = false;
   read_status             status;
   while ((status = read_record(input, record)) == read_status::ok) {
-    ev = fbs::GetSizePrefixedCellEvent(record.data());
+    ev                    = fbs::GetSizePrefixedCellEvent(record.data());
+    const auto event_time = get_event_time(*ev);
+    result_logger.set_event_time(event_time);
+    event_logger.set_event_time(event_time);
     switch (ev->value_type()) {
       case fbs::CellEventValue::CellStartEvent: {
         fmt::print(stderr, "Warning: Invalid schedtrace file format. Cause: CellStartEvent was duplicate\n");
@@ -199,7 +210,7 @@ bool schedtrace::trace_to_log(std::istream& input, ocudulog::basic_logger& logge
         result_logger.on_scheduler_result(slot_result, std::chrono::microseconds(slot_ev.latency_us()));
       } break;
       case fbs::CellEventValue::CellStopEvent: {
-        logger.info("pci={}: Cell stopped", cell_cfg.pci);
+        logger.info.log_at(event_time, "pci={}: Cell stopped", cell_cfg.pci);
         stop_received = true;
       } break;
       default:

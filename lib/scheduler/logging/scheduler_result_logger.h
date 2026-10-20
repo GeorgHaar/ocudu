@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "log_event_time.h"
 #include "ocudu/ocudulog/logger.h"
 #include "ocudu/ran/pci.h"
 #include "ocudu/scheduler/result/sched_result_grid.h"
@@ -15,6 +16,9 @@ class scheduler_result_logger
 {
 public:
   explicit scheduler_result_logger(bool log_broadcast_, pci_t pci_);
+
+  /// Stamps the next log entries with \c t instead of the current time. An empty value restores the current time.
+  void set_event_time(log_event_time t) { event_time = t; }
 
   /// Log scheduler result for a specific cell and slot.
   /// \param[in] result Scheduling result for this slot.
@@ -31,6 +35,7 @@ private:
   bool                    log_broadcast;
   bool                    enabled;
   const pci_t             pci;
+  log_event_time          event_time;
 
   fmt::memory_buffer fmtbuf;
 };

@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "log_event_time.h"
 #include "ocudu/ocudulog/logger.h"
 #include "ocudu/ran/du_types.h"
 #include "ocudu/ran/harq_id.h"
@@ -70,6 +71,9 @@ public:
   scheduler_event_logger(du_cell_index_t cell_index_, pci_t pci_);
   ~scheduler_event_logger();
 
+  /// Stamps the next log entries with \c t instead of the current time. An empty value restores the current time.
+  void set_event_time(log_event_time t) { event_time = t; }
+
   void log()
   {
     if (mode == mode_t::none) {
@@ -124,6 +128,7 @@ private:
   const pci_t             pci;
   ocudulog::basic_logger& logger;
   mode_t                  mode = mode_t::none;
+  log_event_time          event_time;
 
   std::unique_ptr<event_buffer_writer> slot_buffer_writer;
 };

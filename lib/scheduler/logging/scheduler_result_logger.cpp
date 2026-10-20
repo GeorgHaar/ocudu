@@ -970,21 +970,23 @@ void scheduler_result_logger::log_debug(sched_slot_result_reader result, std::ch
     const unsigned nof_failed_pdcch = attempts.dl_pdcch + attempts.ul_pdcch;
     const unsigned nof_failed_uci   = attempts.uci;
     bool           push_failed      = false;
-    logger.debug("Slot decisions pci={} t={}us ({} PDSCH{}, {} PUSCH{}, {} PUCCH{}, {} attempted PDCCH{}, {} attempted "
-                 "UCI{}):{}",
-                 pci,
-                 decision_latency.count(),
-                 nof_pdschs,
-                 nof_pdschs == 1 ? "" : "s",
-                 nof_puschs,
-                 nof_puschs == 1 ? "" : "s",
-                 nof_pucchs,
-                 nof_pucchs == 1 ? "" : "s",
-                 nof_failed_pdcch,
-                 nof_failed_pdcch == 1 ? "" : "s",
-                 nof_failed_uci,
-                 nof_failed_uci == 1 ? "" : "s",
-                 make_debug_log_entry(result, log_broadcast, push_failed));
+    log_with_event_time(logger.debug,
+                        event_time,
+                        "Slot decisions pci={} t={}us ({} PDSCH{}, {} PUSCH{}, {} PUCCH{}, {} attempted PDCCH{}, {} "
+                        "attempted UCI{}):{}",
+                        pci,
+                        decision_latency.count(),
+                        nof_pdschs,
+                        nof_pdschs == 1 ? "" : "s",
+                        nof_puschs,
+                        nof_puschs == 1 ? "" : "s",
+                        nof_pucchs,
+                        nof_pucchs == 1 ? "" : "s",
+                        nof_failed_pdcch,
+                        nof_failed_pdcch == 1 ? "" : "s",
+                        nof_failed_uci,
+                        nof_failed_uci == 1 ? "" : "s",
+                        make_debug_log_entry(result, log_broadcast, push_failed));
     if (push_failed) {
       logger.error("Scheduler result log entry exceeded segment size and was dropped");
     }
@@ -1010,16 +1012,18 @@ void scheduler_result_logger::log_info(sched_slot_result_reader result, std::chr
     const unsigned nof_puschs  = ul.puschs().size();
     const unsigned nof_pucchs  = ul.pucchs().size();
     bool           push_failed = false;
-    logger.info("Slot decisions pci={} t={}us ({} PDSCH{}, {} PUSCH{}, {} PUCCH{}): {}",
-                pci,
-                decision_latency.count(),
-                nof_pdschs,
-                nof_pdschs == 1 ? "" : "s",
-                nof_puschs,
-                nof_puschs == 1 ? "" : "s",
-                nof_pucchs,
-                nof_pucchs == 1 ? "" : "s",
-                make_info_log_entry(result, log_broadcast, push_failed));
+    log_with_event_time(logger.info,
+                        event_time,
+                        "Slot decisions pci={} t={}us ({} PDSCH{}, {} PUSCH{}, {} PUCCH{}): {}",
+                        pci,
+                        decision_latency.count(),
+                        nof_pdschs,
+                        nof_pdschs == 1 ? "" : "s",
+                        nof_puschs,
+                        nof_puschs == 1 ? "" : "s",
+                        nof_pucchs,
+                        nof_pucchs == 1 ? "" : "s",
+                        make_info_log_entry(result, log_broadcast, push_failed));
     if (push_failed) {
       logger.error("Scheduler result log entry exceeded segment size and was dropped");
     }

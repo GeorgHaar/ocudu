@@ -104,6 +104,23 @@ static bool when_logging_in_disabled_log_channel_then_log_entry_is_ignored()
   return true;
 }
 
+static bool when_logging_at_a_time_point_then_log_entry_carries_it()
+{
+  backend_spy              backend;
+  test_dummies::sink_dummy s;
+  log_channel              log("id", s, backend);
+
+  const std::chrono::system_clock::time_point tp{std::chrono::seconds(1000)};
+  log.log_at(tp, "test {}", 42);
+  ASSERT_EQ(backend.last_entry().metadata.tp, tp);
+
+  const auto before = std::chrono::system_clock::now();
+  log("test {}", 42);
+  ASSERT_EQ(backend.last_entry().metadata.tp >= before, true);
+
+  return true;
+}
+
 static bool when_logging_then_filled_in_log_entry_is_pushed_into_the_backend()
 {
   backend_spy              backend;
@@ -273,6 +290,7 @@ int main()
   TEST_FUNCTION(when_log_channel_is_enabled_then_enabled_returns_true);
   TEST_FUNCTION(when_logging_in_log_channel_then_log_entry_is_pushed_into_the_backend);
   TEST_FUNCTION(when_logging_in_disabled_log_channel_then_log_entry_is_ignored);
+  TEST_FUNCTION(when_logging_at_a_time_point_then_log_entry_carries_it);
   TEST_FUNCTION(when_logging_then_filled_in_log_entry_is_pushed_into_the_backend);
   TEST_FUNCTION(when_logging_with_hex_dump_then_filled_in_log_entry_is_pushed_into_the_backend);
   TEST_FUNCTION(when_hex_array_length_is_less_than_hex_log_max_size_then_array_length_is_used);

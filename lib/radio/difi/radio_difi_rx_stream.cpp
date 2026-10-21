@@ -69,10 +69,10 @@ static void unpack_samples(const uint8_t*     payload,
     return;
   }
 
-  // 8-bit samples are signed bytes; scale back to int16 by shifting left 8.
+  // 8-bit samples are signed bytes; scale back to int16 by multiplying by 256.
   for (unsigned i = 0; i != nof_samples; ++i) {
-    const int16_t re = static_cast<int16_t>(static_cast<int8_t>(payload[i * 2 + 0])) << 8;
-    const int16_t im = static_cast<int16_t>(static_cast<int8_t>(payload[i * 2 + 1])) << 8;
+    const int16_t re = static_cast<int16_t>(static_cast<int8_t>(payload[i * 2 + 0]) * 256);
+    const int16_t im = static_cast<int16_t>(static_cast<int8_t>(payload[i * 2 + 1]) * 256);
     dst[i]           = ci16_t(re, im);
   }
 }

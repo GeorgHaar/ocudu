@@ -1733,6 +1733,8 @@ calculate_pucch_config_diff(asn1::rrc_nr::pucch_cfg_s& out, const pucch_config& 
     return r.rep_factor != pucch_repetition_factor::n1;
   });
   if (any_repetition and out.res_to_add_mod_list.size() > 0) {
+    // resourceToAddModListExt-v1610 is in an extension addition group of PUCCH-Config (TS 38.331).
+    out.ext = true;
     out.res_to_add_mod_list_ext_v1610.set_present();
     auto* ext_list = out.res_to_add_mod_list_ext_v1610.get();
     for (const auto& asn1_res : out.res_to_add_mod_list) {
@@ -1742,6 +1744,8 @@ calculate_pucch_config_diff(asn1::rrc_nr::pucch_cfg_s& out, const pucch_config& 
           });
       pucch_res_ext_v1610_s ext{};
       if (it != dest.pucch_res_list.end() and it->rep_factor != pucch_repetition_factor::n1) {
+        // pucch-RepetitionNrofSlots-r17 is in an extension addition group of PUCCH-ResourceExt-v1610.
+        ext.ext                                 = true;
         ext.pucch_repeat_nrof_slots_r17_present = true;
         ext.pucch_repeat_nrof_slots_r17.value =
             static_cast<pucch_res_ext_v1610_s::pucch_repeat_nrof_slots_r17_opts::options>(

@@ -256,6 +256,6 @@ void ocudu::fapi_adaptor::convert_pucch_fapi_to_phy(uplink_pdu_slot_repository::
   } else if (std::holds_alternative<fapi::ul_pucch_pdu_format_4>(fapi_pdu.format)) {
     fill_format4_parameters(pdu, fapi_pdu, slot, num_rx_ant, ntn_k_mac_slots);
   } else {
-    ocudu_assert(0, "Unsupported PUCCH format {}", fmt::underlying(context.format));
+    ocudu_assert(0, "Unsupported PUCCH format variant index {}", fapi_pdu.format.index());
   }
 }

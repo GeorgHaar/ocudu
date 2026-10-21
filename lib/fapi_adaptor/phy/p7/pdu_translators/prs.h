@@ -20,7 +20,6 @@ class precoding_codebook_repository;
 ///
 /// \param[out] generator_config PRS generator configuration.
 /// \param[in] fapi_pdu FAPI PDU received that contains all the PRS parameters.
-/// \param[in] sfn SFN when the FAPI PDU was received.
 /// \param[in] slot Slot when the FAPI PDU was received.
 /// \param[in] pm_repo Precoding weight matrix repository.
 void convert_prs_fapi_to_phy(prs_generator_configuration&         generator_config,

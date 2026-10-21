@@ -15,7 +15,6 @@ namespace fapi_adaptor {
 ///
 /// \param[out] proc_pdu SSB processor PDU.
 /// \param[in] fapi_pdu FAPI PDU received that contains all the SSB parameters.
-/// \param[in] sfn SFN when the FAPI PDU was received.
 /// \param[in] slot Slot when the FAPI PDU was received.
 /// \param[in] scs_common Parameter subCarrierSpacingCommon as per TS38.331, Section 6.2.2 \c MIB message.
 void convert_ssb_fapi_to_phy(ssb_processor::pdu_t&   proc_pdu,

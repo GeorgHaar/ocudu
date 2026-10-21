@@ -22,9 +22,7 @@ namespace fapi_adaptor {
 /// \param[in] prach_cfg   PRACH configuration as per SCF-222 v4.0 Section 3.3.2.4 TLV 0x1031.
 /// \param[in] carrier_cfg Carrier configuration as per SCF-222 v4.0 Section 3.3.2.4 TLV 0x102d.
 /// \param[in] ports       Port selection.
-/// \param[in] sfn         System frame number.
 /// \param[in] slot        Slot number.
-/// \param[in] scs         Common subcarrier spacing.
 /// \param[in] sector_id   Base station sector identifier.
 void convert_prach_fapi_to_phy(prach_buffer_context&       context,
                                const fapi::ul_prach_pdu&   fapi_pdu,

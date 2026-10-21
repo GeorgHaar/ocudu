@@ -16,7 +16,6 @@ namespace fapi_adaptor {
 ///
 /// \param[out] proc_pdu NZP-CSI-RS processor PDU.
 /// \param[in] fapi_pdu FAPI PDU received that contains all the CSI-RS parameters.
-/// \param[in] sfn SFN when the FAPI PDU was received.
 /// \param[in] slot Slot when the FAPI PDU was received.
 /// \param[in] cell_bandwidth_prb Cell bandwidth in PRB.
 void convert_csi_rs_fapi_to_phy(nzp_csi_rs_generator::config_t& proc_pdu,

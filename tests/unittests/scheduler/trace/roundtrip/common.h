@@ -21,6 +21,12 @@ struct test_values<T, std::enable_if_t<std::is_integral_v<T>>> {
   static std::vector<T> get() { return {std::numeric_limits<T>::min(), std::numeric_limits<T>::max()}; }
 };
 
+/// Specialization of \c test_values for any floating point type T.
+template <typename T>
+struct test_values<T, std::enable_if_t<std::is_floating_point_v<T>>> {
+  static std::vector<T> get() { return {std::numeric_limits<T>::lowest(), T(0), std::numeric_limits<T>::max()}; }
+};
+
 /// Specialization of \c test_values for any bounded_integer<Integer, MIN, MAX>.
 template <typename Integer, Integer MIN, Integer MAX>
 struct test_values<bounded_integer<Integer, MIN, MAX>> {

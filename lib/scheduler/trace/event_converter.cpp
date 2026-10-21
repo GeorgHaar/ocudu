@@ -13,6 +13,7 @@
 #include "ocudu/ran/precoding/precoding_matrix_indicator.h"
 #include "ocudu/ran/pucch/pucch_constants.h"
 #include "ocudu/ran/slot_pdu_capacity_constants.h"
+#include "ocudu/scheduler/input/crc_inputs.h"
 #include "ocudu/scheduler/input/uci_inputs.h"
 #include "ocudu/scheduler/result/csi_rs_info.h"
 #include "ocudu/scheduler/result/pdcch_info.h"
@@ -1526,6 +1527,47 @@ void schedtrace::convert_fb_to_harq_ack_event(harq_ack_event&          event,
   event.h_id       = to_harq_id(input.harq_id());
   event.ack        = static_cast<mac_harq_ack_report_status>(input.status());
   event.tbs        = units::bytes{input.tbs()};
+}
+
+flatbuffers::Offset<fbs::CrcEvent> schedtrace::convert_ul_crc_event_to_fb(flatbuffers::FlatBufferBuilder& fbb,
+                                                                          const ul_crc_event&             event)
+{
+  fbs::CrcEventBuilder builder(fbb);
+  builder.add_slot_rx(event.sl_rx.count());
+  builder.add_ue_idx(static_cast<uint16_t>(event.ue_index));
+  builder.add_rnti(to_underlying(event.rnti));
+  builder.add_harq_id(static_cast<uint8_t>(event.h_id));
+  builder.add_status(static_cast<fbs::CrcStatus>(event.crc));
+  builder.add_tbs(static_cast<uint32_t>(event.tbs.value()));
+  if (event.ul_sinr_db.has_value()) {
+    builder.add_ul_sinr_db(*event.ul_sinr_db);
+  }
+  if (event.ul_rsrp_dbfs.has_value()) {
+    builder.add_ul_rsrp_dbfs(*event.ul_rsrp_dbfs);
+  }
+  if (event.time_advance_offset.has_value()) {
+    builder.add_time_advance(event.time_advance_offset->to_Tc());
+  }
+  return builder.Finish();
+}
+
+void schedtrace::convert_fb_to_ul_crc_event(ul_crc_event&        event,
+                                            const fbs::CrcEvent& input,
+                                            subcarrier_spacing   scs,
+                                            du_cell_index_t      cell_index)
+{
+  event.cell_index   = cell_index;
+  event.sl_rx        = slot_point(scs, input.slot_rx());
+  event.ue_index     = to_du_ue_index(input.ue_idx());
+  event.rnti         = to_rnti(input.rnti());
+  event.h_id         = to_harq_id(input.harq_id());
+  event.crc          = static_cast<ul_crc_status>(input.status());
+  event.tbs          = units::bytes{input.tbs()};
+  event.ul_sinr_db   = input.ul_sinr_db().has_value() ? std::optional<float>{*input.ul_sinr_db()} : std::nullopt;
+  event.ul_rsrp_dbfs = input.ul_rsrp_dbfs().has_value() ? std::optional<float>{*input.ul_rsrp_dbfs()} : std::nullopt;
+  event.time_advance_offset = input.time_advance().has_value()
+                                  ? std::optional<phy_time_unit>{phy_time_unit::from_units_of_Tc(*input.time_advance())}
+                                  : std::nullopt;
 }
 
 flatbuffers::Offset<fbs::SrEvent> schedtrace::convert_sr_event_to_fb(flatbuffers::FlatBufferBuilder& fbb,

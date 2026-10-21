@@ -39,6 +39,7 @@ void cell_event_tracer::on_event_impl(const rach_indication_message& /*unused*/)
 void cell_event_tracer::on_event_impl(const harq_ack_event& /*unused*/) {}
 void cell_event_tracer::on_event_impl(const csi_report_event& /*unused*/) {}
 void cell_event_tracer::on_event_impl(const sr_event& /*unused*/) {}
+void cell_event_tracer::on_event_impl(const ul_crc_event& /*unused*/) {}
 
 std::unique_ptr<cell_event_tracer> ocudu::schedtrace::create_cell_tracer(const ocudu::cell_configuration& cell_cfg)
 {

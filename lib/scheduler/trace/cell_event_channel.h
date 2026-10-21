@@ -27,9 +27,9 @@ public:
   /// Event queue (producer -> consumer): carries builders holding finished event buffers.
   using event_queue_type = concurrent_queue<event_builder*, concurrent_queue_policy::lockfree_spsc>;
 
-  /// Maximum number of slot inputs buffered per slot. Dominated by the HARQ-ACK events of the slot: one per HARQ-ACK
-  /// bit of each UCI PDU. Excess inputs are dropped with a warning.
-  static constexpr unsigned max_inputs_per_slot = MAX_UCI_PDUS_PER_UCI_IND * 4;
+  /// Maximum number of slot inputs buffered per slot. Dominated by the HARQ-ACK events of the slot, one per HARQ-ACK
+  /// bit of each UCI PDU, and the CRC events, one per PUSCH PDU. Excess inputs are dropped with a warning.
+  static constexpr unsigned max_inputs_per_slot = MAX_UCI_PDUS_PER_UCI_IND * 4 + MAX_PUSCH_PDUS_PER_SLOT;
 
   cell_event_channel(du_cell_index_t cell_idx, unsigned qsize, ocudulog::basic_logger& logger_) :
     cell_index(cell_idx), ev_pool(qsize), ev_queue(qsize), logger(logger_)

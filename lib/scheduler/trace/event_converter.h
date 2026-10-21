@@ -31,6 +31,7 @@ struct rach_indication_message;
 struct harq_ack_event;
 struct sr_event;
 struct csi_report_event;
+struct ul_crc_event;
 struct ul_sched_info;
 struct dl_msg_alloc;
 struct sib_information;
@@ -243,6 +244,16 @@ flatbuffers::Offset<fbs::CsiReportEvent> convert_csi_report_event_to_fb(flatbuff
 
 /// Convert a flatbuffer CSI report event into the original CSI report event.
 void convert_fb_to_csi_report_event(csi_report_event& event, const fbs::CsiReportEvent& input, subcarrier_spacing scs);
+
+/// Convert a UL CRC event to the respective flatbuffer table.
+flatbuffers::Offset<fbs::CrcEvent> convert_ul_crc_event_to_fb(flatbuffers::FlatBufferBuilder& fbb,
+                                                              const ul_crc_event&             event);
+
+/// Convert a flatbuffer CRC event into the original UL CRC event.
+void convert_fb_to_ul_crc_event(ul_crc_event&        event,
+                                const fbs::CrcEvent& input,
+                                subcarrier_spacing   scs,
+                                du_cell_index_t      cell_index);
 
 } // namespace schedtrace
 } // namespace ocudu

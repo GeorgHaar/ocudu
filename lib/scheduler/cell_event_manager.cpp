@@ -493,14 +493,26 @@ void cell_event_manager::handle_ue_crc(slot_point sl_rx, const ul_crc_pdu_indica
   }
 
   const ue_cell::crc_outcome& outcome = crc_process_res.value();
+
+  const ul_crc_status crc_status = not outcome.pusch_transmitted ? ul_crc_status::dtx
+                                   : crc.tb_crc_success          ? ul_crc_status::ok
+                                                                 : ul_crc_status::ko;
+
+  // Log event.
+  const ul_crc_event event{crc.ue_index,
+                           crc.rnti,
+                           cell_cfg.cell_index,
+                           sl_rx,
+                           crc.harq_id,
+                           crc_status,
+                           outcome.tbs,
+                           crc.ul_sinr_dB,
+                           crc.ul_rsrp_dBFS,
+                           crc.time_advance_offset};
+  ev_tracer.on_event(event);
+  ev_logger.enqueue(event);
+
   if (not outcome.pusch_transmitted) {
-    ev_logger.enqueue(scheduler_event_logger::crc_event{crc.ue_index,
-                                                        crc.rnti,
-                                                        cell_cfg.cell_index,
-                                                        sl_rx,
-                                                        crc.harq_id,
-                                                        scheduler_event_logger::crc_event::crc_res_t::dtx,
-                                                        crc.ul_sinr_dB});
     return;
   }
 
@@ -517,17 +529,6 @@ void cell_event_manager::handle_ue_crc(slot_point sl_rx, const ul_crc_pdu_indica
     ue_ev_handler.handle_ul_n_ta_update(
         ue_cc->ue_index, ue_cc->cfg().tag_id(), crc.time_advance_offset.value(), crc.ul_sinr_dB.value());
   }
-
-  // Log event.
-  ev_logger.enqueue(scheduler_event_logger::crc_event{crc.ue_index,
-                                                      crc.rnti,
-                                                      cell_cfg.cell_index,
-                                                      sl_rx,
-                                                      crc.harq_id,
-                                                      crc.tb_crc_success
-                                                          ? scheduler_event_logger::crc_event::crc_res_t::ok
-                                                          : scheduler_event_logger::crc_event::crc_res_t::ko,
-                                                      crc.ul_sinr_dB});
 
   // Notify metrics handler.
   metrics.handle_crc_indication(sl_rx, crc, outcome.tbs);

@@ -28,6 +28,7 @@ struct schema_version_hash {
 static constexpr schema_version_hash schema_hashes[] = {
     {1, 0, 0xf95e2d23bcc5bb59},
     {2, 0, 0x815d0c10f7577731},
+    {2, 1, 0xabf5ea948972e97f},
 };
 
 /// Computes the 64-bit FNV-1a hash of the given bytes.

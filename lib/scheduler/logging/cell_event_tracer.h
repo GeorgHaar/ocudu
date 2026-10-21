@@ -7,6 +7,7 @@
 
 #include "ocudu/ocudulog/logger.h"
 #include "ocudu/ran/slot_point.h"
+#include "ocudu/scheduler/input/crc_inputs.h"
 #include "ocudu/scheduler/input/uci_inputs.h"
 #include "ocudu/support/rtsan.h"
 
@@ -74,6 +75,9 @@ private:
 
   /// Called on every CSI report event.
   void on_event_impl(const csi_report_event& ev);
+
+  /// Called on every UL CRC event.
+  void on_event_impl(const ul_crc_event& ev);
 
   /// The DU-specific index of this cell.
   const du_cell_index_t cell_index;

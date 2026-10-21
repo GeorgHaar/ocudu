@@ -183,6 +183,12 @@ bool schedtrace::trace_to_log(std::istream& input, ocudulog::basic_logger& logge
               convert_fb_to_csi_report_event(event, *csi_report, cell_cfg.init_ul_bwp.generic_params.scs);
               event_logger.enqueue(event);
             } break;
+            case fbs::SlotInput::CrcEvent: {
+              const auto*  crc_ev = static_cast<const fbs::CrcEvent*>(slot_ev.inputs()->Get(i));
+              ul_crc_event event;
+              convert_fb_to_ul_crc_event(event, *crc_ev, cell_cfg.init_ul_bwp.generic_params.scs, cell_index);
+              event_logger.enqueue(event);
+            } break;
             default:
               fmt::print(stderr, "ERROR: Unsupported schedtrace slot input");
               return false;

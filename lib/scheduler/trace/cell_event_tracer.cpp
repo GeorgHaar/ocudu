@@ -9,6 +9,7 @@
 #include "event_converter.h"
 #include "fbs/cell_event_generated.h"
 #include "ocudu/ocudulog/ocudulog.h"
+#include "ocudu/scheduler/input/crc_inputs.h"
 #include "ocudu/scheduler/input/uci_inputs.h"
 #include "ocudu/scheduler/result/sched_result.h"
 
@@ -115,4 +116,9 @@ void cell_event_tracer::on_event_impl(const sr_event& ev)
 void cell_event_tracer::on_event_impl(const csi_report_event& ev)
 {
   ev_queue->add_input(fbs::SlotInput::CsiReportEvent, convert_csi_report_event_to_fb(ev_queue->next(), ev).Union());
+}
+
+void cell_event_tracer::on_event_impl(const ul_crc_event& ev)
+{
+  ev_queue->add_input(fbs::SlotInput::CrcEvent, convert_ul_crc_event_to_fb(ev_queue->next(), ev).Union());
 }

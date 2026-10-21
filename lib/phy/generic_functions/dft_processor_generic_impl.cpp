@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "dft_processor_generic_impl.h"
+#include "ocudu/ocuduvec/conversion.h"
 #include "ocudu/ocuduvec/simd.h"
 #include "ocudu/support/math/math_utils.h"
 #include <cmath>
@@ -558,4 +559,13 @@ span<const cf_t> dft_processor_generic_impl::run()
 
   // Return the view of the output data.
   return output;
+}
+
+void dft_processor_generic_impl::run(span<ci16_t> out)
+{
+  ocudu_assert(out.size() == get_size(),
+               "The DFT output size (i.e., {}) is not equal to the DFT size (i.e., {}).",
+               out.size(),
+               get_size());
+  ocuduvec::convert(out, run(), 1.0F);
 }

@@ -5,6 +5,7 @@
 
 #include "support/compare_sequences.h"
 #include "ocudu/adt/format.h"
+#include "ocudu/ocuduvec/conversion.h"
 #include "ocudu/phy/generic_functions/generic_functions_factories.h"
 #include "ocudu/ran/transform_precoding/transform_precoding_helpers.h"
 #include "ocudu/support/math/math_utils.h"
@@ -75,6 +76,8 @@ protected:
       dft_factory = create_dft_processor_factory_fftw_slow();
     } else if (dft_factory_str == "fftz") {
       dft_factory = create_dft_processor_factory_fftz();
+    } else if (dft_factory_str == "hwy") {
+      dft_factory = create_dft_processor_factory_hwy();
     }
   }
 
@@ -179,6 +182,36 @@ TEST_P(DFTprocessorFixture, DFTProcessorUnittest)
   }
 }
 
+// Verifies that the DFT with 16-bit integer output is the floating point DFT output converted without scaling.
+TEST_P(DFTprocessorFixture, DFTProcessorInt16Output)
+{
+  unsigned                 dft_size  = std::get<1>(GetParam());
+  dft_processor::direction direction = std::get<2>(GetParam());
+
+  ASSERT_NE(dft_factory, nullptr);
+  std::unique_ptr<dft_processor> dft = dft_factory->create({.size = dft_size, .dir = direction});
+  if (dft == nullptr) {
+    GTEST_SKIP();
+  }
+
+  // Random input with an output root mean square of 2048, so the output does not saturate.
+  float amplitude = 2048.0F / std::sqrt(static_cast<float>(dft_size));
+  for (cf_t& value : dft->get_input()) {
+    value = std::polar(amplitude, dist(rgen));
+  }
+
+  // Expected output, from the floating point output.
+  std::vector<cf_t> output_cf(dft_size);
+  span<const cf_t>  output_view = dft->run();
+  std::copy(output_view.begin(), output_view.end(), output_cf.begin());
+  std::vector<ci16_t> expected(dft_size);
+  ocuduvec::convert(expected, output_cf, 1.0F);
+
+  std::vector<ci16_t> output(dft_size);
+  dft->run(output);
+  ASSERT_EQ(output, expected);
+}
+
 // Creates test suite that combines all possible parameters.
 INSTANTIATE_TEST_SUITE_P(DFTProcessorTest,
                          DFTprocessorFixture,
@@ -191,7 +224,23 @@ INSTANTIATE_TEST_SUITE_P(DFTProcessorTest,
                                                               ,
                                                               "fftz"
 #endif // HAVE_FFTZ
+#ifdef HAVE_HWY
+                                                              ,
+                                                              "hwy"
+#endif // HAVE_HWY
                                                               ),
                                             ::testing::ValuesIn(dft_required_sizes),
                                             ::testing::Values(dft_processor::direction::DIRECT,
                                                               dft_processor::direction::INVERSE)));
+
+// Verifies that the automatic DFT factory creates processors for all the required sizes.
+TEST(DFTProcessorAutomaticTest, AutomaticFactorySupportsAllSizes)
+{
+  std::shared_ptr<dft_processor_factory> factory = create_dft_processor_factory();
+  ASSERT_NE(factory, nullptr);
+  for (unsigned size : dft_required_sizes) {
+    std::unique_ptr<dft_processor> dft = factory->create({.size = size, .dir = dft_processor::direction::INVERSE});
+    ASSERT_NE(dft, nullptr) << size;
+    ASSERT_EQ(dft->get_size(), size);
+  }
+}

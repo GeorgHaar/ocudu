@@ -69,6 +69,7 @@ option(ENABLE_FFTW           "Enable FFTW"                                  ON)
 option(ENABLE_CUDA           "Enable NVIDIA CUDA acceleration"              OFF)
 option(ENABLE_MKL            "Enable Intel MKL"                             ON)
 option(ENABLE_FFTZ           "Enable AMD Optimized FFT for Zen"             ON)
+option(ENABLE_HWY            "Enable Google Highway"                        ON)
 option(ENABLE_ARMPL          "Enable ARM performance library"               ON)
 option(ENABLE_DPDK           "Enable DPDK"                                  OFF)
 option(ENABLE_LIBNUMA        "Enable LibNUMA"                               OFF)
@@ -495,6 +496,20 @@ if (ENABLE_FFTZ AND ${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64")
         )
     endif(FFTZ_FOUND)
 endif (ENABLE_FFTZ AND ${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64")
+
+# Google Highway
+if (ENABLE_HWY AND ${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64|aarch64")
+    find_package(HWY)
+    if(HWY_FOUND)
+        sbom_add(
+                PACKAGE            "Google Highway"
+                DOWNLOAD_LOCATION  "https://github.com/google/highway"
+                SUPPLIER           "Google LLC"
+                LICENSE            "Apache-2.0 OR BSD-3-Clause"
+                VERSION            ${HWY_VERSION}
+        )
+    endif(HWY_FOUND)
+endif (ENABLE_HWY AND ${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64|aarch64")
 
 # ARMPL
 if (ENABLE_ARMPL AND ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")

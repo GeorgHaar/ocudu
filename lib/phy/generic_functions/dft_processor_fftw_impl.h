@@ -112,6 +112,9 @@ public:
 
   // See interface for documentation.
   span<const cf_t> run() override;
+
+  // See interface for documentation.
+  void run(span<ci16_t> out) override;
 };
 
 } // namespace ocudu

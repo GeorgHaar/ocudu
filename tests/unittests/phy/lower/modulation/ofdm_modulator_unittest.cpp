@@ -259,33 +259,33 @@ TEST_P(OfdmModulatorFixture, ModulatesCorrectly)
       // Total OFDM symbol length.
       unsigned symbol_len = dft_size + cp_len;
 
-      // Calculate initial OFDM symbol phase and scaling.
-      cf_t amplitude_phase_compensation =
-          cf_t(std::polar(static_cast<double>(scale),
-                          -2.0 * M_PI * center_freq_Hz * (offset_sf + cp_len) / static_cast<double>(sampling_rate_Hz)));
+      // Calculate the OFDM symbol scaling, including the phase compensation and the conversion to the 16-bit integer
+      // full scale. The modulator applies it to the DFT input.
+      cf_t symbol_scale = cf_t(std::polar(static_cast<double>(scale),
+                                          -2.0 * M_PI * center_freq_Hz * (offset_sf + cp_len) /
+                                              static_cast<double>(sampling_rate_Hz))) *
+                          ocuduvec::scaling_factor_cf_to_ci16;
 
       // Get the expected DFT input for this OFDM symbol.
       std::vector expected_dft_input =
           get_expected_dft_input(rg, params.port_weights, params.allocated_ports, i_symbol);
+      ocuduvec::sc_prod(expected_dft_input, expected_dft_input, symbol_scale);
 
-      // Verify DFT input matches with the expected.
+      // Verify DFT input matches with the expected, with the error relative to the symbol scaling.
       {
         error_type<std::string> compare_result = compare_sequences(
             span<const cf_t>(dft_entries[i_symbol].input),
             span<const cf_t>(expected_dft_input),
-            [length = static_cast<float>(dft_size)](const cf_t& actual, const cf_t& expected) {
-              return std::abs(actual - expected) / std::sqrt(length);
-            },
+            [norm = std::sqrt(static_cast<float>(dft_size)) * std::abs(symbol_scale)](
+                const cf_t& actual, const cf_t& expected) { return std::abs(actual - expected) / norm; },
             ASSERT_MAX_ERROR);
         ASSERT_TRUE(compare_result.has_value()) << compare_result.error();
       }
 
-      // Generate expected time domain output, scaled to the 16-bit integer full scale.
+      // Generate expected time domain output. The DFT output is already in 16-bit integer units.
       std::vector<cf_t> expected_output_data(dft_size + cp_len);
       span<cf_t>        expected_output = expected_output_data;
-      ocuduvec::sc_prod(expected_output.last(dft_size),
-                        dft_entries[i_symbol].output,
-                        amplitude_phase_compensation * ocuduvec::scaling_factor_cf_to_ci16);
+      ocuduvec::copy(expected_output.last(dft_size), dft_entries[i_symbol].output);
       ocuduvec::copy(expected_output.first(cp_len), expected_output.last(cp_len));
 
       // Select a view of the OFDM modulator output.

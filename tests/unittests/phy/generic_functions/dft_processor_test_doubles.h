@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "ocudu/ocuduvec/conversion.h"
 #include "ocudu/phy/generic_functions/generic_functions_factories.h"
 #include <random>
 
@@ -41,11 +42,30 @@ public:
     return e.output;
   }
 
+  void run(span<ci16_t> output) override
+  {
+    // Generate some random output, in the 16-bit integer range.
+    std::vector<cf_t> output_buffer;
+    output_buffer.reserve(size);
+    std::generate_n(std::back_inserter(output_buffer), size, [this]() {
+      return cf_t{dist(rgen), dist(rgen)} * output_amplitude_ci16;
+    });
+
+    entries.emplace_back();
+    entry& e = entries.back();
+    e.input  = input_buffer;
+    e.output = output_buffer;
+
+    ocuduvec::convert(output, e.output, 1.0F);
+  }
+
   void clear_entries() { entries.clear(); }
 
   const std::vector<entry>& get_entries() const { return entries; }
 
 private:
+  /// Amplitude of the random output of the 16-bit integer runs.
+  static constexpr float                output_amplitude_ci16 = 8192.0F;
   unsigned                              size;
   direction                             dir;
   std::vector<cf_t>                     input_buffer;

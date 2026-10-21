@@ -707,6 +707,7 @@ fuzz:
         -DENABLE_FFTW=OFF \
         -DENABLE_MKL=OFF \
         -DENABLE_FFTZ=OFF \
+        -DENABLE_HWY=OFF \
         -DENABLE_ARMPL=OFF \
         -DENABLE_DPDK=OFF \
         -DENABLE_LIBNUMA=OFF \

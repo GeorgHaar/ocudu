@@ -53,6 +53,14 @@ public:
   /// \brief Executes the DFT from the internal input data.
   /// \return A view of the internal output DFT buffer.
   virtual span<const cf_t> run() = 0;
+
+  /// \brief Executes the DFT from the internal input data and converts the output to 16-bit complex integers.
+  ///
+  /// The output values are rounded to the nearest integer and saturated, without scaling.
+  ///
+  /// \param[out] output DFT output.
+  /// \remark An assertion is triggered if the output size does not match the DFT size.
+  virtual void run(span<ci16_t> output) = 0;
 };
 
 } // namespace ocudu

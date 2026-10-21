@@ -185,7 +185,7 @@ ocudu::create_sw_pusch_processor_factory(task_executor&                         
                                          port_channel_estimator_fd_smoothing_strategy     fd_smoothing_strategy,
                                          channel_equalizer_algorithm_type                 equalizer_algorithm_type)
 {
-  std::shared_ptr<dft_processor_factory> dft_proc_factory = create_dft_processor_factory_fftw_slow();
+  std::shared_ptr<dft_processor_factory> dft_proc_factory = create_dft_processor_factory();
   report_fatal_error_if_not(dft_proc_factory, "Failed to create factory.");
 
   std::shared_ptr<crc_calculator_factory> crc_calc_factory = create_crc_calculator_factory_sw("auto");

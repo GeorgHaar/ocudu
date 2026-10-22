@@ -9,20 +9,28 @@
 #  FFTZ_INCLUDE_DIRS - The FFTZ include directories
 #  FFTZ_LIBRARIES - The libraries needed to use FFTZ
 
+if(NOT "$ENV{FFTZ_DIR}" STREQUAL "")
+  set(_FFTZ_INCLUDE_HINTS "$ENV{FFTZ_DIR}/include")
+  set(_FFTZ_LIB_HINTS     "$ENV{FFTZ_DIR}/lib")
+endif()
+
 find_path(FFTZ_INCLUDE_DIR
         NAMES aoclfftz.h
-        HINTS $ENV{FFTZ_DIR}/include/
+        HINTS ${_FFTZ_INCLUDE_HINTS}
         PATHS /usr/local/include/)
 
 find_library(FFTZ_LIBRARY_STATIC
         NAMES libaocl_fftz.a
-        HINTS $ENV{FFTZ_DIR}/lib/
+        HINTS ${_FFTZ_LIB_HINTS}
         PATHS /usr/local/lib/)
 
 find_library(FFTZ_LIBRARY_SHARED
         NAMES libaocl_fftz.so
-        HINTS $ENV{FFTZ_DIR}/lib/
+        HINTS ${_FFTZ_LIB_HINTS}
         PATHS /usr/local/lib/)
+
+unset(_FFTZ_INCLUDE_HINTS)
+unset(_FFTZ_LIB_HINTS)
 
 if (FFTZ_LIBRARY_STATIC)
     set(FFTZ_LIBRARIES ${FFTZ_LIBRARY_STATIC})

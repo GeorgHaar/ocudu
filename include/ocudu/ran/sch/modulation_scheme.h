@@ -33,7 +33,7 @@ enum class modulation_scheme {
   /// 256-point Quadrature Amplitude Modulation (256-QAM) described in TS38.211 Section 5.1.6.
   QAM256 = 8,
   /// 1024-point Quadrature Amplitude Modulation (1024-QAM) described in TS38.211 Section 5.1.7 (from Release 17).
-  QAM1024 = MODULATION_MAX_BITS_PER_SYMBOL
+  QAM1024 = MODULATION_MAX_BITS_PER_SYMBOL,
 };
 
 inline std::string to_string(modulation_scheme mod)

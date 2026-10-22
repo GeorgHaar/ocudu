@@ -35,6 +35,12 @@ void ue::slot_indication(slot_point sl_tx)
   drx.slot_indication(sl_tx);
   // Only an NTN cell signals a Differential Koffset, so elsewhere the tracker holds nothing to update.
   if (cell_cfg_common.ntn_cs_koffset != 0 and koffset.is_active()) {
+    // A HARQ process discarded on timeout reports nothing, so a value no process holds any more is given up here
+    // rather than on a feedback that never comes. An acknowledged value outlives its process, which is freed at once.
+    if (koffset.has_unacknowledged_ce() and not get_pcell().holds_differential_koffset_ce()) {
+      koffset.handle_ce_dropped();
+    }
+
     // Uplink the UE was already granted. A larger Differential Koffset moves its uplink earlier, so the UE is not
     // scheduled again until these transmissions are behind it.
     koffset.slot_indication(sl_tx, get_pcell().harqs.last_ul_slot());

@@ -149,6 +149,18 @@ public:
     return ue_koffset_slots < cell_cfg.ntn_cs_koffset ? cell_cfg.ntn_cs_koffset - ue_koffset_slots : 0;
   }
 
+  /// Returns whether a DL HARQ process of the UE still holds a transport block carrying a Differential Koffset MAC CE.
+  bool holds_differential_koffset_ce() const
+  {
+    for (unsigned h_id = 0, e = harqs.nof_dl_harqs(); h_id != e; ++h_id) {
+      const std::optional<const dl_harq_process_handle> h_dl = harqs.dl_harq(to_harq_id(h_id));
+      if (h_dl.has_value() and carries_differential_koffset_ce(*h_dl)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   bool is_pdsch_enabled(slot_point pdcch_slot, slot_point pdsch_slot) const
   {
     // Verify that the DL is activated for the chosen slots (e.g. they are not UL slots in TDD or there is no measGap).

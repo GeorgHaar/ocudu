@@ -113,7 +113,10 @@ public:
   /// Returns whether a MAC CE is in flight or the UE is held back, the cases \c slot_indication() acts on.
   bool is_active() const { return pending.has_value() or drain_until.valid(); }
 
-  /// \brief Applies a signalled Differential Koffset once its apply slot is reached.
+  /// Returns whether a value in flight has not been acknowledged by the UE.
+  bool has_unacknowledged_ce() const { return pending.has_value() and pending->state != ce_state::acked; }
+
+  /// \brief Applies an acknowledged Differential Koffset once its apply slot is reached.
   /// \param[in] sl_tx        Current slot.
   /// \param[in] last_ul_slot Last slot granted to the UE for uplink transmission (PUSCH or HARQ-ACK). Invalid if none.
   void slot_indication(slot_point sl_tx, slot_point last_ul_slot)
@@ -121,23 +124,17 @@ public:
     if (drain_until.valid() and sl_tx >= drain_until) {
       drain_until.clear();
     }
-    if (not pending.has_value() or sl_tx < pending->apply_slot) {
+    // The HARQ-ACK reaches the scheduler a round trip after the PDSCH, often past the apply slot of the value it
+    // carries, so a value stays in flight until its HARQ resolves.
+    if (not pending.has_value() or pending->state != ce_state::acked or sl_tx < pending->apply_slot) {
       return;
     }
-    if (pending->state == ce_state::nacked) {
-      // A retransmission of the MAC CE is still to come, and it moves the apply slot.
-      return;
+    // A larger value moves the UE uplink earlier, so the uplink already granted reaches past the slots the new
+    // value leads to. The UE waits those slots out, which keeps its transmissions in order.
+    if (pending->koffset > applied and last_ul_slot.valid() and last_ul_slot > sl_tx) {
+      drain_until = last_ul_slot + 1;
     }
-    if (pending->state == ce_state::acked) {
-      // A larger value moves the UE uplink earlier, so the uplink already granted reaches past the slots the new
-      // value leads to. The UE waits those slots out, which keeps its transmissions in order.
-      if (pending->koffset > applied and last_ul_slot.valid() and last_ul_slot > sl_tx) {
-        drain_until = last_ul_slot + 1;
-      }
-      applied = pending->koffset;
-    }
-    // A value whose HARQ-ACK never reached the gNB cannot be relied on, so it is given up here and derived again
-    // from a later timing advance report.
+    applied = pending->koffset;
     pending.reset();
   }
 

@@ -223,7 +223,7 @@ private:
 class dummy_rrc_ue_rrc_du_adapter : public rrc_ue_event_notifier
 {
 public:
-  void on_new_rrc_connection() override {}
+  void on_new_rrc_connection() override { ++nof_new_rrc_connections; }
 
   void on_attempted_rrc_connection_establishment(establishment_cause_t cause) override {}
 
@@ -249,6 +249,9 @@ public:
   void on_rrc_connection_resume_followed_by_network_release(resume_cause_t cause) override {}
 
   void on_attempted_rrc_connection_resume_followed_by_rrc_setup(resume_cause_t cause) override {}
+
+  /// Counts the new RRC connections the RRC UE reported.
+  unsigned nof_new_rrc_connections = 0;
 };
 
 } // namespace ocudu::ocucp

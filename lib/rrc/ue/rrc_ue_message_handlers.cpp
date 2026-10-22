@@ -891,15 +891,19 @@ async_task<bool> rrc_ue_impl::handle_handover_reconfiguration_complete_expected(
       logger.log_debug("Received RRC Reconfiguration Complete after HO");
       procedure_result = true;
 
-      // The UE in the target cell is in connected state on RRCReconfigurationComplete reception.
-      context.state = rrc_state::connected;
+      // Only a handover target UE enters connected state here. A CHO source UE that acknowledges its conditional
+      // reconfiguration is already in connected state.
+      if (context.state != rrc_state::connected) {
+        // The UE in the target cell is in connected state on RRCReconfigurationComplete reception.
+        context.state = rrc_state::connected;
 
-      // A handover target serves the UE from a new RRC UE, with no coarse location and no Security Mode Command to
-      // ask for one. Security is already active, which TS 38.300 sec. 16.14.8 gates the request on.
-      request_coarse_ue_location();
+        // A handover target serves the UE from a new RRC UE, with no coarse location and no Security Mode Command to
+        // ask for one. Security is already active, which TS 38.300 sec. 16.14.8 gates the request on.
+        request_coarse_ue_location();
 
-      // Notify metrics.
-      metrics_notifier.on_new_rrc_connection();
+        // Notify metrics.
+        metrics_notifier.on_new_rrc_connection();
+      }
 
     } else {
       // A cancellation is an expected outcome of a higher layer aborting the procedure, so it is not logged as a

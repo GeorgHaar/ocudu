@@ -297,6 +297,8 @@ public:
   get_rrc_ue_cond_reconfiguration_context(const rrc_reconfiguration_procedure_request& request) = 0;
 
   /// \brief Await a RRC Reconfiguration Complete for a handover.
+  ///
+  /// A UE that is not in connected state enters connected state on reception and counts as a new RRC connection.
   /// \param[in] transaction_id The transaction ID of the RRC Reconfiguration Complete.
   /// \param[in] timeout_ms The timeout for the RRC Reconfiguration Complete.
   /// \param[in] release_on_failure If true, trigger a UE release when the transaction fails.

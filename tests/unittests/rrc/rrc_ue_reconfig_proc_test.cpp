@@ -67,6 +67,28 @@ TEST_F(rrc_ue_reconfig, when_reconfig_complete_received_proc_successful)
   ASSERT_TRUE(t.ready());
 }
 
+/// Test that a connected UE that acknowledges a CHO configuration does not count as a new RRC connection.
+TEST_F(rrc_ue_reconfig, when_connected_ue_sends_handover_reconfig_complete_then_no_new_rrc_connection_is_counted)
+{
+  // The RRC Setup counts the UE as a new RRC connection.
+  ASSERT_EQ(rrc_ue_rrc_du_notifier.nof_new_rrc_connections, 1U);
+
+  // The CHO source UE awaits the RRC Reconfiguration Complete for its conditional reconfiguration.
+  async_task<bool> t = get_rrc_ue_control_message_handler()->handle_handover_reconfiguration_complete_expected(
+      1, std::chrono::milliseconds{1000});
+  lazy_task_launcher<bool> t_launcher(t);
+
+  ASSERT_FALSE(t.ready());
+
+  // Receive Reconfig complete with transaction ID 1.
+  receive_reconfig_complete();
+
+  ASSERT_TRUE(t.ready());
+  ASSERT_TRUE(t.get());
+  ASSERT_EQ(rrc_ue->get_rrc_state(), rrc_state::connected);
+  ASSERT_EQ(rrc_ue_rrc_du_notifier.nof_new_rrc_connections, 1U);
+}
+
 // Test that get_rrc_ue_cond_reconfiguration_context() encodes meas_gap_cfg into the outer CHO
 // RRCReconfiguration measConfig when the request carries one.
 TEST_F(rrc_ue_reconfig, when_meas_gap_cfg_in_request_then_outer_cho_rrc_message_includes_it)

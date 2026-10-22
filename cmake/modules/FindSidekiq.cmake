@@ -6,11 +6,18 @@ FIND_PACKAGE(PkgConfig REQUIRED)
 
 IF(NOT Sidekiq_FOUND)
 
+    if(NOT "$ENV{Sidekiq_DIR}" STREQUAL "")
+      set(_Sidekiq_INCLUDE_HINTS "$ENV{Sidekiq_DIR}/inc"
+                                 "$ENV{Sidekiq_DIR}/sidekiq_core/inc")
+      set(_Sidekiq_LIB_HINTS     "$ENV{Sidekiq_DIR}/lib")
+      set(_Sidekiq_SUPPORT_LIB_HINTS
+                                 "$ENV{Sidekiq_DIR}/lib/support/x86_64.gcc/usr/lib/epiq")
+    endif()
+
     FIND_PATH(
             Sidekiq_INCLUDE_DIRS
             NAMES sidekiq_api.h
-            HINTS $ENV{Sidekiq_DIR}/inc
-            $ENV{Sidekiq_DIR}/sidekiq_core/inc
+            HINTS ${_Sidekiq_INCLUDE_HINTS}
             PATHS /usr/local/include
             /usr/include
     )
@@ -18,7 +25,7 @@ IF(NOT Sidekiq_FOUND)
     FIND_LIBRARY(
             Sidekiq_LIBRARY
             NAMES sidekiq__x86_64.gcc
-            HINTS $ENV{Sidekiq_DIR}/lib
+            HINTS ${_Sidekiq_LIB_HINTS}
             PATHS /usr/local/lib
             /usr/lib
             /usr/lib/x86_64-linux-gnu
@@ -29,7 +36,7 @@ IF(NOT Sidekiq_FOUND)
     FIND_LIBRARY(
             Sidekiq_LIBRARY_GLIB
             NAMES libglib-2.0.a
-            HINTS $ENV{Sidekiq_DIR}/lib/support/x86_64.gcc/usr/lib/epiq
+            HINTS ${_Sidekiq_SUPPORT_LIB_HINTS}
             PATHS /usr/local/lib
             /usr/lib
             /usr/lib/epiq
@@ -41,7 +48,7 @@ IF(NOT Sidekiq_FOUND)
     FIND_LIBRARY(
             Sidekiq_LIBRARY_USB
             NAMES libusb-1.0.a
-            HINTS $ENV{Sidekiq_DIR}/lib/support/x86_64.gcc/usr/lib/epiq
+            HINTS ${_Sidekiq_SUPPORT_LIB_HINTS}
             PATHS /usr/local/lib
             /usr/lib
             /usr/lib/epiq
@@ -49,6 +56,10 @@ IF(NOT Sidekiq_FOUND)
             /usr/local/lib64
             /usr/local/lib32
     )
+
+    unset(_Sidekiq_INCLUDE_HINTS)
+    unset(_Sidekiq_LIB_HINTS)
+    unset(_Sidekiq_SUPPORT_LIB_HINTS)
 
     FIND_LIBRARY(
             Sidekiq_LIBRARY_TIRPC

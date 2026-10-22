@@ -276,12 +276,10 @@ void fapi_dummy_sector::process_request(slot_point slot, fapi::message_type_id m
                  fmt::underlying(msg_id),
                  slot);
 
-  std::optional<slot_point>& late_slot = late_slots[slot.count()];
-  if (late_slot == slot) {
-    return;
-  }
-  late_slot = slot;
+  // The uplink contexts of a slot with late requests are discarded.
+  late_slots[slot.count()] = slot;
 
+  // As in the PHY, every late request is reported, so that the MAC discards all the affected channels.
   bool is_tti_request =
       msg_id == fapi::message_type_id::dl_tti_request || msg_id == fapi::message_type_id::ul_tti_request;
   error_notifier->on_error_indication(is_tti_request

@@ -14,7 +14,9 @@
 #include "ocudu/fapi/p7/messages/rx_data_indication.h"
 #include "ocudu/fapi/p7/messages/slot_indication.h"
 #include "ocudu/fapi/p7/messages/srs_indication.h"
+#include "ocudu/fapi/p7/messages/tx_data_request.h"
 #include "ocudu/fapi/p7/messages/uci_indication.h"
+#include "ocudu/fapi/p7/messages/ul_dci_request.h"
 #include "ocudu/fapi/p7/messages/ul_tti_request.h"
 #include "ocudu/fapi/p7/p7_indications_notifier.h"
 #include "ocudu/fapi/p7/p7_slot_indication_notifier.h"
@@ -443,7 +445,7 @@ TEST_F(fapi_dummy_sector_test, prach_generates_no_indication)
   ASSERT_TRUE(p7_spy.empty());
 }
 
-TEST_F(fapi_dummy_sector_test, late_requests_of_a_slot_are_reported_once_and_dropped)
+TEST_F(fapi_dummy_sector_test, every_late_request_of_a_slot_is_reported_and_dropped)
 {
   start();
   auto_complete = false;
@@ -458,12 +460,27 @@ TEST_F(fapi_dummy_sector_test, late_requests_of_a_slot_are_reported_once_and_dro
   dl_msg.slot = late_slot;
   p7_adaptor().get_p7_requests_gateway().send_dl_tti_request(dl_msg);
   send_ul_tti(late_slot, {{build_pusch_pdu(units::bytes(10), units::bits(0), units::bits(0))}});
+  fapi::ul_dci_request ul_dci_msg;
+  ul_dci_msg.slot = late_slot;
+  p7_adaptor().get_p7_requests_gateway().send_ul_dci_request(ul_dci_msg);
+  fapi::tx_data_request tx_data_msg;
+  tx_data_msg.slot = late_slot;
+  p7_adaptor().get_p7_requests_gateway().send_tx_data_request(tx_data_msg);
   complete_slot(late_slot);
 
-  ASSERT_EQ(error_spy.errors.size(), 1);
+  // As in the PHY, each late request is reported, so that the MAC discards every affected channel.
+  ASSERT_EQ(error_spy.errors.size(), 4);
   ASSERT_EQ(error_spy.errors[0].message_id, fapi::message_type_id::dl_tti_request);
   ASSERT_EQ(error_spy.errors[0].error_code, fapi::error_code_id::out_of_sync);
-  ASSERT_EQ(error_spy.errors[0].slot, late_slot);
+  ASSERT_EQ(error_spy.errors[1].message_id, fapi::message_type_id::ul_tti_request);
+  ASSERT_EQ(error_spy.errors[1].error_code, fapi::error_code_id::out_of_sync);
+  ASSERT_EQ(error_spy.errors[2].message_id, fapi::message_type_id::ul_dci_request);
+  ASSERT_EQ(error_spy.errors[2].error_code, fapi::error_code_id::msg_invalid_sfn);
+  ASSERT_EQ(error_spy.errors[3].message_id, fapi::message_type_id::tx_data_request);
+  ASSERT_EQ(error_spy.errors[3].error_code, fapi::error_code_id::msg_invalid_sfn);
+  for (const auto& error : error_spy.errors) {
+    ASSERT_EQ(error.slot, late_slot);
+  }
 
   // The uplink requests of a slot with late requests generate no indication.
   run_until_ul_indications(late_slot);

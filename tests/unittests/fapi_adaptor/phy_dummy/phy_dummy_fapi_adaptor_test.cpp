@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: Copyright (C) 2021-2026 Software Radio Systems Limited
 // SPDX-FileCopyrightText: Copyright (C) 2026 OCUDU contributors
 // SPDX-License-Identifier: BSD-3-Clause-Open-MPI
-// Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "phy_dummy_fapi_sector_adaptor.h"
 #include "ocudu/fapi/common/error_indication.h"
@@ -121,6 +120,7 @@ protected:
   {
     p5_adaptor().set_p5_responses_notifier(p5_spy);
     p5_adaptor().set_error_indication_notifier(error_spy);
+    p7_adaptor().set_error_indication_notifier(error_spy);
     p7_adaptor().set_p7_slot_indication_notifier(slot_spy);
     p7_adaptor().set_p7_indications_notifier(p7_spy);
   }

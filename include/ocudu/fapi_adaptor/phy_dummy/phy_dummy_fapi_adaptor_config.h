@@ -15,35 +15,36 @@ class task_executor;
 
 namespace fapi_adaptor {
 
-/// Slot clock modes of the FAPI dummy.
-enum class fapi_dummy_clock_mode {
+/// Slot clock modes of the PHY dummy FAPI adaptor.
+enum class phy_dummy_fapi_adaptor_clock_mode {
   /// Slots advance with the system time.
   realtime,
   /// A slot advances once every running sector has received the last request of the previous slot.
   free_running
 };
 
-/// FAPI dummy configuration.
-struct fapi_dummy_config {
+/// PHY dummy FAPI adaptor configuration.
+struct phy_dummy_fapi_adaptor_config {
   /// Subcarrier spacing of all sectors.
   subcarrier_spacing scs = subcarrier_spacing::kHz30;
   /// Number of sectors.
   unsigned nof_sectors = 1;
   /// Slot clock mode.
-  fapi_dummy_clock_mode clock_mode = fapi_dummy_clock_mode::realtime;
+  phy_dummy_fapi_adaptor_clock_mode clock_mode = phy_dummy_fapi_adaptor_clock_mode::realtime;
   /// Number of slots between an uplink slot and the notification of its indications. Must be at least one.
   unsigned ul_indication_delay_slots = 4;
   /// Number of slots a SLOT.indication is notified in advance of the transmission time.
   unsigned max_processing_delay_slots = 6;
 };
 
-/// FAPI dummy dependencies.
-struct fapi_dummy_dependencies {
+/// PHY dummy FAPI adaptor dependencies.
+struct phy_dummy_fapi_adaptor_dependencies {
   /// Logger.
   ocudulog::basic_logger& logger;
   /// Executor that runs the slot clock loop.
   task_executor& clock_executor;
-  /// Sequential executor of each sector, indexed by sector. They must run until the FAPI dummy is destroyed.
+  /// Sequential executor of each sector, indexed by sector. They must run until the PHY dummy FAPI adaptor is
+  /// destroyed.
   std::vector<task_executor*> sector_executors;
 };
 

@@ -2,9 +2,9 @@
 # SPDX-FileCopyrightText: Copyright (C) 2026 OCUDU contributors
 # SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 
-
 add_subdirectory(mac)
 add_subdirectory(phy)
+add_subdirectory(phy_dummy)
 
 set(PRECODING_SOURCES
         precoding_codebook_mapper.cpp

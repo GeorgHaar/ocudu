@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
-#include "fapi_dummy_impl.h"
+#include "phy_dummy_fapi_adaptor_impl.h"
 #include "ocudu/adt/span.h"
-#include "ocudu/fapi_adaptor/phy/dummy/fapi_dummy_factory.h"
+#include "ocudu/fapi_adaptor/phy_dummy/phy_dummy_fapi_adaptor_factory.h"
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/support/error_handling.h"
 #include "ocudu/support/executors/task_executor.h"
@@ -27,7 +27,8 @@ static uint64_t get_system_time_slot(std::chrono::microseconds slot_duration, ui
   return (time_since_epoch / slot_duration) % nof_slots_in_all_hyper_sfns;
 }
 
-fapi_dummy_impl::fapi_dummy_impl(const fapi_dummy_config& config, const fapi_dummy_dependencies& dependencies) :
+phy_dummy_fapi_adaptor_impl::phy_dummy_fapi_adaptor_impl(const phy_dummy_fapi_adaptor_config&       config,
+                                                         const phy_dummy_fapi_adaptor_dependencies& dependencies) :
   clock_mode(config.clock_mode),
   slot_duration(1000U / pow2(to_numerology_value(config.scs))),
   max_processing_delay_slots(config.max_processing_delay_slots),
@@ -35,7 +36,7 @@ fapi_dummy_impl::fapi_dummy_impl(const fapi_dummy_config& config, const fapi_dum
   logger(dependencies.logger),
   current_slot(config.scs, 0)
 {
-  ocudu_assert(config.nof_sectors > 0, "The FAPI dummy requires at least one sector");
+  ocudu_assert(config.nof_sectors > 0, "The PHY dummy FAPI adaptor requires at least one sector");
   ocudu_assert(dependencies.sector_executors.size() == config.nof_sectors,
                "The number of sector executors (i.e., {}) does not match the number of sectors (i.e., {})",
                dependencies.sector_executors.size(),
@@ -44,12 +45,13 @@ fapi_dummy_impl::fapi_dummy_impl(const fapi_dummy_config& config, const fapi_dum
   sectors.reserve(config.nof_sectors);
   for (unsigned i_sector = 0; i_sector != config.nof_sectors; ++i_sector) {
     ocudu_assert(dependencies.sector_executors[i_sector] != nullptr, "Invalid executor of sector {}", i_sector);
-    sectors.push_back(std::make_unique<fapi_dummy_sector>(
-        fapi_dummy_sector_config{.sector_id                  = i_sector,
-                                 .scs                        = config.scs,
-                                 .ul_indication_delay_slots  = config.ul_indication_delay_slots,
-                                 .max_processing_delay_slots = config.max_processing_delay_slots,
-                                 .late_request_detection     = config.clock_mode == fapi_dummy_clock_mode::realtime},
+    sectors.push_back(std::make_unique<phy_dummy_fapi_sector_adaptor>(
+        phy_dummy_fapi_sector_adaptor_config{.sector_id                  = i_sector,
+                                             .scs                        = config.scs,
+                                             .ul_indication_delay_slots  = config.ul_indication_delay_slots,
+                                             .max_processing_delay_slots = config.max_processing_delay_slots,
+                                             .late_request_detection =
+                                                 config.clock_mode == phy_dummy_fapi_adaptor_clock_mode::realtime},
         logger,
         *dependencies.sector_executors[i_sector]));
   }
@@ -67,26 +69,26 @@ fapi_dummy_impl::fapi_dummy_impl(const fapi_dummy_config& config, const fapi_dum
             start_token.reset();
             clock_loop(stop_token);
           })) {
-    report_fatal_error("Unable to start the FAPI dummy clock loop");
+    report_fatal_error("Unable to start the PHY dummy FAPI adaptor clock loop");
   }
   start_event.wait();
 }
 
-fapi_dummy_impl::~fapi_dummy_impl()
+phy_dummy_fapi_adaptor_impl::~phy_dummy_fapi_adaptor_impl()
 {
   // The clock stops before the sectors, so no slot boundary is dispatched to a destroyed sector.
   stop_control.stop();
 }
 
-phy_fapi_sector_adaptor& fapi_dummy_impl::get_sector_adaptor(unsigned cell_id)
+phy_fapi_sector_adaptor& phy_dummy_fapi_adaptor_impl::get_sector_adaptor(unsigned cell_id)
 {
   ocudu_assert(cell_id < sectors.size(), "Invalid cell identifier {}", cell_id);
   return *sectors[cell_id];
 }
 
-void fapi_dummy_impl::clock_loop(const rt_stop_event_token& token)
+void phy_dummy_fapi_adaptor_impl::clock_loop(const rt_stop_event_token& token)
 {
-  if (clock_mode == fapi_dummy_clock_mode::realtime) {
+  if (clock_mode == phy_dummy_fapi_adaptor_clock_mode::realtime) {
     while (!token.is_stop_requested()) {
       run_realtime_iteration();
     }
@@ -98,13 +100,13 @@ void fapi_dummy_impl::clock_loop(const rt_stop_event_token& token)
   }
 }
 
-uint64_t fapi_dummy_impl::get_current_system_slot() const
+uint64_t phy_dummy_fapi_adaptor_impl::get_current_system_slot() const
 {
   auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - origin_time);
   return (origin_system_slot + elapsed / slot_duration) % nof_slots_in_all_hyper_sfns;
 }
 
-void fapi_dummy_impl::run_realtime_iteration()
+void phy_dummy_fapi_adaptor_impl::run_realtime_iteration()
 {
   uint64_t slot_count = get_current_system_slot();
 
@@ -132,8 +134,8 @@ struct sectors_progress {
 } // namespace
 
 /// Returns the progress of all the sectors on the last notified slot boundary.
-static sectors_progress get_sectors_progress(span<const std::unique_ptr<fapi_dummy_sector>> sectors,
-                                             std::optional<slot_point>                      last_notified_slot)
+static sectors_progress get_sectors_progress(span<const std::unique_ptr<phy_dummy_fapi_sector_adaptor>> sectors,
+                                             std::optional<slot_point> last_notified_slot)
 {
   sectors_progress result;
   if (!last_notified_slot.has_value()) {
@@ -141,15 +143,15 @@ static sectors_progress get_sectors_progress(span<const std::unique_ptr<fapi_dum
   }
 
   for (const auto& sector : sectors) {
-    fapi_dummy_sector::slot_boundary_progress progress = sector->get_progress();
-    bool                                      done     = progress.slot.valid() && progress.slot == *last_notified_slot;
-    result.all_done                                    = result.all_done && done;
-    result.any_running                                 = result.any_running || (done && progress.running);
+    phy_dummy_fapi_sector_adaptor::slot_boundary_progress progress = sector->get_progress();
+    bool done          = progress.slot.valid() && progress.slot == *last_notified_slot;
+    result.all_done    = result.all_done && done;
+    result.any_running = result.any_running || (done && progress.running);
   }
   return result;
 }
 
-void fapi_dummy_impl::run_free_running_iteration()
+void phy_dummy_fapi_adaptor_impl::run_free_running_iteration()
 {
   auto now = std::chrono::steady_clock::now();
 
@@ -158,7 +160,7 @@ void fapi_dummy_impl::run_free_running_iteration()
   // Without running sectors, slot boundaries still advance at the slot rate to process START and STOP requests.
   bool advance = progress.all_done && (progress.any_running || now - last_advance_time >= slot_duration);
   if (!progress.all_done && now - last_advance_time >= free_running_timeout) {
-    logger.warning("FAPI dummy: Advancing slot {} without all sectors completing it", *last_notified_slot);
+    logger.warning("PHY dummy FAPI adaptor: Advancing slot {} without all sectors completing it", *last_notified_slot);
     advance = true;
   }
 
@@ -172,7 +174,7 @@ void fapi_dummy_impl::run_free_running_iteration()
   advance_slot();
 }
 
-void fapi_dummy_impl::advance_slot()
+void phy_dummy_fapi_adaptor_impl::advance_slot()
 {
   ++current_slot;
 
@@ -185,8 +187,9 @@ void fapi_dummy_impl::advance_slot()
   }
 }
 
-std::unique_ptr<phy_fapi_adaptor> ocudu::fapi_adaptor::create_fapi_dummy(const fapi_dummy_config&       config,
-                                                                         const fapi_dummy_dependencies& dependencies)
+std::unique_ptr<phy_fapi_adaptor>
+ocudu::fapi_adaptor::create_phy_dummy_fapi_adaptor(const phy_dummy_fapi_adaptor_config&       config,
+                                                   const phy_dummy_fapi_adaptor_dependencies& dependencies)
 {
-  return std::make_unique<fapi_dummy_impl>(config, dependencies);
+  return std::make_unique<phy_dummy_fapi_adaptor_impl>(config, dependencies);
 }

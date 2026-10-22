@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
-#include "fapi_dummy_sector.h"
+#include "phy_dummy_fapi_sector_adaptor.h"
 #include "ocudu/fapi/common/error_indication.h"
 #include "ocudu/fapi/common/error_indication_notifier.h"
 #include "ocudu/fapi/p5/p5_messages.h"
@@ -20,7 +20,7 @@
 #include "ocudu/fapi/p7/messages/ul_tti_request.h"
 #include "ocudu/fapi/p7/p7_indications_notifier.h"
 #include "ocudu/fapi/p7/p7_slot_indication_notifier.h"
-#include "ocudu/fapi_adaptor/phy/dummy/fapi_dummy_factory.h"
+#include "ocudu/fapi_adaptor/phy_dummy/phy_dummy_fapi_adaptor_factory.h"
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/support/executors/manual_task_worker.h"
 #include "ocudu/support/executors/task_worker.h"
@@ -107,10 +107,10 @@ fapi::ul_pusch_pdu build_pusch_pdu(std::optional<units::bytes> tb_size, units::b
   return pdu;
 }
 
-class fapi_dummy_sector_test : public ::testing::Test
+class phy_dummy_fapi_sector_adaptor_test : public ::testing::Test
 {
 protected:
-  fapi_dummy_sector_test() :
+  phy_dummy_fapi_sector_adaptor_test() :
     sector({.sector_id                  = 0,
             .scs                        = test_scs,
             .ul_indication_delay_slots  = test_ul_delay,
@@ -126,7 +126,7 @@ protected:
   }
 
   // Pending tasks hold the sector, which waits for them on destruction.
-  ~fapi_dummy_sector_test() override { run_tasks(); }
+  ~phy_dummy_fapi_sector_adaptor_test() override { run_tasks(); }
 
   phy_fapi_p5_sector_adaptor& p5_adaptor() { return sector.get_p5_sector_adaptor(); }
 
@@ -197,7 +197,7 @@ protected:
   error_indication_notifier_spy error_spy;
   slot_indication_notifier_spy  slot_spy;
   p7_indications_notifier_spy   p7_spy;
-  fapi_dummy_sector             sector;
+  phy_dummy_fapi_sector_adaptor sector;
   slot_point_extended           current{test_scs, 1000};
   bool                          notified_any  = false;
   bool                          auto_complete = true;
@@ -205,7 +205,7 @@ protected:
 
 } // namespace
 
-TEST_F(fapi_dummy_sector_test, param_and_config_requests_succeed)
+TEST_F(phy_dummy_fapi_sector_adaptor_test, param_and_config_requests_succeed)
 {
   p5_adaptor().get_p5_requests_gateway().send_param_request({});
   p5_adaptor().get_p5_requests_gateway().send_config_request({});
@@ -217,7 +217,7 @@ TEST_F(fapi_dummy_sector_test, param_and_config_requests_succeed)
   ASSERT_EQ(p5_spy.config_responses[0].error_code, fapi::error_code_id::msg_ok);
 }
 
-TEST_F(fapi_dummy_sector_test, slot_indications_are_notified_only_while_running)
+TEST_F(phy_dummy_fapi_sector_adaptor_test, slot_indications_are_notified_only_while_running)
 {
   run_slot();
   ASSERT_TRUE(slot_spy.slots.empty());
@@ -240,7 +240,7 @@ TEST_F(fapi_dummy_sector_test, slot_indications_are_notified_only_while_running)
   ASSERT_EQ(slot_spy.slots.size(), 2);
 }
 
-TEST_F(fapi_dummy_sector_test, stop_before_the_last_request_of_a_slot_lets_the_slot_complete)
+TEST_F(phy_dummy_fapi_sector_adaptor_test, stop_before_the_last_request_of_a_slot_lets_the_slot_complete)
 {
   start();
   auto_complete   = false;
@@ -250,7 +250,7 @@ TEST_F(fapi_dummy_sector_test, stop_before_the_last_request_of_a_slot_lets_the_s
   run_tasks();
   complete_slot(slot);
 
-  fapi_dummy_sector::slot_boundary_progress progress = sector.get_progress();
+  phy_dummy_fapi_sector_adaptor::slot_boundary_progress progress = sector.get_progress();
   ASSERT_EQ(progress.slot, slot);
   ASSERT_TRUE(progress.running);
 
@@ -261,16 +261,17 @@ TEST_F(fapi_dummy_sector_test, stop_before_the_last_request_of_a_slot_lets_the_s
   ASSERT_EQ(p5_spy.nof_stop_indications, 1);
 }
 
-TEST_F(fapi_dummy_sector_test, idle_sector_finishes_slot_boundaries_right_away)
+TEST_F(phy_dummy_fapi_sector_adaptor_test, idle_sector_finishes_slot_boundaries_right_away)
 {
   slot_point slot = run_slot();
 
-  fapi_dummy_sector::slot_boundary_progress progress = sector.get_progress();
+  phy_dummy_fapi_sector_adaptor::slot_boundary_progress progress = sector.get_progress();
   ASSERT_EQ(progress.slot, slot);
   ASSERT_FALSE(progress.running);
 }
 
-TEST_F(fapi_dummy_sector_test, running_sector_finishes_slot_boundaries_right_away_until_the_mac_completes_a_slot)
+TEST_F(phy_dummy_fapi_sector_adaptor_test,
+       running_sector_finishes_slot_boundaries_right_away_until_the_mac_completes_a_slot)
 {
   start();
   auto_complete = false;
@@ -281,12 +282,12 @@ TEST_F(fapi_dummy_sector_test, running_sector_finishes_slot_boundaries_right_awa
   ASSERT_FALSE(sector.get_progress().running);
 
   complete_slot(slot);
-  fapi_dummy_sector::slot_boundary_progress progress = sector.get_progress();
+  phy_dummy_fapi_sector_adaptor::slot_boundary_progress progress = sector.get_progress();
   ASSERT_EQ(progress.slot, slot);
   ASSERT_TRUE(progress.running);
 }
 
-TEST_F(fapi_dummy_sector_test, running_sector_finishes_slot_boundary_with_last_message)
+TEST_F(phy_dummy_fapi_sector_adaptor_test, running_sector_finishes_slot_boundary_with_last_message)
 {
   start();
   run_slot();
@@ -296,12 +297,12 @@ TEST_F(fapi_dummy_sector_test, running_sector_finishes_slot_boundary_with_last_m
   ASSERT_NE(sector.get_progress().slot, slot);
 
   complete_slot(slot);
-  fapi_dummy_sector::slot_boundary_progress progress = sector.get_progress();
+  phy_dummy_fapi_sector_adaptor::slot_boundary_progress progress = sector.get_progress();
   ASSERT_EQ(progress.slot, slot);
   ASSERT_TRUE(progress.running);
 }
 
-TEST_F(fapi_dummy_sector_test, pusch_generates_uci_crc_and_rx_data)
+TEST_F(phy_dummy_fapi_sector_adaptor_test, pusch_generates_uci_crc_and_rx_data)
 {
   start();
   slot_point ul_slot = last_notified_slot();
@@ -341,7 +342,7 @@ TEST_F(fapi_dummy_sector_test, pusch_generates_uci_crc_and_rx_data)
   ASSERT_EQ(p7_spy.crcs.size(), 1);
 }
 
-TEST_F(fapi_dummy_sector_test, pusch_without_uci_generates_no_uci)
+TEST_F(phy_dummy_fapi_sector_adaptor_test, pusch_without_uci_generates_no_uci)
 {
   start();
   slot_point ul_slot = last_notified_slot();
@@ -354,7 +355,7 @@ TEST_F(fapi_dummy_sector_test, pusch_without_uci_generates_no_uci)
   ASSERT_EQ(p7_spy.rx_data.size(), 1);
 }
 
-TEST_F(fapi_dummy_sector_test, pucch_formats_generate_uci)
+TEST_F(phy_dummy_fapi_sector_adaptor_test, pucch_formats_generate_uci)
 {
   start();
   slot_point ul_slot = last_notified_slot();
@@ -407,7 +408,7 @@ TEST_F(fapi_dummy_sector_test, pucch_formats_generate_uci)
   ASSERT_EQ(uci_f3->csi_part1->detection_status, uci_pusch_or_pucch_f2_3_4_detection_status::crc_pass);
 }
 
-TEST_F(fapi_dummy_sector_test, srs_generates_requested_reports)
+TEST_F(phy_dummy_fapi_sector_adaptor_test, srs_generates_requested_reports)
 {
   start();
   slot_point ul_slot = last_notified_slot();
@@ -434,7 +435,7 @@ TEST_F(fapi_dummy_sector_test, srs_generates_requested_reports)
   ASSERT_TRUE(p7_spy.srss[1].pdu.positioning.has_value());
 }
 
-TEST_F(fapi_dummy_sector_test, prach_generates_no_indication)
+TEST_F(phy_dummy_fapi_sector_adaptor_test, prach_generates_no_indication)
 {
   start();
   slot_point ul_slot = last_notified_slot();
@@ -445,7 +446,7 @@ TEST_F(fapi_dummy_sector_test, prach_generates_no_indication)
   ASSERT_TRUE(p7_spy.empty());
 }
 
-TEST_F(fapi_dummy_sector_test, every_late_request_of_a_slot_is_reported_and_dropped)
+TEST_F(phy_dummy_fapi_sector_adaptor_test, every_late_request_of_a_slot_is_reported_and_dropped)
 {
   start();
   auto_complete = false;
@@ -487,7 +488,7 @@ TEST_F(fapi_dummy_sector_test, every_late_request_of_a_slot_is_reported_and_drop
   ASSERT_TRUE(p7_spy.empty());
 }
 
-TEST_F(fapi_dummy_sector_test, request_arriving_at_its_slot_is_not_late)
+TEST_F(phy_dummy_fapi_sector_adaptor_test, request_arriving_at_its_slot_is_not_late)
 {
   start();
   auto_complete = false;
@@ -504,7 +505,7 @@ TEST_F(fapi_dummy_sector_test, request_arriving_at_its_slot_is_not_late)
   ASSERT_EQ(sector.get_progress().slot, slot);
 }
 
-TEST_F(fapi_dummy_sector_test, requests_are_ignored_when_not_running)
+TEST_F(phy_dummy_fapi_sector_adaptor_test, requests_are_ignored_when_not_running)
 {
   slot_point ul_slot = (current + test_proc_delay).without_hyper_sfn();
   send_ul_tti(ul_slot, {{build_pusch_pdu(units::bytes(10), units::bits(0), units::bits(0))}});
@@ -557,23 +558,23 @@ bool wait_for(const Func& condition, std::chrono::milliseconds timeout = std::ch
   return true;
 }
 
-class fapi_dummy_clock_test : public ::testing::TestWithParam<fapi_dummy_clock_mode>
+class phy_dummy_fapi_adaptor_clock_test : public ::testing::TestWithParam<phy_dummy_fapi_adaptor_clock_mode>
 {
 protected:
-  fapi_dummy_clock_test() :
+  phy_dummy_fapi_adaptor_clock_test() :
     clock_worker("fapi_clock", 16),
     clock_executor(make_task_executor(clock_worker)),
     sector_workers{std::make_unique<task_worker>("fapi_sector0", 64),
                    std::make_unique<task_worker>("fapi_sector1", 64)},
     sector_executors{make_task_executor(*sector_workers[0]), make_task_executor(*sector_workers[1])},
-    dummy(create_fapi_dummy({.scs                        = test_scs,
-                             .nof_sectors                = nof_sectors,
-                             .clock_mode                 = GetParam(),
-                             .ul_indication_delay_slots  = test_ul_delay,
-                             .max_processing_delay_slots = test_proc_delay},
-                            {.logger           = ocudulog::fetch_basic_logger("FAPI"),
-                             .clock_executor   = clock_executor,
-                             .sector_executors = {&sector_executors[0], &sector_executors[1]}}))
+    dummy(create_phy_dummy_fapi_adaptor({.scs                        = test_scs,
+                                         .nof_sectors                = nof_sectors,
+                                         .clock_mode                 = GetParam(),
+                                         .ul_indication_delay_slots  = test_ul_delay,
+                                         .max_processing_delay_slots = test_proc_delay},
+                                        {.logger           = ocudulog::fetch_basic_logger("FAPI"),
+                                         .clock_executor   = clock_executor,
+                                         .sector_executors = {&sector_executors[0], &sector_executors[1]}}))
   {
     for (unsigned i_sector = 0; i_sector != nof_sectors; ++i_sector) {
       phy_fapi_sector_adaptor& sector = dummy->get_sector_adaptor(i_sector);
@@ -596,7 +597,7 @@ protected:
 
 } // namespace
 
-TEST_P(fapi_dummy_clock_test, sectors_receive_consecutive_slots_until_stopped)
+TEST_P(phy_dummy_fapi_adaptor_clock_test, sectors_receive_consecutive_slots_until_stopped)
 {
   for (unsigned i_sector = 0; i_sector != nof_sectors; ++i_sector) {
     dummy->get_sector_adaptor(i_sector).get_p5_sector_adaptor().get_p5_requests_gateway().send_start_request({});
@@ -626,9 +627,10 @@ TEST_P(fapi_dummy_clock_test, sectors_receive_consecutive_slots_until_stopped)
   }
 }
 
-INSTANTIATE_TEST_SUITE_P(fapi_dummy_clock,
-                         fapi_dummy_clock_test,
-                         ::testing::Values(fapi_dummy_clock_mode::realtime, fapi_dummy_clock_mode::free_running));
+INSTANTIATE_TEST_SUITE_P(phy_dummy_fapi_adaptor_clock,
+                         phy_dummy_fapi_adaptor_clock_test,
+                         ::testing::Values(phy_dummy_fapi_adaptor_clock_mode::realtime,
+                                           phy_dummy_fapi_adaptor_clock_mode::free_running));
 
 int main(int argc, char** argv)
 {

@@ -31,8 +31,8 @@ class task_executor;
 
 namespace fapi_adaptor {
 
-/// FAPI dummy sector configuration.
-struct fapi_dummy_sector_config {
+/// PHY dummy FAPI adaptor sector configuration.
+struct phy_dummy_fapi_sector_adaptor_config {
   unsigned           sector_id;
   subcarrier_spacing scs;
   /// Number of slots between an uplink slot and the notification of its indications. Must be at least one.
@@ -43,16 +43,16 @@ struct fapi_dummy_sector_config {
   bool late_request_detection;
 };
 
-/// \brief FAPI dummy sector.
+/// \brief PHY dummy FAPI adaptor sector.
 ///
 /// Emulates the PHY of one cell at the FAPI interface. Slot boundaries are provided by an external clock. The sector
 /// logic runs in the given sequential executor.
-class fapi_dummy_sector : public phy_fapi_sector_adaptor,
-                          private phy_fapi_p5_sector_adaptor,
-                          private phy_fapi_p7_sector_adaptor,
-                          private fapi::p5_requests_gateway,
-                          private fapi::p7_requests_gateway,
-                          private fapi::p7_last_request_notifier
+class phy_dummy_fapi_sector_adaptor : public phy_fapi_sector_adaptor,
+                                      private phy_fapi_p5_sector_adaptor,
+                                      private phy_fapi_p7_sector_adaptor,
+                                      private fapi::p5_requests_gateway,
+                                      private fapi::p7_requests_gateway,
+                                      private fapi::p7_last_request_notifier
 {
 public:
   /// Last slot boundary a sector has finished processing.
@@ -63,9 +63,11 @@ public:
     bool running = false;
   };
 
-  fapi_dummy_sector(const fapi_dummy_sector_config& config, ocudulog::basic_logger& logger_, task_executor& executor_);
+  phy_dummy_fapi_sector_adaptor(const phy_dummy_fapi_sector_adaptor_config& config,
+                                ocudulog::basic_logger&                     logger_,
+                                task_executor&                              executor_);
 
-  ~fapi_dummy_sector() override;
+  ~phy_dummy_fapi_sector_adaptor() override;
 
   // See interface for documentation.
   phy_fapi_p5_sector_adaptor& get_p5_sector_adaptor() override { return *this; }

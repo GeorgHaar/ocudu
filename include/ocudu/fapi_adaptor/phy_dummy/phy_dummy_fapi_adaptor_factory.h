@@ -5,16 +5,17 @@
 
 #pragma once
 
-#include "ocudu/fapi_adaptor/phy/dummy/fapi_dummy_config.h"
 #include "ocudu/fapi_adaptor/phy/phy_fapi_adaptor.h"
+#include "ocudu/fapi_adaptor/phy_dummy/phy_dummy_fapi_adaptor_config.h"
 #include <memory>
 
 namespace ocudu {
 namespace fapi_adaptor {
 
-/// Creates a FAPI dummy, which emulates a PHY at the FAPI interface.
-std::unique_ptr<phy_fapi_adaptor> create_fapi_dummy(const fapi_dummy_config&       config,
-                                                    const fapi_dummy_dependencies& dependencies);
+/// Creates a PHY dummy FAPI adaptor, which emulates a PHY at the FAPI interface.
+std::unique_ptr<phy_fapi_adaptor>
+create_phy_dummy_fapi_adaptor(const phy_dummy_fapi_adaptor_config&       config,
+                              const phy_dummy_fapi_adaptor_dependencies& dependencies);
 
 } // namespace fapi_adaptor
 } // namespace ocudu

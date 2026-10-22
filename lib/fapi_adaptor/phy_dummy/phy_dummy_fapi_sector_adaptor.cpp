@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
-#include "fapi_dummy_sector.h"
+#include "phy_dummy_fapi_sector_adaptor.h"
 #include "ocudu/fapi/common/error_indication_builder.h"
 #include "ocudu/fapi/common/error_indication_notifier.h"
 #include "ocudu/fapi/p5/p5_messages.h"
@@ -83,9 +83,9 @@ static unsigned get_min_nof_tracked_slots(unsigned ul_indication_delay_slots, un
   return ul_indication_delay_slots + max_processing_delay_slots + margin;
 }
 
-fapi_dummy_sector::fapi_dummy_sector(const fapi_dummy_sector_config& config,
-                                     ocudulog::basic_logger&         logger_,
-                                     task_executor&                  executor_) :
+phy_dummy_fapi_sector_adaptor::phy_dummy_fapi_sector_adaptor(const phy_dummy_fapi_sector_adaptor_config& config,
+                                                             ocudulog::basic_logger&                     logger_,
+                                                             task_executor&                              executor_) :
   sector_id(config.sector_id),
   scs(config.scs),
   ul_indication_delay_slots(config.ul_indication_delay_slots),
@@ -107,29 +107,31 @@ fapi_dummy_sector::fapi_dummy_sector(const fapi_dummy_sector_config& config,
   ocudu_assert(ul_indication_delay_slots > 0, "The uplink indication delay must be at least one slot");
 }
 
-fapi_dummy_sector::~fapi_dummy_sector()
+phy_dummy_fapi_sector_adaptor::~phy_dummy_fapi_sector_adaptor()
 {
   stop_control.stop();
 }
 
 template <typename Func>
-void fapi_dummy_sector::defer_task(const char* task_name, Func&& task)
+void phy_dummy_fapi_sector_adaptor::defer_task(const char* task_name, Func&& task)
 {
   if (!executor.defer([token = stop_control.get_token(), task = std::forward<Func>(task)]() mutable {
         if (!token.is_stop_requested()) {
           task();
         }
       })) {
-    logger.warning("Sector#{}: FAPI dummy failed to dispatch {}. Cause: task queue is full", sector_id, task_name);
+    logger.warning(
+        "Sector#{}: PHY dummy FAPI adaptor failed to dispatch {}. Cause: task queue is full", sector_id, task_name);
   }
 }
 
-void fapi_dummy_sector::handle_slot_boundary(slot_point_extended slot, std::chrono::system_clock::time_point time_point)
+void phy_dummy_fapi_sector_adaptor::handle_slot_boundary(slot_point_extended                   slot,
+                                                         std::chrono::system_clock::time_point time_point)
 {
   defer_task("slot boundary", [this, slot, time_point]() { process_slot_boundary(slot, time_point); });
 }
 
-fapi_dummy_sector::slot_boundary_progress fapi_dummy_sector::get_progress() const
+phy_dummy_fapi_sector_adaptor::slot_boundary_progress phy_dummy_fapi_sector_adaptor::get_progress() const
 {
   uint32_t value = progress.load(std::memory_order_acquire);
   if (value == invalid_progress) {
@@ -138,12 +140,12 @@ fapi_dummy_sector::slot_boundary_progress fapi_dummy_sector::get_progress() cons
   return {.slot = slot_point(scs, value >> 1U), .running = (value & 1U) != 0};
 }
 
-void fapi_dummy_sector::publish_progress(slot_point slot)
+void phy_dummy_fapi_sector_adaptor::publish_progress(slot_point slot)
 {
   progress.store((slot.count() << 1U) | (running && mac_completed_slots ? 1U : 0U), std::memory_order_release);
 }
 
-void fapi_dummy_sector::send_param_request(const fapi::param_request& msg)
+void phy_dummy_fapi_sector_adaptor::send_param_request(const fapi::param_request& msg)
 {
   defer_task("PARAM.request", [this]() {
     fapi::param_response response;
@@ -152,7 +154,7 @@ void fapi_dummy_sector::send_param_request(const fapi::param_request& msg)
   });
 }
 
-void fapi_dummy_sector::send_config_request(const fapi::config_request& msg)
+void phy_dummy_fapi_sector_adaptor::send_config_request(const fapi::config_request& msg)
 {
   unsigned nof_rx_ant = std::clamp(static_cast<unsigned>(msg.cell_cfg.carrier_cfg.num_rx_ant),
                                    1U,
@@ -166,11 +168,11 @@ void fapi_dummy_sector::send_config_request(const fapi::config_request& msg)
   });
 }
 
-void fapi_dummy_sector::send_start_request(const fapi::start_request& msg)
+void phy_dummy_fapi_sector_adaptor::send_start_request(const fapi::start_request& msg)
 {
   defer_task("START.request", [this]() {
     if (running) {
-      logger.warning("Sector#{}: FAPI dummy ignored START.request. Cause: sector is running", sector_id);
+      logger.warning("Sector#{}: PHY dummy FAPI adaptor ignored START.request. Cause: sector is running", sector_id);
       return;
     }
     running             = true;
@@ -181,11 +183,11 @@ void fapi_dummy_sector::send_start_request(const fapi::start_request& msg)
   });
 }
 
-void fapi_dummy_sector::send_stop_request(const fapi::stop_request& msg)
+void phy_dummy_fapi_sector_adaptor::send_stop_request(const fapi::stop_request& msg)
 {
   defer_task("STOP.request", [this]() {
     if (!running || stop_requested) {
-      logger.warning("Sector#{}: FAPI dummy ignored STOP.request. Cause: sector is not running", sector_id);
+      logger.warning("Sector#{}: PHY dummy FAPI adaptor ignored STOP.request. Cause: sector is not running", sector_id);
       return;
     }
     // The sector stops at the next slot boundary, so that the requests of the last notified slot complete.
@@ -193,8 +195,8 @@ void fapi_dummy_sector::send_stop_request(const fapi::stop_request& msg)
   });
 }
 
-void fapi_dummy_sector::process_slot_boundary(slot_point_extended                   slot,
-                                              std::chrono::system_clock::time_point time_point)
+void phy_dummy_fapi_sector_adaptor::process_slot_boundary(slot_point_extended                   slot,
+                                                          std::chrono::system_clock::time_point time_point)
 {
   slot_point notified_slot = slot.without_hyper_sfn();
 
@@ -238,7 +240,7 @@ void fapi_dummy_sector::process_slot_boundary(slot_point_extended               
   slot_notifier->on_slot_indication(fapi::build_slot_indication(slot, time_point));
 }
 
-void fapi_dummy_sector::process_last_message(slot_point slot)
+void phy_dummy_fapi_sector_adaptor::process_last_message(slot_point slot)
 {
   if (!running) {
     return;
@@ -252,29 +254,30 @@ void fapi_dummy_sector::process_last_message(slot_point slot)
   publish_progress(slot);
 }
 
-bool fapi_dummy_sector::is_late(slot_point slot) const
+bool phy_dummy_fapi_sector_adaptor::is_late(slot_point slot) const
 {
   // The current time lags the last notified slot by the processing delay.
   return current_slot.has_value() && slot < *current_slot - static_cast<int>(max_processing_delay_slots);
 }
 
-void fapi_dummy_sector::check_request(slot_point slot, fapi::message_type_id msg_id)
+void phy_dummy_fapi_sector_adaptor::check_request(slot_point slot, fapi::message_type_id msg_id)
 {
   if (late_request_detection) {
     defer_task("request check", [this, slot, msg_id]() { process_request(slot, msg_id); });
   }
 }
 
-void fapi_dummy_sector::process_request(slot_point slot, fapi::message_type_id msg_id)
+void phy_dummy_fapi_sector_adaptor::process_request(slot_point slot, fapi::message_type_id msg_id)
 {
   if (!running || !is_late(slot)) {
     return;
   }
 
-  logger.warning("Sector#{}: Real-time failure in FAPI dummy: Received late request with msg_id={} for slot {}",
-                 sector_id,
-                 fmt::underlying(msg_id),
-                 slot);
+  logger.warning(
+      "Sector#{}: Real-time failure in PHY dummy FAPI adaptor: Received late request with msg_id={} for slot {}",
+      sector_id,
+      fmt::underlying(msg_id),
+      slot);
 
   // The uplink contexts of a slot with late requests are discarded.
   late_slots[slot.count()] = slot;
@@ -287,7 +290,7 @@ void fapi_dummy_sector::process_request(slot_point slot, fapi::message_type_id m
                                           : fapi::build_invalid_sfn_error_indication(slot, msg_id, *current_slot));
 }
 
-void fapi_dummy_sector::send_dl_tti_request(const fapi::dl_tti_request& msg)
+void phy_dummy_fapi_sector_adaptor::send_dl_tti_request(const fapi::dl_tti_request& msg)
 {
   check_request(msg.slot, fapi::message_type_id::dl_tti_request);
 }
@@ -356,14 +359,15 @@ static void save_srs_context(ul_slot_ind_context& context, const fapi::ul_srs_pd
                           .positioning_report = pdu.enable_positioning_report});
 }
 
-void fapi_dummy_sector::send_ul_tti_request(const fapi::ul_tti_request& msg)
+void phy_dummy_fapi_sector_adaptor::send_ul_tti_request(const fapi::ul_tti_request& msg)
 {
   check_request(msg.slot, fapi::message_type_id::ul_tti_request);
 
   auto context = ul_repository.write(msg.slot.count());
   if (context == nullptr) {
-    logger.warning(
-        "Sector#{}: FAPI dummy dropped UL_TTI.request for slot {}. Cause: slot entry is busy", sector_id, msg.slot);
+    logger.warning("Sector#{}: PHY dummy FAPI adaptor dropped UL_TTI.request for slot {}. Cause: slot entry is busy",
+                   sector_id,
+                   msg.slot);
     return;
   }
 
@@ -379,22 +383,22 @@ void fapi_dummy_sector::send_ul_tti_request(const fapi::ul_tti_request& msg)
   }
 }
 
-void fapi_dummy_sector::send_ul_dci_request(const fapi::ul_dci_request& msg)
+void phy_dummy_fapi_sector_adaptor::send_ul_dci_request(const fapi::ul_dci_request& msg)
 {
   check_request(msg.slot, fapi::message_type_id::ul_dci_request);
 }
 
-void fapi_dummy_sector::send_tx_data_request(const fapi::tx_data_request& msg)
+void phy_dummy_fapi_sector_adaptor::send_tx_data_request(const fapi::tx_data_request& msg)
 {
   check_request(msg.slot, fapi::message_type_id::tx_data_request);
 }
 
-void fapi_dummy_sector::on_last_message(slot_point slot)
+void phy_dummy_fapi_sector_adaptor::on_last_message(slot_point slot)
 {
   defer_task("last message", [this, slot]() { process_last_message(slot); });
 }
 
-void fapi_dummy_sector::notify_ul_indications(slot_point slot, const ul_slot_ind_context& context)
+void phy_dummy_fapi_sector_adaptor::notify_ul_indications(slot_point slot, const ul_slot_ind_context& context)
 {
   for (const pusch_ind_context& pusch : context.puschs) {
     notify_pusch_indications(slot, pusch);
@@ -424,7 +428,7 @@ static uci_payload_type get_harq_ack_payload(units::bits nof_bits)
   return payload;
 }
 
-void fapi_dummy_sector::notify_pusch_indications(slot_point slot, const pusch_ind_context& pusch)
+void phy_dummy_fapi_sector_adaptor::notify_pusch_indications(slot_point slot, const pusch_ind_context& pusch)
 {
   static constexpr phy_time_unit time_advance = phy_time_unit::from_seconds(0.0);
 
@@ -464,7 +468,7 @@ void fapi_dummy_sector::notify_pusch_indications(slot_point slot, const pusch_in
   p7_notifier->on_crc_indication(crc_msg);
 
   if (pusch.tb_size->value() > padding_pdu.size()) {
-    logger.warning("Sector#{}: FAPI dummy truncated the transport block of rnti={} in slot {} to {} bytes",
+    logger.warning("Sector#{}: PHY dummy FAPI adaptor truncated the transport block of rnti={} in slot {} to {} bytes",
                    sector_id,
                    pusch.rnti,
                    slot,
@@ -484,7 +488,7 @@ void fapi_dummy_sector::notify_pusch_indications(slot_point slot, const pusch_in
   p7_notifier->on_rx_data_indication(rx_msg);
 }
 
-void fapi_dummy_sector::notify_pucch_indication(slot_point slot, const pucch_ind_context& pucch)
+void phy_dummy_fapi_sector_adaptor::notify_pucch_indication(slot_point slot, const pucch_ind_context& pucch)
 {
   static constexpr phy_time_unit time_advance = phy_time_unit::from_seconds(0.0);
 
@@ -528,7 +532,7 @@ void fapi_dummy_sector::notify_pucch_indication(slot_point slot, const pucch_ind
   p7_notifier->on_uci_indication(msg);
 }
 
-void fapi_dummy_sector::notify_srs_indication(slot_point slot, const srs_ind_context& srs)
+void phy_dummy_fapi_sector_adaptor::notify_srs_indication(slot_point slot, const srs_ind_context& srs)
 {
   static constexpr phy_time_unit time_advance = phy_time_unit::from_seconds(0.0);
 

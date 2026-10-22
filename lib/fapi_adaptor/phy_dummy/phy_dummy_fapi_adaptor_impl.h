@@ -5,9 +5,9 @@
 
 #pragma once
 
-#include "fapi_dummy_sector.h"
-#include "ocudu/fapi_adaptor/phy/dummy/fapi_dummy_config.h"
+#include "phy_dummy_fapi_sector_adaptor.h"
 #include "ocudu/fapi_adaptor/phy/phy_fapi_adaptor.h"
+#include "ocudu/fapi_adaptor/phy_dummy/phy_dummy_fapi_adaptor_config.h"
 #include "ocudu/support/synchronization/stop_event.h"
 #include <chrono>
 #include <memory>
@@ -17,13 +17,14 @@
 namespace ocudu {
 namespace fapi_adaptor {
 
-/// FAPI dummy that drives the slot boundaries of its sectors from a clock loop.
-class fapi_dummy_impl : public phy_fapi_adaptor
+/// PHY dummy FAPI adaptor that drives the slot boundaries of its sectors from a clock loop.
+class phy_dummy_fapi_adaptor_impl : public phy_fapi_adaptor
 {
 public:
-  fapi_dummy_impl(const fapi_dummy_config& config, const fapi_dummy_dependencies& dependencies);
+  phy_dummy_fapi_adaptor_impl(const phy_dummy_fapi_adaptor_config&       config,
+                              const phy_dummy_fapi_adaptor_dependencies& dependencies);
 
-  ~fapi_dummy_impl() override;
+  ~phy_dummy_fapi_adaptor_impl() override;
 
   // See interface for documentation.
   phy_fapi_sector_adaptor& get_sector_adaptor(unsigned cell_id) override;
@@ -49,9 +50,9 @@ private:
   /// Notifies the next slot boundary to all the sectors.
   void advance_slot();
 
-  const fapi_dummy_clock_mode     clock_mode;
-  const std::chrono::microseconds slot_duration;
-  const unsigned                  max_processing_delay_slots;
+  const phy_dummy_fapi_adaptor_clock_mode clock_mode;
+  const std::chrono::microseconds         slot_duration;
+  const unsigned                          max_processing_delay_slots;
   /// Number of slots in all the hyper system frames.
   const uint64_t          nof_slots_in_all_hyper_sfns;
   ocudulog::basic_logger& logger;
@@ -64,8 +65,8 @@ private:
   /// Last slot notified to the sectors.
   std::optional<slot_point> last_notified_slot;
   /// Time of the last slot advance of the free running clock.
-  std::chrono::steady_clock::time_point           last_advance_time;
-  std::vector<std::unique_ptr<fapi_dummy_sector>> sectors;
+  std::chrono::steady_clock::time_point                       last_advance_time;
+  std::vector<std::unique_ptr<phy_dummy_fapi_sector_adaptor>> sectors;
   /// Clock loop stop control.
   rt_stop_event_source stop_control;
 };

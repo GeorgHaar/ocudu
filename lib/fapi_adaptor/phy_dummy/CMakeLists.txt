@@ -3,5 +3,5 @@
 # SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 # Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
-add_library(ocudu_fapi_phy_dummy_adaptor STATIC fapi_dummy_impl.cpp fapi_dummy_sector.cpp)
-target_link_libraries(ocudu_fapi_phy_dummy_adaptor PRIVATE ocudulog)
+add_library(ocudu_phy_dummy_fapi_adaptor STATIC phy_dummy_fapi_adaptor_impl.cpp phy_dummy_fapi_sector_adaptor.cpp)
+target_link_libraries(ocudu_phy_dummy_fapi_adaptor PRIVATE ocudulog)

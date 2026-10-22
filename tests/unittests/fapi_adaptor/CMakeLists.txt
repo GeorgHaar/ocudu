@@ -6,7 +6,7 @@ set_directory_properties(PROPERTIES LABELS "fapi_adaptor")
 
 add_subdirectory(mac/p5)
 add_subdirectory(mac/p7)
-add_subdirectory(phy/dummy)
+add_subdirectory(phy_dummy)
 add_subdirectory(phy/p7)
 
 add_executable(precoding_codebook_generator_test precoding_codebook_generator_test.cpp)

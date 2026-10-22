@@ -187,6 +187,22 @@ TEST_F(du_high_ue_koffset_config_test, a_margin_short_of_the_threshold_is_reject
   ASSERT_FALSE(validate());
 }
 
+TEST_F(du_high_ue_koffset_config_test, a_disabled_dl_harq_feedback_is_rejected)
+{
+  set_koffset_params(1.0F, 2ms);
+  parsed_cfg.config.cells_cfg[0].cell.pdsch_cfg.harq_feedback_disabled.set(0, true);
+
+  ASSERT_FALSE(validate());
+}
+
+TEST_F(du_high_ue_koffset_config_test, an_uplink_harq_process_in_mode_b_is_rejected)
+{
+  set_koffset_params(1.0F, 2ms);
+  parsed_cfg.config.cells_cfg[0].cell.pusch_cfg.harq_mode_b.set(0, true);
+
+  ASSERT_FALSE(validate());
+}
+
 TEST_F(du_high_ue_koffset_config_test, a_margin_matching_the_threshold_is_valid)
 {
   // The T_TA report rounds up when the Koffset is derived from it, so a margin equal to the threshold still covers

@@ -763,6 +763,18 @@ static bool validate_ntn_config(const du_high_unit_base_cell_config& cell_cfg, n
       fmt::print("ntn.ue_specific_koffset_enabled requires ntn.ta_report_offset_threshold to be set.\n");
       valid = false;
     }
+    // The HARQ-ACK of its transport block is what tells the scheduler a UE applies a Differential Koffset, and a
+    // HARQ process with feedback disabled never sends one. The UE would apply a value the scheduler drops.
+    if (cell_cfg.pdsch_cfg.harq_feedback_disabled.any()) {
+      fmt::print("ntn.ue_specific_koffset_enabled cannot be combined with pdsch.harq_feedback_disabled.\n");
+      valid = false;
+    }
+    // Mode B reuses an uplink HARQ process before the round trip of its previous transmission has elapsed, and a
+    // Differential Koffset moves the uplink of a UE earlier still.
+    if (cell_cfg.pusch_cfg.harq_mode_b.any()) {
+      fmt::print("ntn.ue_specific_koffset_enabled cannot be combined with pusch.harq_mode_b.\n");
+      valid = false;
+    }
     if (serving.ue_specific_koffset_margin >= serving.cell_specific_koffset) {
       fmt::print("ntn.ue_specific_koffset_margin must be smaller than ntn.cell_specific_koffset.\n");
       valid = false;

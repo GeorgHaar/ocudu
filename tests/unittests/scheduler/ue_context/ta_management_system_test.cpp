@@ -19,8 +19,11 @@ TEST(inactive_ta_management_system_test, add_ue_returns_inactive_manager)
   expert_cfg.ue.ta_control.ta_cmd_offset_threshold = -1;
   ta_management_system ta_sys(expert_cfg.ue.ta_control);
 
-  ue_logical_channel_repository ue_lc_chs;
-  ue_ta_manager                 ta_mgr = ta_sys.add_ue(
+  logical_channel_config_pool   cfg_pool;
+  logical_channel_system        lc_ch_sys;
+  ue_logical_channel_repository ue_lc_chs =
+      lc_ch_sys.create_ue(to_du_ue_index(0), subcarrier_spacing::kHz15, false, cfg_pool.create({}));
+  ue_ta_manager ta_mgr = ta_sys.add_ue(
       time_alignment_group::id_t{0}, subcarrier_spacing::kHz15, subcarrier_spacing::kHz15, ue_lc_chs.view());
 
   ASSERT_FALSE(ta_mgr.active()) << "TA manager should be inactive when TA management is disabled";

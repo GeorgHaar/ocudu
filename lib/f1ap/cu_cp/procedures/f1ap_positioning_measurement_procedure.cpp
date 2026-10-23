@@ -980,8 +980,8 @@ static void fill_asn1_positioning_measurement_request(asn1::f1ap::positioning_me
 
   // Fill SRS configuration.
   if (request.srs_config.has_value()) {
-    asn1_request->srs_configuration_present = true;
-    asn1_request->srs_configuration         = srs_configuration_to_asn1(request.srs_config.value());
+    asn1_request->srs_cfg_present = true;
+    asn1_request->srs_cfg         = srs_configuration_to_asn1(request.srs_config.value());
   }
 
   // Fill measurement beam info request.

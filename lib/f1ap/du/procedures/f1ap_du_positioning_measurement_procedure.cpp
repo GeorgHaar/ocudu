@@ -117,7 +117,7 @@ bool f1ap_du_positioning_measurement_procedure::validate_request() const
     }
   }
 
-  if (not msg->srs_configuration_present) {
+  if (not msg->srs_cfg_present) {
     logger.warning("SRS Configuration not present");
     return false;
   }
@@ -130,9 +130,9 @@ bool f1ap_du_positioning_measurement_procedure::validate_request() const
   // TODO: Review this assumption once the F1AP we defined which elements of Positioning measurement request are
   //       mandatory.
   const bool srs_not_configured =
-      msg->srs_configuration.srs_carrier_list.size() == 0U or
-      msg->srs_configuration.srs_carrier_list[0U].active_ul_bwp.srs_cfg.srs_res_set_list.size() != 1U or
-      msg->srs_configuration.srs_carrier_list[0U].active_ul_bwp.srs_cfg.srs_res_list.size() != 1U;
+      msg->srs_cfg.srs_carrier_list.size() == 0U or
+      msg->srs_cfg.srs_carrier_list[0U].active_ul_bwp.srs_cfg.srs_res_set_list.size() != 1U or
+      msg->srs_cfg.srs_carrier_list[0U].active_ul_bwp.srs_cfg.srs_res_list.size() != 1U;
   if (srs_not_configured) {
     logger.warning("SRS Configuration missing, or configured but with several SRS resources or sets");
     return false;
@@ -140,11 +140,9 @@ bool f1ap_du_positioning_measurement_procedure::validate_request() const
 
   // At this point, we know only 1 SRS set and 1 SRS resource are configured.
   const bool non_periodic_srs =
-      msg->srs_configuration.srs_carrier_list[0U]
-              .active_ul_bwp.srs_cfg.srs_res_set_list[0U]
-              .res_set_type.type()
-              .value != asn1::f1ap::res_set_type_c::types_opts::periodic or
-      msg->srs_configuration.srs_carrier_list[0U].active_ul_bwp.srs_cfg.srs_res_list[0U].res_type.type().value !=
+      msg->srs_cfg.srs_carrier_list[0U].active_ul_bwp.srs_cfg.srs_res_set_list[0U].res_set_type.type().value !=
+          asn1::f1ap::res_set_type_c::types_opts::periodic or
+      msg->srs_cfg.srs_carrier_list[0U].active_ul_bwp.srs_cfg.srs_res_list[0U].res_type.type().value !=
           asn1::f1ap::res_type_c::types_opts::periodic;
   if (non_periodic_srs) {
     logger.warning("Only periodic SRS supported for positioning measurement");
@@ -203,8 +201,8 @@ async_task<du_positioning_meas_response> f1ap_du_positioning_measurement_procedu
   }
 
   // SRS Configuration.
-  if (msg->srs_configuration_present) {
-    du_req.srs_carriers = from_asn1(msg->srs_configuration);
+  if (msg->srs_cfg_present) {
+    du_req.srs_carriers = from_asn1(msg->srs_cfg);
   }
 
   return du_mng.request_positioning_measurement(du_req);

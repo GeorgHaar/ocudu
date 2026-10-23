@@ -329,10 +329,10 @@ fill_positioning_information_response(const asn1::f1ap::positioning_info_resp_s&
   positioning_information_response_t resp;
 
   // Fill SRS configuration.
-  if (asn1_resp->srs_configuration_present) {
+  if (asn1_resp->srs_cfg_present) {
     srs_configuration_t srs_cfg;
     // Fill SRS carrier list.
-    for (const auto& asn1_srs_carrier_list_item : asn1_resp->srs_configuration.srs_carrier_list) {
+    for (const auto& asn1_srs_carrier_list_item : asn1_resp->srs_cfg.srs_carrier_list) {
       srs_carrier_list_item_t srs_carrier_list_item;
 
       // Fill point A.

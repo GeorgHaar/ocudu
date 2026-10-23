@@ -427,7 +427,7 @@ trp_information_response_t create_trp_info_response(const asn1::f1ap::trp_info_r
           } else {
             trp_beam_ant_explicit_info_t                    trp_beam_ant_explicit_info;
             const asn1::f1ap::trp_beam_ant_explicit_info_s& asn1_trp_beam_ant_explicit_info =
-                asn1_trp_beam_ant_info.choice_trp_beam_ant_info_item.explicit_type();
+                asn1_trp_beam_ant_info.choice_trp_beam_ant_info_item.explicit_value();
 
             // Fill TRP beam ant angles.
             for (const auto& asn1_trp_beam_ant_angles_list_item : asn1_trp_beam_ant_explicit_info.trp_beam_ant_angles) {

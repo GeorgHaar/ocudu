@@ -68,7 +68,7 @@ TEST_F(f1ap_du_positioning_measurement_procedure_test, when_invalid_request_is_r
                                                               asn1::f1ap::pos_meas_type_opts::options::ul_aoa});
 
   // Remove SRS Configuration from the request to simulate an invalid request.
-  req.pdu.init_msg().value.positioning_meas_request()->srs_configuration_present = false;
+  req.pdu.init_msg().value.positioning_meas_request()->srs_cfg_present = false;
   log_f1ap_pdu(test_logger, "Positioning Measurement Request", req);
 
   this->f1ap->handle_message(req);

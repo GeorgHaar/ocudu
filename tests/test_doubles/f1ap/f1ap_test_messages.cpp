@@ -371,10 +371,10 @@ static drbs_to_be_setup_item_s generate_drb_am_setup_item(drb_id_t drbid)
   drb.qos_info.set_choice_ext().load_info_obj(ASN1_F1AP_ID_DRB_INFO);
   auto& drb_info                                                 = drb.qos_info.choice_ext()->drb_info();
   drb_info.drb_qos.qos_characteristics.set_non_dyn_5qi().five_qi = 9;
-  drb_info.drb_qos.ngra_nalloc_retention_prio.prio_level         = 1;
-  drb_info.drb_qos.ngra_nalloc_retention_prio.pre_emption_cap.value =
+  drb_info.drb_qos.ngran_alloc_retention_prio.prio_level         = 1;
+  drb_info.drb_qos.ngran_alloc_retention_prio.pre_emption_cap.value =
       pre_emption_cap_opts::shall_not_trigger_pre_emption;
-  drb_info.drb_qos.ngra_nalloc_retention_prio.pre_emption_vulnerability.value =
+  drb_info.drb_qos.ngran_alloc_retention_prio.pre_emption_vulnerability.value =
       pre_emption_vulnerability_opts::not_pre_emptable;
   drb_info.drb_qos.reflective_qos_attribute_present = true;
   drb_info.drb_qos.reflective_qos_attribute.value =
@@ -385,8 +385,8 @@ static drbs_to_be_setup_item_s generate_drb_am_setup_item(drb_id_t drbid)
   drb_info.flows_mapped_to_drb_list[0].qos_flow_id = 1;
   drb_info.flows_mapped_to_drb_list[0].qos_flow_level_qos_params.qos_characteristics =
       drb_info.drb_qos.qos_characteristics;
-  drb_info.flows_mapped_to_drb_list[0].qos_flow_level_qos_params.ngra_nalloc_retention_prio =
-      drb_info.drb_qos.ngra_nalloc_retention_prio;
+  drb_info.flows_mapped_to_drb_list[0].qos_flow_level_qos_params.ngran_alloc_retention_prio =
+      drb_info.drb_qos.ngran_alloc_retention_prio;
   drb.rlc_mode.value         = rlc_mode_opts::rlc_am;
   drb.ie_exts_present        = true;
   drb.ie_exts.dl_pdcp_sn_len = pdcp_sn_len_opts::twelve_bits;
@@ -602,10 +602,10 @@ static asn1::f1ap::drbs_to_be_setup_mod_item_s generate_drb_am_mod_item(drb_id_t
   drb.qos_info.set_choice_ext().load_info_obj(ASN1_F1AP_ID_DRB_INFO);
   auto& drb_info                                                 = drb.qos_info.choice_ext()->drb_info();
   drb_info.drb_qos.qos_characteristics.set_non_dyn_5qi().five_qi = 8;
-  drb_info.drb_qos.ngra_nalloc_retention_prio.prio_level         = 1;
-  drb_info.drb_qos.ngra_nalloc_retention_prio.pre_emption_cap.value =
+  drb_info.drb_qos.ngran_alloc_retention_prio.prio_level         = 1;
+  drb_info.drb_qos.ngran_alloc_retention_prio.pre_emption_cap.value =
       pre_emption_cap_opts::shall_not_trigger_pre_emption;
-  drb_info.drb_qos.ngra_nalloc_retention_prio.pre_emption_vulnerability.value =
+  drb_info.drb_qos.ngran_alloc_retention_prio.pre_emption_vulnerability.value =
       pre_emption_vulnerability_opts::not_pre_emptable;
   drb_info.drb_qos.reflective_qos_attribute_present = true;
   drb_info.drb_qos.reflective_qos_attribute.value =
@@ -615,8 +615,8 @@ static asn1::f1ap::drbs_to_be_setup_mod_item_s generate_drb_am_mod_item(drb_id_t
   auto& qos_flow                                   = drb_info.flows_mapped_to_drb_list[0].qos_flow_level_qos_params;
   auto& desc                                       = qos_flow.qos_characteristics.set_non_dyn_5qi();
   desc.five_qi                                     = 8;
-  qos_flow.ngra_nalloc_retention_prio.pre_emption_cap.value = pre_emption_cap_opts::shall_not_trigger_pre_emption;
-  qos_flow.ngra_nalloc_retention_prio.pre_emption_vulnerability.value =
+  qos_flow.ngran_alloc_retention_prio.pre_emption_cap.value = pre_emption_cap_opts::shall_not_trigger_pre_emption;
+  qos_flow.ngran_alloc_retention_prio.pre_emption_vulnerability.value =
       pre_emption_vulnerability_opts::not_pre_emptable;
   drb_info.snssai.sst.from_string("01");
   drb_info.snssai.sd.from_string("0027db");
@@ -1078,8 +1078,8 @@ f1ap_message ocudu::test_helpers::generate_positioning_information_response(gnb_
   pos_info_resp->gnb_cu_ue_f1ap_id = to_underlying(cu_ue_id);
   pos_info_resp->gnb_du_ue_f1ap_id = to_underlying(du_ue_id);
 
-  pos_info_resp->srs_configuration_present = true;
-  pos_info_resp->srs_configuration         = generate_srs_configuration();
+  pos_info_resp->srs_cfg_present = true;
+  pos_info_resp->srs_cfg         = generate_srs_configuration();
 
   return pdu;
 }
@@ -1202,8 +1202,8 @@ f1ap_message ocudu::test_helpers::generate_positioning_measurement_request(
     pos_meas_req->resp_time.time_unit = asn1::f1ap::resp_time_s::time_unit_opts::ten_milliseconds;
   }
 
-  pos_meas_req->srs_configuration_present = true;
-  pos_meas_req->srs_configuration         = generate_srs_configuration(scs, srs_offset);
+  pos_meas_req->srs_cfg_present = true;
+  pos_meas_req->srs_cfg         = generate_srs_configuration(scs, srs_offset);
 
   return pdu;
 }

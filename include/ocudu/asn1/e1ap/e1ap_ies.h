@@ -2207,7 +2207,7 @@ struct qos_flow_level_qos_params_s {
   bool                                        reflective_qos_ind_present       = false;
   bool                                        ie_exts_present                  = false;
   qos_characteristics_c                       qos_characteristics;
-  ngran_alloc_and_retention_prio_s            ngra_nalloc_retention_prio;
+  ngran_alloc_and_retention_prio_s            ngran_alloc_retention_prio;
   gbr_qos_flow_info_s                         gbr_qos_flow_info;
   reflective_qos_attribute_e_                 reflective_qos_attribute;
   add_qos_info_e_                             add_qos_info;
@@ -7070,12 +7070,12 @@ struct mc_bearer_context_ngu_tnl_infoat5_gc_s {
 };
 
 // MCBearerContextNGUTnlInfoatNGRANRequest-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-using mc_bearer_context_ngu_tnl_infoat_ngra_nr_equest_ext_ies_o = protocol_ext_empty_o;
+using mc_bearer_context_ngu_tnl_infoat_ngran_request_ext_ies_o = protocol_ext_empty_o;
 
-using mc_bearer_context_ngu_tnl_infoat_ngra_nr_equest_ext_ies_container = protocol_ext_container_empty_l;
+using mc_bearer_context_ngu_tnl_infoat_ngran_request_ext_ies_container = protocol_ext_container_empty_l;
 
 // MCBearerContextNGUTnlInfoatNGRANRequest ::= SEQUENCE
-struct mc_bearer_context_ngu_tnl_infoat_ngra_nr_equest_s {
+struct mc_bearer_context_ngu_tnl_infoat_ngran_request_s {
   struct ng_ranngu_tnl_requested_opts {
     enum options { requested, /*...*/ nulltype } value;
 
@@ -7084,12 +7084,12 @@ struct mc_bearer_context_ngu_tnl_infoat_ngra_nr_equest_s {
   using ng_ranngu_tnl_requested_e_ = enumerated<ng_ranngu_tnl_requested_opts, true>;
 
   // member variables
-  bool                                                              ext                         = false;
-  bool                                                              mbs_area_session_id_present = false;
-  bool                                                              ie_exts_present             = false;
-  ng_ranngu_tnl_requested_e_                                        ng_ranngu_tnl_requested;
-  uint32_t                                                          mbs_area_session_id = 0;
-  mc_bearer_context_ngu_tnl_infoat_ngra_nr_equest_ext_ies_container ie_exts;
+  bool                                                             ext                         = false;
+  bool                                                             mbs_area_session_id_present = false;
+  bool                                                             ie_exts_present             = false;
+  ng_ranngu_tnl_requested_e_                                       ng_ranngu_tnl_requested;
+  uint32_t                                                         mbs_area_session_id = 0;
+  mc_bearer_context_ngu_tnl_infoat_ngran_request_ext_ies_container ie_exts;
   // ...
 
   // sequence methods
@@ -7435,19 +7435,19 @@ struct mc_bearer_context_to_modify_ext_ies_container {
 
 // MCBearerContextToModify ::= SEQUENCE
 struct mc_bearer_context_to_modify_s {
-  bool                                              ext                                                     = false;
-  bool                                              mc_bearer_context_ngu_tnl_infoat5_gc_present            = false;
-  bool                                              mc_bearer_context_ngu_tnl_infoat_ngra_nr_equest_present = false;
-  bool                                              mbs_multicast_f1_u_context_descriptor_present           = false;
-  bool                                              requested_action_present                                = false;
-  bool                                              ie_exts_present                                         = false;
-  mc_bearer_context_ngu_tnl_infoat5_gc_s            mc_bearer_context_ngu_tnl_infoat5_gc;
-  mc_bearer_context_ngu_tnl_infoat_ngra_nr_equest_s mc_bearer_context_ngu_tnl_infoat_ngra_nr_equest;
-  mbs_multicast_f1_u_context_descriptor_s           mbs_multicast_f1_u_context_descriptor;
-  requested_action4_avail_ngu_termination_e         requested_action;
-  mcmrb_setup_modify_cfg_l                          mc_mrb_to_setup_modify_list;
-  mcmrb_rem_cfg_l                                   mc_mrb_to_rem_list;
-  mc_bearer_context_to_modify_ext_ies_container     ie_exts;
+  bool                                             ext                                                    = false;
+  bool                                             mc_bearer_context_ngu_tnl_infoat5_gc_present           = false;
+  bool                                             mc_bearer_context_ngu_tnl_infoat_ngran_request_present = false;
+  bool                                             mbs_multicast_f1_u_context_descriptor_present          = false;
+  bool                                             requested_action_present                               = false;
+  bool                                             ie_exts_present                                        = false;
+  mc_bearer_context_ngu_tnl_infoat5_gc_s           mc_bearer_context_ngu_tnl_infoat5_gc;
+  mc_bearer_context_ngu_tnl_infoat_ngran_request_s mc_bearer_context_ngu_tnl_infoat_ngran_request;
+  mbs_multicast_f1_u_context_descriptor_s          mbs_multicast_f1_u_context_descriptor;
+  requested_action4_avail_ngu_termination_e        requested_action;
+  mcmrb_setup_modify_cfg_l                         mc_mrb_to_setup_modify_list;
+  mcmrb_rem_cfg_l                                  mc_mrb_to_rem_list;
+  mc_bearer_context_to_modify_ext_ies_container    ie_exts;
   // ...
 
   // sequence methods

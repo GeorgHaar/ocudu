@@ -73,13 +73,13 @@ inline void fill_asn1_qos_flow_info_item(asn1::e1ap::qos_flow_qos_param_item_s& 
   }
 
   // Fill NG RAN alloc retention prio.
-  asn1_qos_flow_info_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.prio_level =
+  asn1_qos_flow_info_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.prio_level =
       qos_flow_level_params.ng_ran_alloc_retention.prio_level_arp.value();
-  asn1_qos_flow_info_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.pre_emption_cap.value =
+  asn1_qos_flow_info_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.pre_emption_cap.value =
       qos_flow_level_params.ng_ran_alloc_retention.may_trigger_preemption
           ? asn1::e1ap::pre_emption_cap_opts::may_trigger_pre_emption
           : asn1::e1ap::pre_emption_cap_opts::shall_not_trigger_pre_emption;
-  asn1_qos_flow_info_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.pre_emption_vulnerability.value =
+  asn1_qos_flow_info_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.pre_emption_vulnerability.value =
       qos_flow_level_params.ng_ran_alloc_retention.is_preemptable
           ? asn1::e1ap::pre_emption_vulnerability_opts::pre_emptable
           : asn1::e1ap::pre_emption_vulnerability_opts::not_pre_emptable;

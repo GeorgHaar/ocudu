@@ -1131,12 +1131,12 @@ inline void e1ap_asn1_to_flow_map_info(slotted_id_vector<qos_flow_id_t, e1ap_qos
 
     // Fill NR RAN alloc retention prio.
     flow_map_item.qos_flow_level_qos_params.ng_ran_alloc_retention.prio_level_arp =
-        asn1_flow_map_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.prio_level;
+        asn1_flow_map_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.prio_level;
     flow_map_item.qos_flow_level_qos_params.ng_ran_alloc_retention.may_trigger_preemption =
-        asn1_flow_map_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.pre_emption_cap.value ==
+        asn1_flow_map_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.pre_emption_cap.value ==
         asn1::e1ap::pre_emption_cap_opts::may_trigger_pre_emption;
     flow_map_item.qos_flow_level_qos_params.ng_ran_alloc_retention.is_preemptable =
-        asn1_flow_map_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.pre_emption_vulnerability.value ==
+        asn1_flow_map_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.pre_emption_vulnerability.value ==
         asn1::e1ap::pre_emption_vulnerability_opts::pre_emptable;
 
     // Fill GBR QoS flow info.

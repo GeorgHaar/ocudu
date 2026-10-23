@@ -11,7 +11,8 @@
 
 #pragma once
 
-#include "e1ap_ies.h"
+#include "ocudu/asn1/e1ap/common.h"
+#include "ocudu/asn1/e1ap/e1ap_ies.h"
 
 namespace asn1 {
 namespace e1ap {

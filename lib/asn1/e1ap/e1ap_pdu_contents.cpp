@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "ocudu/asn1/e1ap/e1ap_pdu_contents.h"
+
 using namespace asn1;
 using namespace asn1::e1ap;
 
@@ -268,6 +269,9 @@ OCUDUASN_CODE bc_bearer_context_mod_confirm_ies_container::unpack(cbit_ref& bref
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bc_bearer_context_mod_confirm_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -580,6 +584,9 @@ OCUDUASN_CODE bc_bearer_context_mod_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bc_bearer_context_mod_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -855,6 +862,9 @@ OCUDUASN_CODE bc_bearer_context_mod_request_ies_container::unpack(cbit_ref& bref
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bc_bearer_context_mod_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -1121,6 +1131,9 @@ OCUDUASN_CODE bc_bearer_context_mod_required_ies_container::unpack(cbit_ref& bre
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bc_bearer_context_mod_required_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -1424,6 +1437,9 @@ OCUDUASN_CODE bc_bearer_context_mod_resp_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bc_bearer_context_mod_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -1699,6 +1715,9 @@ OCUDUASN_CODE bc_bearer_context_release_cmd_ies_container::unpack(cbit_ref& bref
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bc_bearer_context_release_cmd_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -1965,6 +1984,9 @@ OCUDUASN_CODE bc_bearer_context_release_complete_ies_container::unpack(cbit_ref&
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bc_bearer_context_release_complete_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -2231,6 +2253,9 @@ OCUDUASN_CODE bc_bearer_context_release_request_ies_container::unpack(cbit_ref& 
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bc_bearer_context_release_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -2533,6 +2558,9 @@ OCUDUASN_CODE bc_bearer_context_setup_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bc_bearer_context_setup_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -2890,6 +2918,9 @@ OCUDUASN_CODE bc_bearer_context_setup_request_ies_container::unpack(cbit_ref& br
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bc_bearer_context_setup_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -3215,6 +3246,9 @@ OCUDUASN_CODE bc_bearer_context_setup_resp_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bc_bearer_context_setup_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -3490,6 +3524,9 @@ OCUDUASN_CODE bearer_context_inactivity_notif_ies_container::unpack(cbit_ref& br
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bearer_context_inactivity_notif_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -4096,6 +4133,9 @@ OCUDUASN_CODE bearer_context_mod_confirm_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bearer_context_mod_confirm_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -4411,6 +4451,9 @@ OCUDUASN_CODE bearer_context_mod_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bearer_context_mod_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -4782,6 +4825,9 @@ OCUDUASN_CODE eutran_bearer_context_mod_request_container::unpack(cbit_ref& bref
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != eutran_bearer_context_mod_request_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 51: {
@@ -5098,6 +5144,9 @@ OCUDUASN_CODE ng_ran_bearer_context_mod_request_container::unpack(cbit_ref& bref
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ng_ran_bearer_context_mod_request_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 56: {
@@ -6224,6 +6273,9 @@ OCUDUASN_CODE bearer_context_mod_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bearer_context_mod_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -6672,6 +6724,9 @@ OCUDUASN_CODE eutran_bearer_context_mod_required_container::unpack(cbit_ref& bre
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != eutran_bearer_context_mod_required_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 35: {
@@ -6909,6 +6964,9 @@ OCUDUASN_CODE ng_ran_bearer_context_mod_required_container::unpack(cbit_ref& bre
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ng_ran_bearer_context_mod_required_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 45: {
@@ -7342,6 +7400,9 @@ OCUDUASN_CODE bearer_context_mod_required_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bearer_context_mod_required_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -7703,6 +7764,9 @@ OCUDUASN_CODE eutran_bearer_context_mod_resp_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != eutran_bearer_context_mod_resp_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 52: {
@@ -8111,6 +8175,9 @@ OCUDUASN_CODE ng_ran_bearer_context_mod_resp_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ng_ran_bearer_context_mod_resp_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 54: {
@@ -8661,6 +8728,9 @@ OCUDUASN_CODE bearer_context_mod_resp_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bearer_context_mod_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -8949,6 +9019,9 @@ OCUDUASN_CODE bearer_context_release_cmd_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bearer_context_release_cmd_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -9255,6 +9328,9 @@ OCUDUASN_CODE bearer_context_release_complete_ies_container::unpack(cbit_ref& br
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bearer_context_release_complete_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -9576,6 +9652,9 @@ OCUDUASN_CODE bearer_context_release_request_ies_container::unpack(cbit_ref& bre
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bearer_context_release_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -9894,6 +9973,9 @@ OCUDUASN_CODE bearer_context_setup_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bearer_context_setup_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -10184,6 +10266,9 @@ OCUDUASN_CODE eutran_bearer_context_setup_request_container::unpack(cbit_ref& br
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != eutran_bearer_context_setup_request_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 32: {
@@ -11446,6 +11531,9 @@ OCUDUASN_CODE bearer_context_setup_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bearer_context_setup_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -11906,6 +11994,9 @@ OCUDUASN_CODE eutran_bearer_context_setup_resp_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != eutran_bearer_context_setup_resp_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 37: {
@@ -12144,6 +12235,9 @@ OCUDUASN_CODE ng_ran_bearer_context_setup_resp_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ng_ran_bearer_context_setup_resp_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 46: {
@@ -12615,6 +12709,9 @@ OCUDUASN_CODE bearer_context_setup_resp_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bearer_context_setup_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -13002,6 +13099,9 @@ OCUDUASN_CODE cell_traffic_trace_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != cell_traffic_trace_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -13415,6 +13515,9 @@ OCUDUASN_CODE dl_data_notif_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != dl_data_notif_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -13721,6 +13824,9 @@ OCUDUASN_CODE data_usage_report_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != data_usage_report_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -13988,6 +14094,9 @@ OCUDUASN_CODE deactiv_trace_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != deactiv_trace_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -14222,6 +14331,9 @@ OCUDUASN_CODE e1_release_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != e1_release_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -14448,6 +14560,9 @@ OCUDUASN_CODE e1_release_resp_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != e1_release_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -14777,6 +14892,9 @@ OCUDUASN_CODE early_forwarding_sn_transfer_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != early_forwarding_sn_transfer_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -15198,6 +15316,9 @@ OCUDUASN_CODE error_ind_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != error_ind_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -15680,6 +15801,9 @@ OCUDUASN_CODE gnb_cu_cp_cfg_upd_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != gnb_cu_cp_cfg_upd_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -16097,6 +16221,9 @@ OCUDUASN_CODE gnb_cu_cp_cfg_upd_ack_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != gnb_cu_cp_cfg_upd_ack_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -16438,6 +16565,9 @@ OCUDUASN_CODE gnb_cu_cp_cfg_upd_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != gnb_cu_cp_cfg_upd_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -16758,6 +16888,9 @@ OCUDUASN_CODE gnb_cu_cp_e1_setup_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != gnb_cu_cp_e1_setup_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -17080,6 +17213,9 @@ OCUDUASN_CODE gnb_cu_cp_e1_setup_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != gnb_cu_cp_e1_setup_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -17409,6 +17545,9 @@ OCUDUASN_CODE supported_plmns_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != supported_plmns_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 110: {
@@ -18007,6 +18146,9 @@ OCUDUASN_CODE gnb_cu_cp_e1_setup_resp_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != gnb_cu_cp_e1_setup_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -18343,6 +18485,9 @@ OCUDUASN_CODE gnb_cu_cp_meas_results_info_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != gnb_cu_cp_meas_results_info_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -18846,6 +18991,9 @@ OCUDUASN_CODE gnb_cu_up_cfg_upd_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != gnb_cu_up_cfg_upd_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -19194,6 +19342,9 @@ OCUDUASN_CODE gnb_cu_up_cfg_upd_ack_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != gnb_cu_up_cfg_upd_ack_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -19505,6 +19656,9 @@ OCUDUASN_CODE gnb_cu_up_cfg_upd_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != gnb_cu_up_cfg_upd_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -20022,6 +20176,9 @@ OCUDUASN_CODE gnb_cu_up_counter_check_request_ies_container::unpack(cbit_ref& br
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != gnb_cu_up_counter_check_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -20329,6 +20486,9 @@ OCUDUASN_CODE gnb_cu_up_e1_setup_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != gnb_cu_up_e1_setup_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -20835,6 +20995,9 @@ OCUDUASN_CODE gnb_cu_up_e1_setup_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != gnb_cu_up_e1_setup_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -21252,6 +21415,9 @@ OCUDUASN_CODE gnb_cu_up_e1_setup_resp_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != gnb_cu_up_e1_setup_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -21511,6 +21677,9 @@ OCUDUASN_CODE gnb_cu_up_status_ind_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != gnb_cu_up_status_ind_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -21740,6 +21909,9 @@ OCUDUASN_CODE iab_up_tnl_address_upd_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != iab_up_tnl_address_upd_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -22012,6 +22184,9 @@ OCUDUASN_CODE iab_up_tnl_address_upd_ack_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != iab_up_tnl_address_upd_ack_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -22327,6 +22502,9 @@ OCUDUASN_CODE iab_up_tnl_address_upd_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != iab_up_tnl_address_upd_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -22577,6 +22755,9 @@ OCUDUASN_CODE iabpsk_notif_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != iabpsk_notif_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -22876,6 +23057,9 @@ OCUDUASN_CODE mc_bearer_context_mod_confirm_ies_container::unpack(cbit_ref& bref
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != mc_bearer_context_mod_confirm_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -23231,6 +23415,9 @@ OCUDUASN_CODE mc_bearer_context_mod_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != mc_bearer_context_mod_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -23517,6 +23704,9 @@ OCUDUASN_CODE mc_bearer_context_mod_request_ies_container::unpack(cbit_ref& bref
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != mc_bearer_context_mod_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -23783,6 +23973,9 @@ OCUDUASN_CODE mc_bearer_context_mod_required_ies_container::unpack(cbit_ref& bre
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != mc_bearer_context_mod_required_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -24086,6 +24279,9 @@ OCUDUASN_CODE mc_bearer_context_mod_resp_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != mc_bearer_context_mod_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -24361,6 +24557,9 @@ OCUDUASN_CODE mc_bearer_context_release_cmd_ies_container::unpack(cbit_ref& bref
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != mc_bearer_context_release_cmd_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -24627,6 +24826,9 @@ OCUDUASN_CODE mc_bearer_context_release_complete_ies_container::unpack(cbit_ref&
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != mc_bearer_context_release_complete_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -24893,6 +25095,9 @@ OCUDUASN_CODE mc_bearer_context_release_request_ies_container::unpack(cbit_ref& 
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != mc_bearer_context_release_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -25195,6 +25400,9 @@ OCUDUASN_CODE mc_bearer_context_setup_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != mc_bearer_context_setup_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -25478,6 +25686,9 @@ OCUDUASN_CODE mc_bearer_context_setup_request_ies_container::unpack(cbit_ref& br
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != mc_bearer_context_setup_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -25781,6 +25992,9 @@ OCUDUASN_CODE mc_bearer_context_setup_resp_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != mc_bearer_context_setup_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -26056,6 +26270,9 @@ OCUDUASN_CODE mc_bearer_notif_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != mc_bearer_notif_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -26324,6 +26541,9 @@ OCUDUASN_CODE mrdc_data_usage_report_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != mrdc_data_usage_report_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -26909,6 +27129,9 @@ OCUDUASN_CODE reset_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != reset_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -27252,6 +27475,9 @@ OCUDUASN_CODE reset_ack_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != reset_ack_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -27598,6 +27824,9 @@ OCUDUASN_CODE res_status_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != res_status_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -27996,6 +28225,9 @@ OCUDUASN_CODE res_status_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != res_status_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -28330,6 +28562,9 @@ OCUDUASN_CODE res_status_resp_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != res_status_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -28682,6 +28917,9 @@ OCUDUASN_CODE res_status_upd_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != res_status_upd_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -28968,6 +29206,9 @@ OCUDUASN_CODE trace_start_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != trace_start_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {
@@ -29235,6 +29476,9 @@ OCUDUASN_CODE ul_data_notif_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ul_data_notif_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 2: {

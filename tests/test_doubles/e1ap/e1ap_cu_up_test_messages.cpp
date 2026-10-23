@@ -103,11 +103,11 @@ e1ap_message ocudu::ocuup::generate_bearer_context_setup_request(unsigned cu_cp_
   auto& qos_characteristics   = qo_s_flow_qos_param_item.qos_flow_level_qos_params.qos_characteristics.non_dyn_5qi();
   qos_characteristics.five_qi = 9;
 
-  qo_s_flow_qos_param_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.prio_level = 15;
-  qo_s_flow_qos_param_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.pre_emption_cap =
+  qo_s_flow_qos_param_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.prio_level = 15;
+  qo_s_flow_qos_param_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.pre_emption_cap =
       asn1::e1ap::pre_emption_cap_e::shall_not_trigger_pre_emption;
 
-  qo_s_flow_qos_param_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.pre_emption_vulnerability =
+  qo_s_flow_qos_param_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.pre_emption_vulnerability =
       asn1::e1ap::pre_emption_vulnerability_e::pre_emptable;
 
   drb_to_setup_item_ng_ran.qos_flow_info_to_be_setup.push_back(qo_s_flow_qos_param_item);

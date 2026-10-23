@@ -11,7 +11,8 @@
 
 #pragma once
 
-#include "ngap_ies.h"
+#include "ocudu/asn1/ngap/common.h"
+#include "ocudu/asn1/ngap/ngap_ies.h"
 
 namespace asn1 {
 namespace ngap {

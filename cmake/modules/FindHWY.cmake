@@ -18,17 +18,25 @@ endif (PKG_CONFIG_FOUND)
 set(HWY_DEFINITIONS ${PC_HWY_CFLAGS_OTHER})
 set(HWY_VERSION ${PC_HWY_VERSION})
 
+if(NOT "$ENV{HWY_DIR}" STREQUAL "")
+  set(_HWY_INCLUDE_HINTS "$ENV{HWY_DIR}/include")
+  set(_HWY_LIB_HINTS     "$ENV{HWY_DIR}/lib")
+endif()
+
 find_path(HWY_INCLUDE_DIR
         NAMES hwy/highway.h
-        HINTS ${PC_HWY_INCLUDEDIR} ${PC_HWY_INCLUDE_DIRS} $ENV{HWY_DIR}/include
+        HINTS ${PC_HWY_INCLUDEDIR} ${PC_HWY_INCLUDE_DIRS} ${_HWY_INCLUDE_HINTS}
         PATHS /usr/local/include
               /usr/include)
 
 find_library(HWY_LIBRARY
         NAMES hwy libhwy
-        HINTS ${PC_HWY_LIBDIR} ${PC_HWY_LIBRARY_DIRS} $ENV{HWY_DIR}/lib
+        HINTS ${PC_HWY_LIBDIR} ${PC_HWY_LIBRARY_DIRS} ${_HWY_LIB_HINTS}
         PATHS /usr/local/lib
               /usr/lib)
+
+unset(_HWY_INCLUDE_HINTS)
+unset(_HWY_LIB_HINTS)
 
 set(HWY_LIBRARIES ${HWY_LIBRARY})
 set(HWY_INCLUDE_DIRS ${HWY_INCLUDE_DIR})

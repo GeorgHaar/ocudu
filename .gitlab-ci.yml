@@ -13,6 +13,7 @@ include:
   - local: .gitlab/ci-shared/gitlab_settings/.gitlab-ci.yml
   - local: .gitlab/ci-shared/workflow.yml
   - local: .gitlab/ci-shared/static.yml
+  - local: .gitlab/ci-shared/version_check.yml
   - local: .gitlab/ci/doxygen/version.yml
   - local: .gitlab/ci/build.yml
   - local: .gitlab/ci/compose.yml
@@ -30,6 +31,26 @@ stages:
 
 variables:
   FUZZ_IMAGE_VERSION: "1"  # bump when tests/fuzz/Dockerfile changes
+
+################################################################################
+## Interface versions
+################################################################################
+metrics interface version increased:
+  extends: .version increased
+  stage: static
+  rules:
+    # The template fetches the MR source branch from origin, not available for forks
+    - if: $ON_MR_FORK
+      when: never
+    - if: $ON_MR
+      changes:
+        paths:
+          - apps/helpers/metrics/json_generators/**/*.{h,cpp}
+          - apps/services/*/metrics/*consumer*
+          - apps/units/**/metrics/**/*consumers.cpp
+  variables:
+    FILE_PATH: include/ocudu/support/versioning/interface_versions.h
+    VARIABLE_NAME: metrics_interface_version
 
 ################################################################################
 ## CI MR

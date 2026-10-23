@@ -11,7 +11,8 @@
 
 #pragma once
 
-#include "xnap_ies.h"
+#include "ocudu/asn1/xnap/common.h"
+#include "ocudu/asn1/xnap/xnap_ies.h"
 
 namespace asn1 {
 namespace xnap {
@@ -280,8 +281,8 @@ struct activity_notif_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         user_plane_traffic_activity_report,
         pdu_session_res_activity_notify_list,
         ran_paging_fail,
@@ -300,13 +301,13 @@ struct activity_notif_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                     m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                     s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                     m_ng_ran_node_ue_xnap_id();
+    uint64_t&                                     s_ng_ran_node_ue_xnap_id();
     user_plane_traffic_activity_report_e&         user_plane_traffic_activity_report();
     pdu_session_res_activity_notify_list_l&       pdu_session_res_activity_notify_list();
     ran_paging_fail_e&                            ran_paging_fail();
-    const uint64_t&                               m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                               s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                               m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                               s_ng_ran_node_ue_xnap_id() const;
     const user_plane_traffic_activity_report_e&   user_plane_traffic_activity_report() const;
     const pdu_session_res_activity_notify_list_l& pdu_session_res_activity_notify_list() const;
     const ran_paging_fail_e&                      ran_paging_fail() const;
@@ -328,8 +329,8 @@ struct activity_notif_ies_container {
   bool                                   user_plane_traffic_activity_report_present   = false;
   bool                                   pdu_session_res_activity_notify_list_present = false;
   bool                                   ran_paging_fail_present                      = false;
-  uint64_t                               m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                               s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                               m_ng_ran_node_ue_xnap_id;
+  uint64_t                               s_ng_ran_node_ue_xnap_id;
   user_plane_traffic_activity_report_e   user_plane_traffic_activity_report;
   pdu_session_res_activity_notify_list_l pdu_session_res_activity_notify_list;
   ran_paging_fail_e                      ran_paging_fail;
@@ -403,10 +404,10 @@ struct cp_c_cancel_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         cause,
-        target_s_ng_ra_nnode_id,
+        target_s_ng_ran_node_id,
         nulltype
       } value;
 
@@ -422,14 +423,14 @@ struct cp_c_cancel_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                      m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                      s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                      m_ng_ran_node_ue_xnap_id();
+    uint64_t&                      s_ng_ran_node_ue_xnap_id();
     cause_c&                       cause();
-    global_ng_ran_node_id_c&       target_s_ng_ra_nnode_id();
-    const uint64_t&                m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                s_ng_ra_nnode_ue_xn_ap_id() const;
+    global_ng_ran_node_id_c&       target_s_ng_ran_node_id();
+    const uint64_t&                m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                s_ng_ran_node_ue_xnap_id() const;
     const cause_c&                 cause() const;
-    const global_ng_ran_node_id_c& target_s_ng_ra_nnode_id() const;
+    const global_ng_ran_node_id_c& target_s_ng_ran_node_id() const;
 
   private:
     types             type_;
@@ -446,10 +447,10 @@ struct cp_c_cancel_ies_o {
 
 struct cp_c_cancel_ies_container {
   bool                    cause_present = false;
-  uint64_t                m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                m_ng_ran_node_ue_xnap_id;
+  uint64_t                s_ng_ran_node_ue_xnap_id;
   cause_c                 cause;
-  global_ng_ran_node_id_c target_s_ng_ra_nnode_id;
+  global_ng_ran_node_id_c target_s_ng_ran_node_id;
 
   // sequence methods
   OCUDUASN_CODE pack(bit_ref& bref) const;
@@ -788,8 +789,8 @@ struct cell_traffic_trace_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         ng_ran_trace_id,
         trace_collection_entity_ip_address,
         privacy_ind,
@@ -809,14 +810,14 @@ struct cell_traffic_trace_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                                    m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                                    s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                                    m_ng_ran_node_ue_xnap_id();
+    uint64_t&                                                    s_ng_ran_node_ue_xnap_id();
     fixed_octstring<8, true>&                                    ng_ran_trace_id();
     bounded_bitstring<1, 160, true, true>&                       trace_collection_entity_ip_address();
     privacy_ind_e&                                               privacy_ind();
     visible_string<0, MAX_ASN_STRING_LENGTH, false, true>&       trace_collection_entity_uri();
-    const uint64_t&                                              m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                                              s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                                              m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                                              s_ng_ran_node_ue_xnap_id() const;
     const fixed_octstring<8, true>&                              ng_ran_trace_id() const;
     const bounded_bitstring<1, 160, true, true>&                 trace_collection_entity_ip_address() const;
     const privacy_ind_e&                                         privacy_ind() const;
@@ -838,8 +839,8 @@ struct cell_traffic_trace_ies_o {
 struct cell_traffic_trace_ies_container {
   bool                                                  privacy_ind_present                 = false;
   bool                                                  trace_collection_entity_uri_present = false;
-  uint64_t                                              m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                                              s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                                              m_ng_ran_node_ue_xnap_id;
+  uint64_t                                              s_ng_ran_node_ue_xnap_id;
   fixed_octstring<8, true>                              ng_ran_trace_id;
   bounded_bitstring<1, 160, true, true>                 trace_collection_entity_ip_address;
   privacy_ind_e                                         privacy_ind;
@@ -860,8 +861,8 @@ struct conditional_ho_cancel_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        source_ng_ra_nnode_ue_xn_ap_id,
-        target_ng_ra_nnode_ue_xn_ap_id,
+        source_ng_ran_node_ue_xnap_id,
+        target_ng_ran_node_ue_xnap_id,
         cause,
         target_cells_to_cancel,
         conditional_recfg_to_cancel_list,
@@ -880,13 +881,13 @@ struct conditional_ho_cancel_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                       source_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                       target_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                       source_ng_ran_node_ue_xnap_id();
+    uint64_t&                       target_ng_ran_node_ue_xnap_id();
     cause_c&                        cause();
     target_cell_list_l&             target_cells_to_cancel();
     conditional_recfg_list_l&       conditional_recfg_to_cancel_list();
-    const uint64_t&                 source_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                 target_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                 source_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                 target_ng_ran_node_ue_xnap_id() const;
     const cause_c&                  cause() const;
     const target_cell_list_l&       target_cells_to_cancel() const;
     const conditional_recfg_list_l& conditional_recfg_to_cancel_list() const;
@@ -907,8 +908,8 @@ struct conditional_ho_cancel_ies_o {
 struct conditional_ho_cancel_ies_container {
   bool                     target_cells_to_cancel_present           = false;
   bool                     conditional_recfg_to_cancel_list_present = false;
-  uint64_t                 source_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                 target_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                 source_ng_ran_node_ue_xnap_id;
+  uint64_t                 target_ng_ran_node_ue_xnap_id;
   cause_c                  cause;
   target_cell_list_l       target_cells_to_cancel;
   conditional_recfg_list_l conditional_recfg_to_cancel_list;
@@ -1480,7 +1481,7 @@ struct deactiv_trace_ies_o {
   // Value ::= OPEN TYPE
   struct value_c {
     struct types_opts {
-      enum options { m_ng_ra_nnode_ue_xn_ap_id, s_ng_ra_nnode_ue_xn_ap_id, ng_ran_trace_id, nulltype } value;
+      enum options { m_ng_ran_node_ue_xnap_id, s_ng_ran_node_ue_xnap_id, ng_ran_trace_id, nulltype } value;
 
       const char* to_string() const;
     };
@@ -1494,11 +1495,11 @@ struct deactiv_trace_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                       m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                       s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                       m_ng_ran_node_ue_xnap_id();
+    uint64_t&                       s_ng_ran_node_ue_xnap_id();
     fixed_octstring<8, true>&       ng_ran_trace_id();
-    const uint64_t&                 m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                 s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                 m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                 s_ng_ran_node_ue_xnap_id() const;
     const fixed_octstring<8, true>& ng_ran_trace_id() const;
 
   private:
@@ -1515,8 +1516,8 @@ struct deactiv_trace_ies_o {
 };
 
 struct deactiv_trace_ies_container {
-  uint64_t                 m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                 s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                 m_ng_ran_node_ue_xnap_id;
+  uint64_t                 s_ng_ran_node_ue_xnap_id;
   fixed_octstring<8, true> ng_ran_trace_id;
 
   // sequence methods
@@ -1956,7 +1957,7 @@ struct early_status_transfer_ies_o {
   // Value ::= OPEN TYPE
   struct value_c {
     struct types_opts {
-      enum options { source_ng_ra_nnode_ue_xn_ap_id, target_ng_ra_nnode_ue_xn_ap_id, proc_stage, nulltype } value;
+      enum options { source_ng_ran_node_ue_xnap_id, target_ng_ran_node_ue_xnap_id, proc_stage, nulltype } value;
 
       const char* to_string() const;
     };
@@ -1970,11 +1971,11 @@ struct early_status_transfer_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                  source_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                  target_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                  source_ng_ran_node_ue_xnap_id();
+    uint64_t&                  target_ng_ran_node_ue_xnap_id();
     proc_stage_choice_c&       proc_stage();
-    const uint64_t&            source_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&            target_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&            source_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&            target_ng_ran_node_ue_xnap_id() const;
     const proc_stage_choice_c& proc_stage() const;
 
   private:
@@ -1991,8 +1992,8 @@ struct early_status_transfer_ies_o {
 };
 
 struct early_status_transfer_ies_container {
-  uint64_t            source_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t            target_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t            source_ng_ran_node_ue_xnap_id;
+  uint64_t            target_ng_ran_node_ue_xnap_id;
   proc_stage_choice_c proc_stage;
 
   // sequence methods
@@ -2010,8 +2011,8 @@ struct error_ind_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        old_ng_ra_nnode_ue_xn_ap_id,
-        new_ng_ra_nnode_ue_xn_ap_id,
+        old_ng_ran_node_ue_xnap_id,
+        new_ng_ran_node_ue_xnap_id,
         cause,
         crit_diagnostics,
         interface_instance_ind,
@@ -2030,13 +2031,13 @@ struct error_ind_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                 old_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                 new_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                 old_ng_ran_node_ue_xnap_id();
+    uint64_t&                 new_ng_ran_node_ue_xnap_id();
     cause_c&                  cause();
     crit_diagnostics_s&       crit_diagnostics();
     uint16_t&                 interface_instance_ind();
-    const uint64_t&           old_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&           new_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&           old_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&           new_ng_ran_node_ue_xnap_id() const;
     const cause_c&            cause() const;
     const crit_diagnostics_s& crit_diagnostics() const;
     const uint16_t&           interface_instance_ind() const;
@@ -2055,13 +2056,13 @@ struct error_ind_ies_o {
 };
 
 struct error_ind_ies_container {
-  bool               old_ng_ra_nnode_ue_xn_ap_id_present = false;
-  bool               new_ng_ra_nnode_ue_xn_ap_id_present = false;
-  bool               cause_present                       = false;
-  bool               crit_diagnostics_present            = false;
-  bool               interface_instance_ind_present      = false;
-  uint64_t           old_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t           new_ng_ra_nnode_ue_xn_ap_id;
+  bool               old_ng_ran_node_ue_xnap_id_present = false;
+  bool               new_ng_ran_node_ue_xnap_id_present = false;
+  bool               cause_present                      = false;
+  bool               crit_diagnostics_present           = false;
+  bool               interface_instance_ind_present     = false;
+  uint64_t           old_ng_ran_node_ue_xnap_id;
+  uint64_t           new_ng_ran_node_ue_xnap_id;
   cause_c            cause;
   crit_diagnostics_s crit_diagnostics;
   uint16_t           interface_instance_ind;
@@ -2080,7 +2081,7 @@ struct f1_c_traffic_transfer_ies_o {
   // Value ::= OPEN TYPE
   struct value_c {
     struct types_opts {
-      enum options { m_ng_ra_nnode_ue_xn_ap_id, s_ng_ra_nnode_ue_xn_ap_id, f1_c_traffic_container, nulltype } value;
+      enum options { m_ng_ran_node_ue_xnap_id, s_ng_ran_node_ue_xnap_id, f1_c_traffic_container, nulltype } value;
 
       const char* to_string() const;
     };
@@ -2094,11 +2095,11 @@ struct f1_c_traffic_transfer_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                        m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                        s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                        m_ng_ran_node_ue_xnap_id();
+    uint64_t&                        s_ng_ran_node_ue_xnap_id();
     unbounded_octstring<true>&       f1_c_traffic_container();
-    const uint64_t&                  m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                  s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                  m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                  s_ng_ran_node_ue_xnap_id() const;
     const unbounded_octstring<true>& f1_c_traffic_container() const;
 
   private:
@@ -2115,8 +2116,8 @@ struct f1_c_traffic_transfer_ies_o {
 };
 
 struct f1_c_traffic_transfer_ies_container {
-  uint64_t                  m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                  s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                  m_ng_ran_node_ue_xnap_id;
+  uint64_t                  s_ng_ran_node_ue_xnap_id;
   unbounded_octstring<true> f1_c_traffic_container;
 
   // sequence methods
@@ -2188,8 +2189,8 @@ struct ho_cancel_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        source_ng_ra_nnode_ue_xn_ap_id,
-        target_ng_ra_nnode_ue_xn_ap_id,
+        source_ng_ran_node_ue_xnap_id,
+        target_ng_ran_node_ue_xnap_id,
         cause,
         target_cells_to_cancel,
         nulltype
@@ -2207,12 +2208,12 @@ struct ho_cancel_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                 source_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                 target_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                 source_ng_ran_node_ue_xnap_id();
+    uint64_t&                 target_ng_ran_node_ue_xnap_id();
     cause_c&                  cause();
     target_cell_list_l&       target_cells_to_cancel();
-    const uint64_t&           source_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&           target_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&           source_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&           target_ng_ran_node_ue_xnap_id() const;
     const cause_c&            cause() const;
     const target_cell_list_l& target_cells_to_cancel() const;
 
@@ -2230,10 +2231,10 @@ struct ho_cancel_ies_o {
 };
 
 struct ho_cancel_ies_container {
-  bool               target_ng_ra_nnode_ue_xn_ap_id_present = false;
-  bool               target_cells_to_cancel_present         = false;
-  uint64_t           source_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t           target_ng_ra_nnode_ue_xn_ap_id;
+  bool               target_ng_ran_node_ue_xnap_id_present = false;
+  bool               target_cells_to_cancel_present        = false;
+  uint64_t           source_ng_ran_node_ue_xnap_id;
+  uint64_t           target_ng_ran_node_ue_xnap_id;
   cause_c            cause;
   target_cell_list_l target_cells_to_cancel;
 
@@ -2252,7 +2253,7 @@ struct ho_prep_fail_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        source_ng_ra_nnode_ue_xn_ap_id,
+        source_ng_ran_node_ue_xnap_id,
         cause,
         crit_diagnostics,
         requested_target_cell_global_id,
@@ -2273,11 +2274,11 @@ struct ho_prep_fail_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                 source_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                 source_ng_ran_node_ue_xnap_id();
     cause_c&                  cause();
     crit_diagnostics_s&       crit_diagnostics();
     target_cgi_c&             requested_target_cell_global_id();
-    const uint64_t&           source_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&           source_ng_ran_node_ue_xnap_id() const;
     const cause_c&            cause() const;
     const crit_diagnostics_s& crit_diagnostics() const;
     const target_cgi_c&       requested_target_cell_global_id() const;
@@ -2298,7 +2299,7 @@ struct ho_prep_fail_ies_o {
 struct ho_prep_fail_ies_container {
   bool               crit_diagnostics_present                = false;
   bool               requested_target_cell_global_id_present = false;
-  uint64_t           source_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t           source_ng_ran_node_ue_xnap_id;
   cause_c            cause;
   crit_diagnostics_s crit_diagnostics;
   target_cgi_c       requested_target_cell_global_id;
@@ -2545,7 +2546,7 @@ struct ue_context_ref_at_sn_ho_request_s {
   bool                                              ext             = false;
   bool                                              ie_exts_present = false;
   global_ng_ran_node_id_c                           global_ng_ran_node_id;
-  uint64_t                                          sn_ng_ra_nnode_ue_xn_ap_id = 0;
+  uint64_t                                          sn_ng_ran_node_ue_xnap_id = 0;
   ue_context_ref_at_sn_ho_request_ext_ies_container ie_exts;
   // ...
 
@@ -2561,7 +2562,7 @@ struct ho_request_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        source_ng_ra_nnode_ue_xn_ap_id,
+        source_ng_ran_node_ue_xnap_id,
         cause,
         target_cell_global_id,
         guami,
@@ -2609,7 +2610,7 @@ struct ho_request_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                     source_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                     source_ng_ran_node_ue_xnap_id();
     cause_c&                                      cause();
     target_cgi_c&                                 target_cell_global_id();
     guami_s&                                      guami();
@@ -2642,7 +2643,7 @@ struct ho_request_ies_o {
     q_mcc_onfig_info_s&                           source_sn_to_target_sn_qmc_info();
     mobile_iab_authorization_status_e&            mobile_iab_authorization_status();
     sl_positioning_ranging_services_info_s&       sl_positioning_ranging_services_info();
-    const uint64_t&                               source_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                               source_ng_ran_node_ue_xnap_id() const;
     const cause_c&                                cause() const;
     const target_cgi_c&                           target_cell_global_id() const;
     const guami_s&                                guami() const;
@@ -2717,7 +2718,7 @@ struct ho_request_ies_container {
   bool                                   source_sn_to_target_sn_qmc_info_present      = false;
   bool                                   mobile_iab_authorization_status_present      = false;
   bool                                   sl_positioning_ranging_services_info_present = false;
-  uint64_t                               source_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                               source_ng_ran_node_ue_xnap_id;
   cause_c                                cause;
   target_cgi_c                           target_cell_global_id;
   guami_s                                guami;
@@ -2766,11 +2767,11 @@ struct ho_request_ack_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        source_ng_ra_nnode_ue_xn_ap_id,
-        target_ng_ra_nnode_ue_xn_ap_id,
+        source_ng_ran_node_ue_xnap_id,
+        target_ng_ran_node_ue_xnap_id,
         pdu_session_res_admitted_list,
         pdu_session_res_not_admitted_list,
-        target2_source_ng_ra_nnode_transp_container,
+        target2_source_ng_ran_node_transp_container,
         ue_context_kept_ind,
         crit_diagnostics,
         drbs_transferred_to_mn,
@@ -2794,11 +2795,11 @@ struct ho_request_ack_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                  source_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                  target_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                  source_ng_ran_node_ue_xnap_id();
+    uint64_t&                                  target_ng_ran_node_ue_xnap_id();
     pdu_session_res_admitted_list_l&           pdu_session_res_admitted_list();
     pdu_session_res_not_admitted_list_l&       pdu_session_res_not_admitted_list();
-    unbounded_octstring<true>&                 target2_source_ng_ra_nnode_transp_container();
+    unbounded_octstring<true>&                 target2_source_ng_ran_node_transp_container();
     ue_context_kept_ind_e&                     ue_context_kept_ind();
     crit_diagnostics_s&                        crit_diagnostics();
     drb_list_l&                                drbs_transferred_to_mn();
@@ -2807,11 +2808,11 @@ struct ho_request_ack_ies_o {
     mbs_session_info_resp_list_l&              mbs_session_info_resp_list();
     rrc_cfg_ind_e&                             rrc_cfg_ind();
     pdu_setbased_handling_ind_e&               pdu_setbased_handling_ind();
-    const uint64_t&                            source_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                            target_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                            source_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                            target_ng_ran_node_ue_xnap_id() const;
     const pdu_session_res_admitted_list_l&     pdu_session_res_admitted_list() const;
     const pdu_session_res_not_admitted_list_l& pdu_session_res_not_admitted_list() const;
-    const unbounded_octstring<true>&           target2_source_ng_ra_nnode_transp_container() const;
+    const unbounded_octstring<true>&           target2_source_ng_ran_node_transp_container() const;
     const ue_context_kept_ind_e&               ue_context_kept_ind() const;
     const crit_diagnostics_s&                  crit_diagnostics() const;
     const drb_list_l&                          drbs_transferred_to_mn() const;
@@ -2844,11 +2845,11 @@ struct ho_request_ack_ies_container {
   bool                                mbs_session_info_resp_list_present        = false;
   bool                                rrc_cfg_ind_present                       = false;
   bool                                pdu_setbased_handling_ind_present         = false;
-  uint64_t                            source_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                            target_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                            source_ng_ran_node_ue_xnap_id;
+  uint64_t                            target_ng_ran_node_ue_xnap_id;
   pdu_session_res_admitted_list_l     pdu_session_res_admitted_list;
   pdu_session_res_not_admitted_list_l pdu_session_res_not_admitted_list;
-  unbounded_octstring<true>           target2_source_ng_ra_nnode_transp_container;
+  unbounded_octstring<true>           target2_source_ng_ran_node_transp_container;
   ue_context_kept_ind_e               ue_context_kept_ind;
   crit_diagnostics_s                  crit_diagnostics;
   drb_list_l                          drbs_transferred_to_mn;
@@ -2873,8 +2874,8 @@ struct ho_success_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        source_ng_ra_nnode_ue_xn_ap_id,
-        target_ng_ra_nnode_ue_xn_ap_id,
+        source_ng_ran_node_ue_xnap_id,
+        target_ng_ran_node_ue_xnap_id,
         requested_target_cell_global_id,
         accessed_pscell_id,
         nulltype
@@ -2892,12 +2893,12 @@ struct ho_success_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&           source_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&           target_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&           source_ng_ran_node_ue_xnap_id();
+    uint64_t&           target_ng_ran_node_ue_xnap_id();
     target_cgi_c&       requested_target_cell_global_id();
     nr_cgi_s&           accessed_pscell_id();
-    const uint64_t&     source_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&     target_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&     source_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&     target_ng_ran_node_ue_xnap_id() const;
     const target_cgi_c& requested_target_cell_global_id() const;
     const nr_cgi_s&     accessed_pscell_id() const;
 
@@ -2916,8 +2917,8 @@ struct ho_success_ies_o {
 
 struct ho_success_ies_container {
   bool         accessed_pscell_id_present = false;
-  uint64_t     source_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t     target_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t     source_ng_ran_node_ue_xnap_id;
+  uint64_t     target_ng_ran_node_ue_xnap_id;
   target_cgi_c requested_target_cell_global_id;
   nr_cgi_s     accessed_pscell_id;
 
@@ -2958,8 +2959,8 @@ struct iab_res_coordination_request_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        f1_terminating_iab_donor_ue_xn_ap_id,
-        non_f1_terminating_iab_donor_ue_xn_ap_id,
+        f1_terminating_iab_donor_ue_xnap_id,
+        non_f1_terminating_iab_donor_ue_xnap_id,
         boundary_node_cells_list,
         parent_node_cells_list,
         nulltype
@@ -2977,12 +2978,12 @@ struct iab_res_coordination_request_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                         f1_terminating_iab_donor_ue_xn_ap_id();
-    uint64_t&                         non_f1_terminating_iab_donor_ue_xn_ap_id();
+    uint64_t&                         f1_terminating_iab_donor_ue_xnap_id();
+    uint64_t&                         non_f1_terminating_iab_donor_ue_xnap_id();
     boundary_node_cells_list_l&       boundary_node_cells_list();
     parent_node_cells_list_l&         parent_node_cells_list();
-    const uint64_t&                   f1_terminating_iab_donor_ue_xn_ap_id() const;
-    const uint64_t&                   non_f1_terminating_iab_donor_ue_xn_ap_id() const;
+    const uint64_t&                   f1_terminating_iab_donor_ue_xnap_id() const;
+    const uint64_t&                   non_f1_terminating_iab_donor_ue_xnap_id() const;
     const boundary_node_cells_list_l& boundary_node_cells_list() const;
     const parent_node_cells_list_l&   parent_node_cells_list() const;
 
@@ -3002,8 +3003,8 @@ struct iab_res_coordination_request_ies_o {
 struct iab_res_coordination_request_ies_container {
   bool                       boundary_node_cells_list_present = false;
   bool                       parent_node_cells_list_present   = false;
-  uint64_t                   f1_terminating_iab_donor_ue_xn_ap_id;
-  uint64_t                   non_f1_terminating_iab_donor_ue_xn_ap_id;
+  uint64_t                   f1_terminating_iab_donor_ue_xnap_id;
+  uint64_t                   non_f1_terminating_iab_donor_ue_xnap_id;
   boundary_node_cells_list_l boundary_node_cells_list;
   parent_node_cells_list_l   parent_node_cells_list;
 
@@ -3022,8 +3023,8 @@ struct iab_res_coordination_resp_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        f1_terminating_iab_donor_ue_xn_ap_id,
-        non_f1_terminating_iab_donor_ue_xn_ap_id,
+        f1_terminating_iab_donor_ue_xnap_id,
+        non_f1_terminating_iab_donor_ue_xnap_id,
         boundary_node_cells_list,
         parent_node_cells_list,
         nulltype
@@ -3041,12 +3042,12 @@ struct iab_res_coordination_resp_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                         f1_terminating_iab_donor_ue_xn_ap_id();
-    uint64_t&                         non_f1_terminating_iab_donor_ue_xn_ap_id();
+    uint64_t&                         f1_terminating_iab_donor_ue_xnap_id();
+    uint64_t&                         non_f1_terminating_iab_donor_ue_xnap_id();
     boundary_node_cells_list_l&       boundary_node_cells_list();
     parent_node_cells_list_l&         parent_node_cells_list();
-    const uint64_t&                   f1_terminating_iab_donor_ue_xn_ap_id() const;
-    const uint64_t&                   non_f1_terminating_iab_donor_ue_xn_ap_id() const;
+    const uint64_t&                   f1_terminating_iab_donor_ue_xnap_id() const;
+    const uint64_t&                   non_f1_terminating_iab_donor_ue_xnap_id() const;
     const boundary_node_cells_list_l& boundary_node_cells_list() const;
     const parent_node_cells_list_l&   parent_node_cells_list() const;
 
@@ -3066,8 +3067,8 @@ struct iab_res_coordination_resp_ies_o {
 struct iab_res_coordination_resp_ies_container {
   bool                       boundary_node_cells_list_present = false;
   bool                       parent_node_cells_list_present   = false;
-  uint64_t                   f1_terminating_iab_donor_ue_xn_ap_id;
-  uint64_t                   non_f1_terminating_iab_donor_ue_xn_ap_id;
+  uint64_t                   f1_terminating_iab_donor_ue_xnap_id;
+  uint64_t                   non_f1_terminating_iab_donor_ue_xnap_id;
   boundary_node_cells_list_l boundary_node_cells_list;
   parent_node_cells_list_l   parent_node_cells_list;
 
@@ -3108,8 +3109,8 @@ struct iab_transport_migration_management_reject_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        f1_terminating_iab_donor_ue_xn_ap_id,
-        non_f1_terminating_iab_donor_ue_xn_ap_id,
+        f1_terminating_iab_donor_ue_xnap_id,
+        non_f1_terminating_iab_donor_ue_xnap_id,
         cause,
         crit_diagnostics,
         nulltype
@@ -3127,12 +3128,12 @@ struct iab_transport_migration_management_reject_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                 f1_terminating_iab_donor_ue_xn_ap_id();
-    uint64_t&                 non_f1_terminating_iab_donor_ue_xn_ap_id();
+    uint64_t&                 f1_terminating_iab_donor_ue_xnap_id();
+    uint64_t&                 non_f1_terminating_iab_donor_ue_xnap_id();
     cause_c&                  cause();
     crit_diagnostics_s&       crit_diagnostics();
-    const uint64_t&           f1_terminating_iab_donor_ue_xn_ap_id() const;
-    const uint64_t&           non_f1_terminating_iab_donor_ue_xn_ap_id() const;
+    const uint64_t&           f1_terminating_iab_donor_ue_xnap_id() const;
+    const uint64_t&           non_f1_terminating_iab_donor_ue_xnap_id() const;
     const cause_c&            cause() const;
     const crit_diagnostics_s& crit_diagnostics() const;
 
@@ -3151,8 +3152,8 @@ struct iab_transport_migration_management_reject_ies_o {
 
 struct iab_transport_migration_management_reject_ies_container {
   bool               crit_diagnostics_present = false;
-  uint64_t           f1_terminating_iab_donor_ue_xn_ap_id;
-  uint64_t           non_f1_terminating_iab_donor_ue_xn_ap_id;
+  uint64_t           f1_terminating_iab_donor_ue_xnap_id;
+  uint64_t           non_f1_terminating_iab_donor_ue_xnap_id;
   cause_c            cause;
   crit_diagnostics_s crit_diagnostics;
 
@@ -3223,8 +3224,8 @@ struct iab_transport_migration_management_request_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        f1_terminating_iab_donor_ue_xn_ap_id,
-        non_f1_terminating_iab_donor_ue_xn_ap_id,
+        f1_terminating_iab_donor_ue_xnap_id,
+        non_f1_terminating_iab_donor_ue_xnap_id,
         traffic_to_be_added_list,
         traffic_to_be_modified_list,
         traffic_to_be_release_info,
@@ -3246,16 +3247,16 @@ struct iab_transport_migration_management_request_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                               f1_terminating_iab_donor_ue_xn_ap_id();
-    uint64_t&                               non_f1_terminating_iab_donor_ue_xn_ap_id();
+    uint64_t&                               f1_terminating_iab_donor_ue_xnap_id();
+    uint64_t&                               non_f1_terminating_iab_donor_ue_xnap_id();
     traffic_to_be_added_list_l&             traffic_to_be_added_list();
     traffic_to_be_modified_list_l&          traffic_to_be_modified_list();
     traffic_to_be_release_info_s&           traffic_to_be_release_info();
     iab_tnl_address_request_s&              iab_tnl_address_request();
     iab_tnl_address_exception_l&            iab_tnl_address_exception();
     fixed_bitstring<10, false, true>&       miab_mt_bap_address();
-    const uint64_t&                         f1_terminating_iab_donor_ue_xn_ap_id() const;
-    const uint64_t&                         non_f1_terminating_iab_donor_ue_xn_ap_id() const;
+    const uint64_t&                         f1_terminating_iab_donor_ue_xnap_id() const;
+    const uint64_t&                         non_f1_terminating_iab_donor_ue_xnap_id() const;
     const traffic_to_be_added_list_l&       traffic_to_be_added_list() const;
     const traffic_to_be_modified_list_l&    traffic_to_be_modified_list() const;
     const traffic_to_be_release_info_s&     traffic_to_be_release_info() const;
@@ -3283,8 +3284,8 @@ struct iab_transport_migration_management_request_ies_container {
   bool                             iab_tnl_address_request_present     = false;
   bool                             iab_tnl_address_exception_present   = false;
   bool                             miab_mt_bap_address_present         = false;
-  uint64_t                         f1_terminating_iab_donor_ue_xn_ap_id;
-  uint64_t                         non_f1_terminating_iab_donor_ue_xn_ap_id;
+  uint64_t                         f1_terminating_iab_donor_ue_xnap_id;
+  uint64_t                         non_f1_terminating_iab_donor_ue_xnap_id;
   traffic_to_be_added_list_l       traffic_to_be_added_list;
   traffic_to_be_modified_list_l    traffic_to_be_modified_list;
   traffic_to_be_release_info_s     traffic_to_be_release_info;
@@ -3425,8 +3426,8 @@ struct iab_transport_migration_management_resp_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        f1_terminating_iab_donor_ue_xn_ap_id,
-        non_f1_terminating_iab_donor_ue_xn_ap_id,
+        f1_terminating_iab_donor_ue_xnap_id,
+        non_f1_terminating_iab_donor_ue_xnap_id,
         traffic_added_list,
         traffic_modified_list,
         traffic_not_added_list,
@@ -3448,16 +3449,16 @@ struct iab_transport_migration_management_resp_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                          f1_terminating_iab_donor_ue_xn_ap_id();
-    uint64_t&                          non_f1_terminating_iab_donor_ue_xn_ap_id();
+    uint64_t&                          f1_terminating_iab_donor_ue_xnap_id();
+    uint64_t&                          non_f1_terminating_iab_donor_ue_xnap_id();
     traffic_added_list_l&              traffic_added_list();
     traffic_modified_list_l&           traffic_modified_list();
     traffic_not_added_list_l&          traffic_not_added_list();
     traffic_not_modified_list_l&       traffic_not_modified_list();
     iab_tnl_address_resp_s&            iab_tnl_address_resp();
     traffic_released_list_l&           traffic_released_list();
-    const uint64_t&                    f1_terminating_iab_donor_ue_xn_ap_id() const;
-    const uint64_t&                    non_f1_terminating_iab_donor_ue_xn_ap_id() const;
+    const uint64_t&                    f1_terminating_iab_donor_ue_xnap_id() const;
+    const uint64_t&                    non_f1_terminating_iab_donor_ue_xnap_id() const;
     const traffic_added_list_l&        traffic_added_list() const;
     const traffic_modified_list_l&     traffic_modified_list() const;
     const traffic_not_added_list_l&    traffic_not_added_list() const;
@@ -3485,8 +3486,8 @@ struct iab_transport_migration_management_resp_ies_container {
   bool                        traffic_not_modified_list_present = false;
   bool                        iab_tnl_address_resp_present      = false;
   bool                        traffic_released_list_present     = false;
-  uint64_t                    f1_terminating_iab_donor_ue_xn_ap_id;
-  uint64_t                    non_f1_terminating_iab_donor_ue_xn_ap_id;
+  uint64_t                    f1_terminating_iab_donor_ue_xnap_id;
+  uint64_t                    non_f1_terminating_iab_donor_ue_xnap_id;
   traffic_added_list_l        traffic_added_list;
   traffic_modified_list_l     traffic_modified_list;
   traffic_not_added_list_l    traffic_not_added_list;
@@ -3533,8 +3534,8 @@ struct iab_transport_migration_mod_request_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        f1_terminating_iab_donor_ue_xn_ap_id,
-        non_f1_terminating_iab_donor_ue_xn_ap_id,
+        f1_terminating_iab_donor_ue_xnap_id,
+        non_f1_terminating_iab_donor_ue_xnap_id,
         traffic_required_to_be_modified_list,
         traffic_to_be_release_info,
         iab_tnl_address_to_be_added,
@@ -3556,16 +3557,16 @@ struct iab_transport_migration_mod_request_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                     f1_terminating_iab_donor_ue_xn_ap_id();
-    uint64_t&                                     non_f1_terminating_iab_donor_ue_xn_ap_id();
+    uint64_t&                                     f1_terminating_iab_donor_ue_xnap_id();
+    uint64_t&                                     non_f1_terminating_iab_donor_ue_xnap_id();
     traffic_required_to_be_modified_list_l&       traffic_required_to_be_modified_list();
     traffic_to_be_release_info_s&                 traffic_to_be_release_info();
     iab_tnl_address_resp_s&                       iab_tnl_address_to_be_added();
     iab_tnl_address_to_be_released_list_l&        iab_tnl_address_to_be_released_list();
     iab_authorization_status_e&                   iab_authorization_status();
     mobile_iab_authorization_status_e&            mobile_iab_authorization_status();
-    const uint64_t&                               f1_terminating_iab_donor_ue_xn_ap_id() const;
-    const uint64_t&                               non_f1_terminating_iab_donor_ue_xn_ap_id() const;
+    const uint64_t&                               f1_terminating_iab_donor_ue_xnap_id() const;
+    const uint64_t&                               non_f1_terminating_iab_donor_ue_xnap_id() const;
     const traffic_required_to_be_modified_list_l& traffic_required_to_be_modified_list() const;
     const traffic_to_be_release_info_s&           traffic_to_be_release_info() const;
     const iab_tnl_address_resp_s&                 iab_tnl_address_to_be_added() const;
@@ -3593,8 +3594,8 @@ struct iab_transport_migration_mod_request_ies_container {
   bool                                   iab_tnl_address_to_be_released_list_present  = false;
   bool                                   iab_authorization_status_present             = false;
   bool                                   mobile_iab_authorization_status_present      = false;
-  uint64_t                               f1_terminating_iab_donor_ue_xn_ap_id;
-  uint64_t                               non_f1_terminating_iab_donor_ue_xn_ap_id;
+  uint64_t                               f1_terminating_iab_donor_ue_xnap_id;
+  uint64_t                               non_f1_terminating_iab_donor_ue_xnap_id;
   traffic_required_to_be_modified_list_l traffic_required_to_be_modified_list;
   traffic_to_be_release_info_s           traffic_to_be_release_info;
   iab_tnl_address_resp_s                 iab_tnl_address_to_be_added;
@@ -3640,8 +3641,8 @@ struct iab_transport_migration_mod_resp_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        f1_terminating_iab_donor_ue_xn_ap_id,
-        non_f1_terminating_iab_donor_ue_xn_ap_id,
+        f1_terminating_iab_donor_ue_xnap_id,
+        non_f1_terminating_iab_donor_ue_xnap_id,
         traffic_required_modified_list,
         traffic_released_list,
         nulltype
@@ -3659,12 +3660,12 @@ struct iab_transport_migration_mod_resp_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                               f1_terminating_iab_donor_ue_xn_ap_id();
-    uint64_t&                               non_f1_terminating_iab_donor_ue_xn_ap_id();
+    uint64_t&                               f1_terminating_iab_donor_ue_xnap_id();
+    uint64_t&                               non_f1_terminating_iab_donor_ue_xnap_id();
     traffic_required_modified_list_l&       traffic_required_modified_list();
     traffic_released_list_l&                traffic_released_list();
-    const uint64_t&                         f1_terminating_iab_donor_ue_xn_ap_id() const;
-    const uint64_t&                         non_f1_terminating_iab_donor_ue_xn_ap_id() const;
+    const uint64_t&                         f1_terminating_iab_donor_ue_xnap_id() const;
+    const uint64_t&                         non_f1_terminating_iab_donor_ue_xnap_id() const;
     const traffic_required_modified_list_l& traffic_required_modified_list() const;
     const traffic_released_list_l&          traffic_released_list() const;
 
@@ -3684,8 +3685,8 @@ struct iab_transport_migration_mod_resp_ies_o {
 struct iab_transport_migration_mod_resp_ies_container {
   bool                             traffic_required_modified_list_present = false;
   bool                             traffic_released_list_present          = false;
-  uint64_t                         f1_terminating_iab_donor_ue_xn_ap_id;
-  uint64_t                         non_f1_terminating_iab_donor_ue_xn_ap_id;
+  uint64_t                         f1_terminating_iab_donor_ue_xnap_id;
+  uint64_t                         non_f1_terminating_iab_donor_ue_xnap_id;
   traffic_required_modified_list_l traffic_required_modified_list;
   traffic_released_list_l          traffic_released_list;
 
@@ -3703,7 +3704,7 @@ struct mob_change_ack_ies_o {
   // Value ::= OPEN TYPE
   struct value_c {
     struct types_opts {
-      enum options { ng_ra_nnode1_cell_id, ng_ra_nnode2_cell_id, crit_diagnostics, nulltype } value;
+      enum options { ng_ran_node1_cell_id, ng_ran_node2_cell_id, crit_diagnostics, nulltype } value;
 
       const char* to_string() const;
     };
@@ -3717,11 +3718,11 @@ struct mob_change_ack_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    global_ng_ran_cell_id_s&       ng_ra_nnode1_cell_id();
-    global_ng_ran_cell_id_s&       ng_ra_nnode2_cell_id();
+    global_ng_ran_cell_id_s&       ng_ran_node1_cell_id();
+    global_ng_ran_cell_id_s&       ng_ran_node2_cell_id();
     crit_diagnostics_s&            crit_diagnostics();
-    const global_ng_ran_cell_id_s& ng_ra_nnode1_cell_id() const;
-    const global_ng_ran_cell_id_s& ng_ra_nnode2_cell_id() const;
+    const global_ng_ran_cell_id_s& ng_ran_node1_cell_id() const;
+    const global_ng_ran_cell_id_s& ng_ran_node2_cell_id() const;
     const crit_diagnostics_s&      crit_diagnostics() const;
 
   private:
@@ -3739,8 +3740,8 @@ struct mob_change_ack_ies_o {
 
 struct mob_change_ack_ies_container {
   bool                    crit_diagnostics_present = false;
-  global_ng_ran_cell_id_s ng_ra_nnode1_cell_id;
-  global_ng_ran_cell_id_s ng_ra_nnode2_cell_id;
+  global_ng_ran_cell_id_s ng_ran_node1_cell_id;
+  global_ng_ran_cell_id_s ng_ran_node2_cell_id;
   crit_diagnostics_s      crit_diagnostics;
 
   // sequence methods
@@ -3758,12 +3759,12 @@ struct mob_change_fail_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        ng_ra_nnode1_cell_id,
-        ng_ra_nnode2_cell_id,
+        ng_ran_node1_cell_id,
+        ng_ran_node2_cell_id,
         cause,
         mob_params_mod_range,
         crit_diagnostics,
-        ng_ra_nnode2_ssb_offsets_mod_range,
+        ng_ran_node2_ssb_offsets_mod_range,
         nulltype
       } value;
       typedef uint8_t number_type;
@@ -3781,18 +3782,18 @@ struct mob_change_fail_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    global_ng_ran_cell_id_s&                    ng_ra_nnode1_cell_id();
-    global_ng_ran_cell_id_s&                    ng_ra_nnode2_cell_id();
+    global_ng_ran_cell_id_s&                    ng_ran_node1_cell_id();
+    global_ng_ran_cell_id_s&                    ng_ran_node2_cell_id();
     cause_c&                                    cause();
     mob_params_mod_range_s&                     mob_params_mod_range();
     crit_diagnostics_s&                         crit_diagnostics();
-    ng_ra_nnode2_ssb_offsets_mod_range_l&       ng_ra_nnode2_ssb_offsets_mod_range();
-    const global_ng_ran_cell_id_s&              ng_ra_nnode1_cell_id() const;
-    const global_ng_ran_cell_id_s&              ng_ra_nnode2_cell_id() const;
+    ng_ran_node2_ssb_offsets_mod_range_l&       ng_ran_node2_ssb_offsets_mod_range();
+    const global_ng_ran_cell_id_s&              ng_ran_node1_cell_id() const;
+    const global_ng_ran_cell_id_s&              ng_ran_node2_cell_id() const;
     const cause_c&                              cause() const;
     const mob_params_mod_range_s&               mob_params_mod_range() const;
     const crit_diagnostics_s&                   crit_diagnostics() const;
-    const ng_ra_nnode2_ssb_offsets_mod_range_l& ng_ra_nnode2_ssb_offsets_mod_range() const;
+    const ng_ran_node2_ssb_offsets_mod_range_l& ng_ran_node2_ssb_offsets_mod_range() const;
 
   private:
     types             type_;
@@ -3810,13 +3811,13 @@ struct mob_change_fail_ies_o {
 struct mob_change_fail_ies_container {
   bool                                 mob_params_mod_range_present               = false;
   bool                                 crit_diagnostics_present                   = false;
-  bool                                 ng_ra_nnode2_ssb_offsets_mod_range_present = false;
-  global_ng_ran_cell_id_s              ng_ra_nnode1_cell_id;
-  global_ng_ran_cell_id_s              ng_ra_nnode2_cell_id;
+  bool                                 ng_ran_node2_ssb_offsets_mod_range_present = false;
+  global_ng_ran_cell_id_s              ng_ran_node1_cell_id;
+  global_ng_ran_cell_id_s              ng_ran_node2_cell_id;
   cause_c                              cause;
   mob_params_mod_range_s               mob_params_mod_range;
   crit_diagnostics_s                   crit_diagnostics;
-  ng_ra_nnode2_ssb_offsets_mod_range_l ng_ra_nnode2_ssb_offsets_mod_range;
+  ng_ran_node2_ssb_offsets_mod_range_l ng_ran_node2_ssb_offsets_mod_range;
 
   // sequence methods
   OCUDUASN_CODE pack(bit_ref& bref) const;
@@ -3833,10 +3834,10 @@ struct mob_change_request_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        ng_ra_nnode1_cell_id,
-        ng_ra_nnode2_cell_id,
-        ng_ra_nnode1_mob_params,
-        ng_ra_nnode2_proposed_mob_params,
+        ng_ran_node1_cell_id,
+        ng_ran_node2_cell_id,
+        ng_ran_node1_mob_params,
+        ng_ran_node2_proposed_mob_params,
         cause,
         ssb_offsets_list,
         nulltype
@@ -3854,16 +3855,16 @@ struct mob_change_request_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    global_ng_ran_cell_id_s&       ng_ra_nnode1_cell_id();
-    global_ng_ran_cell_id_s&       ng_ra_nnode2_cell_id();
-    mob_params_info_s&             ng_ra_nnode1_mob_params();
-    mob_params_info_s&             ng_ra_nnode2_proposed_mob_params();
+    global_ng_ran_cell_id_s&       ng_ran_node1_cell_id();
+    global_ng_ran_cell_id_s&       ng_ran_node2_cell_id();
+    mob_params_info_s&             ng_ran_node1_mob_params();
+    mob_params_info_s&             ng_ran_node2_proposed_mob_params();
     cause_c&                       cause();
     ssb_offsets_list_l&            ssb_offsets_list();
-    const global_ng_ran_cell_id_s& ng_ra_nnode1_cell_id() const;
-    const global_ng_ran_cell_id_s& ng_ra_nnode2_cell_id() const;
-    const mob_params_info_s&       ng_ra_nnode1_mob_params() const;
-    const mob_params_info_s&       ng_ra_nnode2_proposed_mob_params() const;
+    const global_ng_ran_cell_id_s& ng_ran_node1_cell_id() const;
+    const global_ng_ran_cell_id_s& ng_ran_node2_cell_id() const;
+    const mob_params_info_s&       ng_ran_node1_mob_params() const;
+    const mob_params_info_s&       ng_ran_node2_proposed_mob_params() const;
     const cause_c&                 cause() const;
     const ssb_offsets_list_l&      ssb_offsets_list() const;
 
@@ -3881,12 +3882,12 @@ struct mob_change_request_ies_o {
 };
 
 struct mob_change_request_ies_container {
-  bool                    ng_ra_nnode1_mob_params_present = false;
+  bool                    ng_ran_node1_mob_params_present = false;
   bool                    ssb_offsets_list_present        = false;
-  global_ng_ran_cell_id_s ng_ra_nnode1_cell_id;
-  global_ng_ran_cell_id_s ng_ra_nnode2_cell_id;
-  mob_params_info_s       ng_ra_nnode1_mob_params;
-  mob_params_info_s       ng_ra_nnode2_proposed_mob_params;
+  global_ng_ran_cell_id_s ng_ran_node1_cell_id;
+  global_ng_ran_cell_id_s ng_ran_node2_cell_id;
+  mob_params_info_s       ng_ran_node1_mob_params;
+  mob_params_info_s       ng_ran_node2_proposed_mob_params;
   cause_c                 cause;
   ssb_offsets_list_l      ssb_offsets_list;
 
@@ -4398,12 +4399,7 @@ struct notif_ctrl_ind_ies_o {
   // Value ::= OPEN TYPE
   struct value_c {
     struct types_opts {
-      enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
-        pdu_session_res_notify_list,
-        nulltype
-      } value;
+      enum options { m_ng_ran_node_ue_xnap_id, s_ng_ran_node_ue_xnap_id, pdu_session_res_notify_list, nulltype } value;
 
       const char* to_string() const;
     };
@@ -4417,11 +4413,11 @@ struct notif_ctrl_ind_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                            m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                            s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                            m_ng_ran_node_ue_xnap_id();
+    uint64_t&                            s_ng_ran_node_ue_xnap_id();
     pdu_session_res_notify_list_l&       pdu_session_res_notify_list();
-    const uint64_t&                      m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                      s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                      m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                      s_ng_ran_node_ue_xnap_id() const;
     const pdu_session_res_notify_list_l& pdu_session_res_notify_list() const;
 
   private:
@@ -4439,8 +4435,8 @@ struct notif_ctrl_ind_ies_o {
 
 struct notif_ctrl_ind_ies_container {
   bool                          pdu_session_res_notify_list_present = false;
-  uint64_t                      m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                      s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                      m_ng_ran_node_ue_xnap_id;
+  uint64_t                      s_ng_ran_node_ue_xnap_id;
   pdu_session_res_notify_list_l pdu_session_res_notify_list;
 
   // sequence methods
@@ -5079,8 +5075,8 @@ struct partial_ue_context_transfer_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        new_ng_ra_nnode_ue_xn_ap_id,
-        old_ng_ra_nnode_ue_xn_ap_id,
+        new_ng_ran_node_ue_xnap_id,
+        old_ng_ran_node_ue_xnap_id,
         sdt_partial_ue_context_info,
         pos_partial_ue_context_info,
         nulltype
@@ -5098,12 +5094,12 @@ struct partial_ue_context_transfer_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                            new_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                            old_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                            new_ng_ran_node_ue_xnap_id();
+    uint64_t&                            old_ng_ran_node_ue_xnap_id();
     sdt_partial_ue_context_info_s&       sdt_partial_ue_context_info();
     pos_partial_ue_context_info_s&       pos_partial_ue_context_info();
-    const uint64_t&                      new_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                      old_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                      new_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                      old_ng_ran_node_ue_xnap_id() const;
     const sdt_partial_ue_context_info_s& sdt_partial_ue_context_info() const;
     const pos_partial_ue_context_info_s& pos_partial_ue_context_info() const;
 
@@ -5122,8 +5118,8 @@ struct partial_ue_context_transfer_ies_o {
 
 struct partial_ue_context_transfer_ies_container {
   bool                          pos_partial_ue_context_info_present = false;
-  uint64_t                      new_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                      old_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                      new_ng_ran_node_ue_xnap_id;
+  uint64_t                      old_ng_ran_node_ue_xnap_id;
   sdt_partial_ue_context_info_s sdt_partial_ue_context_info;
   pos_partial_ue_context_info_s pos_partial_ue_context_info;
 
@@ -5142,8 +5138,8 @@ struct partial_ue_context_transfer_ack_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        new_ng_ra_nnode_ue_xn_ap_id,
-        old_ng_ra_nnode_ue_xn_ap_id,
+        new_ng_ran_node_ue_xnap_id,
+        old_ng_ran_node_ue_xnap_id,
         sdt_data_forwarding_drb_list,
         crit_diagnostics,
         srs_cfg,
@@ -5162,13 +5158,13 @@ struct partial_ue_context_transfer_ack_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                             new_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                             old_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                             new_ng_ran_node_ue_xnap_id();
+    uint64_t&                             old_ng_ran_node_ue_xnap_id();
     sdt_data_forwarding_drb_list_l&       sdt_data_forwarding_drb_list();
     crit_diagnostics_s&                   crit_diagnostics();
     unbounded_octstring<true>&            srs_cfg();
-    const uint64_t&                       new_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                       old_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                       new_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                       old_ng_ran_node_ue_xnap_id() const;
     const sdt_data_forwarding_drb_list_l& sdt_data_forwarding_drb_list() const;
     const crit_diagnostics_s&             crit_diagnostics() const;
     const unbounded_octstring<true>&      srs_cfg() const;
@@ -5190,8 +5186,8 @@ struct partial_ue_context_transfer_ack_ies_container {
   bool                           sdt_data_forwarding_drb_list_present = false;
   bool                           crit_diagnostics_present             = false;
   bool                           srs_cfg_present                      = false;
-  uint64_t                       new_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                       old_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                       new_ng_ran_node_ue_xnap_id;
+  uint64_t                       old_ng_ran_node_ue_xnap_id;
   sdt_data_forwarding_drb_list_l sdt_data_forwarding_drb_list;
   crit_diagnostics_s             crit_diagnostics;
   unbounded_octstring<true>      srs_cfg;
@@ -5210,13 +5206,7 @@ struct partial_ue_context_transfer_fail_ies_o {
   // Value ::= OPEN TYPE
   struct value_c {
     struct types_opts {
-      enum options {
-        new_ng_ra_nnode_ue_xn_ap_id,
-        old_ng_ra_nnode_ue_xn_ap_id,
-        cause,
-        crit_diagnostics,
-        nulltype
-      } value;
+      enum options { new_ng_ran_node_ue_xnap_id, old_ng_ran_node_ue_xnap_id, cause, crit_diagnostics, nulltype } value;
 
       const char* to_string() const;
     };
@@ -5230,12 +5220,12 @@ struct partial_ue_context_transfer_fail_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                 new_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                 old_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                 new_ng_ran_node_ue_xnap_id();
+    uint64_t&                 old_ng_ran_node_ue_xnap_id();
     cause_c&                  cause();
     crit_diagnostics_s&       crit_diagnostics();
-    const uint64_t&           new_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&           old_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&           new_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&           old_ng_ran_node_ue_xnap_id() const;
     const cause_c&            cause() const;
     const crit_diagnostics_s& crit_diagnostics() const;
 
@@ -5254,8 +5244,8 @@ struct partial_ue_context_transfer_fail_ies_o {
 
 struct partial_ue_context_transfer_fail_ies_container {
   bool               crit_diagnostics_present = false;
-  uint64_t           new_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t           old_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t           new_ng_ran_node_ue_xnap_id;
+  uint64_t           old_ng_ran_node_ue_xnap_id;
   cause_c            cause;
   crit_diagnostics_s crit_diagnostics;
 
@@ -5596,8 +5586,8 @@ struct rrc_transfer_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         split_srb_rrc_transfer,
         ue_report_rrc_transfer,
         fast_mcg_recovery_rrc_transfer_sn_to_mn,
@@ -5619,16 +5609,16 @@ struct rrc_transfer_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                  m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                  s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                  m_ng_ran_node_ue_xnap_id();
+    uint64_t&                                  s_ng_ran_node_ue_xnap_id();
     split_srb_rrc_transfer_s&                  split_srb_rrc_transfer();
     ue_report_rrc_transfer_s&                  ue_report_rrc_transfer();
     fast_mcg_recovery_rrc_transfer_s&          fast_mcg_recovery_rrc_transfer_sn_to_mn();
     fast_mcg_recovery_rrc_transfer_s&          fast_mcg_recovery_rrc_transfer_mn_to_sn();
     sdt_srb_between_new_node_old_node_s&       sdt_srb_between_new_node_old_node();
     qo_e_meas_results_s&                       qo_e_meas_results();
-    const uint64_t&                            m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                            s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                            m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                            s_ng_ran_node_ue_xnap_id() const;
     const split_srb_rrc_transfer_s&            split_srb_rrc_transfer() const;
     const ue_report_rrc_transfer_s&            ue_report_rrc_transfer() const;
     const fast_mcg_recovery_rrc_transfer_s&    fast_mcg_recovery_rrc_transfer_sn_to_mn() const;
@@ -5656,8 +5646,8 @@ struct rrc_transfer_ies_container {
   bool                                fast_mcg_recovery_rrc_transfer_mn_to_sn_present = false;
   bool                                sdt_srb_between_new_node_old_node_present       = false;
   bool                                qo_e_meas_results_present                       = false;
-  uint64_t                            m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                            s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                            m_ng_ran_node_ue_xnap_id;
+  uint64_t                            s_ng_ran_node_ue_xnap_id;
   split_srb_rrc_transfer_s            split_srb_rrc_transfer;
   ue_report_rrc_transfer_s            ue_report_rrc_transfer;
   fast_mcg_recovery_rrc_transfer_s    fast_mcg_recovery_rrc_transfer_sn_to_mn;
@@ -6177,8 +6167,8 @@ struct retrieve_ue_context_confirm_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        old_ng_ra_nnode_ue_xn_ap_id,
-        new_ng_ra_nnode_ue_xn_ap_id,
+        old_ng_ran_node_ue_xnap_id,
+        new_ng_ran_node_ue_xnap_id,
         ue_context_kept_ind,
         sdt_termination_request,
         nulltype
@@ -6196,12 +6186,12 @@ struct retrieve_ue_context_confirm_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                        old_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                        new_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                        old_ng_ran_node_ue_xnap_id();
+    uint64_t&                        new_ng_ran_node_ue_xnap_id();
     ue_context_kept_ind_e&           ue_context_kept_ind();
     sdt_termination_request_e&       sdt_termination_request();
-    const uint64_t&                  old_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                  new_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                  old_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                  new_ng_ran_node_ue_xnap_id() const;
     const ue_context_kept_ind_e&     ue_context_kept_ind() const;
     const sdt_termination_request_e& sdt_termination_request() const;
 
@@ -6221,8 +6211,8 @@ struct retrieve_ue_context_confirm_ies_o {
 struct retrieve_ue_context_confirm_ies_container {
   bool                      ue_context_kept_ind_present     = false;
   bool                      sdt_termination_request_present = false;
-  uint64_t                  old_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                  new_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                  old_ng_ran_node_ue_xnap_id;
+  uint64_t                  new_ng_ran_node_ue_xnap_id;
   ue_context_kept_ind_e     ue_context_kept_ind;
   sdt_termination_request_e sdt_termination_request;
 
@@ -6241,8 +6231,8 @@ struct retrieve_ue_context_fail_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        new_ng_ra_nnode_ue_xn_ap_id,
-        oldto_new_ng_ra_nnode_resume_container,
+        new_ng_ran_node_ue_xnap_id,
+        oldto_new_ng_ran_node_resume_container,
         cause,
         crit_diagnostics,
         semipersistent_positioning_info,
@@ -6263,13 +6253,13 @@ struct retrieve_ue_context_fail_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                new_ng_ra_nnode_ue_xn_ap_id();
-    unbounded_octstring<true>&               oldto_new_ng_ra_nnode_resume_container();
+    uint64_t&                                new_ng_ran_node_ue_xnap_id();
+    unbounded_octstring<true>&               oldto_new_ng_ran_node_resume_container();
     cause_c&                                 cause();
     crit_diagnostics_s&                      crit_diagnostics();
     semipersistent_positioning_info_s&       semipersistent_positioning_info();
-    const uint64_t&                          new_ng_ra_nnode_ue_xn_ap_id() const;
-    const unbounded_octstring<true>&         oldto_new_ng_ra_nnode_resume_container() const;
+    const uint64_t&                          new_ng_ran_node_ue_xnap_id() const;
+    const unbounded_octstring<true>&         oldto_new_ng_ran_node_resume_container() const;
     const cause_c&                           cause() const;
     const crit_diagnostics_s&                crit_diagnostics() const;
     const semipersistent_positioning_info_s& semipersistent_positioning_info() const;
@@ -6288,11 +6278,11 @@ struct retrieve_ue_context_fail_ies_o {
 };
 
 struct retrieve_ue_context_fail_ies_container {
-  bool                              oldto_new_ng_ra_nnode_resume_container_present = false;
+  bool                              oldto_new_ng_ran_node_resume_container_present = false;
   bool                              crit_diagnostics_present                       = false;
   bool                              semipersistent_positioning_info_present        = false;
-  uint64_t                          new_ng_ra_nnode_ue_xn_ap_id;
-  unbounded_octstring<true>         oldto_new_ng_ra_nnode_resume_container;
+  uint64_t                          new_ng_ran_node_ue_xnap_id;
+  unbounded_octstring<true>         oldto_new_ng_ran_node_resume_container;
   cause_c                           cause;
   crit_diagnostics_s                crit_diagnostics;
   semipersistent_positioning_info_s semipersistent_positioning_info;
@@ -6312,7 +6302,7 @@ struct retrieve_ue_context_request_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        new_ng_ra_nnode_ue_xn_ap_id,
+        new_ng_ran_node_ue_xnap_id,
         ue_context_id,
         mac_i,
         new_ng_ran_cell_id,
@@ -6336,14 +6326,14 @@ struct retrieve_ue_context_request_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                          new_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                          new_ng_ran_node_ue_xnap_id();
     ue_context_id_c&                                   ue_context_id();
     fixed_bitstring<16, false, true>&                  mac_i();
     ng_ran_cell_id_c&                                  new_ng_ran_cell_id();
     rrc_resume_cause_e&                                rrc_resume_cause();
     sdt_support_request_s&                             sdt_support_request();
     srs_positioning_cfg_or_activation_request_e&       srs_positioning_cfg_or_activation_request();
-    const uint64_t&                                    new_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                                    new_ng_ran_node_ue_xnap_id() const;
     const ue_context_id_c&                             ue_context_id() const;
     const fixed_bitstring<16, false, true>&            mac_i() const;
     const ng_ran_cell_id_c&                            new_ng_ran_cell_id() const;
@@ -6368,7 +6358,7 @@ struct retrieve_ue_context_request_ies_container {
   bool                                        rrc_resume_cause_present                          = false;
   bool                                        sdt_support_request_present                       = false;
   bool                                        srs_positioning_cfg_or_activation_request_present = false;
-  uint64_t                                    new_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                                    new_ng_ran_node_ue_xnap_id;
   ue_context_id_c                             ue_context_id;
   fixed_bitstring<16, false, true>            mac_i;
   ng_ran_cell_id_c                            new_ng_ran_cell_id;
@@ -6391,8 +6381,8 @@ struct retrieve_ue_context_resp_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        new_ng_ra_nnode_ue_xn_ap_id,
-        old_ng_ra_nnode_ue_xn_ap_id,
+        new_ng_ran_node_ue_xnap_id,
+        old_ng_ran_node_ue_xnap_id,
         guami,
         ue_context_info_retr_ue_ctxt_resp,
         trace_activation,
@@ -6432,8 +6422,8 @@ struct retrieve_ue_context_resp_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                     new_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                     old_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                     new_ng_ran_node_ue_xnap_id();
+    uint64_t&                                     old_ng_ran_node_ue_xnap_id();
     guami_s&                                      guami();
     ue_context_info_retr_ue_ctxt_resp_s&          ue_context_info_retr_ue_ctxt_resp();
     trace_activation_s&                           trace_activation();
@@ -6458,8 +6448,8 @@ struct retrieve_ue_context_resp_ies_o {
     a2_xpc5_qos_params_s&                         a2_xpc5_qos_params();
     mobile_iab_authorization_status_e&            mobile_iab_authorization_status();
     sl_positioning_ranging_services_info_s&       sl_positioning_ranging_services_info();
-    const uint64_t&                               new_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                               old_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                               new_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                               old_ng_ran_node_ue_xnap_id() const;
     const guami_s&                                guami() const;
     const ue_context_info_retr_ue_ctxt_resp_s&    ue_context_info_retr_ue_ctxt_resp() const;
     const trace_activation_s&                     trace_activation() const;
@@ -6521,8 +6511,8 @@ struct retrieve_ue_context_resp_ies_container {
   bool                                   a2_xpc5_qos_params_present                   = false;
   bool                                   mobile_iab_authorization_status_present      = false;
   bool                                   sl_positioning_ranging_services_info_present = false;
-  uint64_t                               new_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                               old_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                               new_ng_ran_node_ue_xnap_id;
+  uint64_t                               old_ng_ran_node_ue_xnap_id;
   guami_s                                guami;
   ue_context_info_retr_ue_ctxt_resp_s    ue_context_info_retr_ue_ctxt_resp;
   trace_activation_s                     trace_activation;
@@ -6563,8 +6553,8 @@ struct sn_status_transfer_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        source_ng_ra_nnode_ue_xn_ap_id,
-        target_ng_ra_nnode_ue_xn_ap_id,
+        source_ng_ran_node_ue_xnap_id,
+        target_ng_ran_node_ue_xnap_id,
         drbs_subject_to_status_transfer_list,
         cho_cfg,
         mob_info,
@@ -6583,13 +6573,13 @@ struct sn_status_transfer_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                     source_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                     target_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                     source_ng_ran_node_ue_xnap_id();
+    uint64_t&                                     target_ng_ran_node_ue_xnap_id();
     drbs_subject_to_status_transfer_list_l&       drbs_subject_to_status_transfer_list();
     cho_cfg_s&                                    cho_cfg();
     fixed_bitstring<32, false, true>&             mob_info();
-    const uint64_t&                               source_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                               target_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                               source_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                               target_ng_ran_node_ue_xnap_id() const;
     const drbs_subject_to_status_transfer_list_l& drbs_subject_to_status_transfer_list() const;
     const cho_cfg_s&                              cho_cfg() const;
     const fixed_bitstring<32, false, true>&       mob_info() const;
@@ -6610,8 +6600,8 @@ struct sn_status_transfer_ies_o {
 struct sn_status_transfer_ies_container {
   bool                                   cho_cfg_present  = false;
   bool                                   mob_info_present = false;
-  uint64_t                               source_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                               target_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                               source_ng_ran_node_ue_xnap_id;
+  uint64_t                               target_ng_ran_node_ue_xnap_id;
   drbs_subject_to_status_transfer_list_l drbs_subject_to_status_transfer_list;
   cho_cfg_s                              cho_cfg;
   fixed_bitstring<32, false, true>       mob_info;
@@ -6631,28 +6621,28 @@ struct sn_ode_addition_request_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
         ue_security_cap,
         s_ng_ra_nnode_security_key,
-        s_ng_ra_nnode_ue_ambr,
+        s_ng_ran_node_ue_ambr,
         sel_plmn,
         mob_restrict_list,
         idx_to_rat_frequ_sel_prio,
         pdu_session_to_be_added_add_req,
         mn_to_sn_container,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        s_ng_ran_node_ue_xnap_id,
         expected_ue_behaviour,
         requested_split_srb,
         pcell_id,
         desired_act_notif_level,
         available_drb_ids,
-        s_ng_ra_nnode_max_ip_data_rate_ul,
-        s_ng_ra_nnode_max_ip_data_rate_dl,
+        s_ng_ran_node_max_ip_data_rate_ul,
+        s_ng_ran_node_max_ip_data_rate_dl,
         location_info_snr_eporting,
         mr_dc_res_coordination_info,
         masked_imeisv,
         ne_dc_tdm_pattern,
-        s_ng_ra_nnode_addition_trigger_ind,
+        s_ng_ran_node_addition_trigger_ind,
         trace_activation,
         requested_fast_mcg_recovery_via_srb3,
         ue_radio_cap_id,
@@ -6666,13 +6656,13 @@ struct sn_ode_addition_request_ies_o {
         ch_oinfo_add_req,
         scg_activation_request,
         cp_a_info_request,
-        s_ng_ra_nnode_ue_slice_mbr,
+        s_ng_ran_node_ue_slice_mbr,
         f1_terminating_iab_donor_ind,
         sel_n_id,
         q_mcc_oordination_request,
         source_sn_to_target_sn_qmc_info,
         iab_authorization_status,
-        source_m_ng_ra_nnode_id,
+        source_m_ng_ran_node_id,
         nulltype
       } value;
 
@@ -6688,28 +6678,28 @@ struct sn_ode_addition_request_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                     m_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                     m_ng_ran_node_ue_xnap_id();
     ue_security_cap_s&                            ue_security_cap();
     fixed_bitstring<256, false, true>&            s_ng_ra_nnode_security_key();
-    ue_aggr_max_bit_rate_s&                       s_ng_ra_nnode_ue_ambr();
+    ue_aggr_max_bit_rate_s&                       s_ng_ran_node_ue_ambr();
     fixed_octstring<3, true>&                     sel_plmn();
     mob_restrict_list_s&                          mob_restrict_list();
     uint16_t&                                     idx_to_rat_frequ_sel_prio();
     pdu_session_to_be_added_add_req_l&            pdu_session_to_be_added_add_req();
     unbounded_octstring<true>&                    mn_to_sn_container();
-    uint64_t&                                     s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                     s_ng_ran_node_ue_xnap_id();
     expected_ue_behaviour_s&                      expected_ue_behaviour();
     split_srbs_types_e&                           requested_split_srb();
     global_ng_ran_cell_id_s&                      pcell_id();
     desired_act_notif_level_e&                    desired_act_notif_level();
     drb_list_l&                                   available_drb_ids();
-    uint64_t&                                     s_ng_ra_nnode_max_ip_data_rate_ul();
-    uint64_t&                                     s_ng_ra_nnode_max_ip_data_rate_dl();
+    uint64_t&                                     s_ng_ran_node_max_ip_data_rate_ul();
+    uint64_t&                                     s_ng_ran_node_max_ip_data_rate_dl();
     location_info_snr_eporting_e&                 location_info_snr_eporting();
     mr_dc_res_coordination_info_s&                mr_dc_res_coordination_info();
     fixed_bitstring<64, false, true>&             masked_imeisv();
     ne_dc_tdm_pattern_s&                          ne_dc_tdm_pattern();
-    s_ng_ra_nnode_addition_trigger_ind_e&         s_ng_ra_nnode_addition_trigger_ind();
+    s_ng_ran_node_addition_trigger_ind_e&         s_ng_ran_node_addition_trigger_ind();
     trace_activation_s&                           trace_activation();
     requested_fast_mcg_recovery_via_srb3_e&       requested_fast_mcg_recovery_via_srb3();
     unbounded_octstring<true>&                    ue_radio_cap_id();
@@ -6723,35 +6713,35 @@ struct sn_ode_addition_request_ies_o {
     ch_oinfo_add_req_s&                           ch_oinfo_add_req();
     scg_activation_request_e&                     scg_activation_request();
     cp_a_info_request_s&                          cp_a_info_request();
-    ue_slice_max_bit_rate_list_l&                 s_ng_ra_nnode_ue_slice_mbr();
+    ue_slice_max_bit_rate_list_l&                 s_ng_ran_node_ue_slice_mbr();
     f1_terminating_iab_donor_ind_e&               f1_terminating_iab_donor_ind();
     fixed_bitstring<44, false, true>&             sel_n_id();
     q_mcc_oordination_request_s&                  q_mcc_oordination_request();
     q_mcc_onfig_info_s&                           source_sn_to_target_sn_qmc_info();
     iab_authorization_status_e&                   iab_authorization_status();
-    global_ng_ran_node_id_c&                      source_m_ng_ra_nnode_id();
-    const uint64_t&                               m_ng_ra_nnode_ue_xn_ap_id() const;
+    global_ng_ran_node_id_c&                      source_m_ng_ran_node_id();
+    const uint64_t&                               m_ng_ran_node_ue_xnap_id() const;
     const ue_security_cap_s&                      ue_security_cap() const;
     const fixed_bitstring<256, false, true>&      s_ng_ra_nnode_security_key() const;
-    const ue_aggr_max_bit_rate_s&                 s_ng_ra_nnode_ue_ambr() const;
+    const ue_aggr_max_bit_rate_s&                 s_ng_ran_node_ue_ambr() const;
     const fixed_octstring<3, true>&               sel_plmn() const;
     const mob_restrict_list_s&                    mob_restrict_list() const;
     const uint16_t&                               idx_to_rat_frequ_sel_prio() const;
     const pdu_session_to_be_added_add_req_l&      pdu_session_to_be_added_add_req() const;
     const unbounded_octstring<true>&              mn_to_sn_container() const;
-    const uint64_t&                               s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                               s_ng_ran_node_ue_xnap_id() const;
     const expected_ue_behaviour_s&                expected_ue_behaviour() const;
     const split_srbs_types_e&                     requested_split_srb() const;
     const global_ng_ran_cell_id_s&                pcell_id() const;
     const desired_act_notif_level_e&              desired_act_notif_level() const;
     const drb_list_l&                             available_drb_ids() const;
-    const uint64_t&                               s_ng_ra_nnode_max_ip_data_rate_ul() const;
-    const uint64_t&                               s_ng_ra_nnode_max_ip_data_rate_dl() const;
+    const uint64_t&                               s_ng_ran_node_max_ip_data_rate_ul() const;
+    const uint64_t&                               s_ng_ran_node_max_ip_data_rate_dl() const;
     const location_info_snr_eporting_e&           location_info_snr_eporting() const;
     const mr_dc_res_coordination_info_s&          mr_dc_res_coordination_info() const;
     const fixed_bitstring<64, false, true>&       masked_imeisv() const;
     const ne_dc_tdm_pattern_s&                    ne_dc_tdm_pattern() const;
-    const s_ng_ra_nnode_addition_trigger_ind_e&   s_ng_ra_nnode_addition_trigger_ind() const;
+    const s_ng_ran_node_addition_trigger_ind_e&   s_ng_ran_node_addition_trigger_ind() const;
     const trace_activation_s&                     trace_activation() const;
     const requested_fast_mcg_recovery_via_srb3_e& requested_fast_mcg_recovery_via_srb3() const;
     const unbounded_octstring<true>&              ue_radio_cap_id() const;
@@ -6765,13 +6755,13 @@ struct sn_ode_addition_request_ies_o {
     const ch_oinfo_add_req_s&                     ch_oinfo_add_req() const;
     const scg_activation_request_e&               scg_activation_request() const;
     const cp_a_info_request_s&                    cp_a_info_request() const;
-    const ue_slice_max_bit_rate_list_l&           s_ng_ra_nnode_ue_slice_mbr() const;
+    const ue_slice_max_bit_rate_list_l&           s_ng_ran_node_ue_slice_mbr() const;
     const f1_terminating_iab_donor_ind_e&         f1_terminating_iab_donor_ind() const;
     const fixed_bitstring<44, false, true>&       sel_n_id() const;
     const q_mcc_oordination_request_s&            q_mcc_oordination_request() const;
     const q_mcc_onfig_info_s&                     source_sn_to_target_sn_qmc_info() const;
     const iab_authorization_status_e&             iab_authorization_status() const;
-    const global_ng_ran_node_id_c&                source_m_ng_ra_nnode_id() const;
+    const global_ng_ran_node_id_c&                source_m_ng_ran_node_id() const;
 
   private:
     types             type_;
@@ -6790,19 +6780,19 @@ struct sn_ode_addition_request_ies_container {
   bool                                   sel_plmn_present                             = false;
   bool                                   mob_restrict_list_present                    = false;
   bool                                   idx_to_rat_frequ_sel_prio_present            = false;
-  bool                                   s_ng_ra_nnode_ue_xn_ap_id_present            = false;
+  bool                                   s_ng_ran_node_ue_xnap_id_present             = false;
   bool                                   expected_ue_behaviour_present                = false;
   bool                                   requested_split_srb_present                  = false;
   bool                                   pcell_id_present                             = false;
   bool                                   desired_act_notif_level_present              = false;
   bool                                   available_drb_ids_present                    = false;
-  bool                                   s_ng_ra_nnode_max_ip_data_rate_ul_present    = false;
-  bool                                   s_ng_ra_nnode_max_ip_data_rate_dl_present    = false;
+  bool                                   s_ng_ran_node_max_ip_data_rate_ul_present    = false;
+  bool                                   s_ng_ran_node_max_ip_data_rate_dl_present    = false;
   bool                                   location_info_snr_eporting_present           = false;
   bool                                   mr_dc_res_coordination_info_present          = false;
   bool                                   masked_imeisv_present                        = false;
   bool                                   ne_dc_tdm_pattern_present                    = false;
-  bool                                   s_ng_ra_nnode_addition_trigger_ind_present   = false;
+  bool                                   s_ng_ran_node_addition_trigger_ind_present   = false;
   bool                                   trace_activation_present                     = false;
   bool                                   requested_fast_mcg_recovery_via_srb3_present = false;
   bool                                   ue_radio_cap_id_present                      = false;
@@ -6816,35 +6806,35 @@ struct sn_ode_addition_request_ies_container {
   bool                                   ch_oinfo_add_req_present                     = false;
   bool                                   scg_activation_request_present               = false;
   bool                                   cp_a_info_request_present                    = false;
-  bool                                   s_ng_ra_nnode_ue_slice_mbr_present           = false;
+  bool                                   s_ng_ran_node_ue_slice_mbr_present           = false;
   bool                                   f1_terminating_iab_donor_ind_present         = false;
   bool                                   sel_n_id_present                             = false;
   bool                                   q_mcc_oordination_request_present            = false;
   bool                                   source_sn_to_target_sn_qmc_info_present      = false;
   bool                                   iab_authorization_status_present             = false;
-  bool                                   source_m_ng_ra_nnode_id_present              = false;
-  uint64_t                               m_ng_ra_nnode_ue_xn_ap_id;
+  bool                                   source_m_ng_ran_node_id_present              = false;
+  uint64_t                               m_ng_ran_node_ue_xnap_id;
   ue_security_cap_s                      ue_security_cap;
   fixed_bitstring<256, false, true>      s_ng_ra_nnode_security_key;
-  ue_aggr_max_bit_rate_s                 s_ng_ra_nnode_ue_ambr;
+  ue_aggr_max_bit_rate_s                 s_ng_ran_node_ue_ambr;
   fixed_octstring<3, true>               sel_plmn;
   mob_restrict_list_s                    mob_restrict_list;
   uint16_t                               idx_to_rat_frequ_sel_prio;
   pdu_session_to_be_added_add_req_l      pdu_session_to_be_added_add_req;
   unbounded_octstring<true>              mn_to_sn_container;
-  uint64_t                               s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                               s_ng_ran_node_ue_xnap_id;
   expected_ue_behaviour_s                expected_ue_behaviour;
   split_srbs_types_e                     requested_split_srb;
   global_ng_ran_cell_id_s                pcell_id;
   desired_act_notif_level_e              desired_act_notif_level;
   drb_list_l                             available_drb_ids;
-  uint64_t                               s_ng_ra_nnode_max_ip_data_rate_ul;
-  uint64_t                               s_ng_ra_nnode_max_ip_data_rate_dl;
+  uint64_t                               s_ng_ran_node_max_ip_data_rate_ul;
+  uint64_t                               s_ng_ran_node_max_ip_data_rate_dl;
   location_info_snr_eporting_e           location_info_snr_eporting;
   mr_dc_res_coordination_info_s          mr_dc_res_coordination_info;
   fixed_bitstring<64, false, true>       masked_imeisv;
   ne_dc_tdm_pattern_s                    ne_dc_tdm_pattern;
-  s_ng_ra_nnode_addition_trigger_ind_e   s_ng_ra_nnode_addition_trigger_ind;
+  s_ng_ran_node_addition_trigger_ind_e   s_ng_ran_node_addition_trigger_ind;
   trace_activation_s                     trace_activation;
   requested_fast_mcg_recovery_via_srb3_e requested_fast_mcg_recovery_via_srb3;
   unbounded_octstring<true>              ue_radio_cap_id;
@@ -6858,13 +6848,13 @@ struct sn_ode_addition_request_ies_container {
   ch_oinfo_add_req_s                     ch_oinfo_add_req;
   scg_activation_request_e               scg_activation_request;
   cp_a_info_request_s                    cp_a_info_request;
-  ue_slice_max_bit_rate_list_l           s_ng_ra_nnode_ue_slice_mbr;
+  ue_slice_max_bit_rate_list_l           s_ng_ran_node_ue_slice_mbr;
   f1_terminating_iab_donor_ind_e         f1_terminating_iab_donor_ind;
   fixed_bitstring<44, false, true>       sel_n_id;
   q_mcc_oordination_request_s            q_mcc_oordination_request;
   q_mcc_onfig_info_s                     source_sn_to_target_sn_qmc_info;
   iab_authorization_status_e             iab_authorization_status;
-  global_ng_ran_node_id_c                source_m_ng_ra_nnode_id;
+  global_ng_ran_node_id_c                source_m_ng_ran_node_id;
 
   // sequence methods
   OCUDUASN_CODE pack(bit_ref& bref) const;
@@ -6881,8 +6871,8 @@ struct sn_ode_addition_request_ack_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         pdu_session_admitted_added_add_req_ack,
         pdu_session_not_admitted_add_req_ack,
         sn_to_mn_container,
@@ -6914,8 +6904,8 @@ struct sn_ode_addition_request_ack_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                             m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                             s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                             m_ng_ran_node_ue_xnap_id();
+    uint64_t&                                             s_ng_ran_node_ue_xnap_id();
     pdu_session_admitted_added_add_req_ack_l&             pdu_session_admitted_added_add_req_ack();
     pdu_session_not_admitted_add_req_ack_s&               pdu_session_not_admitted_add_req_ack();
     unbounded_octstring<true>&                            sn_to_mn_container();
@@ -6932,8 +6922,8 @@ struct sn_ode_addition_request_ack_ies_o {
     q_mcc_oordination_resp_s&                             q_mcc_oordination_resp();
     ch_oinfo_add_req_ack_s&                               ch_oinfo_add_req_ack();
     direct_forwarding_path_availability_with_source_mn_e& direct_forwarding_path_availability_with_source_mn();
-    const uint64_t&                                       m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                                       s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                                       m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                                       s_ng_ran_node_ue_xnap_id() const;
     const pdu_session_admitted_added_add_req_ack_l&       pdu_session_admitted_added_add_req_ack() const;
     const pdu_session_not_admitted_add_req_ack_s&         pdu_session_not_admitted_add_req_ack() const;
     const unbounded_octstring<true>&                      sn_to_mn_container() const;
@@ -6980,8 +6970,8 @@ struct sn_ode_addition_request_ack_ies_container {
   bool                                     q_mcc_oordination_resp_present                             = false;
   bool                                     ch_oinfo_add_req_ack_present                               = false;
   bool                                     direct_forwarding_path_availability_with_source_mn_present = false;
-  uint64_t                                 m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                                 s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                                 m_ng_ran_node_ue_xnap_id;
+  uint64_t                                 s_ng_ran_node_ue_xnap_id;
   pdu_session_admitted_added_add_req_ack_l pdu_session_admitted_added_add_req_ack;
   pdu_session_not_admitted_add_req_ack_s   pdu_session_not_admitted_add_req_ack;
   unbounded_octstring<true>                sn_to_mn_container;
@@ -7014,8 +7004,8 @@ struct sn_ode_addition_request_reject_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         cause,
         crit_diagnostics,
         pcell_id,
@@ -7034,13 +7024,13 @@ struct sn_ode_addition_request_reject_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                      m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                      s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                      m_ng_ran_node_ue_xnap_id();
+    uint64_t&                      s_ng_ran_node_ue_xnap_id();
     cause_c&                       cause();
     crit_diagnostics_s&            crit_diagnostics();
     global_ng_ran_cell_id_s&       pcell_id();
-    const uint64_t&                m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                s_ng_ran_node_ue_xnap_id() const;
     const cause_c&                 cause() const;
     const crit_diagnostics_s&      crit_diagnostics() const;
     const global_ng_ran_cell_id_s& pcell_id() const;
@@ -7061,8 +7051,8 @@ struct sn_ode_addition_request_reject_ies_o {
 struct sn_ode_addition_request_reject_ies_container {
   bool                    crit_diagnostics_present = false;
   bool                    pcell_id_present         = false;
-  uint64_t                m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                m_ng_ran_node_ue_xnap_id;
+  uint64_t                s_ng_ran_node_ue_xnap_id;
   cause_c                 cause;
   crit_diagnostics_s      crit_diagnostics;
   global_ng_ran_cell_id_s pcell_id;
@@ -7082,8 +7072,8 @@ struct sn_ode_change_confirm_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         pdu_session_sn_change_confirm_list,
         crit_diagnostics,
         c_pci_nformation_confirm,
@@ -7103,14 +7093,14 @@ struct sn_ode_change_confirm_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                   m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                   s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                   m_ng_ran_node_ue_xnap_id();
+    uint64_t&                                   s_ng_ran_node_ue_xnap_id();
     pdu_session_sn_change_confirm_list_l&       pdu_session_sn_change_confirm_list();
     crit_diagnostics_s&                         crit_diagnostics();
     c_pci_nformation_confirm_s&                 c_pci_nformation_confirm();
     unbounded_octstring<true>&                  mn_to_sn_container();
-    const uint64_t&                             m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                             s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                             m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                             s_ng_ran_node_ue_xnap_id() const;
     const pdu_session_sn_change_confirm_list_l& pdu_session_sn_change_confirm_list() const;
     const crit_diagnostics_s&                   crit_diagnostics() const;
     const c_pci_nformation_confirm_s&           c_pci_nformation_confirm() const;
@@ -7134,8 +7124,8 @@ struct sn_ode_change_confirm_ies_container {
   bool                                 crit_diagnostics_present                   = false;
   bool                                 c_pci_nformation_confirm_present           = false;
   bool                                 mn_to_sn_container_present                 = false;
-  uint64_t                             m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                             s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                             m_ng_ran_node_ue_xnap_id;
+  uint64_t                             s_ng_ran_node_ue_xnap_id;
   pdu_session_sn_change_confirm_list_l pdu_session_sn_change_confirm_list;
   crit_diagnostics_s                   crit_diagnostics;
   c_pci_nformation_confirm_s           c_pci_nformation_confirm;
@@ -7155,7 +7145,7 @@ struct sn_ode_change_refuse_ies_o {
   // Value ::= OPEN TYPE
   struct value_c {
     struct types_opts {
-      enum options { m_ng_ra_nnode_ue_xn_ap_id, s_ng_ra_nnode_ue_xn_ap_id, cause, crit_diagnostics, nulltype } value;
+      enum options { m_ng_ran_node_ue_xnap_id, s_ng_ran_node_ue_xnap_id, cause, crit_diagnostics, nulltype } value;
 
       const char* to_string() const;
     };
@@ -7169,12 +7159,12 @@ struct sn_ode_change_refuse_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                 m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                 s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                 m_ng_ran_node_ue_xnap_id();
+    uint64_t&                 s_ng_ran_node_ue_xnap_id();
     cause_c&                  cause();
     crit_diagnostics_s&       crit_diagnostics();
-    const uint64_t&           m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&           s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&           m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&           s_ng_ran_node_ue_xnap_id() const;
     const cause_c&            cause() const;
     const crit_diagnostics_s& crit_diagnostics() const;
 
@@ -7193,8 +7183,8 @@ struct sn_ode_change_refuse_ies_o {
 
 struct sn_ode_change_refuse_ies_container {
   bool               crit_diagnostics_present = false;
-  uint64_t           m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t           s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t           m_ng_ran_node_ue_xnap_id;
+  uint64_t           s_ng_ran_node_ue_xnap_id;
   cause_c            cause;
   crit_diagnostics_s crit_diagnostics;
 
@@ -7213,9 +7203,9 @@ struct sn_ode_change_required_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
-        target_s_ng_ra_nnode_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
+        target_s_ng_ran_node_id,
         cause,
         pdu_session_sn_change_required_list,
         sn_to_mn_container,
@@ -7239,9 +7229,9 @@ struct sn_ode_change_required_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                    m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                    s_ng_ra_nnode_ue_xn_ap_id();
-    global_ng_ran_node_id_c&                     target_s_ng_ra_nnode_id();
+    uint64_t&                                    m_ng_ran_node_ue_xnap_id();
+    uint64_t&                                    s_ng_ran_node_ue_xnap_id();
+    global_ng_ran_node_id_c&                     target_s_ng_ran_node_id();
     cause_c&                                     cause();
     pdu_session_sn_change_required_list_l&       pdu_session_sn_change_required_list();
     unbounded_octstring<true>&                   sn_to_mn_container();
@@ -7250,9 +7240,9 @@ struct sn_ode_change_required_ies_o {
     global_ng_ran_cell_id_s&                     source_pscell_id();
     c_pci_nformation_required_s&                 c_pci_nformation_required();
     q_mcc_onfig_info_s&                          source_sn_to_target_sn_qmc_info();
-    const uint64_t&                              m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                              s_ng_ra_nnode_ue_xn_ap_id() const;
-    const global_ng_ran_node_id_c&               target_s_ng_ra_nnode_id() const;
+    const uint64_t&                              m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                              s_ng_ran_node_ue_xnap_id() const;
+    const global_ng_ran_node_id_c&               target_s_ng_ran_node_id() const;
     const cause_c&                               cause() const;
     const pdu_session_sn_change_required_list_l& pdu_session_sn_change_required_list() const;
     const unbounded_octstring<true>&             sn_to_mn_container() const;
@@ -7282,9 +7272,9 @@ struct sn_ode_change_required_ies_container {
   bool                                  source_pscell_id_present                    = false;
   bool                                  c_pci_nformation_required_present           = false;
   bool                                  source_sn_to_target_sn_qmc_info_present     = false;
-  uint64_t                              m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                              s_ng_ra_nnode_ue_xn_ap_id;
-  global_ng_ran_node_id_c               target_s_ng_ra_nnode_id;
+  uint64_t                              m_ng_ran_node_ue_xnap_id;
+  uint64_t                              s_ng_ran_node_ue_xnap_id;
+  global_ng_ran_node_id_c               target_s_ng_ran_node_id;
   cause_c                               cause;
   pdu_session_sn_change_required_list_l pdu_session_sn_change_required_list;
   unbounded_octstring<true>             sn_to_mn_container;
@@ -7309,8 +7299,8 @@ struct sn_ode_counter_check_request_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         bearers_subject_to_counter_check,
         nulltype
       } value;
@@ -7327,11 +7317,11 @@ struct sn_ode_counter_check_request_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                      m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                      s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                      m_ng_ran_node_ue_xnap_id();
+    uint64_t&                                      s_ng_ran_node_ue_xnap_id();
     bearers_subject_to_counter_check_list_l&       bearers_subject_to_counter_check();
-    const uint64_t&                                m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                                s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                                m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                                s_ng_ran_node_ue_xnap_id() const;
     const bearers_subject_to_counter_check_list_l& bearers_subject_to_counter_check() const;
 
   private:
@@ -7348,8 +7338,8 @@ struct sn_ode_counter_check_request_ies_o {
 };
 
 struct sn_ode_counter_check_request_ies_container {
-  uint64_t                                m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                                s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                                m_ng_ran_node_ue_xnap_id;
+  uint64_t                                s_ng_ran_node_ue_xnap_id;
   bearers_subject_to_counter_check_list_l bearers_subject_to_counter_check;
 
   // sequence methods
@@ -7367,8 +7357,8 @@ struct sn_ode_mod_confirm_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         pdu_session_admitted_mod_sn_mod_confirm,
         pdu_session_released_sn_mod_confirm,
         mn_to_sn_container,
@@ -7391,8 +7381,8 @@ struct sn_ode_mod_confirm_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                        m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                        s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                        m_ng_ran_node_ue_xnap_id();
+    uint64_t&                                        s_ng_ran_node_ue_xnap_id();
     pdu_session_admitted_mod_sn_mod_confirm_l&       pdu_session_admitted_mod_sn_mod_confirm();
     pdu_session_released_sn_mod_confirm_s&           pdu_session_released_sn_mod_confirm();
     unbounded_octstring<true>&                       mn_to_sn_container();
@@ -7400,8 +7390,8 @@ struct sn_ode_mod_confirm_ies_o {
     crit_diagnostics_s&                              crit_diagnostics();
     mr_dc_res_coordination_info_s&                   mr_dc_res_coordination_info();
     q_mcc_oordination_resp_s&                        q_mcc_oordination_resp();
-    const uint64_t&                                  m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                                  s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                                  m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                                  s_ng_ran_node_ue_xnap_id() const;
     const pdu_session_admitted_mod_sn_mod_confirm_l& pdu_session_admitted_mod_sn_mod_confirm() const;
     const pdu_session_released_sn_mod_confirm_s&     pdu_session_released_sn_mod_confirm() const;
     const unbounded_octstring<true>&                 mn_to_sn_container() const;
@@ -7431,8 +7421,8 @@ struct sn_ode_mod_confirm_ies_container {
   bool                                      crit_diagnostics_present                        = false;
   bool                                      mr_dc_res_coordination_info_present             = false;
   bool                                      q_mcc_oordination_resp_present                  = false;
-  uint64_t                                  m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                                  s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                                  m_ng_ran_node_ue_xnap_id;
+  uint64_t                                  s_ng_ran_node_ue_xnap_id;
   pdu_session_admitted_mod_sn_mod_confirm_l pdu_session_admitted_mod_sn_mod_confirm;
   pdu_session_released_sn_mod_confirm_s     pdu_session_released_sn_mod_confirm;
   unbounded_octstring<true>                 mn_to_sn_container;
@@ -7456,8 +7446,8 @@ struct sn_ode_mod_refuse_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         cause,
         mn_to_sn_container,
         crit_diagnostics,
@@ -7476,13 +7466,13 @@ struct sn_ode_mod_refuse_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                        m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                        s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                        m_ng_ran_node_ue_xnap_id();
+    uint64_t&                        s_ng_ran_node_ue_xnap_id();
     cause_c&                         cause();
     unbounded_octstring<true>&       mn_to_sn_container();
     crit_diagnostics_s&              crit_diagnostics();
-    const uint64_t&                  m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                  s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                  m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                  s_ng_ran_node_ue_xnap_id() const;
     const cause_c&                   cause() const;
     const unbounded_octstring<true>& mn_to_sn_container() const;
     const crit_diagnostics_s&        crit_diagnostics() const;
@@ -7503,8 +7493,8 @@ struct sn_ode_mod_refuse_ies_o {
 struct sn_ode_mod_refuse_ies_container {
   bool                      mn_to_sn_container_present = false;
   bool                      crit_diagnostics_present   = false;
-  uint64_t                  m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                  s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                  m_ng_ran_node_ue_xnap_id;
+  uint64_t                  s_ng_ran_node_ue_xnap_id;
   cause_c                   cause;
   unbounded_octstring<true> mn_to_sn_container;
   crit_diagnostics_s        crit_diagnostics;
@@ -7564,8 +7554,8 @@ struct sn_ode_mod_request_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         cause,
         pdcp_change_ind,
         sel_plmn,
@@ -7577,8 +7567,8 @@ struct sn_ode_mod_request_ies_o {
         requested_split_srb_release,
         desired_act_notif_level,
         add_drb_ids,
-        s_ng_ra_nnode_max_ip_data_rate_ul,
-        s_ng_ra_nnode_max_ip_data_rate_dl,
+        s_ng_ran_node_max_ip_data_rate_ul,
+        s_ng_ran_node_max_ip_data_rate_dl,
         location_info_snr_eporting,
         mr_dc_res_coordination_info,
         pcell_id,
@@ -7593,7 +7583,7 @@ struct sn_ode_mod_request_ies_o {
         scg_activation_request,
         cp_a_info_mod_req,
         c_pci_nformation_upd,
-        s_ng_ra_nnode_ue_slice_mbr,
+        s_ng_ran_node_ue_slice_mbr,
         management_based_mdt_plmn_mod_list,
         sel_n_id,
         q_mcc_oordination_request,
@@ -7614,8 +7604,8 @@ struct sn_ode_mod_request_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                             m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                             s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                             m_ng_ran_node_ue_xnap_id();
+    uint64_t&                                             s_ng_ran_node_ue_xnap_id();
     cause_c&                                              cause();
     pdcp_change_ind_c&                                    pdcp_change_ind();
     fixed_octstring<3, true>&                             sel_plmn();
@@ -7627,8 +7617,8 @@ struct sn_ode_mod_request_ies_o {
     split_srbs_types_e&                                   requested_split_srb_release();
     desired_act_notif_level_e&                            desired_act_notif_level();
     drb_list_l&                                           add_drb_ids();
-    uint64_t&                                             s_ng_ra_nnode_max_ip_data_rate_ul();
-    uint64_t&                                             s_ng_ra_nnode_max_ip_data_rate_dl();
+    uint64_t&                                             s_ng_ran_node_max_ip_data_rate_ul();
+    uint64_t&                                             s_ng_ran_node_max_ip_data_rate_dl();
     location_info_snr_eporting_e&                         location_info_snr_eporting();
     mr_dc_res_coordination_info_s&                        mr_dc_res_coordination_info();
     global_ng_ran_cell_id_s&                              pcell_id();
@@ -7643,14 +7633,14 @@ struct sn_ode_mod_request_ies_o {
     scg_activation_request_e&                             scg_activation_request();
     cp_a_info_mod_req_s&                                  cp_a_info_mod_req();
     c_pci_nformation_upd_s&                               c_pci_nformation_upd();
-    ue_slice_max_bit_rate_list_l&                         s_ng_ra_nnode_ue_slice_mbr();
+    ue_slice_max_bit_rate_list_l&                         s_ng_ran_node_ue_slice_mbr();
     mdt_plmn_mod_list_l&                                  management_based_mdt_plmn_mod_list();
     fixed_bitstring<44, false, true>&                     sel_n_id();
     q_mcc_oordination_request_s&                          q_mcc_oordination_request();
     src_sn_to_tgt_sn_qmc_info_inquiry_e&                  src_sn_to_tgt_sn_qmc_info_inquiry();
     iab_authorization_status_e&                           iab_authorization_status();
-    const uint64_t&                                       m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                                       s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                                       m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                                       s_ng_ran_node_ue_xnap_id() const;
     const cause_c&                                        cause() const;
     const pdcp_change_ind_c&                              pdcp_change_ind() const;
     const fixed_octstring<3, true>&                       sel_plmn() const;
@@ -7662,8 +7652,8 @@ struct sn_ode_mod_request_ies_o {
     const split_srbs_types_e&                             requested_split_srb_release() const;
     const desired_act_notif_level_e&                      desired_act_notif_level() const;
     const drb_list_l&                                     add_drb_ids() const;
-    const uint64_t&                                       s_ng_ra_nnode_max_ip_data_rate_ul() const;
-    const uint64_t&                                       s_ng_ra_nnode_max_ip_data_rate_dl() const;
+    const uint64_t&                                       s_ng_ran_node_max_ip_data_rate_ul() const;
+    const uint64_t&                                       s_ng_ran_node_max_ip_data_rate_dl() const;
     const location_info_snr_eporting_e&                   location_info_snr_eporting() const;
     const mr_dc_res_coordination_info_s&                  mr_dc_res_coordination_info() const;
     const global_ng_ran_cell_id_s&                        pcell_id() const;
@@ -7678,7 +7668,7 @@ struct sn_ode_mod_request_ies_o {
     const scg_activation_request_e&                       scg_activation_request() const;
     const cp_a_info_mod_req_s&                            cp_a_info_mod_req() const;
     const c_pci_nformation_upd_s&                         c_pci_nformation_upd() const;
-    const ue_slice_max_bit_rate_list_l&                   s_ng_ra_nnode_ue_slice_mbr() const;
+    const ue_slice_max_bit_rate_list_l&                   s_ng_ran_node_ue_slice_mbr() const;
     const mdt_plmn_mod_list_l&                            management_based_mdt_plmn_mod_list() const;
     const fixed_bitstring<44, false, true>&               sel_n_id() const;
     const q_mcc_oordination_request_s&                    q_mcc_oordination_request() const;
@@ -7709,8 +7699,8 @@ struct sn_ode_mod_request_ies_container {
   bool                                           requested_split_srb_release_present                  = false;
   bool                                           desired_act_notif_level_present                      = false;
   bool                                           add_drb_ids_present                                  = false;
-  bool                                           s_ng_ra_nnode_max_ip_data_rate_ul_present            = false;
-  bool                                           s_ng_ra_nnode_max_ip_data_rate_dl_present            = false;
+  bool                                           s_ng_ran_node_max_ip_data_rate_ul_present            = false;
+  bool                                           s_ng_ran_node_max_ip_data_rate_dl_present            = false;
   bool                                           location_info_snr_eporting_present                   = false;
   bool                                           mr_dc_res_coordination_info_present                  = false;
   bool                                           pcell_id_present                                     = false;
@@ -7725,14 +7715,14 @@ struct sn_ode_mod_request_ies_container {
   bool                                           scg_activation_request_present                       = false;
   bool                                           cp_a_info_mod_req_present                            = false;
   bool                                           c_pci_nformation_upd_present                         = false;
-  bool                                           s_ng_ra_nnode_ue_slice_mbr_present                   = false;
+  bool                                           s_ng_ran_node_ue_slice_mbr_present                   = false;
   bool                                           management_based_mdt_plmn_mod_list_present           = false;
   bool                                           sel_n_id_present                                     = false;
   bool                                           q_mcc_oordination_request_present                    = false;
   bool                                           src_sn_to_tgt_sn_qmc_info_inquiry_present            = false;
   bool                                           iab_authorization_status_present                     = false;
-  uint64_t                                       m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                                       s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                                       m_ng_ran_node_ue_xnap_id;
+  uint64_t                                       s_ng_ran_node_ue_xnap_id;
   cause_c                                        cause;
   pdcp_change_ind_c                              pdcp_change_ind;
   fixed_octstring<3, true>                       sel_plmn;
@@ -7744,8 +7734,8 @@ struct sn_ode_mod_request_ies_container {
   split_srbs_types_e                             requested_split_srb_release;
   desired_act_notif_level_e                      desired_act_notif_level;
   drb_list_l                                     add_drb_ids;
-  uint64_t                                       s_ng_ra_nnode_max_ip_data_rate_ul;
-  uint64_t                                       s_ng_ra_nnode_max_ip_data_rate_dl;
+  uint64_t                                       s_ng_ran_node_max_ip_data_rate_ul;
+  uint64_t                                       s_ng_ran_node_max_ip_data_rate_dl;
   location_info_snr_eporting_e                   location_info_snr_eporting;
   mr_dc_res_coordination_info_s                  mr_dc_res_coordination_info;
   global_ng_ran_cell_id_s                        pcell_id;
@@ -7760,7 +7750,7 @@ struct sn_ode_mod_request_ies_container {
   scg_activation_request_e                       scg_activation_request;
   cp_a_info_mod_req_s                            cp_a_info_mod_req;
   c_pci_nformation_upd_s                         c_pci_nformation_upd;
-  ue_slice_max_bit_rate_list_l                   s_ng_ra_nnode_ue_slice_mbr;
+  ue_slice_max_bit_rate_list_l                   s_ng_ran_node_ue_slice_mbr;
   mdt_plmn_mod_list_l                            management_based_mdt_plmn_mod_list;
   fixed_bitstring<44, false, true>               sel_n_id;
   q_mcc_oordination_request_s                    q_mcc_oordination_request;
@@ -7782,8 +7772,8 @@ struct sn_ode_mod_request_ack_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         pdu_session_admitted_sn_mod_resp,
         pdu_session_not_admitted_sn_mod_resp,
         sn_to_mn_container,
@@ -7817,8 +7807,8 @@ struct sn_ode_mod_request_ack_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                        m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                        s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                        m_ng_ran_node_ue_xnap_id();
+    uint64_t&                                        s_ng_ran_node_ue_xnap_id();
     pdu_session_admitted_sn_mod_resp_s&              pdu_session_admitted_sn_mod_resp();
     pdu_session_not_admitted_sn_mod_resp_s&          pdu_session_not_admitted_sn_mod_resp();
     unbounded_octstring<true>&                       sn_to_mn_container();
@@ -7837,8 +7827,8 @@ struct sn_ode_mod_request_ack_ies_o {
     cp_a_info_mod_req_ack_s&                         cp_a_info_mod_req_ack();
     q_mcc_oordination_resp_s&                        q_mcc_oordination_resp();
     q_mcc_onfig_info_s&                              source_sn_to_target_sn_qmc_info();
-    const uint64_t&                                  m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                                  s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                                  m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                                  s_ng_ran_node_ue_xnap_id() const;
     const pdu_session_admitted_sn_mod_resp_s&        pdu_session_admitted_sn_mod_resp() const;
     const pdu_session_not_admitted_sn_mod_resp_s&    pdu_session_not_admitted_sn_mod_resp() const;
     const unbounded_octstring<true>&                 sn_to_mn_container() const;
@@ -7890,8 +7880,8 @@ struct sn_ode_mod_request_ack_ies_container {
   bool                                      cp_a_info_mod_req_ack_present                   = false;
   bool                                      q_mcc_oordination_resp_present                  = false;
   bool                                      source_sn_to_target_sn_qmc_info_present         = false;
-  uint64_t                                  m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                                  s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                                  m_ng_ran_node_ue_xnap_id;
+  uint64_t                                  s_ng_ran_node_ue_xnap_id;
   pdu_session_admitted_sn_mod_resp_s        pdu_session_admitted_sn_mod_resp;
   pdu_session_not_admitted_sn_mod_resp_s    pdu_session_not_admitted_sn_mod_resp;
   unbounded_octstring<true>                 sn_to_mn_container;
@@ -7925,7 +7915,7 @@ struct sn_ode_mod_request_reject_ies_o {
   // Value ::= OPEN TYPE
   struct value_c {
     struct types_opts {
-      enum options { m_ng_ra_nnode_ue_xn_ap_id, s_ng_ra_nnode_ue_xn_ap_id, cause, crit_diagnostics, nulltype } value;
+      enum options { m_ng_ran_node_ue_xnap_id, s_ng_ran_node_ue_xnap_id, cause, crit_diagnostics, nulltype } value;
 
       const char* to_string() const;
     };
@@ -7939,12 +7929,12 @@ struct sn_ode_mod_request_reject_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                 m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                 s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                 m_ng_ran_node_ue_xnap_id();
+    uint64_t&                 s_ng_ran_node_ue_xnap_id();
     cause_c&                  cause();
     crit_diagnostics_s&       crit_diagnostics();
-    const uint64_t&           m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&           s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&           m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&           s_ng_ran_node_ue_xnap_id() const;
     const cause_c&            cause() const;
     const crit_diagnostics_s& crit_diagnostics() const;
 
@@ -7963,8 +7953,8 @@ struct sn_ode_mod_request_reject_ies_o {
 
 struct sn_ode_mod_request_reject_ies_container {
   bool               crit_diagnostics_present = false;
-  uint64_t           m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t           s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t           m_ng_ran_node_ue_xnap_id;
+  uint64_t           s_ng_ran_node_ue_xnap_id;
   cause_c            cause;
   crit_diagnostics_s crit_diagnostics;
 
@@ -7983,8 +7973,8 @@ struct sn_ode_mod_required_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         cause,
         pdcp_change_ind,
         pdu_session_to_be_modified_sn_mod_required,
@@ -8021,8 +8011,8 @@ struct sn_ode_mod_required_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                           m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                           s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                           m_ng_ran_node_ue_xnap_id();
+    uint64_t&                                           s_ng_ran_node_ue_xnap_id();
     cause_c&                                            cause();
     pdcp_change_ind_c&                                  pdcp_change_ind();
     pdu_session_to_be_modified_sn_mod_required_l&       pdu_session_to_be_modified_sn_mod_required();
@@ -8044,8 +8034,8 @@ struct sn_ode_mod_required_ies_o {
     q_mcc_oordination_request_s&                        q_mcc_oordination_request();
     s_cp_ac_request_e&                                  s_cp_ac_request();
     pdu_sessions_list_to_be_released_up_error_l&        pdu_sessions_list_to_be_released_up_error();
-    const uint64_t&                                     m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                                     s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                                     m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                                     s_ng_ran_node_ue_xnap_id() const;
     const cause_c&                                      cause() const;
     const pdcp_change_ind_c&                            pdcp_change_ind() const;
     const pdu_session_to_be_modified_sn_mod_required_l& pdu_session_to_be_modified_sn_mod_required() const;
@@ -8102,8 +8092,8 @@ struct sn_ode_mod_required_ies_container {
   bool                                         q_mcc_oordination_request_present                  = false;
   bool                                         s_cp_ac_request_present                            = false;
   bool                                         pdu_sessions_list_to_be_released_up_error_present  = false;
-  uint64_t                                     m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                                     s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                                     m_ng_ran_node_ue_xnap_id;
+  uint64_t                                     s_ng_ran_node_ue_xnap_id;
   cause_c                                      cause;
   pdcp_change_ind_c                            pdcp_change_ind;
   pdu_session_to_be_modified_sn_mod_required_l pdu_session_to_be_modified_sn_mod_required;
@@ -8140,7 +8130,7 @@ struct sn_ode_recfg_complete_ies_o {
   // Value ::= OPEN TYPE
   struct value_c {
     struct types_opts {
-      enum options { m_ng_ra_nnode_ue_xn_ap_id, s_ng_ra_nnode_ue_xn_ap_id, resp_info_reconf_compl, nulltype } value;
+      enum options { m_ng_ran_node_ue_xnap_id, s_ng_ran_node_ue_xnap_id, resp_info_reconf_compl, nulltype } value;
 
       const char* to_string() const;
     };
@@ -8154,11 +8144,11 @@ struct sn_ode_recfg_complete_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                       m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                       s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                       m_ng_ran_node_ue_xnap_id();
+    uint64_t&                       s_ng_ran_node_ue_xnap_id();
     resp_info_reconf_compl_s&       resp_info_reconf_compl();
-    const uint64_t&                 m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                 s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                 m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                 s_ng_ran_node_ue_xnap_id() const;
     const resp_info_reconf_compl_s& resp_info_reconf_compl() const;
 
   private:
@@ -8175,8 +8165,8 @@ struct sn_ode_recfg_complete_ies_o {
 };
 
 struct sn_ode_recfg_complete_ies_container {
-  uint64_t                 m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                 s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                 m_ng_ran_node_ue_xnap_id;
+  uint64_t                 s_ng_ran_node_ue_xnap_id;
   resp_info_reconf_compl_s resp_info_reconf_compl;
 
   // sequence methods
@@ -8194,8 +8184,8 @@ struct sn_ode_release_confirm_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         pdu_session_released_list_rel_conf,
         crit_diagnostics,
         nulltype
@@ -8213,12 +8203,12 @@ struct sn_ode_release_confirm_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                   m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                   s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                   m_ng_ran_node_ue_xnap_id();
+    uint64_t&                                   s_ng_ran_node_ue_xnap_id();
     pdu_session_released_list_rel_conf_s&       pdu_session_released_list_rel_conf();
     crit_diagnostics_s&                         crit_diagnostics();
-    const uint64_t&                             m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                             s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                             m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                             s_ng_ran_node_ue_xnap_id() const;
     const pdu_session_released_list_rel_conf_s& pdu_session_released_list_rel_conf() const;
     const crit_diagnostics_s&                   crit_diagnostics() const;
 
@@ -8238,8 +8228,8 @@ struct sn_ode_release_confirm_ies_o {
 struct sn_ode_release_confirm_ies_container {
   bool                                 pdu_session_released_list_rel_conf_present = false;
   bool                                 crit_diagnostics_present                   = false;
-  uint64_t                             m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                             s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                             m_ng_ran_node_ue_xnap_id;
+  uint64_t                             s_ng_ran_node_ue_xnap_id;
   pdu_session_released_list_rel_conf_s pdu_session_released_list_rel_conf;
   crit_diagnostics_s                   crit_diagnostics;
 
@@ -8257,7 +8247,7 @@ struct sn_ode_release_reject_ies_o {
   // Value ::= OPEN TYPE
   struct value_c {
     struct types_opts {
-      enum options { m_ng_ra_nnode_ue_xn_ap_id, s_ng_ra_nnode_ue_xn_ap_id, cause, crit_diagnostics, nulltype } value;
+      enum options { m_ng_ran_node_ue_xnap_id, s_ng_ran_node_ue_xnap_id, cause, crit_diagnostics, nulltype } value;
 
       const char* to_string() const;
     };
@@ -8271,12 +8261,12 @@ struct sn_ode_release_reject_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                 m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                 s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                 m_ng_ran_node_ue_xnap_id();
+    uint64_t&                 s_ng_ran_node_ue_xnap_id();
     cause_c&                  cause();
     crit_diagnostics_s&       crit_diagnostics();
-    const uint64_t&           m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&           s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&           m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&           s_ng_ran_node_ue_xnap_id() const;
     const cause_c&            cause() const;
     const crit_diagnostics_s& crit_diagnostics() const;
 
@@ -8294,10 +8284,10 @@ struct sn_ode_release_reject_ies_o {
 };
 
 struct sn_ode_release_reject_ies_container {
-  bool               s_ng_ra_nnode_ue_xn_ap_id_present = false;
-  bool               crit_diagnostics_present          = false;
-  uint64_t           m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t           s_ng_ra_nnode_ue_xn_ap_id;
+  bool               s_ng_ran_node_ue_xnap_id_present = false;
+  bool               crit_diagnostics_present         = false;
+  uint64_t           m_ng_ran_node_ue_xnap_id;
+  uint64_t           s_ng_ran_node_ue_xnap_id;
   cause_c            cause;
   crit_diagnostics_s crit_diagnostics;
 
@@ -8316,8 +8306,8 @@ struct sn_ode_release_request_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         cause,
         pdu_session_to_be_released_rel_req,
         ue_context_kept_ind,
@@ -8338,15 +8328,15 @@ struct sn_ode_release_request_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                            m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                            s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                            m_ng_ran_node_ue_xnap_id();
+    uint64_t&                            s_ng_ran_node_ue_xnap_id();
     cause_c&                             cause();
     pdu_session_list_with_cause_l&       pdu_session_to_be_released_rel_req();
     ue_context_kept_ind_e&               ue_context_kept_ind();
     unbounded_octstring<true>&           mn_to_sn_container();
     drb_list_l&                          drbs_transferred_to_mn();
-    const uint64_t&                      m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                      s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                      m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                      s_ng_ran_node_ue_xnap_id() const;
     const cause_c&                       cause() const;
     const pdu_session_list_with_cause_l& pdu_session_to_be_released_rel_req() const;
     const ue_context_kept_ind_e&         ue_context_kept_ind() const;
@@ -8367,13 +8357,13 @@ struct sn_ode_release_request_ies_o {
 };
 
 struct sn_ode_release_request_ies_container {
-  bool                          s_ng_ra_nnode_ue_xn_ap_id_present          = false;
+  bool                          s_ng_ran_node_ue_xnap_id_present           = false;
   bool                          pdu_session_to_be_released_rel_req_present = false;
   bool                          ue_context_kept_ind_present                = false;
   bool                          mn_to_sn_container_present                 = false;
   bool                          drbs_transferred_to_mn_present             = false;
-  uint64_t                      m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                      s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                      m_ng_ran_node_ue_xnap_id;
+  uint64_t                      s_ng_ran_node_ue_xnap_id;
   cause_c                       cause;
   pdu_session_list_with_cause_l pdu_session_to_be_released_rel_req;
   ue_context_kept_ind_e         ue_context_kept_ind;
@@ -8395,8 +8385,8 @@ struct sn_ode_release_request_ack_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         pdu_session_to_be_released_rel_req_ack,
         crit_diagnostics,
         scg_ue_history_info,
@@ -8416,14 +8406,14 @@ struct sn_ode_release_request_ack_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                            m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                            s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                            m_ng_ran_node_ue_xnap_id();
+    uint64_t&                                            s_ng_ran_node_ue_xnap_id();
     pdu_session_to_be_released_list_rel_req_ack_s&       pdu_session_to_be_released_rel_req_ack();
     crit_diagnostics_s&                                  crit_diagnostics();
     scg_ue_history_info_s&                               scg_ue_history_info();
     fixed_bitstring<32, false, true>&                    sn_mob_info();
-    const uint64_t&                                      m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                                      s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                                      m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                                      s_ng_ran_node_ue_xnap_id() const;
     const pdu_session_to_be_released_list_rel_req_ack_s& pdu_session_to_be_released_rel_req_ack() const;
     const crit_diagnostics_s&                            crit_diagnostics() const;
     const scg_ue_history_info_s&                         scg_ue_history_info() const;
@@ -8443,13 +8433,13 @@ struct sn_ode_release_request_ack_ies_o {
 };
 
 struct sn_ode_release_request_ack_ies_container {
-  bool                                          s_ng_ra_nnode_ue_xn_ap_id_present              = false;
+  bool                                          s_ng_ran_node_ue_xnap_id_present               = false;
   bool                                          pdu_session_to_be_released_rel_req_ack_present = false;
   bool                                          crit_diagnostics_present                       = false;
   bool                                          scg_ue_history_info_present                    = false;
   bool                                          sn_mob_info_present                            = false;
-  uint64_t                                      m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                                      s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                                      m_ng_ran_node_ue_xnap_id;
+  uint64_t                                      s_ng_ran_node_ue_xnap_id;
   pdu_session_to_be_released_list_rel_req_ack_s pdu_session_to_be_released_rel_req_ack;
   crit_diagnostics_s                            crit_diagnostics;
   scg_ue_history_info_s                         scg_ue_history_info;
@@ -8470,8 +8460,8 @@ struct sn_ode_release_required_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         pdu_session_to_be_released_list_rel_rqd,
         cause,
         sn_to_mn_container,
@@ -8492,15 +8482,15 @@ struct sn_ode_release_required_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                          m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                          s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                          m_ng_ran_node_ue_xnap_id();
+    uint64_t&                                          s_ng_ran_node_ue_xnap_id();
     pdu_session_to_be_released_list_rel_rqd_s&         pdu_session_to_be_released_list_rel_rqd();
     cause_c&                                           cause();
     unbounded_octstring<true>&                         sn_to_mn_container();
     scg_ue_history_info_s&                             scg_ue_history_info();
     pdu_sessions_list_to_be_released_up_error_l&       pdu_sessions_list_to_be_released_up_error();
-    const uint64_t&                                    m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                                    s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                                    m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                                    s_ng_ran_node_ue_xnap_id() const;
     const pdu_session_to_be_released_list_rel_rqd_s&   pdu_session_to_be_released_list_rel_rqd() const;
     const cause_c&                                     cause() const;
     const unbounded_octstring<true>&                   sn_to_mn_container() const;
@@ -8525,8 +8515,8 @@ struct sn_ode_release_required_ies_container {
   bool                                        sn_to_mn_container_present                        = false;
   bool                                        scg_ue_history_info_present                       = false;
   bool                                        pdu_sessions_list_to_be_released_up_error_present = false;
-  uint64_t                                    m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                                    s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                                    m_ng_ran_node_ue_xnap_id;
+  uint64_t                                    s_ng_ran_node_ue_xnap_id;
   pdu_session_to_be_released_list_rel_rqd_s   pdu_session_to_be_released_list_rel_rqd;
   cause_c                                     cause;
   unbounded_octstring<true>                   sn_to_mn_container;
@@ -8548,8 +8538,8 @@ struct scg_fail_info_report_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         source_pscell_cgi,
         failed_pscell_cgi,
         scg_fail_report_container,
@@ -8570,15 +8560,15 @@ struct scg_fail_info_report_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                               m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                               s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                               m_ng_ran_node_ue_xnap_id();
+    uint64_t&                               s_ng_ran_node_ue_xnap_id();
     global_ng_ran_cell_id_s&                source_pscell_cgi();
     global_ng_ran_cell_id_s&                failed_pscell_cgi();
     unbounded_octstring<true>&              scg_fail_report_container();
     fixed_bitstring<32, false, true>&       sn_mob_info();
     cp_ac_cfg_s&                            cp_ac_cfg();
-    const uint64_t&                         m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                         s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                         m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                         s_ng_ran_node_ue_xnap_id() const;
     const global_ng_ran_cell_id_s&          source_pscell_cgi() const;
     const global_ng_ran_cell_id_s&          failed_pscell_cgi() const;
     const unbounded_octstring<true>&        scg_fail_report_container() const;
@@ -8603,8 +8593,8 @@ struct scg_fail_info_report_ies_container {
   bool                             failed_pscell_cgi_present = false;
   bool                             sn_mob_info_present       = false;
   bool                             cp_ac_cfg_present         = false;
-  uint64_t                         m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                         s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                         m_ng_ran_node_ue_xnap_id;
+  uint64_t                         s_ng_ran_node_ue_xnap_id;
   global_ng_ran_cell_id_s          source_pscell_cgi;
   global_ng_ran_cell_id_s          failed_pscell_cgi;
   unbounded_octstring<true>        scg_fail_report_container;
@@ -8625,7 +8615,7 @@ struct scg_fail_transfer_ies_o {
   // Value ::= OPEN TYPE
   struct value_c {
     struct types_opts {
-      enum options { m_ng_ra_nnode_ue_xn_ap_id, s_ng_ra_nnode_ue_xn_ap_id, nulltype } value;
+      enum options { m_ng_ran_node_ue_xnap_id, s_ng_ran_node_ue_xnap_id, nulltype } value;
 
       const char* to_string() const;
     };
@@ -8639,10 +8629,10 @@ struct scg_fail_transfer_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&       m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&       s_ng_ra_nnode_ue_xn_ap_id();
-    const uint64_t& m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t& s_ng_ra_nnode_ue_xn_ap_id() const;
+    uint64_t&       m_ng_ran_node_ue_xnap_id();
+    uint64_t&       s_ng_ran_node_ue_xnap_id();
+    const uint64_t& m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t& s_ng_ran_node_ue_xnap_id() const;
 
   private:
     types             type_;
@@ -8658,8 +8648,8 @@ struct scg_fail_transfer_ies_o {
 };
 
 struct scg_fail_transfer_ies_container {
-  uint64_t m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t m_ng_ran_node_ue_xnap_id;
+  uint64_t s_ng_ran_node_ue_xnap_id;
 
   // sequence methods
   OCUDUASN_CODE pack(bit_ref& bref) const;
@@ -8676,8 +8666,8 @@ struct secondary_rat_data_usage_report_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        m_ng_ra_nnode_ue_xn_ap_id,
-        s_ng_ra_nnode_ue_xn_ap_id,
+        m_ng_ran_node_ue_xnap_id,
+        s_ng_ran_node_ue_xnap_id,
         pdu_session_res_secondary_rat_usage_list,
         nulltype
       } value;
@@ -8694,11 +8684,11 @@ struct secondary_rat_data_usage_report_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                         m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                         s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                         m_ng_ran_node_ue_xnap_id();
+    uint64_t&                                         s_ng_ran_node_ue_xnap_id();
     pdu_session_res_secondary_rat_usage_list_l&       pdu_session_res_secondary_rat_usage_list();
-    const uint64_t&                                   m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                                   s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                                   m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                                   s_ng_ran_node_ue_xnap_id() const;
     const pdu_session_res_secondary_rat_usage_list_l& pdu_session_res_secondary_rat_usage_list() const;
 
   private:
@@ -8715,8 +8705,8 @@ struct secondary_rat_data_usage_report_ies_o {
 };
 
 struct secondary_rat_data_usage_report_ies_container {
-  uint64_t                                   m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                                   s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                                   m_ng_ran_node_ue_xnap_id;
+  uint64_t                                   s_ng_ran_node_ue_xnap_id;
   pdu_session_res_secondary_rat_usage_list_l pdu_session_res_secondary_rat_usage_list;
 
   // sequence methods
@@ -8733,7 +8723,7 @@ struct trace_start_ies_o {
   // Value ::= OPEN TYPE
   struct value_c {
     struct types_opts {
-      enum options { m_ng_ra_nnode_ue_xn_ap_id, s_ng_ra_nnode_ue_xn_ap_id, trace_activation, nulltype } value;
+      enum options { m_ng_ran_node_ue_xnap_id, s_ng_ran_node_ue_xnap_id, trace_activation, nulltype } value;
 
       const char* to_string() const;
     };
@@ -8747,11 +8737,11 @@ struct trace_start_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                 m_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                 s_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                 m_ng_ran_node_ue_xnap_id();
+    uint64_t&                 s_ng_ran_node_ue_xnap_id();
     trace_activation_s&       trace_activation();
-    const uint64_t&           m_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&           s_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&           m_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&           s_ng_ran_node_ue_xnap_id() const;
     const trace_activation_s& trace_activation() const;
 
   private:
@@ -8769,8 +8759,8 @@ struct trace_start_ies_o {
 
 struct trace_start_ies_container {
   bool               trace_activation_present = false;
-  uint64_t           m_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t           s_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t           m_ng_ran_node_ue_xnap_id;
+  uint64_t           s_ng_ran_node_ue_xnap_id;
   trace_activation_s trace_activation;
 
   // sequence methods
@@ -8787,7 +8777,7 @@ struct ue_context_release_ies_o {
   // Value ::= OPEN TYPE
   struct value_c {
     struct types_opts {
-      enum options { source_ng_ra_nnode_ue_xn_ap_id, target_ng_ra_nnode_ue_xn_ap_id, nulltype } value;
+      enum options { source_ng_ran_node_ue_xnap_id, target_ng_ran_node_ue_xnap_id, nulltype } value;
 
       const char* to_string() const;
     };
@@ -8801,10 +8791,10 @@ struct ue_context_release_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&       source_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&       target_ng_ra_nnode_ue_xn_ap_id();
-    const uint64_t& source_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t& target_ng_ra_nnode_ue_xn_ap_id() const;
+    uint64_t&       source_ng_ran_node_ue_xnap_id();
+    uint64_t&       target_ng_ran_node_ue_xnap_id();
+    const uint64_t& source_ng_ran_node_ue_xnap_id() const;
+    const uint64_t& target_ng_ran_node_ue_xnap_id() const;
 
   private:
     types             type_;
@@ -8820,8 +8810,8 @@ struct ue_context_release_ies_o {
 };
 
 struct ue_context_release_ies_container {
-  uint64_t source_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t target_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t source_ng_ran_node_ue_xnap_id;
+  uint64_t target_ng_ran_node_ue_xnap_id;
 
   // sequence methods
   OCUDUASN_CODE pack(bit_ref& bref) const;
@@ -9307,8 +9297,8 @@ struct xn_u_address_ind_ies_o {
   struct value_c {
     struct types_opts {
       enum options {
-        new_ng_ra_nnode_ue_xn_ap_id,
-        old_ng_ra_nnode_ue_xn_ap_id,
+        new_ng_ran_node_ue_xnap_id,
+        old_ng_ran_node_ue_xnap_id,
         xn_u_address_infoper_pdu_session_list,
         cho_mrdc_ind,
         cho_mrdc_early_data_forwarding,
@@ -9331,8 +9321,8 @@ struct xn_u_address_ind_ies_o {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint64_t&                                      new_ng_ra_nnode_ue_xn_ap_id();
-    uint64_t&                                      old_ng_ra_nnode_ue_xn_ap_id();
+    uint64_t&                                      new_ng_ran_node_ue_xnap_id();
+    uint64_t&                                      old_ng_ran_node_ue_xnap_id();
     xn_u_address_infoper_pdu_session_list_l&       xn_u_address_infoper_pdu_session_list();
     cho_mrdc_ind_e&                                cho_mrdc_ind();
     cho_mrdc_early_data_forwarding_e&              cho_mrdc_early_data_forwarding();
@@ -9340,8 +9330,8 @@ struct xn_u_address_ind_ies_o {
     mbs_data_forwarding_ind_e&                     mbs_data_forwarding_ind();
     mbs_session_info_resp_list_l&                  mbs_session_info_resp_list();
     pdu_setbased_handling_ind_e&                   pdu_setbased_handling_ind();
-    const uint64_t&                                new_ng_ra_nnode_ue_xn_ap_id() const;
-    const uint64_t&                                old_ng_ra_nnode_ue_xn_ap_id() const;
+    const uint64_t&                                new_ng_ran_node_ue_xnap_id() const;
+    const uint64_t&                                old_ng_ran_node_ue_xnap_id() const;
     const xn_u_address_infoper_pdu_session_list_l& xn_u_address_infoper_pdu_session_list() const;
     const cho_mrdc_ind_e&                          cho_mrdc_ind() const;
     const cho_mrdc_early_data_forwarding_e&        cho_mrdc_early_data_forwarding() const;
@@ -9370,8 +9360,8 @@ struct xn_u_address_ind_ies_container {
   bool                                    mbs_data_forwarding_ind_present        = false;
   bool                                    mbs_session_info_resp_list_present     = false;
   bool                                    pdu_setbased_handling_ind_present      = false;
-  uint64_t                                new_ng_ra_nnode_ue_xn_ap_id;
-  uint64_t                                old_ng_ra_nnode_ue_xn_ap_id;
+  uint64_t                                new_ng_ran_node_ue_xnap_id;
+  uint64_t                                old_ng_ran_node_ue_xnap_id;
   xn_u_address_infoper_pdu_session_list_l xn_u_address_infoper_pdu_session_list;
   cho_mrdc_ind_e                          cho_mrdc_ind;
   cho_mrdc_early_data_forwarding_e        cho_mrdc_early_data_forwarding;

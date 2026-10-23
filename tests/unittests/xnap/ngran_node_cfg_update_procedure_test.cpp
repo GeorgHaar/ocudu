@@ -46,7 +46,7 @@ TEST_F(ngran_node_cfg_update_procedure_test, when_a_new_cell_is_served_then_it_i
 
   const xnap_message cfg_update = run_cfg_update();
 
-  ASSERT_EQ(cfg_update.pdu.type(), asn1::xnap::xn_ap_pdu_c::types_opts::init_msg);
+  ASSERT_EQ(cfg_update.pdu.type(), asn1::xnap::xnap_pdu_c::types_opts::init_msg);
   ASSERT_EQ(cfg_update.pdu.init_msg().value.type(),
             asn1::xnap::xnap_elem_procs_o::init_msg_c::types_opts::ngran_node_cfg_upd);
 
@@ -134,7 +134,7 @@ TEST_F(ngran_node_cfg_update_procedure_test, when_the_peer_reports_its_cells_the
   xnap->handle_message(generate_asn1_ngran_node_cfg_update(update));
 
   const xnap_message ack = get_last_message();
-  ASSERT_EQ(ack.pdu.type(), asn1::xnap::xn_ap_pdu_c::types_opts::successful_outcome);
+  ASSERT_EQ(ack.pdu.type(), asn1::xnap::xnap_pdu_c::types_opts::successful_outcome);
   ASSERT_EQ(ack.pdu.successful_outcome().value.type(),
             asn1::xnap::xnap_elem_procs_o::successful_outcome_c::types_opts::ngran_node_cfg_upd_ack);
 }
@@ -144,7 +144,7 @@ TEST_F(ngran_node_cfg_update_procedure_test, when_no_xn_setup_was_run_then_a_rep
   xnap->handle_message(generate_asn1_ngran_node_cfg_update(xnap_served_cells_update{}));
 
   const xnap_message fail = get_last_message();
-  ASSERT_EQ(fail.pdu.type(), asn1::xnap::xn_ap_pdu_c::types_opts::unsuccessful_outcome);
+  ASSERT_EQ(fail.pdu.type(), asn1::xnap::xnap_pdu_c::types_opts::unsuccessful_outcome);
   ASSERT_EQ(fail.pdu.unsuccessful_outcome().value.type(),
             asn1::xnap::xnap_elem_procs_o::unsuccessful_outcome_c::types_opts::ngran_node_cfg_upd_fail);
 }

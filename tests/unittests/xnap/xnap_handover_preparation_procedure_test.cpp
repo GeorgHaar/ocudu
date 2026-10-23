@@ -89,8 +89,8 @@ public:
     EXPECT_EQ(acks.size(), 2);
     for (const xnap_message& ack : acks) {
       const auto& ho_ack = ack.pdu.successful_outcome().value.ho_request_ack();
-      EXPECT_EQ(ho_ack->source_ng_ra_nnode_ue_xn_ap_id, to_underlying(source_ue_id));
-      local_ids.push_back(ho_ack->target_ng_ra_nnode_ue_xn_ap_id);
+      EXPECT_EQ(ho_ack->source_ng_ran_node_ue_xnap_id, to_underlying(source_ue_id));
+      local_ids.push_back(ho_ack->target_ng_ran_node_ue_xnap_id);
     }
     EXPECT_NE(local_ids[0], local_ids[1]) << "each candidate must get its own Target NG-RAN node UE XnAP ID";
     return local_ids;
@@ -120,7 +120,7 @@ TEST_F(xnap_handover_preparation_procedure_test, when_handover_preparation_failu
   lazy_task_launcher<xnap_handover_preparation_response> t_launcher(t);
 
   // Status: Xn-C peer received Handover Required.
-  ASSERT_EQ(get_last_message().pdu.type().value, asn1::xnap::xn_ap_pdu_c::types_opts::init_msg);
+  ASSERT_EQ(get_last_message().pdu.type().value, asn1::xnap::xnap_pdu_c::types_opts::init_msg);
   ASSERT_EQ(get_last_message().pdu.init_msg().value.type().value,
             asn1::xnap::xnap_elem_procs_o::init_msg_c::types_opts::ho_request);
 
@@ -154,7 +154,7 @@ TEST_F(xnap_handover_preparation_procedure_test, when_handover_preparation_times
   lazy_task_launcher<xnap_handover_preparation_response> t_launcher(t);
 
   // Status: Xn-C peer received Handover Required.
-  ASSERT_EQ(get_last_message().pdu.type().value, asn1::xnap::xn_ap_pdu_c::types_opts::init_msg);
+  ASSERT_EQ(get_last_message().pdu.type().value, asn1::xnap::xnap_pdu_c::types_opts::init_msg);
   ASSERT_EQ(get_last_message().pdu.init_msg().value.type().value,
             asn1::xnap::xnap_elem_procs_o::init_msg_c::types_opts::ho_request);
 
@@ -164,7 +164,7 @@ TEST_F(xnap_handover_preparation_procedure_test, when_handover_preparation_times
   ASSERT_TRUE(this->tick(t, std::chrono::milliseconds{1000}));
 
   // Status: Xn-C peer received Handover Cancel.
-  ASSERT_EQ(get_last_message().pdu.type().value, asn1::xnap::xn_ap_pdu_c::types_opts::init_msg);
+  ASSERT_EQ(get_last_message().pdu.type().value, asn1::xnap::xnap_pdu_c::types_opts::init_msg);
   ASSERT_EQ(get_last_message().pdu.init_msg().value.type().value,
             asn1::xnap::xnap_elem_procs_o::init_msg_c::types_opts::ho_cancel);
 
@@ -222,7 +222,7 @@ TEST_F(xnap_handover_preparation_procedure_test, when_handover_request_ack_recei
   lazy_task_launcher<xnap_handover_preparation_response> t_launcher(t);
 
   // Status: Xn-C peer received Handover Required.
-  ASSERT_EQ(get_last_message().pdu.type().value, asn1::xnap::xn_ap_pdu_c::types_opts::init_msg);
+  ASSERT_EQ(get_last_message().pdu.type().value, asn1::xnap::xnap_pdu_c::types_opts::init_msg);
   ASSERT_EQ(get_last_message().pdu.init_msg().value.type().value,
             asn1::xnap::xnap_elem_procs_o::init_msg_c::types_opts::ho_request);
 
@@ -412,7 +412,7 @@ TEST_F(xnap_handover_preparation_procedure_test,
 
   // Check Handover Preparation Failure.
   xnap_message rep = get_last_message();
-  ASSERT_EQ(rep.pdu.type(), asn1::xnap::xn_ap_pdu_c::types_opts::unsuccessful_outcome);
+  ASSERT_EQ(rep.pdu.type(), asn1::xnap::xnap_pdu_c::types_opts::unsuccessful_outcome);
   ASSERT_EQ(rep.pdu.unsuccessful_outcome().value.type(),
             asn1::xnap::xnap_elem_procs_o::unsuccessful_outcome_c::types_opts::ho_prep_fail);
 }
@@ -433,7 +433,7 @@ TEST_F(xnap_handover_preparation_procedure_test,
 
   // Check Handover Request Ack.
   xnap_message rep = get_last_message();
-  ASSERT_EQ(rep.pdu.type(), asn1::xnap::xn_ap_pdu_c::types_opts::successful_outcome);
+  ASSERT_EQ(rep.pdu.type(), asn1::xnap::xnap_pdu_c::types_opts::successful_outcome);
   ASSERT_EQ(rep.pdu.successful_outcome().value.type(),
             asn1::xnap::xnap_elem_procs_o::successful_outcome_c::types_opts::ho_request_ack);
 }
@@ -574,8 +574,8 @@ TEST_F(xnap_cho_preparation_test, when_two_cho_candidates_prepared_then_each_ack
   // Both Handover Requests carry the same source XNAP UE ID.
   std::vector<xnap_message> requests = pop_sent_messages();
   ASSERT_EQ(requests.size(), 2);
-  ASSERT_EQ(requests[0].pdu.init_msg().value.ho_request()->source_ng_ra_nnode_ue_xn_ap_id, to_underlying(local_id));
-  ASSERT_EQ(requests[1].pdu.init_msg().value.ho_request()->source_ng_ra_nnode_ue_xn_ap_id, to_underlying(local_id));
+  ASSERT_EQ(requests[0].pdu.init_msg().value.ho_request()->source_ng_ran_node_ue_xnap_id, to_underlying(local_id));
+  ASSERT_EQ(requests[1].pdu.init_msg().value.ho_request()->source_ng_ran_node_ue_xnap_id, to_underlying(local_id));
 
   ASSERT_FALSE(t_a.ready());
   ASSERT_FALSE(t_b.ready());
@@ -637,9 +637,9 @@ TEST_F(xnap_cho_preparation_test, when_non_winner_cancelled_then_handover_cancel
   ASSERT_EQ(cancels[0].pdu.init_msg().value.type().value,
             asn1::xnap::xnap_elem_procs_o::init_msg_c::types_opts::ho_cancel);
   const asn1::xnap::ho_cancel_s& cancel = cancels[0].pdu.init_msg().value.ho_cancel();
-  ASSERT_EQ(cancel->source_ng_ra_nnode_ue_xn_ap_id, to_underlying(local_id));
-  ASSERT_TRUE(cancel->target_ng_ra_nnode_ue_xn_ap_id_present);
-  ASSERT_EQ(cancel->target_ng_ra_nnode_ue_xn_ap_id, to_underlying(peer_b));
+  ASSERT_EQ(cancel->source_ng_ran_node_ue_xnap_id, to_underlying(local_id));
+  ASSERT_TRUE(cancel->target_ng_ran_node_ue_xnap_id_present);
+  ASSERT_EQ(cancel->target_ng_ran_node_ue_xnap_id, to_underlying(peer_b));
   ASSERT_TRUE(cancel->target_cells_to_cancel_present);
   ASSERT_EQ(cancel->target_cells_to_cancel.size(), 1);
   ASSERT_EQ(cancel->target_cells_to_cancel[0].target_cell.nr().nr_ci.to_number(), cell_b.nci.value());
@@ -731,7 +731,7 @@ TEST_F(xnap_cho_preparation_test, when_eight_cho_candidates_prepared_then_all_re
   std::vector<xnap_message> requests = pop_sent_messages();
   ASSERT_EQ(requests.size(), nof_candidates);
   for (const xnap_message& request : requests) {
-    ASSERT_EQ(request.pdu.init_msg().value.ho_request()->source_ng_ra_nnode_ue_xn_ap_id, to_underlying(local_id));
+    ASSERT_EQ(request.pdu.init_msg().value.ho_request()->source_ng_ran_node_ue_xnap_id, to_underlying(local_id));
   }
   for (const auto& task : tasks) {
     ASSERT_FALSE(task.ready());

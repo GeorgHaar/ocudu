@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "ocudu/asn1/xnap/xnap_pdu_contents.h"
+
 using namespace asn1;
 using namespace asn1::xnap;
 
@@ -284,6 +285,9 @@ OCUDUASN_CODE access_and_mob_ind_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != access_and_mob_ind_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 205: {
@@ -824,10 +828,10 @@ activity_notif_ies_o::value_c activity_notif_ies_o::get_value(const uint32_t& id
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 92:
       ret.set(value_c::types::user_plane_traffic_activity_report);
@@ -867,10 +871,10 @@ void activity_notif_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::user_plane_traffic_activity_report:
@@ -888,14 +892,14 @@ void activity_notif_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "activity_notif_ies_o::value_c");
   }
 }
-uint64_t& activity_notif_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& activity_notif_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& activity_notif_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& activity_notif_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 user_plane_traffic_activity_report_e& activity_notif_ies_o::value_c::user_plane_traffic_activity_report()
@@ -913,14 +917,14 @@ ran_paging_fail_e& activity_notif_ies_o::value_c::ran_paging_fail()
   assert_choice_type(types::ran_paging_fail, type_, "Value");
   return c.get<ran_paging_fail_e>();
 }
-const uint64_t& activity_notif_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& activity_notif_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& activity_notif_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& activity_notif_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const user_plane_traffic_activity_report_e& activity_notif_ies_o::value_c::user_plane_traffic_activity_report() const
@@ -943,10 +947,10 @@ void activity_notif_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::user_plane_traffic_activity_report:
@@ -971,10 +975,10 @@ OCUDUASN_CODE activity_notif_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::user_plane_traffic_activity_report:
@@ -996,10 +1000,10 @@ OCUDUASN_CODE activity_notif_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::user_plane_traffic_activity_report:
@@ -1042,13 +1046,13 @@ OCUDUASN_CODE activity_notif_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (user_plane_traffic_activity_report_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)92, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -1083,18 +1087,21 @@ OCUDUASN_CODE activity_notif_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != activity_notif_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 92: {
@@ -1132,10 +1139,10 @@ void activity_notif_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   if (user_plane_traffic_activity_report_present) {
     j.write_int("id", 92);
     j.write_str("criticality", "ignore");
@@ -1281,16 +1288,16 @@ cp_c_cancel_ies_o::value_c cp_c_cancel_ies_o::get_value(const uint32_t& id)
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 7:
       ret.set(value_c::types::cause);
       break;
     case 80:
-      ret.set(value_c::types::target_s_ng_ra_nnode_id);
+      ret.set(value_c::types::target_s_ng_ran_node_id);
       break;
     default:
       asn1::log_error("The id={} is not recognized", id);
@@ -1319,16 +1326,16 @@ void cp_c_cancel_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::cause:
       c = cause_c{};
       break;
-    case types::target_s_ng_ra_nnode_id:
+    case types::target_s_ng_ran_node_id:
       c = global_ng_ran_node_id_c{};
       break;
     case types::nulltype:
@@ -1337,14 +1344,14 @@ void cp_c_cancel_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "cp_c_cancel_ies_o::value_c");
   }
 }
-uint64_t& cp_c_cancel_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& cp_c_cancel_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& cp_c_cancel_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& cp_c_cancel_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 cause_c& cp_c_cancel_ies_o::value_c::cause()
@@ -1352,19 +1359,19 @@ cause_c& cp_c_cancel_ies_o::value_c::cause()
   assert_choice_type(types::cause, type_, "Value");
   return c.get<cause_c>();
 }
-global_ng_ran_node_id_c& cp_c_cancel_ies_o::value_c::target_s_ng_ra_nnode_id()
+global_ng_ran_node_id_c& cp_c_cancel_ies_o::value_c::target_s_ng_ran_node_id()
 {
-  assert_choice_type(types::target_s_ng_ra_nnode_id, type_, "Value");
+  assert_choice_type(types::target_s_ng_ran_node_id, type_, "Value");
   return c.get<global_ng_ran_node_id_c>();
 }
-const uint64_t& cp_c_cancel_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& cp_c_cancel_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& cp_c_cancel_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& cp_c_cancel_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const cause_c& cp_c_cancel_ies_o::value_c::cause() const
@@ -1372,26 +1379,26 @@ const cause_c& cp_c_cancel_ies_o::value_c::cause() const
   assert_choice_type(types::cause, type_, "Value");
   return c.get<cause_c>();
 }
-const global_ng_ran_node_id_c& cp_c_cancel_ies_o::value_c::target_s_ng_ra_nnode_id() const
+const global_ng_ran_node_id_c& cp_c_cancel_ies_o::value_c::target_s_ng_ran_node_id() const
 {
-  assert_choice_type(types::target_s_ng_ra_nnode_id, type_, "Value");
+  assert_choice_type(types::target_s_ng_ran_node_id, type_, "Value");
   return c.get<global_ng_ran_node_id_c>();
 }
 void cp_c_cancel_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::cause:
       j.write_fieldname("Cause");
       c.get<cause_c>().to_json(j);
       break;
-    case types::target_s_ng_ra_nnode_id:
+    case types::target_s_ng_ran_node_id:
       j.write_fieldname("GlobalNG-RANNode-ID");
       c.get<global_ng_ran_node_id_c>().to_json(j);
       break;
@@ -1404,16 +1411,16 @@ OCUDUASN_CODE cp_c_cancel_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
       HANDLE_CODE(c.get<cause_c>().pack(bref));
       break;
-    case types::target_s_ng_ra_nnode_id:
+    case types::target_s_ng_ran_node_id:
       HANDLE_CODE(c.get<global_ng_ran_node_id_c>().pack(bref));
       break;
     default:
@@ -1426,16 +1433,16 @@ OCUDUASN_CODE cp_c_cancel_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
       HANDLE_CODE(c.get<cause_c>().unpack(bref));
       break;
-    case types::target_s_ng_ra_nnode_id:
+    case types::target_s_ng_ran_node_id:
       HANDLE_CODE(c.get<global_ng_ran_node_id_c>().unpack(bref));
       break;
     default:
@@ -1463,13 +1470,13 @@ OCUDUASN_CODE cp_c_cancel_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (cause_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -1481,7 +1488,7 @@ OCUDUASN_CODE cp_c_cancel_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)80, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(target_s_ng_ra_nnode_id.pack(bref));
+    HANDLE_CODE(target_s_ng_ran_node_id.pack(bref));
   }
 
   return OCUDUASN_SUCCESS;
@@ -1498,18 +1505,21 @@ OCUDUASN_CODE cp_c_cancel_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != cp_c_cancel_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 7: {
@@ -1521,7 +1531,7 @@ OCUDUASN_CODE cp_c_cancel_ies_container::unpack(cbit_ref& bref)
       case 80: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(target_s_ng_ra_nnode_id.unpack(bref));
+        HANDLE_CODE(target_s_ng_ran_node_id.unpack(bref));
         break;
       }
       default:
@@ -1541,10 +1551,10 @@ void cp_c_cancel_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "reject");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   if (cause_present) {
     j.write_int("id", 7);
     j.write_str("criticality", "ignore");
@@ -1552,7 +1562,7 @@ void cp_c_cancel_ies_container::to_json(json_writer& j) const
   }
   j.write_int("id", 80);
   j.write_str("criticality", "reject");
-  target_s_ng_ra_nnode_id.to_json(j);
+  target_s_ng_ran_node_id.to_json(j);
   j.end_obj();
 }
 
@@ -1811,6 +1821,9 @@ OCUDUASN_CODE cell_activation_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != cell_activation_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 1: {
@@ -2412,6 +2425,9 @@ OCUDUASN_CODE cell_activation_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != cell_activation_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 65: {
@@ -2717,6 +2733,9 @@ OCUDUASN_CODE cell_activation_resp_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != cell_activation_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 0: {
@@ -2818,10 +2837,10 @@ cell_traffic_trace_ies_o::value_c cell_traffic_trace_ies_o::get_value(const uint
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 145:
       ret.set(value_c::types::ng_ran_trace_id);
@@ -2866,10 +2885,10 @@ void cell_traffic_trace_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::ng_ran_trace_id:
@@ -2890,14 +2909,14 @@ void cell_traffic_trace_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "cell_traffic_trace_ies_o::value_c");
   }
 }
-uint64_t& cell_traffic_trace_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& cell_traffic_trace_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& cell_traffic_trace_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& cell_traffic_trace_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 fixed_octstring<8, true>& cell_traffic_trace_ies_o::value_c::ng_ran_trace_id()
@@ -2920,14 +2939,14 @@ visible_string<0, MAX_ASN_STRING_LENGTH, false, true>& cell_traffic_trace_ies_o:
   assert_choice_type(types::trace_collection_entity_uri, type_, "Value");
   return c.get<visible_string<0, MAX_ASN_STRING_LENGTH, false, true>>();
 }
-const uint64_t& cell_traffic_trace_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& cell_traffic_trace_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& cell_traffic_trace_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& cell_traffic_trace_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const fixed_octstring<8, true>& cell_traffic_trace_ies_o::value_c::ng_ran_trace_id() const
@@ -2956,10 +2975,10 @@ void cell_traffic_trace_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::ng_ran_trace_id:
@@ -2983,10 +3002,10 @@ OCUDUASN_CODE cell_traffic_trace_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::ng_ran_trace_id:
@@ -3011,10 +3030,10 @@ OCUDUASN_CODE cell_traffic_trace_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::ng_ran_trace_id:
@@ -3060,13 +3079,13 @@ OCUDUASN_CODE cell_traffic_trace_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)145, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -3107,18 +3126,21 @@ OCUDUASN_CODE cell_traffic_trace_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != cell_traffic_trace_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 145: {
@@ -3162,10 +3184,10 @@ void cell_traffic_trace_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "reject");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   j.write_int("id", 145);
   j.write_str("criticality", "ignore");
   j.write_str("Value", ng_ran_trace_id.to_string());
@@ -3224,10 +3246,10 @@ conditional_ho_cancel_ies_o::value_c conditional_ho_cancel_ies_o::get_value(cons
   value_c ret{};
   switch (id) {
     case 73:
-      ret.set(value_c::types::source_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::source_ng_ran_node_ue_xnap_id);
       break;
     case 79:
-      ret.set(value_c::types::target_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::target_ng_ran_node_ue_xnap_id);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -3267,10 +3289,10 @@ void conditional_ho_cancel_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::cause:
@@ -3288,14 +3310,14 @@ void conditional_ho_cancel_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "conditional_ho_cancel_ies_o::value_c");
   }
 }
-uint64_t& conditional_ho_cancel_ies_o::value_c::source_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& conditional_ho_cancel_ies_o::value_c::source_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::source_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::source_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& conditional_ho_cancel_ies_o::value_c::target_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& conditional_ho_cancel_ies_o::value_c::target_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::target_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::target_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 cause_c& conditional_ho_cancel_ies_o::value_c::cause()
@@ -3313,14 +3335,14 @@ conditional_recfg_list_l& conditional_ho_cancel_ies_o::value_c::conditional_recf
   assert_choice_type(types::conditional_recfg_to_cancel_list, type_, "Value");
   return c.get<conditional_recfg_list_l>();
 }
-const uint64_t& conditional_ho_cancel_ies_o::value_c::source_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& conditional_ho_cancel_ies_o::value_c::source_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::source_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::source_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& conditional_ho_cancel_ies_o::value_c::target_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& conditional_ho_cancel_ies_o::value_c::target_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::target_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::target_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const cause_c& conditional_ho_cancel_ies_o::value_c::cause() const
@@ -3342,10 +3364,10 @@ void conditional_ho_cancel_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::cause:
@@ -3375,10 +3397,10 @@ OCUDUASN_CODE conditional_ho_cancel_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -3400,10 +3422,10 @@ OCUDUASN_CODE conditional_ho_cancel_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -3442,13 +3464,13 @@ OCUDUASN_CODE conditional_ho_cancel_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)73, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, source_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, source_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)79, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, target_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, target_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -3483,20 +3505,23 @@ OCUDUASN_CODE conditional_ho_cancel_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != conditional_ho_cancel_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 73: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(
-            unpack_integer(source_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            unpack_integer(source_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 79: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(
-            unpack_integer(target_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            unpack_integer(target_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 7: {
@@ -3534,10 +3559,10 @@ void conditional_ho_cancel_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 73);
   j.write_str("criticality", "reject");
-  j.write_int("Value", source_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", source_ng_ran_node_ue_xnap_id);
   j.write_int("id", 79);
   j.write_str("criticality", "reject");
-  j.write_int("Value", target_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", target_ng_ran_node_ue_xnap_id);
   j.write_int("id", 7);
   j.write_str("criticality", "ignore");
   cause.to_json(j);
@@ -4162,6 +4187,9 @@ OCUDUASN_CODE cfg_upd_gnb_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != cfg_upd_gnb_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 68: {
@@ -4267,6 +4295,9 @@ OCUDUASN_CODE cfg_upd_ng_enb_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != cfg_upd_ng_enb_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 66: {
@@ -4774,6 +4805,9 @@ OCUDUASN_CODE data_collection_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != data_collection_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 187: {
@@ -5286,6 +5320,9 @@ OCUDUASN_CODE data_collection_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != data_collection_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 187: {
@@ -5707,6 +5744,9 @@ OCUDUASN_CODE data_collection_resp_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != data_collection_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 187: {
@@ -6090,6 +6130,9 @@ OCUDUASN_CODE data_collection_upd_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != data_collection_upd_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 187: {
@@ -6204,10 +6247,10 @@ deactiv_trace_ies_o::value_c deactiv_trace_ies_o::get_value(const uint32_t& id)
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 145:
       ret.set(value_c::types::ng_ran_trace_id);
@@ -6237,10 +6280,10 @@ void deactiv_trace_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::ng_ran_trace_id:
@@ -6252,14 +6295,14 @@ void deactiv_trace_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "deactiv_trace_ies_o::value_c");
   }
 }
-uint64_t& deactiv_trace_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& deactiv_trace_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& deactiv_trace_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& deactiv_trace_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 fixed_octstring<8, true>& deactiv_trace_ies_o::value_c::ng_ran_trace_id()
@@ -6267,14 +6310,14 @@ fixed_octstring<8, true>& deactiv_trace_ies_o::value_c::ng_ran_trace_id()
   assert_choice_type(types::ng_ran_trace_id, type_, "Value");
   return c.get<fixed_octstring<8, true>>();
 }
-const uint64_t& deactiv_trace_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& deactiv_trace_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& deactiv_trace_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& deactiv_trace_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const fixed_octstring<8, true>& deactiv_trace_ies_o::value_c::ng_ran_trace_id() const
@@ -6286,10 +6329,10 @@ void deactiv_trace_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::ng_ran_trace_id:
@@ -6304,10 +6347,10 @@ OCUDUASN_CODE deactiv_trace_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::ng_ran_trace_id:
@@ -6323,10 +6366,10 @@ OCUDUASN_CODE deactiv_trace_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::ng_ran_trace_id:
@@ -6356,13 +6399,13 @@ OCUDUASN_CODE deactiv_trace_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)145, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -6385,18 +6428,21 @@ OCUDUASN_CODE deactiv_trace_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != deactiv_trace_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 145: {
@@ -6422,10 +6468,10 @@ void deactiv_trace_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "reject");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   j.write_int("id", 145);
   j.write_str("criticality", "ignore");
   j.write_str("Value", ng_ran_trace_id.to_string());
@@ -6919,6 +6965,9 @@ OCUDUASN_CODE e_utra_nr_cell_res_coordination_request_ies_container::unpack(cbit
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != e_utra_nr_cell_res_coordination_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 17: {
@@ -7431,6 +7480,9 @@ OCUDUASN_CODE e_utra_nr_cell_res_coordination_resp_ies_container::unpack(cbit_re
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != e_utra_nr_cell_res_coordination_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 59: {
@@ -7709,10 +7761,10 @@ early_status_transfer_ies_o::value_c early_status_transfer_ies_o::get_value(cons
   value_c ret{};
   switch (id) {
     case 73:
-      ret.set(value_c::types::source_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::source_ng_ran_node_ue_xnap_id);
       break;
     case 79:
-      ret.set(value_c::types::target_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::target_ng_ran_node_ue_xnap_id);
       break;
     case 162:
       ret.set(value_c::types::proc_stage);
@@ -7742,10 +7794,10 @@ void early_status_transfer_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::proc_stage:
@@ -7757,14 +7809,14 @@ void early_status_transfer_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "early_status_transfer_ies_o::value_c");
   }
 }
-uint64_t& early_status_transfer_ies_o::value_c::source_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& early_status_transfer_ies_o::value_c::source_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::source_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::source_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& early_status_transfer_ies_o::value_c::target_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& early_status_transfer_ies_o::value_c::target_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::target_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::target_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 proc_stage_choice_c& early_status_transfer_ies_o::value_c::proc_stage()
@@ -7772,14 +7824,14 @@ proc_stage_choice_c& early_status_transfer_ies_o::value_c::proc_stage()
   assert_choice_type(types::proc_stage, type_, "Value");
   return c.get<proc_stage_choice_c>();
 }
-const uint64_t& early_status_transfer_ies_o::value_c::source_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& early_status_transfer_ies_o::value_c::source_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::source_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::source_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& early_status_transfer_ies_o::value_c::target_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& early_status_transfer_ies_o::value_c::target_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::target_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::target_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const proc_stage_choice_c& early_status_transfer_ies_o::value_c::proc_stage() const
@@ -7791,10 +7843,10 @@ void early_status_transfer_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::proc_stage:
@@ -7810,10 +7862,10 @@ OCUDUASN_CODE early_status_transfer_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::proc_stage:
@@ -7829,10 +7881,10 @@ OCUDUASN_CODE early_status_transfer_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::proc_stage:
@@ -7862,13 +7914,13 @@ OCUDUASN_CODE early_status_transfer_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)73, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, source_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, source_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)79, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, target_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, target_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)162, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -7891,20 +7943,23 @@ OCUDUASN_CODE early_status_transfer_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != early_status_transfer_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 73: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(
-            unpack_integer(source_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            unpack_integer(source_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 79: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(
-            unpack_integer(target_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            unpack_integer(target_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 162: {
@@ -7930,10 +7985,10 @@ void early_status_transfer_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 73);
   j.write_str("criticality", "reject");
-  j.write_int("Value", source_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", source_ng_ran_node_ue_xnap_id);
   j.write_int("id", 79);
   j.write_str("criticality", "reject");
-  j.write_int("Value", target_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", target_ng_ran_node_ue_xnap_id);
   j.write_int("id", 162);
   j.write_str("criticality", "reject");
   proc_stage.to_json(j);
@@ -7979,10 +8034,10 @@ error_ind_ies_o::value_c error_ind_ies_o::get_value(const uint32_t& id)
   value_c ret{};
   switch (id) {
     case 29:
-      ret.set(value_c::types::old_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::old_ng_ran_node_ue_xnap_id);
       break;
     case 27:
-      ret.set(value_c::types::new_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::new_ng_ran_node_ue_xnap_id);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -8022,10 +8077,10 @@ void error_ind_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::cause:
@@ -8043,14 +8098,14 @@ void error_ind_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "error_ind_ies_o::value_c");
   }
 }
-uint64_t& error_ind_ies_o::value_c::old_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& error_ind_ies_o::value_c::old_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::old_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::old_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& error_ind_ies_o::value_c::new_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& error_ind_ies_o::value_c::new_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::new_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::new_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 cause_c& error_ind_ies_o::value_c::cause()
@@ -8068,14 +8123,14 @@ uint16_t& error_ind_ies_o::value_c::interface_instance_ind()
   assert_choice_type(types::interface_instance_ind, type_, "Value");
   return c.get<uint16_t>();
 }
-const uint64_t& error_ind_ies_o::value_c::old_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& error_ind_ies_o::value_c::old_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::old_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::old_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& error_ind_ies_o::value_c::new_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& error_ind_ies_o::value_c::new_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::new_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::new_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const cause_c& error_ind_ies_o::value_c::cause() const
@@ -8097,10 +8152,10 @@ void error_ind_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::cause:
@@ -8123,10 +8178,10 @@ OCUDUASN_CODE error_ind_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -8148,10 +8203,10 @@ OCUDUASN_CODE error_ind_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -8182,24 +8237,24 @@ template struct asn1::protocol_ie_field_s<error_ind_ies_o>;
 OCUDUASN_CODE error_ind_ies_container::pack(bit_ref& bref) const
 {
   uint32_t nof_ies = 0;
-  nof_ies += old_ng_ra_nnode_ue_xn_ap_id_present ? 1 : 0;
-  nof_ies += new_ng_ra_nnode_ue_xn_ap_id_present ? 1 : 0;
+  nof_ies += old_ng_ran_node_ue_xnap_id_present ? 1 : 0;
+  nof_ies += new_ng_ran_node_ue_xnap_id_present ? 1 : 0;
   nof_ies += cause_present ? 1 : 0;
   nof_ies += crit_diagnostics_present ? 1 : 0;
   nof_ies += interface_instance_ind_present ? 1 : 0;
   pack_length(bref, nof_ies, 0u, 65535u, true);
 
-  if (old_ng_ra_nnode_ue_xn_ap_id_present) {
+  if (old_ng_ran_node_ue_xnap_id_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)29, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, old_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, old_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
-  if (new_ng_ra_nnode_ue_xn_ap_id_present) {
+  if (new_ng_ran_node_ue_xnap_id_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)27, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, new_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, new_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (cause_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -8232,20 +8287,21 @@ OCUDUASN_CODE error_ind_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != error_ind_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 29: {
-        old_ng_ra_nnode_ue_xn_ap_id_present = true;
+        old_ng_ran_node_ue_xnap_id_present = true;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(
-            unpack_integer(old_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(old_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 27: {
-        new_ng_ra_nnode_ue_xn_ap_id_present = true;
+        new_ng_ran_node_ue_xnap_id_present = true;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(
-            unpack_integer(new_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(new_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 7: {
@@ -8277,15 +8333,15 @@ OCUDUASN_CODE error_ind_ies_container::unpack(cbit_ref& bref)
 void error_ind_ies_container::to_json(json_writer& j) const
 {
   j.start_obj();
-  if (old_ng_ra_nnode_ue_xn_ap_id_present) {
+  if (old_ng_ran_node_ue_xnap_id_present) {
     j.write_int("id", 29);
     j.write_str("criticality", "ignore");
-    j.write_int("Value", old_ng_ra_nnode_ue_xn_ap_id);
+    j.write_int("Value", old_ng_ran_node_ue_xnap_id);
   }
-  if (new_ng_ra_nnode_ue_xn_ap_id_present) {
+  if (new_ng_ran_node_ue_xnap_id_present) {
     j.write_int("id", 27);
     j.write_str("criticality", "ignore");
-    j.write_int("Value", new_ng_ra_nnode_ue_xn_ap_id);
+    j.write_int("Value", new_ng_ran_node_ue_xnap_id);
   }
   if (cause_present) {
     j.write_int("id", 7);
@@ -8340,10 +8396,10 @@ f1_c_traffic_transfer_ies_o::value_c f1_c_traffic_transfer_ies_o::get_value(cons
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 296:
       ret.set(value_c::types::f1_c_traffic_container);
@@ -8373,10 +8429,10 @@ void f1_c_traffic_transfer_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::f1_c_traffic_container:
@@ -8388,14 +8444,14 @@ void f1_c_traffic_transfer_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "f1_c_traffic_transfer_ies_o::value_c");
   }
 }
-uint64_t& f1_c_traffic_transfer_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& f1_c_traffic_transfer_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& f1_c_traffic_transfer_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& f1_c_traffic_transfer_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 unbounded_octstring<true>& f1_c_traffic_transfer_ies_o::value_c::f1_c_traffic_container()
@@ -8403,14 +8459,14 @@ unbounded_octstring<true>& f1_c_traffic_transfer_ies_o::value_c::f1_c_traffic_co
   assert_choice_type(types::f1_c_traffic_container, type_, "Value");
   return c.get<unbounded_octstring<true>>();
 }
-const uint64_t& f1_c_traffic_transfer_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& f1_c_traffic_transfer_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& f1_c_traffic_transfer_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& f1_c_traffic_transfer_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const unbounded_octstring<true>& f1_c_traffic_transfer_ies_o::value_c::f1_c_traffic_container() const
@@ -8422,10 +8478,10 @@ void f1_c_traffic_transfer_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::f1_c_traffic_container:
@@ -8440,10 +8496,10 @@ OCUDUASN_CODE f1_c_traffic_transfer_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::f1_c_traffic_container:
@@ -8459,10 +8515,10 @@ OCUDUASN_CODE f1_c_traffic_transfer_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::f1_c_traffic_container:
@@ -8492,13 +8548,13 @@ OCUDUASN_CODE f1_c_traffic_transfer_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)296, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -8521,18 +8577,21 @@ OCUDUASN_CODE f1_c_traffic_transfer_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != f1_c_traffic_transfer_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 296: {
@@ -8558,10 +8617,10 @@ void f1_c_traffic_transfer_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "reject");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   j.write_int("id", 296);
   j.write_str("criticality", "reject");
   j.write_str("Value", f1_c_traffic_container.to_string());
@@ -8703,10 +8762,10 @@ ho_cancel_ies_o::value_c ho_cancel_ies_o::get_value(const uint32_t& id)
   value_c ret{};
   switch (id) {
     case 73:
-      ret.set(value_c::types::source_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::source_ng_ran_node_ue_xnap_id);
       break;
     case 79:
-      ret.set(value_c::types::target_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::target_ng_ran_node_ue_xnap_id);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -8741,10 +8800,10 @@ void ho_cancel_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::cause:
@@ -8759,14 +8818,14 @@ void ho_cancel_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "ho_cancel_ies_o::value_c");
   }
 }
-uint64_t& ho_cancel_ies_o::value_c::source_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& ho_cancel_ies_o::value_c::source_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::source_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::source_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& ho_cancel_ies_o::value_c::target_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& ho_cancel_ies_o::value_c::target_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::target_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::target_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 cause_c& ho_cancel_ies_o::value_c::cause()
@@ -8779,14 +8838,14 @@ target_cell_list_l& ho_cancel_ies_o::value_c::target_cells_to_cancel()
   assert_choice_type(types::target_cells_to_cancel, type_, "Value");
   return c.get<target_cell_list_l>();
 }
-const uint64_t& ho_cancel_ies_o::value_c::source_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& ho_cancel_ies_o::value_c::source_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::source_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::source_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& ho_cancel_ies_o::value_c::target_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& ho_cancel_ies_o::value_c::target_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::target_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::target_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const cause_c& ho_cancel_ies_o::value_c::cause() const
@@ -8803,10 +8862,10 @@ void ho_cancel_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::cause:
@@ -8829,10 +8888,10 @@ OCUDUASN_CODE ho_cancel_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -8851,10 +8910,10 @@ OCUDUASN_CODE ho_cancel_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -8881,7 +8940,7 @@ template struct asn1::protocol_ie_field_s<ho_cancel_ies_o>;
 OCUDUASN_CODE ho_cancel_ies_container::pack(bit_ref& bref) const
 {
   uint32_t nof_ies = 2;
-  nof_ies += target_ng_ra_nnode_ue_xn_ap_id_present ? 1 : 0;
+  nof_ies += target_ng_ran_node_ue_xnap_id_present ? 1 : 0;
   nof_ies += target_cells_to_cancel_present ? 1 : 0;
   pack_length(bref, nof_ies, 0u, 65535u, true);
 
@@ -8889,13 +8948,13 @@ OCUDUASN_CODE ho_cancel_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)73, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, source_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, source_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
-  if (target_ng_ra_nnode_ue_xn_ap_id_present) {
+  if (target_ng_ran_node_ue_xnap_id_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)79, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, target_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, target_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -8924,20 +8983,23 @@ OCUDUASN_CODE ho_cancel_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ho_cancel_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 73: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(
-            unpack_integer(source_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            unpack_integer(source_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 79: {
-        target_ng_ra_nnode_ue_xn_ap_id_present = true;
+        target_ng_ran_node_ue_xnap_id_present = true;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(
-            unpack_integer(target_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            unpack_integer(target_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 7: {
@@ -8969,11 +9031,11 @@ void ho_cancel_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 73);
   j.write_str("criticality", "reject");
-  j.write_int("Value", source_ng_ra_nnode_ue_xn_ap_id);
-  if (target_ng_ra_nnode_ue_xn_ap_id_present) {
+  j.write_int("Value", source_ng_ran_node_ue_xnap_id);
+  if (target_ng_ran_node_ue_xnap_id_present) {
     j.write_int("id", 79);
     j.write_str("criticality", "ignore");
-    j.write_int("Value", target_ng_ra_nnode_ue_xn_ap_id);
+    j.write_int("Value", target_ng_ran_node_ue_xnap_id);
   }
   j.write_int("id", 7);
   j.write_str("criticality", "ignore");
@@ -9027,7 +9089,7 @@ ho_prep_fail_ies_o::value_c ho_prep_fail_ies_o::get_value(const uint32_t& id)
   value_c ret{};
   switch (id) {
     case 73:
-      ret.set(value_c::types::source_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::source_ng_ran_node_ue_xnap_id);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -9065,7 +9127,7 @@ void ho_prep_fail_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::cause:
@@ -9083,9 +9145,9 @@ void ho_prep_fail_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "ho_prep_fail_ies_o::value_c");
   }
 }
-uint64_t& ho_prep_fail_ies_o::value_c::source_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& ho_prep_fail_ies_o::value_c::source_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::source_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::source_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 cause_c& ho_prep_fail_ies_o::value_c::cause()
@@ -9103,9 +9165,9 @@ target_cgi_c& ho_prep_fail_ies_o::value_c::requested_target_cell_global_id()
   assert_choice_type(types::requested_target_cell_global_id, type_, "Value");
   return c.get<target_cgi_c>();
 }
-const uint64_t& ho_prep_fail_ies_o::value_c::source_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& ho_prep_fail_ies_o::value_c::source_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::source_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::source_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const cause_c& ho_prep_fail_ies_o::value_c::cause() const
@@ -9127,7 +9189,7 @@ void ho_prep_fail_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::cause:
@@ -9151,7 +9213,7 @@ OCUDUASN_CODE ho_prep_fail_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -9173,7 +9235,7 @@ OCUDUASN_CODE ho_prep_fail_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -9216,7 +9278,7 @@ OCUDUASN_CODE ho_prep_fail_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)73, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, source_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, source_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -9251,13 +9313,16 @@ OCUDUASN_CODE ho_prep_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ho_prep_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 73: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(
-            unpack_integer(source_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            unpack_integer(source_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 7: {
@@ -9295,7 +9360,7 @@ void ho_prep_fail_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 73);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", source_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", source_ng_ran_node_ue_xnap_id);
   j.write_int("id", 7);
   j.write_str("criticality", "ignore");
   cause.to_json(j);
@@ -9876,6 +9941,9 @@ OCUDUASN_CODE ho_report_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ho_report_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 179: {
@@ -10522,6 +10590,9 @@ OCUDUASN_CODE ue_context_info_ho_request_ext_ies_container::unpack(cbit_ref& bre
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ue_context_info_ho_request_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -10764,7 +10835,7 @@ OCUDUASN_CODE ue_context_ref_at_sn_ho_request_s::pack(bit_ref& bref) const
   HANDLE_CODE(bref.pack(ie_exts_present, 1));
 
   HANDLE_CODE(global_ng_ran_node_id.pack(bref));
-  HANDLE_CODE(pack_integer(bref, sn_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+  HANDLE_CODE(pack_integer(bref, sn_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   if (ie_exts_present) {
     HANDLE_CODE(ie_exts.pack(bref));
   }
@@ -10777,7 +10848,7 @@ OCUDUASN_CODE ue_context_ref_at_sn_ho_request_s::unpack(cbit_ref& bref)
   HANDLE_CODE(bref.unpack(ie_exts_present, 1));
 
   HANDLE_CODE(global_ng_ran_node_id.unpack(bref));
-  HANDLE_CODE(unpack_integer(sn_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+  HANDLE_CODE(unpack_integer(sn_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   if (ie_exts_present) {
     HANDLE_CODE(ie_exts.unpack(bref));
   }
@@ -10789,7 +10860,7 @@ void ue_context_ref_at_sn_ho_request_s::to_json(json_writer& j) const
   j.start_obj();
   j.write_fieldname("globalNG-RANNode-ID");
   global_ng_ran_node_id.to_json(j);
-  j.write_int("sN-NG-RANnodeUEXnAPID", sn_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("sN-NG-RANnodeUEXnAPID", sn_ng_ran_node_ue_xnap_id);
   if (ie_exts_present) {
     j.write_fieldname("iE-Extensions");
     ie_exts.to_json(j);
@@ -10894,7 +10965,7 @@ ho_request_ies_o::value_c ho_request_ies_o::get_value(const uint32_t& id)
   value_c ret{};
   switch (id) {
     case 73:
-      ret.set(value_c::types::source_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::source_ng_ran_node_ue_xnap_id);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -11077,7 +11148,7 @@ void ho_request_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::cause:
@@ -11182,9 +11253,9 @@ void ho_request_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "ho_request_ies_o::value_c");
   }
 }
-uint64_t& ho_request_ies_o::value_c::source_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& ho_request_ies_o::value_c::source_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::source_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::source_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 cause_c& ho_request_ies_o::value_c::cause()
@@ -11347,9 +11418,9 @@ sl_positioning_ranging_services_info_s& ho_request_ies_o::value_c::sl_positionin
   assert_choice_type(types::sl_positioning_ranging_services_info, type_, "Value");
   return c.get<sl_positioning_ranging_services_info_s>();
 }
-const uint64_t& ho_request_ies_o::value_c::source_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& ho_request_ies_o::value_c::source_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::source_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::source_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const cause_c& ho_request_ies_o::value_c::cause() const
@@ -11516,7 +11587,7 @@ void ho_request_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::cause:
@@ -11657,7 +11728,7 @@ OCUDUASN_CODE ho_request_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -11766,7 +11837,7 @@ OCUDUASN_CODE ho_request_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -11948,7 +12019,7 @@ OCUDUASN_CODE ho_request_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)73, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, source_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, source_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -12157,13 +12228,16 @@ OCUDUASN_CODE ho_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ho_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 73: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(
-            unpack_integer(source_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            unpack_integer(source_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 7: {
@@ -12375,7 +12449,7 @@ void ho_request_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 73);
   j.write_str("criticality", "reject");
-  j.write_int("Value", source_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", source_ng_ran_node_ue_xnap_id);
   j.write_int("id", 7);
   j.write_str("criticality", "reject");
   cause.to_json(j);
@@ -12596,10 +12670,10 @@ ho_request_ack_ies_o::value_c ho_request_ack_ies_o::get_value(const uint32_t& id
   value_c ret{};
   switch (id) {
     case 73:
-      ret.set(value_c::types::source_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::source_ng_ran_node_ue_xnap_id);
       break;
     case 79:
-      ret.set(value_c::types::target_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::target_ng_ran_node_ue_xnap_id);
       break;
     case 42:
       ret.set(value_c::types::pdu_session_res_admitted_list);
@@ -12608,7 +12682,7 @@ ho_request_ack_ies_o::value_c ho_request_ack_ies_o::get_value(const uint32_t& id
       ret.set(value_c::types::pdu_session_res_not_admitted_list);
       break;
     case 77:
-      ret.set(value_c::types::target2_source_ng_ra_nnode_transp_container);
+      ret.set(value_c::types::target2_source_ng_ran_node_transp_container);
       break;
     case 86:
       ret.set(value_c::types::ue_context_kept_ind);
@@ -12679,10 +12753,10 @@ void ho_request_ack_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::pdu_session_res_admitted_list:
@@ -12691,7 +12765,7 @@ void ho_request_ack_ies_o::value_c::set(types::options e)
     case types::pdu_session_res_not_admitted_list:
       c = pdu_session_res_not_admitted_list_l{};
       break;
-    case types::target2_source_ng_ra_nnode_transp_container:
+    case types::target2_source_ng_ran_node_transp_container:
       c = unbounded_octstring<true>{};
       break;
     case types::ue_context_kept_ind:
@@ -12724,14 +12798,14 @@ void ho_request_ack_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "ho_request_ack_ies_o::value_c");
   }
 }
-uint64_t& ho_request_ack_ies_o::value_c::source_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& ho_request_ack_ies_o::value_c::source_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::source_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::source_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& ho_request_ack_ies_o::value_c::target_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& ho_request_ack_ies_o::value_c::target_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::target_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::target_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 pdu_session_res_admitted_list_l& ho_request_ack_ies_o::value_c::pdu_session_res_admitted_list()
@@ -12744,9 +12818,9 @@ pdu_session_res_not_admitted_list_l& ho_request_ack_ies_o::value_c::pdu_session_
   assert_choice_type(types::pdu_session_res_not_admitted_list, type_, "Value");
   return c.get<pdu_session_res_not_admitted_list_l>();
 }
-unbounded_octstring<true>& ho_request_ack_ies_o::value_c::target2_source_ng_ra_nnode_transp_container()
+unbounded_octstring<true>& ho_request_ack_ies_o::value_c::target2_source_ng_ran_node_transp_container()
 {
-  assert_choice_type(types::target2_source_ng_ra_nnode_transp_container, type_, "Value");
+  assert_choice_type(types::target2_source_ng_ran_node_transp_container, type_, "Value");
   return c.get<unbounded_octstring<true>>();
 }
 ue_context_kept_ind_e& ho_request_ack_ies_o::value_c::ue_context_kept_ind()
@@ -12789,14 +12863,14 @@ pdu_setbased_handling_ind_e& ho_request_ack_ies_o::value_c::pdu_setbased_handlin
   assert_choice_type(types::pdu_setbased_handling_ind, type_, "Value");
   return c.get<pdu_setbased_handling_ind_e>();
 }
-const uint64_t& ho_request_ack_ies_o::value_c::source_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& ho_request_ack_ies_o::value_c::source_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::source_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::source_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& ho_request_ack_ies_o::value_c::target_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& ho_request_ack_ies_o::value_c::target_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::target_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::target_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const pdu_session_res_admitted_list_l& ho_request_ack_ies_o::value_c::pdu_session_res_admitted_list() const
@@ -12809,9 +12883,9 @@ const pdu_session_res_not_admitted_list_l& ho_request_ack_ies_o::value_c::pdu_se
   assert_choice_type(types::pdu_session_res_not_admitted_list, type_, "Value");
   return c.get<pdu_session_res_not_admitted_list_l>();
 }
-const unbounded_octstring<true>& ho_request_ack_ies_o::value_c::target2_source_ng_ra_nnode_transp_container() const
+const unbounded_octstring<true>& ho_request_ack_ies_o::value_c::target2_source_ng_ran_node_transp_container() const
 {
-  assert_choice_type(types::target2_source_ng_ra_nnode_transp_container, type_, "Value");
+  assert_choice_type(types::target2_source_ng_ran_node_transp_container, type_, "Value");
   return c.get<unbounded_octstring<true>>();
 }
 const ue_context_kept_ind_e& ho_request_ack_ies_o::value_c::ue_context_kept_ind() const
@@ -12858,10 +12932,10 @@ void ho_request_ack_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::pdu_session_res_admitted_list:
@@ -12878,7 +12952,7 @@ void ho_request_ack_ies_o::value_c::to_json(json_writer& j) const
       }
       j.end_array();
       break;
-    case types::target2_source_ng_ra_nnode_transp_container:
+    case types::target2_source_ng_ran_node_transp_container:
       j.write_str("OCTET STRING", c.get<unbounded_octstring<true>>().to_string());
       break;
     case types::ue_context_kept_ind:
@@ -12928,10 +13002,10 @@ OCUDUASN_CODE ho_request_ack_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_res_admitted_list:
@@ -12940,7 +13014,7 @@ OCUDUASN_CODE ho_request_ack_ies_o::value_c::pack(bit_ref& bref) const
     case types::pdu_session_res_not_admitted_list:
       HANDLE_CODE(pack_dyn_seq_of(bref, c.get<pdu_session_res_not_admitted_list_l>(), 1, 256, true));
       break;
-    case types::target2_source_ng_ra_nnode_transp_container:
+    case types::target2_source_ng_ran_node_transp_container:
       HANDLE_CODE(c.get<unbounded_octstring<true>>().pack(bref));
       break;
     case types::ue_context_kept_ind:
@@ -12977,10 +13051,10 @@ OCUDUASN_CODE ho_request_ack_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_res_admitted_list:
@@ -12989,7 +13063,7 @@ OCUDUASN_CODE ho_request_ack_ies_o::value_c::unpack(cbit_ref& bref)
     case types::pdu_session_res_not_admitted_list:
       HANDLE_CODE(unpack_dyn_seq_of(c.get<pdu_session_res_not_admitted_list_l>(), bref, 1, 256, true));
       break;
-    case types::target2_source_ng_ra_nnode_transp_container:
+    case types::target2_source_ng_ran_node_transp_container:
       HANDLE_CODE(c.get<unbounded_octstring<true>>().unpack(bref));
       break;
     case types::ue_context_kept_ind:
@@ -13061,13 +13135,13 @@ OCUDUASN_CODE ho_request_ack_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)73, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, source_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, source_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)79, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, target_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, target_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)42, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -13085,7 +13159,7 @@ OCUDUASN_CODE ho_request_ack_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)77, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(target2_source_ng_ra_nnode_transp_container.pack(bref));
+    HANDLE_CODE(target2_source_ng_ran_node_transp_container.pack(bref));
   }
   if (ue_context_kept_ind_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)86, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -13150,20 +13224,23 @@ OCUDUASN_CODE ho_request_ack_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ho_request_ack_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 73: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(
-            unpack_integer(source_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            unpack_integer(source_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 79: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(
-            unpack_integer(target_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            unpack_integer(target_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 42: {
@@ -13181,7 +13258,7 @@ OCUDUASN_CODE ho_request_ack_ies_container::unpack(cbit_ref& bref)
       case 77: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(target2_source_ng_ra_nnode_transp_container.unpack(bref));
+        HANDLE_CODE(target2_source_ng_ran_node_transp_container.unpack(bref));
         break;
       }
       case 86: {
@@ -13249,10 +13326,10 @@ void ho_request_ack_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 73);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", source_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", source_ng_ran_node_ue_xnap_id);
   j.write_int("id", 79);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", target_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", target_ng_ran_node_ue_xnap_id);
   j.write_int("id", 42);
   j.write_str("criticality", "ignore");
   j.start_array("Value");
@@ -13271,7 +13348,7 @@ void ho_request_ack_ies_container::to_json(json_writer& j) const
   }
   j.write_int("id", 77);
   j.write_str("criticality", "ignore");
-  j.write_str("Value", target2_source_ng_ra_nnode_transp_container.to_string());
+  j.write_str("Value", target2_source_ng_ran_node_transp_container.to_string());
   if (ue_context_kept_ind_present) {
     j.write_int("id", 86);
     j.write_str("criticality", "ignore");
@@ -13364,10 +13441,10 @@ ho_success_ies_o::value_c ho_success_ies_o::get_value(const uint32_t& id)
   value_c ret{};
   switch (id) {
     case 73:
-      ret.set(value_c::types::source_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::source_ng_ran_node_ue_xnap_id);
       break;
     case 79:
-      ret.set(value_c::types::target_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::target_ng_ran_node_ue_xnap_id);
       break;
     case 161:
       ret.set(value_c::types::requested_target_cell_global_id);
@@ -13402,10 +13479,10 @@ void ho_success_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::requested_target_cell_global_id:
@@ -13420,14 +13497,14 @@ void ho_success_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "ho_success_ies_o::value_c");
   }
 }
-uint64_t& ho_success_ies_o::value_c::source_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& ho_success_ies_o::value_c::source_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::source_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::source_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& ho_success_ies_o::value_c::target_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& ho_success_ies_o::value_c::target_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::target_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::target_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 target_cgi_c& ho_success_ies_o::value_c::requested_target_cell_global_id()
@@ -13440,14 +13517,14 @@ nr_cgi_s& ho_success_ies_o::value_c::accessed_pscell_id()
   assert_choice_type(types::accessed_pscell_id, type_, "Value");
   return c.get<nr_cgi_s>();
 }
-const uint64_t& ho_success_ies_o::value_c::source_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& ho_success_ies_o::value_c::source_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::source_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::source_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& ho_success_ies_o::value_c::target_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& ho_success_ies_o::value_c::target_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::target_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::target_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const target_cgi_c& ho_success_ies_o::value_c::requested_target_cell_global_id() const
@@ -13464,10 +13541,10 @@ void ho_success_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::requested_target_cell_global_id:
@@ -13487,10 +13564,10 @@ OCUDUASN_CODE ho_success_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::requested_target_cell_global_id:
@@ -13509,10 +13586,10 @@ OCUDUASN_CODE ho_success_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::requested_target_cell_global_id:
@@ -13546,13 +13623,13 @@ OCUDUASN_CODE ho_success_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)73, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, source_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, source_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)79, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, target_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, target_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)161, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -13581,20 +13658,23 @@ OCUDUASN_CODE ho_success_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ho_success_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 73: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(
-            unpack_integer(source_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            unpack_integer(source_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 79: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(
-            unpack_integer(target_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            unpack_integer(target_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 161: {
@@ -13626,10 +13706,10 @@ void ho_success_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 73);
   j.write_str("criticality", "reject");
-  j.write_int("Value", source_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", source_ng_ran_node_ue_xnap_id);
   j.write_int("id", 79);
   j.write_str("criticality", "reject");
-  j.write_int("Value", target_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", target_ng_ran_node_ue_xnap_id);
   j.write_int("id", 161);
   j.write_str("criticality", "reject");
   requested_target_cell_global_id.to_json(j);
@@ -13715,10 +13795,10 @@ iab_res_coordination_request_ies_o::value_c iab_res_coordination_request_ies_o::
   value_c ret{};
   switch (id) {
     case 314:
-      ret.set(value_c::types::f1_terminating_iab_donor_ue_xn_ap_id);
+      ret.set(value_c::types::f1_terminating_iab_donor_ue_xnap_id);
       break;
     case 313:
-      ret.set(value_c::types::non_f1_terminating_iab_donor_ue_xn_ap_id);
+      ret.set(value_c::types::non_f1_terminating_iab_donor_ue_xnap_id);
       break;
     case 315:
       ret.set(value_c::types::boundary_node_cells_list);
@@ -13753,10 +13833,10 @@ void iab_res_coordination_request_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::boundary_node_cells_list:
@@ -13771,14 +13851,14 @@ void iab_res_coordination_request_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "iab_res_coordination_request_ies_o::value_c");
   }
 }
-uint64_t& iab_res_coordination_request_ies_o::value_c::f1_terminating_iab_donor_ue_xn_ap_id()
+uint64_t& iab_res_coordination_request_ies_o::value_c::f1_terminating_iab_donor_ue_xnap_id()
 {
-  assert_choice_type(types::f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& iab_res_coordination_request_ies_o::value_c::non_f1_terminating_iab_donor_ue_xn_ap_id()
+uint64_t& iab_res_coordination_request_ies_o::value_c::non_f1_terminating_iab_donor_ue_xnap_id()
 {
-  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 boundary_node_cells_list_l& iab_res_coordination_request_ies_o::value_c::boundary_node_cells_list()
@@ -13791,14 +13871,14 @@ parent_node_cells_list_l& iab_res_coordination_request_ies_o::value_c::parent_no
   assert_choice_type(types::parent_node_cells_list, type_, "Value");
   return c.get<parent_node_cells_list_l>();
 }
-const uint64_t& iab_res_coordination_request_ies_o::value_c::f1_terminating_iab_donor_ue_xn_ap_id() const
+const uint64_t& iab_res_coordination_request_ies_o::value_c::f1_terminating_iab_donor_ue_xnap_id() const
 {
-  assert_choice_type(types::f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& iab_res_coordination_request_ies_o::value_c::non_f1_terminating_iab_donor_ue_xn_ap_id() const
+const uint64_t& iab_res_coordination_request_ies_o::value_c::non_f1_terminating_iab_donor_ue_xnap_id() const
 {
-  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const boundary_node_cells_list_l& iab_res_coordination_request_ies_o::value_c::boundary_node_cells_list() const
@@ -13815,10 +13895,10 @@ void iab_res_coordination_request_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::boundary_node_cells_list:
@@ -13844,10 +13924,10 @@ OCUDUASN_CODE iab_res_coordination_request_ies_o::value_c::pack(bit_ref& bref) c
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::boundary_node_cells_list:
@@ -13866,10 +13946,10 @@ OCUDUASN_CODE iab_res_coordination_request_ies_o::value_c::unpack(cbit_ref& bref
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::boundary_node_cells_list:
@@ -13906,14 +13986,14 @@ OCUDUASN_CODE iab_res_coordination_request_ies_container::pack(bit_ref& bref) co
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(
-        pack_integer(bref, f1_terminating_iab_donor_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        pack_integer(bref, f1_terminating_iab_donor_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)313, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(
-        pack_integer(bref, non_f1_terminating_iab_donor_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        pack_integer(bref, non_f1_terminating_iab_donor_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (boundary_node_cells_list_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)315, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -13942,20 +14022,23 @@ OCUDUASN_CODE iab_res_coordination_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != iab_res_coordination_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 314: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(unpack_integer(
-            f1_terminating_iab_donor_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            f1_terminating_iab_donor_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 313: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(unpack_integer(
-            non_f1_terminating_iab_donor_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            non_f1_terminating_iab_donor_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 315: {
@@ -13987,10 +14070,10 @@ void iab_res_coordination_request_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 314);
   j.write_str("criticality", "reject");
-  j.write_int("Value", f1_terminating_iab_donor_ue_xn_ap_id);
+  j.write_int("Value", f1_terminating_iab_donor_ue_xnap_id);
   j.write_int("id", 313);
   j.write_str("criticality", "reject");
-  j.write_int("Value", non_f1_terminating_iab_donor_ue_xn_ap_id);
+  j.write_int("Value", non_f1_terminating_iab_donor_ue_xnap_id);
   if (boundary_node_cells_list_present) {
     j.write_int("id", 315);
     j.write_str("criticality", "reject");
@@ -14049,10 +14132,10 @@ iab_res_coordination_resp_ies_o::value_c iab_res_coordination_resp_ies_o::get_va
   value_c ret{};
   switch (id) {
     case 314:
-      ret.set(value_c::types::f1_terminating_iab_donor_ue_xn_ap_id);
+      ret.set(value_c::types::f1_terminating_iab_donor_ue_xnap_id);
       break;
     case 313:
-      ret.set(value_c::types::non_f1_terminating_iab_donor_ue_xn_ap_id);
+      ret.set(value_c::types::non_f1_terminating_iab_donor_ue_xnap_id);
       break;
     case 315:
       ret.set(value_c::types::boundary_node_cells_list);
@@ -14087,10 +14170,10 @@ void iab_res_coordination_resp_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::boundary_node_cells_list:
@@ -14105,14 +14188,14 @@ void iab_res_coordination_resp_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "iab_res_coordination_resp_ies_o::value_c");
   }
 }
-uint64_t& iab_res_coordination_resp_ies_o::value_c::f1_terminating_iab_donor_ue_xn_ap_id()
+uint64_t& iab_res_coordination_resp_ies_o::value_c::f1_terminating_iab_donor_ue_xnap_id()
 {
-  assert_choice_type(types::f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& iab_res_coordination_resp_ies_o::value_c::non_f1_terminating_iab_donor_ue_xn_ap_id()
+uint64_t& iab_res_coordination_resp_ies_o::value_c::non_f1_terminating_iab_donor_ue_xnap_id()
 {
-  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 boundary_node_cells_list_l& iab_res_coordination_resp_ies_o::value_c::boundary_node_cells_list()
@@ -14125,14 +14208,14 @@ parent_node_cells_list_l& iab_res_coordination_resp_ies_o::value_c::parent_node_
   assert_choice_type(types::parent_node_cells_list, type_, "Value");
   return c.get<parent_node_cells_list_l>();
 }
-const uint64_t& iab_res_coordination_resp_ies_o::value_c::f1_terminating_iab_donor_ue_xn_ap_id() const
+const uint64_t& iab_res_coordination_resp_ies_o::value_c::f1_terminating_iab_donor_ue_xnap_id() const
 {
-  assert_choice_type(types::f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& iab_res_coordination_resp_ies_o::value_c::non_f1_terminating_iab_donor_ue_xn_ap_id() const
+const uint64_t& iab_res_coordination_resp_ies_o::value_c::non_f1_terminating_iab_donor_ue_xnap_id() const
 {
-  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const boundary_node_cells_list_l& iab_res_coordination_resp_ies_o::value_c::boundary_node_cells_list() const
@@ -14149,10 +14232,10 @@ void iab_res_coordination_resp_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::boundary_node_cells_list:
@@ -14178,10 +14261,10 @@ OCUDUASN_CODE iab_res_coordination_resp_ies_o::value_c::pack(bit_ref& bref) cons
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::boundary_node_cells_list:
@@ -14200,10 +14283,10 @@ OCUDUASN_CODE iab_res_coordination_resp_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::boundary_node_cells_list:
@@ -14240,14 +14323,14 @@ OCUDUASN_CODE iab_res_coordination_resp_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(
-        pack_integer(bref, f1_terminating_iab_donor_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        pack_integer(bref, f1_terminating_iab_donor_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)313, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(
-        pack_integer(bref, non_f1_terminating_iab_donor_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        pack_integer(bref, non_f1_terminating_iab_donor_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (boundary_node_cells_list_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)315, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -14276,20 +14359,23 @@ OCUDUASN_CODE iab_res_coordination_resp_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != iab_res_coordination_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 314: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(unpack_integer(
-            f1_terminating_iab_donor_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            f1_terminating_iab_donor_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 313: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(unpack_integer(
-            non_f1_terminating_iab_donor_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            non_f1_terminating_iab_donor_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 315: {
@@ -14321,10 +14407,10 @@ void iab_res_coordination_resp_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 314);
   j.write_str("criticality", "reject");
-  j.write_int("Value", f1_terminating_iab_donor_ue_xn_ap_id);
+  j.write_int("Value", f1_terminating_iab_donor_ue_xnap_id);
   j.write_int("id", 313);
   j.write_str("criticality", "reject");
-  j.write_int("Value", non_f1_terminating_iab_donor_ue_xn_ap_id);
+  j.write_int("Value", non_f1_terminating_iab_donor_ue_xnap_id);
   if (boundary_node_cells_list_present) {
     j.write_int("id", 315);
     j.write_str("criticality", "reject");
@@ -14421,10 +14507,10 @@ iab_transport_migration_management_reject_ies_o::get_value(const uint32_t& id)
   value_c ret{};
   switch (id) {
     case 314:
-      ret.set(value_c::types::f1_terminating_iab_donor_ue_xn_ap_id);
+      ret.set(value_c::types::f1_terminating_iab_donor_ue_xnap_id);
       break;
     case 313:
-      ret.set(value_c::types::non_f1_terminating_iab_donor_ue_xn_ap_id);
+      ret.set(value_c::types::non_f1_terminating_iab_donor_ue_xnap_id);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -14459,10 +14545,10 @@ void iab_transport_migration_management_reject_ies_o::value_c::set(types::option
 {
   type_ = e;
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::cause:
@@ -14477,14 +14563,14 @@ void iab_transport_migration_management_reject_ies_o::value_c::set(types::option
       log_invalid_choice_id(type_, "iab_transport_migration_management_reject_ies_o::value_c");
   }
 }
-uint64_t& iab_transport_migration_management_reject_ies_o::value_c::f1_terminating_iab_donor_ue_xn_ap_id()
+uint64_t& iab_transport_migration_management_reject_ies_o::value_c::f1_terminating_iab_donor_ue_xnap_id()
 {
-  assert_choice_type(types::f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& iab_transport_migration_management_reject_ies_o::value_c::non_f1_terminating_iab_donor_ue_xn_ap_id()
+uint64_t& iab_transport_migration_management_reject_ies_o::value_c::non_f1_terminating_iab_donor_ue_xnap_id()
 {
-  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 cause_c& iab_transport_migration_management_reject_ies_o::value_c::cause()
@@ -14497,15 +14583,15 @@ crit_diagnostics_s& iab_transport_migration_management_reject_ies_o::value_c::cr
   assert_choice_type(types::crit_diagnostics, type_, "Value");
   return c.get<crit_diagnostics_s>();
 }
-const uint64_t& iab_transport_migration_management_reject_ies_o::value_c::f1_terminating_iab_donor_ue_xn_ap_id() const
+const uint64_t& iab_transport_migration_management_reject_ies_o::value_c::f1_terminating_iab_donor_ue_xnap_id() const
 {
-  assert_choice_type(types::f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const uint64_t&
-iab_transport_migration_management_reject_ies_o::value_c::non_f1_terminating_iab_donor_ue_xn_ap_id() const
+iab_transport_migration_management_reject_ies_o::value_c::non_f1_terminating_iab_donor_ue_xnap_id() const
 {
-  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const cause_c& iab_transport_migration_management_reject_ies_o::value_c::cause() const
@@ -14522,10 +14608,10 @@ void iab_transport_migration_management_reject_ies_o::value_c::to_json(json_writ
 {
   j.start_obj();
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::cause:
@@ -14545,10 +14631,10 @@ OCUDUASN_CODE iab_transport_migration_management_reject_ies_o::value_c::pack(bit
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -14567,10 +14653,10 @@ OCUDUASN_CODE iab_transport_migration_management_reject_ies_o::value_c::unpack(c
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -14606,14 +14692,14 @@ OCUDUASN_CODE iab_transport_migration_management_reject_ies_container::pack(bit_
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(
-        pack_integer(bref, f1_terminating_iab_donor_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        pack_integer(bref, f1_terminating_iab_donor_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)313, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(
-        pack_integer(bref, non_f1_terminating_iab_donor_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        pack_integer(bref, non_f1_terminating_iab_donor_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -14642,20 +14728,23 @@ OCUDUASN_CODE iab_transport_migration_management_reject_ies_container::unpack(cb
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != iab_transport_migration_management_reject_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 314: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(unpack_integer(
-            f1_terminating_iab_donor_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            f1_terminating_iab_donor_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 313: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(unpack_integer(
-            non_f1_terminating_iab_donor_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            non_f1_terminating_iab_donor_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 7: {
@@ -14687,10 +14776,10 @@ void iab_transport_migration_management_reject_ies_container::to_json(json_write
   j.start_obj();
   j.write_int("id", 314);
   j.write_str("criticality", "reject");
-  j.write_int("Value", f1_terminating_iab_donor_ue_xn_ap_id);
+  j.write_int("Value", f1_terminating_iab_donor_ue_xnap_id);
   j.write_int("id", 313);
   j.write_str("criticality", "reject");
-  j.write_int("Value", non_f1_terminating_iab_donor_ue_xn_ap_id);
+  j.write_int("Value", non_f1_terminating_iab_donor_ue_xnap_id);
   j.write_int("id", 7);
   j.write_str("criticality", "ignore");
   cause.to_json(j);
@@ -14860,10 +14949,10 @@ iab_transport_migration_management_request_ies_o::get_value(const uint32_t& id)
   value_c ret{};
   switch (id) {
     case 314:
-      ret.set(value_c::types::f1_terminating_iab_donor_ue_xn_ap_id);
+      ret.set(value_c::types::f1_terminating_iab_donor_ue_xnap_id);
       break;
     case 313:
-      ret.set(value_c::types::non_f1_terminating_iab_donor_ue_xn_ap_id);
+      ret.set(value_c::types::non_f1_terminating_iab_donor_ue_xnap_id);
       break;
     case 301:
       ret.set(value_c::types::traffic_to_be_added_list);
@@ -14918,10 +15007,10 @@ void iab_transport_migration_management_request_ies_o::value_c::set(types::optio
 {
   type_ = e;
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::traffic_to_be_added_list:
@@ -14948,14 +15037,14 @@ void iab_transport_migration_management_request_ies_o::value_c::set(types::optio
       log_invalid_choice_id(type_, "iab_transport_migration_management_request_ies_o::value_c");
   }
 }
-uint64_t& iab_transport_migration_management_request_ies_o::value_c::f1_terminating_iab_donor_ue_xn_ap_id()
+uint64_t& iab_transport_migration_management_request_ies_o::value_c::f1_terminating_iab_donor_ue_xnap_id()
 {
-  assert_choice_type(types::f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& iab_transport_migration_management_request_ies_o::value_c::non_f1_terminating_iab_donor_ue_xn_ap_id()
+uint64_t& iab_transport_migration_management_request_ies_o::value_c::non_f1_terminating_iab_donor_ue_xnap_id()
 {
-  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 traffic_to_be_added_list_l& iab_transport_migration_management_request_ies_o::value_c::traffic_to_be_added_list()
@@ -14988,15 +15077,15 @@ fixed_bitstring<10, false, true>& iab_transport_migration_management_request_ies
   assert_choice_type(types::miab_mt_bap_address, type_, "Value");
   return c.get<fixed_bitstring<10, false, true>>();
 }
-const uint64_t& iab_transport_migration_management_request_ies_o::value_c::f1_terminating_iab_donor_ue_xn_ap_id() const
+const uint64_t& iab_transport_migration_management_request_ies_o::value_c::f1_terminating_iab_donor_ue_xnap_id() const
 {
-  assert_choice_type(types::f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const uint64_t&
-iab_transport_migration_management_request_ies_o::value_c::non_f1_terminating_iab_donor_ue_xn_ap_id() const
+iab_transport_migration_management_request_ies_o::value_c::non_f1_terminating_iab_donor_ue_xnap_id() const
 {
-  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const traffic_to_be_added_list_l&
@@ -15039,10 +15128,10 @@ void iab_transport_migration_management_request_ies_o::value_c::to_json(json_wri
 {
   j.start_obj();
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::traffic_to_be_added_list:
@@ -15086,10 +15175,10 @@ OCUDUASN_CODE iab_transport_migration_management_request_ies_o::value_c::pack(bi
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::traffic_to_be_added_list:
@@ -15120,10 +15209,10 @@ OCUDUASN_CODE iab_transport_migration_management_request_ies_o::value_c::unpack(
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::traffic_to_be_added_list:
@@ -15182,14 +15271,14 @@ OCUDUASN_CODE iab_transport_migration_management_request_ies_container::pack(bit
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(
-        pack_integer(bref, f1_terminating_iab_donor_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        pack_integer(bref, f1_terminating_iab_donor_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)313, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(
-        pack_integer(bref, non_f1_terminating_iab_donor_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        pack_integer(bref, non_f1_terminating_iab_donor_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (traffic_to_be_added_list_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)301, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -15242,20 +15331,23 @@ OCUDUASN_CODE iab_transport_migration_management_request_ies_container::unpack(c
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != iab_transport_migration_management_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 314: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(unpack_integer(
-            f1_terminating_iab_donor_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            f1_terminating_iab_donor_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 313: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(unpack_integer(
-            non_f1_terminating_iab_donor_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            non_f1_terminating_iab_donor_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 301: {
@@ -15311,10 +15403,10 @@ void iab_transport_migration_management_request_ies_container::to_json(json_writ
   j.start_obj();
   j.write_int("id", 314);
   j.write_str("criticality", "reject");
-  j.write_int("Value", f1_terminating_iab_donor_ue_xn_ap_id);
+  j.write_int("Value", f1_terminating_iab_donor_ue_xnap_id);
   j.write_int("id", 313);
   j.write_str("criticality", "reject");
-  j.write_int("Value", non_f1_terminating_iab_donor_ue_xn_ap_id);
+  j.write_int("Value", non_f1_terminating_iab_donor_ue_xnap_id);
   if (traffic_to_be_added_list_present) {
     j.write_int("id", 301);
     j.write_str("criticality", "reject");
@@ -15634,10 +15726,10 @@ iab_transport_migration_management_resp_ies_o::get_value(const uint32_t& id)
   value_c ret{};
   switch (id) {
     case 314:
-      ret.set(value_c::types::f1_terminating_iab_donor_ue_xn_ap_id);
+      ret.set(value_c::types::f1_terminating_iab_donor_ue_xnap_id);
       break;
     case 313:
-      ret.set(value_c::types::non_f1_terminating_iab_donor_ue_xn_ap_id);
+      ret.set(value_c::types::non_f1_terminating_iab_donor_ue_xnap_id);
       break;
     case 304:
       ret.set(value_c::types::traffic_added_list);
@@ -15692,10 +15784,10 @@ void iab_transport_migration_management_resp_ies_o::value_c::set(types::options 
 {
   type_ = e;
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::traffic_added_list:
@@ -15722,14 +15814,14 @@ void iab_transport_migration_management_resp_ies_o::value_c::set(types::options 
       log_invalid_choice_id(type_, "iab_transport_migration_management_resp_ies_o::value_c");
   }
 }
-uint64_t& iab_transport_migration_management_resp_ies_o::value_c::f1_terminating_iab_donor_ue_xn_ap_id()
+uint64_t& iab_transport_migration_management_resp_ies_o::value_c::f1_terminating_iab_donor_ue_xnap_id()
 {
-  assert_choice_type(types::f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& iab_transport_migration_management_resp_ies_o::value_c::non_f1_terminating_iab_donor_ue_xn_ap_id()
+uint64_t& iab_transport_migration_management_resp_ies_o::value_c::non_f1_terminating_iab_donor_ue_xnap_id()
 {
-  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 traffic_added_list_l& iab_transport_migration_management_resp_ies_o::value_c::traffic_added_list()
@@ -15762,14 +15854,14 @@ traffic_released_list_l& iab_transport_migration_management_resp_ies_o::value_c:
   assert_choice_type(types::traffic_released_list, type_, "Value");
   return c.get<traffic_released_list_l>();
 }
-const uint64_t& iab_transport_migration_management_resp_ies_o::value_c::f1_terminating_iab_donor_ue_xn_ap_id() const
+const uint64_t& iab_transport_migration_management_resp_ies_o::value_c::f1_terminating_iab_donor_ue_xnap_id() const
 {
-  assert_choice_type(types::f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& iab_transport_migration_management_resp_ies_o::value_c::non_f1_terminating_iab_donor_ue_xn_ap_id() const
+const uint64_t& iab_transport_migration_management_resp_ies_o::value_c::non_f1_terminating_iab_donor_ue_xnap_id() const
 {
-  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const traffic_added_list_l& iab_transport_migration_management_resp_ies_o::value_c::traffic_added_list() const
@@ -15807,10 +15899,10 @@ void iab_transport_migration_management_resp_ies_o::value_c::to_json(json_writer
 {
   j.start_obj();
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::traffic_added_list:
@@ -15861,10 +15953,10 @@ OCUDUASN_CODE iab_transport_migration_management_resp_ies_o::value_c::pack(bit_r
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::traffic_added_list:
@@ -15895,10 +15987,10 @@ OCUDUASN_CODE iab_transport_migration_management_resp_ies_o::value_c::unpack(cbi
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::traffic_added_list:
@@ -15957,14 +16049,14 @@ OCUDUASN_CODE iab_transport_migration_management_resp_ies_container::pack(bit_re
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(
-        pack_integer(bref, f1_terminating_iab_donor_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        pack_integer(bref, f1_terminating_iab_donor_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)313, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(
-        pack_integer(bref, non_f1_terminating_iab_donor_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        pack_integer(bref, non_f1_terminating_iab_donor_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (traffic_added_list_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)304, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -16017,20 +16109,23 @@ OCUDUASN_CODE iab_transport_migration_management_resp_ies_container::unpack(cbit
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != iab_transport_migration_management_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 314: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(unpack_integer(
-            f1_terminating_iab_donor_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            f1_terminating_iab_donor_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 313: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(unpack_integer(
-            non_f1_terminating_iab_donor_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            non_f1_terminating_iab_donor_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 304: {
@@ -16086,10 +16181,10 @@ void iab_transport_migration_management_resp_ies_container::to_json(json_writer&
   j.start_obj();
   j.write_int("id", 314);
   j.write_str("criticality", "reject");
-  j.write_int("Value", f1_terminating_iab_donor_ue_xn_ap_id);
+  j.write_int("Value", f1_terminating_iab_donor_ue_xnap_id);
   j.write_int("id", 313);
   j.write_str("criticality", "reject");
-  j.write_int("Value", non_f1_terminating_iab_donor_ue_xn_ap_id);
+  j.write_int("Value", non_f1_terminating_iab_donor_ue_xnap_id);
   if (traffic_added_list_present) {
     j.write_int("id", 304);
     j.write_str("criticality", "reject");
@@ -16229,10 +16324,10 @@ iab_transport_migration_mod_request_ies_o::get_value(const uint32_t& id)
   value_c ret{};
   switch (id) {
     case 314:
-      ret.set(value_c::types::f1_terminating_iab_donor_ue_xn_ap_id);
+      ret.set(value_c::types::f1_terminating_iab_donor_ue_xnap_id);
       break;
     case 313:
-      ret.set(value_c::types::non_f1_terminating_iab_donor_ue_xn_ap_id);
+      ret.set(value_c::types::non_f1_terminating_iab_donor_ue_xnap_id);
       break;
     case 308:
       ret.set(value_c::types::traffic_required_to_be_modified_list);
@@ -16287,10 +16382,10 @@ void iab_transport_migration_mod_request_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::traffic_required_to_be_modified_list:
@@ -16317,14 +16412,14 @@ void iab_transport_migration_mod_request_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "iab_transport_migration_mod_request_ies_o::value_c");
   }
 }
-uint64_t& iab_transport_migration_mod_request_ies_o::value_c::f1_terminating_iab_donor_ue_xn_ap_id()
+uint64_t& iab_transport_migration_mod_request_ies_o::value_c::f1_terminating_iab_donor_ue_xnap_id()
 {
-  assert_choice_type(types::f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& iab_transport_migration_mod_request_ies_o::value_c::non_f1_terminating_iab_donor_ue_xn_ap_id()
+uint64_t& iab_transport_migration_mod_request_ies_o::value_c::non_f1_terminating_iab_donor_ue_xnap_id()
 {
-  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 traffic_required_to_be_modified_list_l&
@@ -16359,14 +16454,14 @@ mobile_iab_authorization_status_e& iab_transport_migration_mod_request_ies_o::va
   assert_choice_type(types::mobile_iab_authorization_status, type_, "Value");
   return c.get<mobile_iab_authorization_status_e>();
 }
-const uint64_t& iab_transport_migration_mod_request_ies_o::value_c::f1_terminating_iab_donor_ue_xn_ap_id() const
+const uint64_t& iab_transport_migration_mod_request_ies_o::value_c::f1_terminating_iab_donor_ue_xnap_id() const
 {
-  assert_choice_type(types::f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& iab_transport_migration_mod_request_ies_o::value_c::non_f1_terminating_iab_donor_ue_xn_ap_id() const
+const uint64_t& iab_transport_migration_mod_request_ies_o::value_c::non_f1_terminating_iab_donor_ue_xnap_id() const
 {
-  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const traffic_required_to_be_modified_list_l&
@@ -16407,10 +16502,10 @@ void iab_transport_migration_mod_request_ies_o::value_c::to_json(json_writer& j)
 {
   j.start_obj();
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::traffic_required_to_be_modified_list:
@@ -16450,10 +16545,10 @@ OCUDUASN_CODE iab_transport_migration_mod_request_ies_o::value_c::pack(bit_ref& 
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::traffic_required_to_be_modified_list:
@@ -16484,10 +16579,10 @@ OCUDUASN_CODE iab_transport_migration_mod_request_ies_o::value_c::unpack(cbit_re
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::traffic_required_to_be_modified_list:
@@ -16546,14 +16641,14 @@ OCUDUASN_CODE iab_transport_migration_mod_request_ies_container::pack(bit_ref& b
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(
-        pack_integer(bref, f1_terminating_iab_donor_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        pack_integer(bref, f1_terminating_iab_donor_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)313, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(
-        pack_integer(bref, non_f1_terminating_iab_donor_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        pack_integer(bref, non_f1_terminating_iab_donor_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (traffic_required_to_be_modified_list_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)308, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -16606,20 +16701,23 @@ OCUDUASN_CODE iab_transport_migration_mod_request_ies_container::unpack(cbit_ref
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != iab_transport_migration_mod_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 314: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(unpack_integer(
-            f1_terminating_iab_donor_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            f1_terminating_iab_donor_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 313: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(unpack_integer(
-            non_f1_terminating_iab_donor_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            non_f1_terminating_iab_donor_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 308: {
@@ -16675,10 +16773,10 @@ void iab_transport_migration_mod_request_ies_container::to_json(json_writer& j) 
   j.start_obj();
   j.write_int("id", 314);
   j.write_str("criticality", "reject");
-  j.write_int("Value", f1_terminating_iab_donor_ue_xn_ap_id);
+  j.write_int("Value", f1_terminating_iab_donor_ue_xnap_id);
   j.write_int("id", 313);
   j.write_str("criticality", "reject");
-  j.write_int("Value", non_f1_terminating_iab_donor_ue_xn_ap_id);
+  j.write_int("Value", non_f1_terminating_iab_donor_ue_xnap_id);
   if (traffic_required_to_be_modified_list_present) {
     j.write_int("id", 308);
     j.write_str("criticality", "reject");
@@ -16793,10 +16891,10 @@ iab_transport_migration_mod_resp_ies_o::value_c iab_transport_migration_mod_resp
   value_c ret{};
   switch (id) {
     case 314:
-      ret.set(value_c::types::f1_terminating_iab_donor_ue_xn_ap_id);
+      ret.set(value_c::types::f1_terminating_iab_donor_ue_xnap_id);
       break;
     case 313:
-      ret.set(value_c::types::non_f1_terminating_iab_donor_ue_xn_ap_id);
+      ret.set(value_c::types::non_f1_terminating_iab_donor_ue_xnap_id);
       break;
     case 309:
       ret.set(value_c::types::traffic_required_modified_list);
@@ -16831,10 +16929,10 @@ void iab_transport_migration_mod_resp_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::traffic_required_modified_list:
@@ -16849,14 +16947,14 @@ void iab_transport_migration_mod_resp_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "iab_transport_migration_mod_resp_ies_o::value_c");
   }
 }
-uint64_t& iab_transport_migration_mod_resp_ies_o::value_c::f1_terminating_iab_donor_ue_xn_ap_id()
+uint64_t& iab_transport_migration_mod_resp_ies_o::value_c::f1_terminating_iab_donor_ue_xnap_id()
 {
-  assert_choice_type(types::f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& iab_transport_migration_mod_resp_ies_o::value_c::non_f1_terminating_iab_donor_ue_xn_ap_id()
+uint64_t& iab_transport_migration_mod_resp_ies_o::value_c::non_f1_terminating_iab_donor_ue_xnap_id()
 {
-  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 traffic_required_modified_list_l& iab_transport_migration_mod_resp_ies_o::value_c::traffic_required_modified_list()
@@ -16869,14 +16967,14 @@ traffic_released_list_l& iab_transport_migration_mod_resp_ies_o::value_c::traffi
   assert_choice_type(types::traffic_released_list, type_, "Value");
   return c.get<traffic_released_list_l>();
 }
-const uint64_t& iab_transport_migration_mod_resp_ies_o::value_c::f1_terminating_iab_donor_ue_xn_ap_id() const
+const uint64_t& iab_transport_migration_mod_resp_ies_o::value_c::f1_terminating_iab_donor_ue_xnap_id() const
 {
-  assert_choice_type(types::f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& iab_transport_migration_mod_resp_ies_o::value_c::non_f1_terminating_iab_donor_ue_xn_ap_id() const
+const uint64_t& iab_transport_migration_mod_resp_ies_o::value_c::non_f1_terminating_iab_donor_ue_xnap_id() const
 {
-  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::non_f1_terminating_iab_donor_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const traffic_required_modified_list_l&
@@ -16894,10 +16992,10 @@ void iab_transport_migration_mod_resp_ies_o::value_c::to_json(json_writer& j) co
 {
   j.start_obj();
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::traffic_required_modified_list:
@@ -16923,10 +17021,10 @@ OCUDUASN_CODE iab_transport_migration_mod_resp_ies_o::value_c::pack(bit_ref& bre
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::traffic_required_modified_list:
@@ -16945,10 +17043,10 @@ OCUDUASN_CODE iab_transport_migration_mod_resp_ies_o::value_c::unpack(cbit_ref& 
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::non_f1_terminating_iab_donor_ue_xn_ap_id:
+    case types::non_f1_terminating_iab_donor_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::traffic_required_modified_list:
@@ -16985,14 +17083,14 @@ OCUDUASN_CODE iab_transport_migration_mod_resp_ies_container::pack(bit_ref& bref
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(
-        pack_integer(bref, f1_terminating_iab_donor_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        pack_integer(bref, f1_terminating_iab_donor_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)313, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(
-        pack_integer(bref, non_f1_terminating_iab_donor_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        pack_integer(bref, non_f1_terminating_iab_donor_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (traffic_required_modified_list_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)309, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -17021,20 +17119,23 @@ OCUDUASN_CODE iab_transport_migration_mod_resp_ies_container::unpack(cbit_ref& b
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != iab_transport_migration_mod_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 314: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(unpack_integer(
-            f1_terminating_iab_donor_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            f1_terminating_iab_donor_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 313: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(unpack_integer(
-            non_f1_terminating_iab_donor_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            non_f1_terminating_iab_donor_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 309: {
@@ -17066,10 +17167,10 @@ void iab_transport_migration_mod_resp_ies_container::to_json(json_writer& j) con
   j.start_obj();
   j.write_int("id", 314);
   j.write_str("criticality", "reject");
-  j.write_int("Value", f1_terminating_iab_donor_ue_xn_ap_id);
+  j.write_int("Value", f1_terminating_iab_donor_ue_xnap_id);
   j.write_int("id", 313);
   j.write_str("criticality", "reject");
-  j.write_int("Value", non_f1_terminating_iab_donor_ue_xn_ap_id);
+  j.write_int("Value", non_f1_terminating_iab_donor_ue_xnap_id);
   if (traffic_required_modified_list_present) {
     j.write_int("id", 309);
     j.write_str("criticality", "reject");
@@ -17126,10 +17227,10 @@ mob_change_ack_ies_o::value_c mob_change_ack_ies_o::get_value(const uint32_t& id
   value_c ret{};
   switch (id) {
     case 194:
-      ret.set(value_c::types::ng_ra_nnode1_cell_id);
+      ret.set(value_c::types::ng_ran_node1_cell_id);
       break;
     case 195:
-      ret.set(value_c::types::ng_ra_nnode2_cell_id);
+      ret.set(value_c::types::ng_ran_node2_cell_id);
       break;
     case 10:
       ret.set(value_c::types::crit_diagnostics);
@@ -17159,10 +17260,10 @@ void mob_change_ack_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::ng_ra_nnode1_cell_id:
+    case types::ng_ran_node1_cell_id:
       c = global_ng_ran_cell_id_s{};
       break;
-    case types::ng_ra_nnode2_cell_id:
+    case types::ng_ran_node2_cell_id:
       c = global_ng_ran_cell_id_s{};
       break;
     case types::crit_diagnostics:
@@ -17174,14 +17275,14 @@ void mob_change_ack_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "mob_change_ack_ies_o::value_c");
   }
 }
-global_ng_ran_cell_id_s& mob_change_ack_ies_o::value_c::ng_ra_nnode1_cell_id()
+global_ng_ran_cell_id_s& mob_change_ack_ies_o::value_c::ng_ran_node1_cell_id()
 {
-  assert_choice_type(types::ng_ra_nnode1_cell_id, type_, "Value");
+  assert_choice_type(types::ng_ran_node1_cell_id, type_, "Value");
   return c.get<global_ng_ran_cell_id_s>();
 }
-global_ng_ran_cell_id_s& mob_change_ack_ies_o::value_c::ng_ra_nnode2_cell_id()
+global_ng_ran_cell_id_s& mob_change_ack_ies_o::value_c::ng_ran_node2_cell_id()
 {
-  assert_choice_type(types::ng_ra_nnode2_cell_id, type_, "Value");
+  assert_choice_type(types::ng_ran_node2_cell_id, type_, "Value");
   return c.get<global_ng_ran_cell_id_s>();
 }
 crit_diagnostics_s& mob_change_ack_ies_o::value_c::crit_diagnostics()
@@ -17189,14 +17290,14 @@ crit_diagnostics_s& mob_change_ack_ies_o::value_c::crit_diagnostics()
   assert_choice_type(types::crit_diagnostics, type_, "Value");
   return c.get<crit_diagnostics_s>();
 }
-const global_ng_ran_cell_id_s& mob_change_ack_ies_o::value_c::ng_ra_nnode1_cell_id() const
+const global_ng_ran_cell_id_s& mob_change_ack_ies_o::value_c::ng_ran_node1_cell_id() const
 {
-  assert_choice_type(types::ng_ra_nnode1_cell_id, type_, "Value");
+  assert_choice_type(types::ng_ran_node1_cell_id, type_, "Value");
   return c.get<global_ng_ran_cell_id_s>();
 }
-const global_ng_ran_cell_id_s& mob_change_ack_ies_o::value_c::ng_ra_nnode2_cell_id() const
+const global_ng_ran_cell_id_s& mob_change_ack_ies_o::value_c::ng_ran_node2_cell_id() const
 {
-  assert_choice_type(types::ng_ra_nnode2_cell_id, type_, "Value");
+  assert_choice_type(types::ng_ran_node2_cell_id, type_, "Value");
   return c.get<global_ng_ran_cell_id_s>();
 }
 const crit_diagnostics_s& mob_change_ack_ies_o::value_c::crit_diagnostics() const
@@ -17208,11 +17309,11 @@ void mob_change_ack_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::ng_ra_nnode1_cell_id:
+    case types::ng_ran_node1_cell_id:
       j.write_fieldname("GlobalNG-RANCell-ID");
       c.get<global_ng_ran_cell_id_s>().to_json(j);
       break;
-    case types::ng_ra_nnode2_cell_id:
+    case types::ng_ran_node2_cell_id:
       j.write_fieldname("GlobalNG-RANCell-ID");
       c.get<global_ng_ran_cell_id_s>().to_json(j);
       break;
@@ -17229,10 +17330,10 @@ OCUDUASN_CODE mob_change_ack_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::ng_ra_nnode1_cell_id:
+    case types::ng_ran_node1_cell_id:
       HANDLE_CODE(c.get<global_ng_ran_cell_id_s>().pack(bref));
       break;
-    case types::ng_ra_nnode2_cell_id:
+    case types::ng_ran_node2_cell_id:
       HANDLE_CODE(c.get<global_ng_ran_cell_id_s>().pack(bref));
       break;
     case types::crit_diagnostics:
@@ -17248,10 +17349,10 @@ OCUDUASN_CODE mob_change_ack_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::ng_ra_nnode1_cell_id:
+    case types::ng_ran_node1_cell_id:
       HANDLE_CODE(c.get<global_ng_ran_cell_id_s>().unpack(bref));
       break;
-    case types::ng_ra_nnode2_cell_id:
+    case types::ng_ran_node2_cell_id:
       HANDLE_CODE(c.get<global_ng_ran_cell_id_s>().unpack(bref));
       break;
     case types::crit_diagnostics:
@@ -17282,13 +17383,13 @@ OCUDUASN_CODE mob_change_ack_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)194, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(ng_ra_nnode1_cell_id.pack(bref));
+    HANDLE_CODE(ng_ran_node1_cell_id.pack(bref));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)195, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(ng_ra_nnode2_cell_id.pack(bref));
+    HANDLE_CODE(ng_ran_node2_cell_id.pack(bref));
   }
   if (crit_diagnostics_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)10, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -17311,18 +17412,21 @@ OCUDUASN_CODE mob_change_ack_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != mob_change_ack_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 194: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(ng_ra_nnode1_cell_id.unpack(bref));
+        HANDLE_CODE(ng_ran_node1_cell_id.unpack(bref));
         break;
       }
       case 195: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(ng_ra_nnode2_cell_id.unpack(bref));
+        HANDLE_CODE(ng_ran_node2_cell_id.unpack(bref));
         break;
       }
       case 10: {
@@ -17348,10 +17452,10 @@ void mob_change_ack_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 194);
   j.write_str("criticality", "reject");
-  ng_ra_nnode1_cell_id.to_json(j);
+  ng_ran_node1_cell_id.to_json(j);
   j.write_int("id", 195);
   j.write_str("criticality", "reject");
-  ng_ra_nnode2_cell_id.to_json(j);
+  ng_ran_node2_cell_id.to_json(j);
   if (crit_diagnostics_present) {
     j.write_int("id", 10);
     j.write_str("criticality", "ignore");
@@ -17401,10 +17505,10 @@ mob_change_fail_ies_o::value_c mob_change_fail_ies_o::get_value(const uint32_t& 
   value_c ret{};
   switch (id) {
     case 194:
-      ret.set(value_c::types::ng_ra_nnode1_cell_id);
+      ret.set(value_c::types::ng_ran_node1_cell_id);
       break;
     case 195:
-      ret.set(value_c::types::ng_ra_nnode2_cell_id);
+      ret.set(value_c::types::ng_ran_node2_cell_id);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -17416,7 +17520,7 @@ mob_change_fail_ies_o::value_c mob_change_fail_ies_o::get_value(const uint32_t& 
       ret.set(value_c::types::crit_diagnostics);
       break;
     case 294:
-      ret.set(value_c::types::ng_ra_nnode2_ssb_offsets_mod_range);
+      ret.set(value_c::types::ng_ran_node2_ssb_offsets_mod_range);
       break;
     default:
       asn1::log_error("The id={} is not recognized", id);
@@ -17449,10 +17553,10 @@ void mob_change_fail_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::ng_ra_nnode1_cell_id:
+    case types::ng_ran_node1_cell_id:
       c = global_ng_ran_cell_id_s{};
       break;
-    case types::ng_ra_nnode2_cell_id:
+    case types::ng_ran_node2_cell_id:
       c = global_ng_ran_cell_id_s{};
       break;
     case types::cause:
@@ -17464,8 +17568,8 @@ void mob_change_fail_ies_o::value_c::set(types::options e)
     case types::crit_diagnostics:
       c = crit_diagnostics_s{};
       break;
-    case types::ng_ra_nnode2_ssb_offsets_mod_range:
-      c = ng_ra_nnode2_ssb_offsets_mod_range_l{};
+    case types::ng_ran_node2_ssb_offsets_mod_range:
+      c = ng_ran_node2_ssb_offsets_mod_range_l{};
       break;
     case types::nulltype:
       break;
@@ -17473,14 +17577,14 @@ void mob_change_fail_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "mob_change_fail_ies_o::value_c");
   }
 }
-global_ng_ran_cell_id_s& mob_change_fail_ies_o::value_c::ng_ra_nnode1_cell_id()
+global_ng_ran_cell_id_s& mob_change_fail_ies_o::value_c::ng_ran_node1_cell_id()
 {
-  assert_choice_type(types::ng_ra_nnode1_cell_id, type_, "Value");
+  assert_choice_type(types::ng_ran_node1_cell_id, type_, "Value");
   return c.get<global_ng_ran_cell_id_s>();
 }
-global_ng_ran_cell_id_s& mob_change_fail_ies_o::value_c::ng_ra_nnode2_cell_id()
+global_ng_ran_cell_id_s& mob_change_fail_ies_o::value_c::ng_ran_node2_cell_id()
 {
-  assert_choice_type(types::ng_ra_nnode2_cell_id, type_, "Value");
+  assert_choice_type(types::ng_ran_node2_cell_id, type_, "Value");
   return c.get<global_ng_ran_cell_id_s>();
 }
 cause_c& mob_change_fail_ies_o::value_c::cause()
@@ -17498,19 +17602,19 @@ crit_diagnostics_s& mob_change_fail_ies_o::value_c::crit_diagnostics()
   assert_choice_type(types::crit_diagnostics, type_, "Value");
   return c.get<crit_diagnostics_s>();
 }
-ng_ra_nnode2_ssb_offsets_mod_range_l& mob_change_fail_ies_o::value_c::ng_ra_nnode2_ssb_offsets_mod_range()
+ng_ran_node2_ssb_offsets_mod_range_l& mob_change_fail_ies_o::value_c::ng_ran_node2_ssb_offsets_mod_range()
 {
-  assert_choice_type(types::ng_ra_nnode2_ssb_offsets_mod_range, type_, "Value");
-  return c.get<ng_ra_nnode2_ssb_offsets_mod_range_l>();
+  assert_choice_type(types::ng_ran_node2_ssb_offsets_mod_range, type_, "Value");
+  return c.get<ng_ran_node2_ssb_offsets_mod_range_l>();
 }
-const global_ng_ran_cell_id_s& mob_change_fail_ies_o::value_c::ng_ra_nnode1_cell_id() const
+const global_ng_ran_cell_id_s& mob_change_fail_ies_o::value_c::ng_ran_node1_cell_id() const
 {
-  assert_choice_type(types::ng_ra_nnode1_cell_id, type_, "Value");
+  assert_choice_type(types::ng_ran_node1_cell_id, type_, "Value");
   return c.get<global_ng_ran_cell_id_s>();
 }
-const global_ng_ran_cell_id_s& mob_change_fail_ies_o::value_c::ng_ra_nnode2_cell_id() const
+const global_ng_ran_cell_id_s& mob_change_fail_ies_o::value_c::ng_ran_node2_cell_id() const
 {
-  assert_choice_type(types::ng_ra_nnode2_cell_id, type_, "Value");
+  assert_choice_type(types::ng_ran_node2_cell_id, type_, "Value");
   return c.get<global_ng_ran_cell_id_s>();
 }
 const cause_c& mob_change_fail_ies_o::value_c::cause() const
@@ -17528,20 +17632,20 @@ const crit_diagnostics_s& mob_change_fail_ies_o::value_c::crit_diagnostics() con
   assert_choice_type(types::crit_diagnostics, type_, "Value");
   return c.get<crit_diagnostics_s>();
 }
-const ng_ra_nnode2_ssb_offsets_mod_range_l& mob_change_fail_ies_o::value_c::ng_ra_nnode2_ssb_offsets_mod_range() const
+const ng_ran_node2_ssb_offsets_mod_range_l& mob_change_fail_ies_o::value_c::ng_ran_node2_ssb_offsets_mod_range() const
 {
-  assert_choice_type(types::ng_ra_nnode2_ssb_offsets_mod_range, type_, "Value");
-  return c.get<ng_ra_nnode2_ssb_offsets_mod_range_l>();
+  assert_choice_type(types::ng_ran_node2_ssb_offsets_mod_range, type_, "Value");
+  return c.get<ng_ran_node2_ssb_offsets_mod_range_l>();
 }
 void mob_change_fail_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::ng_ra_nnode1_cell_id:
+    case types::ng_ran_node1_cell_id:
       j.write_fieldname("GlobalNG-RANCell-ID");
       c.get<global_ng_ran_cell_id_s>().to_json(j);
       break;
-    case types::ng_ra_nnode2_cell_id:
+    case types::ng_ran_node2_cell_id:
       j.write_fieldname("GlobalNG-RANCell-ID");
       c.get<global_ng_ran_cell_id_s>().to_json(j);
       break;
@@ -17557,9 +17661,9 @@ void mob_change_fail_ies_o::value_c::to_json(json_writer& j) const
       j.write_fieldname("CriticalityDiagnostics");
       c.get<crit_diagnostics_s>().to_json(j);
       break;
-    case types::ng_ra_nnode2_ssb_offsets_mod_range:
+    case types::ng_ran_node2_ssb_offsets_mod_range:
       j.start_array("NG-RANnode2SSBOffsetsModificationRange");
-      for (const auto& e1 : c.get<ng_ra_nnode2_ssb_offsets_mod_range_l>()) {
+      for (const auto& e1 : c.get<ng_ran_node2_ssb_offsets_mod_range_l>()) {
         e1.to_json(j);
       }
       j.end_array();
@@ -17573,10 +17677,10 @@ OCUDUASN_CODE mob_change_fail_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::ng_ra_nnode1_cell_id:
+    case types::ng_ran_node1_cell_id:
       HANDLE_CODE(c.get<global_ng_ran_cell_id_s>().pack(bref));
       break;
-    case types::ng_ra_nnode2_cell_id:
+    case types::ng_ran_node2_cell_id:
       HANDLE_CODE(c.get<global_ng_ran_cell_id_s>().pack(bref));
       break;
     case types::cause:
@@ -17588,8 +17692,8 @@ OCUDUASN_CODE mob_change_fail_ies_o::value_c::pack(bit_ref& bref) const
     case types::crit_diagnostics:
       HANDLE_CODE(c.get<crit_diagnostics_s>().pack(bref));
       break;
-    case types::ng_ra_nnode2_ssb_offsets_mod_range:
-      HANDLE_CODE(pack_dyn_seq_of(bref, c.get<ng_ra_nnode2_ssb_offsets_mod_range_l>(), 1, 64, true));
+    case types::ng_ran_node2_ssb_offsets_mod_range:
+      HANDLE_CODE(pack_dyn_seq_of(bref, c.get<ng_ran_node2_ssb_offsets_mod_range_l>(), 1, 64, true));
       break;
     default:
       log_invalid_choice_id(type_, "mob_change_fail_ies_o::value_c");
@@ -17601,10 +17705,10 @@ OCUDUASN_CODE mob_change_fail_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::ng_ra_nnode1_cell_id:
+    case types::ng_ran_node1_cell_id:
       HANDLE_CODE(c.get<global_ng_ran_cell_id_s>().unpack(bref));
       break;
-    case types::ng_ra_nnode2_cell_id:
+    case types::ng_ran_node2_cell_id:
       HANDLE_CODE(c.get<global_ng_ran_cell_id_s>().unpack(bref));
       break;
     case types::cause:
@@ -17616,8 +17720,8 @@ OCUDUASN_CODE mob_change_fail_ies_o::value_c::unpack(cbit_ref& bref)
     case types::crit_diagnostics:
       HANDLE_CODE(c.get<crit_diagnostics_s>().unpack(bref));
       break;
-    case types::ng_ra_nnode2_ssb_offsets_mod_range:
-      HANDLE_CODE(unpack_dyn_seq_of(c.get<ng_ra_nnode2_ssb_offsets_mod_range_l>(), bref, 1, 64, true));
+    case types::ng_ran_node2_ssb_offsets_mod_range:
+      HANDLE_CODE(unpack_dyn_seq_of(c.get<ng_ran_node2_ssb_offsets_mod_range_l>(), bref, 1, 64, true));
       break;
     default:
       log_invalid_choice_id(type_, "mob_change_fail_ies_o::value_c");
@@ -17638,7 +17742,7 @@ const char* mob_change_fail_ies_o::value_c::types_opts::to_string() const
 }
 uint8_t mob_change_fail_ies_o::value_c::types_opts::to_number() const
 {
-  if (value == ng_ra_nnode2_ssb_offsets_mod_range) {
+  if (value == ng_ran_node2_ssb_offsets_mod_range) {
     return 2;
   }
   invalid_enum_number(value, "mob_change_fail_ies_o::value_c::types");
@@ -17652,20 +17756,20 @@ OCUDUASN_CODE mob_change_fail_ies_container::pack(bit_ref& bref) const
   uint32_t nof_ies = 3;
   nof_ies += mob_params_mod_range_present ? 1 : 0;
   nof_ies += crit_diagnostics_present ? 1 : 0;
-  nof_ies += ng_ra_nnode2_ssb_offsets_mod_range_present ? 1 : 0;
+  nof_ies += ng_ran_node2_ssb_offsets_mod_range_present ? 1 : 0;
   pack_length(bref, nof_ies, 0u, 65535u, true);
 
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)194, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(ng_ra_nnode1_cell_id.pack(bref));
+    HANDLE_CODE(ng_ran_node1_cell_id.pack(bref));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)195, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(ng_ra_nnode2_cell_id.pack(bref));
+    HANDLE_CODE(ng_ran_node2_cell_id.pack(bref));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -17685,11 +17789,11 @@ OCUDUASN_CODE mob_change_fail_ies_container::pack(bit_ref& bref) const
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(crit_diagnostics.pack(bref));
   }
-  if (ng_ra_nnode2_ssb_offsets_mod_range_present) {
+  if (ng_ran_node2_ssb_offsets_mod_range_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)294, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_dyn_seq_of(bref, ng_ra_nnode2_ssb_offsets_mod_range, 1, 64, true));
+    HANDLE_CODE(pack_dyn_seq_of(bref, ng_ran_node2_ssb_offsets_mod_range, 1, 64, true));
   }
 
   return OCUDUASN_SUCCESS;
@@ -17706,18 +17810,21 @@ OCUDUASN_CODE mob_change_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != mob_change_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 194: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(ng_ra_nnode1_cell_id.unpack(bref));
+        HANDLE_CODE(ng_ran_node1_cell_id.unpack(bref));
         break;
       }
       case 195: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(ng_ra_nnode2_cell_id.unpack(bref));
+        HANDLE_CODE(ng_ran_node2_cell_id.unpack(bref));
         break;
       }
       case 7: {
@@ -17739,9 +17846,9 @@ OCUDUASN_CODE mob_change_fail_ies_container::unpack(cbit_ref& bref)
         break;
       }
       case 294: {
-        ng_ra_nnode2_ssb_offsets_mod_range_present = true;
+        ng_ran_node2_ssb_offsets_mod_range_present = true;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_dyn_seq_of(ng_ra_nnode2_ssb_offsets_mod_range, bref, 1, 64, true));
+        HANDLE_CODE(unpack_dyn_seq_of(ng_ran_node2_ssb_offsets_mod_range, bref, 1, 64, true));
         break;
       }
       default:
@@ -17761,10 +17868,10 @@ void mob_change_fail_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 194);
   j.write_str("criticality", "reject");
-  ng_ra_nnode1_cell_id.to_json(j);
+  ng_ran_node1_cell_id.to_json(j);
   j.write_int("id", 195);
   j.write_str("criticality", "reject");
-  ng_ra_nnode2_cell_id.to_json(j);
+  ng_ran_node2_cell_id.to_json(j);
   j.write_int("id", 7);
   j.write_str("criticality", "ignore");
   cause.to_json(j);
@@ -17778,11 +17885,11 @@ void mob_change_fail_ies_container::to_json(json_writer& j) const
     j.write_str("criticality", "ignore");
     crit_diagnostics.to_json(j);
   }
-  if (ng_ra_nnode2_ssb_offsets_mod_range_present) {
+  if (ng_ran_node2_ssb_offsets_mod_range_present) {
     j.write_int("id", 294);
     j.write_str("criticality", "ignore");
     j.start_array("Value");
-    for (const auto& e1 : ng_ra_nnode2_ssb_offsets_mod_range) {
+    for (const auto& e1 : ng_ran_node2_ssb_offsets_mod_range) {
       e1.to_json(j);
     }
     j.end_array();
@@ -17831,16 +17938,16 @@ mob_change_request_ies_o::value_c mob_change_request_ies_o::get_value(const uint
   value_c ret{};
   switch (id) {
     case 194:
-      ret.set(value_c::types::ng_ra_nnode1_cell_id);
+      ret.set(value_c::types::ng_ran_node1_cell_id);
       break;
     case 195:
-      ret.set(value_c::types::ng_ra_nnode2_cell_id);
+      ret.set(value_c::types::ng_ran_node2_cell_id);
       break;
     case 196:
-      ret.set(value_c::types::ng_ra_nnode1_mob_params);
+      ret.set(value_c::types::ng_ran_node1_mob_params);
       break;
     case 197:
-      ret.set(value_c::types::ng_ra_nnode2_proposed_mob_params);
+      ret.set(value_c::types::ng_ran_node2_proposed_mob_params);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -17879,16 +17986,16 @@ void mob_change_request_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::ng_ra_nnode1_cell_id:
+    case types::ng_ran_node1_cell_id:
       c = global_ng_ran_cell_id_s{};
       break;
-    case types::ng_ra_nnode2_cell_id:
+    case types::ng_ran_node2_cell_id:
       c = global_ng_ran_cell_id_s{};
       break;
-    case types::ng_ra_nnode1_mob_params:
+    case types::ng_ran_node1_mob_params:
       c = mob_params_info_s{};
       break;
-    case types::ng_ra_nnode2_proposed_mob_params:
+    case types::ng_ran_node2_proposed_mob_params:
       c = mob_params_info_s{};
       break;
     case types::cause:
@@ -17903,24 +18010,24 @@ void mob_change_request_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "mob_change_request_ies_o::value_c");
   }
 }
-global_ng_ran_cell_id_s& mob_change_request_ies_o::value_c::ng_ra_nnode1_cell_id()
+global_ng_ran_cell_id_s& mob_change_request_ies_o::value_c::ng_ran_node1_cell_id()
 {
-  assert_choice_type(types::ng_ra_nnode1_cell_id, type_, "Value");
+  assert_choice_type(types::ng_ran_node1_cell_id, type_, "Value");
   return c.get<global_ng_ran_cell_id_s>();
 }
-global_ng_ran_cell_id_s& mob_change_request_ies_o::value_c::ng_ra_nnode2_cell_id()
+global_ng_ran_cell_id_s& mob_change_request_ies_o::value_c::ng_ran_node2_cell_id()
 {
-  assert_choice_type(types::ng_ra_nnode2_cell_id, type_, "Value");
+  assert_choice_type(types::ng_ran_node2_cell_id, type_, "Value");
   return c.get<global_ng_ran_cell_id_s>();
 }
-mob_params_info_s& mob_change_request_ies_o::value_c::ng_ra_nnode1_mob_params()
+mob_params_info_s& mob_change_request_ies_o::value_c::ng_ran_node1_mob_params()
 {
-  assert_choice_type(types::ng_ra_nnode1_mob_params, type_, "Value");
+  assert_choice_type(types::ng_ran_node1_mob_params, type_, "Value");
   return c.get<mob_params_info_s>();
 }
-mob_params_info_s& mob_change_request_ies_o::value_c::ng_ra_nnode2_proposed_mob_params()
+mob_params_info_s& mob_change_request_ies_o::value_c::ng_ran_node2_proposed_mob_params()
 {
-  assert_choice_type(types::ng_ra_nnode2_proposed_mob_params, type_, "Value");
+  assert_choice_type(types::ng_ran_node2_proposed_mob_params, type_, "Value");
   return c.get<mob_params_info_s>();
 }
 cause_c& mob_change_request_ies_o::value_c::cause()
@@ -17933,24 +18040,24 @@ ssb_offsets_list_l& mob_change_request_ies_o::value_c::ssb_offsets_list()
   assert_choice_type(types::ssb_offsets_list, type_, "Value");
   return c.get<ssb_offsets_list_l>();
 }
-const global_ng_ran_cell_id_s& mob_change_request_ies_o::value_c::ng_ra_nnode1_cell_id() const
+const global_ng_ran_cell_id_s& mob_change_request_ies_o::value_c::ng_ran_node1_cell_id() const
 {
-  assert_choice_type(types::ng_ra_nnode1_cell_id, type_, "Value");
+  assert_choice_type(types::ng_ran_node1_cell_id, type_, "Value");
   return c.get<global_ng_ran_cell_id_s>();
 }
-const global_ng_ran_cell_id_s& mob_change_request_ies_o::value_c::ng_ra_nnode2_cell_id() const
+const global_ng_ran_cell_id_s& mob_change_request_ies_o::value_c::ng_ran_node2_cell_id() const
 {
-  assert_choice_type(types::ng_ra_nnode2_cell_id, type_, "Value");
+  assert_choice_type(types::ng_ran_node2_cell_id, type_, "Value");
   return c.get<global_ng_ran_cell_id_s>();
 }
-const mob_params_info_s& mob_change_request_ies_o::value_c::ng_ra_nnode1_mob_params() const
+const mob_params_info_s& mob_change_request_ies_o::value_c::ng_ran_node1_mob_params() const
 {
-  assert_choice_type(types::ng_ra_nnode1_mob_params, type_, "Value");
+  assert_choice_type(types::ng_ran_node1_mob_params, type_, "Value");
   return c.get<mob_params_info_s>();
 }
-const mob_params_info_s& mob_change_request_ies_o::value_c::ng_ra_nnode2_proposed_mob_params() const
+const mob_params_info_s& mob_change_request_ies_o::value_c::ng_ran_node2_proposed_mob_params() const
 {
-  assert_choice_type(types::ng_ra_nnode2_proposed_mob_params, type_, "Value");
+  assert_choice_type(types::ng_ran_node2_proposed_mob_params, type_, "Value");
   return c.get<mob_params_info_s>();
 }
 const cause_c& mob_change_request_ies_o::value_c::cause() const
@@ -17967,19 +18074,19 @@ void mob_change_request_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::ng_ra_nnode1_cell_id:
+    case types::ng_ran_node1_cell_id:
       j.write_fieldname("GlobalNG-RANCell-ID");
       c.get<global_ng_ran_cell_id_s>().to_json(j);
       break;
-    case types::ng_ra_nnode2_cell_id:
+    case types::ng_ran_node2_cell_id:
       j.write_fieldname("GlobalNG-RANCell-ID");
       c.get<global_ng_ran_cell_id_s>().to_json(j);
       break;
-    case types::ng_ra_nnode1_mob_params:
+    case types::ng_ran_node1_mob_params:
       j.write_fieldname("MobilityParametersInformation");
       c.get<mob_params_info_s>().to_json(j);
       break;
-    case types::ng_ra_nnode2_proposed_mob_params:
+    case types::ng_ran_node2_proposed_mob_params:
       j.write_fieldname("MobilityParametersInformation");
       c.get<mob_params_info_s>().to_json(j);
       break;
@@ -18003,16 +18110,16 @@ OCUDUASN_CODE mob_change_request_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::ng_ra_nnode1_cell_id:
+    case types::ng_ran_node1_cell_id:
       HANDLE_CODE(c.get<global_ng_ran_cell_id_s>().pack(bref));
       break;
-    case types::ng_ra_nnode2_cell_id:
+    case types::ng_ran_node2_cell_id:
       HANDLE_CODE(c.get<global_ng_ran_cell_id_s>().pack(bref));
       break;
-    case types::ng_ra_nnode1_mob_params:
+    case types::ng_ran_node1_mob_params:
       HANDLE_CODE(c.get<mob_params_info_s>().pack(bref));
       break;
-    case types::ng_ra_nnode2_proposed_mob_params:
+    case types::ng_ran_node2_proposed_mob_params:
       HANDLE_CODE(c.get<mob_params_info_s>().pack(bref));
       break;
     case types::cause:
@@ -18031,16 +18138,16 @@ OCUDUASN_CODE mob_change_request_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::ng_ra_nnode1_cell_id:
+    case types::ng_ran_node1_cell_id:
       HANDLE_CODE(c.get<global_ng_ran_cell_id_s>().unpack(bref));
       break;
-    case types::ng_ra_nnode2_cell_id:
+    case types::ng_ran_node2_cell_id:
       HANDLE_CODE(c.get<global_ng_ran_cell_id_s>().unpack(bref));
       break;
-    case types::ng_ra_nnode1_mob_params:
+    case types::ng_ran_node1_mob_params:
       HANDLE_CODE(c.get<mob_params_info_s>().unpack(bref));
       break;
-    case types::ng_ra_nnode2_proposed_mob_params:
+    case types::ng_ran_node2_proposed_mob_params:
       HANDLE_CODE(c.get<mob_params_info_s>().unpack(bref));
       break;
     case types::cause:
@@ -18072,7 +18179,7 @@ template struct asn1::protocol_ie_field_s<mob_change_request_ies_o>;
 OCUDUASN_CODE mob_change_request_ies_container::pack(bit_ref& bref) const
 {
   uint32_t nof_ies = 4;
-  nof_ies += ng_ra_nnode1_mob_params_present ? 1 : 0;
+  nof_ies += ng_ran_node1_mob_params_present ? 1 : 0;
   nof_ies += ssb_offsets_list_present ? 1 : 0;
   pack_length(bref, nof_ies, 0u, 65535u, true);
 
@@ -18080,25 +18187,25 @@ OCUDUASN_CODE mob_change_request_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)194, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(ng_ra_nnode1_cell_id.pack(bref));
+    HANDLE_CODE(ng_ran_node1_cell_id.pack(bref));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)195, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(ng_ra_nnode2_cell_id.pack(bref));
+    HANDLE_CODE(ng_ran_node2_cell_id.pack(bref));
   }
-  if (ng_ra_nnode1_mob_params_present) {
+  if (ng_ran_node1_mob_params_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)196, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(ng_ra_nnode1_mob_params.pack(bref));
+    HANDLE_CODE(ng_ran_node1_mob_params.pack(bref));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)197, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(ng_ra_nnode2_proposed_mob_params.pack(bref));
+    HANDLE_CODE(ng_ran_node2_proposed_mob_params.pack(bref));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -18127,30 +18234,33 @@ OCUDUASN_CODE mob_change_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != mob_change_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 194: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(ng_ra_nnode1_cell_id.unpack(bref));
+        HANDLE_CODE(ng_ran_node1_cell_id.unpack(bref));
         break;
       }
       case 195: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(ng_ra_nnode2_cell_id.unpack(bref));
+        HANDLE_CODE(ng_ran_node2_cell_id.unpack(bref));
         break;
       }
       case 196: {
-        ng_ra_nnode1_mob_params_present = true;
+        ng_ran_node1_mob_params_present = true;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(ng_ra_nnode1_mob_params.unpack(bref));
+        HANDLE_CODE(ng_ran_node1_mob_params.unpack(bref));
         break;
       }
       case 197: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(ng_ra_nnode2_proposed_mob_params.unpack(bref));
+        HANDLE_CODE(ng_ran_node2_proposed_mob_params.unpack(bref));
         break;
       }
       case 7: {
@@ -18182,18 +18292,18 @@ void mob_change_request_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 194);
   j.write_str("criticality", "reject");
-  ng_ra_nnode1_cell_id.to_json(j);
+  ng_ran_node1_cell_id.to_json(j);
   j.write_int("id", 195);
   j.write_str("criticality", "reject");
-  ng_ra_nnode2_cell_id.to_json(j);
-  if (ng_ra_nnode1_mob_params_present) {
+  ng_ran_node2_cell_id.to_json(j);
+  if (ng_ran_node1_mob_params_present) {
     j.write_int("id", 196);
     j.write_str("criticality", "ignore");
-    ng_ra_nnode1_mob_params.to_json(j);
+    ng_ran_node1_mob_params.to_json(j);
   }
   j.write_int("id", 197);
   j.write_str("criticality", "reject");
-  ng_ra_nnode2_proposed_mob_params.to_json(j);
+  ng_ran_node2_proposed_mob_params.to_json(j);
   j.write_int("id", 7);
   j.write_str("criticality", "ignore");
   cause.to_json(j);
@@ -18881,6 +18991,9 @@ OCUDUASN_CODE ngran_node_cfg_upd_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ngran_node_cfg_upd_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 75: {
@@ -19311,6 +19424,9 @@ OCUDUASN_CODE responding_node_type_cfg_upd_ack_ng_enb_ext_ies_container::unpack(
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != responding_node_type_cfg_upd_ack_ng_enb_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 18: {
@@ -19582,6 +19698,9 @@ OCUDUASN_CODE responding_node_type_cfg_upd_ack_gnb_ext_ies_container::unpack(cbi
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != responding_node_type_cfg_upd_ack_gnb_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 142: {
@@ -20302,6 +20421,9 @@ OCUDUASN_CODE ngran_node_cfg_upd_ack_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ngran_node_cfg_upd_ack_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 58: {
@@ -20695,6 +20817,9 @@ OCUDUASN_CODE ngran_node_cfg_upd_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ngran_node_cfg_upd_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 7: {
@@ -20835,10 +20960,10 @@ notif_ctrl_ind_ies_o::value_c notif_ctrl_ind_ies_o::get_value(const uint32_t& id
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 44:
       ret.set(value_c::types::pdu_session_res_notify_list);
@@ -20868,10 +20993,10 @@ void notif_ctrl_ind_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::pdu_session_res_notify_list:
@@ -20883,14 +21008,14 @@ void notif_ctrl_ind_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "notif_ctrl_ind_ies_o::value_c");
   }
 }
-uint64_t& notif_ctrl_ind_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& notif_ctrl_ind_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& notif_ctrl_ind_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& notif_ctrl_ind_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 pdu_session_res_notify_list_l& notif_ctrl_ind_ies_o::value_c::pdu_session_res_notify_list()
@@ -20898,14 +21023,14 @@ pdu_session_res_notify_list_l& notif_ctrl_ind_ies_o::value_c::pdu_session_res_no
   assert_choice_type(types::pdu_session_res_notify_list, type_, "Value");
   return c.get<pdu_session_res_notify_list_l>();
 }
-const uint64_t& notif_ctrl_ind_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& notif_ctrl_ind_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& notif_ctrl_ind_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& notif_ctrl_ind_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const pdu_session_res_notify_list_l& notif_ctrl_ind_ies_o::value_c::pdu_session_res_notify_list() const
@@ -20917,10 +21042,10 @@ void notif_ctrl_ind_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::pdu_session_res_notify_list:
@@ -20939,10 +21064,10 @@ OCUDUASN_CODE notif_ctrl_ind_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_res_notify_list:
@@ -20958,10 +21083,10 @@ OCUDUASN_CODE notif_ctrl_ind_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_res_notify_list:
@@ -20992,13 +21117,13 @@ OCUDUASN_CODE notif_ctrl_ind_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (pdu_session_res_notify_list_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)44, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -21021,18 +21146,21 @@ OCUDUASN_CODE notif_ctrl_ind_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != notif_ctrl_ind_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 44: {
@@ -21058,10 +21186,10 @@ void notif_ctrl_ind_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "reject");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   if (pdu_session_res_notify_list_present) {
     j.write_int("id", 44);
     j.write_str("criticality", "reject");
@@ -22638,6 +22766,9 @@ OCUDUASN_CODE pdu_sessions_to_be_modified_sn_mod_request_item_ext_ies_container:
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != pdu_sessions_to_be_modified_sn_mod_request_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 116: {
@@ -22845,10 +22976,10 @@ partial_ue_context_transfer_ies_o::value_c partial_ue_context_transfer_ies_o::ge
   value_c ret{};
   switch (id) {
     case 27:
-      ret.set(value_c::types::new_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::new_ng_ran_node_ue_xnap_id);
       break;
     case 29:
-      ret.set(value_c::types::old_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::old_ng_ran_node_ue_xnap_id);
       break;
     case 354:
       ret.set(value_c::types::sdt_partial_ue_context_info);
@@ -22883,10 +23014,10 @@ void partial_ue_context_transfer_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::sdt_partial_ue_context_info:
@@ -22901,14 +23032,14 @@ void partial_ue_context_transfer_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "partial_ue_context_transfer_ies_o::value_c");
   }
 }
-uint64_t& partial_ue_context_transfer_ies_o::value_c::new_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& partial_ue_context_transfer_ies_o::value_c::new_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::new_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::new_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& partial_ue_context_transfer_ies_o::value_c::old_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& partial_ue_context_transfer_ies_o::value_c::old_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::old_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::old_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 sdt_partial_ue_context_info_s& partial_ue_context_transfer_ies_o::value_c::sdt_partial_ue_context_info()
@@ -22921,14 +23052,14 @@ pos_partial_ue_context_info_s& partial_ue_context_transfer_ies_o::value_c::pos_p
   assert_choice_type(types::pos_partial_ue_context_info, type_, "Value");
   return c.get<pos_partial_ue_context_info_s>();
 }
-const uint64_t& partial_ue_context_transfer_ies_o::value_c::new_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& partial_ue_context_transfer_ies_o::value_c::new_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::new_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::new_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& partial_ue_context_transfer_ies_o::value_c::old_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& partial_ue_context_transfer_ies_o::value_c::old_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::old_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::old_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const sdt_partial_ue_context_info_s& partial_ue_context_transfer_ies_o::value_c::sdt_partial_ue_context_info() const
@@ -22945,10 +23076,10 @@ void partial_ue_context_transfer_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::sdt_partial_ue_context_info:
@@ -22968,10 +23099,10 @@ OCUDUASN_CODE partial_ue_context_transfer_ies_o::value_c::pack(bit_ref& bref) co
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::sdt_partial_ue_context_info:
@@ -22990,10 +23121,10 @@ OCUDUASN_CODE partial_ue_context_transfer_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::sdt_partial_ue_context_info:
@@ -23028,13 +23159,13 @@ OCUDUASN_CODE partial_ue_context_transfer_ies_container::pack(bit_ref& bref) con
     HANDLE_CODE(pack_integer(bref, (uint32_t)27, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, new_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, new_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)29, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, old_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, old_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)354, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -23063,20 +23194,21 @@ OCUDUASN_CODE partial_ue_context_transfer_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != partial_ue_context_transfer_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 27: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(
-            unpack_integer(new_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(new_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 29: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(
-            unpack_integer(old_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(old_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 354: {
@@ -23108,10 +23240,10 @@ void partial_ue_context_transfer_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 27);
   j.write_str("criticality", "reject");
-  j.write_int("Value", new_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", new_ng_ran_node_ue_xnap_id);
   j.write_int("id", 29);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", old_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", old_ng_ran_node_ue_xnap_id);
   j.write_int("id", 354);
   j.write_str("criticality", "ignore");
   sdt_partial_ue_context_info.to_json(j);
@@ -23162,10 +23294,10 @@ partial_ue_context_transfer_ack_ies_o::value_c partial_ue_context_transfer_ack_i
   value_c ret{};
   switch (id) {
     case 27:
-      ret.set(value_c::types::new_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::new_ng_ran_node_ue_xnap_id);
       break;
     case 29:
-      ret.set(value_c::types::old_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::old_ng_ran_node_ue_xnap_id);
       break;
     case 355:
       ret.set(value_c::types::sdt_data_forwarding_drb_list);
@@ -23205,10 +23337,10 @@ void partial_ue_context_transfer_ack_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::sdt_data_forwarding_drb_list:
@@ -23226,14 +23358,14 @@ void partial_ue_context_transfer_ack_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "partial_ue_context_transfer_ack_ies_o::value_c");
   }
 }
-uint64_t& partial_ue_context_transfer_ack_ies_o::value_c::new_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& partial_ue_context_transfer_ack_ies_o::value_c::new_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::new_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::new_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& partial_ue_context_transfer_ack_ies_o::value_c::old_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& partial_ue_context_transfer_ack_ies_o::value_c::old_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::old_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::old_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 sdt_data_forwarding_drb_list_l& partial_ue_context_transfer_ack_ies_o::value_c::sdt_data_forwarding_drb_list()
@@ -23251,14 +23383,14 @@ unbounded_octstring<true>& partial_ue_context_transfer_ack_ies_o::value_c::srs_c
   assert_choice_type(types::srs_cfg, type_, "Value");
   return c.get<unbounded_octstring<true>>();
 }
-const uint64_t& partial_ue_context_transfer_ack_ies_o::value_c::new_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& partial_ue_context_transfer_ack_ies_o::value_c::new_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::new_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::new_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& partial_ue_context_transfer_ack_ies_o::value_c::old_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& partial_ue_context_transfer_ack_ies_o::value_c::old_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::old_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::old_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const sdt_data_forwarding_drb_list_l&
@@ -23281,10 +23413,10 @@ void partial_ue_context_transfer_ack_ies_o::value_c::to_json(json_writer& j) con
 {
   j.start_obj();
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::sdt_data_forwarding_drb_list:
@@ -23310,10 +23442,10 @@ OCUDUASN_CODE partial_ue_context_transfer_ack_ies_o::value_c::pack(bit_ref& bref
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::sdt_data_forwarding_drb_list:
@@ -23335,10 +23467,10 @@ OCUDUASN_CODE partial_ue_context_transfer_ack_ies_o::value_c::unpack(cbit_ref& b
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::sdt_data_forwarding_drb_list:
@@ -23381,13 +23513,13 @@ OCUDUASN_CODE partial_ue_context_transfer_ack_ies_container::pack(bit_ref& bref)
     HANDLE_CODE(pack_integer(bref, (uint32_t)27, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, new_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, new_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)29, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, old_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, old_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (sdt_data_forwarding_drb_list_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)355, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -23422,20 +23554,21 @@ OCUDUASN_CODE partial_ue_context_transfer_ack_ies_container::unpack(cbit_ref& br
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != partial_ue_context_transfer_ack_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 27: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(
-            unpack_integer(new_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(new_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 29: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(
-            unpack_integer(old_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(old_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 355: {
@@ -23473,10 +23606,10 @@ void partial_ue_context_transfer_ack_ies_container::to_json(json_writer& j) cons
   j.start_obj();
   j.write_int("id", 27);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", new_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", new_ng_ran_node_ue_xnap_id);
   j.write_int("id", 29);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", old_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", old_ng_ran_node_ue_xnap_id);
   if (sdt_data_forwarding_drb_list_present) {
     j.write_int("id", 355);
     j.write_str("criticality", "ignore");
@@ -23536,10 +23669,10 @@ partial_ue_context_transfer_fail_ies_o::value_c partial_ue_context_transfer_fail
   value_c ret{};
   switch (id) {
     case 27:
-      ret.set(value_c::types::new_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::new_ng_ran_node_ue_xnap_id);
       break;
     case 29:
-      ret.set(value_c::types::old_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::old_ng_ran_node_ue_xnap_id);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -23574,10 +23707,10 @@ void partial_ue_context_transfer_fail_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::cause:
@@ -23592,14 +23725,14 @@ void partial_ue_context_transfer_fail_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "partial_ue_context_transfer_fail_ies_o::value_c");
   }
 }
-uint64_t& partial_ue_context_transfer_fail_ies_o::value_c::new_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& partial_ue_context_transfer_fail_ies_o::value_c::new_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::new_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::new_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& partial_ue_context_transfer_fail_ies_o::value_c::old_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& partial_ue_context_transfer_fail_ies_o::value_c::old_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::old_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::old_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 cause_c& partial_ue_context_transfer_fail_ies_o::value_c::cause()
@@ -23612,14 +23745,14 @@ crit_diagnostics_s& partial_ue_context_transfer_fail_ies_o::value_c::crit_diagno
   assert_choice_type(types::crit_diagnostics, type_, "Value");
   return c.get<crit_diagnostics_s>();
 }
-const uint64_t& partial_ue_context_transfer_fail_ies_o::value_c::new_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& partial_ue_context_transfer_fail_ies_o::value_c::new_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::new_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::new_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& partial_ue_context_transfer_fail_ies_o::value_c::old_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& partial_ue_context_transfer_fail_ies_o::value_c::old_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::old_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::old_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const cause_c& partial_ue_context_transfer_fail_ies_o::value_c::cause() const
@@ -23636,10 +23769,10 @@ void partial_ue_context_transfer_fail_ies_o::value_c::to_json(json_writer& j) co
 {
   j.start_obj();
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::cause:
@@ -23659,10 +23792,10 @@ OCUDUASN_CODE partial_ue_context_transfer_fail_ies_o::value_c::pack(bit_ref& bre
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -23681,10 +23814,10 @@ OCUDUASN_CODE partial_ue_context_transfer_fail_ies_o::value_c::unpack(cbit_ref& 
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -23719,13 +23852,13 @@ OCUDUASN_CODE partial_ue_context_transfer_fail_ies_container::pack(bit_ref& bref
     HANDLE_CODE(pack_integer(bref, (uint32_t)27, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, new_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, new_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)29, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, old_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, old_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -23754,20 +23887,21 @@ OCUDUASN_CODE partial_ue_context_transfer_fail_ies_container::unpack(cbit_ref& b
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != partial_ue_context_transfer_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 27: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(
-            unpack_integer(new_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(new_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 29: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(
-            unpack_integer(old_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(old_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 7: {
@@ -23799,10 +23933,10 @@ void partial_ue_context_transfer_fail_ies_container::to_json(json_writer& j) con
   j.start_obj();
   j.write_int("id", 27);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", new_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", new_ng_ran_node_ue_xnap_id);
   j.write_int("id", 29);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", old_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", old_ng_ran_node_ue_xnap_id);
   j.write_int("id", 7);
   j.write_str("criticality", "ignore");
   cause.to_json(j);
@@ -24190,6 +24324,9 @@ OCUDUASN_CODE ran_multicast_group_paging_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ran_multicast_group_paging_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 269: {
@@ -24988,6 +25125,9 @@ OCUDUASN_CODE ran_paging_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ran_paging_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 89: {
@@ -25377,10 +25517,10 @@ rrc_transfer_ies_o::value_c rrc_transfer_ies_o::get_value(const uint32_t& id)
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 74:
       ret.set(value_c::types::split_srb_rrc_transfer);
@@ -25435,10 +25575,10 @@ void rrc_transfer_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::split_srb_rrc_transfer:
@@ -25465,14 +25605,14 @@ void rrc_transfer_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "rrc_transfer_ies_o::value_c");
   }
 }
-uint64_t& rrc_transfer_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& rrc_transfer_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& rrc_transfer_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& rrc_transfer_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 split_srb_rrc_transfer_s& rrc_transfer_ies_o::value_c::split_srb_rrc_transfer()
@@ -25505,14 +25645,14 @@ qo_e_meas_results_s& rrc_transfer_ies_o::value_c::qo_e_meas_results()
   assert_choice_type(types::qo_e_meas_results, type_, "Value");
   return c.get<qo_e_meas_results_s>();
 }
-const uint64_t& rrc_transfer_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& rrc_transfer_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& rrc_transfer_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& rrc_transfer_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const split_srb_rrc_transfer_s& rrc_transfer_ies_o::value_c::split_srb_rrc_transfer() const
@@ -25549,10 +25689,10 @@ void rrc_transfer_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::split_srb_rrc_transfer:
@@ -25588,10 +25728,10 @@ OCUDUASN_CODE rrc_transfer_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::split_srb_rrc_transfer:
@@ -25622,10 +25762,10 @@ OCUDUASN_CODE rrc_transfer_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::split_srb_rrc_transfer:
@@ -25683,13 +25823,13 @@ OCUDUASN_CODE rrc_transfer_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (split_srb_rrc_transfer_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)74, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -25742,18 +25882,21 @@ OCUDUASN_CODE rrc_transfer_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != rrc_transfer_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 74: {
@@ -25809,10 +25952,10 @@ void rrc_transfer_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "reject");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   if (split_srb_rrc_transfer_present) {
     j.write_int("id", 74);
     j.write_str("criticality", "reject");
@@ -26159,6 +26302,9 @@ OCUDUASN_CODE reset_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != reset_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 56: {
@@ -26436,6 +26582,9 @@ OCUDUASN_CODE reset_resp_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != reset_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 57: {
@@ -26741,6 +26890,9 @@ OCUDUASN_CODE res_status_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != res_status_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 187: {
@@ -27133,6 +27285,9 @@ OCUDUASN_CODE res_status_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != res_status_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 187: {
@@ -27437,6 +27592,9 @@ OCUDUASN_CODE res_status_resp_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != res_status_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 187: {
@@ -27706,6 +27864,9 @@ OCUDUASN_CODE res_status_upd_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != res_status_upd_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 187: {
@@ -27995,10 +28156,10 @@ retrieve_ue_context_confirm_ies_o::value_c retrieve_ue_context_confirm_ies_o::ge
   value_c ret{};
   switch (id) {
     case 29:
-      ret.set(value_c::types::old_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::old_ng_ran_node_ue_xnap_id);
       break;
     case 27:
-      ret.set(value_c::types::new_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::new_ng_ran_node_ue_xnap_id);
       break;
     case 86:
       ret.set(value_c::types::ue_context_kept_ind);
@@ -28033,10 +28194,10 @@ void retrieve_ue_context_confirm_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::ue_context_kept_ind:
@@ -28051,14 +28212,14 @@ void retrieve_ue_context_confirm_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "retrieve_ue_context_confirm_ies_o::value_c");
   }
 }
-uint64_t& retrieve_ue_context_confirm_ies_o::value_c::old_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& retrieve_ue_context_confirm_ies_o::value_c::old_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::old_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::old_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& retrieve_ue_context_confirm_ies_o::value_c::new_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& retrieve_ue_context_confirm_ies_o::value_c::new_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::new_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::new_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 ue_context_kept_ind_e& retrieve_ue_context_confirm_ies_o::value_c::ue_context_kept_ind()
@@ -28071,14 +28232,14 @@ sdt_termination_request_e& retrieve_ue_context_confirm_ies_o::value_c::sdt_termi
   assert_choice_type(types::sdt_termination_request, type_, "Value");
   return c.get<sdt_termination_request_e>();
 }
-const uint64_t& retrieve_ue_context_confirm_ies_o::value_c::old_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& retrieve_ue_context_confirm_ies_o::value_c::old_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::old_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::old_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& retrieve_ue_context_confirm_ies_o::value_c::new_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& retrieve_ue_context_confirm_ies_o::value_c::new_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::new_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::new_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const ue_context_kept_ind_e& retrieve_ue_context_confirm_ies_o::value_c::ue_context_kept_ind() const
@@ -28095,10 +28256,10 @@ void retrieve_ue_context_confirm_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::ue_context_kept_ind:
@@ -28116,10 +28277,10 @@ OCUDUASN_CODE retrieve_ue_context_confirm_ies_o::value_c::pack(bit_ref& bref) co
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::ue_context_kept_ind:
@@ -28138,10 +28299,10 @@ OCUDUASN_CODE retrieve_ue_context_confirm_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::ue_context_kept_ind:
@@ -28177,13 +28338,13 @@ OCUDUASN_CODE retrieve_ue_context_confirm_ies_container::pack(bit_ref& bref) con
     HANDLE_CODE(pack_integer(bref, (uint32_t)29, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, old_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, old_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)27, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, new_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, new_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (ue_context_kept_ind_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)86, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -28212,20 +28373,21 @@ OCUDUASN_CODE retrieve_ue_context_confirm_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != retrieve_ue_context_confirm_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 29: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(
-            unpack_integer(old_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(old_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 27: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(
-            unpack_integer(new_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(new_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 86: {
@@ -28257,10 +28419,10 @@ void retrieve_ue_context_confirm_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 29);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", old_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", old_ng_ran_node_ue_xnap_id);
   j.write_int("id", 27);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", new_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", new_ng_ran_node_ue_xnap_id);
   if (ue_context_kept_ind_present) {
     j.write_int("id", 86);
     j.write_str("criticality", "ignore");
@@ -28313,10 +28475,10 @@ retrieve_ue_context_fail_ies_o::value_c retrieve_ue_context_fail_ies_o::get_valu
   value_c ret{};
   switch (id) {
     case 27:
-      ret.set(value_c::types::new_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::new_ng_ran_node_ue_xnap_id);
       break;
     case 30:
-      ret.set(value_c::types::oldto_new_ng_ra_nnode_resume_container);
+      ret.set(value_c::types::oldto_new_ng_ran_node_resume_container);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -28356,10 +28518,10 @@ void retrieve_ue_context_fail_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::oldto_new_ng_ra_nnode_resume_container:
+    case types::oldto_new_ng_ran_node_resume_container:
       c = unbounded_octstring<true>{};
       break;
     case types::cause:
@@ -28377,14 +28539,14 @@ void retrieve_ue_context_fail_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "retrieve_ue_context_fail_ies_o::value_c");
   }
 }
-uint64_t& retrieve_ue_context_fail_ies_o::value_c::new_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& retrieve_ue_context_fail_ies_o::value_c::new_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::new_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::new_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-unbounded_octstring<true>& retrieve_ue_context_fail_ies_o::value_c::oldto_new_ng_ra_nnode_resume_container()
+unbounded_octstring<true>& retrieve_ue_context_fail_ies_o::value_c::oldto_new_ng_ran_node_resume_container()
 {
-  assert_choice_type(types::oldto_new_ng_ra_nnode_resume_container, type_, "Value");
+  assert_choice_type(types::oldto_new_ng_ran_node_resume_container, type_, "Value");
   return c.get<unbounded_octstring<true>>();
 }
 cause_c& retrieve_ue_context_fail_ies_o::value_c::cause()
@@ -28402,14 +28564,14 @@ semipersistent_positioning_info_s& retrieve_ue_context_fail_ies_o::value_c::semi
   assert_choice_type(types::semipersistent_positioning_info, type_, "Value");
   return c.get<semipersistent_positioning_info_s>();
 }
-const uint64_t& retrieve_ue_context_fail_ies_o::value_c::new_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& retrieve_ue_context_fail_ies_o::value_c::new_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::new_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::new_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const unbounded_octstring<true>& retrieve_ue_context_fail_ies_o::value_c::oldto_new_ng_ra_nnode_resume_container() const
+const unbounded_octstring<true>& retrieve_ue_context_fail_ies_o::value_c::oldto_new_ng_ran_node_resume_container() const
 {
-  assert_choice_type(types::oldto_new_ng_ra_nnode_resume_container, type_, "Value");
+  assert_choice_type(types::oldto_new_ng_ran_node_resume_container, type_, "Value");
   return c.get<unbounded_octstring<true>>();
 }
 const cause_c& retrieve_ue_context_fail_ies_o::value_c::cause() const
@@ -28432,10 +28594,10 @@ void retrieve_ue_context_fail_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::oldto_new_ng_ra_nnode_resume_container:
+    case types::oldto_new_ng_ran_node_resume_container:
       j.write_str("OCTET STRING", c.get<unbounded_octstring<true>>().to_string());
       break;
     case types::cause:
@@ -28459,10 +28621,10 @@ OCUDUASN_CODE retrieve_ue_context_fail_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::oldto_new_ng_ra_nnode_resume_container:
+    case types::oldto_new_ng_ran_node_resume_container:
       HANDLE_CODE(c.get<unbounded_octstring<true>>().pack(bref));
       break;
     case types::cause:
@@ -28484,10 +28646,10 @@ OCUDUASN_CODE retrieve_ue_context_fail_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::oldto_new_ng_ra_nnode_resume_container:
+    case types::oldto_new_ng_ran_node_resume_container:
       HANDLE_CODE(c.get<unbounded_octstring<true>>().unpack(bref));
       break;
     case types::cause:
@@ -28526,7 +28688,7 @@ template struct asn1::protocol_ie_field_s<retrieve_ue_context_fail_ies_o>;
 OCUDUASN_CODE retrieve_ue_context_fail_ies_container::pack(bit_ref& bref) const
 {
   uint32_t nof_ies = 2;
-  nof_ies += oldto_new_ng_ra_nnode_resume_container_present ? 1 : 0;
+  nof_ies += oldto_new_ng_ran_node_resume_container_present ? 1 : 0;
   nof_ies += crit_diagnostics_present ? 1 : 0;
   nof_ies += semipersistent_positioning_info_present ? 1 : 0;
   pack_length(bref, nof_ies, 0u, 65535u, true);
@@ -28535,13 +28697,13 @@ OCUDUASN_CODE retrieve_ue_context_fail_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)27, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, new_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, new_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
-  if (oldto_new_ng_ra_nnode_resume_container_present) {
+  if (oldto_new_ng_ran_node_resume_container_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)30, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(oldto_new_ng_ra_nnode_resume_container.pack(bref));
+    HANDLE_CODE(oldto_new_ng_ran_node_resume_container.pack(bref));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -28576,19 +28738,21 @@ OCUDUASN_CODE retrieve_ue_context_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != retrieve_ue_context_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 27: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(
-            unpack_integer(new_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(new_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 30: {
-        oldto_new_ng_ra_nnode_resume_container_present = true;
+        oldto_new_ng_ran_node_resume_container_present = true;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(oldto_new_ng_ra_nnode_resume_container.unpack(bref));
+        HANDLE_CODE(oldto_new_ng_ran_node_resume_container.unpack(bref));
         break;
       }
       case 7: {
@@ -28626,11 +28790,11 @@ void retrieve_ue_context_fail_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 27);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", new_ng_ra_nnode_ue_xn_ap_id);
-  if (oldto_new_ng_ra_nnode_resume_container_present) {
+  j.write_int("Value", new_ng_ran_node_ue_xnap_id);
+  if (oldto_new_ng_ran_node_resume_container_present) {
     j.write_int("id", 30);
     j.write_str("criticality", "ignore");
-    j.write_str("Value", oldto_new_ng_ra_nnode_resume_container.to_string());
+    j.write_str("Value", oldto_new_ng_ran_node_resume_container.to_string());
   }
   j.write_int("id", 7);
   j.write_str("criticality", "ignore");
@@ -28691,7 +28855,7 @@ retrieve_ue_context_request_ies_o::value_c retrieve_ue_context_request_ies_o::ge
   value_c ret{};
   switch (id) {
     case 27:
-      ret.set(value_c::types::new_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::new_ng_ran_node_ue_xnap_id);
       break;
     case 82:
       ret.set(value_c::types::ue_context_id);
@@ -28744,7 +28908,7 @@ void retrieve_ue_context_request_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::ue_context_id:
@@ -28771,9 +28935,9 @@ void retrieve_ue_context_request_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "retrieve_ue_context_request_ies_o::value_c");
   }
 }
-uint64_t& retrieve_ue_context_request_ies_o::value_c::new_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& retrieve_ue_context_request_ies_o::value_c::new_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::new_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::new_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 ue_context_id_c& retrieve_ue_context_request_ies_o::value_c::ue_context_id()
@@ -28807,9 +28971,9 @@ retrieve_ue_context_request_ies_o::value_c::srs_positioning_cfg_or_activation_re
   assert_choice_type(types::srs_positioning_cfg_or_activation_request, type_, "Value");
   return c.get<srs_positioning_cfg_or_activation_request_e>();
 }
-const uint64_t& retrieve_ue_context_request_ies_o::value_c::new_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& retrieve_ue_context_request_ies_o::value_c::new_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::new_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::new_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const ue_context_id_c& retrieve_ue_context_request_ies_o::value_c::ue_context_id() const
@@ -28847,7 +29011,7 @@ void retrieve_ue_context_request_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::ue_context_id:
@@ -28880,7 +29044,7 @@ OCUDUASN_CODE retrieve_ue_context_request_ies_o::value_c::pack(bit_ref& bref) co
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::ue_context_id:
@@ -28911,7 +29075,7 @@ OCUDUASN_CODE retrieve_ue_context_request_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::ue_context_id:
@@ -28970,7 +29134,7 @@ OCUDUASN_CODE retrieve_ue_context_request_ies_container::pack(bit_ref& bref) con
     HANDLE_CODE(pack_integer(bref, (uint32_t)27, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, new_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, new_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)82, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -29023,13 +29187,15 @@ OCUDUASN_CODE retrieve_ue_context_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != retrieve_ue_context_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 27: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(
-            unpack_integer(new_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(new_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 82: {
@@ -29085,7 +29251,7 @@ void retrieve_ue_context_request_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 27);
   j.write_str("criticality", "reject");
-  j.write_int("Value", new_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", new_ng_ran_node_ue_xnap_id);
   j.write_int("id", 82);
   j.write_str("criticality", "reject");
   ue_context_id.to_json(j);
@@ -29196,10 +29362,10 @@ retrieve_ue_context_resp_ies_o::value_c retrieve_ue_context_resp_ies_o::get_valu
   value_c ret{};
   switch (id) {
     case 27:
-      ret.set(value_c::types::new_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::new_ng_ran_node_ue_xnap_id);
       break;
     case 29:
-      ret.set(value_c::types::old_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::old_ng_ran_node_ue_xnap_id);
       break;
     case 15:
       ret.set(value_c::types::guami);
@@ -29344,10 +29510,10 @@ void retrieve_ue_context_resp_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::guami:
@@ -29428,14 +29594,14 @@ void retrieve_ue_context_resp_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "retrieve_ue_context_resp_ies_o::value_c");
   }
 }
-uint64_t& retrieve_ue_context_resp_ies_o::value_c::new_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& retrieve_ue_context_resp_ies_o::value_c::new_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::new_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::new_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& retrieve_ue_context_resp_ies_o::value_c::old_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& retrieve_ue_context_resp_ies_o::value_c::old_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::old_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::old_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 guami_s& retrieve_ue_context_resp_ies_o::value_c::guami()
@@ -29558,14 +29724,14 @@ sl_positioning_ranging_services_info_s& retrieve_ue_context_resp_ies_o::value_c:
   assert_choice_type(types::sl_positioning_ranging_services_info, type_, "Value");
   return c.get<sl_positioning_ranging_services_info_s>();
 }
-const uint64_t& retrieve_ue_context_resp_ies_o::value_c::new_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& retrieve_ue_context_resp_ies_o::value_c::new_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::new_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::new_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& retrieve_ue_context_resp_ies_o::value_c::old_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& retrieve_ue_context_resp_ies_o::value_c::old_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::old_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::old_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const guami_s& retrieve_ue_context_resp_ies_o::value_c::guami() const
@@ -29696,10 +29862,10 @@ void retrieve_ue_context_resp_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::guami:
@@ -29809,10 +29975,10 @@ OCUDUASN_CODE retrieve_ue_context_resp_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::guami:
@@ -29897,10 +30063,10 @@ OCUDUASN_CODE retrieve_ue_context_resp_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::guami:
@@ -30046,13 +30212,13 @@ OCUDUASN_CODE retrieve_ue_context_resp_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)27, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, new_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, new_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)29, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, old_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, old_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)15, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -30213,20 +30379,21 @@ OCUDUASN_CODE retrieve_ue_context_resp_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != retrieve_ue_context_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 27: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(
-            unpack_integer(new_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(new_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 29: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(
-            unpack_integer(old_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(old_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 15: {
@@ -30390,10 +30557,10 @@ void retrieve_ue_context_resp_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 27);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", new_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", new_ng_ran_node_ue_xnap_id);
   j.write_int("id", 29);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", old_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", old_ng_ran_node_ue_xnap_id);
   j.write_int("id", 15);
   j.write_str("criticality", "reject");
   guami.to_json(j);
@@ -30560,10 +30727,10 @@ sn_status_transfer_ies_o::value_c sn_status_transfer_ies_o::get_value(const uint
   value_c ret{};
   switch (id) {
     case 73:
-      ret.set(value_c::types::source_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::source_ng_ran_node_ue_xnap_id);
       break;
     case 79:
-      ret.set(value_c::types::target_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::target_ng_ran_node_ue_xnap_id);
       break;
     case 12:
       ret.set(value_c::types::drbs_subject_to_status_transfer_list);
@@ -30603,10 +30770,10 @@ void sn_status_transfer_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::drbs_subject_to_status_transfer_list:
@@ -30624,14 +30791,14 @@ void sn_status_transfer_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_status_transfer_ies_o::value_c");
   }
 }
-uint64_t& sn_status_transfer_ies_o::value_c::source_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_status_transfer_ies_o::value_c::source_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::source_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::source_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_status_transfer_ies_o::value_c::target_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_status_transfer_ies_o::value_c::target_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::target_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::target_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 drbs_subject_to_status_transfer_list_l& sn_status_transfer_ies_o::value_c::drbs_subject_to_status_transfer_list()
@@ -30649,14 +30816,14 @@ fixed_bitstring<32, false, true>& sn_status_transfer_ies_o::value_c::mob_info()
   assert_choice_type(types::mob_info, type_, "Value");
   return c.get<fixed_bitstring<32, false, true>>();
 }
-const uint64_t& sn_status_transfer_ies_o::value_c::source_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_status_transfer_ies_o::value_c::source_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::source_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::source_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_status_transfer_ies_o::value_c::target_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_status_transfer_ies_o::value_c::target_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::target_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::target_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const drbs_subject_to_status_transfer_list_l&
@@ -30679,10 +30846,10 @@ void sn_status_transfer_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::drbs_subject_to_status_transfer_list:
@@ -30708,10 +30875,10 @@ OCUDUASN_CODE sn_status_transfer_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::drbs_subject_to_status_transfer_list:
@@ -30733,10 +30900,10 @@ OCUDUASN_CODE sn_status_transfer_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::drbs_subject_to_status_transfer_list:
@@ -30778,13 +30945,13 @@ OCUDUASN_CODE sn_status_transfer_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)73, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, source_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, source_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)79, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, target_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, target_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)12, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -30819,20 +30986,23 @@ OCUDUASN_CODE sn_status_transfer_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_status_transfer_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 73: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(
-            unpack_integer(source_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            unpack_integer(source_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 79: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(
-            unpack_integer(target_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            unpack_integer(target_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 12: {
@@ -30870,10 +31040,10 @@ void sn_status_transfer_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 73);
   j.write_str("criticality", "reject");
-  j.write_int("Value", source_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", source_ng_ran_node_ue_xnap_id);
   j.write_int("id", 79);
   j.write_str("criticality", "reject");
-  j.write_int("Value", target_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", target_ng_ran_node_ue_xnap_id);
   j.write_int("id", 12);
   j.write_str("criticality", "ignore");
   j.start_array("Value");
@@ -31011,7 +31181,7 @@ sn_ode_addition_request_ies_o::value_c sn_ode_addition_request_ies_o::get_value(
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 91:
       ret.set(value_c::types::ue_security_cap);
@@ -31020,7 +31190,7 @@ sn_ode_addition_request_ies_o::value_c sn_ode_addition_request_ies_o::get_value(
       ret.set(value_c::types::s_ng_ra_nnode_security_key);
       break;
     case 70:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_ambr);
+      ret.set(value_c::types::s_ng_ran_node_ue_ambr);
       break;
     case 64:
       ret.set(value_c::types::sel_plmn);
@@ -31038,7 +31208,7 @@ sn_ode_addition_request_ies_o::value_c sn_ode_addition_request_ies_o::get_value(
       ret.set(value_c::types::mn_to_sn_container);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 13:
       ret.set(value_c::types::expected_ue_behaviour);
@@ -31056,10 +31226,10 @@ sn_ode_addition_request_ies_o::value_c sn_ode_addition_request_ies_o::get_value(
       ret.set(value_c::types::available_drb_ids);
       break;
     case 105:
-      ret.set(value_c::types::s_ng_ra_nnode_max_ip_data_rate_ul);
+      ret.set(value_c::types::s_ng_ran_node_max_ip_data_rate_ul);
       break;
     case 113:
-      ret.set(value_c::types::s_ng_ra_nnode_max_ip_data_rate_dl);
+      ret.set(value_c::types::s_ng_ran_node_max_ip_data_rate_dl);
       break;
     case 110:
       ret.set(value_c::types::location_info_snr_eporting);
@@ -31074,7 +31244,7 @@ sn_ode_addition_request_ies_o::value_c sn_ode_addition_request_ies_o::get_value(
       ret.set(value_c::types::ne_dc_tdm_pattern);
       break;
     case 131:
-      ret.set(value_c::types::s_ng_ra_nnode_addition_trigger_ind);
+      ret.set(value_c::types::s_ng_ran_node_addition_trigger_ind);
       break;
     case 81:
       ret.set(value_c::types::trace_activation);
@@ -31116,7 +31286,7 @@ sn_ode_addition_request_ies_o::value_c sn_ode_addition_request_ies_o::get_value(
       ret.set(value_c::types::cp_a_info_request);
       break;
     case 359:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_slice_mbr);
+      ret.set(value_c::types::s_ng_ran_node_ue_slice_mbr);
       break;
     case 363:
       ret.set(value_c::types::f1_terminating_iab_donor_ind);
@@ -31134,7 +31304,7 @@ sn_ode_addition_request_ies_o::value_c sn_ode_addition_request_ies_o::get_value(
       ret.set(value_c::types::iab_authorization_status);
       break;
     case 457:
-      ret.set(value_c::types::source_m_ng_ra_nnode_id);
+      ret.set(value_c::types::source_m_ng_ran_node_id);
       break;
     default:
       asn1::log_error("The id={} is not recognized", id);
@@ -31239,7 +31409,7 @@ void sn_ode_addition_request_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::ue_security_cap:
@@ -31248,7 +31418,7 @@ void sn_ode_addition_request_ies_o::value_c::set(types::options e)
     case types::s_ng_ra_nnode_security_key:
       c = fixed_bitstring<256, false, true>{};
       break;
-    case types::s_ng_ra_nnode_ue_ambr:
+    case types::s_ng_ran_node_ue_ambr:
       c = ue_aggr_max_bit_rate_s{};
       break;
     case types::sel_plmn:
@@ -31266,7 +31436,7 @@ void sn_ode_addition_request_ies_o::value_c::set(types::options e)
     case types::mn_to_sn_container:
       c = unbounded_octstring<true>{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::expected_ue_behaviour:
@@ -31284,10 +31454,10 @@ void sn_ode_addition_request_ies_o::value_c::set(types::options e)
     case types::available_drb_ids:
       c = drb_list_l{};
       break;
-    case types::s_ng_ra_nnode_max_ip_data_rate_ul:
+    case types::s_ng_ran_node_max_ip_data_rate_ul:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_max_ip_data_rate_dl:
+    case types::s_ng_ran_node_max_ip_data_rate_dl:
       c = uint64_t{};
       break;
     case types::location_info_snr_eporting:
@@ -31302,8 +31472,8 @@ void sn_ode_addition_request_ies_o::value_c::set(types::options e)
     case types::ne_dc_tdm_pattern:
       c = ne_dc_tdm_pattern_s{};
       break;
-    case types::s_ng_ra_nnode_addition_trigger_ind:
-      c = s_ng_ra_nnode_addition_trigger_ind_e{};
+    case types::s_ng_ran_node_addition_trigger_ind:
+      c = s_ng_ran_node_addition_trigger_ind_e{};
       break;
     case types::trace_activation:
       c = trace_activation_s{};
@@ -31344,7 +31514,7 @@ void sn_ode_addition_request_ies_o::value_c::set(types::options e)
     case types::cp_a_info_request:
       c = cp_a_info_request_s{};
       break;
-    case types::s_ng_ra_nnode_ue_slice_mbr:
+    case types::s_ng_ran_node_ue_slice_mbr:
       c = ue_slice_max_bit_rate_list_l{};
       break;
     case types::f1_terminating_iab_donor_ind:
@@ -31362,7 +31532,7 @@ void sn_ode_addition_request_ies_o::value_c::set(types::options e)
     case types::iab_authorization_status:
       c = iab_authorization_status_e{};
       break;
-    case types::source_m_ng_ra_nnode_id:
+    case types::source_m_ng_ran_node_id:
       c = global_ng_ran_node_id_c{};
       break;
     case types::nulltype:
@@ -31371,9 +31541,9 @@ void sn_ode_addition_request_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_addition_request_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_addition_request_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_addition_request_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 ue_security_cap_s& sn_ode_addition_request_ies_o::value_c::ue_security_cap()
@@ -31386,9 +31556,9 @@ fixed_bitstring<256, false, true>& sn_ode_addition_request_ies_o::value_c::s_ng_
   assert_choice_type(types::s_ng_ra_nnode_security_key, type_, "Value");
   return c.get<fixed_bitstring<256, false, true>>();
 }
-ue_aggr_max_bit_rate_s& sn_ode_addition_request_ies_o::value_c::s_ng_ra_nnode_ue_ambr()
+ue_aggr_max_bit_rate_s& sn_ode_addition_request_ies_o::value_c::s_ng_ran_node_ue_ambr()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_ambr, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_ambr, type_, "Value");
   return c.get<ue_aggr_max_bit_rate_s>();
 }
 fixed_octstring<3, true>& sn_ode_addition_request_ies_o::value_c::sel_plmn()
@@ -31416,9 +31586,9 @@ unbounded_octstring<true>& sn_ode_addition_request_ies_o::value_c::mn_to_sn_cont
   assert_choice_type(types::mn_to_sn_container, type_, "Value");
   return c.get<unbounded_octstring<true>>();
 }
-uint64_t& sn_ode_addition_request_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_addition_request_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 expected_ue_behaviour_s& sn_ode_addition_request_ies_o::value_c::expected_ue_behaviour()
@@ -31446,14 +31616,14 @@ drb_list_l& sn_ode_addition_request_ies_o::value_c::available_drb_ids()
   assert_choice_type(types::available_drb_ids, type_, "Value");
   return c.get<drb_list_l>();
 }
-uint64_t& sn_ode_addition_request_ies_o::value_c::s_ng_ra_nnode_max_ip_data_rate_ul()
+uint64_t& sn_ode_addition_request_ies_o::value_c::s_ng_ran_node_max_ip_data_rate_ul()
 {
-  assert_choice_type(types::s_ng_ra_nnode_max_ip_data_rate_ul, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_max_ip_data_rate_ul, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_addition_request_ies_o::value_c::s_ng_ra_nnode_max_ip_data_rate_dl()
+uint64_t& sn_ode_addition_request_ies_o::value_c::s_ng_ran_node_max_ip_data_rate_dl()
 {
-  assert_choice_type(types::s_ng_ra_nnode_max_ip_data_rate_dl, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_max_ip_data_rate_dl, type_, "Value");
   return c.get<uint64_t>();
 }
 location_info_snr_eporting_e& sn_ode_addition_request_ies_o::value_c::location_info_snr_eporting()
@@ -31476,10 +31646,10 @@ ne_dc_tdm_pattern_s& sn_ode_addition_request_ies_o::value_c::ne_dc_tdm_pattern()
   assert_choice_type(types::ne_dc_tdm_pattern, type_, "Value");
   return c.get<ne_dc_tdm_pattern_s>();
 }
-s_ng_ra_nnode_addition_trigger_ind_e& sn_ode_addition_request_ies_o::value_c::s_ng_ra_nnode_addition_trigger_ind()
+s_ng_ran_node_addition_trigger_ind_e& sn_ode_addition_request_ies_o::value_c::s_ng_ran_node_addition_trigger_ind()
 {
-  assert_choice_type(types::s_ng_ra_nnode_addition_trigger_ind, type_, "Value");
-  return c.get<s_ng_ra_nnode_addition_trigger_ind_e>();
+  assert_choice_type(types::s_ng_ran_node_addition_trigger_ind, type_, "Value");
+  return c.get<s_ng_ran_node_addition_trigger_ind_e>();
 }
 trace_activation_s& sn_ode_addition_request_ies_o::value_c::trace_activation()
 {
@@ -31546,9 +31716,9 @@ cp_a_info_request_s& sn_ode_addition_request_ies_o::value_c::cp_a_info_request()
   assert_choice_type(types::cp_a_info_request, type_, "Value");
   return c.get<cp_a_info_request_s>();
 }
-ue_slice_max_bit_rate_list_l& sn_ode_addition_request_ies_o::value_c::s_ng_ra_nnode_ue_slice_mbr()
+ue_slice_max_bit_rate_list_l& sn_ode_addition_request_ies_o::value_c::s_ng_ran_node_ue_slice_mbr()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_slice_mbr, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_slice_mbr, type_, "Value");
   return c.get<ue_slice_max_bit_rate_list_l>();
 }
 f1_terminating_iab_donor_ind_e& sn_ode_addition_request_ies_o::value_c::f1_terminating_iab_donor_ind()
@@ -31576,14 +31746,14 @@ iab_authorization_status_e& sn_ode_addition_request_ies_o::value_c::iab_authoriz
   assert_choice_type(types::iab_authorization_status, type_, "Value");
   return c.get<iab_authorization_status_e>();
 }
-global_ng_ran_node_id_c& sn_ode_addition_request_ies_o::value_c::source_m_ng_ra_nnode_id()
+global_ng_ran_node_id_c& sn_ode_addition_request_ies_o::value_c::source_m_ng_ran_node_id()
 {
-  assert_choice_type(types::source_m_ng_ra_nnode_id, type_, "Value");
+  assert_choice_type(types::source_m_ng_ran_node_id, type_, "Value");
   return c.get<global_ng_ran_node_id_c>();
 }
-const uint64_t& sn_ode_addition_request_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_addition_request_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const ue_security_cap_s& sn_ode_addition_request_ies_o::value_c::ue_security_cap() const
@@ -31596,9 +31766,9 @@ const fixed_bitstring<256, false, true>& sn_ode_addition_request_ies_o::value_c:
   assert_choice_type(types::s_ng_ra_nnode_security_key, type_, "Value");
   return c.get<fixed_bitstring<256, false, true>>();
 }
-const ue_aggr_max_bit_rate_s& sn_ode_addition_request_ies_o::value_c::s_ng_ra_nnode_ue_ambr() const
+const ue_aggr_max_bit_rate_s& sn_ode_addition_request_ies_o::value_c::s_ng_ran_node_ue_ambr() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_ambr, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_ambr, type_, "Value");
   return c.get<ue_aggr_max_bit_rate_s>();
 }
 const fixed_octstring<3, true>& sn_ode_addition_request_ies_o::value_c::sel_plmn() const
@@ -31626,9 +31796,9 @@ const unbounded_octstring<true>& sn_ode_addition_request_ies_o::value_c::mn_to_s
   assert_choice_type(types::mn_to_sn_container, type_, "Value");
   return c.get<unbounded_octstring<true>>();
 }
-const uint64_t& sn_ode_addition_request_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_addition_request_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const expected_ue_behaviour_s& sn_ode_addition_request_ies_o::value_c::expected_ue_behaviour() const
@@ -31656,14 +31826,14 @@ const drb_list_l& sn_ode_addition_request_ies_o::value_c::available_drb_ids() co
   assert_choice_type(types::available_drb_ids, type_, "Value");
   return c.get<drb_list_l>();
 }
-const uint64_t& sn_ode_addition_request_ies_o::value_c::s_ng_ra_nnode_max_ip_data_rate_ul() const
+const uint64_t& sn_ode_addition_request_ies_o::value_c::s_ng_ran_node_max_ip_data_rate_ul() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_max_ip_data_rate_ul, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_max_ip_data_rate_ul, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_addition_request_ies_o::value_c::s_ng_ra_nnode_max_ip_data_rate_dl() const
+const uint64_t& sn_ode_addition_request_ies_o::value_c::s_ng_ran_node_max_ip_data_rate_dl() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_max_ip_data_rate_dl, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_max_ip_data_rate_dl, type_, "Value");
   return c.get<uint64_t>();
 }
 const location_info_snr_eporting_e& sn_ode_addition_request_ies_o::value_c::location_info_snr_eporting() const
@@ -31686,11 +31856,11 @@ const ne_dc_tdm_pattern_s& sn_ode_addition_request_ies_o::value_c::ne_dc_tdm_pat
   assert_choice_type(types::ne_dc_tdm_pattern, type_, "Value");
   return c.get<ne_dc_tdm_pattern_s>();
 }
-const s_ng_ra_nnode_addition_trigger_ind_e&
-sn_ode_addition_request_ies_o::value_c::s_ng_ra_nnode_addition_trigger_ind() const
+const s_ng_ran_node_addition_trigger_ind_e&
+sn_ode_addition_request_ies_o::value_c::s_ng_ran_node_addition_trigger_ind() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_addition_trigger_ind, type_, "Value");
-  return c.get<s_ng_ra_nnode_addition_trigger_ind_e>();
+  assert_choice_type(types::s_ng_ran_node_addition_trigger_ind, type_, "Value");
+  return c.get<s_ng_ran_node_addition_trigger_ind_e>();
 }
 const trace_activation_s& sn_ode_addition_request_ies_o::value_c::trace_activation() const
 {
@@ -31758,9 +31928,9 @@ const cp_a_info_request_s& sn_ode_addition_request_ies_o::value_c::cp_a_info_req
   assert_choice_type(types::cp_a_info_request, type_, "Value");
   return c.get<cp_a_info_request_s>();
 }
-const ue_slice_max_bit_rate_list_l& sn_ode_addition_request_ies_o::value_c::s_ng_ra_nnode_ue_slice_mbr() const
+const ue_slice_max_bit_rate_list_l& sn_ode_addition_request_ies_o::value_c::s_ng_ran_node_ue_slice_mbr() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_slice_mbr, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_slice_mbr, type_, "Value");
   return c.get<ue_slice_max_bit_rate_list_l>();
 }
 const f1_terminating_iab_donor_ind_e& sn_ode_addition_request_ies_o::value_c::f1_terminating_iab_donor_ind() const
@@ -31788,16 +31958,16 @@ const iab_authorization_status_e& sn_ode_addition_request_ies_o::value_c::iab_au
   assert_choice_type(types::iab_authorization_status, type_, "Value");
   return c.get<iab_authorization_status_e>();
 }
-const global_ng_ran_node_id_c& sn_ode_addition_request_ies_o::value_c::source_m_ng_ra_nnode_id() const
+const global_ng_ran_node_id_c& sn_ode_addition_request_ies_o::value_c::source_m_ng_ran_node_id() const
 {
-  assert_choice_type(types::source_m_ng_ra_nnode_id, type_, "Value");
+  assert_choice_type(types::source_m_ng_ran_node_id, type_, "Value");
   return c.get<global_ng_ran_node_id_c>();
 }
 void sn_ode_addition_request_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::ue_security_cap:
@@ -31807,7 +31977,7 @@ void sn_ode_addition_request_ies_o::value_c::to_json(json_writer& j) const
     case types::s_ng_ra_nnode_security_key:
       j.write_str("BIT STRING", c.get<fixed_bitstring<256, false, true>>().to_string());
       break;
-    case types::s_ng_ra_nnode_ue_ambr:
+    case types::s_ng_ran_node_ue_ambr:
       j.write_fieldname("UEAggregateMaximumBitRate");
       c.get<ue_aggr_max_bit_rate_s>().to_json(j);
       break;
@@ -31831,7 +32001,7 @@ void sn_ode_addition_request_ies_o::value_c::to_json(json_writer& j) const
     case types::mn_to_sn_container:
       j.write_str("OCTET STRING", c.get<unbounded_octstring<true>>().to_string());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::expected_ue_behaviour:
@@ -31855,10 +32025,10 @@ void sn_ode_addition_request_ies_o::value_c::to_json(json_writer& j) const
       }
       j.end_array();
       break;
-    case types::s_ng_ra_nnode_max_ip_data_rate_ul:
+    case types::s_ng_ran_node_max_ip_data_rate_ul:
       j.write_int("INTEGER (0..4000000000000,...)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_max_ip_data_rate_dl:
+    case types::s_ng_ran_node_max_ip_data_rate_dl:
       j.write_int("INTEGER (0..4000000000000,...)", c.get<uint64_t>());
       break;
     case types::location_info_snr_eporting:
@@ -31875,8 +32045,8 @@ void sn_ode_addition_request_ies_o::value_c::to_json(json_writer& j) const
       j.write_fieldname("NE-DC-TDM-Pattern");
       c.get<ne_dc_tdm_pattern_s>().to_json(j);
       break;
-    case types::s_ng_ra_nnode_addition_trigger_ind:
-      j.write_str("S-NG-RANnode-Addition-Trigger-Ind", c.get<s_ng_ra_nnode_addition_trigger_ind_e>().to_string());
+    case types::s_ng_ran_node_addition_trigger_ind:
+      j.write_str("S-NG-RANnode-Addition-Trigger-Ind", c.get<s_ng_ran_node_addition_trigger_ind_e>().to_string());
       break;
     case types::trace_activation:
       j.write_fieldname("TraceActivation");
@@ -31930,7 +32100,7 @@ void sn_ode_addition_request_ies_o::value_c::to_json(json_writer& j) const
       j.write_fieldname("CPAInformationRequest");
       c.get<cp_a_info_request_s>().to_json(j);
       break;
-    case types::s_ng_ra_nnode_ue_slice_mbr:
+    case types::s_ng_ran_node_ue_slice_mbr:
       j.start_array("UESliceMaximumBitRateList");
       for (const auto& e1 : c.get<ue_slice_max_bit_rate_list_l>()) {
         e1.to_json(j);
@@ -31954,7 +32124,7 @@ void sn_ode_addition_request_ies_o::value_c::to_json(json_writer& j) const
     case types::iab_authorization_status:
       j.write_str("IABAuthorizationStatus", c.get<iab_authorization_status_e>().to_string());
       break;
-    case types::source_m_ng_ra_nnode_id:
+    case types::source_m_ng_ran_node_id:
       j.write_fieldname("GlobalNG-RANNode-ID");
       c.get<global_ng_ran_node_id_c>().to_json(j);
       break;
@@ -31967,7 +32137,7 @@ OCUDUASN_CODE sn_ode_addition_request_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::ue_security_cap:
@@ -31976,7 +32146,7 @@ OCUDUASN_CODE sn_ode_addition_request_ies_o::value_c::pack(bit_ref& bref) const
     case types::s_ng_ra_nnode_security_key:
       HANDLE_CODE((c.get<fixed_bitstring<256, false, true>>().pack(bref)));
       break;
-    case types::s_ng_ra_nnode_ue_ambr:
+    case types::s_ng_ran_node_ue_ambr:
       HANDLE_CODE(c.get<ue_aggr_max_bit_rate_s>().pack(bref));
       break;
     case types::sel_plmn:
@@ -31994,7 +32164,7 @@ OCUDUASN_CODE sn_ode_addition_request_ies_o::value_c::pack(bit_ref& bref) const
     case types::mn_to_sn_container:
       HANDLE_CODE(c.get<unbounded_octstring<true>>().pack(bref));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::expected_ue_behaviour:
@@ -32012,10 +32182,10 @@ OCUDUASN_CODE sn_ode_addition_request_ies_o::value_c::pack(bit_ref& bref) const
     case types::available_drb_ids:
       HANDLE_CODE(pack_dyn_seq_of(bref, c.get<drb_list_l>(), 1, 32, integer_packer<uint8_t>(1, 32, true, true)));
       break;
-    case types::s_ng_ra_nnode_max_ip_data_rate_ul:
+    case types::s_ng_ran_node_max_ip_data_rate_ul:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4000000000000u, true, true));
       break;
-    case types::s_ng_ra_nnode_max_ip_data_rate_dl:
+    case types::s_ng_ran_node_max_ip_data_rate_dl:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4000000000000u, true, true));
       break;
     case types::location_info_snr_eporting:
@@ -32030,8 +32200,8 @@ OCUDUASN_CODE sn_ode_addition_request_ies_o::value_c::pack(bit_ref& bref) const
     case types::ne_dc_tdm_pattern:
       HANDLE_CODE(c.get<ne_dc_tdm_pattern_s>().pack(bref));
       break;
-    case types::s_ng_ra_nnode_addition_trigger_ind:
-      HANDLE_CODE(c.get<s_ng_ra_nnode_addition_trigger_ind_e>().pack(bref));
+    case types::s_ng_ran_node_addition_trigger_ind:
+      HANDLE_CODE(c.get<s_ng_ran_node_addition_trigger_ind_e>().pack(bref));
       break;
     case types::trace_activation:
       HANDLE_CODE(c.get<trace_activation_s>().pack(bref));
@@ -32072,7 +32242,7 @@ OCUDUASN_CODE sn_ode_addition_request_ies_o::value_c::pack(bit_ref& bref) const
     case types::cp_a_info_request:
       HANDLE_CODE(c.get<cp_a_info_request_s>().pack(bref));
       break;
-    case types::s_ng_ra_nnode_ue_slice_mbr:
+    case types::s_ng_ran_node_ue_slice_mbr:
       HANDLE_CODE(pack_dyn_seq_of(bref, c.get<ue_slice_max_bit_rate_list_l>(), 1, 8, true));
       break;
     case types::f1_terminating_iab_donor_ind:
@@ -32090,7 +32260,7 @@ OCUDUASN_CODE sn_ode_addition_request_ies_o::value_c::pack(bit_ref& bref) const
     case types::iab_authorization_status:
       HANDLE_CODE(c.get<iab_authorization_status_e>().pack(bref));
       break;
-    case types::source_m_ng_ra_nnode_id:
+    case types::source_m_ng_ran_node_id:
       HANDLE_CODE(c.get<global_ng_ran_node_id_c>().pack(bref));
       break;
     default:
@@ -32103,7 +32273,7 @@ OCUDUASN_CODE sn_ode_addition_request_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::ue_security_cap:
@@ -32112,7 +32282,7 @@ OCUDUASN_CODE sn_ode_addition_request_ies_o::value_c::unpack(cbit_ref& bref)
     case types::s_ng_ra_nnode_security_key:
       HANDLE_CODE((c.get<fixed_bitstring<256, false, true>>().unpack(bref)));
       break;
-    case types::s_ng_ra_nnode_ue_ambr:
+    case types::s_ng_ran_node_ue_ambr:
       HANDLE_CODE(c.get<ue_aggr_max_bit_rate_s>().unpack(bref));
       break;
     case types::sel_plmn:
@@ -32130,7 +32300,7 @@ OCUDUASN_CODE sn_ode_addition_request_ies_o::value_c::unpack(cbit_ref& bref)
     case types::mn_to_sn_container:
       HANDLE_CODE(c.get<unbounded_octstring<true>>().unpack(bref));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::expected_ue_behaviour:
@@ -32148,10 +32318,10 @@ OCUDUASN_CODE sn_ode_addition_request_ies_o::value_c::unpack(cbit_ref& bref)
     case types::available_drb_ids:
       HANDLE_CODE(unpack_dyn_seq_of(c.get<drb_list_l>(), bref, 1, 32, integer_packer<uint8_t>(1, 32, true, true)));
       break;
-    case types::s_ng_ra_nnode_max_ip_data_rate_ul:
+    case types::s_ng_ran_node_max_ip_data_rate_ul:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
       break;
-    case types::s_ng_ra_nnode_max_ip_data_rate_dl:
+    case types::s_ng_ran_node_max_ip_data_rate_dl:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
       break;
     case types::location_info_snr_eporting:
@@ -32166,8 +32336,8 @@ OCUDUASN_CODE sn_ode_addition_request_ies_o::value_c::unpack(cbit_ref& bref)
     case types::ne_dc_tdm_pattern:
       HANDLE_CODE(c.get<ne_dc_tdm_pattern_s>().unpack(bref));
       break;
-    case types::s_ng_ra_nnode_addition_trigger_ind:
-      HANDLE_CODE(c.get<s_ng_ra_nnode_addition_trigger_ind_e>().unpack(bref));
+    case types::s_ng_ran_node_addition_trigger_ind:
+      HANDLE_CODE(c.get<s_ng_ran_node_addition_trigger_ind_e>().unpack(bref));
       break;
     case types::trace_activation:
       HANDLE_CODE(c.get<trace_activation_s>().unpack(bref));
@@ -32208,7 +32378,7 @@ OCUDUASN_CODE sn_ode_addition_request_ies_o::value_c::unpack(cbit_ref& bref)
     case types::cp_a_info_request:
       HANDLE_CODE(c.get<cp_a_info_request_s>().unpack(bref));
       break;
-    case types::s_ng_ra_nnode_ue_slice_mbr:
+    case types::s_ng_ran_node_ue_slice_mbr:
       HANDLE_CODE(unpack_dyn_seq_of(c.get<ue_slice_max_bit_rate_list_l>(), bref, 1, 8, true));
       break;
     case types::f1_terminating_iab_donor_ind:
@@ -32226,7 +32396,7 @@ OCUDUASN_CODE sn_ode_addition_request_ies_o::value_c::unpack(cbit_ref& bref)
     case types::iab_authorization_status:
       HANDLE_CODE(c.get<iab_authorization_status_e>().unpack(bref));
       break;
-    case types::source_m_ng_ra_nnode_id:
+    case types::source_m_ng_ran_node_id:
       HANDLE_CODE(c.get<global_ng_ran_node_id_c>().unpack(bref));
       break;
     default:
@@ -32291,19 +32461,19 @@ OCUDUASN_CODE sn_ode_addition_request_ies_container::pack(bit_ref& bref) const
   nof_ies += sel_plmn_present ? 1 : 0;
   nof_ies += mob_restrict_list_present ? 1 : 0;
   nof_ies += idx_to_rat_frequ_sel_prio_present ? 1 : 0;
-  nof_ies += s_ng_ra_nnode_ue_xn_ap_id_present ? 1 : 0;
+  nof_ies += s_ng_ran_node_ue_xnap_id_present ? 1 : 0;
   nof_ies += expected_ue_behaviour_present ? 1 : 0;
   nof_ies += requested_split_srb_present ? 1 : 0;
   nof_ies += pcell_id_present ? 1 : 0;
   nof_ies += desired_act_notif_level_present ? 1 : 0;
   nof_ies += available_drb_ids_present ? 1 : 0;
-  nof_ies += s_ng_ra_nnode_max_ip_data_rate_ul_present ? 1 : 0;
-  nof_ies += s_ng_ra_nnode_max_ip_data_rate_dl_present ? 1 : 0;
+  nof_ies += s_ng_ran_node_max_ip_data_rate_ul_present ? 1 : 0;
+  nof_ies += s_ng_ran_node_max_ip_data_rate_dl_present ? 1 : 0;
   nof_ies += location_info_snr_eporting_present ? 1 : 0;
   nof_ies += mr_dc_res_coordination_info_present ? 1 : 0;
   nof_ies += masked_imeisv_present ? 1 : 0;
   nof_ies += ne_dc_tdm_pattern_present ? 1 : 0;
-  nof_ies += s_ng_ra_nnode_addition_trigger_ind_present ? 1 : 0;
+  nof_ies += s_ng_ran_node_addition_trigger_ind_present ? 1 : 0;
   nof_ies += trace_activation_present ? 1 : 0;
   nof_ies += requested_fast_mcg_recovery_via_srb3_present ? 1 : 0;
   nof_ies += ue_radio_cap_id_present ? 1 : 0;
@@ -32317,20 +32487,20 @@ OCUDUASN_CODE sn_ode_addition_request_ies_container::pack(bit_ref& bref) const
   nof_ies += ch_oinfo_add_req_present ? 1 : 0;
   nof_ies += scg_activation_request_present ? 1 : 0;
   nof_ies += cp_a_info_request_present ? 1 : 0;
-  nof_ies += s_ng_ra_nnode_ue_slice_mbr_present ? 1 : 0;
+  nof_ies += s_ng_ran_node_ue_slice_mbr_present ? 1 : 0;
   nof_ies += f1_terminating_iab_donor_ind_present ? 1 : 0;
   nof_ies += sel_n_id_present ? 1 : 0;
   nof_ies += q_mcc_oordination_request_present ? 1 : 0;
   nof_ies += source_sn_to_target_sn_qmc_info_present ? 1 : 0;
   nof_ies += iab_authorization_status_present ? 1 : 0;
-  nof_ies += source_m_ng_ra_nnode_id_present ? 1 : 0;
+  nof_ies += source_m_ng_ran_node_id_present ? 1 : 0;
   pack_length(bref, nof_ies, 0u, 65535u, true);
 
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)91, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -32348,7 +32518,7 @@ OCUDUASN_CODE sn_ode_addition_request_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)70, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(s_ng_ra_nnode_ue_ambr.pack(bref));
+    HANDLE_CODE(s_ng_ran_node_ue_ambr.pack(bref));
   }
   if (sel_plmn_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)64, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -32380,11 +32550,11 @@ OCUDUASN_CODE sn_ode_addition_request_ies_container::pack(bit_ref& bref) const
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(mn_to_sn_container.pack(bref));
   }
-  if (s_ng_ra_nnode_ue_xn_ap_id_present) {
+  if (s_ng_ran_node_ue_xnap_id_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (expected_ue_behaviour_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)13, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -32416,19 +32586,19 @@ OCUDUASN_CODE sn_ode_addition_request_ies_container::pack(bit_ref& bref) const
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(pack_dyn_seq_of(bref, available_drb_ids, 1, 32, integer_packer<uint8_t>(1, 32, true, true)));
   }
-  if (s_ng_ra_nnode_max_ip_data_rate_ul_present) {
+  if (s_ng_ran_node_max_ip_data_rate_ul_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)105, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(
-        pack_integer(bref, s_ng_ra_nnode_max_ip_data_rate_ul, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
+        pack_integer(bref, s_ng_ran_node_max_ip_data_rate_ul, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
   }
-  if (s_ng_ra_nnode_max_ip_data_rate_dl_present) {
+  if (s_ng_ran_node_max_ip_data_rate_dl_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)113, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(
-        pack_integer(bref, s_ng_ra_nnode_max_ip_data_rate_dl, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
+        pack_integer(bref, s_ng_ran_node_max_ip_data_rate_dl, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
   }
   if (location_info_snr_eporting_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)110, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -32454,11 +32624,11 @@ OCUDUASN_CODE sn_ode_addition_request_ies_container::pack(bit_ref& bref) const
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(ne_dc_tdm_pattern.pack(bref));
   }
-  if (s_ng_ra_nnode_addition_trigger_ind_present) {
+  if (s_ng_ran_node_addition_trigger_ind_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)131, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(s_ng_ra_nnode_addition_trigger_ind.pack(bref));
+    HANDLE_CODE(s_ng_ran_node_addition_trigger_ind.pack(bref));
   }
   if (trace_activation_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)81, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -32538,11 +32708,11 @@ OCUDUASN_CODE sn_ode_addition_request_ies_container::pack(bit_ref& bref) const
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(cp_a_info_request.pack(bref));
   }
-  if (s_ng_ra_nnode_ue_slice_mbr_present) {
+  if (s_ng_ran_node_ue_slice_mbr_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)359, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_dyn_seq_of(bref, s_ng_ra_nnode_ue_slice_mbr, 1, 8, true));
+    HANDLE_CODE(pack_dyn_seq_of(bref, s_ng_ran_node_ue_slice_mbr, 1, 8, true));
   }
   if (f1_terminating_iab_donor_ind_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)363, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -32574,11 +32744,11 @@ OCUDUASN_CODE sn_ode_addition_request_ies_container::pack(bit_ref& bref) const
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(iab_authorization_status.pack(bref));
   }
-  if (source_m_ng_ra_nnode_id_present) {
+  if (source_m_ng_ran_node_id_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)457, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(source_m_ng_ra_nnode_id.pack(bref));
+    HANDLE_CODE(source_m_ng_ran_node_id.pack(bref));
   }
 
   return OCUDUASN_SUCCESS;
@@ -32595,12 +32765,15 @@ OCUDUASN_CODE sn_ode_addition_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_addition_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 91: {
@@ -32618,7 +32791,7 @@ OCUDUASN_CODE sn_ode_addition_request_ies_container::unpack(cbit_ref& bref)
       case 70: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(s_ng_ra_nnode_ue_ambr.unpack(bref));
+        HANDLE_CODE(s_ng_ran_node_ue_ambr.unpack(bref));
         break;
       }
       case 64: {
@@ -32652,9 +32825,9 @@ OCUDUASN_CODE sn_ode_addition_request_ies_container::unpack(cbit_ref& bref)
         break;
       }
       case 71: {
-        s_ng_ra_nnode_ue_xn_ap_id_present = true;
+        s_ng_ran_node_ue_xnap_id_present = true;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 13: {
@@ -32688,17 +32861,17 @@ OCUDUASN_CODE sn_ode_addition_request_ies_container::unpack(cbit_ref& bref)
         break;
       }
       case 105: {
-        s_ng_ra_nnode_max_ip_data_rate_ul_present = true;
+        s_ng_ran_node_max_ip_data_rate_ul_present = true;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(unpack_integer(
-            s_ng_ra_nnode_max_ip_data_rate_ul, bref, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
+            s_ng_ran_node_max_ip_data_rate_ul, bref, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
         break;
       }
       case 113: {
-        s_ng_ra_nnode_max_ip_data_rate_dl_present = true;
+        s_ng_ran_node_max_ip_data_rate_dl_present = true;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(unpack_integer(
-            s_ng_ra_nnode_max_ip_data_rate_dl, bref, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
+            s_ng_ran_node_max_ip_data_rate_dl, bref, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
         break;
       }
       case 110: {
@@ -32726,9 +32899,9 @@ OCUDUASN_CODE sn_ode_addition_request_ies_container::unpack(cbit_ref& bref)
         break;
       }
       case 131: {
-        s_ng_ra_nnode_addition_trigger_ind_present = true;
+        s_ng_ran_node_addition_trigger_ind_present = true;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(s_ng_ra_nnode_addition_trigger_ind.unpack(bref));
+        HANDLE_CODE(s_ng_ran_node_addition_trigger_ind.unpack(bref));
         break;
       }
       case 81: {
@@ -32810,9 +32983,9 @@ OCUDUASN_CODE sn_ode_addition_request_ies_container::unpack(cbit_ref& bref)
         break;
       }
       case 359: {
-        s_ng_ra_nnode_ue_slice_mbr_present = true;
+        s_ng_ran_node_ue_slice_mbr_present = true;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_dyn_seq_of(s_ng_ra_nnode_ue_slice_mbr, bref, 1, 8, true));
+        HANDLE_CODE(unpack_dyn_seq_of(s_ng_ran_node_ue_slice_mbr, bref, 1, 8, true));
         break;
       }
       case 363: {
@@ -32846,9 +33019,9 @@ OCUDUASN_CODE sn_ode_addition_request_ies_container::unpack(cbit_ref& bref)
         break;
       }
       case 457: {
-        source_m_ng_ra_nnode_id_present = true;
+        source_m_ng_ran_node_id_present = true;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(source_m_ng_ra_nnode_id.unpack(bref));
+        HANDLE_CODE(source_m_ng_ran_node_id.unpack(bref));
         break;
       }
       default:
@@ -32868,7 +33041,7 @@ void sn_ode_addition_request_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 91);
   j.write_str("criticality", "reject");
   ue_security_cap.to_json(j);
@@ -32877,7 +33050,7 @@ void sn_ode_addition_request_ies_container::to_json(json_writer& j) const
   j.write_str("Value", s_ng_ra_nnode_security_key.to_string());
   j.write_int("id", 70);
   j.write_str("criticality", "reject");
-  s_ng_ra_nnode_ue_ambr.to_json(j);
+  s_ng_ran_node_ue_ambr.to_json(j);
   if (sel_plmn_present) {
     j.write_int("id", 64);
     j.write_str("criticality", "ignore");
@@ -32903,10 +33076,10 @@ void sn_ode_addition_request_ies_container::to_json(json_writer& j) const
   j.write_int("id", 24);
   j.write_str("criticality", "reject");
   j.write_str("Value", mn_to_sn_container.to_string());
-  if (s_ng_ra_nnode_ue_xn_ap_id_present) {
+  if (s_ng_ran_node_ue_xnap_id_present) {
     j.write_int("id", 71);
     j.write_str("criticality", "reject");
-    j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+    j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   }
   if (expected_ue_behaviour_present) {
     j.write_int("id", 13);
@@ -32937,15 +33110,15 @@ void sn_ode_addition_request_ies_container::to_json(json_writer& j) const
     }
     j.end_array();
   }
-  if (s_ng_ra_nnode_max_ip_data_rate_ul_present) {
+  if (s_ng_ran_node_max_ip_data_rate_ul_present) {
     j.write_int("id", 105);
     j.write_str("criticality", "reject");
-    j.write_int("Value", s_ng_ra_nnode_max_ip_data_rate_ul);
+    j.write_int("Value", s_ng_ran_node_max_ip_data_rate_ul);
   }
-  if (s_ng_ra_nnode_max_ip_data_rate_dl_present) {
+  if (s_ng_ran_node_max_ip_data_rate_dl_present) {
     j.write_int("id", 113);
     j.write_str("criticality", "reject");
-    j.write_int("Value", s_ng_ra_nnode_max_ip_data_rate_dl);
+    j.write_int("Value", s_ng_ran_node_max_ip_data_rate_dl);
   }
   if (location_info_snr_eporting_present) {
     j.write_int("id", 110);
@@ -32967,10 +33140,10 @@ void sn_ode_addition_request_ies_container::to_json(json_writer& j) const
     j.write_str("criticality", "ignore");
     ne_dc_tdm_pattern.to_json(j);
   }
-  if (s_ng_ra_nnode_addition_trigger_ind_present) {
+  if (s_ng_ran_node_addition_trigger_ind_present) {
     j.write_int("id", 131);
     j.write_str("criticality", "reject");
-    j.write_str("Value", s_ng_ra_nnode_addition_trigger_ind.to_string());
+    j.write_str("Value", s_ng_ran_node_addition_trigger_ind.to_string());
   }
   if (trace_activation_present) {
     j.write_int("id", 81);
@@ -33045,11 +33218,11 @@ void sn_ode_addition_request_ies_container::to_json(json_writer& j) const
     j.write_str("criticality", "reject");
     cp_a_info_request.to_json(j);
   }
-  if (s_ng_ra_nnode_ue_slice_mbr_present) {
+  if (s_ng_ran_node_ue_slice_mbr_present) {
     j.write_int("id", 359);
     j.write_str("criticality", "reject");
     j.start_array("Value");
-    for (const auto& e1 : s_ng_ra_nnode_ue_slice_mbr) {
+    for (const auto& e1 : s_ng_ran_node_ue_slice_mbr) {
       e1.to_json(j);
     }
     j.end_array();
@@ -33079,10 +33252,10 @@ void sn_ode_addition_request_ies_container::to_json(json_writer& j) const
     j.write_str("criticality", "ignore");
     j.write_str("Value", iab_authorization_status.to_string());
   }
-  if (source_m_ng_ra_nnode_id_present) {
+  if (source_m_ng_ran_node_id_present) {
     j.write_int("id", 457);
     j.write_str("criticality", "ignore");
-    source_m_ng_ra_nnode_id.to_json(j);
+    source_m_ng_ran_node_id.to_json(j);
   }
   j.end_obj();
 }
@@ -33152,10 +33325,10 @@ sn_ode_addition_request_ack_ies_o::value_c sn_ode_addition_request_ack_ies_o::ge
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 34:
       ret.set(value_c::types::pdu_session_admitted_added_add_req_ack);
@@ -33260,10 +33433,10 @@ void sn_ode_addition_request_ack_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::pdu_session_admitted_added_add_req_ack:
@@ -33320,14 +33493,14 @@ void sn_ode_addition_request_ack_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_addition_request_ack_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_addition_request_ack_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_addition_request_ack_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_addition_request_ack_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_addition_request_ack_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 pdu_session_admitted_added_add_req_ack_l&
@@ -33414,14 +33587,14 @@ sn_ode_addition_request_ack_ies_o::value_c::direct_forwarding_path_availability_
   assert_choice_type(types::direct_forwarding_path_availability_with_source_mn, type_, "Value");
   return c.get<direct_forwarding_path_availability_with_source_mn_e>();
 }
-const uint64_t& sn_ode_addition_request_ack_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_addition_request_ack_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_addition_request_ack_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_addition_request_ack_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const pdu_session_admitted_added_add_req_ack_l&
@@ -33513,10 +33686,10 @@ void sn_ode_addition_request_ack_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::pdu_session_admitted_added_add_req_ack:
@@ -33587,10 +33760,10 @@ OCUDUASN_CODE sn_ode_addition_request_ack_ies_o::value_c::pack(bit_ref& bref) co
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_admitted_added_add_req_ack:
@@ -33651,10 +33824,10 @@ OCUDUASN_CODE sn_ode_addition_request_ack_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_admitted_added_add_req_ack:
@@ -33760,13 +33933,13 @@ OCUDUASN_CODE sn_ode_addition_request_ack_ies_container::pack(bit_ref& bref) con
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)34, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -33879,18 +34052,21 @@ OCUDUASN_CODE sn_ode_addition_request_ack_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_addition_request_ack_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 34: {
@@ -34006,10 +34182,10 @@ void sn_ode_addition_request_ack_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "reject");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   j.write_int("id", 34);
   j.write_str("criticality", "ignore");
   j.start_array("Value");
@@ -34132,10 +34308,10 @@ sn_ode_addition_request_reject_ies_o::value_c sn_ode_addition_request_reject_ies
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -34175,10 +34351,10 @@ void sn_ode_addition_request_reject_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::cause:
@@ -34196,14 +34372,14 @@ void sn_ode_addition_request_reject_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_addition_request_reject_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_addition_request_reject_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_addition_request_reject_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_addition_request_reject_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_addition_request_reject_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 cause_c& sn_ode_addition_request_reject_ies_o::value_c::cause()
@@ -34221,14 +34397,14 @@ global_ng_ran_cell_id_s& sn_ode_addition_request_reject_ies_o::value_c::pcell_id
   assert_choice_type(types::pcell_id, type_, "Value");
   return c.get<global_ng_ran_cell_id_s>();
 }
-const uint64_t& sn_ode_addition_request_reject_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_addition_request_reject_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_addition_request_reject_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_addition_request_reject_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const cause_c& sn_ode_addition_request_reject_ies_o::value_c::cause() const
@@ -34250,10 +34426,10 @@ void sn_ode_addition_request_reject_ies_o::value_c::to_json(json_writer& j) cons
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::cause:
@@ -34277,10 +34453,10 @@ OCUDUASN_CODE sn_ode_addition_request_reject_ies_o::value_c::pack(bit_ref& bref)
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -34302,10 +34478,10 @@ OCUDUASN_CODE sn_ode_addition_request_reject_ies_o::value_c::unpack(cbit_ref& br
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -34344,13 +34520,13 @@ OCUDUASN_CODE sn_ode_addition_request_reject_ies_container::pack(bit_ref& bref) 
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -34385,18 +34561,21 @@ OCUDUASN_CODE sn_ode_addition_request_reject_ies_container::unpack(cbit_ref& bre
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_addition_request_reject_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 7: {
@@ -34434,10 +34613,10 @@ void sn_ode_addition_request_reject_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "reject");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   j.write_int("id", 7);
   j.write_str("criticality", "ignore");
   cause.to_json(j);
@@ -34495,10 +34674,10 @@ sn_ode_change_confirm_ies_o::value_c sn_ode_change_confirm_ies_o::get_value(cons
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 45:
       ret.set(value_c::types::pdu_session_sn_change_confirm_list);
@@ -34543,10 +34722,10 @@ void sn_ode_change_confirm_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::pdu_session_sn_change_confirm_list:
@@ -34567,14 +34746,14 @@ void sn_ode_change_confirm_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_change_confirm_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_change_confirm_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_change_confirm_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_change_confirm_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_change_confirm_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 pdu_session_sn_change_confirm_list_l& sn_ode_change_confirm_ies_o::value_c::pdu_session_sn_change_confirm_list()
@@ -34597,14 +34776,14 @@ unbounded_octstring<true>& sn_ode_change_confirm_ies_o::value_c::mn_to_sn_contai
   assert_choice_type(types::mn_to_sn_container, type_, "Value");
   return c.get<unbounded_octstring<true>>();
 }
-const uint64_t& sn_ode_change_confirm_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_change_confirm_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_change_confirm_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_change_confirm_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const pdu_session_sn_change_confirm_list_l&
@@ -34632,10 +34811,10 @@ void sn_ode_change_confirm_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::pdu_session_sn_change_confirm_list:
@@ -34665,10 +34844,10 @@ OCUDUASN_CODE sn_ode_change_confirm_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_sn_change_confirm_list:
@@ -34693,10 +34872,10 @@ OCUDUASN_CODE sn_ode_change_confirm_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_sn_change_confirm_list:
@@ -34744,13 +34923,13 @@ OCUDUASN_CODE sn_ode_change_confirm_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (pdu_session_sn_change_confirm_list_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)45, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -34791,18 +34970,21 @@ OCUDUASN_CODE sn_ode_change_confirm_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_change_confirm_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 45: {
@@ -34846,10 +35028,10 @@ void sn_ode_change_confirm_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   if (pdu_session_sn_change_confirm_list_present) {
     j.write_int("id", 45);
     j.write_str("criticality", "ignore");
@@ -34914,10 +35096,10 @@ sn_ode_change_refuse_ies_o::value_c sn_ode_change_refuse_ies_o::get_value(const 
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -34952,10 +35134,10 @@ void sn_ode_change_refuse_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::cause:
@@ -34970,14 +35152,14 @@ void sn_ode_change_refuse_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_change_refuse_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_change_refuse_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_change_refuse_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_change_refuse_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_change_refuse_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 cause_c& sn_ode_change_refuse_ies_o::value_c::cause()
@@ -34990,14 +35172,14 @@ crit_diagnostics_s& sn_ode_change_refuse_ies_o::value_c::crit_diagnostics()
   assert_choice_type(types::crit_diagnostics, type_, "Value");
   return c.get<crit_diagnostics_s>();
 }
-const uint64_t& sn_ode_change_refuse_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_change_refuse_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_change_refuse_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_change_refuse_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const cause_c& sn_ode_change_refuse_ies_o::value_c::cause() const
@@ -35014,10 +35196,10 @@ void sn_ode_change_refuse_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::cause:
@@ -35037,10 +35219,10 @@ OCUDUASN_CODE sn_ode_change_refuse_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -35059,10 +35241,10 @@ OCUDUASN_CODE sn_ode_change_refuse_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -35097,13 +35279,13 @@ OCUDUASN_CODE sn_ode_change_refuse_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -35132,18 +35314,21 @@ OCUDUASN_CODE sn_ode_change_refuse_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_change_refuse_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 7: {
@@ -35175,10 +35360,10 @@ void sn_ode_change_refuse_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   j.write_int("id", 7);
   j.write_str("criticality", "ignore");
   cause.to_json(j);
@@ -35241,13 +35426,13 @@ sn_ode_change_required_ies_o::value_c sn_ode_change_required_ies_o::get_value(co
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 80:
-      ret.set(value_c::types::target_s_ng_ra_nnode_id);
+      ret.set(value_c::types::target_s_ng_ran_node_id);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -35314,13 +35499,13 @@ void sn_ode_change_required_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::target_s_ng_ra_nnode_id:
+    case types::target_s_ng_ran_node_id:
       c = global_ng_ran_node_id_c{};
       break;
     case types::cause:
@@ -35353,19 +35538,19 @@ void sn_ode_change_required_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_change_required_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_change_required_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_change_required_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_change_required_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_change_required_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-global_ng_ran_node_id_c& sn_ode_change_required_ies_o::value_c::target_s_ng_ra_nnode_id()
+global_ng_ran_node_id_c& sn_ode_change_required_ies_o::value_c::target_s_ng_ran_node_id()
 {
-  assert_choice_type(types::target_s_ng_ra_nnode_id, type_, "Value");
+  assert_choice_type(types::target_s_ng_ran_node_id, type_, "Value");
   return c.get<global_ng_ran_node_id_c>();
 }
 cause_c& sn_ode_change_required_ies_o::value_c::cause()
@@ -35408,19 +35593,19 @@ q_mcc_onfig_info_s& sn_ode_change_required_ies_o::value_c::source_sn_to_target_s
   assert_choice_type(types::source_sn_to_target_sn_qmc_info, type_, "Value");
   return c.get<q_mcc_onfig_info_s>();
 }
-const uint64_t& sn_ode_change_required_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_change_required_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_change_required_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_change_required_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const global_ng_ran_node_id_c& sn_ode_change_required_ies_o::value_c::target_s_ng_ra_nnode_id() const
+const global_ng_ran_node_id_c& sn_ode_change_required_ies_o::value_c::target_s_ng_ran_node_id() const
 {
-  assert_choice_type(types::target_s_ng_ra_nnode_id, type_, "Value");
+  assert_choice_type(types::target_s_ng_ran_node_id, type_, "Value");
   return c.get<global_ng_ran_node_id_c>();
 }
 const cause_c& sn_ode_change_required_ies_o::value_c::cause() const
@@ -35468,13 +35653,13 @@ void sn_ode_change_required_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::target_s_ng_ra_nnode_id:
+    case types::target_s_ng_ran_node_id:
       j.write_fieldname("GlobalNG-RANNode-ID");
       c.get<global_ng_ran_node_id_c>().to_json(j);
       break;
@@ -35520,13 +35705,13 @@ OCUDUASN_CODE sn_ode_change_required_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::target_s_ng_ra_nnode_id:
+    case types::target_s_ng_ran_node_id:
       HANDLE_CODE(c.get<global_ng_ran_node_id_c>().pack(bref));
       break;
     case types::cause:
@@ -35563,13 +35748,13 @@ OCUDUASN_CODE sn_ode_change_required_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::target_s_ng_ra_nnode_id:
+    case types::target_s_ng_ran_node_id:
       HANDLE_CODE(c.get<global_ng_ran_node_id_c>().unpack(bref));
       break;
     case types::cause:
@@ -35636,19 +35821,19 @@ OCUDUASN_CODE sn_ode_change_required_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)80, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(target_s_ng_ra_nnode_id.pack(bref));
+    HANDLE_CODE(target_s_ng_ran_node_id.pack(bref));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -35713,24 +35898,27 @@ OCUDUASN_CODE sn_ode_change_required_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_change_required_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 80: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(target_s_ng_ra_nnode_id.unpack(bref));
+        HANDLE_CODE(target_s_ng_ran_node_id.unpack(bref));
         break;
       }
       case 7: {
@@ -35798,13 +35986,13 @@ void sn_ode_change_required_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "reject");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   j.write_int("id", 80);
   j.write_str("criticality", "reject");
-  target_s_ng_ra_nnode_id.to_json(j);
+  target_s_ng_ran_node_id.to_json(j);
   j.write_int("id", 7);
   j.write_str("criticality", "ignore");
   cause.to_json(j);
@@ -35883,10 +36071,10 @@ sn_ode_counter_check_request_ies_o::value_c sn_ode_counter_check_request_ies_o::
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 6:
       ret.set(value_c::types::bearers_subject_to_counter_check);
@@ -35916,10 +36104,10 @@ void sn_ode_counter_check_request_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::bearers_subject_to_counter_check:
@@ -35931,14 +36119,14 @@ void sn_ode_counter_check_request_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_counter_check_request_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_counter_check_request_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_counter_check_request_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_counter_check_request_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_counter_check_request_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 bearers_subject_to_counter_check_list_l& sn_ode_counter_check_request_ies_o::value_c::bearers_subject_to_counter_check()
@@ -35946,14 +36134,14 @@ bearers_subject_to_counter_check_list_l& sn_ode_counter_check_request_ies_o::val
   assert_choice_type(types::bearers_subject_to_counter_check, type_, "Value");
   return c.get<bearers_subject_to_counter_check_list_l>();
 }
-const uint64_t& sn_ode_counter_check_request_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_counter_check_request_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_counter_check_request_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_counter_check_request_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const bearers_subject_to_counter_check_list_l&
@@ -35966,10 +36154,10 @@ void sn_ode_counter_check_request_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::bearers_subject_to_counter_check:
@@ -35988,10 +36176,10 @@ OCUDUASN_CODE sn_ode_counter_check_request_ies_o::value_c::pack(bit_ref& bref) c
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::bearers_subject_to_counter_check:
@@ -36007,10 +36195,10 @@ OCUDUASN_CODE sn_ode_counter_check_request_ies_o::value_c::unpack(cbit_ref& bref
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::bearers_subject_to_counter_check:
@@ -36041,13 +36229,13 @@ OCUDUASN_CODE sn_ode_counter_check_request_ies_container::pack(bit_ref& bref) co
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)6, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -36070,18 +36258,21 @@ OCUDUASN_CODE sn_ode_counter_check_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_counter_check_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 6: {
@@ -36107,10 +36298,10 @@ void sn_ode_counter_check_request_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   j.write_int("id", 6);
   j.write_str("criticality", "ignore");
   j.start_array("Value");
@@ -36168,10 +36359,10 @@ sn_ode_mod_confirm_ies_o::value_c sn_ode_mod_confirm_ies_o::get_value(const uint
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 35:
       ret.set(value_c::types::pdu_session_admitted_mod_sn_mod_confirm);
@@ -36231,10 +36422,10 @@ void sn_ode_mod_confirm_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::pdu_session_admitted_mod_sn_mod_confirm:
@@ -36264,14 +36455,14 @@ void sn_ode_mod_confirm_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_mod_confirm_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_mod_confirm_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_mod_confirm_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_mod_confirm_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_mod_confirm_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 pdu_session_admitted_mod_sn_mod_confirm_l& sn_ode_mod_confirm_ies_o::value_c::pdu_session_admitted_mod_sn_mod_confirm()
@@ -36309,14 +36500,14 @@ q_mcc_oordination_resp_s& sn_ode_mod_confirm_ies_o::value_c::q_mcc_oordination_r
   assert_choice_type(types::q_mcc_oordination_resp, type_, "Value");
   return c.get<q_mcc_oordination_resp_s>();
 }
-const uint64_t& sn_ode_mod_confirm_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_mod_confirm_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_mod_confirm_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_mod_confirm_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const pdu_session_admitted_mod_sn_mod_confirm_l&
@@ -36360,10 +36551,10 @@ void sn_ode_mod_confirm_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::pdu_session_admitted_mod_sn_mod_confirm:
@@ -36408,10 +36599,10 @@ OCUDUASN_CODE sn_ode_mod_confirm_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_admitted_mod_sn_mod_confirm:
@@ -36445,10 +36636,10 @@ OCUDUASN_CODE sn_ode_mod_confirm_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_admitted_mod_sn_mod_confirm:
@@ -36511,13 +36702,13 @@ OCUDUASN_CODE sn_ode_mod_confirm_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (pdu_session_admitted_mod_sn_mod_confirm_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)35, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -36576,18 +36767,21 @@ OCUDUASN_CODE sn_ode_mod_confirm_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_mod_confirm_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 35: {
@@ -36649,10 +36843,10 @@ void sn_ode_mod_confirm_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   if (pdu_session_admitted_mod_sn_mod_confirm_present) {
     j.write_int("id", 35);
     j.write_str("criticality", "ignore");
@@ -36738,10 +36932,10 @@ sn_ode_mod_refuse_ies_o::value_c sn_ode_mod_refuse_ies_o::get_value(const uint32
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -36781,10 +36975,10 @@ void sn_ode_mod_refuse_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::cause:
@@ -36802,14 +36996,14 @@ void sn_ode_mod_refuse_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_mod_refuse_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_mod_refuse_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_mod_refuse_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_mod_refuse_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_mod_refuse_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 cause_c& sn_ode_mod_refuse_ies_o::value_c::cause()
@@ -36827,14 +37021,14 @@ crit_diagnostics_s& sn_ode_mod_refuse_ies_o::value_c::crit_diagnostics()
   assert_choice_type(types::crit_diagnostics, type_, "Value");
   return c.get<crit_diagnostics_s>();
 }
-const uint64_t& sn_ode_mod_refuse_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_mod_refuse_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_mod_refuse_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_mod_refuse_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const cause_c& sn_ode_mod_refuse_ies_o::value_c::cause() const
@@ -36856,10 +37050,10 @@ void sn_ode_mod_refuse_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::cause:
@@ -36882,10 +37076,10 @@ OCUDUASN_CODE sn_ode_mod_refuse_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -36907,10 +37101,10 @@ OCUDUASN_CODE sn_ode_mod_refuse_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -36949,13 +37143,13 @@ OCUDUASN_CODE sn_ode_mod_refuse_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -36990,18 +37184,21 @@ OCUDUASN_CODE sn_ode_mod_refuse_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_mod_refuse_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 7: {
@@ -37039,10 +37236,10 @@ void sn_ode_mod_refuse_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   j.write_int("id", 7);
   j.write_str("criticality", "ignore");
   cause.to_json(j);
@@ -37303,10 +37500,10 @@ sn_ode_mod_request_ies_o::value_c sn_ode_mod_request_ies_o::get_value(const uint
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -37342,10 +37539,10 @@ sn_ode_mod_request_ies_o::value_c sn_ode_mod_request_ies_o::get_value(const uint
       ret.set(value_c::types::add_drb_ids);
       break;
     case 105:
-      ret.set(value_c::types::s_ng_ra_nnode_max_ip_data_rate_ul);
+      ret.set(value_c::types::s_ng_ran_node_max_ip_data_rate_ul);
       break;
     case 113:
-      ret.set(value_c::types::s_ng_ra_nnode_max_ip_data_rate_dl);
+      ret.set(value_c::types::s_ng_ran_node_max_ip_data_rate_dl);
       break;
     case 110:
       ret.set(value_c::types::location_info_snr_eporting);
@@ -37390,7 +37587,7 @@ sn_ode_mod_request_ies_o::value_c sn_ode_mod_request_ies_o::get_value(const uint
       ret.set(value_c::types::c_pci_nformation_upd);
       break;
     case 359:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_slice_mbr);
+      ret.set(value_c::types::s_ng_ran_node_ue_slice_mbr);
       break;
     case 362:
       ret.set(value_c::types::management_based_mdt_plmn_mod_list);
@@ -37496,10 +37693,10 @@ void sn_ode_mod_request_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::cause:
@@ -37535,10 +37732,10 @@ void sn_ode_mod_request_ies_o::value_c::set(types::options e)
     case types::add_drb_ids:
       c = drb_list_l{};
       break;
-    case types::s_ng_ra_nnode_max_ip_data_rate_ul:
+    case types::s_ng_ran_node_max_ip_data_rate_ul:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_max_ip_data_rate_dl:
+    case types::s_ng_ran_node_max_ip_data_rate_dl:
       c = uint64_t{};
       break;
     case types::location_info_snr_eporting:
@@ -37583,7 +37780,7 @@ void sn_ode_mod_request_ies_o::value_c::set(types::options e)
     case types::c_pci_nformation_upd:
       c = c_pci_nformation_upd_s{};
       break;
-    case types::s_ng_ra_nnode_ue_slice_mbr:
+    case types::s_ng_ran_node_ue_slice_mbr:
       c = ue_slice_max_bit_rate_list_l{};
       break;
     case types::management_based_mdt_plmn_mod_list:
@@ -37607,14 +37804,14 @@ void sn_ode_mod_request_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_mod_request_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_mod_request_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_mod_request_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_mod_request_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_mod_request_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 cause_c& sn_ode_mod_request_ies_o::value_c::cause()
@@ -37672,14 +37869,14 @@ drb_list_l& sn_ode_mod_request_ies_o::value_c::add_drb_ids()
   assert_choice_type(types::add_drb_ids, type_, "Value");
   return c.get<drb_list_l>();
 }
-uint64_t& sn_ode_mod_request_ies_o::value_c::s_ng_ra_nnode_max_ip_data_rate_ul()
+uint64_t& sn_ode_mod_request_ies_o::value_c::s_ng_ran_node_max_ip_data_rate_ul()
 {
-  assert_choice_type(types::s_ng_ra_nnode_max_ip_data_rate_ul, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_max_ip_data_rate_ul, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_mod_request_ies_o::value_c::s_ng_ra_nnode_max_ip_data_rate_dl()
+uint64_t& sn_ode_mod_request_ies_o::value_c::s_ng_ran_node_max_ip_data_rate_dl()
 {
-  assert_choice_type(types::s_ng_ra_nnode_max_ip_data_rate_dl, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_max_ip_data_rate_dl, type_, "Value");
   return c.get<uint64_t>();
 }
 location_info_snr_eporting_e& sn_ode_mod_request_ies_o::value_c::location_info_snr_eporting()
@@ -37753,9 +37950,9 @@ c_pci_nformation_upd_s& sn_ode_mod_request_ies_o::value_c::c_pci_nformation_upd(
   assert_choice_type(types::c_pci_nformation_upd, type_, "Value");
   return c.get<c_pci_nformation_upd_s>();
 }
-ue_slice_max_bit_rate_list_l& sn_ode_mod_request_ies_o::value_c::s_ng_ra_nnode_ue_slice_mbr()
+ue_slice_max_bit_rate_list_l& sn_ode_mod_request_ies_o::value_c::s_ng_ran_node_ue_slice_mbr()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_slice_mbr, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_slice_mbr, type_, "Value");
   return c.get<ue_slice_max_bit_rate_list_l>();
 }
 mdt_plmn_mod_list_l& sn_ode_mod_request_ies_o::value_c::management_based_mdt_plmn_mod_list()
@@ -37783,14 +37980,14 @@ iab_authorization_status_e& sn_ode_mod_request_ies_o::value_c::iab_authorization
   assert_choice_type(types::iab_authorization_status, type_, "Value");
   return c.get<iab_authorization_status_e>();
 }
-const uint64_t& sn_ode_mod_request_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_mod_request_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_mod_request_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_mod_request_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const cause_c& sn_ode_mod_request_ies_o::value_c::cause() const
@@ -37848,14 +38045,14 @@ const drb_list_l& sn_ode_mod_request_ies_o::value_c::add_drb_ids() const
   assert_choice_type(types::add_drb_ids, type_, "Value");
   return c.get<drb_list_l>();
 }
-const uint64_t& sn_ode_mod_request_ies_o::value_c::s_ng_ra_nnode_max_ip_data_rate_ul() const
+const uint64_t& sn_ode_mod_request_ies_o::value_c::s_ng_ran_node_max_ip_data_rate_ul() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_max_ip_data_rate_ul, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_max_ip_data_rate_ul, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_mod_request_ies_o::value_c::s_ng_ra_nnode_max_ip_data_rate_dl() const
+const uint64_t& sn_ode_mod_request_ies_o::value_c::s_ng_ran_node_max_ip_data_rate_dl() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_max_ip_data_rate_dl, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_max_ip_data_rate_dl, type_, "Value");
   return c.get<uint64_t>();
 }
 const location_info_snr_eporting_e& sn_ode_mod_request_ies_o::value_c::location_info_snr_eporting() const
@@ -37930,9 +38127,9 @@ const c_pci_nformation_upd_s& sn_ode_mod_request_ies_o::value_c::c_pci_nformatio
   assert_choice_type(types::c_pci_nformation_upd, type_, "Value");
   return c.get<c_pci_nformation_upd_s>();
 }
-const ue_slice_max_bit_rate_list_l& sn_ode_mod_request_ies_o::value_c::s_ng_ra_nnode_ue_slice_mbr() const
+const ue_slice_max_bit_rate_list_l& sn_ode_mod_request_ies_o::value_c::s_ng_ran_node_ue_slice_mbr() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_slice_mbr, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_slice_mbr, type_, "Value");
   return c.get<ue_slice_max_bit_rate_list_l>();
 }
 const mdt_plmn_mod_list_l& sn_ode_mod_request_ies_o::value_c::management_based_mdt_plmn_mod_list() const
@@ -37964,10 +38161,10 @@ void sn_ode_mod_request_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::cause:
@@ -38011,10 +38208,10 @@ void sn_ode_mod_request_ies_o::value_c::to_json(json_writer& j) const
       }
       j.end_array();
       break;
-    case types::s_ng_ra_nnode_max_ip_data_rate_ul:
+    case types::s_ng_ran_node_max_ip_data_rate_ul:
       j.write_int("INTEGER (0..4000000000000,...)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_max_ip_data_rate_dl:
+    case types::s_ng_ran_node_max_ip_data_rate_dl:
       j.write_int("INTEGER (0..4000000000000,...)", c.get<uint64_t>());
       break;
     case types::location_info_snr_eporting:
@@ -38067,7 +38264,7 @@ void sn_ode_mod_request_ies_o::value_c::to_json(json_writer& j) const
       j.write_fieldname("CPCInformationUpdate");
       c.get<c_pci_nformation_upd_s>().to_json(j);
       break;
-    case types::s_ng_ra_nnode_ue_slice_mbr:
+    case types::s_ng_ran_node_ue_slice_mbr:
       j.start_array("UESliceMaximumBitRateList");
       for (const auto& e1 : c.get<ue_slice_max_bit_rate_list_l>()) {
         e1.to_json(j);
@@ -38103,10 +38300,10 @@ OCUDUASN_CODE sn_ode_mod_request_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -38142,10 +38339,10 @@ OCUDUASN_CODE sn_ode_mod_request_ies_o::value_c::pack(bit_ref& bref) const
     case types::add_drb_ids:
       HANDLE_CODE(pack_dyn_seq_of(bref, c.get<drb_list_l>(), 1, 32, integer_packer<uint8_t>(1, 32, true, true)));
       break;
-    case types::s_ng_ra_nnode_max_ip_data_rate_ul:
+    case types::s_ng_ran_node_max_ip_data_rate_ul:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4000000000000u, true, true));
       break;
-    case types::s_ng_ra_nnode_max_ip_data_rate_dl:
+    case types::s_ng_ran_node_max_ip_data_rate_dl:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4000000000000u, true, true));
       break;
     case types::location_info_snr_eporting:
@@ -38190,7 +38387,7 @@ OCUDUASN_CODE sn_ode_mod_request_ies_o::value_c::pack(bit_ref& bref) const
     case types::c_pci_nformation_upd:
       HANDLE_CODE(c.get<c_pci_nformation_upd_s>().pack(bref));
       break;
-    case types::s_ng_ra_nnode_ue_slice_mbr:
+    case types::s_ng_ran_node_ue_slice_mbr:
       HANDLE_CODE(pack_dyn_seq_of(bref, c.get<ue_slice_max_bit_rate_list_l>(), 1, 8, true));
       break;
     case types::management_based_mdt_plmn_mod_list:
@@ -38218,10 +38415,10 @@ OCUDUASN_CODE sn_ode_mod_request_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -38257,10 +38454,10 @@ OCUDUASN_CODE sn_ode_mod_request_ies_o::value_c::unpack(cbit_ref& bref)
     case types::add_drb_ids:
       HANDLE_CODE(unpack_dyn_seq_of(c.get<drb_list_l>(), bref, 1, 32, integer_packer<uint8_t>(1, 32, true, true)));
       break;
-    case types::s_ng_ra_nnode_max_ip_data_rate_ul:
+    case types::s_ng_ran_node_max_ip_data_rate_ul:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
       break;
-    case types::s_ng_ra_nnode_max_ip_data_rate_dl:
+    case types::s_ng_ran_node_max_ip_data_rate_dl:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
       break;
     case types::location_info_snr_eporting:
@@ -38305,7 +38502,7 @@ OCUDUASN_CODE sn_ode_mod_request_ies_o::value_c::unpack(cbit_ref& bref)
     case types::c_pci_nformation_upd:
       HANDLE_CODE(c.get<c_pci_nformation_upd_s>().unpack(bref));
       break;
-    case types::s_ng_ra_nnode_ue_slice_mbr:
+    case types::s_ng_ran_node_ue_slice_mbr:
       HANDLE_CODE(unpack_dyn_seq_of(c.get<ue_slice_max_bit_rate_list_l>(), bref, 1, 8, true));
       break;
     case types::management_based_mdt_plmn_mod_list:
@@ -38385,8 +38582,8 @@ OCUDUASN_CODE sn_ode_mod_request_ies_container::pack(bit_ref& bref) const
   nof_ies += requested_split_srb_release_present ? 1 : 0;
   nof_ies += desired_act_notif_level_present ? 1 : 0;
   nof_ies += add_drb_ids_present ? 1 : 0;
-  nof_ies += s_ng_ra_nnode_max_ip_data_rate_ul_present ? 1 : 0;
-  nof_ies += s_ng_ra_nnode_max_ip_data_rate_dl_present ? 1 : 0;
+  nof_ies += s_ng_ran_node_max_ip_data_rate_ul_present ? 1 : 0;
+  nof_ies += s_ng_ran_node_max_ip_data_rate_dl_present ? 1 : 0;
   nof_ies += location_info_snr_eporting_present ? 1 : 0;
   nof_ies += mr_dc_res_coordination_info_present ? 1 : 0;
   nof_ies += pcell_id_present ? 1 : 0;
@@ -38401,7 +38598,7 @@ OCUDUASN_CODE sn_ode_mod_request_ies_container::pack(bit_ref& bref) const
   nof_ies += scg_activation_request_present ? 1 : 0;
   nof_ies += cp_a_info_mod_req_present ? 1 : 0;
   nof_ies += c_pci_nformation_upd_present ? 1 : 0;
-  nof_ies += s_ng_ra_nnode_ue_slice_mbr_present ? 1 : 0;
+  nof_ies += s_ng_ran_node_ue_slice_mbr_present ? 1 : 0;
   nof_ies += management_based_mdt_plmn_mod_list_present ? 1 : 0;
   nof_ies += sel_n_id_present ? 1 : 0;
   nof_ies += q_mcc_oordination_request_present ? 1 : 0;
@@ -38413,13 +38610,13 @@ OCUDUASN_CODE sn_ode_mod_request_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -38487,19 +38684,19 @@ OCUDUASN_CODE sn_ode_mod_request_ies_container::pack(bit_ref& bref) const
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(pack_dyn_seq_of(bref, add_drb_ids, 1, 32, integer_packer<uint8_t>(1, 32, true, true)));
   }
-  if (s_ng_ra_nnode_max_ip_data_rate_ul_present) {
+  if (s_ng_ran_node_max_ip_data_rate_ul_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)105, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(
-        pack_integer(bref, s_ng_ra_nnode_max_ip_data_rate_ul, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
+        pack_integer(bref, s_ng_ran_node_max_ip_data_rate_ul, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
   }
-  if (s_ng_ra_nnode_max_ip_data_rate_dl_present) {
+  if (s_ng_ran_node_max_ip_data_rate_dl_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)113, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(
-        pack_integer(bref, s_ng_ra_nnode_max_ip_data_rate_dl, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
+        pack_integer(bref, s_ng_ran_node_max_ip_data_rate_dl, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
   }
   if (location_info_snr_eporting_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)110, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -38585,11 +38782,11 @@ OCUDUASN_CODE sn_ode_mod_request_ies_container::pack(bit_ref& bref) const
     varlength_field_pack_guard varlen_scope(bref, true);
     HANDLE_CODE(c_pci_nformation_upd.pack(bref));
   }
-  if (s_ng_ra_nnode_ue_slice_mbr_present) {
+  if (s_ng_ran_node_ue_slice_mbr_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)359, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_dyn_seq_of(bref, s_ng_ra_nnode_ue_slice_mbr, 1, 8, true));
+    HANDLE_CODE(pack_dyn_seq_of(bref, s_ng_ran_node_ue_slice_mbr, 1, 8, true));
   }
   if (management_based_mdt_plmn_mod_list_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)362, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -38636,18 +38833,21 @@ OCUDUASN_CODE sn_ode_mod_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_mod_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 7: {
@@ -38717,17 +38917,17 @@ OCUDUASN_CODE sn_ode_mod_request_ies_container::unpack(cbit_ref& bref)
         break;
       }
       case 105: {
-        s_ng_ra_nnode_max_ip_data_rate_ul_present = true;
+        s_ng_ran_node_max_ip_data_rate_ul_present = true;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(unpack_integer(
-            s_ng_ra_nnode_max_ip_data_rate_ul, bref, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
+            s_ng_ran_node_max_ip_data_rate_ul, bref, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
         break;
       }
       case 113: {
-        s_ng_ra_nnode_max_ip_data_rate_dl_present = true;
+        s_ng_ran_node_max_ip_data_rate_dl_present = true;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(unpack_integer(
-            s_ng_ra_nnode_max_ip_data_rate_dl, bref, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
+            s_ng_ran_node_max_ip_data_rate_dl, bref, (uint64_t)0u, (uint64_t)4000000000000u, true, true));
         break;
       }
       case 110: {
@@ -38815,9 +39015,9 @@ OCUDUASN_CODE sn_ode_mod_request_ies_container::unpack(cbit_ref& bref)
         break;
       }
       case 359: {
-        s_ng_ra_nnode_ue_slice_mbr_present = true;
+        s_ng_ran_node_ue_slice_mbr_present = true;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_dyn_seq_of(s_ng_ra_nnode_ue_slice_mbr, bref, 1, 8, true));
+        HANDLE_CODE(unpack_dyn_seq_of(s_ng_ran_node_ue_slice_mbr, bref, 1, 8, true));
         break;
       }
       case 362: {
@@ -38867,10 +39067,10 @@ void sn_ode_mod_request_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "reject");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   j.write_int("id", 7);
   j.write_str("criticality", "ignore");
   cause.to_json(j);
@@ -38928,15 +39128,15 @@ void sn_ode_mod_request_ies_container::to_json(json_writer& j) const
     }
     j.end_array();
   }
-  if (s_ng_ra_nnode_max_ip_data_rate_ul_present) {
+  if (s_ng_ran_node_max_ip_data_rate_ul_present) {
     j.write_int("id", 105);
     j.write_str("criticality", "reject");
-    j.write_int("Value", s_ng_ra_nnode_max_ip_data_rate_ul);
+    j.write_int("Value", s_ng_ran_node_max_ip_data_rate_ul);
   }
-  if (s_ng_ra_nnode_max_ip_data_rate_dl_present) {
+  if (s_ng_ran_node_max_ip_data_rate_dl_present) {
     j.write_int("id", 113);
     j.write_str("criticality", "reject");
-    j.write_int("Value", s_ng_ra_nnode_max_ip_data_rate_dl);
+    j.write_int("Value", s_ng_ran_node_max_ip_data_rate_dl);
   }
   if (location_info_snr_eporting_present) {
     j.write_int("id", 110);
@@ -39008,11 +39208,11 @@ void sn_ode_mod_request_ies_container::to_json(json_writer& j) const
     j.write_str("criticality", "ignore");
     c_pci_nformation_upd.to_json(j);
   }
-  if (s_ng_ra_nnode_ue_slice_mbr_present) {
+  if (s_ng_ran_node_ue_slice_mbr_present) {
     j.write_int("id", 359);
     j.write_str("criticality", "ignore");
     j.start_array("Value");
-    for (const auto& e1 : s_ng_ra_nnode_ue_slice_mbr) {
+    for (const auto& e1 : s_ng_ran_node_ue_slice_mbr) {
       e1.to_json(j);
     }
     j.end_array();
@@ -39120,10 +39320,10 @@ sn_ode_mod_request_ack_ies_o::value_c sn_ode_mod_request_ack_ies_o::get_value(co
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 36:
       ret.set(value_c::types::pdu_session_admitted_sn_mod_resp);
@@ -39238,10 +39438,10 @@ void sn_ode_mod_request_ack_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::pdu_session_admitted_sn_mod_resp:
@@ -39304,14 +39504,14 @@ void sn_ode_mod_request_ack_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_mod_request_ack_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_mod_request_ack_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_mod_request_ack_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_mod_request_ack_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_mod_request_ack_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 pdu_session_admitted_sn_mod_resp_s& sn_ode_mod_request_ack_ies_o::value_c::pdu_session_admitted_sn_mod_resp()
@@ -39405,14 +39605,14 @@ q_mcc_onfig_info_s& sn_ode_mod_request_ack_ies_o::value_c::source_sn_to_target_s
   assert_choice_type(types::source_sn_to_target_sn_qmc_info, type_, "Value");
   return c.get<q_mcc_onfig_info_s>();
 }
-const uint64_t& sn_ode_mod_request_ack_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_mod_request_ack_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_mod_request_ack_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_mod_request_ack_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const pdu_session_admitted_sn_mod_resp_s&
@@ -39515,10 +39715,10 @@ void sn_ode_mod_request_ack_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::pdu_session_admitted_sn_mod_resp:
@@ -39594,10 +39794,10 @@ OCUDUASN_CODE sn_ode_mod_request_ack_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_admitted_sn_mod_resp:
@@ -39664,10 +39864,10 @@ OCUDUASN_CODE sn_ode_mod_request_ack_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_admitted_sn_mod_resp:
@@ -39785,13 +39985,13 @@ OCUDUASN_CODE sn_ode_mod_request_ack_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (pdu_session_admitted_sn_mod_resp_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)36, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -39916,18 +40116,21 @@ OCUDUASN_CODE sn_ode_mod_request_ack_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_mod_request_ack_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 36: {
@@ -40055,10 +40258,10 @@ void sn_ode_mod_request_ack_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   if (pdu_session_admitted_sn_mod_resp_present) {
     j.write_int("id", 36);
     j.write_str("criticality", "ignore");
@@ -40189,10 +40392,10 @@ sn_ode_mod_request_reject_ies_o::value_c sn_ode_mod_request_reject_ies_o::get_va
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -40227,10 +40430,10 @@ void sn_ode_mod_request_reject_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::cause:
@@ -40245,14 +40448,14 @@ void sn_ode_mod_request_reject_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_mod_request_reject_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_mod_request_reject_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_mod_request_reject_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_mod_request_reject_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_mod_request_reject_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 cause_c& sn_ode_mod_request_reject_ies_o::value_c::cause()
@@ -40265,14 +40468,14 @@ crit_diagnostics_s& sn_ode_mod_request_reject_ies_o::value_c::crit_diagnostics()
   assert_choice_type(types::crit_diagnostics, type_, "Value");
   return c.get<crit_diagnostics_s>();
 }
-const uint64_t& sn_ode_mod_request_reject_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_mod_request_reject_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_mod_request_reject_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_mod_request_reject_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const cause_c& sn_ode_mod_request_reject_ies_o::value_c::cause() const
@@ -40289,10 +40492,10 @@ void sn_ode_mod_request_reject_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::cause:
@@ -40312,10 +40515,10 @@ OCUDUASN_CODE sn_ode_mod_request_reject_ies_o::value_c::pack(bit_ref& bref) cons
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -40334,10 +40537,10 @@ OCUDUASN_CODE sn_ode_mod_request_reject_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -40372,13 +40575,13 @@ OCUDUASN_CODE sn_ode_mod_request_reject_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -40407,18 +40610,21 @@ OCUDUASN_CODE sn_ode_mod_request_reject_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_mod_request_reject_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 7: {
@@ -40450,10 +40656,10 @@ void sn_ode_mod_request_reject_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   j.write_int("id", 7);
   j.write_str("criticality", "ignore");
   cause.to_json(j);
@@ -40542,10 +40748,10 @@ sn_ode_mod_required_ies_o::value_c sn_ode_mod_required_ies_o::get_value(const ui
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -40675,10 +40881,10 @@ void sn_ode_mod_required_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::cause:
@@ -40750,14 +40956,14 @@ void sn_ode_mod_required_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_mod_required_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_mod_required_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_mod_required_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_mod_required_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_mod_required_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 cause_c& sn_ode_mod_required_ies_o::value_c::cause()
@@ -40868,14 +41074,14 @@ sn_ode_mod_required_ies_o::value_c::pdu_sessions_list_to_be_released_up_error()
   assert_choice_type(types::pdu_sessions_list_to_be_released_up_error, type_, "Value");
   return c.get<pdu_sessions_list_to_be_released_up_error_l>();
 }
-const uint64_t& sn_ode_mod_required_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_mod_required_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_mod_required_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_mod_required_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const cause_c& sn_ode_mod_required_ies_o::value_c::cause() const
@@ -40992,10 +41198,10 @@ void sn_ode_mod_required_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::cause:
@@ -41090,10 +41296,10 @@ OCUDUASN_CODE sn_ode_mod_required_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -41169,10 +41375,10 @@ OCUDUASN_CODE sn_ode_mod_required_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -41304,13 +41510,13 @@ OCUDUASN_CODE sn_ode_mod_required_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -41453,18 +41659,21 @@ OCUDUASN_CODE sn_ode_mod_required_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_mod_required_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 7: {
@@ -41610,10 +41819,10 @@ void sn_ode_mod_required_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "reject");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   j.write_int("id", 7);
   j.write_str("criticality", "ignore");
   cause.to_json(j);
@@ -41767,10 +41976,10 @@ sn_ode_recfg_complete_ies_o::value_c sn_ode_recfg_complete_ies_o::get_value(cons
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 60:
       ret.set(value_c::types::resp_info_reconf_compl);
@@ -41800,10 +42009,10 @@ void sn_ode_recfg_complete_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::resp_info_reconf_compl:
@@ -41815,14 +42024,14 @@ void sn_ode_recfg_complete_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_recfg_complete_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_recfg_complete_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_recfg_complete_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_recfg_complete_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_recfg_complete_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 resp_info_reconf_compl_s& sn_ode_recfg_complete_ies_o::value_c::resp_info_reconf_compl()
@@ -41830,14 +42039,14 @@ resp_info_reconf_compl_s& sn_ode_recfg_complete_ies_o::value_c::resp_info_reconf
   assert_choice_type(types::resp_info_reconf_compl, type_, "Value");
   return c.get<resp_info_reconf_compl_s>();
 }
-const uint64_t& sn_ode_recfg_complete_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_recfg_complete_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_recfg_complete_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_recfg_complete_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const resp_info_reconf_compl_s& sn_ode_recfg_complete_ies_o::value_c::resp_info_reconf_compl() const
@@ -41849,10 +42058,10 @@ void sn_ode_recfg_complete_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::resp_info_reconf_compl:
@@ -41868,10 +42077,10 @@ OCUDUASN_CODE sn_ode_recfg_complete_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::resp_info_reconf_compl:
@@ -41887,10 +42096,10 @@ OCUDUASN_CODE sn_ode_recfg_complete_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::resp_info_reconf_compl:
@@ -41920,13 +42129,13 @@ OCUDUASN_CODE sn_ode_recfg_complete_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)60, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -41949,18 +42158,21 @@ OCUDUASN_CODE sn_ode_recfg_complete_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_recfg_complete_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 60: {
@@ -41986,10 +42198,10 @@ void sn_ode_recfg_complete_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "reject");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   j.write_int("id", 60);
   j.write_str("criticality", "ignore");
   resp_info_reconf_compl.to_json(j);
@@ -42033,10 +42245,10 @@ sn_ode_release_confirm_ies_o::value_c sn_ode_release_confirm_ies_o::get_value(co
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 39:
       ret.set(value_c::types::pdu_session_released_list_rel_conf);
@@ -42071,10 +42283,10 @@ void sn_ode_release_confirm_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::pdu_session_released_list_rel_conf:
@@ -42089,14 +42301,14 @@ void sn_ode_release_confirm_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_release_confirm_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_release_confirm_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_release_confirm_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_release_confirm_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_release_confirm_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 pdu_session_released_list_rel_conf_s& sn_ode_release_confirm_ies_o::value_c::pdu_session_released_list_rel_conf()
@@ -42109,14 +42321,14 @@ crit_diagnostics_s& sn_ode_release_confirm_ies_o::value_c::crit_diagnostics()
   assert_choice_type(types::crit_diagnostics, type_, "Value");
   return c.get<crit_diagnostics_s>();
 }
-const uint64_t& sn_ode_release_confirm_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_release_confirm_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_release_confirm_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_release_confirm_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const pdu_session_released_list_rel_conf_s&
@@ -42134,10 +42346,10 @@ void sn_ode_release_confirm_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::pdu_session_released_list_rel_conf:
@@ -42157,10 +42369,10 @@ OCUDUASN_CODE sn_ode_release_confirm_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_released_list_rel_conf:
@@ -42179,10 +42391,10 @@ OCUDUASN_CODE sn_ode_release_confirm_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_released_list_rel_conf:
@@ -42218,13 +42430,13 @@ OCUDUASN_CODE sn_ode_release_confirm_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (pdu_session_released_list_rel_conf_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)39, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -42253,18 +42465,21 @@ OCUDUASN_CODE sn_ode_release_confirm_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_release_confirm_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 39: {
@@ -42296,10 +42511,10 @@ void sn_ode_release_confirm_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   if (pdu_session_released_list_rel_conf_present) {
     j.write_int("id", 39);
     j.write_str("criticality", "ignore");
@@ -42350,10 +42565,10 @@ sn_ode_release_reject_ies_o::value_c sn_ode_release_reject_ies_o::get_value(cons
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -42388,10 +42603,10 @@ void sn_ode_release_reject_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::cause:
@@ -42406,14 +42621,14 @@ void sn_ode_release_reject_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_release_reject_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_release_reject_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_release_reject_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_release_reject_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_release_reject_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 cause_c& sn_ode_release_reject_ies_o::value_c::cause()
@@ -42426,14 +42641,14 @@ crit_diagnostics_s& sn_ode_release_reject_ies_o::value_c::crit_diagnostics()
   assert_choice_type(types::crit_diagnostics, type_, "Value");
   return c.get<crit_diagnostics_s>();
 }
-const uint64_t& sn_ode_release_reject_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_release_reject_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_release_reject_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_release_reject_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const cause_c& sn_ode_release_reject_ies_o::value_c::cause() const
@@ -42450,10 +42665,10 @@ void sn_ode_release_reject_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::cause:
@@ -42473,10 +42688,10 @@ OCUDUASN_CODE sn_ode_release_reject_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -42495,10 +42710,10 @@ OCUDUASN_CODE sn_ode_release_reject_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -42526,7 +42741,7 @@ template struct asn1::protocol_ie_field_s<sn_ode_release_reject_ies_o>;
 OCUDUASN_CODE sn_ode_release_reject_ies_container::pack(bit_ref& bref) const
 {
   uint32_t nof_ies = 2;
-  nof_ies += s_ng_ra_nnode_ue_xn_ap_id_present ? 1 : 0;
+  nof_ies += s_ng_ran_node_ue_xnap_id_present ? 1 : 0;
   nof_ies += crit_diagnostics_present ? 1 : 0;
   pack_length(bref, nof_ies, 0u, 65535u, true);
 
@@ -42534,13 +42749,13 @@ OCUDUASN_CODE sn_ode_release_reject_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
-  if (s_ng_ra_nnode_ue_xn_ap_id_present) {
+  if (s_ng_ran_node_ue_xnap_id_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -42569,18 +42784,21 @@ OCUDUASN_CODE sn_ode_release_reject_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_release_reject_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
-        s_ng_ra_nnode_ue_xn_ap_id_present = true;
+        s_ng_ran_node_ue_xnap_id_present = true;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 7: {
@@ -42612,11 +42830,11 @@ void sn_ode_release_reject_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
-  if (s_ng_ra_nnode_ue_xn_ap_id_present) {
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
+  if (s_ng_ran_node_ue_xnap_id_present) {
     j.write_int("id", 71);
     j.write_str("criticality", "reject");
-    j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+    j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   }
   j.write_int("id", 7);
   j.write_str("criticality", "ignore");
@@ -42672,10 +42890,10 @@ sn_ode_release_request_ies_o::value_c sn_ode_release_request_ies_o::get_value(co
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 7:
       ret.set(value_c::types::cause);
@@ -42725,10 +42943,10 @@ void sn_ode_release_request_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::cause:
@@ -42752,14 +42970,14 @@ void sn_ode_release_request_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_release_request_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_release_request_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_release_request_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_release_request_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_release_request_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 cause_c& sn_ode_release_request_ies_o::value_c::cause()
@@ -42787,14 +43005,14 @@ drb_list_l& sn_ode_release_request_ies_o::value_c::drbs_transferred_to_mn()
   assert_choice_type(types::drbs_transferred_to_mn, type_, "Value");
   return c.get<drb_list_l>();
 }
-const uint64_t& sn_ode_release_request_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_release_request_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_release_request_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_release_request_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const cause_c& sn_ode_release_request_ies_o::value_c::cause() const
@@ -42826,10 +43044,10 @@ void sn_ode_release_request_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::cause:
@@ -42865,10 +43083,10 @@ OCUDUASN_CODE sn_ode_release_request_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -42896,10 +43114,10 @@ OCUDUASN_CODE sn_ode_release_request_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::cause:
@@ -42941,7 +43159,7 @@ template struct asn1::protocol_ie_field_s<sn_ode_release_request_ies_o>;
 OCUDUASN_CODE sn_ode_release_request_ies_container::pack(bit_ref& bref) const
 {
   uint32_t nof_ies = 2;
-  nof_ies += s_ng_ra_nnode_ue_xn_ap_id_present ? 1 : 0;
+  nof_ies += s_ng_ran_node_ue_xnap_id_present ? 1 : 0;
   nof_ies += pdu_session_to_be_released_rel_req_present ? 1 : 0;
   nof_ies += ue_context_kept_ind_present ? 1 : 0;
   nof_ies += mn_to_sn_container_present ? 1 : 0;
@@ -42952,13 +43170,13 @@ OCUDUASN_CODE sn_ode_release_request_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
-  if (s_ng_ra_nnode_ue_xn_ap_id_present) {
+  if (s_ng_ran_node_ue_xnap_id_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)7, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -43005,18 +43223,21 @@ OCUDUASN_CODE sn_ode_release_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_release_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
-        s_ng_ra_nnode_ue_xn_ap_id_present = true;
+        s_ng_ran_node_ue_xnap_id_present = true;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 7: {
@@ -43066,11 +43287,11 @@ void sn_ode_release_request_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
-  if (s_ng_ra_nnode_ue_xn_ap_id_present) {
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
+  if (s_ng_ran_node_ue_xnap_id_present) {
     j.write_int("id", 71);
     j.write_str("criticality", "reject");
-    j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+    j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   }
   j.write_int("id", 7);
   j.write_str("criticality", "ignore");
@@ -43147,10 +43368,10 @@ sn_ode_release_request_ack_ies_o::value_c sn_ode_release_request_ack_ies_o::get_
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 104:
       ret.set(value_c::types::pdu_session_to_be_released_rel_req_ack);
@@ -43195,10 +43416,10 @@ void sn_ode_release_request_ack_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::pdu_session_to_be_released_rel_req_ack:
@@ -43219,14 +43440,14 @@ void sn_ode_release_request_ack_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_release_request_ack_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_release_request_ack_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_release_request_ack_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_release_request_ack_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_release_request_ack_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 pdu_session_to_be_released_list_rel_req_ack_s&
@@ -43250,14 +43471,14 @@ fixed_bitstring<32, false, true>& sn_ode_release_request_ack_ies_o::value_c::sn_
   assert_choice_type(types::sn_mob_info, type_, "Value");
   return c.get<fixed_bitstring<32, false, true>>();
 }
-const uint64_t& sn_ode_release_request_ack_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_release_request_ack_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_release_request_ack_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_release_request_ack_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const pdu_session_to_be_released_list_rel_req_ack_s&
@@ -43285,10 +43506,10 @@ void sn_ode_release_request_ack_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::pdu_session_to_be_released_rel_req_ack:
@@ -43315,10 +43536,10 @@ OCUDUASN_CODE sn_ode_release_request_ack_ies_o::value_c::pack(bit_ref& bref) con
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_to_be_released_rel_req_ack:
@@ -43343,10 +43564,10 @@ OCUDUASN_CODE sn_ode_release_request_ack_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_to_be_released_rel_req_ack:
@@ -43384,7 +43605,7 @@ template struct asn1::protocol_ie_field_s<sn_ode_release_request_ack_ies_o>;
 OCUDUASN_CODE sn_ode_release_request_ack_ies_container::pack(bit_ref& bref) const
 {
   uint32_t nof_ies = 1;
-  nof_ies += s_ng_ra_nnode_ue_xn_ap_id_present ? 1 : 0;
+  nof_ies += s_ng_ran_node_ue_xnap_id_present ? 1 : 0;
   nof_ies += pdu_session_to_be_released_rel_req_ack_present ? 1 : 0;
   nof_ies += crit_diagnostics_present ? 1 : 0;
   nof_ies += scg_ue_history_info_present ? 1 : 0;
@@ -43395,13 +43616,13 @@ OCUDUASN_CODE sn_ode_release_request_ack_ies_container::pack(bit_ref& bref) cons
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
-  if (s_ng_ra_nnode_ue_xn_ap_id_present) {
+  if (s_ng_ran_node_ue_xnap_id_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (pdu_session_to_be_released_rel_req_ack_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)104, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -43442,18 +43663,21 @@ OCUDUASN_CODE sn_ode_release_request_ack_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_release_request_ack_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
-        s_ng_ra_nnode_ue_xn_ap_id_present = true;
+        s_ng_ran_node_ue_xnap_id_present = true;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 104: {
@@ -43497,11 +43721,11 @@ void sn_ode_release_request_ack_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
-  if (s_ng_ra_nnode_ue_xn_ap_id_present) {
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
+  if (s_ng_ran_node_ue_xnap_id_present) {
     j.write_int("id", 71);
     j.write_str("criticality", "reject");
-    j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+    j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   }
   if (pdu_session_to_be_released_rel_req_ack_present) {
     j.write_int("id", 104);
@@ -43569,10 +43793,10 @@ sn_ode_release_required_ies_o::value_c sn_ode_release_required_ies_o::get_value(
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 49:
       ret.set(value_c::types::pdu_session_to_be_released_list_rel_rqd);
@@ -43622,10 +43846,10 @@ void sn_ode_release_required_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::pdu_session_to_be_released_list_rel_rqd:
@@ -43649,14 +43873,14 @@ void sn_ode_release_required_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "sn_ode_release_required_ies_o::value_c");
   }
 }
-uint64_t& sn_ode_release_required_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_release_required_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& sn_ode_release_required_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& sn_ode_release_required_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 pdu_session_to_be_released_list_rel_rqd_s&
@@ -43686,14 +43910,14 @@ sn_ode_release_required_ies_o::value_c::pdu_sessions_list_to_be_released_up_erro
   assert_choice_type(types::pdu_sessions_list_to_be_released_up_error, type_, "Value");
   return c.get<pdu_sessions_list_to_be_released_up_error_l>();
 }
-const uint64_t& sn_ode_release_required_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_release_required_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& sn_ode_release_required_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& sn_ode_release_required_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const pdu_session_to_be_released_list_rel_rqd_s&
@@ -43727,10 +43951,10 @@ void sn_ode_release_required_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::pdu_session_to_be_released_list_rel_rqd:
@@ -43764,10 +43988,10 @@ OCUDUASN_CODE sn_ode_release_required_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_to_be_released_list_rel_rqd:
@@ -43795,10 +44019,10 @@ OCUDUASN_CODE sn_ode_release_required_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_to_be_released_list_rel_rqd:
@@ -43850,13 +44074,13 @@ OCUDUASN_CODE sn_ode_release_required_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (pdu_session_to_be_released_list_rel_rqd_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)49, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -43903,18 +44127,21 @@ OCUDUASN_CODE sn_ode_release_required_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sn_ode_release_required_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 49: {
@@ -43964,10 +44191,10 @@ void sn_ode_release_required_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "reject");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   if (pdu_session_to_be_released_list_rel_rqd_present) {
     j.write_int("id", 49);
     j.write_str("criticality", "ignore");
@@ -44041,10 +44268,10 @@ scg_fail_info_report_ies_o::value_c scg_fail_info_report_ies_o::get_value(const 
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 284:
       ret.set(value_c::types::source_pscell_cgi);
@@ -44094,10 +44321,10 @@ void scg_fail_info_report_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::source_pscell_cgi:
@@ -44121,14 +44348,14 @@ void scg_fail_info_report_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "scg_fail_info_report_ies_o::value_c");
   }
 }
-uint64_t& scg_fail_info_report_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& scg_fail_info_report_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& scg_fail_info_report_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& scg_fail_info_report_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 global_ng_ran_cell_id_s& scg_fail_info_report_ies_o::value_c::source_pscell_cgi()
@@ -44156,14 +44383,14 @@ cp_ac_cfg_s& scg_fail_info_report_ies_o::value_c::cp_ac_cfg()
   assert_choice_type(types::cp_ac_cfg, type_, "Value");
   return c.get<cp_ac_cfg_s>();
 }
-const uint64_t& scg_fail_info_report_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& scg_fail_info_report_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& scg_fail_info_report_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& scg_fail_info_report_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const global_ng_ran_cell_id_s& scg_fail_info_report_ies_o::value_c::source_pscell_cgi() const
@@ -44195,10 +44422,10 @@ void scg_fail_info_report_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::source_pscell_cgi:
@@ -44228,10 +44455,10 @@ OCUDUASN_CODE scg_fail_info_report_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::source_pscell_cgi:
@@ -44259,10 +44486,10 @@ OCUDUASN_CODE scg_fail_info_report_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::source_pscell_cgi:
@@ -44314,13 +44541,13 @@ OCUDUASN_CODE scg_fail_info_report_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (source_pscell_cgi_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)284, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -44367,18 +44594,21 @@ OCUDUASN_CODE scg_fail_info_report_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != scg_fail_info_report_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 284: {
@@ -44428,10 +44658,10 @@ void scg_fail_info_report_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   if (source_pscell_cgi_present) {
     j.write_int("id", 284);
     j.write_str("criticality", "ignore");
@@ -44491,10 +44721,10 @@ scg_fail_transfer_ies_o::value_c scg_fail_transfer_ies_o::get_value(const uint32
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     default:
       asn1::log_error("The id={} is not recognized", id);
@@ -44519,10 +44749,10 @@ void scg_fail_transfer_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::nulltype:
@@ -44531,34 +44761,34 @@ void scg_fail_transfer_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "scg_fail_transfer_ies_o::value_c");
   }
 }
-uint64_t& scg_fail_transfer_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& scg_fail_transfer_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& scg_fail_transfer_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& scg_fail_transfer_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& scg_fail_transfer_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& scg_fail_transfer_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& scg_fail_transfer_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& scg_fail_transfer_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 void scg_fail_transfer_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     default:
@@ -44570,10 +44800,10 @@ OCUDUASN_CODE scg_fail_transfer_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     default:
@@ -44586,10 +44816,10 @@ OCUDUASN_CODE scg_fail_transfer_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     default:
@@ -44616,13 +44846,13 @@ OCUDUASN_CODE scg_fail_transfer_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
 
   return OCUDUASN_SUCCESS;
@@ -44639,18 +44869,21 @@ OCUDUASN_CODE scg_fail_transfer_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != scg_fail_transfer_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       default:
@@ -44670,10 +44903,10 @@ void scg_fail_transfer_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   j.end_obj();
 }
 
@@ -44712,10 +44945,10 @@ secondary_rat_data_usage_report_ies_o::value_c secondary_rat_data_usage_report_i
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 107:
       ret.set(value_c::types::pdu_session_res_secondary_rat_usage_list);
@@ -44745,10 +44978,10 @@ void secondary_rat_data_usage_report_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::pdu_session_res_secondary_rat_usage_list:
@@ -44760,14 +44993,14 @@ void secondary_rat_data_usage_report_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "secondary_rat_data_usage_report_ies_o::value_c");
   }
 }
-uint64_t& secondary_rat_data_usage_report_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& secondary_rat_data_usage_report_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& secondary_rat_data_usage_report_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& secondary_rat_data_usage_report_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 pdu_session_res_secondary_rat_usage_list_l&
@@ -44776,14 +45009,14 @@ secondary_rat_data_usage_report_ies_o::value_c::pdu_session_res_secondary_rat_us
   assert_choice_type(types::pdu_session_res_secondary_rat_usage_list, type_, "Value");
   return c.get<pdu_session_res_secondary_rat_usage_list_l>();
 }
-const uint64_t& secondary_rat_data_usage_report_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& secondary_rat_data_usage_report_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& secondary_rat_data_usage_report_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& secondary_rat_data_usage_report_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const pdu_session_res_secondary_rat_usage_list_l&
@@ -44796,10 +45029,10 @@ void secondary_rat_data_usage_report_ies_o::value_c::to_json(json_writer& j) con
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::pdu_session_res_secondary_rat_usage_list:
@@ -44818,10 +45051,10 @@ OCUDUASN_CODE secondary_rat_data_usage_report_ies_o::value_c::pack(bit_ref& bref
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_res_secondary_rat_usage_list:
@@ -44837,10 +45070,10 @@ OCUDUASN_CODE secondary_rat_data_usage_report_ies_o::value_c::unpack(cbit_ref& b
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::pdu_session_res_secondary_rat_usage_list:
@@ -44871,13 +45104,13 @@ OCUDUASN_CODE secondary_rat_data_usage_report_ies_container::pack(bit_ref& bref)
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)107, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -44900,18 +45133,21 @@ OCUDUASN_CODE secondary_rat_data_usage_report_ies_container::unpack(cbit_ref& br
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != secondary_rat_data_usage_report_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 107: {
@@ -44937,10 +45173,10 @@ void secondary_rat_data_usage_report_ies_container::to_json(json_writer& j) cons
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "reject");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   j.write_int("id", 107);
   j.write_str("criticality", "reject");
   j.start_array("Value");
@@ -44986,10 +45222,10 @@ trace_start_ies_o::value_c trace_start_ies_o::get_value(const uint32_t& id)
   value_c ret{};
   switch (id) {
     case 23:
-      ret.set(value_c::types::m_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::m_ng_ran_node_ue_xnap_id);
       break;
     case 71:
-      ret.set(value_c::types::s_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::s_ng_ran_node_ue_xnap_id);
       break;
     case 81:
       ret.set(value_c::types::trace_activation);
@@ -45019,10 +45255,10 @@ void trace_start_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::trace_activation:
@@ -45034,14 +45270,14 @@ void trace_start_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "trace_start_ies_o::value_c");
   }
 }
-uint64_t& trace_start_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& trace_start_ies_o::value_c::m_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& trace_start_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& trace_start_ies_o::value_c::s_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 trace_activation_s& trace_start_ies_o::value_c::trace_activation()
@@ -45049,14 +45285,14 @@ trace_activation_s& trace_start_ies_o::value_c::trace_activation()
   assert_choice_type(types::trace_activation, type_, "Value");
   return c.get<trace_activation_s>();
 }
-const uint64_t& trace_start_ies_o::value_c::m_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& trace_start_ies_o::value_c::m_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::m_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::m_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& trace_start_ies_o::value_c::s_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& trace_start_ies_o::value_c::s_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::s_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::s_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const trace_activation_s& trace_start_ies_o::value_c::trace_activation() const
@@ -45068,10 +45304,10 @@ void trace_start_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::trace_activation:
@@ -45087,10 +45323,10 @@ OCUDUASN_CODE trace_start_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::trace_activation:
@@ -45106,10 +45342,10 @@ OCUDUASN_CODE trace_start_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::m_ng_ra_nnode_ue_xn_ap_id:
+    case types::m_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::s_ng_ra_nnode_ue_xn_ap_id:
+    case types::s_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::trace_activation:
@@ -45140,13 +45376,13 @@ OCUDUASN_CODE trace_start_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)23, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, m_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)71, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, s_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, s_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (trace_activation_present) {
     HANDLE_CODE(pack_integer(bref, (uint32_t)81, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -45169,18 +45405,21 @@ OCUDUASN_CODE trace_start_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != trace_start_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 23: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(m_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 71: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(unpack_integer(s_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(s_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 81: {
@@ -45206,10 +45445,10 @@ void trace_start_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 23);
   j.write_str("criticality", "reject");
-  j.write_int("Value", m_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", m_ng_ran_node_ue_xnap_id);
   j.write_int("id", 71);
   j.write_str("criticality", "reject");
-  j.write_int("Value", s_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", s_ng_ran_node_ue_xnap_id);
   if (trace_activation_present) {
     j.write_int("id", 81);
     j.write_str("criticality", "ignore");
@@ -45251,10 +45490,10 @@ ue_context_release_ies_o::value_c ue_context_release_ies_o::get_value(const uint
   value_c ret{};
   switch (id) {
     case 73:
-      ret.set(value_c::types::source_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::source_ng_ran_node_ue_xnap_id);
       break;
     case 79:
-      ret.set(value_c::types::target_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::target_ng_ran_node_ue_xnap_id);
       break;
     default:
       asn1::log_error("The id={} is not recognized", id);
@@ -45279,10 +45518,10 @@ void ue_context_release_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::nulltype:
@@ -45291,34 +45530,34 @@ void ue_context_release_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "ue_context_release_ies_o::value_c");
   }
 }
-uint64_t& ue_context_release_ies_o::value_c::source_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& ue_context_release_ies_o::value_c::source_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::source_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::source_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& ue_context_release_ies_o::value_c::target_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& ue_context_release_ies_o::value_c::target_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::target_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::target_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& ue_context_release_ies_o::value_c::source_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& ue_context_release_ies_o::value_c::source_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::source_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::source_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& ue_context_release_ies_o::value_c::target_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& ue_context_release_ies_o::value_c::target_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::target_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::target_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 void ue_context_release_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     default:
@@ -45330,10 +45569,10 @@ OCUDUASN_CODE ue_context_release_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     default:
@@ -45346,10 +45585,10 @@ OCUDUASN_CODE ue_context_release_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::source_ng_ra_nnode_ue_xn_ap_id:
+    case types::source_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::target_ng_ra_nnode_ue_xn_ap_id:
+    case types::target_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     default:
@@ -45376,13 +45615,13 @@ OCUDUASN_CODE ue_context_release_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)73, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, source_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, source_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)79, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::reject}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, target_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, target_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
 
   return OCUDUASN_SUCCESS;
@@ -45399,20 +45638,23 @@ OCUDUASN_CODE ue_context_release_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ue_context_release_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 73: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(
-            unpack_integer(source_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            unpack_integer(source_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 79: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
         HANDLE_CODE(
-            unpack_integer(target_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+            unpack_integer(target_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       default:
@@ -45432,10 +45674,10 @@ void ue_context_release_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 73);
   j.write_str("criticality", "reject");
-  j.write_int("Value", source_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", source_ng_ran_node_ue_xnap_id);
   j.write_int("id", 79);
   j.write_str("criticality", "reject");
-  j.write_int("Value", target_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", target_ng_ran_node_ue_xnap_id);
   j.end_obj();
 }
 
@@ -45667,6 +45909,9 @@ OCUDUASN_CODE xn_removal_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != xn_removal_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 7: {
@@ -45949,6 +46194,9 @@ OCUDUASN_CODE xn_removal_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != xn_removal_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 14: {
@@ -46228,6 +46476,9 @@ OCUDUASN_CODE xn_removal_resp_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != xn_removal_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 14: {
@@ -46581,6 +46832,9 @@ OCUDUASN_CODE xn_setup_fail_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != xn_setup_fail_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 7: {
@@ -47276,6 +47530,9 @@ OCUDUASN_CODE xn_setup_request_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != xn_setup_request_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 14: {
@@ -48113,6 +48370,9 @@ OCUDUASN_CODE xn_setup_resp_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != xn_setup_resp_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 14: {
@@ -48350,10 +48610,10 @@ xn_u_address_ind_ies_o::value_c xn_u_address_ind_ies_o::get_value(const uint32_t
   value_c ret{};
   switch (id) {
     case 27:
-      ret.set(value_c::types::new_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::new_ng_ran_node_ue_xnap_id);
       break;
     case 29:
-      ret.set(value_c::types::old_ng_ra_nnode_ue_xn_ap_id);
+      ret.set(value_c::types::old_ng_ran_node_ue_xnap_id);
       break;
     case 11:
       ret.set(value_c::types::xn_u_address_infoper_pdu_session_list);
@@ -48413,10 +48673,10 @@ void xn_u_address_ind_ies_o::value_c::set(types::options e)
 {
   type_ = e;
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       c = uint64_t{};
       break;
     case types::xn_u_address_infoper_pdu_session_list:
@@ -48446,14 +48706,14 @@ void xn_u_address_ind_ies_o::value_c::set(types::options e)
       log_invalid_choice_id(type_, "xn_u_address_ind_ies_o::value_c");
   }
 }
-uint64_t& xn_u_address_ind_ies_o::value_c::new_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& xn_u_address_ind_ies_o::value_c::new_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::new_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::new_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-uint64_t& xn_u_address_ind_ies_o::value_c::old_ng_ra_nnode_ue_xn_ap_id()
+uint64_t& xn_u_address_ind_ies_o::value_c::old_ng_ran_node_ue_xnap_id()
 {
-  assert_choice_type(types::old_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::old_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 xn_u_address_infoper_pdu_session_list_l& xn_u_address_ind_ies_o::value_c::xn_u_address_infoper_pdu_session_list()
@@ -48491,14 +48751,14 @@ pdu_setbased_handling_ind_e& xn_u_address_ind_ies_o::value_c::pdu_setbased_handl
   assert_choice_type(types::pdu_setbased_handling_ind, type_, "Value");
   return c.get<pdu_setbased_handling_ind_e>();
 }
-const uint64_t& xn_u_address_ind_ies_o::value_c::new_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& xn_u_address_ind_ies_o::value_c::new_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::new_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::new_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
-const uint64_t& xn_u_address_ind_ies_o::value_c::old_ng_ra_nnode_ue_xn_ap_id() const
+const uint64_t& xn_u_address_ind_ies_o::value_c::old_ng_ran_node_ue_xnap_id() const
 {
-  assert_choice_type(types::old_ng_ra_nnode_ue_xn_ap_id, type_, "Value");
+  assert_choice_type(types::old_ng_ran_node_ue_xnap_id, type_, "Value");
   return c.get<uint64_t>();
 }
 const xn_u_address_infoper_pdu_session_list_l&
@@ -48541,10 +48801,10 @@ void xn_u_address_ind_ies_o::value_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       j.write_int("INTEGER (0..4294967295)", c.get<uint64_t>());
       break;
     case types::xn_u_address_infoper_pdu_session_list:
@@ -48585,10 +48845,10 @@ OCUDUASN_CODE xn_u_address_ind_ies_o::value_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(pack_integer(bref, c.get<uint64_t>(), (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::xn_u_address_infoper_pdu_session_list:
@@ -48622,10 +48882,10 @@ OCUDUASN_CODE xn_u_address_ind_ies_o::value_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   switch (type_) {
-    case types::new_ng_ra_nnode_ue_xn_ap_id:
+    case types::new_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
-    case types::old_ng_ra_nnode_ue_xn_ap_id:
+    case types::old_ng_ran_node_ue_xnap_id:
       HANDLE_CODE(unpack_integer(c.get<uint64_t>(), bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
       break;
     case types::xn_u_address_infoper_pdu_session_list:
@@ -48687,13 +48947,13 @@ OCUDUASN_CODE xn_u_address_ind_ies_container::pack(bit_ref& bref) const
     HANDLE_CODE(pack_integer(bref, (uint32_t)27, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, new_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, new_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)29, (uint32_t)0u, (uint32_t)65535u, false, true));
     HANDLE_CODE(crit_e{crit_e::ignore}.pack(bref));
     varlength_field_pack_guard varlen_scope(bref, true);
-    HANDLE_CODE(pack_integer(bref, old_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+    HANDLE_CODE(pack_integer(bref, old_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   {
     HANDLE_CODE(pack_integer(bref, (uint32_t)11, (uint32_t)0u, (uint32_t)65535u, false, true));
@@ -48752,20 +49012,21 @@ OCUDUASN_CODE xn_u_address_ind_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != xn_u_address_ind_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 27: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(
-            unpack_integer(new_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(new_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 29: {
         nof_mandatory_ies--;
         varlength_field_unpack_guard varlen_scope(bref, true);
-        HANDLE_CODE(
-            unpack_integer(old_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+        HANDLE_CODE(unpack_integer(old_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
         break;
       }
       case 11: {
@@ -48827,10 +49088,10 @@ void xn_u_address_ind_ies_container::to_json(json_writer& j) const
   j.start_obj();
   j.write_int("id", 27);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", new_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", new_ng_ran_node_ue_xnap_id);
   j.write_int("id", 29);
   j.write_str("criticality", "ignore");
-  j.write_int("Value", old_ng_ra_nnode_ue_xn_ap_id);
+  j.write_int("Value", old_ng_ran_node_ue_xnap_id);
   j.write_int("id", 11);
   j.write_str("criticality", "reject");
   j.start_array("Value");

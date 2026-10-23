@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "ocudu/asn1/xnap/xnap_ies.h"
+
 using namespace asn1;
 using namespace asn1::xnap;
 
@@ -438,6 +439,9 @@ OCUDUASN_CODE non_dyn_5qi_descriptor_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != non_dyn_5qi_descriptor_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 208: {
@@ -801,6 +805,9 @@ OCUDUASN_CODE dyn_5qi_descriptor_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != dyn_5qi_descriptor_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 215: {
@@ -1866,6 +1873,9 @@ OCUDUASN_CODE qos_flow_level_qos_params_ext_ies_container::unpack(cbit_ref& bref
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != qos_flow_level_qos_params_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 154: {
@@ -3408,16 +3418,16 @@ const char* direct_forwarding_path_availability_opts::to_string() const
 }
 
 // DataForwardingInfoFromTargetNGRANnode-ExtIEs ::= OBJECT SET OF XNAP-PROTOCOL-EXTENSION
-uint32_t data_forwarding_info_from_target_ngra_nnode_ext_ies_o::idx_to_id(uint32_t idx)
+uint32_t data_forwarding_info_from_target_ngran_node_ext_ies_o::idx_to_id(uint32_t idx)
 {
   static const uint32_t names[] = {253};
   return map_enum_number(names, 1, idx, "id");
 }
-bool data_forwarding_info_from_target_ngra_nnode_ext_ies_o::is_id_valid(const uint32_t& id)
+bool data_forwarding_info_from_target_ngran_node_ext_ies_o::is_id_valid(const uint32_t& id)
 {
   return 253 == id;
 }
-crit_e data_forwarding_info_from_target_ngra_nnode_ext_ies_o::get_crit(const uint32_t& id)
+crit_e data_forwarding_info_from_target_ngran_node_ext_ies_o::get_crit(const uint32_t& id)
 {
   if (id == 253) {
     return crit_e::ignore;
@@ -3425,8 +3435,8 @@ crit_e data_forwarding_info_from_target_ngra_nnode_ext_ies_o::get_crit(const uin
   asn1::log_error("The id={} is not recognized", id);
   return {};
 }
-data_forwarding_info_from_target_ngra_nnode_ext_ies_o::ext_c
-data_forwarding_info_from_target_ngra_nnode_ext_ies_o::get_ext(const uint32_t& id)
+data_forwarding_info_from_target_ngran_node_ext_ies_o::ext_c
+data_forwarding_info_from_target_ngran_node_ext_ies_o::get_ext(const uint32_t& id)
 {
   ext_c ret{};
   if (id != 253) {
@@ -3434,7 +3444,7 @@ data_forwarding_info_from_target_ngra_nnode_ext_ies_o::get_ext(const uint32_t& i
   }
   return ret;
 }
-presence_e data_forwarding_info_from_target_ngra_nnode_ext_ies_o::get_presence(const uint32_t& id)
+presence_e data_forwarding_info_from_target_ngran_node_ext_ies_o::get_presence(const uint32_t& id)
 {
   if (id == 253) {
     return presence_e::optional;
@@ -3444,33 +3454,33 @@ presence_e data_forwarding_info_from_target_ngra_nnode_ext_ies_o::get_presence(c
 }
 
 // Extension ::= OPEN TYPE
-void data_forwarding_info_from_target_ngra_nnode_ext_ies_o::ext_c::to_json(json_writer& j) const
+void data_forwarding_info_from_target_ngran_node_ext_ies_o::ext_c::to_json(json_writer& j) const
 {
   j.start_obj();
   j.write_str("DirectForwardingPathAvailability", "direct-path-available");
   j.end_obj();
 }
-OCUDUASN_CODE data_forwarding_info_from_target_ngra_nnode_ext_ies_o::ext_c::pack(bit_ref& bref) const
+OCUDUASN_CODE data_forwarding_info_from_target_ngran_node_ext_ies_o::ext_c::pack(bit_ref& bref) const
 {
   varlength_field_pack_guard varlen_scope(bref, true);
   HANDLE_CODE(c.pack(bref));
   return OCUDUASN_SUCCESS;
 }
-OCUDUASN_CODE data_forwarding_info_from_target_ngra_nnode_ext_ies_o::ext_c::unpack(cbit_ref& bref)
+OCUDUASN_CODE data_forwarding_info_from_target_ngran_node_ext_ies_o::ext_c::unpack(cbit_ref& bref)
 {
   varlength_field_unpack_guard varlen_scope(bref, true);
   HANDLE_CODE(c.unpack(bref));
   return OCUDUASN_SUCCESS;
 }
 
-const char* data_forwarding_info_from_target_ngra_nnode_ext_ies_o::ext_c::types_opts::to_string() const
+const char* data_forwarding_info_from_target_ngran_node_ext_ies_o::ext_c::types_opts::to_string() const
 {
   static const char* names[] = {"DirectForwardingPathAvailability"};
-  return convert_enum_idx(names, 1, value, "data_forwarding_info_from_target_ngra_nnode_ext_ies_o::ext_c::types");
+  return convert_enum_idx(names, 1, value, "data_forwarding_info_from_target_ngran_node_ext_ies_o::ext_c::types");
 }
 
 // DataForwardingInfoFromTargetNGRANnode ::= SEQUENCE
-OCUDUASN_CODE data_forwarding_info_from_target_ngra_nnode_s::pack(bit_ref& bref) const
+OCUDUASN_CODE data_forwarding_info_from_target_ngran_node_s::pack(bit_ref& bref) const
 {
   bref.pack(ext, 1);
   HANDLE_CODE(bref.pack(pdu_session_level_dl_data_forwarding_info_present, 1));
@@ -3494,7 +3504,7 @@ OCUDUASN_CODE data_forwarding_info_from_target_ngra_nnode_s::pack(bit_ref& bref)
 
   return OCUDUASN_SUCCESS;
 }
-OCUDUASN_CODE data_forwarding_info_from_target_ngra_nnode_s::unpack(cbit_ref& bref)
+OCUDUASN_CODE data_forwarding_info_from_target_ngran_node_s::unpack(cbit_ref& bref)
 {
   bref.unpack(ext, 1);
   HANDLE_CODE(bref.unpack(pdu_session_level_dl_data_forwarding_info_present, 1));
@@ -3520,7 +3530,7 @@ OCUDUASN_CODE data_forwarding_info_from_target_ngra_nnode_s::unpack(cbit_ref& br
 
   return OCUDUASN_SUCCESS;
 }
-void data_forwarding_info_from_target_ngra_nnode_s::to_json(json_writer& j) const
+void data_forwarding_info_from_target_ngran_node_s::to_json(json_writer& j) const
 {
   j.start_obj();
   j.start_array("qosFlowsAcceptedForDataForwarding-List");
@@ -6166,6 +6176,9 @@ OCUDUASN_CODE sul_info_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != sul_info_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 200: {
@@ -8251,6 +8264,9 @@ OCUDUASN_CODE bplmn_id_info_nr_item_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != bplmn_id_info_nr_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 233: {
@@ -9341,6 +9357,9 @@ OCUDUASN_CODE broadcast_plmn_in_tai_support_item_ext_ies_container::unpack(cbit_
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != broadcast_plmn_in_tai_support_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 223: {
@@ -10213,7 +10232,7 @@ OCUDUASN_CODE cho_target_sn_node_item_s::pack(bit_ref& bref) const
   bref.pack(ext, 1);
   HANDLE_CODE(bref.pack(ie_exts_present, 1));
 
-  HANDLE_CODE(target_s_ng_ra_nnode_id.pack(bref));
+  HANDLE_CODE(target_s_ng_ran_node_id.pack(bref));
   HANDLE_CODE(pack_dyn_seq_of(bref, pdu_session_res_admitted_list, 1, 256, true));
   HANDLE_CODE(pack_dyn_seq_of(bref, cho_candidate_p_scells_list, 1, 8, true));
   if (ie_exts_present) {
@@ -10227,7 +10246,7 @@ OCUDUASN_CODE cho_target_sn_node_item_s::unpack(cbit_ref& bref)
   bref.unpack(ext, 1);
   HANDLE_CODE(bref.unpack(ie_exts_present, 1));
 
-  HANDLE_CODE(target_s_ng_ra_nnode_id.unpack(bref));
+  HANDLE_CODE(target_s_ng_ran_node_id.unpack(bref));
   HANDLE_CODE(unpack_dyn_seq_of(pdu_session_res_admitted_list, bref, 1, 256, true));
   HANDLE_CODE(unpack_dyn_seq_of(cho_candidate_p_scells_list, bref, 1, 8, true));
   if (ie_exts_present) {
@@ -10240,7 +10259,7 @@ void cho_target_sn_node_item_s::to_json(json_writer& j) const
 {
   j.start_obj();
   j.write_fieldname("target-S-NG-RANnodeID");
-  target_s_ng_ra_nnode_id.to_json(j);
+  target_s_ng_ran_node_id.to_json(j);
   j.start_array("pduSessionResourcesAdmittedList");
   for (const auto& e1 : pdu_session_res_admitted_list) {
     e1.to_json(j);
@@ -10766,7 +10785,7 @@ OCUDUASN_CODE ch_oinfo_add_req_s::pack(bit_ref& bref) const
   HANDLE_CODE(bref.pack(ie_exts_present, 1));
 
   HANDLE_CODE(source_m_ngran_node_id.pack(bref));
-  HANDLE_CODE(pack_integer(bref, source_m_ngran_node_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+  HANDLE_CODE(pack_integer(bref, source_m_ngran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   if (cho_estimated_arrival_probability_present) {
     HANDLE_CODE(pack_integer(bref, cho_estimated_arrival_probability, (uint8_t)1u, (uint8_t)100u, false, true));
   }
@@ -10783,7 +10802,7 @@ OCUDUASN_CODE ch_oinfo_add_req_s::unpack(cbit_ref& bref)
   HANDLE_CODE(bref.unpack(ie_exts_present, 1));
 
   HANDLE_CODE(source_m_ngran_node_id.unpack(bref));
-  HANDLE_CODE(unpack_integer(source_m_ngran_node_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+  HANDLE_CODE(unpack_integer(source_m_ngran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   if (cho_estimated_arrival_probability_present) {
     HANDLE_CODE(unpack_integer(cho_estimated_arrival_probability, bref, (uint8_t)1u, (uint8_t)100u, false, true));
   }
@@ -10798,7 +10817,7 @@ void ch_oinfo_add_req_s::to_json(json_writer& j) const
   j.start_obj();
   j.write_fieldname("source-M-NGRAN-node-ID");
   source_m_ngran_node_id.to_json(j);
-  j.write_int("source-M-NGRAN-node-UE-XnAP-ID", source_m_ngran_node_ue_xn_ap_id);
+  j.write_int("source-M-NGRAN-node-UE-XnAP-ID", source_m_ngran_node_ue_xnap_id);
   if (cho_estimated_arrival_probability_present) {
     j.write_int("cHO-EstimatedArrivalProbability", cho_estimated_arrival_probability);
   }
@@ -11104,6 +11123,9 @@ OCUDUASN_CODE ch_oinfo_req_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ch_oinfo_req_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 382: {
@@ -11146,13 +11168,13 @@ void ch_oinfo_req_ext_ies_container::to_json(json_writer& j) const
 OCUDUASN_CODE ch_oinfo_req_s::pack(bit_ref& bref) const
 {
   bref.pack(ext, 1);
-  HANDLE_CODE(bref.pack(target_ng_ra_nnode_ue_xn_ap_id_present, 1));
+  HANDLE_CODE(bref.pack(target_ng_ran_node_ue_xnap_id_present, 1));
   HANDLE_CODE(bref.pack(cho_estimated_arrival_probability_present, 1));
   HANDLE_CODE(bref.pack(ie_exts_present, 1));
 
   HANDLE_CODE(cho_trigger.pack(bref));
-  if (target_ng_ra_nnode_ue_xn_ap_id_present) {
-    HANDLE_CODE(pack_integer(bref, target_ng_ra_nnode_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+  if (target_ng_ran_node_ue_xnap_id_present) {
+    HANDLE_CODE(pack_integer(bref, target_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (cho_estimated_arrival_probability_present) {
     HANDLE_CODE(pack_integer(bref, cho_estimated_arrival_probability, (uint8_t)1u, (uint8_t)100u, false, true));
@@ -11166,13 +11188,13 @@ OCUDUASN_CODE ch_oinfo_req_s::pack(bit_ref& bref) const
 OCUDUASN_CODE ch_oinfo_req_s::unpack(cbit_ref& bref)
 {
   bref.unpack(ext, 1);
-  HANDLE_CODE(bref.unpack(target_ng_ra_nnode_ue_xn_ap_id_present, 1));
+  HANDLE_CODE(bref.unpack(target_ng_ran_node_ue_xnap_id_present, 1));
   HANDLE_CODE(bref.unpack(cho_estimated_arrival_probability_present, 1));
   HANDLE_CODE(bref.unpack(ie_exts_present, 1));
 
   HANDLE_CODE(cho_trigger.unpack(bref));
-  if (target_ng_ra_nnode_ue_xn_ap_id_present) {
-    HANDLE_CODE(unpack_integer(target_ng_ra_nnode_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+  if (target_ng_ran_node_ue_xnap_id_present) {
+    HANDLE_CODE(unpack_integer(target_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (cho_estimated_arrival_probability_present) {
     HANDLE_CODE(unpack_integer(cho_estimated_arrival_probability, bref, (uint8_t)1u, (uint8_t)100u, false, true));
@@ -11187,8 +11209,8 @@ void ch_oinfo_req_s::to_json(json_writer& j) const
 {
   j.start_obj();
   j.write_str("cho-trigger", cho_trigger.to_string());
-  if (target_ng_ra_nnode_ue_xn_ap_id_present) {
-    j.write_int("targetNG-RANnodeUEXnAPID", target_ng_ra_nnode_ue_xn_ap_id);
+  if (target_ng_ran_node_ue_xnap_id_present) {
+    j.write_int("targetNG-RANnodeUEXnAPID", target_ng_ran_node_ue_xnap_id);
   }
   if (cho_estimated_arrival_probability_present) {
     j.write_int("cHO-EstimatedArrivalProbability", cho_estimated_arrival_probability);
@@ -11815,7 +11837,7 @@ OCUDUASN_CODE s_cp_ac_multi_target_sn_item_s::pack(bit_ref& bref) const
   bref.pack(ext, 1);
   HANDLE_CODE(bref.pack(ie_exts_present, 1));
 
-  HANDLE_CODE(target_s_ng_ra_nnode_id.pack(bref));
+  HANDLE_CODE(target_s_ng_ran_node_id.pack(bref));
   HANDLE_CODE(recommended_candidate_p_scells.pack(bref));
   if (ie_exts_present) {
     HANDLE_CODE(ie_exts.pack(bref));
@@ -11828,7 +11850,7 @@ OCUDUASN_CODE s_cp_ac_multi_target_sn_item_s::unpack(cbit_ref& bref)
   bref.unpack(ext, 1);
   HANDLE_CODE(bref.unpack(ie_exts_present, 1));
 
-  HANDLE_CODE(target_s_ng_ra_nnode_id.unpack(bref));
+  HANDLE_CODE(target_s_ng_ran_node_id.unpack(bref));
   HANDLE_CODE(recommended_candidate_p_scells.unpack(bref));
   if (ie_exts_present) {
     HANDLE_CODE(ie_exts.unpack(bref));
@@ -11840,7 +11862,7 @@ void s_cp_ac_multi_target_sn_item_s::to_json(json_writer& j) const
 {
   j.start_obj();
   j.write_fieldname("target-S-NG-RANnodeID");
-  target_s_ng_ra_nnode_id.to_json(j);
+  target_s_ng_ran_node_id.to_json(j);
   j.write_str("recommendedCandidatePSCells", recommended_candidate_p_scells.to_string());
   if (ie_exts_present) {
     j.write_fieldname("iE-Extensions");
@@ -12138,6 +12160,9 @@ OCUDUASN_CODE cp_a_info_mod_req_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != cp_a_info_mod_req_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 426: {
@@ -12529,6 +12554,9 @@ OCUDUASN_CODE cp_a_info_request_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != cp_a_info_request_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 426: {
@@ -12689,7 +12717,7 @@ OCUDUASN_CODE cp_c_target_sn_confirm_list_item_s::pack(bit_ref& bref) const
   bref.pack(ext, 1);
   HANDLE_CODE(bref.pack(ie_exts.size() > 0, 1));
 
-  HANDLE_CODE(target_s_ng_ra_nnode_id.pack(bref));
+  HANDLE_CODE(target_s_ng_ran_node_id.pack(bref));
   HANDLE_CODE(pack_dyn_seq_of(bref, candidate_pscells, 1, 8, true));
   if (ie_exts.size() > 0) {
     HANDLE_CODE(pack_dyn_seq_of(bref, ie_exts, 1, 65535, true));
@@ -12703,7 +12731,7 @@ OCUDUASN_CODE cp_c_target_sn_confirm_list_item_s::unpack(cbit_ref& bref)
   bool ie_exts_present;
   HANDLE_CODE(bref.unpack(ie_exts_present, 1));
 
-  HANDLE_CODE(target_s_ng_ra_nnode_id.unpack(bref));
+  HANDLE_CODE(target_s_ng_ran_node_id.unpack(bref));
   HANDLE_CODE(unpack_dyn_seq_of(candidate_pscells, bref, 1, 8, true));
   if (ie_exts_present) {
     HANDLE_CODE(unpack_dyn_seq_of(ie_exts, bref, 1, 65535, true));
@@ -12715,7 +12743,7 @@ void cp_c_target_sn_confirm_list_item_s::to_json(json_writer& j) const
 {
   j.start_obj();
   j.write_fieldname("target-S-NG-RANnodeID");
-  target_s_ng_ra_nnode_id.to_json(j);
+  target_s_ng_ran_node_id.to_json(j);
   j.start_array("candidate-pscells");
   for (const auto& e1 : candidate_pscells) {
     e1.to_json(j);
@@ -12770,7 +12798,7 @@ OCUDUASN_CODE cp_c_target_sn_mod_item_s::pack(bit_ref& bref) const
   bref.pack(ext, 1);
   HANDLE_CODE(bref.pack(ie_exts_present, 1));
 
-  HANDLE_CODE(target_s_ng_ra_nnode_id.pack(bref));
+  HANDLE_CODE(target_s_ng_ran_node_id.pack(bref));
   HANDLE_CODE(pack_dyn_seq_of(bref, candidate_pscells, 1, 8, true));
   if (ie_exts_present) {
     HANDLE_CODE(ie_exts.pack(bref));
@@ -12783,7 +12811,7 @@ OCUDUASN_CODE cp_c_target_sn_mod_item_s::unpack(cbit_ref& bref)
   bref.unpack(ext, 1);
   HANDLE_CODE(bref.unpack(ie_exts_present, 1));
 
-  HANDLE_CODE(target_s_ng_ra_nnode_id.unpack(bref));
+  HANDLE_CODE(target_s_ng_ran_node_id.unpack(bref));
   HANDLE_CODE(unpack_dyn_seq_of(candidate_pscells, bref, 1, 8, true));
   if (ie_exts_present) {
     HANDLE_CODE(ie_exts.unpack(bref));
@@ -12795,7 +12823,7 @@ void cp_c_target_sn_mod_item_s::to_json(json_writer& j) const
 {
   j.start_obj();
   j.write_fieldname("target-S-NG-RANnodeID");
-  target_s_ng_ra_nnode_id.to_json(j);
+  target_s_ng_ran_node_id.to_json(j);
   j.start_array("candidate-pscells");
   for (const auto& e1 : candidate_pscells) {
     e1.to_json(j);
@@ -12822,7 +12850,7 @@ OCUDUASN_CODE cp_c_target_sn_required_list_item_s::pack(bit_ref& bref) const
   HANDLE_CODE(bref.pack(cpac_estimated_arrival_probability_present, 1));
   HANDLE_CODE(bref.pack(ie_exts_present, 1));
 
-  HANDLE_CODE(target_s_ng_ra_nnode_id.pack(bref));
+  HANDLE_CODE(target_s_ng_ran_node_id.pack(bref));
   HANDLE_CODE(cpc_ind.pack(bref));
   HANDLE_CODE(pack_integer(bref, max_no_of_pscells, (uint8_t)1u, (uint8_t)8u, true, true));
   if (cpac_estimated_arrival_probability_present) {
@@ -12841,7 +12869,7 @@ OCUDUASN_CODE cp_c_target_sn_required_list_item_s::unpack(cbit_ref& bref)
   HANDLE_CODE(bref.unpack(cpac_estimated_arrival_probability_present, 1));
   HANDLE_CODE(bref.unpack(ie_exts_present, 1));
 
-  HANDLE_CODE(target_s_ng_ra_nnode_id.unpack(bref));
+  HANDLE_CODE(target_s_ng_ran_node_id.unpack(bref));
   HANDLE_CODE(cpc_ind.unpack(bref));
   HANDLE_CODE(unpack_integer(max_no_of_pscells, bref, (uint8_t)1u, (uint8_t)8u, true, true));
   if (cpac_estimated_arrival_probability_present) {
@@ -12858,7 +12886,7 @@ void cp_c_target_sn_required_list_item_s::to_json(json_writer& j) const
 {
   j.start_obj();
   j.write_fieldname("target-S-NG-RANnodeID");
-  target_s_ng_ra_nnode_id.to_json(j);
+  target_s_ng_ran_node_id.to_json(j);
   j.write_str("cpc-indicator", cpc_ind.to_string());
   j.write_int("max-no-of-pscells", max_no_of_pscells);
   if (cpac_estimated_arrival_probability_present) {
@@ -14479,6 +14507,9 @@ OCUDUASN_CODE ng_enb_rr_status_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ng_enb_rr_status_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 240: {
@@ -14749,6 +14780,9 @@ OCUDUASN_CODE ssb_area_rr_status_list_item_ext_ies_container::unpack(cbit_ref& b
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ssb_area_rr_status_list_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 240: {
@@ -15176,6 +15210,9 @@ OCUDUASN_CODE gnb_rr_status_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != gnb_rr_status_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 277: {
@@ -16168,6 +16205,9 @@ OCUDUASN_CODE nr_u_ch_item_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != nr_u_ch_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 383: {
@@ -18869,6 +18909,9 @@ OCUDUASN_CODE drbs_admitted_list_mod_resp_m_nterminated_item_ext_ies_container::
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != drbs_admitted_list_mod_resp_m_nterminated_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 216: {
@@ -19189,6 +19232,9 @@ OCUDUASN_CODE drbs_admitted_list_setup_resp_m_nterminated_item_ext_ies_container
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != drbs_admitted_list_setup_resp_m_nterminated_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 216: {
@@ -20134,6 +20180,9 @@ OCUDUASN_CODE drbs_to_be_modified_list_mod_rqd_sn_terminated_item_ext_ies_contai
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != drbs_to_be_modified_list_mod_rqd_sn_terminated_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 216: {
@@ -20733,6 +20782,9 @@ OCUDUASN_CODE tsc_assist_info_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != tsc_assist_info_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 324: {
@@ -21189,6 +21241,9 @@ OCUDUASN_CODE drbs_to_be_modified_list_mod_m_nterminated_item_ext_ies_container:
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != drbs_to_be_modified_list_mod_m_nterminated_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 216: {
@@ -21552,6 +21607,9 @@ OCUDUASN_CODE qos_flows_mappedto_drb_setup_resp_sn_terminated_item_ext_ies_conta
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != qos_flows_mappedto_drb_setup_resp_sn_terminated_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 175: {
@@ -21957,6 +22015,9 @@ OCUDUASN_CODE drbs_to_be_modified_list_mod_resp_sn_terminated_item_ext_ies_conta
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != drbs_to_be_modified_list_mod_resp_sn_terminated_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 216: {
@@ -22476,6 +22537,9 @@ OCUDUASN_CODE drbs_to_be_setup_list_mod_rqd_sn_terminated_item_ext_ies_container
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != drbs_to_be_setup_list_mod_rqd_sn_terminated_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 216: {
@@ -22919,6 +22983,9 @@ OCUDUASN_CODE drbs_to_be_setup_list_setup_m_nterminated_item_ext_ies_container::
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != drbs_to_be_setup_list_setup_m_nterminated_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 216: {
@@ -23258,6 +23325,9 @@ OCUDUASN_CODE drbs_to_be_setup_list_setup_resp_sn_terminated_item_ext_ies_contai
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != drbs_to_be_setup_list_setup_resp_sn_terminated_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 216: {
@@ -24955,6 +25025,9 @@ OCUDUASN_CODE qos_f_lows_to_be_forwarded_item_ext_ies_container::unpack(cbit_ref
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != qos_f_lows_to_be_forwarded_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 138: {
@@ -27161,6 +27234,9 @@ OCUDUASN_CODE five_g_pro_se_authorized_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != five_g_pro_se_authorized_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 412: {
@@ -30606,6 +30682,9 @@ OCUDUASN_CODE m1_cfg_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != m1_cfg_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 268: {
@@ -31196,6 +31275,9 @@ OCUDUASN_CODE m6_cfg_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != m6_cfg_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 266: {
@@ -37673,6 +37755,9 @@ OCUDUASN_CODE mob_restrict_list_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != mob_restrict_list_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 112: {
@@ -38729,6 +38814,9 @@ OCUDUASN_CODE nr_mode_info_fdd_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != nr_mode_info_fdd_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 201: {
@@ -39187,6 +39275,9 @@ OCUDUASN_CODE nr_mode_info_tdd_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != nr_mode_info_tdd_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 140: {
@@ -42137,6 +42228,9 @@ OCUDUASN_CODE qos_flows_to_be_setup_list_setup_sn_terminated_item_ext_ies_contai
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != qos_flows_to_be_setup_list_setup_sn_terminated_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 212: {
@@ -42415,6 +42509,9 @@ OCUDUASN_CODE qos_flows_to_be_setup_list_modified_sn_terminated_item_ext_ies_con
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != qos_flows_to_be_setup_list_modified_sn_terminated_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 212: {
@@ -42924,6 +43021,9 @@ OCUDUASN_CODE pdu_session_res_mod_info_sn_terminated_ext_ies_container::unpack(c
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != pdu_session_res_mod_info_sn_terminated_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 127: {
@@ -43503,6 +43603,9 @@ OCUDUASN_CODE pdu_session_res_mod_resp_info_sn_terminated_ext_ies_container::unp
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != pdu_session_res_mod_resp_info_sn_terminated_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 133: {
@@ -44530,6 +44633,9 @@ OCUDUASN_CODE pdu_session_res_setup_info_sn_terminated_ext_ies_container::unpack
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != pdu_session_res_setup_info_sn_terminated_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 115: {
@@ -45091,6 +45197,9 @@ OCUDUASN_CODE pdu_session_res_setup_resp_info_sn_terminated_ext_ies_container::u
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != pdu_session_res_setup_resp_info_sn_terminated_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 133: {
@@ -45518,6 +45627,9 @@ OCUDUASN_CODE qos_flows_to_be_setup_item_ext_ies_container::unpack(cbit_ref& bre
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != qos_flows_to_be_setup_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 212: {
@@ -46008,6 +46120,9 @@ OCUDUASN_CODE pdu_session_res_to_be_setup_item_ext_ies_container::unpack(cbit_re
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != pdu_session_res_to_be_setup_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 108: {
@@ -46927,6 +47042,9 @@ OCUDUASN_CODE ue_app_layer_meas_cfg_info_ext_ies_container::unpack(cbit_ref& bre
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ue_app_layer_meas_cfg_info_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 437: {
@@ -48169,6 +48287,9 @@ OCUDUASN_CODE ra_report_list_item_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ra_report_list_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 361: {
@@ -48412,7 +48533,7 @@ OCUDUASN_CODE ra_report_ind_list_item_s::pack(bit_ref& bref) const
   bref.pack(ext, 1);
   HANDLE_CODE(bref.pack(ie_exts_present, 1));
 
-  HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+  HANDLE_CODE(pack_integer(bref, m_ng_ran_node_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   if (ie_exts_present) {
     HANDLE_CODE(ie_exts.pack(bref));
   }
@@ -48424,7 +48545,7 @@ OCUDUASN_CODE ra_report_ind_list_item_s::unpack(cbit_ref& bref)
   bref.unpack(ext, 1);
   HANDLE_CODE(bref.unpack(ie_exts_present, 1));
 
-  HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+  HANDLE_CODE(unpack_integer(m_ng_ran_node_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   if (ie_exts_present) {
     HANDLE_CODE(ie_exts.unpack(bref));
   }
@@ -48434,7 +48555,7 @@ OCUDUASN_CODE ra_report_ind_list_item_s::unpack(cbit_ref& bref)
 void ra_report_ind_list_item_s::to_json(json_writer& j) const
 {
   j.start_obj();
-  j.write_int("m-NG-RAN-node-UE-XnAP-ID", m_ng_ran_node_ue_xn_ap_id);
+  j.write_int("m-NG-RAN-node-UE-XnAP-ID", m_ng_ran_node_ue_xnap_id);
   if (ie_exts_present) {
     j.write_fieldname("iE-Extensions");
     ie_exts.to_json(j);
@@ -48496,15 +48617,15 @@ const char* report_periodicity_for_data_collection_opts::to_number_string() cons
 OCUDUASN_CODE reset_request_partial_release_item_s::pack(bit_ref& bref) const
 {
   bref.pack(ext, 1);
-  HANDLE_CODE(bref.pack(ng_ran_node1_ue_xn_ap_id_present, 1));
-  HANDLE_CODE(bref.pack(ng_ran_node2_ue_xn_ap_id_present, 1));
+  HANDLE_CODE(bref.pack(ng_ran_node1_ue_xnap_id_present, 1));
+  HANDLE_CODE(bref.pack(ng_ran_node2_ue_xnap_id_present, 1));
   HANDLE_CODE(bref.pack(ie_exts_present, 1));
 
-  if (ng_ran_node1_ue_xn_ap_id_present) {
-    HANDLE_CODE(pack_integer(bref, ng_ran_node1_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+  if (ng_ran_node1_ue_xnap_id_present) {
+    HANDLE_CODE(pack_integer(bref, ng_ran_node1_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
-  if (ng_ran_node2_ue_xn_ap_id_present) {
-    HANDLE_CODE(pack_integer(bref, ng_ran_node2_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+  if (ng_ran_node2_ue_xnap_id_present) {
+    HANDLE_CODE(pack_integer(bref, ng_ran_node2_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (ie_exts_present) {
     HANDLE_CODE(ie_exts.pack(bref));
@@ -48515,15 +48636,15 @@ OCUDUASN_CODE reset_request_partial_release_item_s::pack(bit_ref& bref) const
 OCUDUASN_CODE reset_request_partial_release_item_s::unpack(cbit_ref& bref)
 {
   bref.unpack(ext, 1);
-  HANDLE_CODE(bref.unpack(ng_ran_node1_ue_xn_ap_id_present, 1));
-  HANDLE_CODE(bref.unpack(ng_ran_node2_ue_xn_ap_id_present, 1));
+  HANDLE_CODE(bref.unpack(ng_ran_node1_ue_xnap_id_present, 1));
+  HANDLE_CODE(bref.unpack(ng_ran_node2_ue_xnap_id_present, 1));
   HANDLE_CODE(bref.unpack(ie_exts_present, 1));
 
-  if (ng_ran_node1_ue_xn_ap_id_present) {
-    HANDLE_CODE(unpack_integer(ng_ran_node1_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+  if (ng_ran_node1_ue_xnap_id_present) {
+    HANDLE_CODE(unpack_integer(ng_ran_node1_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
-  if (ng_ran_node2_ue_xn_ap_id_present) {
-    HANDLE_CODE(unpack_integer(ng_ran_node2_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+  if (ng_ran_node2_ue_xnap_id_present) {
+    HANDLE_CODE(unpack_integer(ng_ran_node2_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (ie_exts_present) {
     HANDLE_CODE(ie_exts.unpack(bref));
@@ -48534,11 +48655,11 @@ OCUDUASN_CODE reset_request_partial_release_item_s::unpack(cbit_ref& bref)
 void reset_request_partial_release_item_s::to_json(json_writer& j) const
 {
   j.start_obj();
-  if (ng_ran_node1_ue_xn_ap_id_present) {
-    j.write_int("ng-ran-node1UEXnAPID", ng_ran_node1_ue_xn_ap_id);
+  if (ng_ran_node1_ue_xnap_id_present) {
+    j.write_int("ng-ran-node1UEXnAPID", ng_ran_node1_ue_xnap_id);
   }
-  if (ng_ran_node2_ue_xn_ap_id_present) {
-    j.write_int("ng-ran-node2UEXnAPID", ng_ran_node2_ue_xn_ap_id);
+  if (ng_ran_node2_ue_xnap_id_present) {
+    j.write_int("ng-ran-node2UEXnAPID", ng_ran_node2_ue_xnap_id);
   }
   if (ie_exts_present) {
     j.write_fieldname("iE-Extensions");
@@ -48787,15 +48908,15 @@ const char* reset_request_type_info_c::types_opts::to_string() const
 OCUDUASN_CODE reset_resp_partial_release_item_s::pack(bit_ref& bref) const
 {
   bref.pack(ext, 1);
-  HANDLE_CODE(bref.pack(ng_ran_node1_ue_xn_ap_id_present, 1));
-  HANDLE_CODE(bref.pack(ng_ran_node2_ue_xn_ap_id_present, 1));
+  HANDLE_CODE(bref.pack(ng_ran_node1_ue_xnap_id_present, 1));
+  HANDLE_CODE(bref.pack(ng_ran_node2_ue_xnap_id_present, 1));
   HANDLE_CODE(bref.pack(ie_exts_present, 1));
 
-  if (ng_ran_node1_ue_xn_ap_id_present) {
-    HANDLE_CODE(pack_integer(bref, ng_ran_node1_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+  if (ng_ran_node1_ue_xnap_id_present) {
+    HANDLE_CODE(pack_integer(bref, ng_ran_node1_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
-  if (ng_ran_node2_ue_xn_ap_id_present) {
-    HANDLE_CODE(pack_integer(bref, ng_ran_node2_ue_xn_ap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+  if (ng_ran_node2_ue_xnap_id_present) {
+    HANDLE_CODE(pack_integer(bref, ng_ran_node2_ue_xnap_id, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (ie_exts_present) {
     HANDLE_CODE(ie_exts.pack(bref));
@@ -48806,15 +48927,15 @@ OCUDUASN_CODE reset_resp_partial_release_item_s::pack(bit_ref& bref) const
 OCUDUASN_CODE reset_resp_partial_release_item_s::unpack(cbit_ref& bref)
 {
   bref.unpack(ext, 1);
-  HANDLE_CODE(bref.unpack(ng_ran_node1_ue_xn_ap_id_present, 1));
-  HANDLE_CODE(bref.unpack(ng_ran_node2_ue_xn_ap_id_present, 1));
+  HANDLE_CODE(bref.unpack(ng_ran_node1_ue_xnap_id_present, 1));
+  HANDLE_CODE(bref.unpack(ng_ran_node2_ue_xnap_id_present, 1));
   HANDLE_CODE(bref.unpack(ie_exts_present, 1));
 
-  if (ng_ran_node1_ue_xn_ap_id_present) {
-    HANDLE_CODE(unpack_integer(ng_ran_node1_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+  if (ng_ran_node1_ue_xnap_id_present) {
+    HANDLE_CODE(unpack_integer(ng_ran_node1_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
-  if (ng_ran_node2_ue_xn_ap_id_present) {
-    HANDLE_CODE(unpack_integer(ng_ran_node2_ue_xn_ap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
+  if (ng_ran_node2_ue_xnap_id_present) {
+    HANDLE_CODE(unpack_integer(ng_ran_node2_ue_xnap_id, bref, (uint64_t)0u, (uint64_t)4294967295u, false, true));
   }
   if (ie_exts_present) {
     HANDLE_CODE(ie_exts.unpack(bref));
@@ -48825,11 +48946,11 @@ OCUDUASN_CODE reset_resp_partial_release_item_s::unpack(cbit_ref& bref)
 void reset_resp_partial_release_item_s::to_json(json_writer& j) const
 {
   j.start_obj();
-  if (ng_ran_node1_ue_xn_ap_id_present) {
-    j.write_int("ng-ran-node1UEXnAPID", ng_ran_node1_ue_xn_ap_id);
+  if (ng_ran_node1_ue_xnap_id_present) {
+    j.write_int("ng-ran-node1UEXnAPID", ng_ran_node1_ue_xnap_id);
   }
-  if (ng_ran_node2_ue_xn_ap_id_present) {
-    j.write_int("ng-ran-node2UEXnAPID", ng_ran_node2_ue_xn_ap_id);
+  if (ng_ran_node2_ue_xnap_id_present) {
+    j.write_int("ng-ran-node2UEXnAPID", ng_ran_node2_ue_xnap_id);
   }
   if (ie_exts_present) {
     j.write_fieldname("iE-Extensions");
@@ -49075,10 +49196,10 @@ const char* reset_resp_type_info_c::types_opts::to_string() const
 }
 
 // S-NG-RANnode-Addition-Trigger-Ind ::= ENUMERATED
-const char* s_ng_ra_nnode_addition_trigger_ind_opts::to_string() const
+const char* s_ng_ran_node_addition_trigger_ind_opts::to_string() const
 {
   static const char* names[] = {"sn-change", "inter-MN-HO", "intra-MN-HO"};
-  return convert_enum_idx(names, 3, value, "s_ng_ra_nnode_addition_trigger_ind_e");
+  return convert_enum_idx(names, 3, value, "s_ng_ran_node_addition_trigger_ind_e");
 }
 
 // SCGActivationRequest ::= ENUMERATED
@@ -49782,13 +49903,13 @@ void ssb_offset_info_s::to_json(json_writer& j) const
 OCUDUASN_CODE ssb_offsets_item_s::pack(bit_ref& bref) const
 {
   bref.pack(ext, 1);
-  HANDLE_CODE(bref.pack(ng_ra_nnode1_ssb_offsets_present, 1));
+  HANDLE_CODE(bref.pack(ng_ran_node1_ssb_offsets_present, 1));
   HANDLE_CODE(bref.pack(ie_exts_present, 1));
 
-  if (ng_ra_nnode1_ssb_offsets_present) {
-    HANDLE_CODE(ng_ra_nnode1_ssb_offsets.pack(bref));
+  if (ng_ran_node1_ssb_offsets_present) {
+    HANDLE_CODE(ng_ran_node1_ssb_offsets.pack(bref));
   }
-  HANDLE_CODE(ng_ra_nnode2_proposed_ssb_offsets.pack(bref));
+  HANDLE_CODE(ng_ran_node2_proposed_ssb_offsets.pack(bref));
   if (ie_exts_present) {
     HANDLE_CODE(ie_exts.pack(bref));
   }
@@ -49798,13 +49919,13 @@ OCUDUASN_CODE ssb_offsets_item_s::pack(bit_ref& bref) const
 OCUDUASN_CODE ssb_offsets_item_s::unpack(cbit_ref& bref)
 {
   bref.unpack(ext, 1);
-  HANDLE_CODE(bref.unpack(ng_ra_nnode1_ssb_offsets_present, 1));
+  HANDLE_CODE(bref.unpack(ng_ran_node1_ssb_offsets_present, 1));
   HANDLE_CODE(bref.unpack(ie_exts_present, 1));
 
-  if (ng_ra_nnode1_ssb_offsets_present) {
-    HANDLE_CODE(ng_ra_nnode1_ssb_offsets.unpack(bref));
+  if (ng_ran_node1_ssb_offsets_present) {
+    HANDLE_CODE(ng_ran_node1_ssb_offsets.unpack(bref));
   }
-  HANDLE_CODE(ng_ra_nnode2_proposed_ssb_offsets.unpack(bref));
+  HANDLE_CODE(ng_ran_node2_proposed_ssb_offsets.unpack(bref));
   if (ie_exts_present) {
     HANDLE_CODE(ie_exts.unpack(bref));
   }
@@ -49814,12 +49935,12 @@ OCUDUASN_CODE ssb_offsets_item_s::unpack(cbit_ref& bref)
 void ssb_offsets_item_s::to_json(json_writer& j) const
 {
   j.start_obj();
-  if (ng_ra_nnode1_ssb_offsets_present) {
+  if (ng_ran_node1_ssb_offsets_present) {
     j.write_fieldname("nG-RANnode1SSBOffsets");
-    ng_ra_nnode1_ssb_offsets.to_json(j);
+    ng_ran_node1_ssb_offsets.to_json(j);
   }
   j.write_fieldname("nG-RANnode2ProposedSSBOffsets");
-  ng_ra_nnode2_proposed_ssb_offsets.to_json(j);
+  ng_ran_node2_proposed_ssb_offsets.to_json(j);
   if (ie_exts_present) {
     j.write_fieldname("iE-Extensions");
     ie_exts.to_json(j);
@@ -50181,6 +50302,9 @@ OCUDUASN_CODE served_cell_info_e_utra_fdd_info_ext_ies_container::unpack(cbit_re
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != served_cell_info_e_utra_fdd_info_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 166: {
@@ -50503,6 +50627,9 @@ OCUDUASN_CODE served_cell_info_e_utra_tdd_info_ext_ies_container::unpack(cbit_re
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != served_cell_info_e_utra_tdd_info_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 166: {
@@ -50950,6 +51077,9 @@ OCUDUASN_CODE served_cell_info_e_utra_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != served_cell_info_e_utra_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 128: {
@@ -51847,6 +51977,9 @@ OCUDUASN_CODE served_cell_info_nr_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != served_cell_info_nr_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 129: {
@@ -53534,6 +53667,9 @@ OCUDUASN_CODE trace_activation_ext_ies_container::unpack(cbit_ref& bref)
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != trace_activation_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 226: {
@@ -55231,6 +55367,9 @@ OCUDUASN_CODE ue_context_info_retr_ue_ctxt_resp_ext_ies_container::unpack(cbit_r
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != ue_context_info_retr_ue_ctxt_resp_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 155: {
@@ -56528,6 +56667,9 @@ OCUDUASN_CODE xn_u_address_infoper_pdu_session_item_ext_ies_container::unpack(cb
     HANDLE_CODE(unpack_integer(id, bref, (uint32_t)0u, (uint32_t)65535u, false, true));
     crit_e crit;
     HANDLE_CODE(crit.unpack(bref));
+    if (crit != xn_u_address_infoper_pdu_session_item_ext_ies_o::get_crit(id)) {
+      asn1::log_warning("Unpacked crit does not match object set definition");
+    }
 
     switch (id) {
       case 109: {
@@ -56589,13 +56731,13 @@ void xn_u_address_infoper_pdu_session_item_ext_ies_container::to_json(json_write
 OCUDUASN_CODE xn_u_address_infoper_pdu_session_item_s::pack(bit_ref& bref) const
 {
   bref.pack(ext, 1);
-  HANDLE_CODE(bref.pack(data_forwarding_info_from_target_ngra_nnode_present, 1));
+  HANDLE_CODE(bref.pack(data_forwarding_info_from_target_ngran_node_present, 1));
   HANDLE_CODE(bref.pack(pdu_session_res_setup_complete_info_sn_term_present, 1));
   HANDLE_CODE(bref.pack(ie_ext_present, 1));
 
   HANDLE_CODE(pack_integer(bref, pdu_session_id, (uint16_t)0u, (uint16_t)255u, false, true));
-  if (data_forwarding_info_from_target_ngra_nnode_present) {
-    HANDLE_CODE(data_forwarding_info_from_target_ngra_nnode.pack(bref));
+  if (data_forwarding_info_from_target_ngran_node_present) {
+    HANDLE_CODE(data_forwarding_info_from_target_ngran_node.pack(bref));
   }
   if (pdu_session_res_setup_complete_info_sn_term_present) {
     HANDLE_CODE(pdu_session_res_setup_complete_info_sn_term.pack(bref));
@@ -56609,13 +56751,13 @@ OCUDUASN_CODE xn_u_address_infoper_pdu_session_item_s::pack(bit_ref& bref) const
 OCUDUASN_CODE xn_u_address_infoper_pdu_session_item_s::unpack(cbit_ref& bref)
 {
   bref.unpack(ext, 1);
-  HANDLE_CODE(bref.unpack(data_forwarding_info_from_target_ngra_nnode_present, 1));
+  HANDLE_CODE(bref.unpack(data_forwarding_info_from_target_ngran_node_present, 1));
   HANDLE_CODE(bref.unpack(pdu_session_res_setup_complete_info_sn_term_present, 1));
   HANDLE_CODE(bref.unpack(ie_ext_present, 1));
 
   HANDLE_CODE(unpack_integer(pdu_session_id, bref, (uint16_t)0u, (uint16_t)255u, false, true));
-  if (data_forwarding_info_from_target_ngra_nnode_present) {
-    HANDLE_CODE(data_forwarding_info_from_target_ngra_nnode.unpack(bref));
+  if (data_forwarding_info_from_target_ngran_node_present) {
+    HANDLE_CODE(data_forwarding_info_from_target_ngran_node.unpack(bref));
   }
   if (pdu_session_res_setup_complete_info_sn_term_present) {
     HANDLE_CODE(pdu_session_res_setup_complete_info_sn_term.unpack(bref));
@@ -56630,9 +56772,9 @@ void xn_u_address_infoper_pdu_session_item_s::to_json(json_writer& j) const
 {
   j.start_obj();
   j.write_int("pduSession-ID", pdu_session_id);
-  if (data_forwarding_info_from_target_ngra_nnode_present) {
+  if (data_forwarding_info_from_target_ngran_node_present) {
     j.write_fieldname("dataForwardingInfoFromTargetNGRANnode");
-    data_forwarding_info_from_target_ngra_nnode.to_json(j);
+    data_forwarding_info_from_target_ngran_node.to_json(j);
   }
   if (pdu_session_res_setup_complete_info_sn_term_present) {
     j.write_fieldname("pduSessionResourceSetupCompleteInfo-SNterm");

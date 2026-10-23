@@ -1372,7 +1372,7 @@ struct direct_forwarding_path_availability_opts {
 using direct_forwarding_path_availability_e = enumerated<direct_forwarding_path_availability_opts, true>;
 
 // DataForwardingInfoFromTargetNGRANnode-ExtIEs ::= OBJECT SET OF XNAP-PROTOCOL-EXTENSION
-struct data_forwarding_info_from_target_ngra_nnode_ext_ies_o {
+struct data_forwarding_info_from_target_ngran_node_ext_ies_o {
   // Extension ::= OPEN TYPE
   struct ext_c {
     struct types_opts {
@@ -1404,7 +1404,7 @@ struct data_forwarding_info_from_target_ngra_nnode_ext_ies_o {
 };
 
 // DataForwardingInfoFromTargetNGRANnode ::= SEQUENCE
-struct data_forwarding_info_from_target_ngra_nnode_s {
+struct data_forwarding_info_from_target_ngran_node_s {
   bool                                       ext                                               = false;
   bool                                       pdu_session_level_dl_data_forwarding_info_present = false;
   bool                                       pdu_session_level_ul_data_forwarding_info_present = false;
@@ -1412,7 +1412,7 @@ struct data_forwarding_info_from_target_ngra_nnode_s {
   up_transport_layer_info_c                  pdu_session_level_dl_data_forwarding_info;
   up_transport_layer_info_c                  pdu_session_level_ul_data_forwarding_info;
   data_forwarding_resp_drb_item_list_l       data_forwarding_resp_drb_item_list;
-  protocol_ext_container_l<data_forwarding_info_from_target_ngra_nnode_ext_ies_o> ie_ext;
+  protocol_ext_container_l<data_forwarding_info_from_target_ngran_node_ext_ies_o> ie_ext;
   // ...
 
   // sequence methods
@@ -1460,7 +1460,7 @@ struct pdu_session_res_change_confirm_info_sn_terminated_ext_ies_o {
 struct pdu_session_res_change_confirm_info_sn_terminated_s {
   bool                                          ext                               = false;
   bool                                          dataforwardinginfo_target_present = false;
-  data_forwarding_info_from_target_ngra_nnode_s dataforwardinginfo_target;
+  data_forwarding_info_from_target_ngran_node_s dataforwardinginfo_target;
   protocol_ext_container_l<pdu_session_res_change_confirm_info_sn_terminated_ext_ies_o> ie_exts;
   // ...
 
@@ -4102,8 +4102,8 @@ struct cause_radio_network_layer_opts {
     txn_relo_coverall_expiry,
     txn_relo_cprep_expiry,
     unknown_guami_id,
-    unknown_local_ng_ran_node_ue_xn_ap_id,
-    inconsistent_remote_ng_ran_node_ue_xn_ap_id,
+    unknown_local_ng_ran_node_ue_xnap_id,
+    inconsistent_remote_ng_ran_node_ue_xnap_id,
     encryption_and_or_integrity_protection_algorithms_not_supported,
     not_used_causes_value_neg1,
     multiple_pdu_session_id_instances,
@@ -4139,7 +4139,7 @@ struct cause_radio_network_layer_opts {
     mn_mob,
     sn_mob,
     count_reaches_max_value,
-    unknown_old_ng_ran_node_ue_xn_ap_id,
+    unknown_old_ng_ran_node_ue_xnap_id,
     pdcp_overload,
     drb_id_not_available,
     unspecified,
@@ -4337,7 +4337,7 @@ using secondarydata_forwarding_info_from_target_item_ext_ies_container = protoco
 struct secondarydata_forwarding_info_from_target_item_s {
   bool                                                             ext             = false;
   bool                                                             ie_exts_present = false;
-  data_forwarding_info_from_target_ngra_nnode_s                    secondarydata_forwarding_info_from_target;
+  data_forwarding_info_from_target_ngran_node_s                    secondarydata_forwarding_info_from_target;
   secondarydata_forwarding_info_from_target_item_ext_ies_container ie_exts;
   // ...
 
@@ -4401,7 +4401,7 @@ struct pdu_session_res_admitted_info_s {
   dl_ng_u_tnl_info_unchanged_e_                                     dl_ng_u_tnl_info_unchanged;
   qos_flows_admitted_list_l                                         qos_flows_admitted_list;
   qos_flows_list_with_cause_l                                       qos_flows_not_admitted_list;
-  data_forwarding_info_from_target_ngra_nnode_s                     data_forwarding_info_from_target;
+  data_forwarding_info_from_target_ngran_node_s                     data_forwarding_info_from_target;
   protocol_ext_container_l<pdu_session_res_admitted_info_ext_ies_o> ie_exts;
   // ...
 
@@ -4466,7 +4466,7 @@ using cho_target_sn_node_item_ext_ies_container = protocol_ext_container_empty_l
 struct cho_target_sn_node_item_s {
   bool                                      ext             = false;
   bool                                      ie_exts_present = false;
-  global_ng_ran_node_id_c                   target_s_ng_ra_nnode_id;
+  global_ng_ran_node_id_c                   target_s_ng_ran_node_id;
   pdu_session_res_admitted_list_l           pdu_session_res_admitted_list;
   cho_candidate_p_scells_list_l             cho_candidate_p_scells_list;
   cho_target_sn_node_item_ext_ies_container ie_exts;
@@ -4725,7 +4725,7 @@ struct ch_oinfo_add_req_s {
   bool                               cho_estimated_arrival_probability_present = false;
   bool                               ie_exts_present                           = false;
   global_ng_ran_node_id_c            source_m_ngran_node_id;
-  uint64_t                           source_m_ngran_node_ue_xn_ap_id   = 0;
+  uint64_t                           source_m_ngran_node_ue_xnap_id    = 0;
   uint8_t                            cho_estimated_arrival_probability = 1;
   ch_oinfo_add_req_ext_ies_container ie_exts;
   // ...
@@ -4847,11 +4847,11 @@ struct ch_oinfo_req_ext_ies_container {
 // CHOinformation-Req ::= SEQUENCE
 struct ch_oinfo_req_s {
   bool                           ext                                       = false;
-  bool                           target_ng_ra_nnode_ue_xn_ap_id_present    = false;
+  bool                           target_ng_ran_node_ue_xnap_id_present     = false;
   bool                           cho_estimated_arrival_probability_present = false;
   bool                           ie_exts_present                           = false;
   ch_otrigger_e                  cho_trigger;
-  uint64_t                       target_ng_ra_nnode_ue_xn_ap_id    = 0;
+  uint64_t                       target_ng_ran_node_ue_xnap_id     = 0;
   uint8_t                        cho_estimated_arrival_probability = 1;
   ch_oinfo_req_ext_ies_container ie_exts;
   // ...
@@ -5192,7 +5192,7 @@ using s_cp_ac_multi_target_sn_item_ext_ies_container = protocol_ext_container_em
 struct s_cp_ac_multi_target_sn_item_s {
   bool                                           ext             = false;
   bool                                           ie_exts_present = false;
-  global_ng_ran_node_id_c                        target_s_ng_ra_nnode_id;
+  global_ng_ran_node_id_c                        target_s_ng_ran_node_id;
   unbounded_octstring<true>                      recommended_candidate_p_scells;
   s_cp_ac_multi_target_sn_item_ext_ies_container ie_exts;
   // ...
@@ -5465,7 +5465,7 @@ struct cp_c_target_sn_confirm_list_item_ext_ies_o {
 // CPC-target-SN-confirm-list-Item ::= SEQUENCE
 struct cp_c_target_sn_confirm_list_item_s {
   bool                                                                 ext = false;
-  global_ng_ran_node_id_c                                              target_s_ng_ra_nnode_id;
+  global_ng_ran_node_id_c                                              target_s_ng_ran_node_id;
   cp_a_ccandidate_p_scells_list_l                                      candidate_pscells;
   protocol_ext_container_l<cp_c_target_sn_confirm_list_item_ext_ies_o> ie_exts;
   // ...
@@ -5510,7 +5510,7 @@ using cp_c_target_sn_mod_item_ext_ies_container = protocol_ext_container_empty_l
 struct cp_c_target_sn_mod_item_s {
   bool                                      ext             = false;
   bool                                      ie_exts_present = false;
-  global_ng_ran_node_id_c                   target_s_ng_ra_nnode_id;
+  global_ng_ran_node_id_c                   target_s_ng_ran_node_id;
   c_pci_nformation_upd_p_scells_list_l      candidate_pscells;
   cp_c_target_sn_mod_item_ext_ies_container ie_exts;
   // ...
@@ -5542,7 +5542,7 @@ struct cp_c_target_sn_required_list_item_s {
   bool                                                ext                                        = false;
   bool                                                cpac_estimated_arrival_probability_present = false;
   bool                                                ie_exts_present                            = false;
-  global_ng_ran_node_id_c                             target_s_ng_ra_nnode_id;
+  global_ng_ran_node_id_c                             target_s_ng_ran_node_id;
   cp_cind_e                                           cpc_ind;
   uint8_t                                             max_no_of_pscells                  = 1;
   uint8_t                                             cpac_estimated_arrival_probability = 1;
@@ -15770,7 +15770,7 @@ struct ssb_offset_mod_range_s {
 };
 
 // NG-RANnode2SSBOffsetsModificationRange ::= SEQUENCE (SIZE (1..64)) OF SSBOffsetModificationRange
-using ng_ra_nnode2_ssb_offsets_mod_range_l = dyn_array<ssb_offset_mod_range_s>;
+using ng_ran_node2_ssb_offsets_mod_range_l = dyn_array<ssb_offset_mod_range_s>;
 
 // NPRACH-CP-Length ::= ENUMERATED
 struct nprach_cp_len_opts {
@@ -17148,7 +17148,7 @@ struct pdu_session_list_with_data_forwarding_from_target_item_ext_ies_o {
 struct pdu_session_list_with_data_forwarding_from_target_item_s {
   bool                                                                                       ext            = false;
   uint16_t                                                                                   pdu_session_id = 0;
-  data_forwarding_info_from_target_ngra_nnode_s                                              dataforwardinginfo_target;
+  data_forwarding_info_from_target_ngran_node_s                                              dataforwardinginfo_target;
   protocol_ext_container_l<pdu_session_list_with_data_forwarding_from_target_item_ext_ies_o> ie_ext;
   // ...
 
@@ -17371,7 +17371,7 @@ struct pdu_session_res_mod_confirm_info_sn_terminated_s {
   up_transport_layer_info_c                      ul_ng_u_tnl_at_up_f;
   drbs_admitted_list_mod_confirm_sn_terminated_l drbs_admitted_list;
   drb_list_with_cause_l                          drbs_not_admitted_setup_modify_list;
-  data_forwarding_info_from_target_ngra_nnode_s  dataforwardinginfo_target;
+  data_forwarding_info_from_target_ngran_node_s  dataforwardinginfo_target;
   protocol_ext_container_l<pdu_session_res_mod_confirm_info_sn_terminated_ext_ies_o> ie_exts;
   // ...
 
@@ -17860,7 +17860,7 @@ struct pdu_session_res_mod_resp_info_sn_terminated_s {
   bool                                                          ie_exts_present                       = false;
   up_transport_layer_info_c                                     dl_ng_u_tnl_at_ng_ran;
   drbs_to_be_setup_list_setup_resp_sn_terminated_l              drbs_to_be_setup;
-  data_forwarding_info_from_target_ngra_nnode_s                 dataforwardinginfo_target;
+  data_forwarding_info_from_target_ngran_node_s                 dataforwardinginfo_target;
   drbs_to_be_modified_list_mod_resp_sn_terminated_l             drbs_to_be_modified;
   drb_list_with_cause_l                                         drbs_to_be_released;
   dataforwardingand_offloading_infofrom_source_s                dataforwardinginfofrom_source;
@@ -18310,7 +18310,7 @@ struct pdu_session_res_setup_resp_info_sn_terminated_s {
   bool                                                            ie_exts_present                   = false;
   up_transport_layer_info_c                                       dl_ng_u_tnl_at_ng_ran;
   drbs_to_be_setup_list_setup_resp_sn_terminated_l                drbs_to_be_setup;
-  data_forwarding_info_from_target_ngra_nnode_s                   dataforwardinginfo_target;
+  data_forwarding_info_from_target_ngran_node_s                   dataforwardinginfo_target;
   qos_flows_list_with_cause_l                                     qos_flows_not_admitted_list;
   security_result_s                                               security_result;
   pdu_session_res_setup_resp_info_sn_terminated_ext_ies_container ie_exts;
@@ -19472,9 +19472,9 @@ using ra_report_ind_list_item_ext_ies_container = protocol_ext_container_empty_l
 
 // RaReportIndicationList-Item ::= SEQUENCE
 struct ra_report_ind_list_item_s {
-  bool                                      ext                       = false;
-  bool                                      ie_exts_present           = false;
-  uint64_t                                  m_ng_ran_node_ue_xn_ap_id = 0;
+  bool                                      ext                      = false;
+  bool                                      ie_exts_present          = false;
+  uint64_t                                  m_ng_ran_node_ue_xnap_id = 0;
   ra_report_ind_list_item_ext_ies_container ie_exts;
   // ...
 
@@ -19546,12 +19546,12 @@ using reset_request_partial_release_item_ext_ies_container = protocol_ext_contai
 
 // ResetRequestPartialReleaseItem ::= SEQUENCE
 struct reset_request_partial_release_item_s {
-  bool                                                 ext                              = false;
-  bool                                                 ng_ran_node1_ue_xn_ap_id_present = false;
-  bool                                                 ng_ran_node2_ue_xn_ap_id_present = false;
-  bool                                                 ie_exts_present                  = false;
-  uint64_t                                             ng_ran_node1_ue_xn_ap_id         = 0;
-  uint64_t                                             ng_ran_node2_ue_xn_ap_id         = 0;
+  bool                                                 ext                             = false;
+  bool                                                 ng_ran_node1_ue_xnap_id_present = false;
+  bool                                                 ng_ran_node2_ue_xnap_id_present = false;
+  bool                                                 ie_exts_present                 = false;
+  uint64_t                                             ng_ran_node1_ue_xnap_id         = 0;
+  uint64_t                                             ng_ran_node2_ue_xnap_id         = 0;
   reset_request_partial_release_item_ext_ies_container ie_exts;
   // ...
 
@@ -19675,12 +19675,12 @@ using reset_resp_partial_release_item_ext_ies_container = protocol_ext_container
 
 // ResetResponsePartialReleaseItem ::= SEQUENCE
 struct reset_resp_partial_release_item_s {
-  bool                                              ext                              = false;
-  bool                                              ng_ran_node1_ue_xn_ap_id_present = false;
-  bool                                              ng_ran_node2_ue_xn_ap_id_present = false;
-  bool                                              ie_exts_present                  = false;
-  uint64_t                                          ng_ran_node1_ue_xn_ap_id         = 0;
-  uint64_t                                          ng_ran_node2_ue_xn_ap_id         = 0;
+  bool                                              ext                             = false;
+  bool                                              ng_ran_node1_ue_xnap_id_present = false;
+  bool                                              ng_ran_node2_ue_xnap_id_present = false;
+  bool                                              ie_exts_present                 = false;
+  uint64_t                                          ng_ran_node1_ue_xnap_id         = 0;
+  uint64_t                                          ng_ran_node2_ue_xnap_id         = 0;
   reset_resp_partial_release_item_ext_ies_container ie_exts;
   // ...
 
@@ -19798,12 +19798,12 @@ private:
 };
 
 // S-NG-RANnode-Addition-Trigger-Ind ::= ENUMERATED
-struct s_ng_ra_nnode_addition_trigger_ind_opts {
+struct s_ng_ran_node_addition_trigger_ind_opts {
   enum options { sn_change, inter_mn_ho, intra_mn_ho, /*...*/ nulltype } value;
 
   const char* to_string() const;
 };
-using s_ng_ra_nnode_addition_trigger_ind_e = enumerated<s_ng_ra_nnode_addition_trigger_ind_opts, true>;
+using s_ng_ran_node_addition_trigger_ind_e = enumerated<s_ng_ran_node_addition_trigger_ind_opts, true>;
 
 // SCGActivationRequest ::= ENUMERATED
 struct scg_activation_request_opts {
@@ -20178,10 +20178,10 @@ using ssb_offsets_item_ext_ies_container = protocol_ext_container_empty_l;
 // SSBOffsets-Item ::= SEQUENCE
 struct ssb_offsets_item_s {
   bool                               ext                              = false;
-  bool                               ng_ra_nnode1_ssb_offsets_present = false;
+  bool                               ng_ran_node1_ssb_offsets_present = false;
   bool                               ie_exts_present                  = false;
-  ssb_offset_info_s                  ng_ra_nnode1_ssb_offsets;
-  ssb_offset_info_s                  ng_ra_nnode2_proposed_ssb_offsets;
+  ssb_offset_info_s                  ng_ran_node1_ssb_offsets;
+  ssb_offset_info_s                  ng_ran_node2_proposed_ssb_offsets;
   ssb_offsets_item_ext_ies_container ie_exts;
   // ...
 
@@ -22365,11 +22365,11 @@ struct xn_u_address_infoper_pdu_session_item_ext_ies_container {
 // XnUAddressInfoperPDUSession-Item ::= SEQUENCE
 struct xn_u_address_infoper_pdu_session_item_s {
   bool                                          ext                                                 = false;
-  bool                                          data_forwarding_info_from_target_ngra_nnode_present = false;
+  bool                                          data_forwarding_info_from_target_ngran_node_present = false;
   bool                                          pdu_session_res_setup_complete_info_sn_term_present = false;
   bool                                          ie_ext_present                                      = false;
   uint16_t                                      pdu_session_id                                      = 0;
-  data_forwarding_info_from_target_ngra_nnode_s data_forwarding_info_from_target_ngra_nnode;
+  data_forwarding_info_from_target_ngran_node_s data_forwarding_info_from_target_ngran_node;
   pdu_session_res_bearer_setup_complete_info_sn_terminated_s pdu_session_res_setup_complete_info_sn_term;
   xn_u_address_infoper_pdu_session_item_ext_ies_container    ie_ext;
   // ...

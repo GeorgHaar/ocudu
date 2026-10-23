@@ -30,7 +30,7 @@ static void pack_and_unpack(T& pdu)
 static asn1::xnap::retrieve_ue_context_request_s make_asn1_reest_request()
 {
   asn1::xnap::retrieve_ue_context_request_s asn1_request;
-  asn1_request->new_ng_ra_nnode_ue_xn_ap_id = 5;
+  asn1_request->new_ng_ran_node_ue_xnap_id = 5;
 
   auto& asn1_reest_id = asn1_request->ue_context_id.set_rrrc_reest();
   asn1_reest_id.c_rnti.from_number(to_underlying(to_rnti(0x4601)));
@@ -130,8 +130,8 @@ TEST(retrieve_ue_context_asn1_helpers_test, reestablishment_request_survives_a_c
   xnap_message msg;
   msg.pdu.set_init_msg();
   msg.pdu.init_msg().load_info_obj(ASN1_XNAP_ID_RETRIEVE_UE_CONTEXT);
-  auto& asn1_request                        = msg.pdu.init_msg().value.retrieve_ue_context_request();
-  asn1_request->new_ng_ra_nnode_ue_xn_ap_id = 5;
+  auto& asn1_request                       = msg.pdu.init_msg().value.retrieve_ue_context_request();
+  asn1_request->new_ng_ran_node_ue_xnap_id = 5;
   retrieve_ue_context_request_to_asn1(asn1_request, request);
   ASSERT_NO_FATAL_FAILURE(pack_and_unpack(msg.pdu));
 
@@ -161,8 +161,8 @@ TEST(retrieve_ue_context_asn1_helpers_test, resume_request_survives_a_conversion
   xnap_message msg;
   msg.pdu.set_init_msg();
   msg.pdu.init_msg().load_info_obj(ASN1_XNAP_ID_RETRIEVE_UE_CONTEXT);
-  auto& asn1_request                        = msg.pdu.init_msg().value.retrieve_ue_context_request();
-  asn1_request->new_ng_ra_nnode_ue_xn_ap_id = 5;
+  auto& asn1_request                       = msg.pdu.init_msg().value.retrieve_ue_context_request();
+  asn1_request->new_ng_ran_node_ue_xnap_id = 5;
   retrieve_ue_context_request_to_asn1(asn1_request, request);
   ASSERT_NO_FATAL_FAILURE(pack_and_unpack(msg.pdu));
 
@@ -215,9 +215,9 @@ TEST(retrieve_ue_context_asn1_helpers_test, response_survives_a_conversion_round
   xnap_message msg;
   msg.pdu.set_successful_outcome();
   msg.pdu.successful_outcome().load_info_obj(ASN1_XNAP_ID_RETRIEVE_UE_CONTEXT);
-  auto& asn1_response                        = msg.pdu.successful_outcome().value.retrieve_ue_context_resp();
-  asn1_response->new_ng_ra_nnode_ue_xn_ap_id = 5;
-  asn1_response->old_ng_ra_nnode_ue_xn_ap_id = 6;
+  auto& asn1_response                       = msg.pdu.successful_outcome().value.retrieve_ue_context_resp();
+  asn1_response->new_ng_ran_node_ue_xnap_id = 5;
+  asn1_response->old_ng_ran_node_ue_xnap_id = 6;
   retrieve_ue_context_response_to_asn1(asn1_response, response);
   ASSERT_NO_FATAL_FAILURE(pack_and_unpack(msg.pdu));
 

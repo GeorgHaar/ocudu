@@ -103,7 +103,7 @@ void xnap_source_handover_preparation_procedure::operator()(
     CORO_EARLY_RETURN(xnap_handover_preparation_response{false});
   }
 
-  peer_xnap_ue_id = uint_to_peer_xnap_ue_id(transaction_sink.response()->target_ng_ra_nnode_ue_xn_ap_id);
+  peer_xnap_ue_id = uint_to_peer_xnap_ue_id(transaction_sink.response()->target_ng_ran_node_ue_xnap_id);
 
   if (!request.is_conditional_handover) {
     // Set Target XNAP UE ID.
@@ -111,7 +111,7 @@ void xnap_source_handover_preparation_procedure::operator()(
 
     // Immediate HO: forward RRC Handover Command to DU Processor.
     ho_command.ue_index      = request.ue_index;
-    ho_command.rrc_container = transaction_sink.response()->target2_source_ng_ra_nnode_transp_container.copy();
+    ho_command.rrc_container = transaction_sink.response()->target2_source_ng_ran_node_transp_container.copy();
     // Report the forwarding tunnels the target allocated, so that the source CU-UP can be pointed at them
     // (TS 38.423 section 9.2.1.19).
     for (const auto& asn1_admitted_item : transaction_sink.response()->pdu_session_res_admitted_list) {
@@ -136,7 +136,7 @@ void xnap_source_handover_preparation_procedure::operator()(
     // Execution is deferred until the UE satisfies the CHO conditions.
     // TODO: Carry the data forwarding tunnels of this candidate to the CHO execution, so that the source CU-UP can be
     // pointed at the tunnels of the winning target (TS 38.423 section 9.2.1.19).
-    auto packed_rrc = transaction_sink.response()->target2_source_ng_ra_nnode_transp_container.copy();
+    auto packed_rrc = transaction_sink.response()->target2_source_ng_ran_node_transp_container.copy();
     if (packed_rrc.empty()) {
       logger.log_warning("\"{}\" failed. Cause: Empty RRC container in HandoverRequest Ack (CHO)", name());
       discard_cho_cell_prep();
@@ -173,7 +173,7 @@ bool xnap_source_handover_preparation_procedure::send_handover_request()
 
   // Fill XNAP UE ID.
   // This is sent from the source to the target, so the source UE ID is the local XNAP UE ID.
-  ho_request->source_ng_ra_nnode_ue_xn_ap_id = to_underlying(ue_ids.local_xnap_ue_id);
+  ho_request->source_ng_ran_node_ue_xnap_id = to_underlying(ue_ids.local_xnap_ue_id);
 
   // Fill cause.
   ho_request->cause.set_radio_network() = cause_radio_network_layer_opts::ho_desirable_for_radio_reasons;
@@ -263,7 +263,7 @@ bool xnap_source_handover_preparation_procedure::send_handover_cancel()
   ho_cancel_s& ho_cancel = msg.pdu.init_msg().value.ho_cancel();
 
   // This is sent from the source to the target, so the source UE ID is the local XNAP UE ID.
-  ho_cancel->source_ng_ra_nnode_ue_xn_ap_id = to_underlying(ue_ids.local_xnap_ue_id);
+  ho_cancel->source_ng_ran_node_ue_xnap_id = to_underlying(ue_ids.local_xnap_ue_id);
 
   ho_cancel->cause.set_radio_network() = cause_radio_network_layer_opts::txn_relo_cprep_expiry;
 

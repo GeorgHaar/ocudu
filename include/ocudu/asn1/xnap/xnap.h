@@ -1033,7 +1033,7 @@ struct xnap_elem_procs_class_2_o {
 };
 
 // XnAP-PDU ::= CHOICE
-struct xn_ap_pdu_c {
+struct xnap_pdu_c {
   struct types_opts {
     enum options { init_msg, successful_outcome, unsuccessful_outcome, /*...*/ nulltype } value;
 
@@ -1042,10 +1042,10 @@ struct xn_ap_pdu_c {
   using types = enumerated<types_opts, true>;
 
   // choice methods
-  xn_ap_pdu_c() = default;
-  xn_ap_pdu_c(const xn_ap_pdu_c& other);
-  xn_ap_pdu_c& operator=(const xn_ap_pdu_c& other);
-  ~xn_ap_pdu_c() { destroy_(); }
+  xnap_pdu_c() = default;
+  xnap_pdu_c(const xnap_pdu_c& other);
+  xnap_pdu_c& operator=(const xnap_pdu_c& other);
+  ~xnap_pdu_c() { destroy_(); }
   void          set(types::options e = types::nulltype);
   types         type() const { return type_; }
   OCUDUASN_CODE pack(bit_ref& bref) const;

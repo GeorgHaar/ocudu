@@ -78,7 +78,7 @@ void xnap_new_node_retrieve_ue_context_procedure::operator()(
 
   // Learn the XNAP UE ID the old NG-RAN node allocated for this UE. The response is sent from the old to the new
   // NG-RAN node, so the old NG-RAN node UE XnAP ID is the peer UE ID.
-  response.peer_xnap_ue_id = uint_to_peer_xnap_ue_id(transaction_sink.response()->old_ng_ra_nnode_ue_xn_ap_id);
+  response.peer_xnap_ue_id = uint_to_peer_xnap_ue_id(transaction_sink.response()->old_ng_ran_node_ue_xnap_id);
   ue_ctxt_list.update_peer_xnap_ue_id(ue_ctxt->ue_ids.local_xnap_ue_id, response.peer_xnap_ue_id);
 
   // TODO: Report the Xn-U tunnel endpoints of the admitted bearers to the old NG-RAN node with an Xn-U Address
@@ -98,7 +98,7 @@ bool xnap_new_node_retrieve_ue_context_procedure::send_retrieve_ue_context_reque
   retrieve_ue_context_request_s& asn1_request = msg.pdu.init_msg().value.retrieve_ue_context_request();
 
   // This is sent from the new to the old NG-RAN node, so the new NG-RAN node UE XnAP ID is the local XNAP UE ID.
-  asn1_request->new_ng_ra_nnode_ue_xn_ap_id = to_underlying(ue_ctxt->ue_ids.local_xnap_ue_id);
+  asn1_request->new_ng_ran_node_ue_xnap_id = to_underlying(ue_ctxt->ue_ids.local_xnap_ue_id);
 
   retrieve_ue_context_request_to_asn1(asn1_request, request);
 

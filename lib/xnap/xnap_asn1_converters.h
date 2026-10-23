@@ -544,7 +544,7 @@ inline bool pdu_session_res_admitted_item_to_asn1(asn1::xnap::pdu_session_res_ad
 /// (TS 38.423 section 9.2.1.19).
 /// \return The forwarding tunnels the source shall send the data it still holds for the UE to.
 inline cu_cp_data_forwarding_info_from_target_ng_ran_node asn1_to_data_forwarding_info_from_target(
-    const asn1::xnap::data_forwarding_info_from_target_ngra_nnode_s& asn1_data_forwarding_info)
+    const asn1::xnap::data_forwarding_info_from_target_ngran_node_s& asn1_data_forwarding_info)
 {
   cu_cp_data_forwarding_info_from_target_ng_ran_node data_forwarding_info;
 

@@ -265,9 +265,9 @@ public:
                               "The Handover Request does not carry the address of the AMF association");
 
     local_xnap_ue_id =
-        uint_to_local_xnap_ue_id(xnap_pdu.pdu.init_msg().value.ho_request()->source_ng_ra_nnode_ue_xn_ap_id);
+        uint_to_local_xnap_ue_id(xnap_pdu.pdu.init_msg().value.ho_request()->source_ng_ran_node_ue_xnap_id);
     peer_xnap_ue_id =
-        uint_to_peer_xnap_ue_id(xnap_pdu.pdu.init_msg().value.ho_request()->source_ng_ra_nnode_ue_xn_ap_id);
+        uint_to_peer_xnap_ue_id(xnap_pdu.pdu.init_msg().value.ho_request()->source_ng_ran_node_ue_xnap_id);
 
     return true;
   }
@@ -552,7 +552,7 @@ TEST_F(cu_cp_inter_cu_xn_handover_test, when_handover_request_carries_guami_of_u
 
   // The CU-CP cannot send the Path Switch Request to the AMF of the UE, so it rejects the handover.
   ASSERT_TRUE(this->wait_for_xnap_tx_pdu(xnc_peer_idx, xnap_pdu));
-  ASSERT_EQ(xnap_pdu.pdu.type().value, asn1::xnap::xn_ap_pdu_c::types_opts::unsuccessful_outcome);
+  ASSERT_EQ(xnap_pdu.pdu.type().value, asn1::xnap::xnap_pdu_c::types_opts::unsuccessful_outcome);
   ASSERT_EQ(xnap_pdu.pdu.unsuccessful_outcome().value.type().value,
             asn1::xnap::xnap_elem_procs_o::unsuccessful_outcome_c::types_opts::ho_prep_fail);
   const auto& cause = xnap_pdu.pdu.unsuccessful_outcome().value.ho_prep_fail()->cause;

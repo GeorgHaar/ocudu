@@ -78,7 +78,7 @@ TEST_F(xnap_retrieve_ue_context_procedure_test, when_response_is_received_then_u
   lazy_task_launcher<xnap_retrieve_ue_context_response> t_launcher(t);
 
   const local_xnap_ue_id_t local_xnap_ue_id = uint_to_local_xnap_ue_id(
-      get_last_message().pdu.init_msg().value.retrieve_ue_context_request()->new_ng_ra_nnode_ue_xn_ap_id);
+      get_last_message().pdu.init_msg().value.retrieve_ue_context_request()->new_ng_ran_node_ue_xnap_id);
 
   xnap->handle_message(generate_retrieve_ue_context_response(local_xnap_ue_id, uint_to_peer_xnap_ue_id(7)));
 
@@ -103,7 +103,7 @@ TEST_F(xnap_retrieve_ue_context_procedure_test, when_failure_is_received_then_re
   lazy_task_launcher<xnap_retrieve_ue_context_response> t_launcher(t);
 
   const local_xnap_ue_id_t local_xnap_ue_id = uint_to_local_xnap_ue_id(
-      get_last_message().pdu.init_msg().value.retrieve_ue_context_request()->new_ng_ra_nnode_ue_xn_ap_id);
+      get_last_message().pdu.init_msg().value.retrieve_ue_context_request()->new_ng_ran_node_ue_xnap_id);
 
   xnap->handle_message(generate_retrieve_ue_context_failure(local_xnap_ue_id));
 
@@ -166,7 +166,7 @@ TEST_F(xnap_retrieve_ue_context_procedure_test, when_request_for_unknown_ue_cont
 
   const xnap_message msg = get_last_message();
   ASSERT_TRUE(test_helpers::is_valid_retrieve_ue_context_failure(msg));
-  ASSERT_EQ(msg.pdu.unsuccessful_outcome().value.retrieve_ue_context_fail()->new_ng_ra_nnode_ue_xn_ap_id, 7U);
+  ASSERT_EQ(msg.pdu.unsuccessful_outcome().value.retrieve_ue_context_fail()->new_ng_ran_node_ue_xnap_id, 7U);
 }
 
 TEST_F(xnap_retrieve_ue_context_procedure_test, when_request_for_unadvertised_target_cell_received_then_failure_is_sent)
@@ -210,7 +210,7 @@ TEST_F(xnap_retrieve_ue_context_procedure_test, when_cu_cp_accepts_the_retrieval
 
   const xnap_message msg = get_last_message();
   ASSERT_TRUE(test_helpers::is_valid_retrieve_ue_context_response(msg));
-  ASSERT_EQ(msg.pdu.successful_outcome().value.retrieve_ue_context_resp()->new_ng_ra_nnode_ue_xn_ap_id, 7U);
+  ASSERT_EQ(msg.pdu.successful_outcome().value.retrieve_ue_context_resp()->new_ng_ran_node_ue_xnap_id, 7U);
 }
 
 TEST_F(xnap_retrieve_ue_context_procedure_test, when_cu_cp_rejects_the_retrieval_then_failure_is_sent)

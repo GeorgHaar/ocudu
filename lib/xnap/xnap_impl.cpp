@@ -88,13 +88,13 @@ void xnap_impl::handle_message(const xnap_message& msg)
   if (not ctrl_exec.execute([this, msg]() {
         log_xnap_pdu(logger, logger.debug.enabled(), true, msg.pdu);
         switch (msg.pdu.type().value) {
-          case xn_ap_pdu_c::types_opts::init_msg:
+          case xnap_pdu_c::types_opts::init_msg:
             handle_initiating_message(msg.pdu.init_msg());
             break;
-          case xn_ap_pdu_c::types_opts::successful_outcome:
+          case xnap_pdu_c::types_opts::successful_outcome:
             handle_successful_outcome(msg.pdu.successful_outcome());
             break;
-          case xn_ap_pdu_c::types_opts::unsuccessful_outcome:
+          case xnap_pdu_c::types_opts::unsuccessful_outcome:
             handle_unsuccessful_outcome(msg.pdu.unsuccessful_outcome());
             break;
           default:
@@ -306,8 +306,8 @@ void xnap_impl::handle_handover_request(const asn1::xnap::ho_request_s& msg)
     xnap_msg.pdu.unsuccessful_outcome().load_info_obj(ASN1_XNAP_ID_HO_PREP);
     auto& ho_fail = xnap_msg.pdu.unsuccessful_outcome().value.ho_prep_fail();
     // This is sent from the target to the source, so the peer XNAP UE ID is the source UE ID.
-    ho_fail->source_ng_ra_nnode_ue_xn_ap_id = peer_xnap_ue_id;
-    ho_fail->cause                          = cause_to_asn1(cause);
+    ho_fail->source_ng_ran_node_ue_xnap_id = peer_xnap_ue_id;
+    ho_fail->cause                         = cause_to_asn1(cause);
 
     if (!tx_notifier.on_new_message(xnap_msg)) {
       logger.warning("Xn-C association is not set. Cannot send HandoverFailure");
@@ -320,7 +320,7 @@ void xnap_impl::handle_handover_request(const asn1::xnap::ho_request_s& msg)
   xnap_handover_request ho_request;
   if (!asn1_to_handover_request(ho_request, msg)) {
     logger.info("Received invalid HandoverRequest");
-    send_handover_failure(msg->source_ng_ra_nnode_ue_xn_ap_id,
+    send_handover_failure(msg->source_ng_ran_node_ue_xnap_id,
                           cause_protocol_t::abstract_syntax_error_falsely_constructed_msg);
 
     return;
@@ -335,7 +335,7 @@ void xnap_impl::handle_handover_request(const asn1::xnap::ho_request_s& msg)
       cu_cp_notifier.request_new_ue_index_allocation(ho_request.nr_cgi, ho_request.guami);
   if (not ue_index.has_value()) {
     logger.debug("Couldn't allocate UE index for handover target cell");
-    send_handover_failure(msg->source_ng_ra_nnode_ue_xn_ap_id, ue_index.error());
+    send_handover_failure(msg->source_ng_ran_node_ue_xnap_id, ue_index.error());
     return;
   }
   ho_request.ue_index = ue_index.value();
@@ -345,7 +345,7 @@ void xnap_impl::handle_handover_request(const asn1::xnap::ho_request_s& msg)
                                                    ho_request.ue_context_info_ho_request.security_context)) {
     logger.debug("Failed to initialize security context for UE index {}. Rejecting handover request",
                  ho_request.ue_index);
-    send_handover_failure(msg->source_ng_ra_nnode_ue_xn_ap_id, xnap_cause_misc_t::not_enough_user_plane_processing_res);
+    send_handover_failure(msg->source_ng_ran_node_ue_xnap_id, xnap_cause_misc_t::not_enough_user_plane_processing_res);
     return;
   }
 
@@ -353,13 +353,13 @@ void xnap_impl::handle_handover_request(const asn1::xnap::ho_request_s& msg)
                                           track_ue_procedure(launch_async<xnap_target_handover_preparation_procedure>(
                                               ho_request,
                                               xnc_index,
-                                              uint_to_peer_xnap_ue_id(msg->source_ng_ra_nnode_ue_xn_ap_id),
+                                              uint_to_peer_xnap_ue_id(msg->source_ng_ran_node_ue_xnap_id),
                                               ue_ctxt_list,
                                               cu_cp_notifier,
                                               tx_notifier,
                                               logger)))) {
     logger.debug("Couldn't schedule targer handover preparation procedure");
-    send_handover_failure(msg->source_ng_ra_nnode_ue_xn_ap_id, xnap_cause_misc_t::not_enough_user_plane_processing_res);
+    send_handover_failure(msg->source_ng_ran_node_ue_xnap_id, xnap_cause_misc_t::not_enough_user_plane_processing_res);
     return;
   }
 }
@@ -371,7 +371,7 @@ void xnap_impl::handle_handover_cancel(const asn1::xnap::ho_cancel_s& msg)
   // cells of the Candidate Cells To Be Cancelled List when that IE is present. Parallel CHO preparations from one
   // source share the source ID, so it alone does not identify a context here.
   // This is sent from the source to the target, so the source XNAP UE ID is the peer UE ID.
-  const peer_xnap_ue_id_t peer_xnap_ue_id = uint_to_peer_xnap_ue_id(msg->source_ng_ra_nnode_ue_xn_ap_id);
+  const peer_xnap_ue_id_t peer_xnap_ue_id = uint_to_peer_xnap_ue_id(msg->source_ng_ran_node_ue_xnap_id);
 
   // Releases one prepared candidate: the CU-CP drops its UE, then the local XNAP UE context goes.
   auto release = [this](xnap_ue_context& ue_ctxt) {
@@ -380,17 +380,17 @@ void xnap_impl::handle_handover_cancel(const asn1::xnap::ho_cancel_s& msg)
     ue_ctxt_list.remove_ue_context(ue_index);
   };
 
-  if (msg->target_ng_ra_nnode_ue_xn_ap_id_present) {
-    xnap_ue_context* ue_ctxt = ue_ctxt_list.find(uint_to_local_xnap_ue_id(msg->target_ng_ra_nnode_ue_xn_ap_id));
+  if (msg->target_ng_ran_node_ue_xnap_id_present) {
+    xnap_ue_context* ue_ctxt = ue_ctxt_list.find(uint_to_local_xnap_ue_id(msg->target_ng_ran_node_ue_xnap_id));
     // Both IDs name the same signalling connection, so a context whose source ID differs is not the addressed one.
     if (ue_ctxt != nullptr and ue_ctxt->ue_ids.peer_xnap_ue_id != peer_xnap_ue_id) {
       logger.info("Discarding HandoverCancel: peer_xnap_ue_id={} does not match local_xnap_ue_id={}",
-                  msg->source_ng_ra_nnode_ue_xn_ap_id,
-                  msg->target_ng_ra_nnode_ue_xn_ap_id);
+                  msg->source_ng_ran_node_ue_xnap_id,
+                  msg->target_ng_ran_node_ue_xnap_id);
       return;
     }
     if (ue_ctxt == nullptr) {
-      logger.info("Received HandoverCancel for unknown UE. peer_xnap_ue_id={}", msg->source_ng_ra_nnode_ue_xn_ap_id);
+      logger.info("Received HandoverCancel for unknown UE. peer_xnap_ue_id={}", msg->source_ng_ran_node_ue_xnap_id);
       return;
     }
     // Section 8.2.3.2 scopes the cancellation to the listed cells as well as to the connection the IDs name, so a
@@ -404,7 +404,7 @@ void xnap_impl::handle_handover_cancel(const asn1::xnap::ho_cancel_s& msg)
                                                });
       if (not names_this_cell) {
         logger.info("Discarding HandoverCancel: the candidate cell list does not name local_xnap_ue_id={}'s cell",
-                    msg->target_ng_ra_nnode_ue_xn_ap_id);
+                    msg->target_ng_ran_node_ue_xnap_id);
         return;
       }
     }
@@ -424,7 +424,7 @@ void xnap_impl::handle_handover_cancel(const asn1::xnap::ho_cancel_s& msg)
         ue_ctxt_list.find_by_peer_and_cell(peer_xnap_ue_id, asn1_to_cgi(item.target_cell.nr()));
     if (cell_ctxt == nullptr) {
       logger.info("HandoverCancel names a cell with no prepared UE. peer_xnap_ue_id={}",
-                  msg->source_ng_ra_nnode_ue_xn_ap_id);
+                  msg->source_ng_ran_node_ue_xnap_id);
       continue;
     }
     release(*cell_ctxt);
@@ -436,7 +436,7 @@ void xnap_impl::handle_handover_cancel(const asn1::xnap::ho_cancel_s& msg)
   // Neither the target ID nor a candidate cell: the whole UE-associated signalling connection is cancelled.
   xnap_ue_context* ue_ctxt = ue_ctxt_list.find(peer_xnap_ue_id);
   if (ue_ctxt == nullptr) {
-    logger.info("Received HandoverCancel for unknown UE. peer_xnap_ue_id={}", msg->source_ng_ra_nnode_ue_xn_ap_id);
+    logger.info("Received HandoverCancel for unknown UE. peer_xnap_ue_id={}", msg->source_ng_ran_node_ue_xnap_id);
     return;
   }
   release(*ue_ctxt);
@@ -447,22 +447,22 @@ void xnap_impl::handle_sn_status_transfer(const asn1::xnap::sn_status_transfer_s
   // This is sent from the source to the target, so the target XNAP UE ID is the local UE ID. Address the context by it:
   // parallel CHO preparations from one source share the Source NG-RAN node UE XnAP ID, so it does not identify a single
   // context here (TS 38.423 Section 9.1.1.4, the Target NG-RAN node UE XnAP ID is mandatory and allocated by us).
-  const local_xnap_ue_id_t local_xnap_ue_id = uint_to_local_xnap_ue_id(msg->target_ng_ra_nnode_ue_xn_ap_id);
+  const local_xnap_ue_id_t local_xnap_ue_id = uint_to_local_xnap_ue_id(msg->target_ng_ran_node_ue_xnap_id);
 
   if (!ue_ctxt_list.contains(local_xnap_ue_id)) {
     logger.warning("peer_xnap_ue={} local_xnap_ue={}: Dropping SNStatusTransfer. UE context does not exist",
-                   msg->source_ng_ra_nnode_ue_xn_ap_id,
-                   msg->target_ng_ra_nnode_ue_xn_ap_id);
+                   msg->source_ng_ran_node_ue_xnap_id,
+                   msg->target_ng_ran_node_ue_xnap_id);
     return;
   }
 
   xnap_ue_context& ue_ctxt = ue_ctxt_list[local_xnap_ue_id];
 
   // Both IDs name the same signalling connection, so a context whose source ID differs is not the addressed one.
-  if (ue_ctxt.ue_ids.peer_xnap_ue_id != uint_to_peer_xnap_ue_id(msg->source_ng_ra_nnode_ue_xn_ap_id)) {
+  if (ue_ctxt.ue_ids.peer_xnap_ue_id != uint_to_peer_xnap_ue_id(msg->source_ng_ran_node_ue_xnap_id)) {
     logger.warning("peer_xnap_ue={} local_xnap_ue={}: Dropping SNStatusTransfer. The IDs name different contexts",
-                   msg->source_ng_ra_nnode_ue_xn_ap_id,
-                   msg->target_ng_ra_nnode_ue_xn_ap_id);
+                   msg->source_ng_ran_node_ue_xnap_id,
+                   msg->target_ng_ran_node_ue_xnap_id);
     return;
   }
 
@@ -473,12 +473,12 @@ void xnap_impl::handle_ue_context_release(const asn1::xnap::ue_context_release_s
 {
   // This is sent from the target to the source, so the source XNAP UE ID is the local UE ID and the target XNAP UE ID
   // is the peer UE ID.
-  local_xnap_ue_id_t local_xnap_ue_id = uint_to_local_xnap_ue_id(msg->source_ng_ra_nnode_ue_xn_ap_id);
+  local_xnap_ue_id_t local_xnap_ue_id = uint_to_local_xnap_ue_id(msg->source_ng_ran_node_ue_xnap_id);
 
   if (!ue_ctxt_list.contains(local_xnap_ue_id)) {
     logger.warning("local_xnap_ue={} peer_xnap_ue={}: Dropping UEContextRelease. UE context does not exist",
-                   msg->source_ng_ra_nnode_ue_xn_ap_id,
-                   msg->target_ng_ra_nnode_ue_xn_ap_id);
+                   msg->source_ng_ran_node_ue_xnap_id,
+                   msg->target_ng_ran_node_ue_xnap_id);
     return;
   }
 
@@ -540,12 +540,12 @@ void xnap_impl::handle_cho_cancel_required(cu_cp_ue_index_t ue_index, const nr_c
     xnap_message msg = {};
     msg.pdu.set_init_msg();
     msg.pdu.init_msg().load_info_obj(ASN1_XNAP_ID_HO_CANCEL);
-    ho_cancel_s& ho_cancel                            = msg.pdu.init_msg().value.ho_cancel();
-    ho_cancel->source_ng_ra_nnode_ue_xn_ap_id         = to_underlying(local_xnap_ue_id);
-    ho_cancel->cause.set_radio_network()              = cause_radio_network_layer_opts::proc_cancelled;
-    ho_cancel->target_ng_ra_nnode_ue_xn_ap_id_present = true;
-    ho_cancel->target_ng_ra_nnode_ue_xn_ap_id         = to_underlying(peer_ue_id);
-    ho_cancel->target_cells_to_cancel_present         = true;
+    ho_cancel_s& ho_cancel                           = msg.pdu.init_msg().value.ho_cancel();
+    ho_cancel->source_ng_ran_node_ue_xnap_id         = to_underlying(local_xnap_ue_id);
+    ho_cancel->cause.set_radio_network()             = cause_radio_network_layer_opts::proc_cancelled;
+    ho_cancel->target_ng_ran_node_ue_xnap_id_present = true;
+    ho_cancel->target_ng_ran_node_ue_xnap_id         = to_underlying(peer_ue_id);
+    ho_cancel->target_cells_to_cancel_present        = true;
     asn1::xnap::target_cell_list_item_s cell_item;
     cell_item.target_cell.set_nr() = cgi_to_asn1(target_cgi);
     ho_cancel->target_cells_to_cancel.push_back(cell_item);
@@ -580,8 +580,8 @@ void xnap_impl::handle_handover_success_required(cu_cp_ue_index_t ue_index, cons
 
   ho_success_s& ho_success = xnap_msg.pdu.init_msg().value.ho_success();
   // HandoverSuccess: target -> source. source_id is the peer (source) XNAP UE ID; target_id is the local XNAP UE ID.
-  ho_success->source_ng_ra_nnode_ue_xn_ap_id           = to_underlying(ue_ctxt.ue_ids.peer_xnap_ue_id);
-  ho_success->target_ng_ra_nnode_ue_xn_ap_id           = to_underlying(ue_ctxt.ue_ids.local_xnap_ue_id);
+  ho_success->source_ng_ran_node_ue_xnap_id            = to_underlying(ue_ctxt.ue_ids.peer_xnap_ue_id);
+  ho_success->target_ng_ran_node_ue_xnap_id            = to_underlying(ue_ctxt.ue_ids.local_xnap_ue_id);
   ho_success->requested_target_cell_global_id.set_nr() = cgi_to_asn1(cgi);
 
   if (!tx_notifier.on_new_message(xnap_msg)) {
@@ -607,8 +607,8 @@ void xnap_impl::handle_sn_status_transfer_required(const cu_cp_status_transfer& 
   sn_status_transfer_s& asn1_sn_status = xnap_msg.pdu.init_msg().value.sn_status_transfer();
   // This is sent from the source to the target, so the source XNAP UE ID is the local UE ID and the target XNAP UE ID
   // is the peer UE ID.
-  asn1_sn_status->source_ng_ra_nnode_ue_xn_ap_id = to_underlying(ue_ctxt.ue_ids.local_xnap_ue_id);
-  asn1_sn_status->target_ng_ra_nnode_ue_xn_ap_id = to_underlying(ue_ctxt.ue_ids.peer_xnap_ue_id);
+  asn1_sn_status->source_ng_ran_node_ue_xnap_id = to_underlying(ue_ctxt.ue_ids.local_xnap_ue_id);
+  asn1_sn_status->target_ng_ran_node_ue_xnap_id = to_underlying(ue_ctxt.ue_ids.peer_xnap_ue_id);
 
   sn_status_transfer_to_asn1(asn1_sn_status, sn_status_transfer.drbs_subject_to_status_transfer_list);
 
@@ -636,7 +636,7 @@ void xnap_impl::handle_handover_success(const asn1::xnap::ho_success_s& msg)
 {
   // HandoverSuccess is sent from the target to the source. From the source's perspective,
   // Source NG-RAN node UE XnAP ID is our own (local) XNAP UE ID set in the HandoverRequest.
-  local_xnap_ue_id_t local_xnap_ue_id = uint_to_local_xnap_ue_id(msg->source_ng_ra_nnode_ue_xn_ap_id);
+  local_xnap_ue_id_t local_xnap_ue_id = uint_to_local_xnap_ue_id(msg->source_ng_ran_node_ue_xnap_id);
   if (!ue_ctxt_list.contains(local_xnap_ue_id)) {
     logger.warning("Received HandoverSuccess for unknown local_xnap_ue_id={}", local_xnap_ue_id);
     return;
@@ -661,7 +661,7 @@ void xnap_impl::handle_handover_success(const asn1::xnap::ho_success_s& msg)
 
   // The Target NG-RAN node UE XnAP ID is the winning target's own local ID, so adopt it: the SN Status Transfer that
   // follows addresses the UE by it, and the other candidates' IDs are of no further use.
-  ue_ctxt_list.update_peer_xnap_ue_id(local_xnap_ue_id, uint_to_peer_xnap_ue_id(msg->target_ng_ra_nnode_ue_xn_ap_id));
+  ue_ctxt_list.update_peer_xnap_ue_id(local_xnap_ue_id, uint_to_peer_xnap_ue_id(msg->target_ng_ran_node_ue_xnap_id));
 
   ue_ctxt_ref.logger.log_debug("CHO winner is {}", winner_cgi);
 
@@ -675,15 +675,15 @@ void xnap_impl::handle_conditional_ho_cancel(const asn1::xnap::conditional_ho_ca
   // The target self-cancels prepared CHO contexts it no longer wants to hold.
   // Source NG-RAN node UE XnAP ID is our local XNAP UE ID (we allocated it when initiating HO).
   // Target NG-RAN node UE XnAP ID is the cancelling target's XNAP UE ID.
-  local_xnap_ue_id_t local_id = uint_to_local_xnap_ue_id(msg->source_ng_ra_nnode_ue_xn_ap_id);
+  local_xnap_ue_id_t local_id = uint_to_local_xnap_ue_id(msg->source_ng_ran_node_ue_xnap_id);
   if (!ue_ctxt_list.contains(local_id)) {
     logger.info("Received ConditionalHandoverCancel for unknown local_xnap_ue_id={}",
-                msg->source_ng_ra_nnode_ue_xn_ap_id);
+                msg->source_ng_ran_node_ue_xnap_id);
     return;
   }
 
   xnap_ue_context&        ue_ctxt         = ue_ctxt_list[local_id];
-  const peer_xnap_ue_id_t cancelling_peer = uint_to_peer_xnap_ue_id(msg->target_ng_ra_nnode_ue_xn_ap_id);
+  const peer_xnap_ue_id_t cancelling_peer = uint_to_peer_xnap_ue_id(msg->target_ng_ran_node_ue_xnap_id);
 
   // TS 38.423 Section 8.2.9.2: when the target names cells, only those candidates are released; the remaining ones
   // stay prepared under the same UE context. Both lists identify candidates by NG-RAN CGI.
@@ -760,8 +760,8 @@ bool xnap_impl::handle_ue_context_release_required(cu_cp_ue_index_t ue_index)
   ue_context_release_s& ue_ctxt_release = xnap_msg.pdu.init_msg().value.ue_context_release();
   // This is sent from the target to the source, so the local XNAP UE ID is the target and the peer XNAP UE ID is the
   // source.
-  ue_ctxt_release->source_ng_ra_nnode_ue_xn_ap_id = to_underlying(ue_ctxt.ue_ids.peer_xnap_ue_id);
-  ue_ctxt_release->target_ng_ra_nnode_ue_xn_ap_id = to_underlying(ue_ctxt.ue_ids.local_xnap_ue_id);
+  ue_ctxt_release->source_ng_ran_node_ue_xnap_id = to_underlying(ue_ctxt.ue_ids.peer_xnap_ue_id);
+  ue_ctxt_release->target_ng_ran_node_ue_xnap_id = to_underlying(ue_ctxt.ue_ids.local_xnap_ue_id);
 
   // Forward message to Xn-C peer CU-CP.
   if (!tx_notifier.on_new_message(xnap_msg)) {
@@ -811,7 +811,7 @@ xnap_impl::handle_retrieve_ue_context_required(const xnap_retrieve_ue_context_re
 void xnap_impl::handle_retrieve_ue_context_request(const asn1::xnap::retrieve_ue_context_request_s& msg)
 {
   // This is sent from the new to the old NG-RAN node, so the new NG-RAN node UE XnAP ID is the peer XNAP UE ID.
-  const peer_xnap_ue_id_t peer_xnap_ue_id = uint_to_peer_xnap_ue_id(msg->new_ng_ra_nnode_ue_xn_ap_id);
+  const peer_xnap_ue_id_t peer_xnap_ue_id = uint_to_peer_xnap_ue_id(msg->new_ng_ran_node_ue_xnap_id);
 
   // Add lambda that generates and transmits a Retrieve UE Context Failure message. It is used before the procedure is
   // launched, so it addresses the peer by the UE XnAP ID the request carried.
@@ -819,9 +819,9 @@ void xnap_impl::handle_retrieve_ue_context_request(const asn1::xnap::retrieve_ue
     xnap_message xnap_msg;
     xnap_msg.pdu.set_unsuccessful_outcome();
     xnap_msg.pdu.unsuccessful_outcome().load_info_obj(ASN1_XNAP_ID_RETRIEVE_UE_CONTEXT);
-    auto& asn1_failure                        = xnap_msg.pdu.unsuccessful_outcome().value.retrieve_ue_context_fail();
-    asn1_failure->new_ng_ra_nnode_ue_xn_ap_id = to_underlying(peer_xnap_ue_id);
-    asn1_failure->cause                       = cause_to_asn1(cause);
+    auto& asn1_failure                       = xnap_msg.pdu.unsuccessful_outcome().value.retrieve_ue_context_fail();
+    asn1_failure->new_ng_ran_node_ue_xnap_id = to_underlying(peer_xnap_ue_id);
+    asn1_failure->cause                      = cause_to_asn1(cause);
 
     if (!tx_notifier.on_new_message(xnap_msg)) {
       logger.warning("Xn-C association is not set. Cannot send RetrieveUEContextFailure");

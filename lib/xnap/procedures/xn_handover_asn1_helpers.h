@@ -188,7 +188,7 @@ inline bool handover_request_ack_to_asn1(asn1::xnap::ho_request_ack_s&     asn1_
   }
 
   // Fill target to source NG RAN node transparent container (containing RRC handover command container).
-  asn1_ho_request_ack->target2_source_ng_ra_nnode_transp_container = ho_response.rrc_handover_command.copy();
+  asn1_ho_request_ack->target2_source_ng_ran_node_transp_container = ho_response.rrc_handover_command.copy();
 
   // TODO: add optional parameters.
 

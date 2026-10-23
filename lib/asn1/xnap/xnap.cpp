@@ -5,6 +5,7 @@
 
 #include "ocudu/asn1/xnap/xnap.h"
 #include "ocudu/asn1/xnap/xnap_pdu_contents.h"
+
 using namespace asn1;
 using namespace asn1::xnap;
 
@@ -5774,7 +5775,7 @@ const char* xnap_elem_procs_class_2_o::unsuccessful_outcome_c::types_opts::to_st
 }
 
 // XnAP-PDU ::= CHOICE
-void xn_ap_pdu_c::destroy_()
+void xnap_pdu_c::destroy_()
 {
   switch (type_) {
     case types::init_msg:
@@ -5790,7 +5791,7 @@ void xn_ap_pdu_c::destroy_()
       break;
   }
 }
-void xn_ap_pdu_c::set(types::options e)
+void xnap_pdu_c::set(types::options e)
 {
   destroy_();
   type_ = e;
@@ -5807,10 +5808,10 @@ void xn_ap_pdu_c::set(types::options e)
     case types::nulltype:
       break;
     default:
-      log_invalid_choice_id(type_, "xn_ap_pdu_c");
+      log_invalid_choice_id(type_, "xnap_pdu_c");
   }
 }
-xn_ap_pdu_c::xn_ap_pdu_c(const xn_ap_pdu_c& other)
+xnap_pdu_c::xnap_pdu_c(const xnap_pdu_c& other)
 {
   type_ = other.type();
   switch (type_) {
@@ -5826,10 +5827,10 @@ xn_ap_pdu_c::xn_ap_pdu_c(const xn_ap_pdu_c& other)
     case types::nulltype:
       break;
     default:
-      log_invalid_choice_id(type_, "xn_ap_pdu_c");
+      log_invalid_choice_id(type_, "xnap_pdu_c");
   }
 }
-xn_ap_pdu_c& xn_ap_pdu_c::operator=(const xn_ap_pdu_c& other)
+xnap_pdu_c& xnap_pdu_c::operator=(const xnap_pdu_c& other)
 {
   if (this == &other) {
     return *this;
@@ -5848,27 +5849,27 @@ xn_ap_pdu_c& xn_ap_pdu_c::operator=(const xn_ap_pdu_c& other)
     case types::nulltype:
       break;
     default:
-      log_invalid_choice_id(type_, "xn_ap_pdu_c");
+      log_invalid_choice_id(type_, "xnap_pdu_c");
   }
 
   return *this;
 }
-init_msg_s& xn_ap_pdu_c::set_init_msg()
+init_msg_s& xnap_pdu_c::set_init_msg()
 {
   set(types::init_msg);
   return c.get<init_msg_s>();
 }
-successful_outcome_s& xn_ap_pdu_c::set_successful_outcome()
+successful_outcome_s& xnap_pdu_c::set_successful_outcome()
 {
   set(types::successful_outcome);
   return c.get<successful_outcome_s>();
 }
-unsuccessful_outcome_s& xn_ap_pdu_c::set_unsuccessful_outcome()
+unsuccessful_outcome_s& xnap_pdu_c::set_unsuccessful_outcome()
 {
   set(types::unsuccessful_outcome);
   return c.get<unsuccessful_outcome_s>();
 }
-void xn_ap_pdu_c::to_json(json_writer& j) const
+void xnap_pdu_c::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
@@ -5885,11 +5886,11 @@ void xn_ap_pdu_c::to_json(json_writer& j) const
       c.get<unsuccessful_outcome_s>().to_json(j);
       break;
     default:
-      log_invalid_choice_id(type_, "xn_ap_pdu_c");
+      log_invalid_choice_id(type_, "xnap_pdu_c");
   }
   j.end_obj();
 }
-OCUDUASN_CODE xn_ap_pdu_c::pack(bit_ref& bref) const
+OCUDUASN_CODE xnap_pdu_c::pack(bit_ref& bref) const
 {
   type_.pack(bref);
   switch (type_) {
@@ -5903,12 +5904,12 @@ OCUDUASN_CODE xn_ap_pdu_c::pack(bit_ref& bref) const
       HANDLE_CODE(c.get<unsuccessful_outcome_s>().pack(bref));
       break;
     default:
-      log_invalid_choice_id(type_, "xn_ap_pdu_c");
+      log_invalid_choice_id(type_, "xnap_pdu_c");
       return OCUDUASN_ERROR_ENCODE_FAIL;
   }
   return OCUDUASN_SUCCESS;
 }
-OCUDUASN_CODE xn_ap_pdu_c::unpack(cbit_ref& bref)
+OCUDUASN_CODE xnap_pdu_c::unpack(cbit_ref& bref)
 {
   types e;
   e.unpack(bref);
@@ -5924,14 +5925,14 @@ OCUDUASN_CODE xn_ap_pdu_c::unpack(cbit_ref& bref)
       HANDLE_CODE(c.get<unsuccessful_outcome_s>().unpack(bref));
       break;
     default:
-      log_invalid_choice_id(type_, "xn_ap_pdu_c");
+      log_invalid_choice_id(type_, "xnap_pdu_c");
       return OCUDUASN_ERROR_DECODE_FAIL;
   }
   return OCUDUASN_SUCCESS;
 }
 
-const char* xn_ap_pdu_c::types_opts::to_string() const
+const char* xnap_pdu_c::types_opts::to_string() const
 {
   static const char* names[] = {"initiatingMessage", "successfulOutcome", "unsuccessfulOutcome"};
-  return convert_enum_idx(names, 3, value, "xn_ap_pdu_c::types");
+  return convert_enum_idx(names, 3, value, "xnap_pdu_c::types");
 }

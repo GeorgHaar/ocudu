@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "ocudu/asn1/rrc_nr/sys_info.h"
+
 using namespace asn1;
 using namespace asn1::rrc_nr;
 
@@ -7648,7 +7649,7 @@ void sys_info_ies_s::to_json(json_writer& j) const
   j.end_obj();
 }
 
-void sys_info_ies_s::item_c_::destroy_()
+void sys_info_ies_s::sib_type_and_info_l_item_c_::destroy_()
 {
   switch (type_) {
     case types::sib2:
@@ -7730,7 +7731,7 @@ void sys_info_ies_s::item_c_::destroy_()
       break;
   }
 }
-void sys_info_ies_s::item_c_::set(types::options e)
+void sys_info_ies_s::sib_type_and_info_l_item_c_::set(types::options e)
 {
   destroy_();
   type_ = e;
@@ -7813,10 +7814,11 @@ void sys_info_ies_s::item_c_::set(types::options e)
     case types::nulltype:
       break;
     default:
-      log_invalid_choice_id(type_, "sys_info_ies_s::item_c_");
+      log_invalid_choice_id(type_, "sys_info_ies_s::sib_type_and_info_l_item_c_");
   }
 }
-sys_info_ies_s::item_c_::item_c_(const sys_info_ies_s::item_c_& other)
+sys_info_ies_s::sib_type_and_info_l_item_c_::sib_type_and_info_l_item_c_(
+    const sys_info_ies_s::sib_type_and_info_l_item_c_& other)
 {
   type_ = other.type();
   switch (type_) {
@@ -7898,10 +7900,11 @@ sys_info_ies_s::item_c_::item_c_(const sys_info_ies_s::item_c_& other)
     case types::nulltype:
       break;
     default:
-      log_invalid_choice_id(type_, "sys_info_ies_s::item_c_");
+      log_invalid_choice_id(type_, "sys_info_ies_s::sib_type_and_info_l_item_c_");
   }
 }
-sys_info_ies_s::item_c_& sys_info_ies_s::item_c_::operator=(const sys_info_ies_s::item_c_& other)
+sys_info_ies_s::sib_type_and_info_l_item_c_&
+sys_info_ies_s::sib_type_and_info_l_item_c_::operator=(const sys_info_ies_s::sib_type_and_info_l_item_c_& other)
 {
   if (this == &other) {
     return *this;
@@ -7986,137 +7989,137 @@ sys_info_ies_s::item_c_& sys_info_ies_s::item_c_::operator=(const sys_info_ies_s
     case types::nulltype:
       break;
     default:
-      log_invalid_choice_id(type_, "sys_info_ies_s::item_c_");
+      log_invalid_choice_id(type_, "sys_info_ies_s::sib_type_and_info_l_item_c_");
   }
 
   return *this;
 }
-sib2_s& sys_info_ies_s::item_c_::set_sib2()
+sib2_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib2()
 {
   set(types::sib2);
   return c.get<sib2_s>();
 }
-sib3_s& sys_info_ies_s::item_c_::set_sib3()
+sib3_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib3()
 {
   set(types::sib3);
   return c.get<sib3_s>();
 }
-sib4_s& sys_info_ies_s::item_c_::set_sib4()
+sib4_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib4()
 {
   set(types::sib4);
   return c.get<sib4_s>();
 }
-sib5_s& sys_info_ies_s::item_c_::set_sib5()
+sib5_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib5()
 {
   set(types::sib5);
   return c.get<sib5_s>();
 }
-sib6_s& sys_info_ies_s::item_c_::set_sib6()
+sib6_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib6()
 {
   set(types::sib6);
   return c.get<sib6_s>();
 }
-sib7_s& sys_info_ies_s::item_c_::set_sib7()
+sib7_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib7()
 {
   set(types::sib7);
   return c.get<sib7_s>();
 }
-sib8_s& sys_info_ies_s::item_c_::set_sib8()
+sib8_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib8()
 {
   set(types::sib8);
   return c.get<sib8_s>();
 }
-sib9_s& sys_info_ies_s::item_c_::set_sib9()
+sib9_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib9()
 {
   set(types::sib9);
   return c.get<sib9_s>();
 }
-sib10_r16_s& sys_info_ies_s::item_c_::set_sib10_v1610()
+sib10_r16_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib10_v1610()
 {
   set(types::sib10_v1610);
   return c.get<sib10_r16_s>();
 }
-sib11_r16_s& sys_info_ies_s::item_c_::set_sib11_v1610()
+sib11_r16_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib11_v1610()
 {
   set(types::sib11_v1610);
   return c.get<sib11_r16_s>();
 }
-sib12_r16_s& sys_info_ies_s::item_c_::set_sib12_v1610()
+sib12_r16_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib12_v1610()
 {
   set(types::sib12_v1610);
   return c.get<sib12_r16_s>();
 }
-sib13_r16_s& sys_info_ies_s::item_c_::set_sib13_v1610()
+sib13_r16_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib13_v1610()
 {
   set(types::sib13_v1610);
   return c.get<sib13_r16_s>();
 }
-sib14_r16_s& sys_info_ies_s::item_c_::set_sib14_v1610()
+sib14_r16_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib14_v1610()
 {
   set(types::sib14_v1610);
   return c.get<sib14_r16_s>();
 }
-sib15_r17_s& sys_info_ies_s::item_c_::set_sib15_v1700()
+sib15_r17_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib15_v1700()
 {
   set(types::sib15_v1700);
   return c.get<sib15_r17_s>();
 }
-sib16_r17_s& sys_info_ies_s::item_c_::set_sib16_v1700()
+sib16_r17_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib16_v1700()
 {
   set(types::sib16_v1700);
   return c.get<sib16_r17_s>();
 }
-sib17_r17_s& sys_info_ies_s::item_c_::set_sib17_v1700()
+sib17_r17_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib17_v1700()
 {
   set(types::sib17_v1700);
   return c.get<sib17_r17_s>();
 }
-sib18_r17_s& sys_info_ies_s::item_c_::set_sib18_v1700()
+sib18_r17_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib18_v1700()
 {
   set(types::sib18_v1700);
   return c.get<sib18_r17_s>();
 }
-sib19_r17_s& sys_info_ies_s::item_c_::set_sib19_v1700()
+sib19_r17_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib19_v1700()
 {
   set(types::sib19_v1700);
   return c.get<sib19_r17_s>();
 }
-sib20_r17_s& sys_info_ies_s::item_c_::set_sib20_v1700()
+sib20_r17_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib20_v1700()
 {
   set(types::sib20_v1700);
   return c.get<sib20_r17_s>();
 }
-sib21_r17_s& sys_info_ies_s::item_c_::set_sib21_v1700()
+sib21_r17_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib21_v1700()
 {
   set(types::sib21_v1700);
   return c.get<sib21_r17_s>();
 }
-sib22_r18_s& sys_info_ies_s::item_c_::set_sib22_v1800()
+sib22_r18_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib22_v1800()
 {
   set(types::sib22_v1800);
   return c.get<sib22_r18_s>();
 }
-sib23_r18_s& sys_info_ies_s::item_c_::set_sib23_v1800()
+sib23_r18_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib23_v1800()
 {
   set(types::sib23_v1800);
   return c.get<sib23_r18_s>();
 }
-sib24_r18_s& sys_info_ies_s::item_c_::set_sib24_v1800()
+sib24_r18_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib24_v1800()
 {
   set(types::sib24_v1800);
   return c.get<sib24_r18_s>();
 }
-sib25_r18_s& sys_info_ies_s::item_c_::set_sib25_v1800()
+sib25_r18_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib25_v1800()
 {
   set(types::sib25_v1800);
   return c.get<sib25_r18_s>();
 }
-sib17bis_r18_s& sys_info_ies_s::item_c_::set_sib17bis_v1820()
+sib17bis_r18_s& sys_info_ies_s::sib_type_and_info_l_item_c_::set_sib17bis_v1820()
 {
   set(types::sib17bis_v1820);
   return c.get<sib17bis_r18_s>();
 }
-void sys_info_ies_s::item_c_::to_json(json_writer& j) const
+void sys_info_ies_s::sib_type_and_info_l_item_c_::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
@@ -8221,11 +8224,11 @@ void sys_info_ies_s::item_c_::to_json(json_writer& j) const
       c.get<sib17bis_r18_s>().to_json(j);
       break;
     default:
-      log_invalid_choice_id(type_, "sys_info_ies_s::item_c_");
+      log_invalid_choice_id(type_, "sys_info_ies_s::sib_type_and_info_l_item_c_");
   }
   j.end_obj();
 }
-OCUDUASN_CODE sys_info_ies_s::item_c_::pack(bit_ref& bref) const
+OCUDUASN_CODE sys_info_ies_s::sib_type_and_info_l_item_c_::pack(bit_ref& bref) const
 {
   type_.pack(bref);
   switch (type_) {
@@ -8322,12 +8325,12 @@ OCUDUASN_CODE sys_info_ies_s::item_c_::pack(bit_ref& bref) const
       HANDLE_CODE(c.get<sib17bis_r18_s>().pack(bref));
     } break;
     default:
-      log_invalid_choice_id(type_, "sys_info_ies_s::item_c_");
+      log_invalid_choice_id(type_, "sys_info_ies_s::sib_type_and_info_l_item_c_");
       return OCUDUASN_ERROR_ENCODE_FAIL;
   }
   return OCUDUASN_SUCCESS;
 }
-OCUDUASN_CODE sys_info_ies_s::item_c_::unpack(cbit_ref& bref)
+OCUDUASN_CODE sys_info_ies_s::sib_type_and_info_l_item_c_::unpack(cbit_ref& bref)
 {
   types e;
   e.unpack(bref);
@@ -8426,20 +8429,20 @@ OCUDUASN_CODE sys_info_ies_s::item_c_::unpack(cbit_ref& bref)
       HANDLE_CODE(c.get<sib17bis_r18_s>().unpack(bref));
     } break;
     default:
-      log_invalid_choice_id(type_, "sys_info_ies_s::item_c_");
+      log_invalid_choice_id(type_, "sys_info_ies_s::sib_type_and_info_l_item_c_");
       return OCUDUASN_ERROR_DECODE_FAIL;
   }
   return OCUDUASN_SUCCESS;
 }
 
-const char* sys_info_ies_s::item_c_::types_opts::to_string() const
+const char* sys_info_ies_s::sib_type_and_info_l_item_c_::types_opts::to_string() const
 {
   static const char* names[] = {"sib2",        "sib3",        "sib4",        "sib5",        "sib6",
                                 "sib7",        "sib8",        "sib9",        "sib10-v1610", "sib11-v1610",
                                 "sib12-v1610", "sib13-v1610", "sib14-v1610", "sib15-v1700", "sib16-v1700",
                                 "sib17-v1700", "sib18-v1700", "sib19-v1700", "sib20-v1700", "sib21-v1700",
                                 "sib22-v1800", "sib23-v1800", "sib24-v1800", "sib25-v1800", "sib17bis-v1820"};
-  return convert_enum_idx(names, 25, value, "sys_info_ies_s::item_c_::types");
+  return convert_enum_idx(names, 25, value, "sys_info_ies_s::sib_type_and_info_l_item_c_::types");
 }
 
 // SIBpos-r16 ::= SEQUENCE
@@ -8523,7 +8526,7 @@ void pos_sys_info_r16_ies_s::to_json(json_writer& j) const
   j.end_obj();
 }
 
-void pos_sys_info_r16_ies_s::item_c_::destroy_()
+void pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::destroy_()
 {
   switch (type_) {
     case types::pos_sib1_1_r16:
@@ -8698,7 +8701,7 @@ void pos_sys_info_r16_ies_s::item_c_::destroy_()
       break;
   }
 }
-void pos_sys_info_r16_ies_s::item_c_::set(types::options e)
+void pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set(types::options e)
 {
   destroy_();
   type_ = e;
@@ -8874,10 +8877,11 @@ void pos_sys_info_r16_ies_s::item_c_::set(types::options e)
     case types::nulltype:
       break;
     default:
-      log_invalid_choice_id(type_, "pos_sys_info_r16_ies_s::item_c_");
+      log_invalid_choice_id(type_, "pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_");
   }
 }
-pos_sys_info_r16_ies_s::item_c_::item_c_(const pos_sys_info_r16_ies_s::item_c_& other)
+pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::pos_sib_type_and_info_r16_l_item_c_(
+    const pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_& other)
 {
   type_ = other.type();
   switch (type_) {
@@ -9052,11 +9056,12 @@ pos_sys_info_r16_ies_s::item_c_::item_c_(const pos_sys_info_r16_ies_s::item_c_& 
     case types::nulltype:
       break;
     default:
-      log_invalid_choice_id(type_, "pos_sys_info_r16_ies_s::item_c_");
+      log_invalid_choice_id(type_, "pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_");
   }
 }
-pos_sys_info_r16_ies_s::item_c_&
-pos_sys_info_r16_ies_s::item_c_::operator=(const pos_sys_info_r16_ies_s::item_c_& other)
+pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_&
+pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::operator=(
+    const pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_& other)
 {
   if (this == &other) {
     return *this;
@@ -9234,292 +9239,292 @@ pos_sys_info_r16_ies_s::item_c_::operator=(const pos_sys_info_r16_ies_s::item_c_
     case types::nulltype:
       break;
     default:
-      log_invalid_choice_id(type_, "pos_sys_info_r16_ies_s::item_c_");
+      log_invalid_choice_id(type_, "pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_");
   }
 
   return *this;
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib1_1_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib1_1_r16()
 {
   set(types::pos_sib1_1_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib1_2_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib1_2_r16()
 {
   set(types::pos_sib1_2_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib1_3_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib1_3_r16()
 {
   set(types::pos_sib1_3_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib1_4_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib1_4_r16()
 {
   set(types::pos_sib1_4_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib1_5_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib1_5_r16()
 {
   set(types::pos_sib1_5_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib1_6_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib1_6_r16()
 {
   set(types::pos_sib1_6_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib1_7_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib1_7_r16()
 {
   set(types::pos_sib1_7_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib1_8_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib1_8_r16()
 {
   set(types::pos_sib1_8_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_1_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_1_r16()
 {
   set(types::pos_sib2_1_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_2_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_2_r16()
 {
   set(types::pos_sib2_2_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_3_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_3_r16()
 {
   set(types::pos_sib2_3_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_4_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_4_r16()
 {
   set(types::pos_sib2_4_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_5_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_5_r16()
 {
   set(types::pos_sib2_5_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_6_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_6_r16()
 {
   set(types::pos_sib2_6_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_7_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_7_r16()
 {
   set(types::pos_sib2_7_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_8_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_8_r16()
 {
   set(types::pos_sib2_8_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_9_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_9_r16()
 {
   set(types::pos_sib2_9_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_10_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_10_r16()
 {
   set(types::pos_sib2_10_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_11_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_11_r16()
 {
   set(types::pos_sib2_11_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_12_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_12_r16()
 {
   set(types::pos_sib2_12_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_13_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_13_r16()
 {
   set(types::pos_sib2_13_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_14_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_14_r16()
 {
   set(types::pos_sib2_14_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_15_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_15_r16()
 {
   set(types::pos_sib2_15_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_16_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_16_r16()
 {
   set(types::pos_sib2_16_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_17_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_17_r16()
 {
   set(types::pos_sib2_17_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_18_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_18_r16()
 {
   set(types::pos_sib2_18_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_19_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_19_r16()
 {
   set(types::pos_sib2_19_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_20_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_20_r16()
 {
   set(types::pos_sib2_20_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_21_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_21_r16()
 {
   set(types::pos_sib2_21_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_22_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_22_r16()
 {
   set(types::pos_sib2_22_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_23_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_23_r16()
 {
   set(types::pos_sib2_23_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib3_1_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib3_1_r16()
 {
   set(types::pos_sib3_1_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib4_1_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib4_1_r16()
 {
   set(types::pos_sib4_1_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib5_1_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib5_1_r16()
 {
   set(types::pos_sib5_1_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib6_1_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib6_1_r16()
 {
   set(types::pos_sib6_1_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib6_2_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib6_2_r16()
 {
   set(types::pos_sib6_2_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib6_3_r16()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib6_3_r16()
 {
   set(types::pos_sib6_3_r16);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib1_9_v1700()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib1_9_v1700()
 {
   set(types::pos_sib1_9_v1700);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib1_10_v1700()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib1_10_v1700()
 {
   set(types::pos_sib1_10_v1700);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_24_v1700()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_24_v1700()
 {
   set(types::pos_sib2_24_v1700);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_25_v1700()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_25_v1700()
 {
   set(types::pos_sib2_25_v1700);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib6_4_v1700()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib6_4_v1700()
 {
   set(types::pos_sib6_4_v1700);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib6_5_v1700()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib6_5_v1700()
 {
   set(types::pos_sib6_5_v1700);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib6_6_v1700()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib6_6_v1700()
 {
   set(types::pos_sib6_6_v1700);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_17a_v1770()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_17a_v1770()
 {
   set(types::pos_sib2_17a_v1770);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_18a_v1770()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_18a_v1770()
 {
   set(types::pos_sib2_18a_v1770);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_20a_v1770()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_20a_v1770()
 {
   set(types::pos_sib2_20a_v1770);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib1_11_v1800()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib1_11_v1800()
 {
   set(types::pos_sib1_11_v1800);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib1_12_v1800()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib1_12_v1800()
 {
   set(types::pos_sib1_12_v1800);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_26_v1800()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_26_v1800()
 {
   set(types::pos_sib2_26_v1800);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib2_27_v1800()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib2_27_v1800()
 {
   set(types::pos_sib2_27_v1800);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib6_7_v1800()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib6_7_v1800()
 {
   set(types::pos_sib6_7_v1800);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib7_1_v1800()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib7_1_v1800()
 {
   set(types::pos_sib7_1_v1800);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib7_2_v1800()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib7_2_v1800()
 {
   set(types::pos_sib7_2_v1800);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib7_3_v1800()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib7_3_v1800()
 {
   set(types::pos_sib7_3_v1800);
   return c.get<sib_pos_r16_s>();
 }
-sib_pos_r16_s& pos_sys_info_r16_ies_s::item_c_::set_pos_sib7_4_v1800()
+sib_pos_r16_s& pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::set_pos_sib7_4_v1800()
 {
   set(types::pos_sib7_4_v1800);
   return c.get<sib_pos_r16_s>();
 }
-void pos_sys_info_r16_ies_s::item_c_::to_json(json_writer& j) const
+void pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::to_json(json_writer& j) const
 {
   j.start_obj();
   switch (type_) {
@@ -9748,11 +9753,11 @@ void pos_sys_info_r16_ies_s::item_c_::to_json(json_writer& j) const
       c.get<sib_pos_r16_s>().to_json(j);
       break;
     default:
-      log_invalid_choice_id(type_, "pos_sys_info_r16_ies_s::item_c_");
+      log_invalid_choice_id(type_, "pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_");
   }
   j.end_obj();
 }
-OCUDUASN_CODE pos_sys_info_r16_ies_s::item_c_::pack(bit_ref& bref) const
+OCUDUASN_CODE pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::pack(bit_ref& bref) const
 {
   type_.pack(bref);
   switch (type_) {
@@ -9944,12 +9949,12 @@ OCUDUASN_CODE pos_sys_info_r16_ies_s::item_c_::pack(bit_ref& bref) const
       HANDLE_CODE(c.get<sib_pos_r16_s>().pack(bref));
     } break;
     default:
-      log_invalid_choice_id(type_, "pos_sys_info_r16_ies_s::item_c_");
+      log_invalid_choice_id(type_, "pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_");
       return OCUDUASN_ERROR_ENCODE_FAIL;
   }
   return OCUDUASN_SUCCESS;
 }
-OCUDUASN_CODE pos_sys_info_r16_ies_s::item_c_::unpack(cbit_ref& bref)
+OCUDUASN_CODE pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::unpack(cbit_ref& bref)
 {
   types e;
   e.unpack(bref);
@@ -10143,13 +10148,13 @@ OCUDUASN_CODE pos_sys_info_r16_ies_s::item_c_::unpack(cbit_ref& bref)
       HANDLE_CODE(c.get<sib_pos_r16_s>().unpack(bref));
     } break;
     default:
-      log_invalid_choice_id(type_, "pos_sys_info_r16_ies_s::item_c_");
+      log_invalid_choice_id(type_, "pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_");
       return OCUDUASN_ERROR_DECODE_FAIL;
   }
   return OCUDUASN_SUCCESS;
 }
 
-const char* pos_sys_info_r16_ies_s::item_c_::types_opts::to_string() const
+const char* pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::types_opts::to_string() const
 {
   static const char* names[] = {
       "posSib1-1-r16",     "posSib1-2-r16",     "posSib1-3-r16",    "posSib1-4-r16",    "posSib1-5-r16",
@@ -10164,7 +10169,7 @@ const char* pos_sys_info_r16_ies_s::item_c_::types_opts::to_string() const
       "posSib2-18a-v1770", "posSib2-20a-v1770", "posSib1-11-v1800", "posSib1-12-v1800", "posSib2-26-v1800",
       "posSib2-27-v1800",  "posSib6-7-v1800",   "posSib7-1-v1800",  "posSib7-2-v1800",  "posSib7-3-v1800",
       "posSib7-4-v1800"};
-  return convert_enum_idx(names, 56, value, "pos_sys_info_r16_ies_s::item_c_::types");
+  return convert_enum_idx(names, 56, value, "pos_sys_info_r16_ies_s::pos_sib_type_and_info_r16_l_item_c_::types");
 }
 
 // SystemInformation ::= SEQUENCE

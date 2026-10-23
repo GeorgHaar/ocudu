@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "ocudu/asn1/rrc_nr/serving_cell.h"
+
 using namespace asn1;
 using namespace asn1::rrc_nr;
 
@@ -3922,11 +3923,12 @@ const char* csi_associated_report_cfg_info_s::apply_indicated_tci_state_r18_c_::
       names, 2, value, "csi_associated_report_cfg_info_s::apply_indicated_tci_state_r18_c_::per_set_r18_e_");
 }
 
-const char* csi_associated_report_cfg_info_s::apply_indicated_tci_state_r18_c_::item_opts::to_string() const
+const char*
+csi_associated_report_cfg_info_s::apply_indicated_tci_state_r18_c_::per_res_r18_l_item_opts::to_string() const
 {
   static const char* names[] = {"first", "second"};
   return convert_enum_idx(
-      names, 2, value, "csi_associated_report_cfg_info_s::apply_indicated_tci_state_r18_c_::item_e_");
+      names, 2, value, "csi_associated_report_cfg_info_s::apply_indicated_tci_state_r18_c_::per_res_r18_l_item_e_");
 }
 
 const char* csi_associated_report_cfg_info_s::apply_indicated_tci_state_r18_c_::types_opts::to_string() const
@@ -4074,11 +4076,12 @@ const char* csi_associated_report_cfg_info_s::apply_indicated_tci_state2_r18_c_:
       names, 2, value, "csi_associated_report_cfg_info_s::apply_indicated_tci_state2_r18_c_::per_set_r18_e_");
 }
 
-const char* csi_associated_report_cfg_info_s::apply_indicated_tci_state2_r18_c_::item_opts::to_string() const
+const char*
+csi_associated_report_cfg_info_s::apply_indicated_tci_state2_r18_c_::per_res_r18_l_item_opts::to_string() const
 {
   static const char* names[] = {"first", "second"};
   return convert_enum_idx(
-      names, 2, value, "csi_associated_report_cfg_info_s::apply_indicated_tci_state2_r18_c_::item_e_");
+      names, 2, value, "csi_associated_report_cfg_info_s::apply_indicated_tci_state2_r18_c_::per_res_r18_l_item_e_");
 }
 
 const char* csi_associated_report_cfg_info_s::apply_indicated_tci_state2_r18_c_::types_opts::to_string() const

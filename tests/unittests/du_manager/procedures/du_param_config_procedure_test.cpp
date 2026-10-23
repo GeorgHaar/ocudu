@@ -389,7 +389,8 @@ public:
     const auto& si_content = sys_info.crit_exts.sys_info();
 
     for (const auto& sib_entry : si_content.sib_type_and_info) {
-      if (sib_entry.type().value == asn1::rrc_nr::sys_info_ies_s::item_c_::types_opts::sib19_v1700) {
+      if (sib_entry.type().value ==
+          asn1::rrc_nr::sys_info_ies_s::sib_type_and_info_l_item_c_::types_opts::sib19_v1700) {
         const auto& sib19_asn1 = sib_entry.sib19_v1700();
 
         // Convert ASN.1 SIB19 to our sib19_info structure.

@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "ocudu/asn1/rrc_nr/common.h"
+
 using namespace asn1;
 using namespace asn1::rrc_nr;
 
@@ -2419,7 +2420,7 @@ OCUDUASN_CODE srs_all_pos_res_r16_s::pack(bit_ref& bref) const
   HANDLE_CODE(bref.pack(srs_pos_res_ap_r16_present, 1));
   HANDLE_CODE(bref.pack(srs_pos_res_sp_r16_present, 1));
 
-  HANDLE_CODE(srs_pos_resources_r16.pack(bref));
+  HANDLE_CODE(srs_pos_res_r16.pack(bref));
   if (srs_pos_res_ap_r16_present) {
     HANDLE_CODE(srs_pos_res_ap_r16.pack(bref));
   }
@@ -2434,7 +2435,7 @@ OCUDUASN_CODE srs_all_pos_res_r16_s::unpack(cbit_ref& bref)
   HANDLE_CODE(bref.unpack(srs_pos_res_ap_r16_present, 1));
   HANDLE_CODE(bref.unpack(srs_pos_res_sp_r16_present, 1));
 
-  HANDLE_CODE(srs_pos_resources_r16.unpack(bref));
+  HANDLE_CODE(srs_pos_res_r16.unpack(bref));
   if (srs_pos_res_ap_r16_present) {
     HANDLE_CODE(srs_pos_res_ap_r16.unpack(bref));
   }
@@ -2448,7 +2449,7 @@ void srs_all_pos_res_r16_s::to_json(json_writer& j) const
 {
   j.start_obj();
   j.write_fieldname("srs-PosResources-r16");
-  srs_pos_resources_r16.to_json(j);
+  srs_pos_res_r16.to_json(j);
   if (srs_pos_res_ap_r16_present) {
     j.write_fieldname("srs-PosResourceAP-r16");
     srs_pos_res_ap_r16.to_json(j);

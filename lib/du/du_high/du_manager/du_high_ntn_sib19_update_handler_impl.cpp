@@ -26,11 +26,11 @@ void du_high_ntn_sib19_update_handler_impl::handle_sib19_msg_update(const ocudu_
   using namespace asn1::rrc_nr;
 
   // Pack SIB19 as BCCH-DL-SCH msg.
-  byte_buffer             buf;
-  asn1::bit_ref           bref{buf};
-  bcch_dl_sch_msg_s       msg;
-  sys_info_ies_s&         si_ies = msg.msg.set_c1().set_sys_info().crit_exts.set_sys_info();
-  sys_info_ies_s::item_c_ sib_item;
+  byte_buffer                                 buf;
+  asn1::bit_ref                               bref{buf};
+  bcch_dl_sch_msg_s                           msg;
+  sys_info_ies_s&                             si_ies = msg.msg.set_c1().set_sys_info().crit_exts.set_sys_info();
+  sys_info_ies_s::sib_type_and_info_l_item_c_ sib_item;
   sib_item.set_sib19_v1700() = make_asn1_rrc_cell_sib19(req.sib19);
 
   si_ies.sib_type_and_info.push_back(sib_item);

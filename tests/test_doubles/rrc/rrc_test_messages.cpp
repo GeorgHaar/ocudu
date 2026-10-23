@@ -315,30 +315,30 @@ ul_dcch_msg_s ocudu::test_helpers::create_ue_capability_info(uint8_t transaction
   nr_cap.feature_sets.feature_sets_ul[0].feature_set_list_per_ul_cc.push_back(1);
   nr_cap.feature_sets.feature_sets_ul[0].supported_srs_res_features_present = true;
   nr_cap.feature_sets.feature_sets_ul[0].supported_srs_res_features.max_num_aperiodic_srs_per_bwp =
-      srs_res_features_s::max_num_aperiodic_srs_per_bwp_opts::options::n16;
+      srs_resources_s::max_num_aperiodic_srs_per_bwp_opts::options::n16;
   nr_cap.feature_sets.feature_sets_ul[0].supported_srs_res_features.max_num_aperiodic_srs_per_bwp_per_slot = 6;
   nr_cap.feature_sets.feature_sets_ul[0].supported_srs_res_features.max_num_periodic_srs_per_bwp =
-      srs_res_features_s::max_num_periodic_srs_per_bwp_opts::options::n16;
+      srs_resources_s::max_num_periodic_srs_per_bwp_opts::options::n16;
   nr_cap.feature_sets.feature_sets_ul[0].supported_srs_res_features.max_num_periodic_srs_per_bwp_per_slot = 6;
   nr_cap.feature_sets.feature_sets_ul[0].supported_srs_res_features.max_num_semi_persistent_srs_per_bwp =
-      srs_res_features_s::max_num_semi_persistent_srs_per_bwp_opts::options::n16;
+      srs_resources_s::max_num_semi_persistent_srs_per_bwp_opts::options::n16;
   nr_cap.feature_sets.feature_sets_ul[0].supported_srs_res_features.max_num_semi_persistent_srs_per_bwp_per_slot = 6;
   nr_cap.feature_sets.feature_sets_ul[0].supported_srs_res_features.max_num_srs_ports_per_res =
-      srs_res_features_s::max_num_srs_ports_per_res_opts::options::n1;
+      srs_resources_s::max_num_srs_ports_per_res_opts::options::n1;
   nr_cap.feature_sets.feature_sets_ul[1].feature_set_list_per_ul_cc.push_back(1);
   nr_cap.feature_sets.feature_sets_ul[1].feature_set_list_per_ul_cc.push_back(1);
   nr_cap.feature_sets.feature_sets_ul[1].supported_srs_res_features_present = true;
   nr_cap.feature_sets.feature_sets_ul[1].supported_srs_res_features.max_num_aperiodic_srs_per_bwp =
-      srs_res_features_s::max_num_aperiodic_srs_per_bwp_opts::options::n16;
+      srs_resources_s::max_num_aperiodic_srs_per_bwp_opts::options::n16;
   nr_cap.feature_sets.feature_sets_ul[1].supported_srs_res_features.max_num_aperiodic_srs_per_bwp_per_slot = 6;
   nr_cap.feature_sets.feature_sets_ul[1].supported_srs_res_features.max_num_periodic_srs_per_bwp =
-      srs_res_features_s::max_num_periodic_srs_per_bwp_opts::options::n16;
+      srs_resources_s::max_num_periodic_srs_per_bwp_opts::options::n16;
   nr_cap.feature_sets.feature_sets_ul[1].supported_srs_res_features.max_num_periodic_srs_per_bwp_per_slot = 6;
   nr_cap.feature_sets.feature_sets_ul[1].supported_srs_res_features.max_num_semi_persistent_srs_per_bwp =
-      srs_res_features_s::max_num_semi_persistent_srs_per_bwp_opts::options::n16;
+      srs_resources_s::max_num_semi_persistent_srs_per_bwp_opts::options::n16;
   nr_cap.feature_sets.feature_sets_ul[1].supported_srs_res_features.max_num_semi_persistent_srs_per_bwp_per_slot = 6;
   nr_cap.feature_sets.feature_sets_ul[1].supported_srs_res_features.max_num_srs_ports_per_res =
-      srs_res_features_s::max_num_srs_ports_per_res_opts::options::n1;
+      srs_resources_s::max_num_srs_ports_per_res_opts::options::n1;
   nr_cap.feature_sets.feature_sets_ul_per_cc.resize(1);
   nr_cap.feature_sets.feature_sets_ul_per_cc[0].supported_subcarrier_spacing_ul = subcarrier_spacing_opts::khz30;
   nr_cap.feature_sets.feature_sets_ul_per_cc[0].supported_bw_ul.set_fr1() = supported_bw_c::fr1_opts::options::mhz20;

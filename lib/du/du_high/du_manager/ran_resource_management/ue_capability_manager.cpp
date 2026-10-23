@@ -136,14 +136,14 @@ static expected<ue_capability_summary, std::string> decode_advanced_ue_nr_caps(u
     // Parse SRS capabilities.
     if (feature_set_ul.supported_srs_res_features_present) {
       switch (feature_set_ul.supported_srs_res_features.max_num_srs_ports_per_res) {
-        case asn1::rrc_nr::srs_res_features_s::max_num_srs_ports_per_res_opts::n1:
-        case asn1::rrc_nr::srs_res_features_s::max_num_srs_ports_per_res_opts::nulltype:
+        case asn1::rrc_nr::srs_resources_s::max_num_srs_ports_per_res_opts::n1:
+        case asn1::rrc_nr::srs_resources_s::max_num_srs_ports_per_res_opts::nulltype:
           band_cap.nof_srs_tx_ports = std::max(band_cap.nof_srs_tx_ports, static_cast<uint8_t>(1U));
           break;
-        case asn1::rrc_nr::srs_res_features_s::max_num_srs_ports_per_res_opts::n2:
+        case asn1::rrc_nr::srs_resources_s::max_num_srs_ports_per_res_opts::n2:
           band_cap.nof_srs_tx_ports = std::max(band_cap.nof_srs_tx_ports, static_cast<uint8_t>(2U));
           break;
-        case asn1::rrc_nr::srs_res_features_s::max_num_srs_ports_per_res_opts::n4:
+        case asn1::rrc_nr::srs_resources_s::max_num_srs_ports_per_res_opts::n4:
           band_cap.nof_srs_tx_ports = std::max(band_cap.nof_srs_tx_ports, static_cast<uint8_t>(4U));
           break;
       }

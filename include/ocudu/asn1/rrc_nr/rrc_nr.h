@@ -11,9 +11,9 @@
 
 #pragma once
 
-#include "cell_group_config.h"
-#include "nr_sidelink_preconf.h"
-#include "pc5_rrc_definitions.h"
+#include "ocudu/asn1/rrc_nr/cell_group_config.h"
+#include "ocudu/asn1/rrc_nr/nr_sidelink_preconf.h"
+#include "ocudu/asn1/rrc_nr/pc5_rrc_definitions.h"
 
 namespace asn1 {
 namespace rrc_nr {

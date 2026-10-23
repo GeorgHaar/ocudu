@@ -11,10 +11,10 @@
 
 #pragma once
 
-#include "bcch_bch_msg.h"
-#include "dl_dcch_msg_ies.h"
-#include "ue_cap.h"
-#include "ul_ccch_msg_ies.h"
+#include "ocudu/asn1/rrc_nr/bcch_bch_msg.h"
+#include "ocudu/asn1/rrc_nr/dl_dcch_msg_ies.h"
+#include "ocudu/asn1/rrc_nr/ue_cap.h"
+#include "ocudu/asn1/rrc_nr/ul_ccch_msg_ies.h"
 
 namespace asn1 {
 namespace rrc_nr {
@@ -6280,6 +6280,51 @@ struct meas_report_app_layer_r17_ies_s {
   meas_report_app_layer_list_r17_l  meas_report_app_layer_list_r17;
   dyn_octstring                     late_non_crit_ext;
   meas_report_app_layer_v1800_ies_s non_crit_ext;
+
+  // sequence methods
+  OCUDUASN_CODE pack(bit_ref& bref) const;
+  OCUDUASN_CODE unpack(cbit_ref& bref);
+  void          to_json(json_writer& j) const;
+};
+
+// MeasurementReportAppLayer-r17 ::= SEQUENCE
+struct measurement_report_app_layer_r17_s {
+  struct crit_exts_c_ {
+    struct types_opts {
+      enum options { meas_report_app_layer_r17, crit_exts_future, nulltype } value;
+
+      const char* to_string() const;
+    };
+    using types = enumerated<types_opts>;
+
+    // choice methods
+    crit_exts_c_() = default;
+    void          set(types::options e = types::nulltype);
+    types         type() const { return type_; }
+    OCUDUASN_CODE pack(bit_ref& bref) const;
+    OCUDUASN_CODE unpack(cbit_ref& bref);
+    void          to_json(json_writer& j) const;
+    // getters
+    meas_report_app_layer_r17_ies_s& meas_report_app_layer_r17()
+    {
+      assert_choice_type(types::meas_report_app_layer_r17, type_, "criticalExtensions");
+      return c;
+    }
+    const meas_report_app_layer_r17_ies_s& meas_report_app_layer_r17() const
+    {
+      assert_choice_type(types::meas_report_app_layer_r17, type_, "criticalExtensions");
+      return c;
+    }
+    meas_report_app_layer_r17_ies_s& set_meas_report_app_layer_r17();
+    void                             set_crit_exts_future();
+
+  private:
+    types                           type_;
+    meas_report_app_layer_r17_ies_s c;
+  };
+
+  // member variables
+  crit_exts_c_ crit_exts;
 
   // sequence methods
   OCUDUASN_CODE pack(bit_ref& bref) const;

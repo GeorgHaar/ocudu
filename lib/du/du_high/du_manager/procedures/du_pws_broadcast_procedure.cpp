@@ -43,7 +43,7 @@ expected<byte_buffer> pack_warning_bcch_dl_sch_msg(sib_type sib_id, const byte_b
 
   asn1::cbit_ref bref(sib_msg);
 
-  sys_info_ies_s::item_c_ sib_item;
+  sys_info_ies_s::sib_type_and_info_l_item_c_ sib_item;
   switch (sib_id) {
     case sib_type::sib6:
       if (sib_item.set_sib6().unpack(bref) != asn1::OCUDUASN_SUCCESS) {

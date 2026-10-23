@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "ul_dcch_msg_ies.h"
+#include "ocudu/asn1/rrc_nr/ul_dcch_msg_ies.h"
 
 namespace asn1 {
 namespace rrc_nr {
@@ -219,7 +219,7 @@ struct var_conditional_recfg_s {
   // member variables
   cond_recfg_to_add_mod_list_r16_l cond_recfg_list;
   dyn_octstring                    scpac_ref_cfg_r18;
-  sk_counter_configuration_r18_l_  sk_counter_configuration_r18;
+  sk_counter_configuration_r18_l_  sk_counter_cfg_r18;
 
   // sequence methods
   OCUDUASN_CODE pack(bit_ref& bref) const;

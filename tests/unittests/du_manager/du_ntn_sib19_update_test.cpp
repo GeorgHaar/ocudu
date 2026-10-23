@@ -74,7 +74,8 @@ void expect_decodes_as_sib19(const byte_buffer& packed)
   ASSERT_EQ(msg.msg.c1().type().value, asn1::rrc_nr::bcch_dl_sch_msg_type_c::c1_c_::types::sys_info);
   const asn1::rrc_nr::sys_info_ies_s& si = msg.msg.c1().sys_info().crit_exts.sys_info();
   ASSERT_NE(si.sib_type_and_info.size(), 0U);
-  EXPECT_EQ(si.sib_type_and_info[0].type().value, asn1::rrc_nr::sys_info_ies_s::item_c_::types::sib19_v1700);
+  EXPECT_EQ(si.sib_type_and_info[0].type().value,
+            asn1::rrc_nr::sys_info_ies_s::sib_type_and_info_l_item_c_::types::sib19_v1700);
 }
 
 // Fixture: a real, started DU manager driven through the real SIB19 update handler. Mirrors the start/stop harness used

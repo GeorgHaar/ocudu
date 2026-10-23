@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "ocudu/asn1/rrc_nr/ul_dcch_msg_ies.h"
+
 using namespace asn1;
 using namespace asn1::rrc_nr;
 
@@ -15328,6 +15329,94 @@ void meas_report_app_layer_r17_ies_s::to_json(json_writer& j) const
     non_crit_ext.to_json(j);
   }
   j.end_obj();
+}
+
+// MeasurementReportAppLayer-r17 ::= SEQUENCE
+OCUDUASN_CODE measurement_report_app_layer_r17_s::pack(bit_ref& bref) const
+{
+  HANDLE_CODE(crit_exts.pack(bref));
+
+  return OCUDUASN_SUCCESS;
+}
+OCUDUASN_CODE measurement_report_app_layer_r17_s::unpack(cbit_ref& bref)
+{
+  HANDLE_CODE(crit_exts.unpack(bref));
+
+  return OCUDUASN_SUCCESS;
+}
+void measurement_report_app_layer_r17_s::to_json(json_writer& j) const
+{
+  j.start_obj();
+  j.write_fieldname("criticalExtensions");
+  crit_exts.to_json(j);
+  j.end_obj();
+}
+
+void measurement_report_app_layer_r17_s::crit_exts_c_::set(types::options e)
+{
+  type_ = e;
+}
+meas_report_app_layer_r17_ies_s& measurement_report_app_layer_r17_s::crit_exts_c_::set_meas_report_app_layer_r17()
+{
+  set(types::meas_report_app_layer_r17);
+  return c;
+}
+void measurement_report_app_layer_r17_s::crit_exts_c_::set_crit_exts_future()
+{
+  set(types::crit_exts_future);
+}
+void measurement_report_app_layer_r17_s::crit_exts_c_::to_json(json_writer& j) const
+{
+  j.start_obj();
+  switch (type_) {
+    case types::meas_report_app_layer_r17:
+      j.write_fieldname("measurementReportAppLayer-r17");
+      c.to_json(j);
+      break;
+    case types::crit_exts_future:
+      break;
+    default:
+      log_invalid_choice_id(type_, "measurement_report_app_layer_r17_s::crit_exts_c_");
+  }
+  j.end_obj();
+}
+OCUDUASN_CODE measurement_report_app_layer_r17_s::crit_exts_c_::pack(bit_ref& bref) const
+{
+  type_.pack(bref);
+  switch (type_) {
+    case types::meas_report_app_layer_r17:
+      HANDLE_CODE(c.pack(bref));
+      break;
+    case types::crit_exts_future:
+      break;
+    default:
+      log_invalid_choice_id(type_, "measurement_report_app_layer_r17_s::crit_exts_c_");
+      return OCUDUASN_ERROR_ENCODE_FAIL;
+  }
+  return OCUDUASN_SUCCESS;
+}
+OCUDUASN_CODE measurement_report_app_layer_r17_s::crit_exts_c_::unpack(cbit_ref& bref)
+{
+  types e;
+  e.unpack(bref);
+  set(e);
+  switch (type_) {
+    case types::meas_report_app_layer_r17:
+      HANDLE_CODE(c.unpack(bref));
+      break;
+    case types::crit_exts_future:
+      break;
+    default:
+      log_invalid_choice_id(type_, "measurement_report_app_layer_r17_s::crit_exts_c_");
+      return OCUDUASN_ERROR_DECODE_FAIL;
+  }
+  return OCUDUASN_SUCCESS;
+}
+
+const char* measurement_report_app_layer_r17_s::crit_exts_c_::types_opts::to_string() const
+{
+  static const char* names[] = {"measurementReportAppLayer-r17", "criticalExtensionsFuture"};
+  return convert_enum_idx(names, 2, value, "measurement_report_app_layer_r17_s::crit_exts_c_::types");
 }
 
 // MinSchedulingOffsetPreference-r16 ::= SEQUENCE

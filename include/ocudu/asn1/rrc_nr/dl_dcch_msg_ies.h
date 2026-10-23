@@ -11,8 +11,8 @@
 
 #pragma once
 
-#include "dl_ccch_msg_ies.h"
-#include "sys_info.h"
+#include "ocudu/asn1/rrc_nr/dl_ccch_msg_ies.h"
+#include "ocudu/asn1/rrc_nr/sys_info.h"
 
 namespace asn1 {
 namespace rrc_nr {
@@ -3472,7 +3472,7 @@ struct clock_quality_metrics_r18_s {
     OCUDUASN_CODE unpack(cbit_ref& bref);
     void          to_json(json_writer& j) const;
     // getters
-    uint32_t& val()
+    uint32_t& value()
     {
       assert_choice_type(types::val, type_, "clockAccuracy-r18");
       return c.get<uint32_t>();
@@ -3482,7 +3482,7 @@ struct clock_quality_metrics_r18_s {
       assert_choice_type(types::idx, type_, "clockAccuracy-r18");
       return c.get<uint8_t>();
     }
-    const uint32_t& val() const
+    const uint32_t& value() const
     {
       assert_choice_type(types::val, type_, "clockAccuracy-r18");
       return c.get<uint32_t>();
@@ -3492,7 +3492,7 @@ struct clock_quality_metrics_r18_s {
       assert_choice_type(types::idx, type_, "clockAccuracy-r18");
       return c.get<uint8_t>();
     }
-    uint32_t& set_val();
+    uint32_t& set_value();
     uint8_t&  set_idx();
 
   private:
@@ -3656,7 +3656,7 @@ struct conditional_recfg_r16_s {
   bool                                     serving_security_cell_set_id_r18_present = false;
   copy_ptr<setup_release_c<dyn_octstring>> scpac_ref_cfg_r18;
   uint8_t                                  serving_security_cell_set_id_r18 = 1;
-  copy_ptr<sk_counter_configuration_r18_s> sk_counter_configuration_r18;
+  copy_ptr<sk_counter_configuration_r18_s> sk_counter_cfg_r18;
 
   // sequence methods
   OCUDUASN_CODE pack(bit_ref& bref) const;

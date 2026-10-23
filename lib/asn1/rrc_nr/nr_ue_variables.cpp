@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "ocudu/asn1/rrc_nr/nr_ue_variables.h"
+
 using namespace asn1;
 using namespace asn1::rrc_nr;
 
@@ -434,7 +435,7 @@ OCUDUASN_CODE var_conditional_recfg_s::pack(bit_ref& bref) const
 {
   HANDLE_CODE(bref.pack(cond_recfg_list.size() > 0, 1));
   HANDLE_CODE(bref.pack(scpac_ref_cfg_r18.size() > 0, 1));
-  HANDLE_CODE(bref.pack(sk_counter_configuration_r18.size() > 0, 1));
+  HANDLE_CODE(bref.pack(sk_counter_cfg_r18.size() > 0, 1));
 
   if (cond_recfg_list.size() > 0) {
     HANDLE_CODE(pack_dyn_seq_of(bref, cond_recfg_list, 1, 8));
@@ -442,8 +443,8 @@ OCUDUASN_CODE var_conditional_recfg_s::pack(bit_ref& bref) const
   if (scpac_ref_cfg_r18.size() > 0) {
     HANDLE_CODE(scpac_ref_cfg_r18.pack(bref));
   }
-  if (sk_counter_configuration_r18.size() > 0) {
-    HANDLE_CODE(pack_dyn_seq_of(bref, sk_counter_configuration_r18, 1, 9));
+  if (sk_counter_cfg_r18.size() > 0) {
+    HANDLE_CODE(pack_dyn_seq_of(bref, sk_counter_cfg_r18, 1, 9));
   }
 
   return OCUDUASN_SUCCESS;
@@ -454,8 +455,8 @@ OCUDUASN_CODE var_conditional_recfg_s::unpack(cbit_ref& bref)
   HANDLE_CODE(bref.unpack(cond_recfg_list_present, 1));
   bool scpac_ref_cfg_r18_present;
   HANDLE_CODE(bref.unpack(scpac_ref_cfg_r18_present, 1));
-  bool sk_counter_configuration_r18_present;
-  HANDLE_CODE(bref.unpack(sk_counter_configuration_r18_present, 1));
+  bool sk_counter_cfg_r18_present;
+  HANDLE_CODE(bref.unpack(sk_counter_cfg_r18_present, 1));
 
   if (cond_recfg_list_present) {
     HANDLE_CODE(unpack_dyn_seq_of(cond_recfg_list, bref, 1, 8));
@@ -463,8 +464,8 @@ OCUDUASN_CODE var_conditional_recfg_s::unpack(cbit_ref& bref)
   if (scpac_ref_cfg_r18_present) {
     HANDLE_CODE(scpac_ref_cfg_r18.unpack(bref));
   }
-  if (sk_counter_configuration_r18_present) {
-    HANDLE_CODE(unpack_dyn_seq_of(sk_counter_configuration_r18, bref, 1, 9));
+  if (sk_counter_cfg_r18_present) {
+    HANDLE_CODE(unpack_dyn_seq_of(sk_counter_cfg_r18, bref, 1, 9));
   }
 
   return OCUDUASN_SUCCESS;
@@ -482,9 +483,9 @@ void var_conditional_recfg_s::to_json(json_writer& j) const
   if (scpac_ref_cfg_r18.size() > 0) {
     j.write_str("scpac-ReferenceConfiguration-r18", scpac_ref_cfg_r18.to_string());
   }
-  if (sk_counter_configuration_r18.size() > 0) {
+  if (sk_counter_cfg_r18.size() > 0) {
     j.start_array("sk-CounterConfiguration-r18");
-    for (const auto& e1 : sk_counter_configuration_r18) {
+    for (const auto& e1 : sk_counter_cfg_r18) {
       e1.to_json(j);
     }
     j.end_array();

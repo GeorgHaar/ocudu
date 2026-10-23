@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "common.h"
+#include "ocudu/asn1/rrc_nr/common.h"
 
 namespace asn1 {
 namespace rrc_nr {

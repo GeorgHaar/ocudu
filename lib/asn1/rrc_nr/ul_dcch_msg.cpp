@@ -5,6 +5,7 @@
 
 #include "ocudu/asn1/rrc_nr/ul_dcch_msg.h"
 #include "ocudu/asn1/rrc_nr/ul_dcch_msg_ies.h"
+
 using namespace asn1;
 using namespace asn1::rrc_nr;
 
@@ -586,7 +587,7 @@ void ul_dcch_msg_type_c::msg_class_ext_c_::c2_c_::set(types::options e)
       c = ue_positioning_assist_info_r17_s{};
       break;
     case types::meas_report_app_layer_r17:
-      c = meas_report_app_layer_r17_s{};
+      c = measurement_report_app_layer_r17_s{};
       break;
     case types::indirect_path_fail_info_r18:
       c = indirect_path_fail_info_r18_s{};
@@ -652,10 +653,10 @@ ue_positioning_assist_info_r17_s& ul_dcch_msg_type_c::msg_class_ext_c_::c2_c_::s
   set(types::ue_positioning_assist_info_r17);
   return c.get<ue_positioning_assist_info_r17_s>();
 }
-meas_report_app_layer_r17_s& ul_dcch_msg_type_c::msg_class_ext_c_::c2_c_::set_meas_report_app_layer_r17()
+measurement_report_app_layer_r17_s& ul_dcch_msg_type_c::msg_class_ext_c_::c2_c_::set_meas_report_app_layer_r17()
 {
   set(types::meas_report_app_layer_r17);
-  return c.get<meas_report_app_layer_r17_s>();
+  return c.get<measurement_report_app_layer_r17_s>();
 }
 indirect_path_fail_info_r18_s& ul_dcch_msg_type_c::msg_class_ext_c_::c2_c_::set_indirect_path_fail_info_r18()
 {
@@ -724,7 +725,7 @@ void ul_dcch_msg_type_c::msg_class_ext_c_::c2_c_::to_json(json_writer& j) const
       break;
     case types::meas_report_app_layer_r17:
       j.write_fieldname("measurementReportAppLayer-r17");
-      c.get<meas_report_app_layer_r17_s>().to_json(j);
+      c.get<measurement_report_app_layer_r17_s>().to_json(j);
       break;
     case types::indirect_path_fail_info_r18:
       j.write_fieldname("indirectPathFailureInformation-r18");
@@ -777,7 +778,7 @@ OCUDUASN_CODE ul_dcch_msg_type_c::msg_class_ext_c_::c2_c_::pack(bit_ref& bref) c
       HANDLE_CODE(c.get<ue_positioning_assist_info_r17_s>().pack(bref));
       break;
     case types::meas_report_app_layer_r17:
-      HANDLE_CODE(c.get<meas_report_app_layer_r17_s>().pack(bref));
+      HANDLE_CODE(c.get<measurement_report_app_layer_r17_s>().pack(bref));
       break;
     case types::indirect_path_fail_info_r18:
       HANDLE_CODE(c.get<indirect_path_fail_info_r18_s>().pack(bref));
@@ -832,7 +833,7 @@ OCUDUASN_CODE ul_dcch_msg_type_c::msg_class_ext_c_::c2_c_::unpack(cbit_ref& bref
       HANDLE_CODE(c.get<ue_positioning_assist_info_r17_s>().unpack(bref));
       break;
     case types::meas_report_app_layer_r17:
-      HANDLE_CODE(c.get<meas_report_app_layer_r17_s>().unpack(bref));
+      HANDLE_CODE(c.get<measurement_report_app_layer_r17_s>().unpack(bref));
       break;
     case types::indirect_path_fail_info_r18:
       HANDLE_CODE(c.get<indirect_path_fail_info_r18_s>().unpack(bref));

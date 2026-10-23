@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "common.h"
+#include "ocudu/asn1/rrc_nr/common.h"
 
 namespace asn1 {
 namespace rrc_nr {
@@ -3302,21 +3302,21 @@ struct supported_csi_rs_res_s {
 // CombinationCarrierType-r18 ::= SEQUENCE
 struct combination_carrier_type_r18_s {
   struct scheduling_cell_carrier_type_r18_opts {
-    enum options { licensed_fdd_fr1, licensed_tdd_fr1, unlicensed_tdd_fr1, fr2_1, fr2_2, nulltype } value;
+    enum options { licensed_fdd_fr1, licensed_tdd_fr1, unlicensed_tdd_fr1, fr2_neg1, fr2_neg2, nulltype } value;
 
     const char* to_string() const;
   };
   using scheduling_cell_carrier_type_r18_e_ = enumerated<scheduling_cell_carrier_type_r18_opts>;
-  struct scheduled_cell_carrier_type_r18_opts {
-    enum options { licensed_fdd_fr1, licensed_tdd_fr1, unlicensed_tdd_fr1, fr2_1, fr2_2, nulltype } value;
+  struct sched_cell_carrier_type_r18_opts {
+    enum options { licensed_fdd_fr1, licensed_tdd_fr1, unlicensed_tdd_fr1, fr2_neg1, fr2_neg2, nulltype } value;
 
     const char* to_string() const;
   };
-  using scheduled_cell_carrier_type_r18_e_ = enumerated<scheduled_cell_carrier_type_r18_opts>;
+  using sched_cell_carrier_type_r18_e_ = enumerated<sched_cell_carrier_type_r18_opts>;
 
   // member variables
   scheduling_cell_carrier_type_r18_e_ scheduling_cell_carrier_type_r18;
-  scheduled_cell_carrier_type_r18_e_  scheduled_cell_carrier_type_r18;
+  sched_cell_carrier_type_r18_e_      scheduled_cell_carrier_type_r18;
 
   // sequence methods
   OCUDUASN_CODE pack(bit_ref& bref) const;
@@ -5411,7 +5411,7 @@ struct dummy_g_s {
 };
 
 // SRS-Resources ::= SEQUENCE
-struct srs_res_features_s {
+struct srs_resources_s {
   struct max_num_aperiodic_srs_per_bwp_opts {
     enum options { n1, n2, n4, n8, n16, nulltype } value;
     typedef uint8_t number_type;
@@ -7335,7 +7335,7 @@ struct mimo_params_per_band_s {
   uint8_t                               max_num_csi_rs_bfd     = 1;
   uint8_t                               max_num_ssb_bfd        = 1;
   uint16_t                              max_num_csi_rs_ssb_cbd = 1;
-  srs_res_features_s                    dummy5;
+  srs_resources_s                       dummy5;
   uint8_t                               dummy3 = 1;
   beam_report_timing_s_                 beam_report_timing;
   ptrs_density_recommendation_set_dl_s_ ptrs_density_recommendation_set_dl;
@@ -12458,8 +12458,8 @@ struct feature_set_dl_v1540_s {
 
 // FeatureSetDownlink-v15a0 ::= SEQUENCE
 struct feature_set_dl_v15a0_s {
-  bool               supported_srs_res_features_present = false;
-  srs_res_features_s supported_srs_res_features;
+  bool            supported_srs_res_features_present = false;
+  srs_resources_s supported_srs_res_features;
 
   // sequence methods
   OCUDUASN_CODE pack(bit_ref& bref) const;
@@ -13087,17 +13087,37 @@ struct feature_set_dl_v1800_s {
 
 // FeatureSetDownlink-v1830 ::= SEQUENCE
 struct feature_set_dl_v1830_s {
-  struct item_opts {
+  struct pdcch_rach_affected_bands_target_band_list_r18_l_item_opts {
+    enum options { no_interruption, interruption, nulltype } value;
+
+    const char* to_string() const;
+  };
+  using pdcch_rach_affected_bands_target_band_list_r18_l_item_e_ =
+      enumerated<pdcch_rach_affected_bands_target_band_list_r18_l_item_opts>;
+  using pdcch_rach_affected_bands_target_band_list_r18_l_ =
+      dyn_array<pdcch_rach_affected_bands_target_band_list_r18_l_item_e_>;
+  struct pdcch_rach_switching_time_target_band_list_r18_l_item_opts {
+    enum options { ms0, ms0dot25, ms0dot5, ms1, ms2, not_supported, nulltype } value;
+    typedef float number_type;
+
+    const char* to_string() const;
+    float       to_number() const;
+    const char* to_number_string() const;
+  };
+  using pdcch_rach_switching_time_target_band_list_r18_l_item_e_ =
+      enumerated<pdcch_rach_switching_time_target_band_list_r18_l_item_opts>;
+  using pdcch_rach_switching_time_target_band_list_r18_l_ =
+      dyn_array<pdcch_rach_switching_time_target_band_list_r18_l_item_e_>;
+  struct pdcch_rach_prep_time_target_band_list_r18_l_item_opts {
     enum options { ms1, ms3, ms5, ms10, not_supported, nulltype } value;
     typedef uint8_t number_type;
 
     const char* to_string() const;
     uint8_t     to_number() const;
   };
-  using item_e_                                           = enumerated<item_opts>;
-  using pdcch_rach_affected_bands_target_band_list_r18_l_ = dyn_array<item_e_>;
-  using pdcch_rach_switching_time_target_band_list_r18_l_ = dyn_array<item_e_>;
-  using pdcch_rach_prep_time_target_band_list_r18_l_      = dyn_array<item_e_>;
+  using pdcch_rach_prep_time_target_band_list_r18_l_item_e_ =
+      enumerated<pdcch_rach_prep_time_target_band_list_r18_l_item_opts>;
+  using pdcch_rach_prep_time_target_band_list_r18_l_ = dyn_array<pdcch_rach_prep_time_target_band_list_r18_l_item_e_>;
 
   // member variables
   pdcch_rach_affected_bands_target_band_list_r18_l_ pdcch_rach_affected_bands_target_band_list_r18;
@@ -13442,7 +13462,7 @@ struct feature_set_ul_s {
   scaling_factor_e_                               scaling_factor;
   freq_separation_class_e                         intra_band_freq_separation_ul;
   dummy_i_s                                       dummy1;
-  srs_res_features_s                              supported_srs_res_features;
+  srs_resources_s                                 supported_srs_res_features;
   pusch_processing_type1_different_tb_per_slot_s_ pusch_processing_type1_different_tb_per_slot;
   dummy_f_s                                       dummy2;
 

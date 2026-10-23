@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "bwp_cfg.h"
+#include "ocudu/asn1/rrc_nr/bwp_cfg.h"
 
 namespace asn1 {
 namespace rrc_nr {
@@ -1411,13 +1411,13 @@ struct csi_associated_report_cfg_info_s {
       const char* to_string() const;
     };
     using per_set_r18_e_ = enumerated<per_set_r18_opts>;
-    struct item_opts {
+    struct per_res_r18_l_item_opts {
       enum options { first, second, nulltype } value;
 
       const char* to_string() const;
     };
-    using item_e_        = enumerated<item_opts>;
-    using per_res_r18_l_ = bounded_array<item_e_, 16>;
+    using per_res_r18_l_item_e_ = enumerated<per_res_r18_l_item_opts>;
+    using per_res_r18_l_        = bounded_array<per_res_r18_l_item_e_, 16>;
     struct types_opts {
       enum options { per_set_r18, per_res_r18, nulltype } value;
 
@@ -1472,13 +1472,13 @@ struct csi_associated_report_cfg_info_s {
       const char* to_string() const;
     };
     using per_set_r18_e_ = enumerated<per_set_r18_opts>;
-    struct item_opts {
+    struct per_res_r18_l_item_opts {
       enum options { first, second, nulltype } value;
 
       const char* to_string() const;
     };
-    using item_e_        = enumerated<item_opts>;
-    using per_res_r18_l_ = bounded_array<item_e_, 16>;
+    using per_res_r18_l_item_e_ = enumerated<per_res_r18_l_item_opts>;
+    using per_res_r18_l_        = bounded_array<per_res_r18_l_item_e_, 16>;
     struct types_opts {
       enum options { per_set_r18, per_res_r18, nulltype } value;
 

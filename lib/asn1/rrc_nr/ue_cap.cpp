@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "ocudu/asn1/rrc_nr/ue_cap.h"
+
 using namespace asn1;
 using namespace asn1::rrc_nr;
 
@@ -9372,10 +9373,10 @@ const char* combination_carrier_type_r18_s::scheduling_cell_carrier_type_r18_opt
   return convert_enum_idx(names, 5, value, "combination_carrier_type_r18_s::scheduling_cell_carrier_type_r18_e_");
 }
 
-const char* combination_carrier_type_r18_s::scheduled_cell_carrier_type_r18_opts::to_string() const
+const char* combination_carrier_type_r18_s::sched_cell_carrier_type_r18_opts::to_string() const
 {
   static const char* names[] = {"licensed-fdd-fr1", "licensed-tdd-fr1", "unlicensed-tdd-fr1", "fr2-1", "fr2-2"};
-  return convert_enum_idx(names, 5, value, "combination_carrier_type_r18_s::scheduled_cell_carrier_type_r18_e_");
+  return convert_enum_idx(names, 5, value, "combination_carrier_type_r18_s::sched_cell_carrier_type_r18_e_");
 }
 
 // PDCCH-BlindDetectionMixed2-r18 ::= SEQUENCE
@@ -13740,7 +13741,7 @@ const char* dummy_g_s::supported_csi_rs_density_opts::to_string() const
 }
 
 // SRS-Resources ::= SEQUENCE
-OCUDUASN_CODE srs_res_features_s::pack(bit_ref& bref) const
+OCUDUASN_CODE srs_resources_s::pack(bit_ref& bref) const
 {
   HANDLE_CODE(max_num_aperiodic_srs_per_bwp.pack(bref));
   HANDLE_CODE(pack_integer(bref, max_num_aperiodic_srs_per_bwp_per_slot, (uint8_t)1u, (uint8_t)6u));
@@ -13752,7 +13753,7 @@ OCUDUASN_CODE srs_res_features_s::pack(bit_ref& bref) const
 
   return OCUDUASN_SUCCESS;
 }
-OCUDUASN_CODE srs_res_features_s::unpack(cbit_ref& bref)
+OCUDUASN_CODE srs_resources_s::unpack(cbit_ref& bref)
 {
   HANDLE_CODE(max_num_aperiodic_srs_per_bwp.unpack(bref));
   HANDLE_CODE(unpack_integer(max_num_aperiodic_srs_per_bwp_per_slot, bref, (uint8_t)1u, (uint8_t)6u));
@@ -13764,7 +13765,7 @@ OCUDUASN_CODE srs_res_features_s::unpack(cbit_ref& bref)
 
   return OCUDUASN_SUCCESS;
 }
-void srs_res_features_s::to_json(json_writer& j) const
+void srs_resources_s::to_json(json_writer& j) const
 {
   j.start_obj();
   j.write_str("maxNumberAperiodicSRS-PerBWP", max_num_aperiodic_srs_per_bwp.to_string());
@@ -13777,48 +13778,48 @@ void srs_res_features_s::to_json(json_writer& j) const
   j.end_obj();
 }
 
-const char* srs_res_features_s::max_num_aperiodic_srs_per_bwp_opts::to_string() const
+const char* srs_resources_s::max_num_aperiodic_srs_per_bwp_opts::to_string() const
 {
   static const char* names[] = {"n1", "n2", "n4", "n8", "n16"};
-  return convert_enum_idx(names, 5, value, "srs_res_features_s::max_num_aperiodic_srs_per_bwp_e_");
+  return convert_enum_idx(names, 5, value, "srs_resources_s::max_num_aperiodic_srs_per_bwp_e_");
 }
-uint8_t srs_res_features_s::max_num_aperiodic_srs_per_bwp_opts::to_number() const
+uint8_t srs_resources_s::max_num_aperiodic_srs_per_bwp_opts::to_number() const
 {
   static const uint8_t numbers[] = {1, 2, 4, 8, 16};
-  return map_enum_number(numbers, 5, value, "srs_res_features_s::max_num_aperiodic_srs_per_bwp_e_");
+  return map_enum_number(numbers, 5, value, "srs_resources_s::max_num_aperiodic_srs_per_bwp_e_");
 }
 
-const char* srs_res_features_s::max_num_periodic_srs_per_bwp_opts::to_string() const
+const char* srs_resources_s::max_num_periodic_srs_per_bwp_opts::to_string() const
 {
   static const char* names[] = {"n1", "n2", "n4", "n8", "n16"};
-  return convert_enum_idx(names, 5, value, "srs_res_features_s::max_num_periodic_srs_per_bwp_e_");
+  return convert_enum_idx(names, 5, value, "srs_resources_s::max_num_periodic_srs_per_bwp_e_");
 }
-uint8_t srs_res_features_s::max_num_periodic_srs_per_bwp_opts::to_number() const
+uint8_t srs_resources_s::max_num_periodic_srs_per_bwp_opts::to_number() const
 {
   static const uint8_t numbers[] = {1, 2, 4, 8, 16};
-  return map_enum_number(numbers, 5, value, "srs_res_features_s::max_num_periodic_srs_per_bwp_e_");
+  return map_enum_number(numbers, 5, value, "srs_resources_s::max_num_periodic_srs_per_bwp_e_");
 }
 
-const char* srs_res_features_s::max_num_semi_persistent_srs_per_bwp_opts::to_string() const
+const char* srs_resources_s::max_num_semi_persistent_srs_per_bwp_opts::to_string() const
 {
   static const char* names[] = {"n1", "n2", "n4", "n8", "n16"};
-  return convert_enum_idx(names, 5, value, "srs_res_features_s::max_num_semi_persistent_srs_per_bwp_e_");
+  return convert_enum_idx(names, 5, value, "srs_resources_s::max_num_semi_persistent_srs_per_bwp_e_");
 }
-uint8_t srs_res_features_s::max_num_semi_persistent_srs_per_bwp_opts::to_number() const
+uint8_t srs_resources_s::max_num_semi_persistent_srs_per_bwp_opts::to_number() const
 {
   static const uint8_t numbers[] = {1, 2, 4, 8, 16};
-  return map_enum_number(numbers, 5, value, "srs_res_features_s::max_num_semi_persistent_srs_per_bwp_e_");
+  return map_enum_number(numbers, 5, value, "srs_resources_s::max_num_semi_persistent_srs_per_bwp_e_");
 }
 
-const char* srs_res_features_s::max_num_srs_ports_per_res_opts::to_string() const
+const char* srs_resources_s::max_num_srs_ports_per_res_opts::to_string() const
 {
   static const char* names[] = {"n1", "n2", "n4"};
-  return convert_enum_idx(names, 3, value, "srs_res_features_s::max_num_srs_ports_per_res_e_");
+  return convert_enum_idx(names, 3, value, "srs_resources_s::max_num_srs_ports_per_res_e_");
 }
-uint8_t srs_res_features_s::max_num_srs_ports_per_res_opts::to_number() const
+uint8_t srs_resources_s::max_num_srs_ports_per_res_opts::to_number() const
 {
   static const uint8_t numbers[] = {1, 2, 4};
-  return map_enum_number(numbers, 3, value, "srs_res_features_s::max_num_srs_ports_per_res_e_");
+  return map_enum_number(numbers, 3, value, "srs_resources_s::max_num_srs_ports_per_res_e_");
 }
 
 // PTRS-DensityRecommendationDL ::= SEQUENCE
@@ -35046,15 +35047,43 @@ void feature_set_dl_v1830_s::to_json(json_writer& j) const
   j.end_obj();
 }
 
-const char* feature_set_dl_v1830_s::item_opts::to_string() const
+const char* feature_set_dl_v1830_s::pdcch_rach_affected_bands_target_band_list_r18_l_item_opts::to_string() const
+{
+  static const char* names[] = {"noInterruption", "interruption"};
+  return convert_enum_idx(
+      names, 2, value, "feature_set_dl_v1830_s::pdcch_rach_affected_bands_target_band_list_r18_l_item_e_");
+}
+
+const char* feature_set_dl_v1830_s::pdcch_rach_switching_time_target_band_list_r18_l_item_opts::to_string() const
+{
+  static const char* names[] = {"ms0", "ms0dot25", "ms0dot5", "ms1", "ms2", "notSupported"};
+  return convert_enum_idx(
+      names, 6, value, "feature_set_dl_v1830_s::pdcch_rach_switching_time_target_band_list_r18_l_item_e_");
+}
+float feature_set_dl_v1830_s::pdcch_rach_switching_time_target_band_list_r18_l_item_opts::to_number() const
+{
+  static const float numbers[] = {0.0, 0.25, 0.5, 1.0, 2.0};
+  return map_enum_number(
+      numbers, 5, value, "feature_set_dl_v1830_s::pdcch_rach_switching_time_target_band_list_r18_l_item_e_");
+}
+const char* feature_set_dl_v1830_s::pdcch_rach_switching_time_target_band_list_r18_l_item_opts::to_number_string() const
+{
+  static const char* number_strs[] = {"0", "0.25", "0.5", "1", "2"};
+  return convert_enum_idx(
+      number_strs, 6, value, "feature_set_dl_v1830_s::pdcch_rach_switching_time_target_band_list_r18_l_item_e_");
+}
+
+const char* feature_set_dl_v1830_s::pdcch_rach_prep_time_target_band_list_r18_l_item_opts::to_string() const
 {
   static const char* names[] = {"ms1", "ms3", "ms5", "ms10", "notSupported"};
-  return convert_enum_idx(names, 5, value, "feature_set_dl_v1830_s::item_e_");
+  return convert_enum_idx(
+      names, 5, value, "feature_set_dl_v1830_s::pdcch_rach_prep_time_target_band_list_r18_l_item_e_");
 }
-uint8_t feature_set_dl_v1830_s::item_opts::to_number() const
+uint8_t feature_set_dl_v1830_s::pdcch_rach_prep_time_target_band_list_r18_l_item_opts::to_number() const
 {
   static const uint8_t numbers[] = {1, 3, 5, 10};
-  return map_enum_number(numbers, 4, value, "feature_set_dl_v1830_s::item_e_");
+  return map_enum_number(
+      numbers, 4, value, "feature_set_dl_v1830_s::pdcch_rach_prep_time_target_band_list_r18_l_item_e_");
 }
 
 // FeatureSetDownlink-v1860 ::= SEQUENCE

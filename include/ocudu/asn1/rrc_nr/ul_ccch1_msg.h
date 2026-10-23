@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "ul_ccch_msg_ies.h"
+#include "ocudu/asn1/rrc_nr/ul_ccch_msg_ies.h"
 
 namespace asn1 {
 namespace rrc_nr {

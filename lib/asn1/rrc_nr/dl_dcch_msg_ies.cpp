@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "ocudu/asn1/rrc_nr/dl_dcch_msg_ies.h"
+
 using namespace asn1;
 using namespace asn1::rrc_nr;
 
@@ -8433,7 +8434,7 @@ clock_quality_metrics_r18_s::clock_accuracy_r18_c_& clock_quality_metrics_r18_s:
 
   return *this;
 }
-uint32_t& clock_quality_metrics_r18_s::clock_accuracy_r18_c_::set_val()
+uint32_t& clock_quality_metrics_r18_s::clock_accuracy_r18_c_::set_value()
 {
   set(types::val);
   return c.get<uint32_t>();
@@ -8860,7 +8861,7 @@ OCUDUASN_CODE conditional_recfg_r16_s::pack(bit_ref& bref) const
     ext_groups_packer_guard group_flags;
     group_flags[0] |= scpac_ref_cfg_r18.is_present();
     group_flags[0] |= serving_security_cell_set_id_r18_present;
-    group_flags[0] |= sk_counter_configuration_r18.is_present();
+    group_flags[0] |= sk_counter_cfg_r18.is_present();
     group_flags.pack(bref);
 
     if (group_flags[0]) {
@@ -8868,15 +8869,15 @@ OCUDUASN_CODE conditional_recfg_r16_s::pack(bit_ref& bref) const
 
       HANDLE_CODE(bref.pack(scpac_ref_cfg_r18.is_present(), 1));
       HANDLE_CODE(bref.pack(serving_security_cell_set_id_r18_present, 1));
-      HANDLE_CODE(bref.pack(sk_counter_configuration_r18.is_present(), 1));
+      HANDLE_CODE(bref.pack(sk_counter_cfg_r18.is_present(), 1));
       if (scpac_ref_cfg_r18.is_present()) {
         HANDLE_CODE(scpac_ref_cfg_r18->pack(bref));
       }
       if (serving_security_cell_set_id_r18_present) {
         HANDLE_CODE(pack_integer(bref, serving_security_cell_set_id_r18, (uint8_t)1u, (uint8_t)9u));
       }
-      if (sk_counter_configuration_r18.is_present()) {
-        HANDLE_CODE(sk_counter_configuration_r18->pack(bref));
+      if (sk_counter_cfg_r18.is_present()) {
+        HANDLE_CODE(sk_counter_cfg_r18->pack(bref));
       }
     }
   }
@@ -8905,15 +8906,15 @@ OCUDUASN_CODE conditional_recfg_r16_s::unpack(cbit_ref& bref)
     if (group_unpacker.get_last_group_range(bref)) {
       unpack_presence_flag(scpac_ref_cfg_r18, bref);
       HANDLE_CODE(bref.unpack(serving_security_cell_set_id_r18_present, 1));
-      unpack_presence_flag(sk_counter_configuration_r18, bref);
+      unpack_presence_flag(sk_counter_cfg_r18, bref);
       if (scpac_ref_cfg_r18.is_present()) {
         HANDLE_CODE(scpac_ref_cfg_r18->unpack(bref));
       }
       if (serving_security_cell_set_id_r18_present) {
         HANDLE_CODE(unpack_integer(serving_security_cell_set_id_r18, bref, (uint8_t)1u, (uint8_t)9u));
       }
-      if (sk_counter_configuration_r18.is_present()) {
-        HANDLE_CODE(sk_counter_configuration_r18->unpack(bref));
+      if (sk_counter_cfg_r18.is_present()) {
+        HANDLE_CODE(sk_counter_cfg_r18->unpack(bref));
       }
     }
     HANDLE_CODE(group_unpacker.consume_remaining_groups(bref));
@@ -8948,9 +8949,9 @@ void conditional_recfg_r16_s::to_json(json_writer& j) const
     if (serving_security_cell_set_id_r18_present) {
       j.write_int("servingSecurityCellSetId-r18", serving_security_cell_set_id_r18);
     }
-    if (sk_counter_configuration_r18.is_present()) {
+    if (sk_counter_cfg_r18.is_present()) {
       j.write_fieldname("sk-CounterConfiguration-r18");
-      sk_counter_configuration_r18->to_json(j);
+      sk_counter_cfg_r18->to_json(j);
     }
   }
   j.end_obj();

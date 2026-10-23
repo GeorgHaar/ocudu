@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "ocudu/asn1/rrc_nr/cell_group_config.h"
+
 using namespace asn1;
 using namespace asn1::rrc_nr;
 

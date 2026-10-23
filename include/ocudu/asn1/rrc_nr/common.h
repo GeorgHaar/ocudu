@@ -1565,7 +1565,7 @@ struct srs_pos_res_sp_r16_s {
 struct srs_all_pos_res_r16_s {
   bool                    srs_pos_res_ap_r16_present = false;
   bool                    srs_pos_res_sp_r16_present = false;
-  srs_pos_resources_r16_s srs_pos_resources_r16;
+  srs_pos_resources_r16_s srs_pos_res_r16;
   srs_pos_res_ap_r16_s    srs_pos_res_ap_r16;
   srs_pos_res_sp_r16_s    srs_pos_res_sp_r16;
 

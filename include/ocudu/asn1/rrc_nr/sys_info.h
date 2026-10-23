@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "serving_cell.h"
+#include "ocudu/asn1/rrc_nr/serving_cell.h"
 
 namespace asn1 {
 namespace rrc_nr {
@@ -2788,7 +2788,7 @@ struct sib17bis_r18_s {
 
 // SystemInformation-IEs ::= SEQUENCE
 struct sys_info_ies_s {
-  struct item_c_ {
+  struct sib_type_and_info_l_item_c_ {
     struct types_opts {
       enum options {
         sib2,
@@ -2825,10 +2825,10 @@ struct sys_info_ies_s {
     using types = enumerated<types_opts, true, 17>;
 
     // choice methods
-    item_c_() = default;
-    item_c_(const item_c_& other);
-    item_c_& operator=(const item_c_& other);
-    ~item_c_() { destroy_(); }
+    sib_type_and_info_l_item_c_() = default;
+    sib_type_and_info_l_item_c_(const sib_type_and_info_l_item_c_& other);
+    sib_type_and_info_l_item_c_& operator=(const sib_type_and_info_l_item_c_& other);
+    ~sib_type_and_info_l_item_c_() { destroy_(); }
     void          set(types::options e = types::nulltype);
     types         type() const { return type_; }
     OCUDUASN_CODE pack(bit_ref& bref) const;
@@ -2837,252 +2837,252 @@ struct sys_info_ies_s {
     // getters
     sib2_s& sib2()
     {
-      assert_choice_type(types::sib2, type_, "item");
+      assert_choice_type(types::sib2, type_, "sib_type_and_info_l_item");
       return c.get<sib2_s>();
     }
     sib3_s& sib3()
     {
-      assert_choice_type(types::sib3, type_, "item");
+      assert_choice_type(types::sib3, type_, "sib_type_and_info_l_item");
       return c.get<sib3_s>();
     }
     sib4_s& sib4()
     {
-      assert_choice_type(types::sib4, type_, "item");
+      assert_choice_type(types::sib4, type_, "sib_type_and_info_l_item");
       return c.get<sib4_s>();
     }
     sib5_s& sib5()
     {
-      assert_choice_type(types::sib5, type_, "item");
+      assert_choice_type(types::sib5, type_, "sib_type_and_info_l_item");
       return c.get<sib5_s>();
     }
     sib6_s& sib6()
     {
-      assert_choice_type(types::sib6, type_, "item");
+      assert_choice_type(types::sib6, type_, "sib_type_and_info_l_item");
       return c.get<sib6_s>();
     }
     sib7_s& sib7()
     {
-      assert_choice_type(types::sib7, type_, "item");
+      assert_choice_type(types::sib7, type_, "sib_type_and_info_l_item");
       return c.get<sib7_s>();
     }
     sib8_s& sib8()
     {
-      assert_choice_type(types::sib8, type_, "item");
+      assert_choice_type(types::sib8, type_, "sib_type_and_info_l_item");
       return c.get<sib8_s>();
     }
     sib9_s& sib9()
     {
-      assert_choice_type(types::sib9, type_, "item");
+      assert_choice_type(types::sib9, type_, "sib_type_and_info_l_item");
       return c.get<sib9_s>();
     }
     sib10_r16_s& sib10_v1610()
     {
-      assert_choice_type(types::sib10_v1610, type_, "item");
+      assert_choice_type(types::sib10_v1610, type_, "sib_type_and_info_l_item");
       return c.get<sib10_r16_s>();
     }
     sib11_r16_s& sib11_v1610()
     {
-      assert_choice_type(types::sib11_v1610, type_, "item");
+      assert_choice_type(types::sib11_v1610, type_, "sib_type_and_info_l_item");
       return c.get<sib11_r16_s>();
     }
     sib12_r16_s& sib12_v1610()
     {
-      assert_choice_type(types::sib12_v1610, type_, "item");
+      assert_choice_type(types::sib12_v1610, type_, "sib_type_and_info_l_item");
       return c.get<sib12_r16_s>();
     }
     sib13_r16_s& sib13_v1610()
     {
-      assert_choice_type(types::sib13_v1610, type_, "item");
+      assert_choice_type(types::sib13_v1610, type_, "sib_type_and_info_l_item");
       return c.get<sib13_r16_s>();
     }
     sib14_r16_s& sib14_v1610()
     {
-      assert_choice_type(types::sib14_v1610, type_, "item");
+      assert_choice_type(types::sib14_v1610, type_, "sib_type_and_info_l_item");
       return c.get<sib14_r16_s>();
     }
     sib15_r17_s& sib15_v1700()
     {
-      assert_choice_type(types::sib15_v1700, type_, "item");
+      assert_choice_type(types::sib15_v1700, type_, "sib_type_and_info_l_item");
       return c.get<sib15_r17_s>();
     }
     sib16_r17_s& sib16_v1700()
     {
-      assert_choice_type(types::sib16_v1700, type_, "item");
+      assert_choice_type(types::sib16_v1700, type_, "sib_type_and_info_l_item");
       return c.get<sib16_r17_s>();
     }
     sib17_r17_s& sib17_v1700()
     {
-      assert_choice_type(types::sib17_v1700, type_, "item");
+      assert_choice_type(types::sib17_v1700, type_, "sib_type_and_info_l_item");
       return c.get<sib17_r17_s>();
     }
     sib18_r17_s& sib18_v1700()
     {
-      assert_choice_type(types::sib18_v1700, type_, "item");
+      assert_choice_type(types::sib18_v1700, type_, "sib_type_and_info_l_item");
       return c.get<sib18_r17_s>();
     }
     sib19_r17_s& sib19_v1700()
     {
-      assert_choice_type(types::sib19_v1700, type_, "item");
+      assert_choice_type(types::sib19_v1700, type_, "sib_type_and_info_l_item");
       return c.get<sib19_r17_s>();
     }
     sib20_r17_s& sib20_v1700()
     {
-      assert_choice_type(types::sib20_v1700, type_, "item");
+      assert_choice_type(types::sib20_v1700, type_, "sib_type_and_info_l_item");
       return c.get<sib20_r17_s>();
     }
     sib21_r17_s& sib21_v1700()
     {
-      assert_choice_type(types::sib21_v1700, type_, "item");
+      assert_choice_type(types::sib21_v1700, type_, "sib_type_and_info_l_item");
       return c.get<sib21_r17_s>();
     }
     sib22_r18_s& sib22_v1800()
     {
-      assert_choice_type(types::sib22_v1800, type_, "item");
+      assert_choice_type(types::sib22_v1800, type_, "sib_type_and_info_l_item");
       return c.get<sib22_r18_s>();
     }
     sib23_r18_s& sib23_v1800()
     {
-      assert_choice_type(types::sib23_v1800, type_, "item");
+      assert_choice_type(types::sib23_v1800, type_, "sib_type_and_info_l_item");
       return c.get<sib23_r18_s>();
     }
     sib24_r18_s& sib24_v1800()
     {
-      assert_choice_type(types::sib24_v1800, type_, "item");
+      assert_choice_type(types::sib24_v1800, type_, "sib_type_and_info_l_item");
       return c.get<sib24_r18_s>();
     }
     sib25_r18_s& sib25_v1800()
     {
-      assert_choice_type(types::sib25_v1800, type_, "item");
+      assert_choice_type(types::sib25_v1800, type_, "sib_type_and_info_l_item");
       return c.get<sib25_r18_s>();
     }
     sib17bis_r18_s& sib17bis_v1820()
     {
-      assert_choice_type(types::sib17bis_v1820, type_, "item");
+      assert_choice_type(types::sib17bis_v1820, type_, "sib_type_and_info_l_item");
       return c.get<sib17bis_r18_s>();
     }
     const sib2_s& sib2() const
     {
-      assert_choice_type(types::sib2, type_, "item");
+      assert_choice_type(types::sib2, type_, "sib_type_and_info_l_item");
       return c.get<sib2_s>();
     }
     const sib3_s& sib3() const
     {
-      assert_choice_type(types::sib3, type_, "item");
+      assert_choice_type(types::sib3, type_, "sib_type_and_info_l_item");
       return c.get<sib3_s>();
     }
     const sib4_s& sib4() const
     {
-      assert_choice_type(types::sib4, type_, "item");
+      assert_choice_type(types::sib4, type_, "sib_type_and_info_l_item");
       return c.get<sib4_s>();
     }
     const sib5_s& sib5() const
     {
-      assert_choice_type(types::sib5, type_, "item");
+      assert_choice_type(types::sib5, type_, "sib_type_and_info_l_item");
       return c.get<sib5_s>();
     }
     const sib6_s& sib6() const
     {
-      assert_choice_type(types::sib6, type_, "item");
+      assert_choice_type(types::sib6, type_, "sib_type_and_info_l_item");
       return c.get<sib6_s>();
     }
     const sib7_s& sib7() const
     {
-      assert_choice_type(types::sib7, type_, "item");
+      assert_choice_type(types::sib7, type_, "sib_type_and_info_l_item");
       return c.get<sib7_s>();
     }
     const sib8_s& sib8() const
     {
-      assert_choice_type(types::sib8, type_, "item");
+      assert_choice_type(types::sib8, type_, "sib_type_and_info_l_item");
       return c.get<sib8_s>();
     }
     const sib9_s& sib9() const
     {
-      assert_choice_type(types::sib9, type_, "item");
+      assert_choice_type(types::sib9, type_, "sib_type_and_info_l_item");
       return c.get<sib9_s>();
     }
     const sib10_r16_s& sib10_v1610() const
     {
-      assert_choice_type(types::sib10_v1610, type_, "item");
+      assert_choice_type(types::sib10_v1610, type_, "sib_type_and_info_l_item");
       return c.get<sib10_r16_s>();
     }
     const sib11_r16_s& sib11_v1610() const
     {
-      assert_choice_type(types::sib11_v1610, type_, "item");
+      assert_choice_type(types::sib11_v1610, type_, "sib_type_and_info_l_item");
       return c.get<sib11_r16_s>();
     }
     const sib12_r16_s& sib12_v1610() const
     {
-      assert_choice_type(types::sib12_v1610, type_, "item");
+      assert_choice_type(types::sib12_v1610, type_, "sib_type_and_info_l_item");
       return c.get<sib12_r16_s>();
     }
     const sib13_r16_s& sib13_v1610() const
     {
-      assert_choice_type(types::sib13_v1610, type_, "item");
+      assert_choice_type(types::sib13_v1610, type_, "sib_type_and_info_l_item");
       return c.get<sib13_r16_s>();
     }
     const sib14_r16_s& sib14_v1610() const
     {
-      assert_choice_type(types::sib14_v1610, type_, "item");
+      assert_choice_type(types::sib14_v1610, type_, "sib_type_and_info_l_item");
       return c.get<sib14_r16_s>();
     }
     const sib15_r17_s& sib15_v1700() const
     {
-      assert_choice_type(types::sib15_v1700, type_, "item");
+      assert_choice_type(types::sib15_v1700, type_, "sib_type_and_info_l_item");
       return c.get<sib15_r17_s>();
     }
     const sib16_r17_s& sib16_v1700() const
     {
-      assert_choice_type(types::sib16_v1700, type_, "item");
+      assert_choice_type(types::sib16_v1700, type_, "sib_type_and_info_l_item");
       return c.get<sib16_r17_s>();
     }
     const sib17_r17_s& sib17_v1700() const
     {
-      assert_choice_type(types::sib17_v1700, type_, "item");
+      assert_choice_type(types::sib17_v1700, type_, "sib_type_and_info_l_item");
       return c.get<sib17_r17_s>();
     }
     const sib18_r17_s& sib18_v1700() const
     {
-      assert_choice_type(types::sib18_v1700, type_, "item");
+      assert_choice_type(types::sib18_v1700, type_, "sib_type_and_info_l_item");
       return c.get<sib18_r17_s>();
     }
     const sib19_r17_s& sib19_v1700() const
     {
-      assert_choice_type(types::sib19_v1700, type_, "item");
+      assert_choice_type(types::sib19_v1700, type_, "sib_type_and_info_l_item");
       return c.get<sib19_r17_s>();
     }
     const sib20_r17_s& sib20_v1700() const
     {
-      assert_choice_type(types::sib20_v1700, type_, "item");
+      assert_choice_type(types::sib20_v1700, type_, "sib_type_and_info_l_item");
       return c.get<sib20_r17_s>();
     }
     const sib21_r17_s& sib21_v1700() const
     {
-      assert_choice_type(types::sib21_v1700, type_, "item");
+      assert_choice_type(types::sib21_v1700, type_, "sib_type_and_info_l_item");
       return c.get<sib21_r17_s>();
     }
     const sib22_r18_s& sib22_v1800() const
     {
-      assert_choice_type(types::sib22_v1800, type_, "item");
+      assert_choice_type(types::sib22_v1800, type_, "sib_type_and_info_l_item");
       return c.get<sib22_r18_s>();
     }
     const sib23_r18_s& sib23_v1800() const
     {
-      assert_choice_type(types::sib23_v1800, type_, "item");
+      assert_choice_type(types::sib23_v1800, type_, "sib_type_and_info_l_item");
       return c.get<sib23_r18_s>();
     }
     const sib24_r18_s& sib24_v1800() const
     {
-      assert_choice_type(types::sib24_v1800, type_, "item");
+      assert_choice_type(types::sib24_v1800, type_, "sib_type_and_info_l_item");
       return c.get<sib24_r18_s>();
     }
     const sib25_r18_s& sib25_v1800() const
     {
-      assert_choice_type(types::sib25_v1800, type_, "item");
+      assert_choice_type(types::sib25_v1800, type_, "sib_type_and_info_l_item");
       return c.get<sib25_r18_s>();
     }
     const sib17bis_r18_s& sib17bis_v1820() const
     {
-      assert_choice_type(types::sib17bis_v1820, type_, "item");
+      assert_choice_type(types::sib17bis_v1820, type_, "sib_type_and_info_l_item");
       return c.get<sib17bis_r18_s>();
     }
     sib2_s&         set_sib2();
@@ -3142,7 +3142,7 @@ struct sys_info_ies_s {
 
     void destroy_();
   };
-  using sib_type_and_info_l_ = dyn_array<item_c_>;
+  using sib_type_and_info_l_ = dyn_array<sib_type_and_info_l_item_c_>;
 
   // member variables
   bool                 non_crit_ext_present = false;
@@ -3170,7 +3170,7 @@ struct sib_pos_r16_s {
 
 // PosSystemInformation-r16-IEs ::= SEQUENCE
 struct pos_sys_info_r16_ies_s {
-  struct item_c_ {
+  struct pos_sib_type_and_info_r16_l_item_c_ {
     struct types_opts {
       enum options {
         pos_sib1_1_r16,
@@ -3238,10 +3238,10 @@ struct pos_sys_info_r16_ies_s {
     using types = enumerated<types_opts, true, 19>;
 
     // choice methods
-    item_c_() = default;
-    item_c_(const item_c_& other);
-    item_c_& operator=(const item_c_& other);
-    ~item_c_() { destroy_(); }
+    pos_sib_type_and_info_r16_l_item_c_() = default;
+    pos_sib_type_and_info_r16_l_item_c_(const pos_sib_type_and_info_r16_l_item_c_& other);
+    pos_sib_type_and_info_r16_l_item_c_& operator=(const pos_sib_type_and_info_r16_l_item_c_& other);
+    ~pos_sib_type_and_info_r16_l_item_c_() { destroy_(); }
     void          set(types::options e = types::nulltype);
     types         type() const { return type_; }
     OCUDUASN_CODE pack(bit_ref& bref) const;
@@ -3250,562 +3250,562 @@ struct pos_sys_info_r16_ies_s {
     // getters
     sib_pos_r16_s& pos_sib1_1_r16()
     {
-      assert_choice_type(types::pos_sib1_1_r16, type_, "item");
+      assert_choice_type(types::pos_sib1_1_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib1_2_r16()
     {
-      assert_choice_type(types::pos_sib1_2_r16, type_, "item");
+      assert_choice_type(types::pos_sib1_2_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib1_3_r16()
     {
-      assert_choice_type(types::pos_sib1_3_r16, type_, "item");
+      assert_choice_type(types::pos_sib1_3_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib1_4_r16()
     {
-      assert_choice_type(types::pos_sib1_4_r16, type_, "item");
+      assert_choice_type(types::pos_sib1_4_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib1_5_r16()
     {
-      assert_choice_type(types::pos_sib1_5_r16, type_, "item");
+      assert_choice_type(types::pos_sib1_5_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib1_6_r16()
     {
-      assert_choice_type(types::pos_sib1_6_r16, type_, "item");
+      assert_choice_type(types::pos_sib1_6_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib1_7_r16()
     {
-      assert_choice_type(types::pos_sib1_7_r16, type_, "item");
+      assert_choice_type(types::pos_sib1_7_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib1_8_r16()
     {
-      assert_choice_type(types::pos_sib1_8_r16, type_, "item");
+      assert_choice_type(types::pos_sib1_8_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_1_r16()
     {
-      assert_choice_type(types::pos_sib2_1_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_1_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_2_r16()
     {
-      assert_choice_type(types::pos_sib2_2_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_2_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_3_r16()
     {
-      assert_choice_type(types::pos_sib2_3_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_3_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_4_r16()
     {
-      assert_choice_type(types::pos_sib2_4_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_4_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_5_r16()
     {
-      assert_choice_type(types::pos_sib2_5_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_5_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_6_r16()
     {
-      assert_choice_type(types::pos_sib2_6_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_6_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_7_r16()
     {
-      assert_choice_type(types::pos_sib2_7_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_7_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_8_r16()
     {
-      assert_choice_type(types::pos_sib2_8_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_8_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_9_r16()
     {
-      assert_choice_type(types::pos_sib2_9_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_9_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_10_r16()
     {
-      assert_choice_type(types::pos_sib2_10_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_10_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_11_r16()
     {
-      assert_choice_type(types::pos_sib2_11_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_11_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_12_r16()
     {
-      assert_choice_type(types::pos_sib2_12_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_12_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_13_r16()
     {
-      assert_choice_type(types::pos_sib2_13_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_13_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_14_r16()
     {
-      assert_choice_type(types::pos_sib2_14_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_14_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_15_r16()
     {
-      assert_choice_type(types::pos_sib2_15_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_15_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_16_r16()
     {
-      assert_choice_type(types::pos_sib2_16_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_16_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_17_r16()
     {
-      assert_choice_type(types::pos_sib2_17_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_17_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_18_r16()
     {
-      assert_choice_type(types::pos_sib2_18_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_18_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_19_r16()
     {
-      assert_choice_type(types::pos_sib2_19_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_19_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_20_r16()
     {
-      assert_choice_type(types::pos_sib2_20_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_20_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_21_r16()
     {
-      assert_choice_type(types::pos_sib2_21_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_21_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_22_r16()
     {
-      assert_choice_type(types::pos_sib2_22_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_22_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_23_r16()
     {
-      assert_choice_type(types::pos_sib2_23_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_23_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib3_1_r16()
     {
-      assert_choice_type(types::pos_sib3_1_r16, type_, "item");
+      assert_choice_type(types::pos_sib3_1_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib4_1_r16()
     {
-      assert_choice_type(types::pos_sib4_1_r16, type_, "item");
+      assert_choice_type(types::pos_sib4_1_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib5_1_r16()
     {
-      assert_choice_type(types::pos_sib5_1_r16, type_, "item");
+      assert_choice_type(types::pos_sib5_1_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib6_1_r16()
     {
-      assert_choice_type(types::pos_sib6_1_r16, type_, "item");
+      assert_choice_type(types::pos_sib6_1_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib6_2_r16()
     {
-      assert_choice_type(types::pos_sib6_2_r16, type_, "item");
+      assert_choice_type(types::pos_sib6_2_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib6_3_r16()
     {
-      assert_choice_type(types::pos_sib6_3_r16, type_, "item");
+      assert_choice_type(types::pos_sib6_3_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib1_9_v1700()
     {
-      assert_choice_type(types::pos_sib1_9_v1700, type_, "item");
+      assert_choice_type(types::pos_sib1_9_v1700, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib1_10_v1700()
     {
-      assert_choice_type(types::pos_sib1_10_v1700, type_, "item");
+      assert_choice_type(types::pos_sib1_10_v1700, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_24_v1700()
     {
-      assert_choice_type(types::pos_sib2_24_v1700, type_, "item");
+      assert_choice_type(types::pos_sib2_24_v1700, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_25_v1700()
     {
-      assert_choice_type(types::pos_sib2_25_v1700, type_, "item");
+      assert_choice_type(types::pos_sib2_25_v1700, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib6_4_v1700()
     {
-      assert_choice_type(types::pos_sib6_4_v1700, type_, "item");
+      assert_choice_type(types::pos_sib6_4_v1700, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib6_5_v1700()
     {
-      assert_choice_type(types::pos_sib6_5_v1700, type_, "item");
+      assert_choice_type(types::pos_sib6_5_v1700, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib6_6_v1700()
     {
-      assert_choice_type(types::pos_sib6_6_v1700, type_, "item");
+      assert_choice_type(types::pos_sib6_6_v1700, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_17a_v1770()
     {
-      assert_choice_type(types::pos_sib2_17a_v1770, type_, "item");
+      assert_choice_type(types::pos_sib2_17a_v1770, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_18a_v1770()
     {
-      assert_choice_type(types::pos_sib2_18a_v1770, type_, "item");
+      assert_choice_type(types::pos_sib2_18a_v1770, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_20a_v1770()
     {
-      assert_choice_type(types::pos_sib2_20a_v1770, type_, "item");
+      assert_choice_type(types::pos_sib2_20a_v1770, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib1_11_v1800()
     {
-      assert_choice_type(types::pos_sib1_11_v1800, type_, "item");
+      assert_choice_type(types::pos_sib1_11_v1800, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib1_12_v1800()
     {
-      assert_choice_type(types::pos_sib1_12_v1800, type_, "item");
+      assert_choice_type(types::pos_sib1_12_v1800, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_26_v1800()
     {
-      assert_choice_type(types::pos_sib2_26_v1800, type_, "item");
+      assert_choice_type(types::pos_sib2_26_v1800, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib2_27_v1800()
     {
-      assert_choice_type(types::pos_sib2_27_v1800, type_, "item");
+      assert_choice_type(types::pos_sib2_27_v1800, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib6_7_v1800()
     {
-      assert_choice_type(types::pos_sib6_7_v1800, type_, "item");
+      assert_choice_type(types::pos_sib6_7_v1800, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib7_1_v1800()
     {
-      assert_choice_type(types::pos_sib7_1_v1800, type_, "item");
+      assert_choice_type(types::pos_sib7_1_v1800, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib7_2_v1800()
     {
-      assert_choice_type(types::pos_sib7_2_v1800, type_, "item");
+      assert_choice_type(types::pos_sib7_2_v1800, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib7_3_v1800()
     {
-      assert_choice_type(types::pos_sib7_3_v1800, type_, "item");
+      assert_choice_type(types::pos_sib7_3_v1800, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& pos_sib7_4_v1800()
     {
-      assert_choice_type(types::pos_sib7_4_v1800, type_, "item");
+      assert_choice_type(types::pos_sib7_4_v1800, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib1_1_r16() const
     {
-      assert_choice_type(types::pos_sib1_1_r16, type_, "item");
+      assert_choice_type(types::pos_sib1_1_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib1_2_r16() const
     {
-      assert_choice_type(types::pos_sib1_2_r16, type_, "item");
+      assert_choice_type(types::pos_sib1_2_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib1_3_r16() const
     {
-      assert_choice_type(types::pos_sib1_3_r16, type_, "item");
+      assert_choice_type(types::pos_sib1_3_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib1_4_r16() const
     {
-      assert_choice_type(types::pos_sib1_4_r16, type_, "item");
+      assert_choice_type(types::pos_sib1_4_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib1_5_r16() const
     {
-      assert_choice_type(types::pos_sib1_5_r16, type_, "item");
+      assert_choice_type(types::pos_sib1_5_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib1_6_r16() const
     {
-      assert_choice_type(types::pos_sib1_6_r16, type_, "item");
+      assert_choice_type(types::pos_sib1_6_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib1_7_r16() const
     {
-      assert_choice_type(types::pos_sib1_7_r16, type_, "item");
+      assert_choice_type(types::pos_sib1_7_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib1_8_r16() const
     {
-      assert_choice_type(types::pos_sib1_8_r16, type_, "item");
+      assert_choice_type(types::pos_sib1_8_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_1_r16() const
     {
-      assert_choice_type(types::pos_sib2_1_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_1_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_2_r16() const
     {
-      assert_choice_type(types::pos_sib2_2_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_2_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_3_r16() const
     {
-      assert_choice_type(types::pos_sib2_3_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_3_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_4_r16() const
     {
-      assert_choice_type(types::pos_sib2_4_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_4_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_5_r16() const
     {
-      assert_choice_type(types::pos_sib2_5_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_5_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_6_r16() const
     {
-      assert_choice_type(types::pos_sib2_6_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_6_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_7_r16() const
     {
-      assert_choice_type(types::pos_sib2_7_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_7_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_8_r16() const
     {
-      assert_choice_type(types::pos_sib2_8_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_8_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_9_r16() const
     {
-      assert_choice_type(types::pos_sib2_9_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_9_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_10_r16() const
     {
-      assert_choice_type(types::pos_sib2_10_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_10_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_11_r16() const
     {
-      assert_choice_type(types::pos_sib2_11_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_11_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_12_r16() const
     {
-      assert_choice_type(types::pos_sib2_12_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_12_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_13_r16() const
     {
-      assert_choice_type(types::pos_sib2_13_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_13_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_14_r16() const
     {
-      assert_choice_type(types::pos_sib2_14_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_14_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_15_r16() const
     {
-      assert_choice_type(types::pos_sib2_15_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_15_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_16_r16() const
     {
-      assert_choice_type(types::pos_sib2_16_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_16_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_17_r16() const
     {
-      assert_choice_type(types::pos_sib2_17_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_17_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_18_r16() const
     {
-      assert_choice_type(types::pos_sib2_18_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_18_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_19_r16() const
     {
-      assert_choice_type(types::pos_sib2_19_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_19_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_20_r16() const
     {
-      assert_choice_type(types::pos_sib2_20_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_20_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_21_r16() const
     {
-      assert_choice_type(types::pos_sib2_21_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_21_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_22_r16() const
     {
-      assert_choice_type(types::pos_sib2_22_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_22_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_23_r16() const
     {
-      assert_choice_type(types::pos_sib2_23_r16, type_, "item");
+      assert_choice_type(types::pos_sib2_23_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib3_1_r16() const
     {
-      assert_choice_type(types::pos_sib3_1_r16, type_, "item");
+      assert_choice_type(types::pos_sib3_1_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib4_1_r16() const
     {
-      assert_choice_type(types::pos_sib4_1_r16, type_, "item");
+      assert_choice_type(types::pos_sib4_1_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib5_1_r16() const
     {
-      assert_choice_type(types::pos_sib5_1_r16, type_, "item");
+      assert_choice_type(types::pos_sib5_1_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib6_1_r16() const
     {
-      assert_choice_type(types::pos_sib6_1_r16, type_, "item");
+      assert_choice_type(types::pos_sib6_1_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib6_2_r16() const
     {
-      assert_choice_type(types::pos_sib6_2_r16, type_, "item");
+      assert_choice_type(types::pos_sib6_2_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib6_3_r16() const
     {
-      assert_choice_type(types::pos_sib6_3_r16, type_, "item");
+      assert_choice_type(types::pos_sib6_3_r16, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib1_9_v1700() const
     {
-      assert_choice_type(types::pos_sib1_9_v1700, type_, "item");
+      assert_choice_type(types::pos_sib1_9_v1700, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib1_10_v1700() const
     {
-      assert_choice_type(types::pos_sib1_10_v1700, type_, "item");
+      assert_choice_type(types::pos_sib1_10_v1700, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_24_v1700() const
     {
-      assert_choice_type(types::pos_sib2_24_v1700, type_, "item");
+      assert_choice_type(types::pos_sib2_24_v1700, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_25_v1700() const
     {
-      assert_choice_type(types::pos_sib2_25_v1700, type_, "item");
+      assert_choice_type(types::pos_sib2_25_v1700, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib6_4_v1700() const
     {
-      assert_choice_type(types::pos_sib6_4_v1700, type_, "item");
+      assert_choice_type(types::pos_sib6_4_v1700, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib6_5_v1700() const
     {
-      assert_choice_type(types::pos_sib6_5_v1700, type_, "item");
+      assert_choice_type(types::pos_sib6_5_v1700, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib6_6_v1700() const
     {
-      assert_choice_type(types::pos_sib6_6_v1700, type_, "item");
+      assert_choice_type(types::pos_sib6_6_v1700, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_17a_v1770() const
     {
-      assert_choice_type(types::pos_sib2_17a_v1770, type_, "item");
+      assert_choice_type(types::pos_sib2_17a_v1770, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_18a_v1770() const
     {
-      assert_choice_type(types::pos_sib2_18a_v1770, type_, "item");
+      assert_choice_type(types::pos_sib2_18a_v1770, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_20a_v1770() const
     {
-      assert_choice_type(types::pos_sib2_20a_v1770, type_, "item");
+      assert_choice_type(types::pos_sib2_20a_v1770, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib1_11_v1800() const
     {
-      assert_choice_type(types::pos_sib1_11_v1800, type_, "item");
+      assert_choice_type(types::pos_sib1_11_v1800, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib1_12_v1800() const
     {
-      assert_choice_type(types::pos_sib1_12_v1800, type_, "item");
+      assert_choice_type(types::pos_sib1_12_v1800, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_26_v1800() const
     {
-      assert_choice_type(types::pos_sib2_26_v1800, type_, "item");
+      assert_choice_type(types::pos_sib2_26_v1800, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib2_27_v1800() const
     {
-      assert_choice_type(types::pos_sib2_27_v1800, type_, "item");
+      assert_choice_type(types::pos_sib2_27_v1800, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib6_7_v1800() const
     {
-      assert_choice_type(types::pos_sib6_7_v1800, type_, "item");
+      assert_choice_type(types::pos_sib6_7_v1800, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib7_1_v1800() const
     {
-      assert_choice_type(types::pos_sib7_1_v1800, type_, "item");
+      assert_choice_type(types::pos_sib7_1_v1800, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib7_2_v1800() const
     {
-      assert_choice_type(types::pos_sib7_2_v1800, type_, "item");
+      assert_choice_type(types::pos_sib7_2_v1800, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib7_3_v1800() const
     {
-      assert_choice_type(types::pos_sib7_3_v1800, type_, "item");
+      assert_choice_type(types::pos_sib7_3_v1800, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     const sib_pos_r16_s& pos_sib7_4_v1800() const
     {
-      assert_choice_type(types::pos_sib7_4_v1800, type_, "item");
+      assert_choice_type(types::pos_sib7_4_v1800, type_, "pos_sib_type_and_info_r16_l_item");
       return c.get<sib_pos_r16_s>();
     }
     sib_pos_r16_s& set_pos_sib1_1_r16();
@@ -3871,7 +3871,7 @@ struct pos_sys_info_r16_ies_s {
 
     void destroy_();
   };
-  using pos_sib_type_and_info_r16_l_ = dyn_array<item_c_>;
+  using pos_sib_type_and_info_r16_l_ = dyn_array<pos_sib_type_and_info_r16_l_item_c_>;
 
   // member variables
   bool                         non_crit_ext_present = false;

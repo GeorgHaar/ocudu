@@ -198,7 +198,7 @@ inline asn1::nrppa::e_c_id_meas_result_s e_cid_meas_result_to_asn1(const nrppa_e
   asn1::nrppa::e_c_id_meas_result_s asn1_meas_result;
 
   // Serving cell id.
-  asn1_meas_result.serving_cell_id.ng_ra_ncell.set_nr_cell_id().from_number(meas_result.serving_cell_id.nci.value());
+  asn1_meas_result.serving_cell_id.ng_ran_cell.set_nr_cell_id().from_number(meas_result.serving_cell_id.nci.value());
   asn1_meas_result.serving_cell_id.plmn_id = meas_result.serving_cell_id.plmn_id.to_bytes();
 
   // Serving cell tac.
@@ -912,7 +912,7 @@ inline asn1::nrppa::trp_beam_ant_info_s trp_beam_ant_info_to_asn1(const trp_beam
         std::get<uint32_t>(trp_beam_ant_info.choice_trp_beam_ant_info_item);
   } else {
     asn1::nrppa::trp_beam_ant_explicit_info_s& asn1_trp_beam_ant_explicit_info =
-        asn1_trp_beam_ant_info.choice_trp_beam_ant_info_item.set_explicit_type();
+        asn1_trp_beam_ant_info.choice_trp_beam_ant_info_item.set_explicit_value();
     const trp_beam_ant_explicit_info_t& trp_beam_ant_explicit_info =
         std::get<trp_beam_ant_explicit_info_t>(trp_beam_ant_info.choice_trp_beam_ant_info_item);
 

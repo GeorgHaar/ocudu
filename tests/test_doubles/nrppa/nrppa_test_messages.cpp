@@ -255,8 +255,8 @@ byte_buffer ocudu::ocucp::generate_valid_nrppa_measurement_request(
     req->trp_meas_quantities.push_back(trp_meas_quantities_list_item_to_asn1(trp_meas_quant));
   }
 
-  req->srs_configuration_present = true;
-  req->srs_configuration         = generate_srscfg();
+  req->srs_cfg_present = true;
+  req->srs_cfg         = generate_srscfg();
 
   return pack_into_pdu(pdu, "MeasurementRequest");
 }

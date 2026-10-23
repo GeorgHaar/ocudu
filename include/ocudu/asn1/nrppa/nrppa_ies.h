@@ -3565,7 +3565,7 @@ using choice_trp_beam_info_item_ext_ies_o = protocol_ies_empty_o;
 // Choice-TRP-Beam-Antenna-Info-Item ::= CHOICE
 struct choice_trp_beam_ant_info_item_c {
   struct types_opts {
-    enum options { ref, explicit_type, no_change, choice_ext, nulltype } value;
+    enum options { ref, explicit_value, no_change, choice_ext, nulltype } value;
 
     const char* to_string() const;
   };
@@ -3587,9 +3587,9 @@ struct choice_trp_beam_ant_info_item_c {
     assert_choice_type(types::ref, type_, "Choice-TRP-Beam-Antenna-Info-Item");
     return c.get<uint32_t>();
   }
-  trp_beam_ant_explicit_info_s& explicit_type()
+  trp_beam_ant_explicit_info_s& explicit_value()
   {
-    assert_choice_type(types::explicit_type, type_, "Choice-TRP-Beam-Antenna-Info-Item");
+    assert_choice_type(types::explicit_value, type_, "Choice-TRP-Beam-Antenna-Info-Item");
     return c.get<trp_beam_ant_explicit_info_s>();
   }
   protocol_ie_single_container_s<choice_trp_beam_info_item_ext_ies_o>& choice_ext()
@@ -3602,9 +3602,9 @@ struct choice_trp_beam_ant_info_item_c {
     assert_choice_type(types::ref, type_, "Choice-TRP-Beam-Antenna-Info-Item");
     return c.get<uint32_t>();
   }
-  const trp_beam_ant_explicit_info_s& explicit_type() const
+  const trp_beam_ant_explicit_info_s& explicit_value() const
   {
-    assert_choice_type(types::explicit_type, type_, "Choice-TRP-Beam-Antenna-Info-Item");
+    assert_choice_type(types::explicit_value, type_, "Choice-TRP-Beam-Antenna-Info-Item");
     return c.get<trp_beam_ant_explicit_info_s>();
   }
   const protocol_ie_single_container_s<choice_trp_beam_info_item_ext_ies_o>& choice_ext() const
@@ -3613,7 +3613,7 @@ struct choice_trp_beam_ant_info_item_c {
     return c.get<protocol_ie_single_container_s<choice_trp_beam_info_item_ext_ies_o>>();
   }
   uint32_t&                                                            set_ref();
-  trp_beam_ant_explicit_info_s&                                        set_explicit_type();
+  trp_beam_ant_explicit_info_s&                                        set_explicit_value();
   void                                                                 set_no_change();
   protocol_ie_single_container_s<choice_trp_beam_info_item_ext_ies_o>& set_choice_ext();
 
@@ -4165,7 +4165,7 @@ struct ng_ran_cgi_s {
   bool                         ext             = false;
   bool                         ie_exts_present = false;
   fixed_octstring<3, true>     plmn_id;
-  ng_ran_cell_c                ng_ra_ncell;
+  ng_ran_cell_c                ng_ran_cell;
   ng_ran_cgi_ext_ies_container ie_exts;
   // ...
 
@@ -9067,11 +9067,43 @@ struct srs_carrier_list_item_s {
 // SRSCarrier-List ::= SEQUENCE (SIZE (1..32)) OF SRSCarrier-List-Item
 using srs_carrier_list_l = dyn_array<srs_carrier_list_item_s>;
 
+// SRSConfiguration-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
+struct srs_configuration_ext_ies_o {
+  // Extension ::= OPEN TYPE
+  struct ext_c {
+    struct types_opts {
+      enum options { pos_srs_res_set_aggregation_list, nulltype } value;
+
+      const char* to_string() const;
+    };
+    using types = enumerated<types_opts>;
+
+    // choice methods
+    types         type() const { return types::pos_srs_res_set_aggregation_list; }
+    OCUDUASN_CODE pack(bit_ref& bref) const;
+    OCUDUASN_CODE unpack(cbit_ref& bref);
+    void          to_json(json_writer& j) const;
+    // getters
+    pos_srs_res_set_aggregation_list_l&       pos_srs_res_set_aggregation_list() { return c; }
+    const pos_srs_res_set_aggregation_list_l& pos_srs_res_set_aggregation_list() const { return c; }
+
+  private:
+    pos_srs_res_set_aggregation_list_l c;
+  };
+
+  // members lookup methods
+  static uint32_t   idx_to_id(uint32_t idx);
+  static bool       is_id_valid(const uint32_t& id);
+  static crit_e     get_crit(const uint32_t& id);
+  static ext_c      get_ext(const uint32_t& id);
+  static presence_e get_presence(const uint32_t& id);
+};
+
 // SRSConfiguration ::= SEQUENCE
 struct srs_configuration_s {
-  bool                                        ext = false;
-  srs_carrier_list_l                          srs_carrier_list;
-  protocol_ext_container_l<srs_cfg_ext_ies_o> ie_exts;
+  bool                                                  ext = false;
+  srs_carrier_list_l                                    srs_carrier_list;
+  protocol_ext_container_l<srs_configuration_ext_ies_o> ie_exts;
   // ...
 
   // sequence methods
@@ -9111,7 +9143,7 @@ using srs_precfg_item_ext_ies_container = protocol_ext_container_empty_l;
 struct srs_precfg_item_s {
   bool                              ext             = false;
   bool                              ie_exts_present = false;
-  srs_configuration_s               srs_configuration;
+  srs_configuration_s               srs_cfg;
   pos_validity_area_cell_list_l     pos_validity_area_cell_list;
   srs_precfg_item_ext_ies_container ie_exts;
   // ...

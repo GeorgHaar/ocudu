@@ -370,7 +370,7 @@ TEST_F(nrppa_impl_test, when_ue_has_no_rrc_measurements_then_aoa_result_carries_
   ASSERT_EQ(pdu.type().value, asn1::nrppa::nr_ppa_pdu_c::types_opts::successful_outcome);
 
   const auto& resp = pdu.successful_outcome().value.e_c_id_meas_initiation_resp();
-  ASSERT_EQ(resp->e_c_id_meas_result.serving_cell_id.ng_ra_ncell.nr_cell_id().to_number(), serving_cell_id.nci.value());
+  ASSERT_EQ(resp->e_c_id_meas_result.serving_cell_id.ng_ran_cell.nr_cell_id().to_number(), serving_cell_id.nci.value());
 }
 
 /// Periodic NR Angle of Arrival needs the E-CID Measurement Report procedure, which is not supported yet. The LMF

@@ -5,6 +5,7 @@
 
 #include "ocudu/e2/gateways/e2_network_client_factory.h"
 #include "ocudu/asn1/e2ap/e2ap.h"
+#include "ocudu/asn1/e2ap/e2ap_pdu_contents.h"
 #include "ocudu/e2/e2_messages.h"
 #include "ocudu/gateways/sctp_network_client_factory.h"
 #include "ocudu/pcap/dlt_pcap.h"

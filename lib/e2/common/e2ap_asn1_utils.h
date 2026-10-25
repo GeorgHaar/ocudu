@@ -7,6 +7,7 @@
 
 #include "ocudu/adt/expected.h"
 #include "ocudu/asn1/e2ap/e2ap.h"
+#include "ocudu/asn1/e2ap/e2ap_pdu_contents.h"
 #include "ocudu/support/async/protocol_transaction_manager.h"
 #include "ocudu/support/error_handling.h"
 

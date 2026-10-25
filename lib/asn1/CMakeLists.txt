@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 # Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
-
 # ASN1 utils
 add_library(asn1_utils STATIC asn1_utils.cpp)
 target_compile_options(asn1_utils PRIVATE -fno-exceptions)
@@ -24,7 +23,7 @@ target_compile_options(e1ap_asn1 PRIVATE -Os -fno-exceptions)
 target_link_libraries(e1ap_asn1 asn1_utils)
 
 # E2AP ASN1
-add_library(e2ap_asn1 STATIC e2ap/e2ap.cpp e2sm/e2sm_common_ies.cpp e2sm/e2sm_kpm_ies.cpp e2sm/e2sm_rc_ies.cpp e2sm/e2sm_ccc.cpp)
+add_library(e2ap_asn1 STATIC e2ap/common.cpp e2ap/e2ap_ies.cpp e2ap/e2ap_pdu_contents.cpp e2ap/e2ap.cpp e2sm/common.cpp e2sm/e2sm_common_ies.cpp e2sm/e2sm_kpm_ies.cpp e2sm/e2sm.cpp e2sm/e2sm_ccc.cpp)
 target_compile_options(e2ap_asn1 PRIVATE -Os -fno-exceptions)
 target_link_libraries(e2ap_asn1 asn1_utils)
 

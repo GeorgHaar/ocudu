@@ -5,6 +5,7 @@
 
 #include "e2ap_indication_procedure.h"
 #include "ocudu/asn1/e2ap/e2ap.h"
+#include "ocudu/asn1/e2ap/e2ap_pdu_contents.h"
 #include "ocudu/support/async/async_timer.h"
 
 using namespace ocudu;

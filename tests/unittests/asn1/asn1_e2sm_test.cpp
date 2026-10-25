@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
-#include "ocudu/asn1/e2sm/e2sm_kpm_ies.h"
-#include "ocudu/asn1/e2sm/e2sm_rc_ies.h"
+#include "ocudu/asn1/e2sm/e2sm.h"
 #include <gtest/gtest.h>
 
 using namespace asn1;
@@ -131,7 +130,7 @@ TEST_F(asn1_e2sm_test, pack_unpack_action_definition_with_negative_test_cond_val
   lower_bound_info.test_value_present                        = true;
   lower_bound_info.test_value.set_value_int()                = -110;
   lower_bound_cond.lc_or_present                             = true;
-  lower_bound_cond.lc_or                                     = lc_or_opts::true_value;
+  lower_bound_cond.lc_or                                     = logical_or_opts::true_value;
   lower_bound_cond.matching_cond_choice.set_test_cond_info() = lower_bound_info;
   meas_cond_item.matching_cond.push_back(lower_bound_cond);
 

@@ -6,6 +6,7 @@
 #pragma once
 
 #include "ocudu/asn1/e2ap/e2ap.h"
+#include "ocudu/asn1/e2ap/e2ap_pdu_contents.h"
 #include "ocudu/e2/e2.h"
 #include "ocudu/e2/e2_event_manager.h"
 #include "ocudu/support/async/async_task.h"

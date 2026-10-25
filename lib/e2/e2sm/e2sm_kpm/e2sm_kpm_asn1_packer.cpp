@@ -66,7 +66,7 @@ e2sm_kpm_asn1_packer::handle_packed_event_trigger_definition(const ocudu::byte_b
 
 asn1::unbounded_octstring<true> e2sm_kpm_asn1_packer::pack_ran_function_description()
 {
-  e2sm_kpm_ran_function_description_s ran_function_desc;
+  e2sm_kpm_ra_nfunction_description_s ran_function_desc;
   // Add ran_function_name item.
   ran_function_desc.ran_function_name.ran_function_short_name.resize(short_name.size());
   ran_function_desc.ran_function_name.ran_function_e2sm_o_id.resize(oid.size());

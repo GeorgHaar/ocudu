@@ -5,6 +5,7 @@
 
 #include "e2ap_asn1_packer.h"
 #include "ocudu/asn1/e2ap/e2ap.h"
+#include "ocudu/asn1/e2ap/e2ap_pdu_contents.h"
 
 using namespace ocudu;
 

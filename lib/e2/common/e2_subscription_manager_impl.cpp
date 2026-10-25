@@ -5,6 +5,7 @@
 
 #include "e2_subscription_manager_impl.h"
 #include "ocudu/asn1/e2ap/e2ap.h"
+#include "ocudu/asn1/e2ap/e2ap_pdu_contents.h"
 
 using namespace asn1::e2ap;
 using namespace ocudu;

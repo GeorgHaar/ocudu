@@ -5,8 +5,8 @@
 
 #pragma once
 
+#include "ocudu/asn1/e2sm/e2sm.h"
 #include "ocudu/asn1/e2sm/e2sm_kpm_ies.h"
-#include "ocudu/asn1/e2sm/e2sm_rc_ies.h"
 
 namespace ocudu {
 

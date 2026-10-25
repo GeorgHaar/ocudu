@@ -350,7 +350,7 @@ TEST_F(e2_test_subscriber, subscription_report_period_controls_indication_timing
     request->ric_sub_details.ric_action_to_be_setup_list[0].value().ric_action_to_be_setup_item() =
         generate_e2sm_kpm_ric_action(definition);
     asn1::e2sm::e2sm_kpm_event_trigger_definition_s trigger;
-    trigger.event_definition_formats.event_definition_format1().report_period = period.first;
+    trigger.event_definition_formats.set_event_definition_format1().report_period = period.first;
     byte_buffer   trigger_bytes;
     asn1::bit_ref bits(trigger_bytes);
     ASSERT_EQ(trigger.pack(bits), asn1::OCUDUASN_SUCCESS);

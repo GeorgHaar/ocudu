@@ -10,6 +10,7 @@
 #include "../procedures/e2ap_subscription_setup_procedure.h"
 #include "e2_connection_handler.h"
 #include "ocudu/asn1/e2ap/e2ap.h"
+#include "ocudu/asn1/e2ap/e2ap_pdu_contents.h"
 #include "ocudu/e2/e2.h"
 #include "ocudu/e2/e2sm/e2sm.h"
 #include "ocudu/e2/e2sm/e2sm_manager.h"

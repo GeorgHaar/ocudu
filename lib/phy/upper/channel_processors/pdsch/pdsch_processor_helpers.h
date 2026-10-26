@@ -45,6 +45,7 @@ pdsch_process_dmrs(resource_grid_writer& grid, dmrs_pdsch_processor& dmrs, const
       .amplitude                 = convert_dB_to_amplitude(-pdu.ratio_pdsch_dmrs_to_sss_dB),
       .symbols_mask              = pdu.dmrs_symbol_mask,
       .rb_mask                   = rb_mask_bitset,
+      .dmrs_ports                = pdu.dmrs_ports,
       .precoding_and_beamforming = pdu.precoding_and_beamforming,
   };
 

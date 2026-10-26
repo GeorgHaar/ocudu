@@ -6,6 +6,7 @@
 #pragma once
 
 #include "ocudu/phy/support/mask_types.h"
+#include "ocudu/phy/upper/dmrs_mapping.h"
 #include "ocudu/ran/dmrs/dmrs.h"
 #include "ocudu/ran/precoding_beamforming_configuration.h"
 #include "ocudu/ran/resource_allocation/rb_bitmap.h"
@@ -37,6 +38,10 @@ public:
     symbol_slot_mask symbols_mask;
     /// Allocation RB list, the entries set to true are used for transmission.
     crb_bitmap rb_mask;
+    /// \brief DM-RS ports used by the transmission.
+    ///
+    /// The number of selected ports must be equal to the number of layers of the precoding configuration.
+    dmrs_port_mask dmrs_ports;
     /// Precoding and beamforming configuration.
     precoding_beamforming_configuration precoding_and_beamforming;
   };

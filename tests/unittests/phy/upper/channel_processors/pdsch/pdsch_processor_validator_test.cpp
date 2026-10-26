@@ -33,6 +33,7 @@ const pdsch_processor::pdu_t base_pdu = {.context          = std::nullopt,
                                          .scrambling_id    = 0,
                                          .n_scid           = false,
                                          .nof_cdm_groups_without_data = 1,
+                                         .dmrs_ports                  = {1},
                                          .freq_alloc                  = rb_allocation::make_type1(0, 52),
                                          .start_symbol_index          = 2,
                                          .nof_symbols                 = 12,
@@ -113,6 +114,42 @@ const std::vector<test_case_t> pdsch_processor_validator_test_data = {
        return pdu;
      },
      R"(The number of CDM groups without data \(i\.e\., 3\) must not exceed the maximum supported by the DM-RS type \(i\.e\., 2\)\.)"},
+    {[] {
+       pdsch_processor::pdu_t pdu = base_pdu;
+       pdu.dmrs_ports             = {1, 1};
+       return pdu;
+     },
+     R"(The number of DM-RS ports \(i\.e\., 2\) must be equal to the number of layers \(i\.e\., 1\)\.)"},
+    {[] {
+       pdsch_processor::pdu_t pdu = base_pdu;
+       pdu.dmrs_ports             = dmrs_port_mask(DMRS_MAX_NPORTS);
+       pdu.dmrs_ports.set(8);
+       return pdu;
+     },
+     R"(The DM-RS ports \(i\.e\., 000100000000\) exceed the maximum number of ports for DM-RS Type1 \(i\.e\., 8\)\.)"},
+    {[] {
+       pdsch_processor::pdu_t pdu = base_pdu;
+       pdu.dmrs_ports             = dmrs_port_mask(DMRS_MAX_NPORTS);
+       pdu.dmrs_ports.set(2);
+       return pdu;
+     },
+     R"(The DM-RS ports \(i\.e\., 000000000100\) belong to CDM groups that carry data \(number of CDM groups without data is 1\)\.)"},
+    {[] {
+       pdsch_processor::pdu_t pdu = base_pdu;
+       pdu.dmrs_ports             = dmrs_port_mask(DMRS_MAX_NPORTS);
+       pdu.dmrs_ports.set(4);
+       return pdu;
+     },
+     R"(The DM-RS ports \(i\.e\., 000000010000\) require double-symbol DM-RS, but the DM-RS symbol mask \(i\.e\., \{2, 7, 11\}\) is not composed of adjacent symbol pairs\.)"},
+    {[] {
+       pdsch_processor::pdu_t pdu      = base_pdu;
+       pdu.nof_cdm_groups_without_data = 2;
+       pdu.dmrs_ports                  = dmrs_port_mask(DMRS_MAX_NPORTS);
+       pdu.dmrs_ports.set(2);
+       pdu.ptrs = {ptrs_frequency_density::two, ptrs_time_density::one, ptrs_re_offset::offset00, 0};
+       return pdu;
+     },
+     R"(PT-RS is only supported if the DM-RS port mask \(i\.e\., 000000000100\) includes port index 0\.)"},
     {[] {
        pdsch_processor::pdu_t pdu = base_pdu;
        pdu.tbs_lbrm               = units::bytes(0);

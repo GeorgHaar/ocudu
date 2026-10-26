@@ -645,6 +645,10 @@ static std::vector<test_case_type> generate_test_cases(const test_profile& profi
           codeword_descriptions.push_back(pdsch_processor::codeword_description{mcs.modulation, i_rv, ldpc_base_graph});
         }
 
+        // Each layer is mapped to a DM-RS port, starting at port 1000.
+        dmrs_port_mask dmrs_ports(DMRS_MAX_NPORTS);
+        dmrs_ports.fill(0, precoding_config.get_nof_layers());
+
         // Build the PDSCH PDU configuration.
         pdsch_processor::pdu_t config = {.context                     = std::nullopt,
                                          .slot                        = slot_point(to_numerology_value(profile.scs), 0),
@@ -660,6 +664,7 @@ static std::vector<test_case_type> generate_test_cases(const test_profile& profi
                                          .scrambling_id               = 0,
                                          .n_scid                      = false,
                                          .nof_cdm_groups_without_data = nof_cdm_groups_without_data,
+                                         .dmrs_ports                  = dmrs_ports,
                                          .freq_alloc         = rb_allocation::make_type1(config.bwp_start_rb, nof_prb),
                                          .start_symbol_index = profile.start_symbol,
                                          .nof_symbols        = profile.nof_symbols,

@@ -225,6 +225,10 @@ private:
     buffer_pool = create_rx_buffer_pool(buffer_pool_config);
     report_error_if_not(buffer_pool, "Failed to create buffer pool.");
 
+    // Each layer is mapped to a DM-RS port, starting at port 1000.
+    dmrs_port_mask dmrs_ports(DMRS_MAX_NPORTS);
+    dmrs_ports.fill(0, cfg.nof_layers);
+
     // Prepare PDSCH processor configuration.
     pdsch_config.reserve(cfg.rep_rv_sequence.size());
     for (unsigned i_rep = 0, rep_end = cfg.rep_rv_sequence.size(); i_rep != rep_end; ++i_rep) {
@@ -245,6 +249,7 @@ private:
           .scrambling_id    = scrambling_id,
           .n_scid           = n_scid,
           .nof_cdm_groups_without_data = nof_cdm_groups_without_data,
+          .dmrs_ports                  = dmrs_ports,
           .freq_alloc                  = freq_alloc,
           .start_symbol_index          = 0,
           .nof_symbols                 = nof_ofdm_symbols,

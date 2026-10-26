@@ -229,6 +229,7 @@ TEST(fapi_to_phy_pdsch_conversion_test, valid_pdu_conversion_success)
                     ASSERT_EQ(scrambling_id, proc_pdu.scrambling_id);
                     ASSERT_EQ(n_scid, proc_pdu.n_scid);
                     ASSERT_EQ(dmrs_cdm_grps_no_data, proc_pdu.nof_cdm_groups_without_data);
+                    ASSERT_EQ(dmrs_ports, proc_pdu.dmrs_ports);
                     ASSERT_EQ(start_symbol_index, proc_pdu.start_symbol_index);
                     ASSERT_EQ(nr_of_symbols, proc_pdu.nof_symbols);
 

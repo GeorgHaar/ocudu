@@ -5,7 +5,9 @@
 
 #include "pdsch_processor_validator_impl.h"
 #include "ocudu/adt/format.h"
+#include "ocudu/phy/upper/dmrs_mapping.h"
 #include "ocudu/ran/dmrs/dmrs.h"
+#include <algorithm>
 
 using namespace ocudu;
 
@@ -84,8 +86,41 @@ error_type<std::string> pdsch_processor_validator_impl::is_valid(const pdsch_pro
     return make_unexpected("Only DM-RS Type 1 is currently supported.");
   }
 
-  // Transmissions with more than four layers require DM-RS time-domain OCC, as per TS38.211 Table 7.4.1.1.2-1.
-  if (pdu.precoding_and_beamforming.get_nof_layers() > 4) {
+  // Each layer must be carried by a different DM-RS port.
+  unsigned nof_layers = pdu.precoding_and_beamforming.get_nof_layers();
+  if (pdu.dmrs_ports.count() != nof_layers) {
+    return make_unexpected(
+        fmt::format("The number of DM-RS ports (i.e., {}) must be equal to the number of layers (i.e., {}).",
+                    pdu.dmrs_ports.count(),
+                    nof_layers));
+  }
+
+  // The DM-RS ports must be supported by the DM-RS type.
+  if (static_cast<unsigned>(pdu.dmrs_ports.find_highest()) >= dmrs_max_ports_type(dmrs_config)) {
+    return make_unexpected(fmt::format("The DM-RS ports (i.e., {}) exceed the maximum number of ports for DM-RS {} "
+                                       "(i.e., {}).",
+                                       pdu.dmrs_ports,
+                                       dmrs_config,
+                                       dmrs_max_ports_type(dmrs_config)));
+  }
+
+  // List of DM-RS ports used by the transmission.
+  const static_vector<size_t, DMRS_MAX_NPORTS> dmrs_ports = pdu.dmrs_ports.get_bit_positions();
+
+  // The CDM groups of the DM-RS ports must not carry data.
+  if (!std::all_of(dmrs_ports.begin(), dmrs_ports.end(), [&](size_t i_dmrs_port) {
+        return get_dmrs_cdm_group_index(dmrs_config, i_dmrs_port) < pdu.nof_cdm_groups_without_data;
+      })) {
+    return make_unexpected(fmt::format(
+        "The DM-RS ports (i.e., {}) belong to CDM groups that carry data (number of CDM groups without data is {}).",
+        pdu.dmrs_ports,
+        pdu.nof_cdm_groups_without_data));
+  }
+
+  // DM-RS ports with time-domain OCC require double-symbol DM-RS, as per TS38.211 Tables 7.4.1.1.2-1 and 7.4.1.1.2-2.
+  if (std::any_of(dmrs_ports.begin(), dmrs_ports.end(), [dmrs_config](size_t i_dmrs_port) {
+        return is_dmrs_port_double_symbol(dmrs_config, i_dmrs_port);
+      })) {
     for (unsigned i_symbol = 0, e = pdu.dmrs_symbol_mask.size(); i_symbol != e;) {
       if (!pdu.dmrs_symbol_mask.test(i_symbol)) {
         ++i_symbol;
@@ -94,16 +129,22 @@ error_type<std::string> pdsch_processor_validator_impl::is_valid(const pdsch_pro
 
       // The DM-RS symbol must be immediately followed by another DM-RS symbol to form a double-symbol pair.
       if ((i_symbol + 1 >= e) || !pdu.dmrs_symbol_mask.test(i_symbol + 1)) {
-        return make_unexpected(fmt::format(
-            "A transmission with {} layers requires double-symbol DM-RS, but the DM-RS symbol mask (i.e., {}) "
-            "is not composed of adjacent symbol pairs.",
-            pdu.precoding_and_beamforming.get_nof_layers(),
-            pdu.dmrs_symbol_mask));
+        return make_unexpected(
+            fmt::format("The DM-RS ports (i.e., {}) require double-symbol DM-RS, but the DM-RS symbol mask (i.e., {}) "
+                        "is not composed of adjacent symbol pairs.",
+                        pdu.dmrs_ports,
+                        pdu.dmrs_symbol_mask));
       }
 
       // Skip the pair.
       i_symbol += 2;
     }
+  }
+
+  // PT-RS is only supported when it is associated with the DM-RS port 1000.
+  if (pdu.ptrs.has_value() && (pdu.dmrs_ports.find_lowest() != 0)) {
+    return make_unexpected(fmt::format(
+        "PT-RS is only supported if the DM-RS port mask (i.e., {}) includes port index 0.", pdu.dmrs_ports));
   }
 
   if (pdu.precoding_and_beamforming.get_nof_beams() % pdu.codewords.size() != 0) {

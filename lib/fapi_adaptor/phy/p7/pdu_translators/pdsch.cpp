@@ -136,6 +136,7 @@ void ocudu::fapi_adaptor::convert_pdsch_fapi_to_phy(pdsch_processor::pdu_t&     
   proc_pdu.scrambling_id               = fapi_pdu.pdsch_dmrs_scrambling_id;
   proc_pdu.n_scid                      = fapi_pdu.nscid == 1U;
   proc_pdu.nof_cdm_groups_without_data = fapi_pdu.num_dmrs_cdm_grps_no_data;
+  proc_pdu.dmrs_ports                  = fapi_pdu.dmrs_ports;
   proc_pdu.start_symbol_index          = fapi_pdu.symbols.start();
   proc_pdu.nof_symbols                 = fapi_pdu.symbols.length();
 

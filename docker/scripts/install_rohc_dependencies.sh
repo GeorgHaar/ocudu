@@ -15,7 +15,7 @@ install_rohc_dependencies_debian_ubuntu() {
     local -a pkgs=()
 
     local -a build_pkgs=(
-        curl ca-certificates build-essential xz-utils autotools-dev automake libtool libpcap-dev libcmocka-dev
+        curl ca-certificates build-essential xz-utils gzip autotools-dev automake libtool libpcap-dev libcmocka-dev
     )
     local -a run_pkgs=()
 
@@ -40,7 +40,7 @@ install_rohc_dependencies_fedora() {
     local -a pkgs=()
 
     local -a build_pkgs=(
-        curl ca-certificates gcc gcc-c++ make which xz
+        curl ca-certificates gcc gcc-c++ make which xz gzip
         autoconf automake libtool libpcap-devel libcmocka-devel
     )
     local -a run_pkgs=()
@@ -78,7 +78,7 @@ install_rohc_dependencies_centos() {
     local -a pkgs=()
 
     local -a build_pkgs=(
-        curl ca-certificates gcc gcc-c++ make which xz
+        curl ca-certificates gcc gcc-c++ make which xz gzip
         autoconf automake libtool libpcap-devel libcmocka-devel
     )
     local -a run_pkgs=()
@@ -116,10 +116,10 @@ install_rohc_dependencies_redhat() {
     local -a pkgs=()
 
     local -a build_pkgs=(
-        curl-minimal ca-certificates gcc gcc-c++ make which xz
+        curl-minimal ca-certificates gcc gcc-c++ make which xz gzip
         autoconf automake libtool libpcap-devel libcmocka-devel
     )
-    build_pkgs+=(tar gzip diffutils)
+    build_pkgs+=(tar diffutils)
     local -a run_pkgs=()
 
     case "$mode" in
@@ -157,7 +157,7 @@ install_rohc_dependencies_arch() {
     local -a pkgs=()
 
     local -a build_pkgs=(
-        curl ca-certificates base-devel which xz autoconf automake libtool libpcap cmocka
+        curl ca-certificates base-devel which xz gzip autoconf automake libtool libpcap cmocka
     )
     local -a run_pkgs=()
 

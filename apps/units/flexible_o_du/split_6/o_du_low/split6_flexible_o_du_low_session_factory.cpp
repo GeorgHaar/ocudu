@@ -170,6 +170,7 @@ split6_flexible_o_du_low_session_factory::create_o_du_low(const fapi::cell_confi
       .scs                           = config.scs_common,
       .scs_common                    = config.scs_common,
       .carrier_cfg                   = config.carrier_cfg,
+      .tx_ant_topology               = get_tx_antenna_topology(config.carrier_cfg.num_tx_ant),
       .prach_cfg                     = config.prach_cfg,
       .prach_ports                   = prach_ports,
       .dbfs_to_dbm_conversion_factor =

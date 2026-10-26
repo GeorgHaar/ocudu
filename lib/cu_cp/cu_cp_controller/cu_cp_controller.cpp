@@ -95,7 +95,7 @@ bool cu_cp_controller::request_ue_setup() const
 
 std::optional<cu_cp_amf_index_t> cu_cp_controller::select_amf(const amf_selection_request& request)
 {
-  return ocucp::select_amf(amf_mng.get_amf_candidates(), request, amf_selection_rng);
+  return amf_sel.select_amf(amf_mng.get_amf_candidates(), request);
 }
 
 std::optional<cu_cp_amf_index_t> cu_cp_controller::select_amf_for_amf_set(const plmn_identity& plmn,
@@ -109,10 +109,10 @@ std::optional<cu_cp_amf_index_t> cu_cp_controller::select_amf_for_amf_set(const 
                                     return candidate.amf_index == requesting_amf_index;
                                   }),
                    candidates.end());
-  return ocucp::select_amf_for_amf_set(candidates, plmn, amf_set_id, amf_selection_rng);
+  return amf_sel.select_amf_for_amf_set(candidates, plmn, amf_set_id);
 }
 
 std::optional<cu_cp_amf_index_t> cu_cp_controller::select_amf_for_guami(const guami_t& guami)
 {
-  return ocucp::select_amf_for_guami(amf_mng.get_amf_candidates(), guami, amf_selection_rng);
+  return amf_sel.select_amf_for_guami(amf_mng.get_amf_candidates(), guami);
 }

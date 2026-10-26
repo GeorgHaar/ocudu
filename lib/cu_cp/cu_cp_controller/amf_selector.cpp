@@ -37,8 +37,7 @@ static bool has_available_guami(const amf_candidate& candidate)
                      });
 }
 
-/// Picks one of the candidates at random, weighted by the relative AMF capacity.
-static std::optional<cu_cp_amf_index_t> pick_by_capacity(span<const amf_candidate* const> pool, std::mt19937& rng)
+std::optional<cu_cp_amf_index_t> amf_selector::pick_by_capacity(span<const amf_candidate* const> pool)
 {
   if (pool.empty()) {
     return std::nullopt;
@@ -57,11 +56,9 @@ static std::optional<cu_cp_amf_index_t> pick_by_capacity(span<const amf_candidat
   return pool[distribution(rng)]->amf_index;
 }
 
-/// Picks one of the connected AMFs that match, as in \ref pick_by_capacity. An AMF whose served GUAMIs are all
-/// unavailable is picked only if no other AMF matches.
 template <typename CandidateMatch>
-static std::optional<cu_cp_amf_index_t>
-pick_available_by_capacity(span<const amf_candidate> candidates, const CandidateMatch& matches, std::mt19937& rng)
+std::optional<cu_cp_amf_index_t> amf_selector::pick_available_by_capacity(span<const amf_candidate> candidates,
+                                                                          const CandidateMatch&     matches)
 {
   std::vector<const amf_candidate*> available;
   std::vector<const amf_candidate*> unavailable;
@@ -70,19 +67,13 @@ pick_available_by_capacity(span<const amf_candidate> candidates, const Candidate
       (has_available_guami(candidate) ? available : unavailable).push_back(&candidate);
     }
   }
-  return pick_by_capacity(available.empty() ? unavailable : available, rng);
+  return pick_by_capacity(available.empty() ? unavailable : available);
 }
 
-/// \brief Finds the AMF of a served GUAMI that matches the UE.
-///
-/// The connected and eligible AMFs of the matching GUAMIs are picked as in \ref pick_by_capacity. If the matching
-/// GUAMIs are unavailable, or their AMFs are not connected, the connected backup AMF serves the UE. The backup AMF Name
-/// from the AMF Status Indication comes first (TS 38.413 sections 8.7.1.2 and 8.7.6.2).
 template <typename GuamiMatch, typename CandidateMatch>
-static std::optional<cu_cp_amf_index_t> find_amf_of_guami(span<const amf_candidate> candidates,
-                                                          const GuamiMatch&         matches,
-                                                          const CandidateMatch&     is_eligible,
-                                                          std::mt19937&             rng)
+std::optional<cu_cp_amf_index_t> amf_selector::find_amf_of_guami(span<const amf_candidate> candidates,
+                                                                 const GuamiMatch&         matches,
+                                                                 const CandidateMatch&     is_eligible)
 {
   std::vector<const amf_candidate*> pool;
   std::optional<std::string>        backup_amf_name;
@@ -104,7 +95,7 @@ static std::optional<cu_cp_amf_index_t> find_amf_of_guami(span<const amf_candida
     }
   }
   if (not pool.empty()) {
-    return pick_by_capacity(pool, rng);
+    return pick_by_capacity(pool);
   }
 
   if (backup_amf_name.has_value()) {
@@ -117,8 +108,8 @@ static std::optional<cu_cp_amf_index_t> find_amf_of_guami(span<const amf_candida
   return std::nullopt;
 }
 
-std::optional<cu_cp_amf_index_t>
-ocudu::ocucp::select_amf(span<const amf_candidate> candidates, const amf_selection_request& request, std::mt19937& rng)
+std::optional<cu_cp_amf_index_t> amf_selector::select_amf(span<const amf_candidate>    candidates,
+                                                          const amf_selection_request& request)
 {
   auto supports_selected_plmn = [&request](const amf_candidate& candidate) {
     return supports_plmn(candidate, request.plmn);
@@ -132,8 +123,7 @@ ocudu::ocucp::select_amf(span<const amf_candidate> candidates, const amf_selecti
           return served.guami == *request.registered_guami and
                  served.guami_type.value_or(guami_type_t::native) == request.registered_guami_type;
         },
-        supports_selected_plmn,
-        rng);
+        supports_selected_plmn);
     if (amf_index.has_value()) {
       return amf_index;
     }
@@ -148,8 +138,7 @@ ocudu::ocucp::select_amf(span<const amf_candidate> candidates, const amf_selecti
                  served.guami.amf_set_id == request.five_g_s_tmsi->get_amf_set_id() and
                  served.guami.amf_pointer == request.five_g_s_tmsi->get_amf_pointer();
         },
-        supports_selected_plmn,
-        rng);
+        supports_selected_plmn);
     if (amf_index.has_value()) {
       return amf_index;
     }
@@ -176,42 +165,36 @@ ocudu::ocucp::select_amf(span<const amf_candidate> candidates, const amf_selecti
     }
   }
   if (not pool.empty()) {
-    return pick_by_capacity(pool, rng);
+    return pick_by_capacity(pool);
   }
 
   // Rule 4: Any AMF that supports the selected PLMN.
   return pick_available_by_capacity(
-      candidates, [&request](const amf_candidate& candidate) { return supports_plmn(candidate, request.plmn); }, rng);
+      candidates, [&request](const amf_candidate& candidate) { return supports_plmn(candidate, request.plmn); });
 }
 
-std::optional<cu_cp_amf_index_t>
-ocudu::ocucp::select_amf_for_guami(span<const amf_candidate> candidates, const guami_t& guami, std::mt19937& rng)
+std::optional<cu_cp_amf_index_t> amf_selector::select_amf_for_guami(span<const amf_candidate> candidates,
+                                                                    const guami_t&            guami)
 {
   std::optional<cu_cp_amf_index_t> amf_index = find_amf_of_guami(
       candidates,
       [&guami](const ngap_served_guami_item& served) { return served.guami == guami; },
-      [](const amf_candidate&) { return true; },
-      rng);
+      [](const amf_candidate&) { return true; });
   if (amf_index.has_value()) {
     return amf_index;
   }
 
   // Another AMF of the AMF Set serves the UE.
-  return pick_available_by_capacity(
-      candidates,
-      [&guami](const amf_candidate& candidate) {
-        return std::any_of(
-            candidate.served_guamis.begin(),
-            candidate.served_guamis.end(),
-            [&guami](const ngap_served_guami_item& served) { return is_same_amf_set(served.guami, guami); });
-      },
-      rng);
+  return pick_available_by_capacity(candidates, [&guami](const amf_candidate& candidate) {
+    return std::any_of(candidate.served_guamis.begin(),
+                       candidate.served_guamis.end(),
+                       [&guami](const ngap_served_guami_item& served) { return is_same_amf_set(served.guami, guami); });
+  });
 }
 
-std::optional<cu_cp_amf_index_t> ocudu::ocucp::select_amf_for_amf_set(span<const amf_candidate> candidates,
+std::optional<cu_cp_amf_index_t> amf_selector::select_amf_for_amf_set(span<const amf_candidate> candidates,
                                                                       const plmn_identity&      plmn,
-                                                                      uint16_t                  amf_set_id,
-                                                                      std::mt19937&             rng)
+                                                                      uint16_t                  amf_set_id)
 {
   auto serves_amf_set = [&plmn, amf_set_id](const amf_candidate& candidate) {
     return supports_plmn(candidate, plmn) and std::any_of(candidate.served_guamis.begin(),
@@ -221,5 +204,5 @@ std::optional<cu_cp_amf_index_t> ocudu::ocucp::select_amf_for_amf_set(span<const
                                                                    served.guami.amf_set_id == amf_set_id;
                                                           });
   };
-  return pick_available_by_capacity(candidates, serves_amf_set, rng);
+  return pick_available_by_capacity(candidates, serves_amf_set);
 }

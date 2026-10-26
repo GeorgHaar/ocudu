@@ -9,7 +9,6 @@
 #include "cu_up_connection_manager.h"
 #include "du_connection_manager.h"
 #include "xnc_connection_manager.h"
-#include <random>
 
 namespace ocudu::ocucp {
 
@@ -96,8 +95,8 @@ private:
   std::mutex mutex;
   bool       running = true;
 
-  /// Random generator of the AMF selection.
-  std::mt19937 amf_selection_rng{std::random_device{}()};
+  /// NAS Node Selection Function of the CU-CP.
+  amf_selector amf_sel;
 };
 
 } // namespace ocudu::ocucp

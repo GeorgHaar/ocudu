@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "lib/cu_cp/cu_cp_controller/amf_selector.h"
+#include "tests/test_doubles/utils/test_rng.h"
 #include <gtest/gtest.h>
 
 using namespace ocudu;
@@ -30,6 +31,8 @@ amf_candidate make_candidate(unsigned amf_idx, const guami_t& guami, uint16_t ca
   return candidate;
 }
 
+/// The AMF selection draws random numbers. A test of a rule that selects one AMF gives this AMF capacity 0 and the
+/// other AMFs a higher capacity. Only the rule can then select this AMF. A failed test prints the seed of the test run.
 class amf_selector_test : public ::testing::Test
 {
 protected:
@@ -51,60 +54,50 @@ protected:
   }
 
   std::vector<amf_candidate> candidates;
-  std::mt19937               rng{0};
+  std::mt19937&              rng = test_rng::tls_gen();
 };
 
 } // namespace
 
 TEST_F(amf_selector_test, when_ue_has_registered_guami_then_amf_of_this_guami_is_selected)
 {
-  candidates = {make_candidate(0, make_guami(1, 0), 255), make_candidate(1, make_guami(1, 1), 1)};
+  candidates = {make_candidate(0, make_guami(1, 0), 255), make_candidate(1, make_guami(1, 1), 0)};
 
-  for (unsigned i = 0; i != 10; ++i) {
-    ASSERT_EQ(select({.plmn = plmn_a, .registered_guami = make_guami(1, 1)}), uint_to_cu_cp_amf_index(1));
-  }
+  ASSERT_EQ(select({.plmn = plmn_a, .registered_guami = make_guami(1, 1)}), uint_to_cu_cp_amf_index(1));
 }
 
 TEST_F(amf_selector_test, when_ue_has_mapped_guami_then_only_a_mapped_served_guami_matches)
 {
-  candidates = {make_candidate(0, make_guami(1, 0)), make_candidate(1, make_guami(1, 0))};
+  candidates = {make_candidate(0, make_guami(1, 0), 255), make_candidate(1, make_guami(1, 0), 0)};
   candidates[1].served_guamis[0].guami_type = guami_type_t::mapped;
 
-  for (unsigned i = 0; i != 10; ++i) {
-    ASSERT_EQ(
-        select({.plmn = plmn_a, .registered_guami = make_guami(1, 0), .registered_guami_type = guami_type_t::mapped}),
-        uint_to_cu_cp_amf_index(1));
-  }
+  ASSERT_EQ(
+      select({.plmn = plmn_a, .registered_guami = make_guami(1, 0), .registered_guami_type = guami_type_t::mapped}),
+      uint_to_cu_cp_amf_index(1));
 }
 
 TEST_F(amf_selector_test, when_ue_has_5g_s_tmsi_then_amf_of_its_set_and_pointer_is_selected)
 {
-  candidates = {make_candidate(0, make_guami(1, 0)), make_candidate(1, make_guami(1, 1))};
+  candidates = {make_candidate(0, make_guami(1, 0), 255), make_candidate(1, make_guami(1, 1), 0)};
 
-  for (unsigned i = 0; i != 10; ++i) {
-    ASSERT_EQ(select({.plmn = plmn_a, .five_g_s_tmsi = five_g_s_tmsi_t{1, 1, 0x1234}}), uint_to_cu_cp_amf_index(1));
-  }
+  ASSERT_EQ(select({.plmn = plmn_a, .five_g_s_tmsi = five_g_s_tmsi_t{1, 1, 0x1234}}), uint_to_cu_cp_amf_index(1));
 }
 
 TEST_F(amf_selector_test, when_amf_of_the_ue_is_not_connected_then_an_amf_of_the_same_set_is_selected)
 {
-  candidates = {make_candidate(0, make_guami(2, 0)),
+  candidates = {make_candidate(0, make_guami(2, 0), 255),
                 make_candidate(1, make_guami(1, 0), 255, false),
-                make_candidate(2, make_guami(1, 1))};
+                make_candidate(2, make_guami(1, 1), 0)};
 
-  for (unsigned i = 0; i != 10; ++i) {
-    ASSERT_EQ(select({.plmn = plmn_a, .registered_guami = make_guami(1, 0)}), uint_to_cu_cp_amf_index(2));
-    ASSERT_EQ(select({.plmn = plmn_a, .five_g_s_tmsi = five_g_s_tmsi_t{1, 0, 0x1234}}), uint_to_cu_cp_amf_index(2));
-  }
+  ASSERT_EQ(select({.plmn = plmn_a, .registered_guami = make_guami(1, 0)}), uint_to_cu_cp_amf_index(2));
+  ASSERT_EQ(select({.plmn = plmn_a, .five_g_s_tmsi = five_g_s_tmsi_t{1, 0, 0x1234}}), uint_to_cu_cp_amf_index(2));
 }
 
 TEST_F(amf_selector_test, when_several_amfs_serve_the_registered_guami_then_selection_is_weighted_by_capacity)
 {
   candidates = {make_candidate(0, make_guami(1, 0), 0), make_candidate(1, make_guami(1, 0), 255)};
 
-  for (unsigned i = 0; i != 10; ++i) {
-    ASSERT_EQ(select({.plmn = plmn_a, .registered_guami = make_guami(1, 0)}), uint_to_cu_cp_amf_index(1));
-  }
+  ASSERT_EQ(select({.plmn = plmn_a, .registered_guami = make_guami(1, 0)}), uint_to_cu_cp_amf_index(1));
 }
 
 TEST_F(amf_selector_test, when_amf_of_the_registered_guami_does_not_support_the_plmn_then_another_amf_is_selected)
@@ -112,23 +105,19 @@ TEST_F(amf_selector_test, when_amf_of_the_registered_guami_does_not_support_the_
   candidates          = {make_candidate(0, make_guami(1, 0)), make_candidate(1, make_guami(1, 1), 1)};
   candidates[0].plmns = {plmn_b};
 
-  for (unsigned i = 0; i != 10; ++i) {
-    ASSERT_EQ(select({.plmn = plmn_a, .registered_guami = make_guami(1, 0)}), uint_to_cu_cp_amf_index(1));
-    ASSERT_EQ(select({.plmn = plmn_a, .five_g_s_tmsi = five_g_s_tmsi_t{1, 0, 0x1234}}), uint_to_cu_cp_amf_index(1));
-  }
+  ASSERT_EQ(select({.plmn = plmn_a, .registered_guami = make_guami(1, 0)}), uint_to_cu_cp_amf_index(1));
+  ASSERT_EQ(select({.plmn = plmn_a, .five_g_s_tmsi = five_g_s_tmsi_t{1, 0, 0x1234}}), uint_to_cu_cp_amf_index(1));
 }
 
 TEST_F(amf_selector_test, when_ue_identifies_an_amf_set_then_only_amfs_of_the_same_guami_type_are_selected)
 {
   // AMF 0 serves the AMF Set with native GUAMIs, AMF 1 with mapped GUAMIs.
-  candidates = {make_candidate(0, make_guami(1, 0), 255), make_candidate(1, make_guami(1, 1), 1)};
+  candidates = {make_candidate(0, make_guami(1, 0), 255), make_candidate(1, make_guami(1, 1), 0)};
   candidates[1].served_guamis[0].guami_type = guami_type_t::mapped;
 
-  for (unsigned i = 0; i != 10; ++i) {
-    ASSERT_EQ(
-        select({.plmn = plmn_a, .registered_guami = make_guami(1, 5), .registered_guami_type = guami_type_t::mapped}),
-        uint_to_cu_cp_amf_index(1));
-  }
+  ASSERT_EQ(
+      select({.plmn = plmn_a, .registered_guami = make_guami(1, 5), .registered_guami_type = guami_type_t::mapped}),
+      uint_to_cu_cp_amf_index(1));
 }
 
 TEST_F(amf_selector_test, when_ue_identifies_no_amf_then_selection_is_weighted_by_relative_amf_capacity)
@@ -192,13 +181,11 @@ TEST_F(amf_selector_test, when_no_amf_of_the_guami_set_is_connected_then_no_amf_
 
 TEST_F(amf_selector_test, when_amf_set_is_requested_then_a_connected_amf_of_this_set_is_selected)
 {
-  candidates = {make_candidate(0, make_guami(1, 0)),
+  candidates = {make_candidate(0, make_guami(1, 0), 255),
                 make_candidate(1, make_guami(2, 0), 255, false),
-                make_candidate(2, make_guami(2, 1))};
+                make_candidate(2, make_guami(2, 1), 0)};
 
-  for (unsigned i = 0; i != 10; ++i) {
-    ASSERT_EQ(select_amf_for_amf_set(candidates, plmn_a, 2, rng), uint_to_cu_cp_amf_index(2));
-  }
+  ASSERT_EQ(select_amf_for_amf_set(candidates, plmn_a, 2, rng), uint_to_cu_cp_amf_index(2));
 }
 
 TEST_F(amf_selector_test, when_no_amf_of_the_requested_set_is_connected_then_no_amf_is_selected)

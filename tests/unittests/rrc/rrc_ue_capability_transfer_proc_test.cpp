@@ -5,7 +5,9 @@
 
 #include "rrc_ue_test_helpers.h"
 #include "rrc_ue_test_messages.h"
+#include "tests/test_doubles/rrc/rrc_test_messages.h"
 #include "ocudu/adt/format.h"
+#include "ocudu/asn1/rrc_nr/rrc_nr.h"
 #include "ocudu/support/async/async_test_utils.h"
 #include <gtest/gtest.h>
 
@@ -72,6 +74,33 @@ protected:
     // flush logger after each test
     ocudulog::flush();
   }
+
+  /// Packs UE capabilities into the UERadioAccessCapabilityInformation that the AMF sends in the UE Radio Capability
+  /// IE.
+  static byte_buffer pack_ue_radio_access_cap_info(bool rrc_inactive_supported)
+  {
+    asn1::rrc_nr::ul_dcch_msg_s ue_cap_info = test_helpers::create_ue_capability_info(0, rrc_inactive_supported);
+
+    byte_buffer rat_container_list;
+    {
+      asn1::bit_ref bref{rat_container_list};
+      report_fatal_error_if_not(
+          asn1::pack_dyn_seq_of(
+              bref, ue_cap_info.msg.c1().ue_cap_info().crit_exts.ue_cap_info().ue_cap_rat_container_list, 0, 8) ==
+              asn1::OCUDUASN_SUCCESS,
+          "Failed to pack UE Capability RAT Container List");
+    }
+
+    asn1::rrc_nr::ue_radio_access_cap_info_s ue_radio_access_cap_info;
+    ue_radio_access_cap_info.crit_exts.set_c1().set_ue_radio_access_cap_info().ue_radio_access_cap_info =
+        std::move(rat_container_list);
+
+    byte_buffer   pdu;
+    asn1::bit_ref bref{pdu};
+    report_fatal_error_if_not(ue_radio_access_cap_info.pack(bref) == asn1::OCUDUASN_SUCCESS,
+                              "Failed to pack UERadioAccessCapabilityInformation");
+    return pdu;
+  }
 };
 
 /// Test the RRC setup with connected AMF
@@ -90,4 +119,22 @@ TEST_F(rrc_ue_capability_transfer_proc_test,
   receive_ue_capability_information(2);
 
   ASSERT_TRUE(t.ready());
+}
+
+TEST_F(rrc_ue_capability_transfer_proc_test,
+       when_ue_capabilities_with_rrc_inactive_are_stored_from_amf_then_rrc_inactive_is_supported)
+{
+  ASSERT_FALSE(rrc_ue->is_rrc_inactive_supported());
+
+  ASSERT_TRUE(get_rrc_ue_control_message_handler()->store_ue_capabilities(pack_ue_radio_access_cap_info(true)));
+
+  ASSERT_TRUE(rrc_ue->is_rrc_inactive_supported());
+}
+
+TEST_F(rrc_ue_capability_transfer_proc_test,
+       when_ue_capabilities_without_rrc_inactive_are_stored_from_amf_then_rrc_inactive_is_not_supported)
+{
+  ASSERT_TRUE(get_rrc_ue_control_message_handler()->store_ue_capabilities(pack_ue_radio_access_cap_info(false)));
+
+  ASSERT_FALSE(rrc_ue->is_rrc_inactive_supported());
 }

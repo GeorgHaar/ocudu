@@ -12,6 +12,7 @@
 #include "tests/unittests/f1ap/common/test_helpers.h"
 #include "tests/unittests/rrc/test_helpers.h"
 #include "ocudu/cu_cp/cu_cp_configuration.h"
+#include "ocudu/f1ap/cu_cp/gnb_cu_ue_f1ap_id_allocator.h"
 #include "ocudu/ran/cu_cp_types.h"
 #include "ocudu/support/async/async_test_utils.h"
 #include "ocudu/support/executors/manual_task_worker.h"
@@ -44,6 +45,7 @@ protected:
   std::unique_ptr<cu_cp_du_event_handler> cu_cp_event_handler;
   std::unique_ptr<async_task_scheduler>   common_task_sched;
   du_configuration_manager                du_cfg_mgr;
+  gnb_cu_ue_f1ap_id_allocator             cu_ue_f1ap_id_alloc;
   std::unique_ptr<du_processor>           du_processor_obj;
 
   async_task<cu_cp_ue_index_t>                        t;

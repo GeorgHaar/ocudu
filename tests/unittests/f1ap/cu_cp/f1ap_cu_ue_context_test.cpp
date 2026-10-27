@@ -16,18 +16,10 @@
 using namespace ocudu;
 using namespace ocucp;
 
-// test class
-class f1ap_ue_context_list_test : public f1ap_ue_context_list
+class gnb_cu_ue_f1ap_id_allocator_test : public gnb_cu_ue_f1ap_id_allocator
 {
 public:
-  f1ap_ue_context_list_test(timer_factory timers_, ocudulog::basic_logger& logger_) :
-    f1ap_ue_context_list(timers_, logger_)
-  {
-  }
-
-  gnb_cu_ue_f1ap_id_t allocate_cu_ue_f1ap_id() { return next_cu_ue_f1ap_id; }
-
-  void set_next_cu_ue_f1ap_id(gnb_cu_ue_f1ap_id_t next_id) { next_cu_ue_f1ap_id = next_id; }
+  void set_next_id(gnb_cu_ue_f1ap_id_t id) { next_id = id; }
 };
 
 /// Fixture class for F1AP UE context
@@ -53,11 +45,12 @@ protected:
                                                             to_underlying(cu_cp_ue_index_t::max) - 1));
   }
 
-  ocudulog::basic_logger&   f1ap_logger = ocudulog::fetch_basic_logger("CU-CP-F1");
-  timer_manager             timer_mng;
-  manual_task_worker        ctrl_worker{128};
-  timer_factory             timers{timer_mng, ctrl_worker};
-  f1ap_ue_context_list_test ue_ctxt_list{timers, f1ap_logger};
+  ocudulog::basic_logger&          f1ap_logger = ocudulog::fetch_basic_logger("CU-CP-F1");
+  timer_manager                    timer_mng;
+  manual_task_worker               ctrl_worker{128};
+  timer_factory                    timers{timer_mng, ctrl_worker};
+  gnb_cu_ue_f1ap_id_allocator_test cu_ue_id_alloc;
+  f1ap_ue_context_list             ue_ctxt_list{cu_ue_id_alloc, timers, f1ap_logger};
 };
 
 TEST_F(f1ap_cu_ue_context_test, when_ue_added_then_ue_exists)
@@ -115,4 +108,56 @@ TEST_F(f1ap_cu_ue_context_test, when_ue_is_added_then_next_ue_id_is_increased)
   ASSERT_FALSE(ue_ctxt_list.contains(ue_index));
 
   ASSERT_EQ((unsigned)ue_ctxt_list.allocate_gnb_cu_ue_f1ap_id(), (unsigned)gnb_cu_ue_f1ap_id_t::min + 1);
+}
+
+TEST_F(f1ap_cu_ue_context_test, when_ue_is_removed_then_its_cu_ue_f1ap_id_is_released)
+{
+  gnb_cu_ue_f1ap_id_t cu_ue_f1ap_id = ue_ctxt_list.allocate_gnb_cu_ue_f1ap_id();
+  cu_cp_ue_index_t    ue_index      = generate_random_ue_index();
+  ue_ctxt_list.add_ue(ue_index, cu_ue_f1ap_id);
+  ASSERT_EQ(cu_ue_id_alloc.size(), 1);
+
+  ue_ctxt_list.remove_ue(ue_index);
+
+  ASSERT_EQ(cu_ue_id_alloc.size(), 0);
+}
+
+TEST_F(f1ap_cu_ue_context_test, when_two_ue_context_lists_share_an_allocator_then_cu_ue_f1ap_ids_are_unique)
+{
+  f1ap_ue_context_list other_ue_ctxt_list{cu_ue_id_alloc, timers, f1ap_logger};
+
+  gnb_cu_ue_f1ap_id_t cu_ue_f1ap_id       = ue_ctxt_list.allocate_gnb_cu_ue_f1ap_id();
+  gnb_cu_ue_f1ap_id_t other_cu_ue_f1ap_id = other_ue_ctxt_list.allocate_gnb_cu_ue_f1ap_id();
+
+  ASSERT_NE(cu_ue_f1ap_id, other_cu_ue_f1ap_id);
+}
+
+TEST_F(f1ap_cu_ue_context_test, when_ue_context_list_is_destroyed_then_its_cu_ue_f1ap_ids_are_released)
+{
+  {
+    f1ap_ue_context_list other_ue_ctxt_list{cu_ue_id_alloc, timers, f1ap_logger};
+    other_ue_ctxt_list.add_ue(generate_random_ue_index(), other_ue_ctxt_list.allocate_gnb_cu_ue_f1ap_id());
+    ASSERT_EQ(cu_ue_id_alloc.size(), 1);
+  }
+
+  ASSERT_EQ(cu_ue_id_alloc.size(), 0);
+}
+
+TEST_F(f1ap_cu_ue_context_test, when_next_cu_ue_f1ap_id_is_in_use_then_allocator_skips_it)
+{
+  gnb_cu_ue_f1ap_id_t first_id  = cu_ue_id_alloc.allocate();
+  gnb_cu_ue_f1ap_id_t second_id = cu_ue_id_alloc.allocate();
+  cu_ue_id_alloc.release(second_id);
+
+  cu_ue_id_alloc.set_next_id(first_id);
+
+  ASSERT_EQ(cu_ue_id_alloc.allocate(), second_id);
+}
+
+TEST_F(f1ap_cu_ue_context_test, when_max_cu_ue_f1ap_id_is_allocated_then_allocator_wraps_around)
+{
+  cu_ue_id_alloc.set_next_id(gnb_cu_ue_f1ap_id_t::max);
+
+  ASSERT_EQ(cu_ue_id_alloc.allocate(), gnb_cu_ue_f1ap_id_t::max);
+  ASSERT_EQ(cu_ue_id_alloc.allocate(), gnb_cu_ue_f1ap_id_t::min);
 }

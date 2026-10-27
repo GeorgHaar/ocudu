@@ -8,6 +8,7 @@
 #include "../cu_cp_controller/node_connection_notifier.h"
 #include "ocudu/cu_cp/cu_cp_ref_time_report_notifier.h"
 #include "ocudu/f1ap/cu_cp/f1ap_configuration.h"
+#include "ocudu/f1ap/cu_cp/gnb_cu_ue_f1ap_id_allocator.h"
 #include "ocudu/f1ap/f1ap_message_notifier.h"
 
 namespace ocudu {
@@ -45,6 +46,7 @@ struct du_processor_dependencies {
   f1ap_message_notifier&                    f1ap_pdu_notifier;
   async_task_scheduler&                     common_task_sched;
   ue_manager&                               ue_mng;
+  gnb_cu_ue_f1ap_id_allocator&              cu_ue_f1ap_id_alloc;
   cu_cp_ref_time_report_notifier&           ref_time_report_notifier;
   ocudulog::basic_logger&                   logger;
 };

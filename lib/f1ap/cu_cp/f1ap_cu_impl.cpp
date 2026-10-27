@@ -35,14 +35,15 @@
 using namespace ocudu;
 using namespace ocucp;
 
-f1ap_cu_impl::f1ap_cu_impl(const f1ap_configuration&   f1ap_cfg_,
-                           f1ap_message_notifier&      tx_pdu_notifier_,
-                           f1ap_du_processor_notifier& f1ap_du_processor_notifier_,
-                           timer_manager&              timers_,
-                           task_executor&              ctrl_exec_) :
+f1ap_cu_impl::f1ap_cu_impl(const f1ap_configuration&    f1ap_cfg_,
+                           f1ap_message_notifier&       tx_pdu_notifier_,
+                           f1ap_du_processor_notifier&  f1ap_du_processor_notifier_,
+                           gnb_cu_ue_f1ap_id_allocator& cu_ue_id_alloc_,
+                           timer_manager&               timers_,
+                           task_executor&               ctrl_exec_) :
   cfg(f1ap_cfg_),
   logger(ocudulog::fetch_basic_logger("CU-CP-F1")),
-  ue_ctxt_list(timer_factory{timers_, ctrl_exec_}, logger),
+  ue_ctxt_list(cu_ue_id_alloc_, timer_factory{timers_, ctrl_exec_}, logger),
   du_processor_notifier(f1ap_du_processor_notifier_),
   ctrl_exec(ctrl_exec_),
   tx_pdu_notifier(*this, tx_pdu_notifier_),
@@ -387,6 +388,7 @@ void f1ap_cu_impl::handle_initial_ul_rrc_message(const asn1::f1ap::init_ul_rrc_m
   if (ue_index == cu_cp_ue_index_t::invalid) {
     logger.warning("du_ue={}: Dropping \"InitialULRRCMessageTransfer\". Cause: Failed to create UE context",
                    fmt::underlying(du_ue_id));
+    ue_ctxt_list.release_gnb_cu_ue_f1ap_id(cu_ue_f1ap_id);
     return;
   }
 

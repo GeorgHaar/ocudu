@@ -39,7 +39,7 @@ f1ap_cu_test::f1ap_cu_test(const f1ap_configuration& f1ap_cfg)
   f1ap_configuration tmp = f1ap_cfg;
   tmp.json_log_enabled   = true;
 
-  f1ap = create_f1ap(tmp, f1ap_pdu_notifier, du_processor_notifier, timers, ctrl_worker);
+  f1ap = create_f1ap(tmp, f1ap_pdu_notifier, du_processor_notifier, cu_ue_id_alloc, timers, ctrl_worker);
   du_processor_notifier.connect_f1ap(f1ap.get());
 }
 

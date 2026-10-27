@@ -9,6 +9,7 @@
 #include "tests/test_doubles/f1ap/f1c_test_local_gateway.h"
 #include "ocudu/f1ap/cu_cp/f1ap_configuration.h"
 #include "ocudu/f1ap/cu_cp/f1ap_cu.h"
+#include "ocudu/f1ap/cu_cp/gnb_cu_ue_f1ap_id_allocator.h"
 #include "ocudu/f1ap/f1ap_message_notifier.h"
 #include "ocudu/ran/cu_cp_types.h"
 #include "ocudu/support/async/fifo_async_task_scheduler.h"
@@ -288,6 +289,7 @@ protected:
 
   dummy_f1ap_pdu_notifier          f1ap_pdu_notifier;
   dummy_f1ap_du_processor_notifier du_processor_notifier{max_nof_ues};
+  gnb_cu_ue_f1ap_id_allocator      cu_ue_id_alloc;
   timer_manager                    timers;
   manual_task_worker               ctrl_worker{128};
   std::unique_ptr<f1ap_cu>         f1ap;

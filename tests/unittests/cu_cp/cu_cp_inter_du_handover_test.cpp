@@ -96,6 +96,7 @@ public:
                               "Failed to receive UE Context Setup Request");
     report_fatal_error_if_not(test_helpers::is_valid_ue_context_setup_request_with_ue_capabilities(target_f1ap_pdu),
                               "Invalid UE Context Setup Request");
+    store_target_cu_ue_id();
 
     report_fatal_error_if_not(target_f1ap_pdu.pdu.init_msg().value.ue_context_setup_request()->serving_cell_mo_present,
                               "ServingCellMO not present in UE Context Setup Request");
@@ -112,8 +113,7 @@ public:
 
     // Inject UE Context Setup Failure.
     get_du(target_du_idx)
-        .push_ul_pdu(
-            test_helpers::generate_ue_context_setup_failure(ue_ctx->cu_ue_id.value(), ue_ctx->du_ue_id.value()));
+        .push_ul_pdu(test_helpers::generate_ue_context_setup_failure(target_cu_ue_id, ue_ctx->du_ue_id.value()));
     return true;
   }
 
@@ -126,6 +126,7 @@ public:
                               "Failed to receive UE Context Setup Request");
     report_fatal_error_if_not(test_helpers::is_valid_ue_context_setup_request_with_ue_capabilities(target_f1ap_pdu),
                               "Invalid UE Context Setup Request");
+    store_target_cu_ue_id();
     return true;
   }
 
@@ -138,6 +139,7 @@ public:
                               "Failed to receive UE Context Setup Request");
     report_fatal_error_if_not(test_helpers::is_valid_ue_context_setup_request_with_ue_capabilities(target_f1ap_pdu),
                               "Invalid UE Context Setup Request");
+    store_target_cu_ue_id();
     return true;
   }
 
@@ -153,7 +155,7 @@ public:
     // Inject UE Context Setup Response and await UE Context Modification Request.
     get_du(target_du_idx)
         .push_ul_pdu(test_helpers::generate_ue_context_setup_response(
-            ue_ctx->cu_ue_id.value(),
+            target_cu_ue_id,
             ue_ctx->du_ue_id.value(),
             crnti,
             make_byte_buffer(
@@ -239,8 +241,8 @@ public:
   [[nodiscard]] bool send_ue_context_modification_response(unsigned du_idx)
   {
     // Inject UE Context Modification Response.
-    get_du(du_idx).push_ul_pdu(test_helpers::generate_ue_context_modification_response(
-        ue_ctx->du_ue_id.value(), ue_ctx->cu_ue_id.value(), crnti));
+    get_du(du_idx).push_ul_pdu(
+        test_helpers::generate_ue_context_modification_response(ue_ctx->du_ue_id.value(), get_cu_ue_id(du_idx), crnti));
     return true;
   }
 
@@ -252,10 +254,8 @@ public:
                               "there are still E1AP messages to pop from CU-UP");
 
     get_du(target_du_idx)
-        .push_ul_pdu(test_helpers::generate_ul_rrc_message_transfer(ue_ctx->du_ue_id.value(),
-                                                                    ue_ctx->cu_ue_id.value(),
-                                                                    srb_id_t::srb1,
-                                                                    make_byte_buffer("80000800db659eb2").value()));
+        .push_ul_pdu(test_helpers::generate_ul_rrc_message_transfer(
+            ue_ctx->du_ue_id.value(), target_cu_ue_id, srb_id_t::srb1, make_byte_buffer("80000800db659eb2").value()));
     report_fatal_error_if_not(this->wait_for_e1ap_tx_pdu(cu_up_idx, e1ap_pdu),
                               "Failed to receive Bearer Context Modification Request");
     report_fatal_error_if_not(test_helpers::is_valid_bearer_context_modification_request(e1ap_pdu),
@@ -272,8 +272,8 @@ public:
 
     // Inject UE Context Modification Response and wait for UE Context Release Command.
     get_du(target_du_idx)
-        .push_ul_pdu(test_helpers::generate_ue_context_modification_response(
-            ue_ctx->du_ue_id.value(), ue_ctx->cu_ue_id.value(), crnti));
+        .push_ul_pdu(
+            test_helpers::generate_ue_context_modification_response(ue_ctx->du_ue_id.value(), target_cu_ue_id, crnti));
     report_fatal_error_if_not(this->wait_for_f1ap_tx_pdu(source_du_idx, source_f1ap_pdu),
                               "Failed to receive UE Context Release Command");
     report_fatal_error_if_not(test_helpers::is_valid_ue_context_release_command(source_f1ap_pdu),
@@ -285,7 +285,7 @@ public:
   {
     // Inject F1AP UE Context Release Complete.
     get_du(du_idx).push_ul_pdu(
-        test_helpers::generate_ue_context_release_complete(ue_ctx->cu_ue_id.value(), ue_ctx->du_ue_id.value()));
+        test_helpers::generate_ue_context_release_complete(get_cu_ue_id(du_idx), ue_ctx->du_ue_id.value()));
     return true;
   }
 
@@ -303,6 +303,19 @@ public:
     report_fatal_error_if_not(test_helpers::is_valid_ue_context_release_request(ngap_pdu),
                               "Invalid UE Context Release Request");
     return true;
+  }
+
+  /// Stores the gNB-CU UE F1AP ID of the target UE from the UE Context Setup Request.
+  void store_target_cu_ue_id()
+  {
+    target_cu_ue_id =
+        int_to_gnb_cu_ue_f1ap_id(target_f1ap_pdu.pdu.init_msg().value.ue_context_setup_request()->gnb_cu_ue_f1ap_id);
+  }
+
+  /// Returns the gNB-CU UE F1AP ID of the UE connection with the given DU.
+  gnb_cu_ue_f1ap_id_t get_cu_ue_id(unsigned du_idx) const
+  {
+    return du_idx == target_du_idx ? target_cu_ue_id : ue_ctx->cu_ue_id.value();
   }
 
   void verify_ngap_location_report(const ngap_message& msg) const
@@ -332,10 +345,10 @@ public:
   test_helpers::served_cell_item_info target_cell_info = {.nci = nr_cell_identity::create(gnb_id_t{411, 22}, 1).value(),
                                                           .pci = 2};
 
-  gnb_du_ue_f1ap_id_t du_ue_id = gnb_du_ue_f1ap_id_t::min;
-  gnb_cu_ue_f1ap_id_t cu_ue_id;
-  rnti_t              crnti     = to_rnti(0x4601);
-  amf_ue_id_t         amf_ue_id = uint_to_amf_ue_id(
+  gnb_du_ue_f1ap_id_t du_ue_id        = gnb_du_ue_f1ap_id_t::min;
+  gnb_cu_ue_f1ap_id_t target_cu_ue_id = gnb_cu_ue_f1ap_id_t::invalid;
+  rnti_t              crnti           = to_rnti(0x4601);
+  amf_ue_id_t         amf_ue_id       = uint_to_amf_ue_id(
       test_rng::uniform_int<uint64_t>(to_underlying(amf_ue_id_t::min), to_underlying(amf_ue_id_t::max)));
   gnb_cu_up_ue_e1ap_id_t cu_up_e1ap_id = gnb_cu_up_ue_e1ap_id_t::min;
   gnb_cu_cp_ue_e1ap_id_t cu_cp_e1ap_id;
@@ -352,6 +365,38 @@ public:
   f1ap_message target_f1ap_pdu;
   e1ap_message e1ap_pdu;
 };
+
+TEST_F(cu_cp_inter_du_handover_test, when_ues_connect_to_different_dus_then_their_cu_ue_f1ap_ids_are_different)
+{
+  // Inject an Initial UL RRC Message Transfer from the target DU. It uses the same gNB-DU UE F1AP ID as the UE of the
+  // source DU.
+  f1ap_message init_ul_rrc_msg = test_helpers::generate_init_ul_rrc_message_transfer(du_ue_id, to_rnti(0x4602));
+  init_ul_rrc_msg.pdu.init_msg().value.init_ul_rrc_msg_transfer()->nr_cgi.nr_cell_id.from_number(
+      target_cell_info.nci.value());
+  get_du(target_du_idx).push_ul_pdu(init_ul_rrc_msg);
+
+  // Wait for the DL RRC Message Transfer with the RRC Setup.
+  ASSERT_TRUE(this->wait_for_f1ap_tx_pdu(target_du_idx, target_f1ap_pdu));
+  ASSERT_TRUE(test_helpers::is_valid_dl_rrc_message_transfer_with_msg4(target_f1ap_pdu));
+  gnb_cu_ue_f1ap_id_t new_cu_ue_id =
+      int_to_gnb_cu_ue_f1ap_id(target_f1ap_pdu.pdu.init_msg().value.dl_rrc_msg_transfer()->gnb_cu_ue_f1ap_id);
+
+  // The gNB-CU UE F1AP ID is unique within the CU-CP (TS 38.401 section 6.2.1).
+  ASSERT_NE(new_cu_ue_id, ue_ctx->cu_ue_id.value());
+}
+
+TEST_F(cu_cp_inter_du_handover_test, when_ho_starts_then_target_cu_ue_f1ap_id_is_different_from_source_cu_ue_f1ap_id)
+{
+  // Inject Measurement Report and await F1AP UE Context Setup Request.
+  ASSERT_TRUE(send_rrc_measurement_report_and_await_ue_context_setup_request());
+
+  // The source and the target UE connections exist at the same time. The gNB-CU UE F1AP ID is unique within the
+  // CU-CP (TS 38.401 section 6.2.1).
+  EXPECT_NE(target_cu_ue_id, ue_ctx->cu_ue_id.value());
+
+  // Inject UE Context Setup Failure to end the handover.
+  ASSERT_TRUE(send_ue_context_setup_failure());
+}
 
 TEST_F(cu_cp_inter_du_handover_test, when_ue_context_setup_fails_then_ho_fails)
 {
@@ -702,7 +747,7 @@ TEST_F(cu_cp_inter_du_handover_test, when_ho_succeeds_then_target_ue_is_connecte
   // Check that the UE is connected to the AMF by injecting a deregistration request and make sure its forwarded.
   f1ap_message ul_rrc_msg_transfer = test_helpers::generate_ul_rrc_message_transfer(
       du_ue_id,
-      ue_ctx->cu_ue_id.value(),
+      target_cu_ue_id,
       srb_id_t::srb1,
       make_byte_buffer("00013a0c3f016f19764701bf0022808005f900788801002060000306802bffe479").value());
   get_du(target_du_idx).push_ul_pdu(ul_rrc_msg_transfer);

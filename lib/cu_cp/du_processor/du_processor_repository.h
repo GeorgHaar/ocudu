@@ -8,6 +8,7 @@
 #include "../adapters/du_processor_adapters.h"
 #include "du_configuration_manager.h"
 #include "ocudu/cu_cp/cu_cp_ref_time_report_notifier.h"
+#include "ocudu/f1ap/cu_cp/gnb_cu_ue_f1ap_id_allocator.h"
 
 namespace ocudu::ocucp {
 
@@ -141,6 +142,9 @@ private:
   du_connection_notifier&                du_conn_notif;
   cu_cp_ref_time_report_notifier&        ref_time_report_notifier;
   ocudulog::basic_logger&                logger;
+
+  // Allocator of the gNB-CU UE F1AP IDs, shared by the F1AP instances of all DUs.
+  gnb_cu_ue_f1ap_id_allocator cu_ue_f1ap_id_alloc;
 
   std::map<cu_cp_du_index_t, du_context> du_db;
 

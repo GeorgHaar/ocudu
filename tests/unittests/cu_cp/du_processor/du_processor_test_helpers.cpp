@@ -206,6 +206,7 @@ du_processor_test::du_processor_test() :
                                 .f1ap_pdu_notifier        = f1ap_pdu_notifier,
                                 .common_task_sched        = *common_task_sched,
                                 .ue_mng                   = ue_mng,
+                                .cu_ue_f1ap_id_alloc      = cu_ue_f1ap_id_alloc,
                                 .ref_time_report_notifier = ref_time_report_notifier,
                                 .logger                   = cu_cp_logger});
 

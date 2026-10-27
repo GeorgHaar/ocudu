@@ -9,6 +9,7 @@
 #include "f1ap_ue_logger.h"
 #include "ue_ul_bearer_manager.h"
 #include "ocudu/f1ap/cu_cp/f1ap_cu.h"
+#include "ocudu/f1ap/cu_cp/gnb_cu_ue_f1ap_id_allocator.h"
 #include "ocudu/f1ap/f1ap_message_notifier.h"
 #include "ocudu/f1ap/f1ap_ue_id_types.h"
 #include "ocudu/support/async/manual_event.h"
@@ -56,7 +57,20 @@ private:
 class f1ap_ue_context_list
 {
 public:
-  f1ap_ue_context_list(timer_factory timers_, ocudulog::basic_logger& logger_) : timers(timers_), logger(logger_) {}
+  f1ap_ue_context_list(gnb_cu_ue_f1ap_id_allocator& cu_ue_id_alloc_,
+                       timer_factory                timers_,
+                       ocudulog::basic_logger&      logger_) :
+    cu_ue_id_alloc(cu_ue_id_alloc_), timers(timers_), logger(logger_)
+  {
+  }
+
+  ~f1ap_ue_context_list()
+  {
+    // Release the gNB-CU UE F1AP IDs of the remaining UEs, so that other F1AP instances can use them.
+    for (const auto& u : ues) {
+      cu_ue_id_alloc.release(u.first);
+    }
+  }
 
   bool contains(gnb_cu_ue_f1ap_id_t cu_ue_id) const { return ues.find(cu_ue_id) != ues.end(); }
 
@@ -167,6 +181,7 @@ public:
 
     logger.debug("ue={} cu_ue={}: Removing F1AP UE context", ue_index, fmt::underlying(cu_ue_id));
     ues.erase(cu_ue_id);
+    cu_ue_id_alloc.release(cu_ue_id);
   }
 
   /// \brief Cancels all running F1AP transactions of a UE.
@@ -233,67 +248,22 @@ public:
 
   size_t size() const { return ues.size(); }
 
-  /// \brief Get the next available GNB-CU-F1AP-UE-ID.
-  gnb_cu_ue_f1ap_id_t allocate_gnb_cu_ue_f1ap_id()
-  {
-    // Return invalid when no CU UE F1AP ID is available.
-    if (ue_index_to_ue_f1ap_id.size() == MAX_NOF_CU_F1AP_UES) {
-      return gnb_cu_ue_f1ap_id_t::invalid;
-    }
+  /// Allocates a gNB-CU UE F1AP ID that is unique within the CU-CP.
+  /// \return The allocated ID, or gnb_cu_ue_f1ap_id_t::invalid if all IDs are in use.
+  gnb_cu_ue_f1ap_id_t allocate_gnb_cu_ue_f1ap_id() { return cu_ue_id_alloc.allocate(); }
 
-    // Check if the next_cu_ue_f1ap_id is available.
-    if (ues.find(next_cu_ue_f1ap_id) == ues.end()) {
-      gnb_cu_ue_f1ap_id_t ret = next_cu_ue_f1ap_id;
-      // Increase the next CU UE F1AP ID.
-      increase_next_cu_ue_f1ap_id();
-      return ret;
-    }
-
-    // Find holes in the allocated IDs by iterating over all IDs starting with the next_cu_ue_f1ap_id to find the
-    // available ID.
-    while (true) {
-      // Iterate over ue_index_to_ue_f1ap_id.
-      auto it = std::find_if(ue_index_to_ue_f1ap_id.begin(), ue_index_to_ue_f1ap_id.end(), [this](auto& u) {
-        return u.second == next_cu_ue_f1ap_id;
-      });
-
-      // Return the id if it is not already used.
-      if (it == ue_index_to_ue_f1ap_id.end()) {
-        gnb_cu_ue_f1ap_id_t ret = next_cu_ue_f1ap_id;
-        // Increase the next CU UE F1AP ID.
-        increase_next_cu_ue_f1ap_id();
-        return ret;
-      }
-
-      // Increase the next CU UE F1AP ID and try again.
-      increase_next_cu_ue_f1ap_id();
-    }
-
-    return gnb_cu_ue_f1ap_id_t::invalid;
-  }
+  /// Releases a gNB-CU UE F1AP ID that no UE context uses.
+  void release_gnb_cu_ue_f1ap_id(gnb_cu_ue_f1ap_id_t cu_ue_id) { cu_ue_id_alloc.release(cu_ue_id); }
 
   std::unordered_map<gnb_cu_ue_f1ap_id_t, f1ap_ue_context>::iterator       begin() { return ues.begin(); }
   std::unordered_map<gnb_cu_ue_f1ap_id_t, f1ap_ue_context>::const_iterator begin() const { return ues.begin(); }
   std::unordered_map<gnb_cu_ue_f1ap_id_t, f1ap_ue_context>::iterator       end() { return ues.end(); }
   std::unordered_map<gnb_cu_ue_f1ap_id_t, f1ap_ue_context>::const_iterator end() const { return ues.end(); }
 
-protected:
-  gnb_cu_ue_f1ap_id_t next_cu_ue_f1ap_id = gnb_cu_ue_f1ap_id_t::min;
-
 private:
-  timer_factory           timers;
-  ocudulog::basic_logger& logger;
-
-  void increase_next_cu_ue_f1ap_id()
-  {
-    if (next_cu_ue_f1ap_id == gnb_cu_ue_f1ap_id_t::max) {
-      // reset cu ue f1ap id counter
-      next_cu_ue_f1ap_id = gnb_cu_ue_f1ap_id_t::min;
-    } else {
-      // increase cu ue f1ap id counter
-      next_cu_ue_f1ap_id = int_to_gnb_cu_ue_f1ap_id(to_underlying(next_cu_ue_f1ap_id) + 1);
-    }
-  }
+  gnb_cu_ue_f1ap_id_allocator& cu_ue_id_alloc;
+  timer_factory                timers;
+  ocudulog::basic_logger&      logger;
 
   // Note: Given that UEs will self-remove from the map, we don't want to destructor to clear the lookups beforehand.
   std::unordered_map<cu_cp_ue_index_t, gnb_cu_ue_f1ap_id_t> ue_index_to_ue_f1ap_id; // indexed by ue_index

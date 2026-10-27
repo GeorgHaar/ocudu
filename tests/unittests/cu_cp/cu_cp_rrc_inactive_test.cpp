@@ -70,7 +70,7 @@ public:
 
   void connect_ue_with_rrc_inactive_support(
       std::optional<cu_cp_core_network_assist_info_for_inactive> cn_assist_info_for_inactive =
-          cu_cp_core_network_assist_info_for_inactive{.ue_id_idx_value = 0x64c0})
+          cu_cp_core_network_assist_info_for_inactive{.ue_id_idx_value = 0xc0})
   {
     // Connect UE 0x4601 with RRC inactive support.
     report_fatal_error_if_not(attach_ue(du_idx,
@@ -980,6 +980,46 @@ TEST_F(cu_cp_rrc_inactive_test, when_ue_becomes_inactive_after_resume_then_resum
   report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
   ASSERT_EQ(report.dus[0].rrc_metrics.attempted_rrc_connection_resumes.get_count(resume_cause_t::mo_data), 2);
   ASSERT_EQ(report.dus[0].rrc_metrics.successful_rrc_connection_resumes.get_count(resume_cause_t::mo_data), 2);
+}
+
+TEST_F(cu_cp_rrc_inactive_test,
+       when_rrc_resume_request_is_received_before_f1ap_ue_context_release_complete_then_resume_is_successful)
+{
+  // Connect UE with RRC Inactive support.
+  connect_ue_with_rrc_inactive_support();
+
+  // Inject Inactivity Notification and await Bearer Context Modification Request.
+  ASSERT_TRUE(send_ue_level_bearer_context_inactivity_notification_and_await_bearer_context_modification_request());
+
+  // Send Bearer Context Modification Response and await UE Context Release Command.
+  ASSERT_TRUE(send_bearer_context_modification_response_and_await_ue_context_release_command());
+
+  // The UE sends the RRC Resume Request before the DU confirms the release of the old F1-connection.
+  get_du(du_idx).push_ul_pdu(test_helpers::generate_init_ul_rrc_message_transfer(
+      du_ue_id_2,
+      crnti_2,
+      plmn_identity::test_value(),
+      {},
+      test_helpers::pack_ul_ccch_msg(test_helpers::create_rrc_resume_request(0x4d8000))));
+
+  // The DU confirms the release of the old F1-connection.
+  ASSERT_TRUE(send_f1ap_ue_context_release_complete(du_ue_id));
+
+  // The CU-CP continues the resume of the UE.
+  ASSERT_TRUE(this->wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu));
+  ASSERT_TRUE(test_helpers::is_valid_ue_context_setup_request(f1ap_pdu, true));
+  ASSERT_TRUE(send_ue_context_setup_response_and_await_bearer_context_modification_request());
+  ASSERT_TRUE(send_bearer_context_modification_response_and_await_dl_rrc_message_transfer());
+  ASSERT_TRUE(send_rrc_resume_complete());
+
+  // The CU-CP keeps the UE, so it sends no UE Context Release Request to the AMF.
+  ASSERT_FALSE(this->get_amf().try_pop_rx_pdu(ngap_pdu));
+
+  // The CU-CP releases the new F1-connection when the UE becomes inactive again.
+  ASSERT_TRUE(trigger_rrc_inactive(du_ue_id_2));
+
+  auto report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
+  ASSERT_EQ(report.dus[0].rrc_metrics.successful_rrc_connection_resumes.get_count(resume_cause_t::mo_data), 1);
 }
 
 TEST_F(cu_cp_rrc_inactive_test, when_rrc_resume_request_for_unknown_ue_is_received_then_fallback_succeeds)

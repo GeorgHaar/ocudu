@@ -98,10 +98,12 @@ void ue_context_release_procedure::send_ue_context_release_command()
 cu_cp_ue_index_t ue_context_release_procedure::create_ue_context_release_complete()
 {
   if (transaction_sink.successful()) {
-    gnb_du_ue_f1ap_id_t du_ue_id = int_to_gnb_du_ue_f1ap_id(transaction_sink.response()->gnb_du_ue_f1ap_id);
-    if (!ue_ctxt.ue_ids.du_ue_f1ap_id || du_ue_id != *ue_ctxt.ue_ids.du_ue_f1ap_id) {
-      logger.error("{}: Procedure failed. Cause: gNB-DU-UE-F1AP-ID mismatch.",
-                   f1ap_ue_log_prefix{ue_ctxt.ue_ids, name()});
+    // The UE Context Release Complete carries the ID pair of the released F1-connection (TS 38.473 section 9.2.2.6).
+    // Thus, compare with the gNB-DU UE F1AP ID of the command. The UE context can already hold the ID of a new
+    // F1-connection, e.g. after an RRC Resume.
+    if (transaction_sink.response()->gnb_du_ue_f1ap_id != command->gnb_du_ue_f1ap_id) {
+      logger.warning("{}: Procedure failed. Cause: gNB-DU-UE-F1AP-ID mismatch.",
+                     f1ap_ue_log_prefix{ue_ctxt.ue_ids, name()});
       return cu_cp_ue_index_t::invalid;
     }
     return ue_ctxt.ue_ids.ue_index;

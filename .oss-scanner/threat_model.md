@@ -67,8 +67,8 @@ Out of scope:
   driving a single layer (e.g. `tests/unittests/rlc`, `tests/unittests/pdcp`, `tests/unittests/cu_cp`,
   `tests/unittests/mac`) and the test doubles under `tests/test_doubles/` build valid messages that can then be mutated.
 - libFuzzer harnesses are built under `/src/build/tests/fuzz/{ofh,ngap,rrc}/` with seed corpora in
-  `/src/tests/fuzz/<layer>/corpus/`. `rrc_ue_fuzzer`, `rrc_cu_cp_fuzzer` and `ngap_cu_cp_fuzzer` drive a full CU-CP; the
-  others drive single decoders. Reproduce a crash with `<harness> <crash-file>`.
+  `/src/build/tests/fuzz/corpus/<target>/`. `rrc_ue_fuzzer`, `rrc_cu_cp_fuzzer` and `ngap_cu_cp_fuzzer` drive a full
+  CU-CP; the others drive single decoders. Reproduce a crash with `<harness> <crash-file>`.
 - End-to-end: the applications are not prebuilt; `ninja -C /src/build gnb` builds the gNB on top of the prebuilt
   libraries. `/src/build/apps/gnb/gnb` with the ZMQ radio (`ru_sdr: device_driver: zmq`) and `cu_cp: amf: no_core: true`
   runs a gNB without a core network or RF hardware. `configs/` holds example configurations.

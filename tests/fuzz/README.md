@@ -478,12 +478,9 @@ docker run --rm --privileged \
             -DENABLE_BACKWARD=OFF \
             -DENABLE_WERROR=OFF
         ninja -C /build fuzz_targets
-        mkdir -p /tmp/corpus/ngap_cu_cp
-        cp -r /build/tests/fuzz/corpus/* /tmp/corpus/
-        cp /build/tests/fuzz/corpus/ngap/* /tmp/corpus/ngap_cu_cp/
         PATH=/build/tests/fuzz/ofh:/build/tests/fuzz/ngap:\$PATH \
             FUZZ_OUTPUT_DIR=/findings \
-            FUZZ_CORPUS_DIR=/tmp/corpus \
+            FUZZ_CORPUS_DIR=/build/tests/fuzz/corpus \
             tests/fuzz/run_fuzzers.sh
     "
 ```

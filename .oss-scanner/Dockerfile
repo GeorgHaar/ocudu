@@ -66,15 +66,11 @@ RUN cmake -S /src -B /src/build -G Ninja \
       -DENABLE_ARMPL=OFF \
       -DENABLE_LIBNUMA=OFF
 
-# Unit tests of the layers that parse input from UEs, the user plane and the CU-CP's peers.
+# Unit tests of the layers that parse input from UEs, the user plane and the CU-CP's peers. fuzz_targets also generates
+# the seed corpora of the fuzz harnesses, into /src/build/tests/fuzz/corpus/<target>/.
 ARG PROTOCOL_TESTS="asn1 rrc pdcp rlc mac security rohc sdap gtpu f1u nru ngap f1ap cu_cp"
 RUN ninja -C /src/build fuzz_targets \
       $(for layer in ${PROTOCOL_TESTS}; do echo "tests/unittests/${layer}/all"; done)
-
-# Seed corpora for the fuzz harnesses (tests/fuzz/<layer>/corpus/).
-RUN python3 tests/fuzz/ofh/gen_corpus.py \
-    && python3 tests/fuzz/ngap/gen_corpus.py \
-    && python3 tests/fuzz/rrc/gen_corpus.py
 
 # Cheap smoke tests, so we know the image works. A failing test must not abort the build, and the step is capped at
 # two minutes so it cannot use up the build time limit. Run more inside the image with:

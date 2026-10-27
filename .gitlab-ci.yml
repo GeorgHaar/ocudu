@@ -708,7 +708,7 @@ fuzz:
     - if: '$CI_PIPELINE_SOURCE == "schedule" && $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Weekly fuzz/'
   variables:
     FUZZ_OUTPUT_DIR: $CI_PROJECT_DIR/findings
-    FUZZ_CORPUS_DIR: $CI_PROJECT_DIR/seed_corpus
+    FUZZ_CORPUS_DIR: $CI_PROJECT_DIR/build_fuzz/tests/fuzz/corpus
     FUZZ_TIMEOUT_EACH: "7200"
   cache:
     key: fuzz-corpus-$CI_DEFAULT_BRANCH
@@ -742,10 +742,6 @@ fuzz:
         ngap_pdu_decoder_fuzzer \
         ngap_cu_cp_fuzzer \
         fuzz_corpus
-    - |
-      mkdir -p seed_corpus/ngap_cu_cp
-      cp -r build_fuzz/tests/fuzz/corpus/* seed_corpus/
-      cp build_fuzz/tests/fuzz/corpus/ngap/* seed_corpus/ngap_cu_cp/
     - |
       export PATH="$CI_PROJECT_DIR/build_fuzz/tests/fuzz/ofh:$CI_PROJECT_DIR/build_fuzz/tests/fuzz/ngap:$PATH"
       tests/fuzz/run_fuzzers.sh

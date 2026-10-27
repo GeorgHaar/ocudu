@@ -15,6 +15,7 @@
 #include "ocudu/ran/n_ta_offset.h"
 #include "ocudu/ran/subcarrier_spacing.h"
 #include "ocudu/support/executors/task_executor.h"
+#include <string>
 
 namespace ocudu {
 
@@ -91,6 +92,10 @@ struct lower_phy_configuration {
   /// back-off then lowers the signal power to accommodate its peak-to-average power ratio. Samples that exceed the full
   /// scale saturate.
   float gain_backoff_dB = 0.0F;
+  /// \brief DFT processor type used by OFDM modulation and demodulation.
+  ///
+  /// See \ref create_dft_processor_factory for the available types.
+  std::string dft_processor_type;
 };
 
 /// Lower physical layer dependencies.

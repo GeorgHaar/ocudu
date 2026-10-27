@@ -321,6 +321,8 @@ struct upper_phy_factory_configuration {
   /// - \c lut: for using a look-up table CRC calculator, or
   /// - \c clmul: for using a look-up table CRC calculator (x86_64 CPUs only).
   std::string crc_calculator_type;
+  /// DFT processor type. See \ref create_dft_processor_factory for the available types.
+  std::string dft_processor_type;
   /// \brief Correction factor for the PRACH detection threshold.
   ///
   /// Scales the default PRACH detection threshold for the current configuration by the given value.

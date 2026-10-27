@@ -85,6 +85,23 @@ struct du_low_unit_expert_upper_phy_config {
   bool enable_phy_tap = false;
   /// PHY tap plugin arguments.
   std::string phy_tap_arguments;
+  /// \brief FFT implementation type used by the physical layer.
+  ///
+  /// Selects an FFT from a list of supported implementations. If set to auto, the physical layer selects the FFT type
+  /// from the available options based on a predetermined order. It applies to the upper physical layer and to the
+  /// lower physical layer of the SDR radio unit, if selected.
+  ///
+  /// Use one of these options:
+  /// - \c auto: The fastest implementation, based on a pre-determined order.
+  /// - \c hwy: Google Highway, with the best architecture that the CPU supports;
+  /// - \c hwy:<arch>: Google Highway, with the given architecture;
+  /// - \c fftw: FFTW, with a profile based on the build type and options;
+  /// - \c fftw_fast: FFTW, with an optimal profile that takes longer to load;
+  /// - \c fftw_slow: FFTW, with a suboptimal profile that loads faster;
+  /// - \c fftz: AOCL-FFTZ; or
+  /// - \c generic: generic DFT, it does not support all DFT sizes.
+  /// \warning An error is thrown if the chosen FFT type does not exist, or if the implementation is not available.
+  std::string fft_processor_type = "auto";
 };
 
 /// DU low receive symbols print trigger configuration.

@@ -472,6 +472,7 @@ create_lower_phy_configuration(task_executor*                rx_task_executor,
   phy_config.nof_rx_ports                      = nof_ports;
   phy_config.dft_window_offset                 = 0.5F;
   phy_config.baseband_rx_buffer_size_policy    = lower_phy_baseband_buffer_size_policy::half_slot;
+  phy_config.dft_processor_type                = "auto";
 
   phy_config.gain_backoff_dB = baseband_backoff_dB;
 

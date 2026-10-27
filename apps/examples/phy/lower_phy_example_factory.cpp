@@ -18,7 +18,7 @@ std::unique_ptr<lower_phy> ocudu::create_lower_phy(const lower_phy_configuration
   }
 
   // Create DFT factory.
-  std::shared_ptr<dft_processor_factory> dft_factory = create_dft_processor_factory();
+  std::shared_ptr<dft_processor_factory> dft_factory = create_dft_processor_factory(config.dft_processor_type);
   report_fatal_error_if_not(dft_factory, "Failed to create DFT factory.");
 
   // Create OFDM modulator factory.

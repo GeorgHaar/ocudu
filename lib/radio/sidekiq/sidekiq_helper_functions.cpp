@@ -103,8 +103,8 @@ void ocudu::convert_ci16_to_i12(span<uint32_t> out, span<const ci16_t> in)
     out[i_word + 2] = _mm_extract_epi32(combined, 2);
 #else  // HAVE_AVX
     // Convert cf to integer.
-    const int16_t*         src = reinterpret_cast<const int16_t*>(&in.front());
-    std::array<int32_t, 8> iq_values;
+    const int16_t*          src = reinterpret_cast<const int16_t*>(&in.front());
+    std::array<uint32_t, 8> iq_values;
     for (unsigned i = 0; i != 8; ++i) {
       iq_values[i] = (static_cast<int32_t>(src[2 * i_sample + i]) >> 4) & 0xfffU;
     }

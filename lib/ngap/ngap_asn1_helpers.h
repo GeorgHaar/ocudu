@@ -817,7 +817,8 @@ inline void fill_asn1_ue_context_release_complete(asn1::ngap::ue_context_release
 /// \brief Convert NGAP ASN1 Paging ASN1 struct to common type.
 /// \param[out] paging The cu_cp_paging_message struct to fill.
 /// \param[in] asn1_paging The Paging ASN1 struct.
-inline void fill_cu_cp_paging_message(cu_cp_paging_message& paging, const asn1::ngap::paging_s& asn1_paging)
+/// \return True on success, otherwise false.
+inline bool fill_cu_cp_paging_message(cu_cp_paging_message& paging, const asn1::ngap::paging_s& asn1_paging)
 {
   // Fill UE paging id.
   paging.ue_paging_id = ngap_asn1_to_ue_paging_id(asn1_paging->ue_paging_id);
@@ -832,9 +833,12 @@ inline void fill_cu_cp_paging_message(cu_cp_paging_message& paging, const asn1::
 
   // Fill TAI list for paging.
   for (const auto& asn1_tai_item : asn1_paging->tai_list_for_paging) {
+    expected<tai_t> tai = ngap_asn1_to_tai(asn1_tai_item.tai);
+    if (!tai.has_value()) {
+      return false;
+    }
     cu_cp_tai_list_for_paging_item tai_item;
-    tai_item.tai.plmn_id = plmn_identity::from_bytes(asn1_tai_item.tai.plmn_id.to_bytes()).value();
-    tai_item.tai.tac     = asn1_tai_item.tai.tac.to_number();
+    tai_item.tai = tai.value();
 
     paging.tai_list_for_paging.push_back(tai_item);
   }
@@ -868,13 +872,18 @@ inline void fill_cu_cp_paging_message(cu_cp_paging_message& paging, const asn1::
 
       for (const auto& asn1_recommended_cell : asn1_paging->assist_data_for_paging.assist_data_for_recommended_cells
                                                    .recommended_cells_for_paging.recommended_cell_list) {
-        cu_cp_recommended_cell_item recommended_cell_item;
+        if (asn1_recommended_cell.ngran_cgi.type() != asn1::ngap::ngran_cgi_c::types_opts::nr_cgi) {
+          ocudulog::fetch_basic_logger("NGAP").debug("Ignoring non-NR recommended cell for paging");
+          continue;
+        }
 
         // Fill NG RAN CGI.
-        recommended_cell_item.ngran_cgi.nci =
-            nr_cell_identity::create(asn1_recommended_cell.ngran_cgi.nr_cgi().nr_cell_id.to_number()).value();
-        recommended_cell_item.ngran_cgi.plmn_id =
-            plmn_identity::from_bytes(asn1_recommended_cell.ngran_cgi.nr_cgi().plmn_id.to_bytes()).value();
+        expected<nr_cell_global_id_t> ngran_cgi = ngap_asn1_to_nr_cgi(asn1_recommended_cell.ngran_cgi.nr_cgi());
+        if (!ngran_cgi.has_value()) {
+          return false;
+        }
+        cu_cp_recommended_cell_item recommended_cell_item;
+        recommended_cell_item.ngran_cgi = ngran_cgi.value();
 
         // Fill time stayed in cell.
         if (asn1_recommended_cell.time_stayed_in_cell_present) {
@@ -918,6 +927,8 @@ inline void fill_cu_cp_paging_message(cu_cp_paging_message& paging, const asn1::
     }
     paging.paging_edrx_info = paging_edrx_info;
   }
+
+  return true;
 }
 
 /// \brief Convert Handover Request ASN1 struct to common type.

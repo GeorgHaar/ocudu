@@ -1165,7 +1165,7 @@ ngap_message ocudu::ocucp::generate_valid_handover_request(amf_ue_id_t amf_ue_id
   transparent_container.pdu_session_res_info_list.push_back(session_item);
   // Fill NR CGI.
   auto& cgi = transparent_container.target_cell_id.set_nr_cgi();
-  cgi.plmn_id.from_string("00f110");
+  cgi.plmn_id.from_string(params.invalid_target_cell_plmn_id ? "ffffff" : "00f110");
   nr_cell_identity nci = nr_cell_identity::create(gnb_id_t{411, 22}, 0).value();
   cgi.nr_cell_id.from_number(nci.value());
   // Fill UE history info.

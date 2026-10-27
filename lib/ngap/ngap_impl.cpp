@@ -1362,7 +1362,12 @@ void ngap_impl::handle_paging(const asn1::ngap::paging_s& msg)
 
   // Convert to common type.
   cu_cp_paging_message cu_cp_paging_msg;
-  fill_cu_cp_paging_message(cu_cp_paging_msg, msg);
+  if (!fill_cu_cp_paging_message(cu_cp_paging_msg, msg)) {
+    logger.warning("Dropping invalid Paging message");
+    metrics_handler.aggregate_discarded_cn_initiated_paging_request();
+    send_error_indication(tx_pdu_notifier, logger);
+    return;
+  }
 
   if (not cu_cp_notifier.on_paging_message(cu_cp_paging_msg)) {
     // Notify metrics handler about the paging request that no DU received.

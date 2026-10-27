@@ -300,6 +300,9 @@ struct handover_request_params {
   bool data_forwarding_not_possible = false;
   /// Whether the 5GC reports a direct forwarding path towards this target (TS 38.413 section 9.3.1.64).
   bool direct_forwarding_path_available = false;
+  /// Whether the target cell ID in the Source to Target Transparent Container carries a PLMN identity that is not valid
+  /// BCD.
+  bool invalid_target_cell_plmn_id = false;
 };
 
 /// \brief Generate a valid dummy Handover Request message.

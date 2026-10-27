@@ -815,7 +815,7 @@ inline bool asn1_to_source_to_target_transport_container(
     if (asn1_last_item.last_visited_cell_info.type() != asn1::ngap::last_visited_cell_info_c::types_opts::ngran_cell or
         asn1_last_item.last_visited_cell_info.ngran_cell().global_cell_id.type() !=
             asn1::ngap::ngran_cgi_c::types_opts::nr_cgi) {
-      ocudulog::fetch_basic_logger("NGAP").warning("Ignoring non-NR cell in UE history information");
+      ocudulog::fetch_basic_logger("NGAP").debug("Ignoring non-NR cell in UE history information");
       // TODO: add handling for other types of last visited cells.
       continue;
     }

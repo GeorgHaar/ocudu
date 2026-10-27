@@ -419,8 +419,9 @@ public:
     });
   }
 
-  cu_cp_ue_index_t request_new_ue_index_allocation(nr_cell_global_id_t /*cgi*/, const plmn_identity& /*plmn*/) override
+  cu_cp_ue_index_t request_new_ue_index_allocation(nr_cell_global_id_t cgi, const plmn_identity& /*plmn*/) override
   {
+    last_ue_index_allocation_cgi = cgi;
     return cu_cp_ue_index_t::invalid;
   }
 
@@ -459,6 +460,7 @@ public:
   std::optional<ngap_pdu_session_resource_release_response> release_command_outcome;
   ngap_pdu_session_resource_release_command                 last_release_command;
   std::optional<cu_cp_ue_index_t>                           last_created_ue_index;
+  std::optional<nr_cell_global_id_t>                        last_ue_index_allocation_cgi;
   cu_cp_paging_message                                      last_paging_msg;
   std::optional<cu_cp_ue_index_t>                           last_location_reporting_ctrl_ue_index;
   std::optional<location_report_request>                    last_location_reporting_ctrl;

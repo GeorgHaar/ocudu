@@ -222,6 +222,32 @@ TEST_F(ngap_ue_context_management_procedure_test, when_invalid_initial_context_s
   ASSERT_TRUE(was_initial_context_setup_failure_sent());
 }
 
+/// Test Initial Context Setup Request with an invalid PLMN in the TAI list for RRC inactive.
+TEST_F(
+    ngap_ue_context_management_procedure_test,
+    when_initial_context_setup_request_with_invalid_plmn_in_tai_list_for_inactive_received_then_error_indication_sent)
+{
+  // Test preamble
+  cu_cp_ue_index_t ue_index = this->start_procedure();
+
+  auto& ue = test_ues.at(ue_index);
+
+  // Inject Initial Context Setup Request.
+  ngap_message init_context_setup_request = generate_valid_initial_context_setup_request_message(
+      ue.amf_ue_id.value(),
+      ue.ran_ue_id.value(),
+      cu_cp_core_network_assist_info_for_inactive{.ue_id_idx_value       = 0x64c0,
+                                                  .tai_list_for_inactive = {tai_t{plmn_identity::test_value(), 7}}});
+  init_context_setup_request.pdu.init_msg()
+      .value.init_context_setup_request()
+      ->core_network_assist_info_for_inactive.tai_list_for_inactive[0]
+      .tai.plmn_id.from_string("ffffff");
+  ngap->handle_message(init_context_setup_request);
+
+  // Check that an Error Indication was sent instead of a response.
+  ASSERT_TRUE(was_error_indication_sent());
+}
+
 /// Test invalid Initial Context Setup Request with PDUSessionResourceSetupListCxtReq.
 TEST_F(ngap_ue_context_management_procedure_test,
        when_invalid_initial_context_setup_request_with_pdu_session_received_then_failure_sent)

@@ -454,7 +454,6 @@ void cu_cp_impl::handle_bearer_context_inactivity_notification(const e1ap_inacti
             std::move(release_context),
             cu_up_db.find_cu_up_processor(ue->get_cu_up_index())->get_e1ap_bearer_context_manager(),
             du_db.get_du_processor(ue->get_du_index()).get_f1ap_handler(),
-            get_cu_cp_ngap_handler(),
             du_db.get_du_processor(ue->get_du_index()).get_rrc_du_handler().get_rrc_du_connection_event_handler(),
             ngap->get_ngap_control_message_handler(),
             get_cu_cp_ue_context_handler(),

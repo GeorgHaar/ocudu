@@ -1022,6 +1022,37 @@ TEST_F(cu_cp_rrc_inactive_test,
   ASSERT_EQ(report.dus[0].rrc_metrics.successful_rrc_connection_resumes.get_count(resume_cause_t::mo_data), 1);
 }
 
+TEST_F(cu_cp_rrc_inactive_test, when_bearer_context_modification_for_suspend_fails_then_ue_release_is_requested)
+{
+  // Connect UE with RRC Inactive support.
+  connect_ue_with_rrc_inactive_support();
+
+  // Inject Inactivity Notification and await Bearer Context Modification Request.
+  ASSERT_TRUE(send_ue_level_bearer_context_inactivity_notification_and_await_bearer_context_modification_request());
+
+  // Send Bearer Context Modification Failure and await NGAP UE Context Release Request.
+  ASSERT_TRUE(send_bearer_context_modification_failure_and_await_ngap_ue_context_release_request());
+}
+
+TEST_F(cu_cp_rrc_inactive_test, when_f1ap_ue_context_release_for_suspend_fails_then_ue_release_is_requested)
+{
+  // Connect UE with RRC Inactive support.
+  connect_ue_with_rrc_inactive_support();
+
+  // Inject Inactivity Notification and await Bearer Context Modification Request.
+  ASSERT_TRUE(send_ue_level_bearer_context_inactivity_notification_and_await_bearer_context_modification_request());
+
+  // Send Bearer Context Modification Response and await UE Context Release Command.
+  ASSERT_TRUE(send_bearer_context_modification_response_and_await_ue_context_release_command());
+
+  // Send F1AP UE Context Release Complete with a gNB-DU UE F1AP ID that does not match the command.
+  ASSERT_TRUE(send_f1ap_ue_context_release_complete(du_ue_id_2));
+
+  // Await NGAP UE Context Release Request.
+  ASSERT_TRUE(this->wait_for_ngap_tx_pdu(ngap_pdu));
+  ASSERT_TRUE(test_helpers::is_valid_ue_context_release_request(ngap_pdu));
+}
+
 TEST_F(cu_cp_rrc_inactive_test, when_rrc_resume_request_for_unknown_ue_is_received_then_fallback_succeeds)
 {
   // Connect UE with RRC Inactive support.

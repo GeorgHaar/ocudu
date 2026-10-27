@@ -17,7 +17,6 @@ ue_suspend_routine::ue_suspend_routine(cu_cp_ue_index_t                       ue
                                        const rrc_ue_release_context&          release_context_,
                                        e1ap_bearer_context_manager&           e1ap_bearer_ctxt_mng_,
                                        f1ap_ue_context_manager&               f1ap_ue_ctxt_mng_,
-                                       cu_cp_ue_context_release_handler&      ue_context_release_handler_,
                                        rrc_du_connection_event_handler&       rrc_du_metrics_handler_,
                                        ngap_control_message_handler&          ng_control_handler_,
                                        cu_cp_ue_context_manipulation_handler& ue_context_handler_,
@@ -26,7 +25,6 @@ ue_suspend_routine::ue_suspend_routine(cu_cp_ue_index_t                       ue
   release_context(release_context_),
   e1ap_bearer_ctxt_mng(e1ap_bearer_ctxt_mng_),
   f1ap_ue_ctxt_mng(f1ap_ue_ctxt_mng_),
-  ue_context_release_handler(ue_context_release_handler_),
   rrc_du_metrics_handler(rrc_du_metrics_handler_),
   ng_control_handler(ng_control_handler_),
   ue_context_handler(ue_context_handler_),
@@ -54,9 +52,9 @@ void ue_suspend_routine::operator()(coro_context<async_task<void>>& ctx)
     logger.warning("ue={}: \"{}\" failed to modify bearer at CU-UP", ue_index, name());
     // Request UE release from AMF if Bearer Context Modification failed.
     {
-      ue_context_release_command.ue_index = ue_index;
-      ue_context_release_command.cause    = ngap_cause_radio_network_t::unspecified;
-      CORO_AWAIT(ue_context_release_handler.handle_ue_context_release_command(ue_context_release_command));
+      ue_context_release_request.ue_index = ue_index;
+      ue_context_release_request.cause    = ngap_cause_radio_network_t::unspecified;
+      CORO_AWAIT(ue_context_handler.handle_ue_context_release(ue_context_release_request));
       CORO_EARLY_RETURN();
     }
   }
@@ -76,9 +74,9 @@ void ue_suspend_routine::operator()(coro_context<async_task<void>>& ctx)
       logger.warning("ue={}: \"{}\" failed to release UE context at DU", ue_index, name());
       // Request UE release from AMF if F1AP UE release failed.
       {
-        ue_context_release_command.ue_index = ue_index;
-        ue_context_release_command.cause    = ngap_cause_radio_network_t::unspecified;
-        CORO_AWAIT(ue_context_release_handler.handle_ue_context_release_command(ue_context_release_command));
+        ue_context_release_request.ue_index = ue_index;
+        ue_context_release_request.cause    = ngap_cause_radio_network_t::unspecified;
+        CORO_AWAIT(ue_context_handler.handle_ue_context_release(ue_context_release_request));
         CORO_EARLY_RETURN();
       }
     }
@@ -104,9 +102,9 @@ void ue_suspend_routine::operator()(coro_context<async_task<void>>& ctx)
       logger.warning("ue={}: \"{}\" failed to send RRCInactiveTransitionReport", ue_index, name());
       // Request UE release from AMF if transmission of RRC Inactive Transition Report failed.
       {
-        ue_context_release_command.ue_index = ue_index;
-        ue_context_release_command.cause    = ngap_cause_radio_network_t::unspecified;
-        CORO_AWAIT(ue_context_release_handler.handle_ue_context_release_command(ue_context_release_command));
+        ue_context_release_request.ue_index = ue_index;
+        ue_context_release_request.cause    = ngap_cause_radio_network_t::unspecified;
+        CORO_AWAIT(ue_context_handler.handle_ue_context_release(ue_context_release_request));
         CORO_EARLY_RETURN();
       }
     }

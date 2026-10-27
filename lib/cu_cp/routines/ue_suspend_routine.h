@@ -22,7 +22,6 @@ public:
                      const rrc_ue_release_context&          release_context_,
                      e1ap_bearer_context_manager&           e1ap_bearer_ctxt_mng_,
                      f1ap_ue_context_manager&               f1ap_ue_ctxt_mng_,
-                     cu_cp_ue_context_release_handler&      ue_context_release_handler_,
                      rrc_du_connection_event_handler&       rrc_du_metrics_handler_,
                      ngap_control_message_handler&          ng_control_handler_,
                      cu_cp_ue_context_manipulation_handler& ue_context_handler_,
@@ -36,18 +35,17 @@ private:
   const cu_cp_ue_index_t       ue_index;
   const rrc_ue_release_context release_context;
 
-  e1ap_bearer_context_manager&           e1ap_bearer_ctxt_mng;       // to trigger bearer context modification at CU-UP
-  f1ap_ue_context_manager&               f1ap_ue_ctxt_mng;           // to trigger UE context release at DU
-  cu_cp_ue_context_release_handler&      ue_context_release_handler; // to release UE contexts
-  rrc_du_connection_event_handler&       rrc_du_metrics_handler;     // to notify DU RRC about RRC Inactive transition
-  ngap_control_message_handler&          ng_control_handler;         // to notify AMF about RRC Inactive transition
-  cu_cp_ue_context_manipulation_handler& ue_context_handler;         // to start RNA update timer
+  e1ap_bearer_context_manager&           e1ap_bearer_ctxt_mng;   // to trigger bearer context modification at CU-UP
+  f1ap_ue_context_manager&               f1ap_ue_ctxt_mng;       // to trigger UE context release at DU
+  rrc_du_connection_event_handler&       rrc_du_metrics_handler; // to notify DU RRC about RRC Inactive transition
+  ngap_control_message_handler&          ng_control_handler;     // to notify AMF about RRC Inactive transition
+  cu_cp_ue_context_manipulation_handler& ue_context_handler;     // to start RNA update timer and request UE release
   ocudulog::basic_logger&                logger;
 
   // (sub-)routine requests.
   e1ap_bearer_context_modification_request bearer_context_modification_request;
   f1ap_ue_context_release_command          du_ue_context_release_command;
-  cu_cp_ue_context_release_command         ue_context_release_command;
+  cu_cp_ue_context_release_request         ue_context_release_request;
   ngap_rrc_inactive_transition_report      rrc_inactive_transition_report;
 
   // (sub-)routine results.

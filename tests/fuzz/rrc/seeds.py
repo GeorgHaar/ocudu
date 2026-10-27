@@ -1,30 +1,17 @@
-#!/usr/bin/env python3
-
 # SPDX-FileCopyrightText: Copyright (C) 2021-2026 Software Radio Systems Limited
 # SPDX-FileCopyrightText: Copyright (C) 2026 OCUDU contributors
 # SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 # Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 """
-Generate initial seed corpus for the RRC UE fuzz harness from the known-good
+Seed corpus of the RRC fuzz harnesses, from the known-good
 (and known-bad) test vectors in the unit tests.
 
 Each seed is a control byte followed by the RRC PDU. See tests/fuzz/README.md
 for the control byte layout.
 
-Usage:
-    python3 tests/fuzz/rrc/gen_corpus.py
-
-Seeds are written to:
-    tests/fuzz/rrc/corpus/rrc_ue/
-    tests/fuzz/rrc/corpus/rrc_cu_cp/
+Written to disk by tests/fuzz/gen_corpus.py, see CORPORA at the end of this file.
 """
-
-import argparse
-import pathlib
-import zipfile
-
-SCRIPT_DIR = pathlib.Path(__file__).parent
 
 # ---------------------------------------------------------------------------
 # Control byte
@@ -141,43 +128,9 @@ RRC_CU_CP_SEEDS = {
 }
 
 # ---------------------------------------------------------------------------
-# Write seeds to disk
+# Seeds of each fuzz target, with the name of its corpus sub-directory
 # ---------------------------------------------------------------------------
-
-def write_seeds(seeds: dict, subdir: str) -> None:
-    out_dir = SCRIPT_DIR / "corpus" / subdir
-    out_dir.mkdir(parents=True, exist_ok=True)
-    for name, data in seeds.items():
-        path = out_dir / name
-        path.write_bytes(data)
-        print(f"  wrote {path} ({len(data)} bytes)")
-
-
-def write_zip(seeds: dict, zip_path: pathlib.Path) -> None:
-    zip_path.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for name, data in seeds.items():
-            zf.writestr(name, data)
-    print(f"  wrote zip {zip_path} ({zip_path.stat().st_size} bytes)")
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--zip", metavar="PATH", type=pathlib.Path,
-                        help="also write rrc_ue seeds to a zip file (for OSS-Fuzz)")
-    parser.add_argument("--zip-cu-cp", metavar="PATH", type=pathlib.Path,
-                        help="also write rrc_cu_cp seeds to a zip file (for OSS-Fuzz)")
-    args = parser.parse_args()
-
-    print("Generating RRC fuzz corpus seeds...")
-    write_seeds(RRC_SEEDS, "rrc_ue")
-    write_seeds(RRC_CU_CP_SEEDS, "rrc_cu_cp")
-    if args.zip:
-        write_zip(RRC_SEEDS, args.zip)
-    if args.zip_cu_cp:
-        write_zip(RRC_CU_CP_SEEDS, args.zip_cu_cp)
-    print("Done.")
-
-
-if __name__ == "__main__":
-    main()
+CORPORA = {
+    "rrc_ue_fuzzer":    ("rrc_ue", RRC_SEEDS),
+    "rrc_cu_cp_fuzzer": ("rrc_cu_cp", RRC_CU_CP_SEEDS),
+}

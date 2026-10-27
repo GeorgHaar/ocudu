@@ -48,3 +48,5 @@ add_dependencies(fuzz_targets
     ofh_ecpri_decoder_fuzzer
     ofh_vlan_frame_decoder_fuzzer
 )
+
+add_fuzz_corpus(ofh_fuzz_corpus seeds.py)

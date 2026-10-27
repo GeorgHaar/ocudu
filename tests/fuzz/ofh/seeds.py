@@ -1,27 +1,13 @@
-#!/usr/bin/env python3
-
 # SPDX-FileCopyrightText: Copyright (C) 2021-2026 Software Radio Systems Limited
 # SPDX-FileCopyrightText: Copyright (C) 2026 OCUDU contributors
 # SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 
 """
-Generate initial seed corpus for the OFH fuzz harnesses from the known-good
+Seed corpus of the OFH fuzz harnesses, from the known-good
 (and known-bad) test vectors in the unit tests.
 
-Usage:
-    python3 tests/fuzz/ofh/gen_corpus.py
-
-Seeds are written to the corpus sub-directories alongside this script:
-    corpus/uplane/   - OFH U-Plane message decoder seeds
-    corpus/ecpri/    - eCPRI packet decoder seeds
-    corpus/vlan/     - VLAN Ethernet frame decoder seeds
+Written to disk by tests/fuzz/gen_corpus.py, see CORPORA at the end of this file.
 """
-
-import argparse
-import pathlib
-import zipfile
-
-SCRIPT_DIR = pathlib.Path(__file__).parent
 
 # ---------------------------------------------------------------------------
 # U-Plane corpus seeds
@@ -75,42 +61,10 @@ VLAN_SEEDS = {
 }
 
 # ---------------------------------------------------------------------------
-# Write seeds to disk
+# Seeds of each fuzz target, with the name of its corpus sub-directory
 # ---------------------------------------------------------------------------
-
-def write_seeds(seeds: dict, subdir: str) -> None:
-    out_dir = SCRIPT_DIR / "corpus" / subdir
-    out_dir.mkdir(parents=True, exist_ok=True)
-    for name, data in seeds.items():
-        path = out_dir / name
-        path.write_bytes(data)
-        print(f"  wrote {path} ({len(data)} bytes)")
-
-
-def write_zip(seeds: dict, zip_path: pathlib.Path) -> None:
-    zip_path.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for name, data in seeds.items():
-            zf.writestr(name, data)
-    print(f"  wrote zip {zip_path} ({zip_path.stat().st_size} bytes)")
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--zip-dir", metavar="DIR", type=pathlib.Path,
-                        help="directory to write per-target zips (for OSS-Fuzz)")
-    args = parser.parse_args()
-
-    print("Generating OFH fuzz corpus seeds...")
-    write_seeds(UPLANE_SEEDS, "uplane")
-    write_seeds(ECPRI_SEEDS,  "ecpri")
-    write_seeds(VLAN_SEEDS,   "vlan")
-    if args.zip_dir:
-        write_zip(UPLANE_SEEDS, args.zip_dir / "ofh_uplane_decoder_fuzzer_seed_corpus.zip")
-        write_zip(ECPRI_SEEDS,  args.zip_dir / "ofh_ecpri_decoder_fuzzer_seed_corpus.zip")
-        write_zip(VLAN_SEEDS,   args.zip_dir / "ofh_vlan_frame_decoder_fuzzer_seed_corpus.zip")
-    print("Done.")
-
-
-if __name__ == "__main__":
-    main()
+CORPORA = {
+    "ofh_uplane_decoder_fuzzer":     ("uplane", UPLANE_SEEDS),
+    "ofh_ecpri_decoder_fuzzer":      ("ecpri", ECPRI_SEEDS),
+    "ofh_vlan_frame_decoder_fuzzer": ("vlan", VLAN_SEEDS),
+}

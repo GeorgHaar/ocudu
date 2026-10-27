@@ -740,12 +740,12 @@ fuzz:
         ofh_ecpri_decoder_fuzzer \
         ofh_vlan_frame_decoder_fuzzer \
         ngap_pdu_decoder_fuzzer \
-        ngap_cu_cp_fuzzer
+        ngap_cu_cp_fuzzer \
+        fuzz_corpus
     - |
       mkdir -p seed_corpus/ngap_cu_cp
-      cp -r tests/fuzz/ofh/corpus/* seed_corpus/
-      cp -r tests/fuzz/ngap/corpus/* seed_corpus/
-      cp tests/fuzz/ngap/corpus/ngap/* seed_corpus/ngap_cu_cp/
+      cp -r build_fuzz/tests/fuzz/corpus/* seed_corpus/
+      cp build_fuzz/tests/fuzz/corpus/ngap/* seed_corpus/ngap_cu_cp/
     - |
       export PATH="$CI_PROJECT_DIR/build_fuzz/tests/fuzz/ofh:$CI_PROJECT_DIR/build_fuzz/tests/fuzz/ngap:$PATH"
       tests/fuzz/run_fuzzers.sh

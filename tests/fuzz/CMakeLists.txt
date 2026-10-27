@@ -41,6 +41,38 @@ message(STATUS "Fuzz sanitizer flags: ${FUZZ_SANITIZER_FLAGS_COMPILE}")
 add_custom_target(fuzz_targets)
 
 # ---------------------------------------------------------------------------
+# Seed corpus
+#
+# Aggregate target generating the seed corpus of every harness into the build tree, one sub-directory
+# per target, which is the layout run_fuzzers.sh expects in FUZZ_CORPUS_DIR. Each sub-directory
+# registers the seeds.py of its layer with add_fuzz_corpus().
+# ---------------------------------------------------------------------------
+set(FUZZ_CORPUS_DIR ${CMAKE_CURRENT_BINARY_DIR}/corpus)
+set(FUZZ_CORPUS_GENERATOR ${CMAKE_CURRENT_SOURCE_DIR}/gen_corpus.py)
+add_custom_target(fuzz_corpus)
+add_dependencies(fuzz_targets fuzz_corpus)
+
+find_package(Python3 COMPONENTS Interpreter)
+if (NOT Python3_Interpreter_FOUND)
+    message(WARNING "Python3 not found, the fuzz seed corpus will not be generated")
+endif ()
+
+function(add_fuzz_corpus NAME SEEDS_FILE)
+    if (NOT Python3_Interpreter_FOUND)
+        return()
+    endif ()
+    set(stamp ${CMAKE_CURRENT_BINARY_DIR}/${NAME}.stamp)
+    add_custom_command(OUTPUT ${stamp}
+        COMMAND ${Python3_EXECUTABLE} ${FUZZ_CORPUS_GENERATOR} ${CMAKE_CURRENT_SOURCE_DIR}/${SEEDS_FILE}
+                --out-dir ${FUZZ_CORPUS_DIR}
+        COMMAND ${CMAKE_COMMAND} -E touch ${stamp}
+        DEPENDS ${FUZZ_CORPUS_GENERATOR} ${CMAKE_CURRENT_SOURCE_DIR}/${SEEDS_FILE}
+        COMMENT "Generating ${NAME} in ${FUZZ_CORPUS_DIR}")
+    add_custom_target(${NAME} DEPENDS ${stamp})
+    add_dependencies(fuzz_corpus ${NAME})
+endfunction()
+
+# ---------------------------------------------------------------------------
 # Test doubles
 #
 # The harnesses reuse the message and key builders that the unit tests are written against, so that

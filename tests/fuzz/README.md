@@ -130,11 +130,11 @@ python3 tests/fuzz/gen_corpus.py tests/fuzz/*/seeds.py --zip-dir $OUT
 
 ```bash
 # Default: findings/ inside the build directory
-mkdir -p findings/{uplane,ecpri,vlan,ngap,ngap_cu_cp,rrc_ue,rrc_cu_cp}
+mkdir -p findings/{ofh_uplane,ofh_ecpri,ofh_vlan,ngap,ngap_cu_cp,rrc_ue,rrc_cu_cp}
 
 # Alternative: any absolute path
 export FUZZ_OUTPUT_DIR=/tmp/fuzz_findings
-mkdir -p $FUZZ_OUTPUT_DIR/uplane $FUZZ_OUTPUT_DIR/ecpri $FUZZ_OUTPUT_DIR/vlan \
+mkdir -p $FUZZ_OUTPUT_DIR/ofh_uplane $FUZZ_OUTPUT_DIR/ofh_ecpri $FUZZ_OUTPUT_DIR/ofh_vlan \
          $FUZZ_OUTPUT_DIR/ngap $FUZZ_OUTPUT_DIR/ngap_cu_cp $FUZZ_OUTPUT_DIR/rrc_ue \
          $FUZZ_OUTPUT_DIR/rrc_cu_cp
 ```
@@ -146,8 +146,8 @@ directly via `-o`.
 
 ```bash
 afl-fuzz \
-    -i tests/fuzz/corpus/uplane \
-    -o findings/uplane \
+    -i tests/fuzz/corpus/ofh_uplane \
+    -o findings/ofh_uplane \
     -- ./tests/fuzz/ofh/ofh_uplane_decoder_fuzzer @@
 ```
 
@@ -155,8 +155,8 @@ afl-fuzz \
 
 ```bash
 afl-fuzz \
-    -i tests/fuzz/corpus/ecpri \
-    -o findings/ecpri \
+    -i tests/fuzz/corpus/ofh_ecpri \
+    -o findings/ofh_ecpri \
     -- ./tests/fuzz/ofh/ofh_ecpri_decoder_fuzzer @@
 ```
 
@@ -164,8 +164,8 @@ afl-fuzz \
 
 ```bash
 afl-fuzz \
-    -i tests/fuzz/corpus/vlan \
-    -o findings/vlan \
+    -i tests/fuzz/corpus/ofh_vlan \
+    -o findings/ofh_vlan \
     -- ./tests/fuzz/ofh/ofh_vlan_frame_decoder_fuzzer @@
 ```
 
@@ -338,28 +338,28 @@ pointing at the same output directory:
 ```bash
 # Terminal 1 - main instance
 afl-fuzz -M main \
-    -i tests/fuzz/corpus/uplane \
-    -o findings/uplane \
+    -i tests/fuzz/corpus/ofh_uplane \
+    -o findings/ofh_uplane \
     -- ./tests/fuzz/ofh/ofh_uplane_decoder_fuzzer @@
 
 # Terminal 2 - secondary instance
 afl-fuzz -S worker1 \
-    -i tests/fuzz/corpus/uplane \
-    -o findings/uplane \
+    -i tests/fuzz/corpus/ofh_uplane \
+    -o findings/ofh_uplane \
     -- ./tests/fuzz/ofh/ofh_uplane_decoder_fuzzer @@
 ```
 
-In parallel mode, AFL++ writes each instance's findings to a named subdirectory: `findings/uplane/main/`,
-`findings/uplane/worker1/`, etc.
+In parallel mode, AFL++ writes each instance's findings to a named subdirectory: `findings/ofh_uplane/main/`,
+`findings/ofh_uplane/worker1/`, etc.
 
 ### Monitoring progress
 
 ```bash
 # Live dashboard for a running instance
-afl-whatsup findings/uplane
+afl-whatsup findings/ofh_uplane
 
 # Plot data over time
-afl-plot findings/uplane/main plot_dir && open plot_dir/index.html
+afl-plot findings/ofh_uplane/main plot_dir && open plot_dir/index.html
 ```
 
 ---
@@ -369,11 +369,12 @@ afl-plot findings/uplane/main plot_dir && open plot_dir/index.html
 ### Locating crash files
 
 Crash inputs are written to `findings/<target>/crashes/` for single-instance runs and to
-`findings/<target>/<instance>/crashes/` for parallel runs (e.g. `findings/uplane/main/crashes/`). To reproduce a crash:
+`findings/<target>/<instance>/crashes/` for parallel runs (e.g. `findings/ofh_uplane/main/crashes/`). To reproduce a
+crash:
 
 ```bash
 ./tests/fuzz/ofh/ofh_uplane_decoder_fuzzer \
-    findings/uplane/crashes/id:000000,*
+    findings/ofh_uplane/crashes/id:000000,*
 ```
 
 ### Minimising a crash
@@ -382,7 +383,7 @@ Reduce a crashing input to its smallest reproducing form before filing a bug:
 
 ```bash
 afl-tmin \
-    -i findings/uplane/crashes/id:000000,* \
+    -i findings/ofh_uplane/crashes/id:000000,* \
     -o minimised_crash \
     -- ./tests/fuzz/ofh/ofh_uplane_decoder_fuzzer @@
 ```
@@ -394,7 +395,7 @@ ASAN prints a full stack trace when the crash is reproduced. Pipe through `llvm-
 ```bash
 ASAN_SYMBOLIZER_PATH=$(which llvm-symbolizer) \
     ./tests/fuzz/ofh/ofh_uplane_decoder_fuzzer \
-    findings/uplane/crashes/id:000000,*
+    findings/ofh_uplane/crashes/id:000000,*
 ```
 
 ### Converting a crash to a unit-test literal
@@ -404,11 +405,11 @@ ASAN_SYMBOLIZER_PATH=$(which llvm-symbolizer) \
 ```bash
 # Print a C array literal for a single crash file
 python3 ../tests/fuzz/crash_to_hex.py --format c \
-    findings/uplane/crashes/id:000000,*
+    findings/ofh_uplane/crashes/id:000000,*
 
 # Convert all crashes in a directory at once
 python3 ../tests/fuzz/crash_to_hex.py --format c \
-    findings/uplane/crashes/
+    findings/ofh_uplane/crashes/
 ```
 
 Available formats: `hex` (default), `xxd` (annotated hex dump), `c` (C/C++ `uint8_t` array literal). Add the resulting
@@ -424,8 +425,8 @@ base:
 ```bash
 # Merge and deduplicate queue entries into the seed corpus
 afl-cmin \
-    -i findings/uplane/queue \
-    -o tests/fuzz/corpus/uplane \
+    -i findings/ofh_uplane/queue \
+    -o tests/fuzz/corpus/ofh_uplane \
     -- ./tests/fuzz/ofh/ofh_uplane_decoder_fuzzer @@
 ```
 
@@ -498,13 +499,13 @@ findings/
 ├── ofh_vlan_frame_decoder_fuzzer.log
 ├── ngap_pdu_decoder_fuzzer.log
 ├── ngap_cu_cp_fuzzer.log
-├── uplane/                         AFL++ output directory
+├── ofh_uplane/                     AFL++ output directory
 │   ├── crashes/                    inputs that caused a crash
 │   ├── hangs/                      inputs that caused a hang
 │   ├── queue/                      all corpus entries found
 │   └── fuzzer_stats                run statistics
-├── ecpri/
-├── vlan/
+├── ofh_ecpri/
+├── ofh_vlan/
 ├── ngap/
 └── ngap_cu_cp/
 ```

@@ -64,7 +64,7 @@ VLAN_SEEDS = {
 # Seeds of each fuzz target, with the name of its corpus sub-directory
 # ---------------------------------------------------------------------------
 CORPORA = {
-    "ofh_uplane_decoder_fuzzer":     ("uplane", UPLANE_SEEDS),
-    "ofh_ecpri_decoder_fuzzer":      ("ecpri", ECPRI_SEEDS),
-    "ofh_vlan_frame_decoder_fuzzer": ("vlan", VLAN_SEEDS),
+    "ofh_uplane_decoder_fuzzer":     ("ofh_uplane", UPLANE_SEEDS),
+    "ofh_ecpri_decoder_fuzzer":      ("ofh_ecpri", ECPRI_SEEDS),
+    "ofh_vlan_frame_decoder_fuzzer": ("ofh_vlan", VLAN_SEEDS),
 }

@@ -34,9 +34,9 @@ CORPUS_DIR=${FUZZ_CORPUS_DIR:-/corpus}
 
 # All available targets mapped to their corpus sub-directory.
 declare -A ALL_TARGETS=(
-    ["ofh_uplane_decoder_fuzzer"]="uplane"
-    ["ofh_ecpri_decoder_fuzzer"]="ecpri"
-    ["ofh_vlan_frame_decoder_fuzzer"]="vlan"
+    ["ofh_uplane_decoder_fuzzer"]="ofh_uplane"
+    ["ofh_ecpri_decoder_fuzzer"]="ofh_ecpri"
+    ["ofh_vlan_frame_decoder_fuzzer"]="ofh_vlan"
     ["ngap_pdu_decoder_fuzzer"]="ngap"
     ["ngap_cu_cp_fuzzer"]="ngap_cu_cp"
     ["rrc_ue_fuzzer"]="rrc_ue"

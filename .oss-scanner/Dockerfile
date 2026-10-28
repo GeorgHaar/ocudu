@@ -67,7 +67,7 @@ RUN cmake -S /src -B /src/build -G Ninja \
       -DENABLE_LIBNUMA=OFF
 
 # Unit tests of the layers that parse input from UEs, the user plane and the CU-CP's peers. fuzz_targets also generates
-# the seed corpora of the fuzz harnesses, into /src/build/tests/fuzz/corpus/<target>/.
+# the seed corpora of the fuzz harnesses, one sub-directory per harness under /src/build/tests/fuzz/corpus/.
 ARG PROTOCOL_TESTS="asn1 rrc pdcp rlc mac security rohc sdap gtpu f1u nru ngap f1ap cu_cp"
 RUN ninja -C /src/build fuzz_targets \
       $(for layer in ${PROTOCOL_TESTS}; do echo "tests/unittests/${layer}/all"; done)

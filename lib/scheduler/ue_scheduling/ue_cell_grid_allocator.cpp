@@ -636,6 +636,7 @@ ue_cell_grid_allocator::set_pdsch_params(dl_grant_info& grant, const vrb_alloc& 
       rep_msg.pdsch_cfg.codewords[0].new_data   = false;
       rep_msg.pdsch_cfg.codewords[0].rv_index   = get_repetition_rv(rv, grant.reps->tx_offsets[i]);
       rep_msg.context.nof_remaining_repetitions = grant.reps->tx_offsets.size() - 1 - i;
+      committed_repetition_slots.push_back(rep_alloc.slot);
     }
   }
 

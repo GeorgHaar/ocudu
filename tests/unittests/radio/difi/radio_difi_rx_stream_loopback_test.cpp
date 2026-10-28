@@ -878,7 +878,7 @@ TEST(FidelityRoundTrip, RoundTrip8Bit)
   std::uniform_int_distribution<int> dist(-128, 127);
   std::vector<ci16_t>                sent(N_SAMPLES);
   for (auto& s : sent) {
-    s = ci16_t(static_cast<int16_t>(dist(rng) << 8), static_cast<int16_t>(dist(rng) << 8));
+    s = ci16_t(static_cast<int16_t>(dist(rng) * 256), static_cast<int16_t>(dist(rng) * 256));
   }
 
   simple_buffer_reader_rx               buf(sent);

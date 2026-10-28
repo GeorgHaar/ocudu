@@ -85,12 +85,36 @@ public:
   [[nodiscard]] bool   empty() const { return handle_lst.empty(); }
   [[nodiscard]] size_t capacity() const { return handle_lst.capacity(); }
 
-  T&       operator[](size_t i) { return *handle_lst[i]; }
-  const T& operator[](size_t i) const { return *handle_lst[i]; }
-  T&       front() { return *handle_lst.front(); }
-  const T& front() const { return *handle_lst.front(); }
-  T&       back() { return *handle_lst.back(); }
-  const T& back() const { return *handle_lst.back(); }
+  T& operator[](size_t i)
+  {
+    ocudu_assert(i < size(), "out-of-bounds access ({} >= {})", i, size());
+    return *handle_lst[i];
+  }
+  const T& operator[](size_t i) const
+  {
+    ocudu_assert(i < size(), "out-of-bounds access ({} >= {})", i, size());
+    return *handle_lst[i];
+  }
+  T& front()
+  {
+    ocudu_assert(not empty(), "front() called for empty list");
+    return *handle_lst.front();
+  }
+  const T& front() const
+  {
+    ocudu_assert(not empty(), "front() called for empty list");
+    return *handle_lst.front();
+  }
+  T& back()
+  {
+    ocudu_assert(not empty(), "back() called for empty list");
+    return *handle_lst.back();
+  }
+  const T& back() const
+  {
+    ocudu_assert(not empty(), "back() called for empty list");
+    return *handle_lst.back();
+  }
 
   iterator       begin() { return iterator{handle_lst.data()}; }
   iterator       end() { return iterator{handle_lst.data() + handle_lst.size()}; }
@@ -100,9 +124,18 @@ public:
   /// Releases every PDU of the list back to its pool.
   void clear() { handle_lst.clear(); }
 
+  /// Releases the last PDU of the list back to its pool.
+  void pop_back()
+  {
+    ocudu_assert(not empty(), "pop_back() called for empty list");
+    handle_lst.pop_back();
+  }
+
   /// Releases the PDU an iterator points at back to its pool.
   iterator erase(iterator it)
   {
+    ocudu_assert(it.base() >= handle_lst.data() and it.base() < handle_lst.data() + handle_lst.size(),
+                 "erase() called with an iterator out of range");
     return iterator{handle_lst.data() +
                     (handle_lst.erase(handle_lst.begin() + (it.base() - handle_lst.data())) - handle_lst.begin())};
   }
@@ -308,7 +341,7 @@ public:
   }
 
   /// Removes the last PDU of the list, releasing it back to the pool.
-  void pop_back() { list->handles().pop_back(); }
+  void pop_back() { list->pop_back(); }
 
   /// Removes the PDU an iterator points at, and returns an iterator to the one that followed it.
   iterator erase(iterator it) { return list->erase(it); }

@@ -241,3 +241,68 @@ TEST(cell_resource_grid_test, ntn_grid_keeps_allocations_up_to_the_koffset_delay
     ASSERT_EQ(res_grid[0].slot, alloc_slot);
   }
 }
+
+/// Fills every pooled PDU list of a slot up to the capacity the slot gives it.
+static void fill_pooled_lists(cell_slot_resource_allocator& slot_res, slot_point sl_tx, unsigned koffset_ms)
+{
+  const auto fail = [sl_tx, koffset_ms](const char* list) {
+    return fmt::format("Koffset={}ms: pool of {} ran out at slot {}", koffset_ms, list, sl_tx);
+  };
+
+  auto dl = slot_res.result_builder().dl();
+  for (unsigned i = 0; i != MAX_DL_PDCCH_PDUS_PER_SLOT; ++i) {
+    ASSERT_NE(dl.dl_pdcchs().emplace_back(), nullptr) << fail("dl_pdcchs");
+  }
+  for (unsigned i = 0; i != MAX_UL_PDCCH_PDUS_PER_SLOT; ++i) {
+    ASSERT_NE(dl.ul_pdcchs().emplace_back(), nullptr) << fail("ul_pdcchs");
+  }
+  for (unsigned i = 0; i != MAX_RAR_PDUS_PER_SLOT; ++i) {
+    ASSERT_NE(dl.rar_grants().emplace_back(), nullptr) << fail("rar_grants");
+  }
+  for (unsigned i = 0; i != MAX_UE_PDUS_PER_SLOT; ++i) {
+    ASSERT_NE(dl.ue_grants().emplace_back(), nullptr) << fail("ue_grants");
+  }
+  for (unsigned i = 0; i != MAX_CSI_RS_PDUS_PER_SLOT; ++i) {
+    ASSERT_NE(dl.csi_rs().emplace_back(), nullptr) << fail("csi_rs");
+  }
+  auto ul = slot_res.result_builder().ul();
+  for (unsigned i = 0; i != MAX_PUSCH_PDUS_PER_SLOT; ++i) {
+    ASSERT_NE(ul.puschs().emplace_back(), nullptr) << fail("puschs");
+  }
+}
+
+TEST(cell_resource_grid_test, pools_hold_every_slot_the_grid_can_reach_filled_to_capacity)
+{
+  OCUDU_TEST_REQUIREMENTS("DU-NTN-TIM-1");
+
+  // Non-NTN, then the cell-specific Koffset, in milliseconds, of LEO and GEO cells.
+  for (unsigned koffset_ms : {0U, 16U, 240U}) {
+    scheduler_expert_config                  sched_cfg = config_helpers::make_default_scheduler_expert_config();
+    test_helpers::test_sched_config_manager  cfg_mng{sched_cfg};
+    sched_cell_configuration_request_message cell_req =
+        sched_config_helper::make_default_sched_cell_configuration_request();
+    if (koffset_ms != 0) {
+      cell_req.ran.ntn_params.emplace();
+      cell_req.ran.ntn_params->ntn_cfg.cell_specific_koffset = std::chrono::milliseconds{koffset_ms};
+    }
+    const cell_configuration& cell_cfg = *cfg_mng.add_cell(cell_req);
+    cell_resource_allocator   res_grid{cell_cfg};
+
+    const unsigned max_ul_delay = get_max_slot_ul_alloc_delay(cell_cfg.ntn_cs_koffset);
+
+    slot_point sl_tx{0, 0};
+    res_grid.slot_indication(sl_tx);
+
+    // Every slot the grid can reach right now holds a full slot worth of PDUs.
+    for (unsigned d = 0; d <= max_ul_delay; ++d) {
+      ASSERT_NO_FATAL_FAILURE(fill_pooled_lists(res_grid[d], sl_tx + d, koffset_ms));
+    }
+
+    // Advancing past the history window keeps the furthest slot reachable and full, so the pools must cover the
+    // history and the allocation delay at the same time.
+    for (unsigned i = 0; i != cell_resource_allocator::RING_MAX_HISTORY_SIZE + 1; ++i) {
+      res_grid.slot_indication(++sl_tx);
+      ASSERT_NO_FATAL_FAILURE(fill_pooled_lists(res_grid[max_ul_delay], sl_tx + max_ul_delay, koffset_ms));
+    }
+  }
+}

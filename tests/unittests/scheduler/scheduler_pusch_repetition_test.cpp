@@ -14,6 +14,8 @@
 #include <cstdlib>
 #include <gtest/gtest.h>
 #include <map>
+#include <set>
+#include <tuple>
 
 using namespace ocudu;
 
@@ -456,4 +458,99 @@ TEST_F(scheduler_pusch_repetition_dai_test, when_a_bundle_is_scheduled_then_one_
   ASSERT_GT(nof_bundles_with_ack, 0) << "No bundle carried HARQ-ACK, so the DAI rule is not exercised";
   ASSERT_GT(nof_bundles_with_ack_on_severalslots, 0)
       << "No bundle carried HARQ-ACK in more than one slot, so nothing had to agree on a DAI";
+}
+
+/// \brief FDD cell where 16 UEs are forced into bundles of 16 occasions. Every slot is UL, so the bundles of the UEs
+/// overlap and keep the PUSCH list of every slot the grid can allocate close to full.
+class scheduler_pusch_repetition_full_grid_test : public scheduler_test_simulator, public ::testing::Test
+{
+protected:
+  static constexpr unsigned nof_ues  = 16;
+  static constexpr uint8_t  nof_reps = 16;
+
+  scheduler_pusch_repetition_full_grid_test() :
+    scheduler_test_simulator(scheduler_test_sim_config{.sched_cfg =
+                                                           [] {
+                                                             auto expert_cfg =
+                                                                 config_helpers::make_default_scheduler_expert_config();
+                                                             expert_cfg.ue.pusch_sinr_rep_threshold = 10.0F;
+                                                             expert_cfg.ue.pusch_force_rep          = true;
+                                                             expert_cfg.ue.initial_ul_sinr          = 20.0;
+                                                             // Small grants, so that one bundle per UE fits in the
+                                                             // bandwidth clear of the cell's common PUCCH.
+                                                             expert_cfg.ue.pusch_nof_rbs    = {1, 6};
+                                                             expert_cfg.ue.pusch_crb_limits = {10, 98};
+                                                             return expert_cfg;
+                                                           }(),
+                                                       .max_scs  = subcarrier_spacing::kHz15,
+                                                       .auto_uci = true,
+                                                       .auto_crc = true})
+  {
+    cell_config_builder_params params = cell_config_builder_profiles::create(duplex_mode::FDD);
+    params.dl_carrier.carrier_bw      = bs_channel_bandwidth::MHz20;
+    auto cell_req                     = sched_config_helper::make_default_sched_cell_configuration_request(params);
+    add_cell(cell_req);
+    pucch_cfg_builder.add_cell(to_du_cell_index(0), cell_cfg(to_du_cell_index(0)).params);
+
+    const auto& common_list = cell_req.ran.ul_cfg_common.init_ul_bwp.pusch_cfg_common->pusch_td_alloc_list;
+    for (unsigned i = 0; i != nof_ues; ++i) {
+      auto ue_cfg     = sched_config_helper::create_default_sched_ue_creation_request(cell_req.ran, {LCID_MIN_DRB});
+      ue_cfg.ue_index = to_du_ue_index(i);
+      ue_cfg.crnti    = to_rnti(0x4601 + i);
+      auto& pusch_cfg = (*ue_cfg.cfg.cells)[0].ded->serv_cell_cfg.ul_config->init_ul_bwp.pusch_cfg.value();
+      pusch_cfg.pusch_td_alloc_list.assign(common_list.begin(), common_list.end());
+      pusch_time_domain_resource_allocation rep_alloc = common_list.front();
+      rep_alloc.nof_repetitions                       = nof_reps;
+      pusch_cfg.pusch_td_alloc_list.push_back(rep_alloc);
+      report_fatal_error_if_not(pucch_cfg_builder.alloc_resources(*(*ue_cfg.cfg.cells)[0].ded),
+                                "Failed to allocate PUCCH resources");
+      add_ue(ue_cfg);
+
+      push_bsr(ul_bsr_indication_message{
+          to_du_cell_index(0),
+          ue_cfg.ue_index,
+          ue_cfg.crnti,
+          bsr_format::LONG_BSR,
+          ul_bsr_lcg_report_list{{uint_to_lcg_id(2), std::numeric_limits<uint32_t>::max() / 2}}});
+    }
+  }
+
+  pucch_resource_manager pucch_cfg_builder{64};
+};
+
+/// The PDU pool shared by the slots of the grid holds the PUSCHs of every slot that can have them, so no bundle runs
+/// out of PDUs halfway through its occasions.
+TEST_F(scheduler_pusch_repetition_full_grid_test, when_bundles_fill_every_ul_slot_then_every_bundle_is_complete)
+{
+  static constexpr unsigned nof_test_slots = 200;
+
+  // PUSCHs of a bundle, keyed by slot, RNTI, HARQ process and FAPI countdown.
+  std::set<std::tuple<unsigned, rnti_t, unsigned, unsigned>> occasions;
+  for (unsigned i = 0; i != nof_test_slots; ++i) {
+    run_slot();
+    const sched_result_copy& res = *last_sched_result(to_du_cell_index(0));
+    ASSERT_LE(res.ul.puschs.size(), MAX_PUSCH_PDUS_PER_SLOT);
+    for (const ul_sched_info& pusch : res.ul.puschs) {
+      if (pusch.pusch_cfg.repetitions.has_value()) {
+        occasions.emplace(i,
+                          pusch.pusch_cfg.rnti,
+                          static_cast<unsigned>(pusch.pusch_cfg.harq_id),
+                          pusch.pusch_cfg.repetitions->nof_remaining_repetitions);
+      }
+    }
+  }
+
+  // In FDD, the occasions of a bundle fall in consecutive slots.
+  unsigned nof_bundles = 0;
+  for (const auto& [sl, rnti, harq_id, nof_remaining] : occasions) {
+    if (nof_remaining != nof_reps - 1 or sl + nof_reps > nof_test_slots) {
+      continue;
+    }
+    ++nof_bundles;
+    for (unsigned occ = 1; occ != nof_reps; ++occ) {
+      ASSERT_EQ(occasions.count({sl + occ, rnti, harq_id, nof_reps - 1 - occ}), 1)
+          << fmt::format("rnti={} h_id={}: bundle at slot index {} misses occasion {}", rnti, harq_id, sl, occ);
+    }
+  }
+  ASSERT_GE(nof_bundles, nof_ues) << "Too few PUSCH repetition bundles to fill the grid";
 }

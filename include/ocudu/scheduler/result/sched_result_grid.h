@@ -18,6 +18,8 @@
 #include "ocudu/scheduler/result/sched_result.h"
 #include "ocudu/scheduler/result/srs_info.h"
 #include "ocudu/support/ocudu_assert.h"
+#include <algorithm>
+#include <optional>
 #include <vector>
 
 namespace ocudu {
@@ -26,11 +28,10 @@ namespace ocudu {
 struct sched_result_grid_config {
   /// Number of slots held by the grid.
   unsigned nof_slots = 1;
-  /// \brief [Implementation-defined] Number of slots that can hold PDUs at the same time.
+  /// \brief Number of slots that can hold PDUs at the same time, which sizes the pool of every pooled PDU list.
   ///
-  /// Sizes the pool of every pooled PDU list. A slot holds PDUs from the moment it is scheduled until it leaves the
-  /// grid history, which spans fewer slots than the grid holds.
-  unsigned nof_live_slots = 32;
+  /// If not set, or larger than \c nof_slots, every slot of the grid is assumed to hold PDUs at the same time.
+  std::optional<unsigned> nof_live_slots;
 };
 
 namespace sched_result_context {
@@ -47,9 +48,7 @@ using ul_slot = ul_sched_result;
 /// Storage of a slot in the scheduler result grid.
 using slot = sched_result;
 
-/// \brief Pools backing the pooled PDU lists of a cell.
-///
-/// Holds no pool while every list is held inline in the slot.
+/// Pools backing the pooled PDU lists of a cell.
 class pdu_pool_set
 {
   /// Selects the pool of a PDU type without an explicit specialization, which C++17 forbids at class scope.
@@ -57,7 +56,15 @@ class pdu_pool_set
   struct pdu_tag {};
 
 public:
-  explicit pdu_pool_set(const sched_result_grid_config& /* unused */) {}
+  explicit pdu_pool_set(const sched_result_grid_config& cfg) :
+    dl_pdcch_pool(MAX_DL_PDCCH_PDUS_PER_SLOT * nof_pool_slots(cfg)),
+    ul_pdcch_pool(MAX_UL_PDCCH_PDUS_PER_SLOT * nof_pool_slots(cfg)),
+    rar_pool(MAX_RAR_PDUS_PER_SLOT * nof_pool_slots(cfg)),
+    ue_grant_pool(MAX_UE_PDUS_PER_SLOT * nof_pool_slots(cfg)),
+    csi_rs_pool(MAX_CSI_RS_PDUS_PER_SLOT * nof_pool_slots(cfg)),
+    pusch_pool(MAX_PUSCH_PDUS_PER_SLOT * nof_pool_slots(cfg))
+  {
+  }
 
   /// Fetches the pool that holds the PDUs of a given type.
   template <typename T>
@@ -65,6 +72,33 @@ public:
   {
     return pool_of(pdu_tag<T>{});
   }
+
+private:
+  /// Number of slots for which each pool must be able to hold PDUs simultaneously.
+  static unsigned nof_pool_slots(const sched_result_grid_config& cfg)
+  {
+    return std::min(cfg.nof_slots, cfg.nof_live_slots.value_or(cfg.nof_slots));
+  }
+
+  free_list_object_pool<pdcch_dl_information>& pool_of(pdu_tag<pdcch_dl_information> /* unused */)
+  {
+    return dl_pdcch_pool;
+  }
+  free_list_object_pool<pdcch_ul_information>& pool_of(pdu_tag<pdcch_ul_information> /* unused */)
+  {
+    return ul_pdcch_pool;
+  }
+  free_list_object_pool<rar_information>& pool_of(pdu_tag<rar_information> /* unused */) { return rar_pool; }
+  free_list_object_pool<dl_msg_alloc>&    pool_of(pdu_tag<dl_msg_alloc> /* unused */) { return ue_grant_pool; }
+  free_list_object_pool<csi_rs_info>&     pool_of(pdu_tag<csi_rs_info> /* unused */) { return csi_rs_pool; }
+  free_list_object_pool<ul_sched_info>&   pool_of(pdu_tag<ul_sched_info> /* unused */) { return pusch_pool; }
+
+  free_list_object_pool<pdcch_dl_information> dl_pdcch_pool;
+  free_list_object_pool<pdcch_ul_information> ul_pdcch_pool;
+  free_list_object_pool<rar_information>      rar_pool;
+  free_list_object_pool<dl_msg_alloc>         ue_grant_pool;
+  free_list_object_pool<csi_rs_info>          csi_rs_pool;
+  free_list_object_pool<ul_sched_info>        pusch_pool;
 };
 
 /// \brief Every PDU list a slot holds, in the order the slot declares them.
@@ -248,6 +282,12 @@ public:
   {
     for (auto& sl : slots) {
       sl.ul.pucchs.reserve(MAX_PUCCH_PDUS_PER_SLOT);
+      sl.dl.dl_pdcchs.reserve(MAX_DL_PDCCH_PDUS_PER_SLOT);
+      sl.dl.ul_pdcchs.reserve(MAX_UL_PDCCH_PDUS_PER_SLOT);
+      sl.dl.rar_grants.reserve(MAX_RAR_PDUS_PER_SLOT);
+      sl.dl.ue_grants.reserve(MAX_UE_PDUS_PER_SLOT);
+      sl.dl.csi_rs.reserve(MAX_CSI_RS_PDUS_PER_SLOT);
+      sl.ul.puschs.reserve(MAX_PUSCH_PDUS_PER_SLOT);
     }
   }
 

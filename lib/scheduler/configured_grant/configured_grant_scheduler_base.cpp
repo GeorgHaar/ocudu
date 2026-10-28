@@ -233,7 +233,12 @@ bool configured_grant_scheduler_base::allocate_cg_opportunity(cell_slot_resource
   // after the UE was added; hence, no collision check nor grid fill is needed here.
 
   // Fill UL scheduling result.
-  ul_sched_info& sched_info = *slot_alloc.result_builder().ul().puschs().emplace_back();
+  ul_sched_info* pusch_pdu = slot_alloc.result_builder().ul().puschs().emplace_back();
+  if (pusch_pdu == nullptr) {
+    logger.warning("rnti={}: CG PUSCH cannot be allocated at slot={}: PUSCH list is full", rnti, slot_alloc.slot);
+    return false;
+  }
+  ul_sched_info& sched_info = *pusch_pdu;
 
   // Configured Grant repetitions are not currently supported.
   constexpr unsigned rep_idx = 0U;

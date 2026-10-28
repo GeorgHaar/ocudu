@@ -50,10 +50,12 @@ static_assert(std::is_same_v<pdu_list_builder<rar_information>::storage_type,
                              decltype(sched_result_context::dl_slot::rar_grants)>,
               "RAR builder and storage disagree");
 
-// A list held inline in the slot is viewed as a span over its PDUs.
+// A list held inline in the slot is viewed as a span over its PDUs, a pooled one as a view over its handles.
 static_assert(std::is_same_v<pdu_span<srs_info>, span<const srs_info>>, "Inline list resolved to the wrong view");
-static_assert(std::is_same_v<pdu_span<dl_msg_alloc>, span<const dl_msg_alloc>>,
-              "Inline list resolved to the wrong view");
+static_assert(std::is_same_v<pdu_span<dl_msg_alloc>, sched_pdu_detail::pooled_list_view<dl_msg_alloc>>,
+              "Pooled list resolved to the wrong view");
+static_assert(std::is_same_v<pdu_span<rar_information>, sched_pdu_detail::pooled_list_view<rar_information>>,
+              "Pooled list resolved to the wrong view");
 
 TEST_F(sched_result_grid_test, when_grid_is_created_then_it_holds_the_configured_number_of_slots)
 {
@@ -327,4 +329,59 @@ TEST_F(sched_result_grid_test, builder_reader_reflects_pdus_built_so_far)
   ASSERT_TRUE(dl.reader().ue_grants().empty());
   ASSERT_NE(dl.ue_grants().emplace_back(), nullptr);
   ASSERT_EQ(dl.reader().ue_grants().size(), 1);
+}
+
+TEST_F(sched_result_grid_test, when_nof_live_slots_is_not_set_then_every_slot_can_be_filled)
+{
+  for (unsigned sl = 0; sl != nof_test_slots; ++sl) {
+    auto puschs = grid.get_builder(sl).ul().puschs();
+    for (unsigned i = 0; i != MAX_PUSCH_PDUS_PER_SLOT; ++i) {
+      ASSERT_NE(puschs.emplace_back(), nullptr) << "slot=" << sl << " pdu=" << i;
+    }
+    ASSERT_TRUE(puschs.full());
+  }
+}
+
+TEST_F(sched_result_grid_test, when_live_slots_are_filled_then_pool_is_exhausted)
+{
+  static constexpr unsigned nof_live_slots = 2;
+  sched_result_grid         small_pool_grid(sched_result_grid_config{nof_test_slots, nof_live_slots});
+
+  for (unsigned sl = 0; sl != nof_live_slots; ++sl) {
+    auto puschs = small_pool_grid.get_builder(sl).ul().puschs();
+    for (unsigned i = 0; i != MAX_PUSCH_PDUS_PER_SLOT; ++i) {
+      ASSERT_NE(puschs.emplace_back(), nullptr);
+    }
+  }
+
+  auto puschs = small_pool_grid.get_builder(nof_live_slots).ul().puschs();
+  ASSERT_TRUE(puschs.full());
+  ASSERT_EQ(puschs.emplace_back(), nullptr);
+}
+
+TEST_F(sched_result_grid_test, when_nof_live_slots_exceeds_nof_slots_then_every_slot_can_be_filled)
+{
+  sched_result_grid big_live_grid(sched_result_grid_config{nof_test_slots, 1000});
+
+  for (unsigned sl = 0; sl != nof_test_slots; ++sl) {
+    auto puschs = big_live_grid.get_builder(sl).ul().puschs();
+    for (unsigned i = 0; i != MAX_PUSCH_PDUS_PER_SLOT; ++i) {
+      ASSERT_NE(puschs.emplace_back(), nullptr);
+    }
+  }
+}
+
+TEST_F(sched_result_grid_test, when_pooled_pdu_is_popped_then_it_returns_to_the_pool)
+{
+  sched_result_grid small_pool_grid(sched_result_grid_config{nof_test_slots, 1});
+
+  auto first_slot = small_pool_grid.get_builder(0).ul().puschs();
+  for (unsigned i = 0; i != MAX_PUSCH_PDUS_PER_SLOT; ++i) {
+    ASSERT_NE(first_slot.emplace_back(), nullptr);
+  }
+  ASSERT_TRUE(small_pool_grid.get_builder(1).ul().puschs().full());
+
+  first_slot.pop_back();
+  ASSERT_EQ(first_slot.size(), MAX_PUSCH_PDUS_PER_SLOT - 1);
+  ASSERT_NE(small_pool_grid.get_builder(1).ul().puschs().emplace_back(), nullptr);
 }

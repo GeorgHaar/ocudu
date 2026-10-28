@@ -145,7 +145,15 @@ pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_helper(cell_
   }
 
   // Create PDCCH list element.
-  pdcch_ul_information& pdcch = *slot_alloc.result_builder().dl().ul_pdcchs().emplace_back();
+  pdcch_ul_information* pdcch_pdu = slot_alloc.result_builder().dl().ul_pdcchs().emplace_back();
+  if (pdcch_pdu == nullptr) {
+    ++slot_alloc.result_builder().failed_attempts().ul_pdcch;
+    if (ss_cfg.is_common_search_space()) {
+      ++slot_alloc.result_builder().failed_attempts().common_ul_pdcch;
+    }
+    return nullptr;
+  }
+  pdcch_ul_information& pdcch = *pdcch_pdu;
   pdcch.ctx.bwp_cfg           = &bwp_cfg;
   pdcch.ctx.coreset_cfg       = &cs_cfg.cfg();
   pdcch.ctx.rnti              = rnti;
@@ -205,7 +213,15 @@ pdcch_dl_information* pdcch_resource_allocator_impl::alloc_dl_pdcch_helper(cell_
   }
 
   // Create PDCCH list element.
-  pdcch_dl_information& pdcch = *slot_alloc.result_builder().dl().dl_pdcchs().emplace_back();
+  pdcch_dl_information* pdcch_pdu = slot_alloc.result_builder().dl().dl_pdcchs().emplace_back();
+  if (pdcch_pdu == nullptr) {
+    ++slot_alloc.result_builder().failed_attempts().dl_pdcch;
+    if (ss_cfg.is_common_search_space()) {
+      ++slot_alloc.result_builder().failed_attempts().common_dl_pdcch;
+    }
+    return nullptr;
+  }
+  pdcch_dl_information& pdcch = *pdcch_pdu;
   pdcch.ctx.bwp_cfg           = &bwp_cfg;
   pdcch.ctx.coreset_cfg       = &cs_cfg.cfg();
   pdcch.ctx.rnti              = rnti;

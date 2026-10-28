@@ -352,7 +352,9 @@ void si_message_scheduler::fill_si_grant(cell_slot_resource_allocator& res_grid,
                          si_indicator);
 
   // Add SIBs of the SI-message to list of SIB information to pass to lower layers.
-  sib_information& si = *dl_res.sibs().emplace_back();
+  sib_information* si_pdu = dl_res.sibs().emplace_back();
+  ocudu_assert(si_pdu != nullptr, "No space available in scheduler SIB outputs for slot={}", res_grid.slot);
+  sib_information& si = *si_pdu;
   si.si_indicator     = sib_information::si_indicator_type::other_si;
   si.si_msg_index     = si_message;
   si.sibs             = si_sched_cfg.si_messages[si_message].sibs;

@@ -392,11 +392,12 @@ ue_cell_grid_allocator::setup_dl_grant_builder(const slice_ue&                  
     ocudu_assert(result, "Harq is in invalid state");
   }
 
-  // Create PDSCH PDU.
-  auto& msg = *pdsch_alloc.result_builder().dl().ue_grants().emplace_back();
+  // Create PDSCH PDU. Room was checked before the PDCCH, UCI and HARQ were allocated.
+  dl_msg_alloc* msg = pdsch_alloc.result_builder().dl().ue_grants().emplace_back();
+  ocudu_assert(msg != nullptr, "ue={} rnti={}: No space available in scheduler PDSCH outputs", u.ue_index, u.crnti);
 
   // Create a DL grant builder.
-  return dl_grant_info{&user, params, h_dl.value(), pdcch, &msg, uci, reps};
+  return dl_grant_info{&user, params, h_dl.value(), pdcch, msg, uci, reps};
 }
 
 ue_cell_grid_allocator::dl_repetition_occasion_list
@@ -622,8 +623,13 @@ ue_cell_grid_allocator::set_pdsch_params(dl_grant_info& grant, const vrb_alloc& 
                      rep_alloc.slot);
         continue;
       }
+      dl_msg_alloc* rep_pdu = rep_alloc.result_builder().dl().ue_grants().emplace_back();
+      ocudu_assert(rep_pdu != nullptr,
+                   "rnti={}: no room left for the PDSCH repetition occasion at slot={}",
+                   u.crnti,
+                   rep_alloc.slot);
       fill_pdsch_prbs(rep_alloc.dl_res_grid, ss_info, pdsch_td_cfg.symbols, prbs);
-      dl_msg_alloc& rep_msg                     = *rep_alloc.result_builder().dl().ue_grants().emplace_back();
+      dl_msg_alloc& rep_msg                     = *rep_pdu;
       rep_msg.context                           = msg.context;
       rep_msg.context.buffer_occupancy          = 0;
       rep_msg.pdsch_cfg                         = msg.pdsch_cfg;
@@ -1088,11 +1094,12 @@ ue_cell_grid_allocator::setup_ul_grant_builder(const slice_ue&                  
     ocudu_assert(result, "Failed to allocate HARQ retx");
   }
 
-  // Create PUSCH PDU.
-  auto& msg = *pusch_alloc.result_builder().ul().puschs().emplace_back();
+  // Create PUSCH PDU. Room was checked before the PDCCH and HARQ were allocated.
+  ul_sched_info* msg = pusch_alloc.result_builder().ul().puschs().emplace_back();
+  ocudu_assert(msg != nullptr, "ue={} rnti={}: No space available in scheduler PUSCH outputs", u.ue_index, u.crnti);
 
   // Create a UL grant builder.
-  return ul_grant_info{&user, params, h_ul.value(), pdcch, &msg, reps};
+  return ul_grant_info{&user, params, h_ul.value(), pdcch, msg, reps};
 }
 
 ue_cell_grid_allocator::ul_repetition_occasion_list
@@ -1391,12 +1398,13 @@ ue_cell_grid_allocator::set_pusch_params(ul_grant_info& grant, const vrb_interva
                    "rnti={}: PUSCH repetition occasion at slot={} lands on PRBs taken by another grant",
                    u.crnti,
                    rep_alloc.slot);
-      ocudu_assert(not rep_alloc.result_builder().ul().puschs().full(),
+      ul_sched_info* rep_pdu = rep_alloc.result_builder().ul().puschs().emplace_back();
+      ocudu_assert(rep_pdu != nullptr,
                    "rnti={}: no room left for the PUSCH repetition occasion at slot={}",
                    u.crnti,
                    rep_alloc.slot);
       rep_alloc.ul_res_grid.fill(grant_info{scs, pusch_td_cfg.symbols, crbs});
-      ul_sched_info& rep_msg     = *rep_alloc.result_builder().ul().puschs().emplace_back();
+      ul_sched_info& rep_msg     = *rep_pdu;
       rep_msg                    = msg;
       rep_msg.uci                = std::nullopt;
       rep_msg.context.k2         = final_k2 + offset;

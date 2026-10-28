@@ -455,8 +455,9 @@ bool srs_scheduler_impl::allocate_srs_opportunity(cell_slot_resource_allocator& 
   slot_alloc.ul_res_grid.fill(srs_grant);
 
   // Add SRS PDU into results.
-  slot_alloc.result_builder().ul().srss().emplace_back(
+  [[maybe_unused]] const srs_info* pdu = slot_alloc.result_builder().ul().srss().emplace_back(
       create_srs_pdu(srs_opportunity.rnti, ul_bwp_cfg, *srs_res, pos_req != nullptr));
+  ocudu_assert(pdu != nullptr, "c-rnti={}: Failed to allocate SRS PDU", srs_opportunity.rnti);
 
   return true;
 }

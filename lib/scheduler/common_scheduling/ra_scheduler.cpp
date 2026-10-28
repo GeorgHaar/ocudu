@@ -718,7 +718,8 @@ void ra_scheduler::schedule_msga_puschs(rnti_t msgb_rnti, slot_point prach_slot_
         pusch_alloc.ul_res_grid.all_set(grant_info{ul_bwp.generic_params.scs, td_alloc.symbols, preamble_crbs}),
         "Invalid prereservation of MsgA PUSCH resources");
 
-    if (pusch_alloc.result_builder().ul().puschs().full()) {
+    ul_sched_info* ul_pdu = pusch_alloc.result_builder().ul().puschs().emplace_back();
+    if (ul_pdu == nullptr) {
       logger.warning(
           "pci={} msgb-rnti={} tc-rnti={}: Discarding MsgA PUSCH. Cause: PUSCH grant list is full for slot={}",
           cell_cfg.params.pci,
@@ -730,7 +731,7 @@ void ra_scheduler::schedule_msga_puschs(rnti_t msgb_rnti, slot_point prach_slot_
     }
 
     // Fill scheduling result.
-    ul_sched_info& ul_info     = *pusch_alloc.result_builder().ul().puschs().emplace_back();
+    ul_sched_info& ul_info     = *ul_pdu;
     ul_info.context.ue_index   = INVALID_DU_UE_INDEX;
     ul_info.context.ss_id      = cell_cfg.params.dl_cfg_common.init_dl_bwp.pdcch_common.ra_search_space_id;
     ul_info.context.k2         = msga_pusch_cfg.td_offset;
@@ -1444,8 +1445,10 @@ void ra_scheduler::fill_rar_grant(cell_resource_allocator&         res_alloc,
   rar_alloc.dl_res_grid.fill(
       grant_info{init_dl_bwp.generic_params.scs, pdsch_td_res_alloc_list[pdsch_time_res_index].symbols, rar_crbs});
 
-  // Fill RAR PDSCH.
-  rar_information& rar  = *rar_alloc.result_builder().dl().rar_grants().emplace_back();
+  // Fill RAR PDSCH. Room was checked before the PDCCH was allocated.
+  rar_information* rar_pdu = rar_alloc.result_builder().dl().rar_grants().emplace_back();
+  ocudu_assert(rar_pdu != nullptr, "No space available in scheduler RAR outputs for slot={}", rar_alloc.slot);
+  rar_information& rar  = *rar_pdu;
   rar.backoff_indicator = send_backoff_indicator ? std::optional<uint8_t>{backoff_indicator_value} : std::nullopt;
   build_pdsch_f1_0_ra_rnti(
       rar.pdsch_cfg,
@@ -1472,17 +1475,19 @@ void ra_scheduler::fill_rar_grant(cell_resource_allocator&         res_alloc,
                        "Pending Msg3 entry should have been reserved when RACH was received");
     auto& pending_msg3 = *msg3_it;
 
-    // Allocate Msg3 UL HARQ.
-    std::optional<ul_harq_process_handle> h_ul =
-        pending_msg3.harq_ent.alloc_ul_harq(pdcch_slot, msg3_alloc.slot, sched_cfg.max_nof_msg3_harq_retxs);
-    ocudu_sanity_check(h_ul.has_value(), "Pending Msg3 HARQ must be available when RAR is allocated");
-
-    if (rar.grants.full() or msg3_alloc.result_builder().ul().puschs().full()) {
+    // Take the Msg3 PUSCH PDU before the HARQ, so that a full list or pool leaves no HARQ allocated behind.
+    ul_sched_info* msg3_pdu = rar.grants.full() ? nullptr : msg3_alloc.result_builder().ul().puschs().emplace_back();
+    if (msg3_pdu == nullptr) {
       // Note: This should never happen.
       logger.error("RAR grant for tc-rnti={} will be dropped. Cause: no available free RAR or UL grants",
                    pending_msg3.preamble.tc_rnti);
       return;
     }
+
+    // Allocate Msg3 UL HARQ.
+    std::optional<ul_harq_process_handle> h_ul =
+        pending_msg3.harq_ent.alloc_ul_harq(pdcch_slot, msg3_alloc.slot, sched_cfg.max_nof_msg3_harq_retxs);
+    ocudu_sanity_check(h_ul.has_value(), "Pending Msg3 HARQ must be available when RAR is allocated");
 
     // Add MAC SDU with UL grant (Msg3) in RAR PDU.
     rar_ul_grant& msg3_info            = rar.grants.emplace_back();
@@ -1502,7 +1507,7 @@ void ra_scheduler::fill_rar_grant(cell_resource_allocator&         res_alloc,
     msg3_alloc.ul_res_grid.fill(grant_info{init_ul_bwp.generic_params.scs, symbols, msg3_candidate.crbs});
 
     // Fill PUSCH for Msg3.
-    ul_sched_info& pusch     = *msg3_alloc.result_builder().ul().puschs().emplace_back();
+    ul_sched_info& pusch     = *msg3_pdu;
     pusch.context.ue_index   = INVALID_DU_UE_INDEX;
     pusch.context.ss_id      = init_dl_bwp.pdcch_common.ra_search_space_id;
     pusch.context.nof_retxs  = 0;
@@ -1669,8 +1674,12 @@ void ra_scheduler::schedule_msg3_retx(cell_resource_allocator& res_alloc, ra_ue_
                            last_harq_params.mcs,
                            msg3_rv);
 
-    // Fill PUSCH.
-    ul_sched_info& ul_info     = *pusch_alloc.result_builder().ul().puschs().emplace_back();
+    // Fill PUSCH. Room was checked before the PDCCH and HARQ were allocated.
+    ul_sched_info* ul_pdu = pusch_alloc.result_builder().ul().puschs().emplace_back();
+    ocudu_assert(ul_pdu != nullptr,
+                 "tc-rnti={}: No space available in scheduler PUSCH outputs for Msg3 retx",
+                 msg3_ctx.preamble.tc_rnti);
+    ul_sched_info& ul_info     = *ul_pdu;
     ul_info.context.ue_index   = INVALID_DU_UE_INDEX;
     ul_info.context.ss_id      = ss_cfg.get_id();
     ul_info.context.k2         = k2;
@@ -1980,7 +1989,10 @@ void ra_scheduler::schedule_pending_msgbs(cell_resource_allocator& res_alloc, sl
                              msgb.prach_slot_rx.sfn());
     pdsch_alloc.dl_res_grid.fill(grant_info{dl_scs, pdsch_td_list[pdsch_time_res_index].symbols, msgb_crbs});
 
-    rar_information& msgb_rar = *pdsch_alloc.result_builder().dl().rar_grants().emplace_back();
+    // Room was checked before the PDCCH and the MsgB HARQ-ACK PUCCHs were allocated.
+    rar_information* msgb_pdu = pdsch_alloc.result_builder().dl().rar_grants().emplace_back();
+    ocudu_assert(msgb_pdu != nullptr, "msgb-rnti={}: No space available in scheduler RAR outputs", msgb.msgb_rnti);
+    rar_information& msgb_rar = *msgb_pdu;
     build_pdsch_f1_0_ra_rnti(msgb_rar.pdsch_cfg,
                              msgb_prbs_tbs.tbs_bytes,
                              msgb.msgb_rnti,
@@ -2066,8 +2078,11 @@ void ra_scheduler::schedule_pending_msgbs(cell_resource_allocator& res_alloc, sl
                                              pusch_td_list[msg3_candidate.pusch_td_res_index].symbols,
                                              msg3_candidate.crbs});
 
-      // Fill Msg3 PUSCH.
-      ul_sched_info& ul_info     = *msg3_alloc.result_builder().ul().puschs().emplace_back();
+      // Fill Msg3 PUSCH. Room was checked when the Msg3 candidates were selected.
+      ul_sched_info* ul_pdu = msg3_alloc.result_builder().ul().puschs().emplace_back();
+      ocudu_assert(
+          ul_pdu != nullptr, "tc-rnti={}: No space available in scheduler PUSCH outputs for Msg3", pctx.info.tc_rnti);
+      ul_sched_info& ul_info     = *ul_pdu;
       ul_info.context.ue_index   = INVALID_DU_UE_INDEX;
       ul_info.context.ss_id      = init_dl_bwp.pdcch_common.ra_search_space_id;
       ul_info.context.nof_retxs  = 0;

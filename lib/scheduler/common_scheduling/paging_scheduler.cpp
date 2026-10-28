@@ -422,18 +422,16 @@ bool paging_scheduler::allocate_paging(cell_resource_allocator&         res_grid
     return false;
   }
 
+  dl_paging_allocation* paging_pdu = pdsch_alloc.result_builder().dl().paging_grants().emplace_back();
+  ocudu_assert(paging_pdu != nullptr, "no room left for the Paging grant in slot={}", pdsch_alloc.slot);
+
   // > Now that we are sure there is space in both PDCCH and PDSCH, set Paging CRBs as used.
   pdsch_alloc.dl_res_grid.fill(
       grant_info{cell_cfg.params.dl_cfg_common.init_dl_bwp.generic_params.scs, pdsch_td_cfg.symbols, paging_crbs});
 
   // > Delegate filling Paging grants to helper function.
-  fill_paging_grant(*pdsch_alloc.result_builder().dl().paging_grants().emplace_back(),
-                    *pdcch,
-                    paging_crbs,
-                    pdsch_time_res,
-                    ue_paging_ids,
-                    dmrs_info,
-                    paging_prbs_tbs.tbs_bytes);
+  fill_paging_grant(
+      *paging_pdu, *pdcch, paging_crbs, pdsch_time_res, ue_paging_ids, dmrs_info, paging_prbs_tbs.tbs_bytes);
 
   return true;
 }

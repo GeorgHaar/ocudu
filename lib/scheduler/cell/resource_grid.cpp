@@ -340,7 +340,9 @@ cell_resource_allocator::cell_resource_allocator(const cell_configuration& cfg_)
   max_dl_slot_alloc_delay(SCHEDULER_MAX_K0),
   max_ul_slot_alloc_delay(get_max_slot_ul_alloc_delay(cfg_.ntn_cs_koffset)),
   results(sched_result_grid_config{
-      get_allocator_ring_size_gt_min(RING_MAX_HISTORY_SIZE + get_max_slot_ul_alloc_delay(cfg_.ntn_cs_koffset))})
+      get_allocator_ring_size_gt_min(RING_MAX_HISTORY_SIZE + max_ul_slot_alloc_delay),
+      // A slot holds PDUs from when it is allocated, at most the max alloc delay ahead, until it leaves the history.
+      RING_MAX_HISTORY_SIZE + std::max(max_dl_slot_alloc_delay, max_ul_slot_alloc_delay)})
 {
   // Create cell_slot_resource_allocator objects.
   std::vector<scs_specific_carrier> dl_scs_carriers;
@@ -348,8 +350,7 @@ cell_resource_allocator::cell_resource_allocator(const cell_configuration& cfg_)
   subcarrier_spacing                max_scs = cfg.params.dl_cfg_common.freq_info_dl.scs_carrier_list.back().scs;
   max_scs = std::max(max_scs, cfg.params.ul_cfg_common.freq_info_ul.scs_carrier_list.back().scs);
 
-  const unsigned ring_size =
-      get_allocator_ring_size_gt_min(RING_MAX_HISTORY_SIZE + get_max_slot_ul_alloc_delay(cfg.ntn_cs_koffset));
+  const auto ring_size = static_cast<unsigned>(results.nof_slots());
   slots.reserve(ring_size);
   unsigned nof_slots_per_subframe = get_nof_slots_per_subframe(max_scs);
   for (unsigned i = 0; i != ring_size; ++i) {

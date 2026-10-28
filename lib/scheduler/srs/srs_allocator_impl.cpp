@@ -161,8 +161,9 @@ aperiodic_srs_alloc_info srs_allocator_impl::allocate_aperiodic_srs(cell_resourc
 
   // At this point, the SRS allocation has been successful, we proceed with adding the results (SRS PDU and marking the
   // resource grid).
-  srs_slot_res_alloc.result_builder().ul().srss().emplace_back(
+  [[maybe_unused]] const srs_info* pdu = srs_slot_res_alloc.result_builder().ul().srss().emplace_back(
       create_srs_pdu(ue_cfg.crnti, ue_cfg.cell_cfg_common.params.ul_cfg_common.init_ul_bwp.generic_params, srs_res));
+  ocudu_assert(pdu != nullptr, "c-rnti={}: Failed to allocate SRS PDU", ue_cfg.crnti);
   srs_slot_res_alloc.ul_res_grid.fill(
       get_srs_res_grid_grant(ue_cfg.cell_cfg_common.params.ul_cfg_common.init_ul_bwp.generic_params, srs_res));
 

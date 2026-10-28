@@ -816,6 +816,10 @@ ue_fallback_scheduler::alloc_grant(ue&                                   u,
   // Update DRX controller state.
   u.drx_controller().on_new_dl_pdcch_alloc(pdcch_alloc.slot);
 
+  // Room was checked before the PDCCH and PUCCH were allocated.
+  dl_msg_alloc* msg = pdsch_alloc.result_builder().dl().ue_grants().emplace_back();
+  ocudu_assert(msg != nullptr, "rnti={}: No space available in scheduler PDSCH outputs", u.crnti);
+
   // Fill ConRes and/or SRB grant.
   return fill_dl_srb_grant(u,
                            pdcch_alloc.slot,
@@ -823,7 +827,7 @@ ue_fallback_scheduler::alloc_grant(ue&                                   u,
                            h_dl_retx,
                            *pdcch,
                            dci_type,
-                           *pdsch_alloc.result_builder().dl().ue_grants().emplace_back(),
+                           *msg,
                            uci.value(),
                            pdsch_time_res,
                            mcs_idx,
@@ -1354,11 +1358,15 @@ ue_fallback_scheduler::schedule_ul_srb(ue&                                      
   // Update DRX controller state.
   u.drx_controller().on_new_ul_pdcch_alloc(pdcch_alloc.slot, pusch_alloc.slot);
 
+  // Room was checked before the PDCCH was allocated and the PUCCH removed.
+  ul_sched_info* msg = pusch_alloc.result_builder().ul().puschs().emplace_back();
+  ocudu_assert(msg != nullptr, "rnti={}: No space available in scheduler PUSCH outputs", u.crnti);
+
   fill_ul_srb_grant(u,
                     pdcch_alloc.slot,
                     h_ul_retx,
                     *pdcch,
-                    *pusch_alloc.result_builder().ul().puschs().emplace_back(),
+                    *msg,
                     pusch_time_res,
                     pusch_td.k2,
                     final_mcs_tbs.mcs,

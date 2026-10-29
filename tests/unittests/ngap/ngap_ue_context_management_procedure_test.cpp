@@ -223,9 +223,8 @@ TEST_F(ngap_ue_context_management_procedure_test, when_invalid_initial_context_s
 }
 
 /// Test Initial Context Setup Request with an invalid PLMN in the TAI list for RRC inactive.
-TEST_F(
-    ngap_ue_context_management_procedure_test,
-    when_initial_context_setup_request_with_invalid_plmn_in_tai_list_for_inactive_received_then_failure_sent)
+TEST_F(ngap_ue_context_management_procedure_test,
+       when_initial_context_setup_request_with_invalid_plmn_in_tai_list_for_inactive_received_then_failure_sent)
 {
   // Test preamble
   cu_cp_ue_index_t ue_index = this->start_procedure();
@@ -249,6 +248,31 @@ TEST_F(
   const auto& cause = n2_gw.last_ngap_msgs.back().pdu.unsuccessful_outcome().value.init_context_setup_fail()->cause;
   ASSERT_EQ(cause.type(), asn1::ngap::cause_c::types_opts::protocol);
   ASSERT_EQ(cause.protocol(), asn1::ngap::cause_protocol_opts::semantic_error);
+}
+
+/// Test that the PDU sessions of a rejected Initial Context Setup Request are counted as failed.
+TEST_F(ngap_ue_context_management_procedure_test,
+       when_initial_context_setup_request_with_pdu_session_is_rejected_then_pdu_session_counted_as_failed)
+{
+  // Test preamble
+  cu_cp_ue_index_t ue_index = this->start_procedure();
+
+  auto& ue = test_ues.at(ue_index);
+
+  // Inject Initial Context Setup Request with an invalid PLMN in the GUAMI.
+  ngap_message init_context_setup_request =
+      generate_valid_initial_context_setup_request_message_with_pdu_session(ue.amf_ue_id.value(), ue.ran_ue_id.value());
+  init_context_setup_request.pdu.init_msg().value.init_context_setup_request()->guami.plmn_id.from_string("ffffff");
+  ngap->handle_message(init_context_setup_request);
+
+  ASSERT_TRUE(was_initial_context_setup_failure_sent());
+
+  // Check that the requested PDU session is counted as failed with cause "semantic error".
+  const ngap_info&             metrics_report = ngap->get_metrics_handler().handle_ngap_metrics_report_request();
+  const pdu_session_metrics_t& pdu_session_metrics =
+      metrics_report.metrics.pdu_session_metrics.at(s_nssai_t{slice_service_type{1}});
+  ASSERT_EQ(pdu_session_metrics.nof_pdu_sessions_requested_to_setup, 1);
+  ASSERT_EQ(pdu_session_metrics.nof_pdu_sessions_failed_to_setup.get_count(cause_protocol_t::semantic_error), 1);
 }
 
 /// Test invalid Initial Context Setup Request with PDUSessionResourceSetupListCxtReq.

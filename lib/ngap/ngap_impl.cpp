@@ -979,6 +979,15 @@ void ngap_impl::handle_initial_context_setup_request(const asn1::ngap::init_cont
     init_ctxt_setup_fail->amf_ue_ngap_id = to_underlying(ue_ctxt.ue_ids.amf_ue_id);
     init_ctxt_setup_fail->ran_ue_ngap_id = to_underlying(ue_ctxt.ue_ids.ran_ue_id);
     init_ctxt_setup_fail->cause          = cause_to_asn1(cause_protocol_t::semantic_error);
+
+    // Notify metrics handler about failed PDU sessions.
+    if (request->pdu_session_res_setup_list_cxt_req_present) {
+      for (const auto& pdu_session : request->pdu_session_res_setup_list_cxt_req) {
+        metrics_handler.aggregate_failed_pdu_session_setup(ngap_asn1_to_s_nssai(pdu_session.s_nssai),
+                                                           cause_protocol_t::semantic_error);
+      }
+    }
+
     if (!tx_pdu_notifier.on_new_message(ngap_msg)) {
       ue_ctxt.logger.log_warning("Cannot send InitialContextSetupFailure");
     }

@@ -307,8 +307,8 @@ static void configure_cli11_expert_phy_args(CLI::App& app, du_low_unit_expert_up
              "PHY tap plugin argument string passed during construction.")
       ->capture_default_str();
   add_option(app,
-             "--fft_type",
-             expert_phy_params.fft_processor_type,
+             "--dft_factory",
+             expert_phy_params.dft_processor_type,
              "FFT implementation type: auto, hwy, hwy:<arch>, fftw, fftw_fast, fftw_slow, fftz and generic.")
       ->capture_default_str()
       ->check(fft_type_check);

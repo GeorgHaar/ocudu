@@ -101,7 +101,7 @@ struct du_low_unit_expert_upper_phy_config {
   /// - \c fftz: AOCL-FFTZ; or
   /// - \c generic: generic DFT, it does not support all DFT sizes.
   /// \warning An error is thrown if the chosen FFT type does not exist, or if the implementation is not available.
-  std::string fft_processor_type = "auto";
+  std::string dft_processor_type = "auto";
 };
 
 /// DU low receive symbols print trigger configuration.

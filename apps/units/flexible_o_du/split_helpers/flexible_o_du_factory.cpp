@@ -282,7 +282,7 @@ o_du_unit flexible_o_du_factory::create_flexible_o_du(const o_du_unit_dependenci
   flexible_o_du_ru_config       ru_config = generate_o_du_ru_config(du_cells,
                                                               du_lo.expert_phy_cfg.max_processing_delay_slots,
                                                               du_hi.cells_cfg.front().cell.prach_cfg.ports.size(),
-                                                              du_lo.expert_phy_cfg.fft_processor_type);
+                                                              du_lo.expert_phy_cfg.dft_processor_type);
   flexible_o_du_ru_dependencies ru_dependencies{*dependencies.workers,
                                                 du_impl->get_upper_ru_ul_adapter(),
                                                 du_impl->get_upper_ru_timing_adapter(),

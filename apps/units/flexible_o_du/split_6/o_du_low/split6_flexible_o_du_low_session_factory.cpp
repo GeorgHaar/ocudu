@@ -285,7 +285,7 @@ split6_flexible_o_du_low_session_factory::create_radio_unit(split6_flexible_o_du
   auto ru_config = generate_o_du_ru_config(config,
                                            unit_config.du_low_cfg.expert_phy_cfg.max_processing_delay_slots,
                                            std::holds_alternative<ru_ofh_unit_parsed_config>(unit_config.ru_cfg),
-                                           unit_config.du_low_cfg.expert_phy_cfg.fft_processor_type);
+                                           unit_config.du_low_cfg.expert_phy_cfg.dft_processor_type);
 
   const auto& ru_cfg = unit_config.ru_cfg;
 

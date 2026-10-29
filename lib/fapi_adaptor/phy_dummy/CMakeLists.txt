@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 
 add_library(ocudu_phy_dummy_fapi_adaptor STATIC
+    phy_dummy_fapi_adaptor_factory.cpp
     phy_dummy_fapi_adaptor_impl.cpp
     phy_dummy_fapi_p5_sector_adaptor.cpp
     phy_dummy_fapi_p7_sector_adaptor.cpp

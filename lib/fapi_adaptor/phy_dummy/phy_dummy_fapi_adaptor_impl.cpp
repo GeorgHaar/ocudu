@@ -4,7 +4,6 @@
 
 #include "phy_dummy_fapi_adaptor_impl.h"
 #include "ocudu/adt/span.h"
-#include "ocudu/fapi_adaptor/phy_dummy/phy_dummy_fapi_adaptor_factory.h"
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/support/error_handling.h"
 #include "ocudu/support/executors/task_executor.h"
@@ -184,11 +183,4 @@ void phy_dummy_fapi_adaptor_impl::advance_slot()
   for (auto& sector : sectors) {
     sector->handle_slot_boundary(notified_slot, time_point);
   }
-}
-
-std::unique_ptr<phy_fapi_adaptor>
-ocudu::fapi_adaptor::create_phy_dummy_fapi_adaptor(const phy_dummy_fapi_adaptor_config&       config,
-                                                   const phy_dummy_fapi_adaptor_dependencies& dependencies)
-{
-  return std::make_unique<phy_dummy_fapi_adaptor_impl>(config, dependencies);
 }

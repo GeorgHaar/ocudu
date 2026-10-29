@@ -225,7 +225,7 @@ TEST_F(ngap_ue_context_management_procedure_test, when_invalid_initial_context_s
 /// Test Initial Context Setup Request with an invalid PLMN in the TAI list for RRC inactive.
 TEST_F(
     ngap_ue_context_management_procedure_test,
-    when_initial_context_setup_request_with_invalid_plmn_in_tai_list_for_inactive_received_then_error_indication_sent)
+    when_initial_context_setup_request_with_invalid_plmn_in_tai_list_for_inactive_received_then_failure_sent)
 {
   // Test preamble
   cu_cp_ue_index_t ue_index = this->start_procedure();
@@ -244,8 +244,11 @@ TEST_F(
       .tai.plmn_id.from_string("ffffff");
   ngap->handle_message(init_context_setup_request);
 
-  // Check that an Error Indication was sent instead of a response.
-  ASSERT_TRUE(was_error_indication_sent());
+  // Check that an Initial Context Setup Failure with cause "semantic error" was sent (TS 38.413 section 10.4).
+  ASSERT_TRUE(was_initial_context_setup_failure_sent());
+  const auto& cause = n2_gw.last_ngap_msgs.back().pdu.unsuccessful_outcome().value.init_context_setup_fail()->cause;
+  ASSERT_EQ(cause.type(), asn1::ngap::cause_c::types_opts::protocol);
+  ASSERT_EQ(cause.protocol(), asn1::ngap::cause_protocol_opts::semantic_error);
 }
 
 /// Test invalid Initial Context Setup Request with PDUSessionResourceSetupListCxtReq.

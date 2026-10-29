@@ -971,8 +971,17 @@ void ngap_impl::handle_initial_context_setup_request(const asn1::ngap::init_cont
   ngap_init_context_setup_request init_ctxt_setup_req;
   init_ctxt_setup_req.ue_index = ue_ctxt.ue_ids.ue_index;
   if (!fill_ngap_initial_context_setup_request(init_ctxt_setup_req, request)) {
-    ue_ctxt.logger.log_warning("Conversion of PDUSessionResourceSetupRequest failed");
-    send_error_indication(tx_pdu_notifier, logger, ue_ctxt.ue_ids.ran_ue_id, ue_ctxt.ue_ids.amf_ue_id);
+    // A logical error in a class 1 procedure is answered with its failure message (TS 38.413 section 10.4).
+    ue_ctxt.logger.log_warning("Rejecting invalid InitialContextSetupRequest");
+    ngap_message ngap_msg;
+    ngap_msg.pdu.set_unsuccessful_outcome().load_info_obj(ASN1_NGAP_ID_INIT_CONTEXT_SETUP);
+    auto& init_ctxt_setup_fail           = ngap_msg.pdu.unsuccessful_outcome().value.init_context_setup_fail();
+    init_ctxt_setup_fail->amf_ue_ngap_id = to_underlying(ue_ctxt.ue_ids.amf_ue_id);
+    init_ctxt_setup_fail->ran_ue_ngap_id = to_underlying(ue_ctxt.ue_ids.ran_ue_id);
+    init_ctxt_setup_fail->cause          = cause_to_asn1(cause_protocol_t::semantic_error);
+    if (!tx_pdu_notifier.on_new_message(ngap_msg)) {
+      ue_ctxt.logger.log_warning("Cannot send InitialContextSetupFailure");
+    }
     return;
   }
 

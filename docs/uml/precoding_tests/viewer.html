@@ -1,0 +1,887 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UML-Explorer</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
+      media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+      media="(prefers-color-scheme: dark)">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="data/manifest.js"></script>
+<script src="data/sources.js"></script>
+<script src="data/docs.js"></script>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --border: #d9dde3;
+    --text: #1f2328;
+    --muted: #656d76;
+    --accent: #c2410c;
+    --accent-soft: #fff1e6;
+    --code-bg: #ffffff;
+    --gutter: #8c959f;
+    --range: #edf2fa;
+    --target: #fff3c4;
+    --target-edge: #d4a72c;
+    --doc-bg: #f6f8fa;
+    --k-participant: #6d28d9;
+    --k-call: #1d4ed8;
+    --k-return: #047857;
+    --k-loop: #b45309;
+    --k-condition: #a16207;
+    --k-test: #be123c;
+    --k-class: #0e7490;
+    --k-member: #4d7c0f;
+    --k-relation: #9333ea;
+    --k-file: #57606a;
+    --k-instantiation: #b91c1c;
+    --k-location: #475569;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8d96a0;
+      --accent: #f0883e;
+      --accent-soft: #3b2412;
+      --code-bg: #0d1117;
+      --gutter: #6e7681;
+      --range: #1c2b40;
+      --target: #3a3214;
+      --target-edge: #bb8009;
+      --doc-bg: #0f151d;
+      --k-participant: #a78bfa;
+      --k-call: #60a5fa;
+      --k-return: #34d399;
+      --k-loop: #fbbf24;
+      --k-condition: #facc15;
+      --k-test: #fb7185;
+      --k-class: #22d3ee;
+      --k-member: #a3e635;
+      --k-relation: #d8b4fe;
+      --k-file: #c9d1d9;
+      --k-instantiation: #fca5a5;
+      --k-location: #94a3b8;
+    }
+  }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex; flex-direction: column;
+    background: var(--bg); color: var(--text);
+    font: 14px/1.45 var(--sans);
+  }
+  header {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--border);
+  }
+  .brand { font-weight: 650; white-space: nowrap; }
+  .brand small { font-weight: 400; color: var(--muted); font-family: var(--mono); margin-left: 6px; }
+  .crumbs { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; }
+  #crumbSep { color: var(--muted); }
+  #crumbName {
+    font-family: var(--mono); font-size: 13px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  select, button, .btn {
+    font: inherit; font-size: 13px; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px; padding: 4px 9px; text-decoration: none;
+  }
+  button, .btn { cursor: pointer; white-space: nowrap; }
+  button:hover, select:hover, .btn:hover { border-color: var(--muted); }
+  button:focus-visible, select:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button:disabled { opacity: .45; cursor: default; }
+  #diagramSelect { max-width: 320px; }
+  .group { display: flex; gap: 4px; }
+  #zoomReset { min-width: 62px; }
+
+  main { flex: 1; display: flex; min-height: 0; }
+  #diagramPane {
+    position: relative; flex: 0 0 56%; overflow: auto; min-width: 0;
+    background: #ffffff; cursor: grab;
+  }
+  #diagramPane.dragging { cursor: grabbing; }
+  #svgHost { padding: 12px; width: max-content; }
+  #svgHost svg { display: block; }
+  #svgHost a { cursor: pointer; }
+  #svgHost a:hover text { fill: #1d4ed8 !important; }
+  #svgHost a:hover rect { stroke: #1d4ed8 !important; stroke-width: 1.5 !important; }
+  #svgHost a.sel text { fill: #c2410c !important; font-weight: 700; }
+  #svgHost a.sel rect { stroke: #c2410c !important; stroke-width: 2.5 !important; fill: #fff1e6 !important; }
+  #svgHost a.sel path { stroke: #c2410c !important; stroke-width: 2.5 !important; }
+  #loading {
+    position: absolute; top: 10px; right: 10px; padding: 4px 10px; border-radius: 6px;
+    background: #1f2328; color: #fff; font-size: 12px;
+  }
+  #splitter { flex: 0 0 6px; cursor: col-resize; background: var(--border); }
+  #splitter:hover { background: var(--muted); }
+
+  #codePane { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--panel); }
+  #info { padding: 12px 14px; border-bottom: 1px solid var(--border); max-height: 46%; overflow: auto; }
+  .badge {
+    display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 650;
+    letter-spacing: .02em; text-transform: uppercase; color: #fff; background: var(--k-location);
+  }
+  .k-participant { background: var(--k-participant); }
+  .k-call { background: var(--k-call); }
+  .k-return { background: var(--k-return); }
+  .k-loop { background: var(--k-loop); }
+  .k-condition { background: var(--k-condition); }
+  .k-test { background: var(--k-test); }
+  .k-class { background: var(--k-class); }
+  .k-member { background: var(--k-member); }
+  .k-relation { background: var(--k-relation); }
+  .k-file { background: var(--k-file); }
+  .k-instantiation { background: var(--k-instantiation); }
+  @media (prefers-color-scheme: dark) { .badge { color: #0d1117; } }
+  .el-title { font-family: var(--mono); font-size: 13px; margin: 8px 0 6px; word-break: break-word; }
+  .meta { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; font-size: 12px; margin: 0; }
+  .meta dt { color: var(--muted); }
+  .meta dd { margin: 0; font-family: var(--mono); word-break: break-word; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .row button { font-size: 12px; }
+  .row button .p { font-family: var(--mono); color: var(--muted); margin-left: 6px; }
+  .row button.active { border-color: var(--accent); background: var(--accent-soft); }
+  .section-label { font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em;
+                   color: var(--muted); margin: 12px 0 4px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chips button { font-family: var(--mono); font-size: 11.5px; padding: 1px 7px; border-radius: 999px; }
+  .hint { color: var(--muted); font-size: 13px; margin: 0; }
+  .hint + .hint { margin-top: 6px; }
+
+  .doc { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--doc-bg); }
+  .doc h3 { margin: 0 0 6px; font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .doc .sig { font-family: var(--mono); font-size: 12px; margin-bottom: 6px; word-break: break-word; }
+  .doc p { margin: 6px 0; font-size: 13px; }
+  .doc .brief { font-weight: 600; }
+  .doc .note { color: var(--muted); }
+  .doc dl { display: grid; grid-template-columns: max-content 1fr; gap: 3px 10px; margin: 4px 0; font-size: 13px; }
+  .doc dt { font-family: var(--mono); font-size: 12px; }
+  .doc dt .dir { margin-left: 5px; font-size: 10.5px; color: var(--muted); }
+  .doc dd { margin: 0; }
+  .doc .label { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .doc ul { margin: 4px 0; padding-left: 20px; font-family: var(--mono); font-size: 12px; }
+
+  #tabBar {
+    display: flex; align-items: center; gap: 8px; padding: 6px 14px;
+    border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted);
+  }
+  .tabs { display: flex; gap: 2px; }
+  .tabs button { border-radius: 6px 6px 0 0; font-size: 12px; }
+  .tabs button[aria-selected="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+  #fileInfo { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; font-family: var(--mono); }
+  #filePath { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #copyBtn, #docNewTab { font-family: var(--sans); font-size: 12px; padding: 2px 8px; }
+  #code {
+    position: relative; flex: 1; overflow: auto; padding: 6px 0;
+    background: var(--code-bg); font-family: var(--mono); font-size: 12.5px; line-height: 1.55;
+  }
+  .ln { display: flex; white-space: pre; min-width: max-content; }
+  .ln .no {
+    flex: 0 0 auto; width: 5ch; padding: 0 12px 0 8px; text-align: right;
+    color: var(--gutter); user-select: none;
+  }
+  .ln .tx { flex: 1; padding-right: 16px; }
+  .ln.rng { background: var(--range); }
+  .ln.tgt { background: var(--target); box-shadow: inset 3px 0 0 var(--target-edge); }
+  .empty { padding: 20px; color: var(--muted); font-family: var(--sans); white-space: normal; }
+  #docView { flex: 1; display: flex; min-height: 0; background: #ffffff; }
+  #docFrame { flex: 1; border: 0; width: 100%; height: 100%; background: #ffffff; }
+  [hidden] { display: none !important; }
+
+  @media (max-width: 820px) {
+    main { flex-direction: column; }
+    #diagramPane { flex-basis: 50% !important; }
+    #splitter { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">UML-Explorer<small id="suite"></small></div>
+  <nav class="crumbs" aria-label="Navigation">
+    <button id="btnOverview" type="button">Übersicht</button>
+    <button id="btnClasses" type="button" hidden>Klassendiagramme</button>
+    <span id="crumbSep">/</span>
+    <button id="crumbProgram" type="button" hidden></button>
+    <span id="crumbSep2" hidden>/</span>
+    <span id="crumbName"></span>
+  </nav>
+  <select id="diagramSelect" aria-label="Diagramm wählen"></select>
+  <div class="group" role="group" aria-label="Zoom">
+    <button id="zoomOut" type="button" title="Verkleinern">−</button>
+    <button id="zoomReset" type="button" title="Originalgröße">100 %</button>
+    <button id="zoomIn" type="button" title="Vergrößern">+</button>
+    <button id="zoomFit" type="button" title="An Breite anpassen">Einpassen</button>
+  </div>
+  <div class="group">
+    <button id="btnDoxygen" type="button" hidden title="Startseite der Doxygen-Doku zum Precoding-Code">Doxygen</button>
+    <a id="lnkFullDoxygen" class="btn" target="_blank" rel="noopener" hidden
+       title="Die vollständige Doxygen-Doku aus dem Build-Verzeichnis in einem neuen Tab">Gesamt-Doku</a>
+  </div>
+</header>
+<main>
+  <section id="diagramPane" aria-label="Diagramm">
+    <div id="svgHost"></div>
+    <div id="loading">Lade Diagramm …</div>
+  </section>
+  <div id="splitter" role="separator" aria-orientation="vertical" title="Breite ändern"></div>
+  <section id="codePane" aria-label="Quellcode und Dokumentation">
+    <div id="info"></div>
+    <div id="tabBar">
+      <div class="tabs" role="tablist">
+        <button id="tabCode" type="button" role="tab" aria-selected="true">Quellcode</button>
+        <button id="tabDoc" type="button" role="tab" aria-selected="false" hidden>Doxygen</button>
+      </div>
+      <div id="fileInfo">
+        <span id="filePath">Keine Datei geöffnet</span>
+        <span id="fileLine"></span>
+        <button id="copyBtn" type="button" hidden title="Pfad und Zeile kopieren, z. B. für Strg+Umschalt+N in CLion">Kopieren</button>
+        <button id="docNewTab" type="button" hidden title="Diese Doxygen-Seite in einem neuen Browser-Tab öffnen">Neuer Tab</button>
+      </div>
+    </div>
+    <div id="code"><div class="empty">Klicke links auf ein Element im Diagramm.</div></div>
+    <div id="docView" hidden>
+      <iframe id="docFrame" title="Doxygen-Dokumentation"></iframe>
+      <div id="docEmpty" class="empty" hidden>Für dieses Element gibt es keine Doxygen-Seite.</div>
+    </div>
+  </section>
+</main>
+<script>
+(function () {
+  "use strict";
+
+  const M = window.UML_MANIFEST;
+  const SOURCES = window.UML_SOURCES || {};
+  const DOCS = window.UML_DOCS || {};
+  window.UML_DIAGRAMS = window.UML_DIAGRAMS || {};
+  const $ = (id) => document.getElementById(id);
+  const pane = $("diagramPane");
+  const host = $("svgHost");
+  const codeEl = $("code");
+
+  if (!M) {
+    $("loading").textContent = "Daten fehlen. Bitte generate_uml.py ausführen.";
+    return;
+  }
+
+  const byName = new Map(M.diagrams.map((d) => [d.name, d]));
+  const bySvg = new Map(M.diagrams.map((d) => [d.svg, d]));
+  const KIND = {
+    participant: "Teilnehmer", call: "Aufruf", return: "Rückgabe", loop: "Schleife",
+    condition: "Bedingung", test: "Testfall", location: "Quelle", relation: "Beziehung",
+    file: "Datei", instantiation: "Parametrisierung",
+  };
+  const CLASS_TYPES = { enum: "Enum", struct: "Struktur", abstract: "Abstrakte Klasse", interface: "Interface" };
+  const META = {
+    call: [["from", "Aufrufer"], ["to", "Aufgerufen"]],
+    return: [["from", "Gibt zurück aus"], ["to", "An"]],
+    loop: [["from", "In Funktion"]],
+    condition: [["from", "In Funktion"]],
+    member: [["from", "Gehört zu"]],
+  };
+  const state = {
+    name: null, elements: [], base: null, scale: 1, path: null, marked: [], loc: null,
+    tab: "code", doc: null, docUrl: null,
+  };
+  const rendered = new Map();
+  const splitLines = new Map();
+
+  function store(key, value) { try { localStorage.setItem(key, value); } catch (e) { /* storage unavailable */ } }
+  function recall(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+
+  function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+
+  function button(text, onClick, cls) {
+    const b = el("button", cls || "", text);
+    b.type = "button";
+    b.addEventListener("click", onClick);
+    return b;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function kindLabel(element) {
+    if (element.kind === "class") return CLASS_TYPES[element.type] || "Klasse";
+    if (element.kind === "member") return element.title.includes("(") ? "Methode" : "Attribut";
+    return KIND[element.kind] || element.kind;
+  }
+
+  // Diagram selection and loading.
+
+  function buildSelect() {
+    const sel = $("diagramSelect");
+    let group = null;
+    let parent = sel;
+    for (const d of M.diagrams) {
+      if (d.name === M.index) {
+        sel.add(new Option("Übersicht: alle Test-Programme", d.name));
+        continue;
+      }
+      if (d.group !== group) {
+        group = d.group;
+        parent = document.createElement("optgroup");
+        parent.label = group;
+        sel.appendChild(parent);
+      }
+      parent.appendChild(new Option(d.title, d.name));
+    }
+    sel.addEventListener("change", () => openDiagram(sel.value));
+    $("suite").textContent = M.title || "";
+  }
+
+  function loadData(name) {
+    return new Promise((resolve, reject) => {
+      if (window.UML_DIAGRAMS[name]) return resolve(window.UML_DIAGRAMS[name]);
+      const d = byName.get(name);
+      if (!d) return reject(new Error("Unbekanntes Diagramm: " + name));
+      const s = document.createElement("script");
+      s.src = "data/" + d.data;
+      s.onload = () => (window.UML_DIAGRAMS[name] ? resolve(window.UML_DIAGRAMS[name])
+                                                   : reject(new Error("Daten fehlen: " + name)));
+      s.onerror = () => reject(new Error("Konnte " + s.src + " nicht laden."));
+      document.head.appendChild(s);
+    });
+  }
+
+  function hashName() {
+    try { return decodeURIComponent(location.hash.slice(1)); } catch (e) { return ""; }
+  }
+
+  async function openDiagram(name, opts) {
+    const push = !opts || opts.push !== false;
+    if (!byName.has(name)) name = M.index;
+    if (state.name === name) return;
+    const loading = $("loading");
+    loading.textContent = "Lade Diagramm …";
+    loading.hidden = false;
+    let data;
+    try {
+      data = await loadData(name);
+    } catch (e) {
+      loading.textContent = e.message;
+      return;
+    }
+    host.innerHTML = data.svg;
+    const svg = host.querySelector("svg");
+    const vb = svg.viewBox && svg.viewBox.baseVal;
+    state.base = {
+      w: (vb && vb.width) || parseFloat(svg.getAttribute("width")),
+      h: (vb && vb.height) || parseFloat(svg.getAttribute("height")),
+    };
+    svg.removeAttribute("width");
+    svg.removeAttribute("height");
+    state.name = name;
+    state.elements = data.elements || [];
+    setScale(Math.max(0.5, Math.min(1, fitScale())));
+    pane.scrollTo(0, 0);
+
+    const d = byName.get(name);
+    const isIndex = name === M.index;
+    const program = d.program ? byName.get(d.program) : null;
+    $("diagramSelect").value = name;
+    $("crumbName").textContent = isIndex ? "" : d.title;
+    $("crumbSep").hidden = isIndex;
+    $("crumbProgram").hidden = !program;
+    $("crumbSep2").hidden = !program;
+    if (program) {
+      $("crumbProgram").textContent = program.group;
+      $("crumbProgram").onclick = () => openDiagram(program.name);
+    }
+    document.title = (isIndex ? "Übersicht" : d.title) + " · UML-Explorer";
+    if (push) history.pushState({ name }, "", "#" + encodeURIComponent(name));
+    loading.hidden = true;
+  }
+
+  // Opens a diagram, selects one of its elements and scrolls it into view.
+  async function reveal(name, idx) {
+    await openDiagram(name);
+    const a = [...host.querySelectorAll("a")].find((x) => (x.getAttribute("href") || "").includes("?e=" + idx + "#"));
+    if (a) {
+      markSelected(a.getAttribute("href"));
+      const r = a.getBoundingClientRect();
+      const p = pane.getBoundingClientRect();
+      pane.scrollLeft += r.left - p.left - p.width / 2 + r.width / 2;
+      pane.scrollTop += r.top - p.top - p.height / 3;
+    }
+    if (state.elements[idx]) showElement(state.elements[idx]);
+  }
+
+  // Zoom and panning.
+
+  function fitScale() {
+    return state.base ? (pane.clientWidth - 24) / state.base.w : 1;
+  }
+
+  function setScale(s, anchor) {
+    const svg = host.querySelector("svg");
+    if (!svg || !state.base) return;
+    s = Math.min(3, Math.max(0.1, s));
+    let px = 0, py = 0, cx = 0, cy = 0;
+    if (anchor) {
+      const r = pane.getBoundingClientRect();
+      px = anchor.x - r.left;
+      py = anchor.y - r.top;
+      cx = (pane.scrollLeft + px) / state.scale;
+      cy = (pane.scrollTop + py) / state.scale;
+    }
+    state.scale = s;
+    svg.style.width = state.base.w * s + "px";
+    svg.style.height = state.base.h * s + "px";
+    $("zoomReset").textContent = Math.round(s * 100) + " %";
+    if (anchor) {
+      pane.scrollLeft = cx * s - px;
+      pane.scrollTop = cy * s - py;
+    }
+  }
+
+  $("zoomIn").addEventListener("click", () => setScale(state.scale * 1.25));
+  $("zoomOut").addEventListener("click", () => setScale(state.scale / 1.25));
+  $("zoomReset").addEventListener("click", () => setScale(1));
+  $("zoomFit").addEventListener("click", () => setScale(fitScale()));
+  pane.addEventListener("wheel", (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    setScale(state.scale * (e.deltaY < 0 ? 1.1 : 1 / 1.1), { x: e.clientX, y: e.clientY });
+  }, { passive: false });
+
+  let drag = null;
+  pane.addEventListener("mousedown", (e) => {
+    if (e.button !== 0 || e.target.closest("a")) return;
+    drag = { x: e.clientX, y: e.clientY, l: pane.scrollLeft, t: pane.scrollTop };
+    pane.classList.add("dragging");
+    e.preventDefault();
+  });
+  window.addEventListener("mousemove", (e) => {
+    if (!drag) return;
+    pane.scrollLeft = drag.l - (e.clientX - drag.x);
+    pane.scrollTop = drag.t - (e.clientY - drag.y);
+  });
+  window.addEventListener("mouseup", () => {
+    drag = null;
+    pane.classList.remove("dragging");
+  });
+
+  // Clicks in the diagram.
+
+  host.addEventListener("click", (e) => {
+    const a = e.target.closest("a");
+    if (!a) return;
+    e.preventDefault();
+    onLink(a.getAttribute("href") || a.getAttribute("xlink:href") || "");
+  });
+
+  function markSelected(href) {
+    for (const a of host.querySelectorAll("a")) {
+      a.classList.toggle("sel", (a.getAttribute("href") || a.getAttribute("xlink:href")) === href);
+    }
+  }
+
+  function onLink(href) {
+    let m = href.match(/^src:\/\/([^?#]+)(?:\?e=(\d+))?(?:#(\d+))?$/);
+    if (m) {
+      markSelected(href);
+      const element = m[2] !== undefined ? state.elements[Number(m[2])] : null;
+      showElement(element || {
+        kind: "location", title: m[1],
+        locs: [{ label: "Quelle", path: m[1], line: Number(m[3] || 1), span: "stmt" }],
+      });
+      return;
+    }
+    if (/\.svg$/.test(href)) {
+      const target = bySvg.get(resolveSvg(href));
+      if (target) target.test ? openTest(target.name) : openDiagram(target.name);
+      return;
+    }
+    if (/^https?:/.test(href)) window.open(href, "_blank", "noopener");
+  }
+
+  // Resolves a link of the static SVG files against the folder of the current diagram.
+  function resolveSvg(href) {
+    const current = byName.get(state.name);
+    const parts = current ? current.svg.split("/").slice(0, -1) : [];
+    for (const seg of href.split("/")) {
+      if (seg === "..") parts.pop();
+      else if (seg && seg !== ".") parts.push(seg);
+    }
+    return parts.join("/");
+  }
+
+  async function openTest(name) {
+    await openDiagram(name);
+    const d = byName.get(name);
+    if (d && d.test) {
+      const test = Object.assign({ label: "TEST-Makro" }, d.test);
+      showElement({ kind: "test", title: d.title, doc: d.test.doc, locs: [test], gdb: d.gdb });
+    }
+  }
+
+  function renderGdb(gdb) {
+    const box = el("section", "doc");
+    box.append(el("h3", "", "Validierung mit gdb"));
+    box.append(el("p", "", "Ein Testlauf unter gdb hat " + gdb.calls + " Aufrufe innerhalb der Testfunktionen aufgezeichnet und mit dem statischen Diagramm verglichen."));
+    if (gdb.bridges.length) {
+      box.append(el("p", "", gdb.bridgesApplied === false
+        ? "Nur über ausgeblendeten Code erreicht. clang-uml konnte diese Startpunkte nicht ergänzen, das Diagramm zeigt sie deshalb nicht:"
+        : "Nur über ausgeblendeten Code erreicht, deshalb als eigene Startpunkte ergänzt (gtest-Assertions, std::visit, vom Compiler erzeugte Member):"));
+      const ul = el("ul");
+      for (const b of gdb.bridges) ul.append(el("li", "", b));
+      box.append(ul);
+    }
+    if (gdb.dropped && gdb.dropped.length) {
+      box.append(el("p", "note", "Von clang-uml nicht auffindbar, meist nicht instanziierte Templates: " + gdb.dropped.join(", ")));
+    }
+    if (gdb.implicit && gdb.implicit.length) {
+      box.append(el("p", "note", "Vom Compiler erzeugte Member ohne Quelltext, deshalb nicht darstellbar: " + gdb.implicit.join(", ")));
+    }
+    if (gdb.missing.length) {
+      box.append(el("p", "note", "Dynamische Aufrufe ohne Gegenstück im Diagramm: " + gdb.missing.join(", ")));
+    } else {
+      box.append(el("p", "note", "Jeder weitere aufgezeichnete Aufruf hat ein Gegenstück im Diagramm."));
+    }
+    return box;
+  }
+
+  // Element details.
+
+  function showIntro() {
+    const info = $("info");
+    info.replaceChildren(
+      el("p", "hint", "Klicke im Diagramm auf einen Teilnehmer, einen Aufruf, ein „return“, eine Schleifen- oder Bedingungszeile, eine Klasse, ein Attribut oder eine Beziehung. Hier erscheinen dann der Originalcode und die Doxygen-Dokumentation."),
+      el("p", "hint", "Blau unterstrichene Texte und die Kästen sind anklickbar. Strg + Mausrad zoomt, Ziehen verschiebt das Diagramm."));
+  }
+
+  function showElement(element, which) {
+    which = which || 0;
+    const info = $("info");
+    info.replaceChildren();
+    info.append(el("span", "badge k-" + element.kind, kindLabel(element)), el("div", "el-title", element.title));
+
+    const rows = (META[element.kind] || []).filter(([key]) => element[key]);
+    if (rows.length) {
+      const dl = el("dl", "meta");
+      for (const [key, label] of rows) dl.append(el("dt", "", label), el("dd", "", element[key]));
+      info.append(dl);
+    }
+
+    const locs = element.locs || [];
+    if (locs.length) {
+      const bar = el("div", "row");
+      locs.forEach((l, i) => {
+        const b = button(l.label, () => {
+          for (const x of bar.children) x.classList.remove("active");
+          b.classList.add("active");
+          showTab("code");
+          showLocation(l);
+        }, i === which ? "active" : "");
+        b.append(el("span", "p", shortPath(l.path) + ":" + l.line));
+        b.title = l.path + ":" + l.line;
+        bar.append(b);
+      });
+      info.append(bar);
+    } else {
+      info.append(el("p", "hint", "Für dieses Element ist kein Quellcode verfügbar."));
+    }
+
+    if (element.cls && state.name !== element.cls.d && byName.has(element.cls.d)) {
+      const bar = el("div", "row");
+      const target = byName.get(element.cls.d);
+      bar.append(button("Im Klassendiagramm „" + target.title + "“ zeigen", () => reveal(element.cls.d, element.cls.e)));
+      info.append(bar);
+    }
+
+    if (element.usedIn && element.usedIn.length) {
+      info.append(el("div", "section-label", "Verwendet in " + element.usedIn.length + " Testfällen"));
+      const chips = el("div", "chips");
+      for (const test of element.usedIn) {
+        const d = byName.get(test.name);
+        const chip = button(test.title, () => openTest(test.name));
+        if (d && d.program) chip.title = byName.get(d.program).group;
+        chips.append(chip);
+      }
+      info.append(chips);
+    } else if (element.kind === "class") {
+      info.append(el("div", "section-label", "In keinem Testdiagramm direkt verwendet"));
+    }
+
+    if (element.gdb) info.append(renderGdb(element.gdb));
+
+    state.doc = element.doc && DOCS[element.doc] ? DOCS[element.doc] : null;
+    state.docUrl = null;
+    if (state.doc) info.append(renderDoc(state.doc));
+
+    if (locs.length) showLocation(locs[which]);
+    if (state.tab === "doxygen") updateDocView();
+  }
+
+  function renderDoc(doc) {
+    const box = el("section", "doc");
+    box.append(el("h3", "", "Doxygen-Dokumentation"));
+    if (doc.name) box.append(el("div", "sig", doc.name));
+    const params = doc.params || [];
+    const hasText = doc.brief || (doc.details || []).length || params.length || doc.returns;
+    if (doc.brief) box.append(el("p", "brief", doc.brief));
+    for (const p of doc.details || []) box.append(el("p", "", p));
+    if (params.length) {
+      box.append(el("div", "label", "Parameter"));
+      const dl = el("dl");
+      for (const p of params) {
+        const dt = el("dt", "", p.name);
+        const dir = p.kind === "templateparam" ? "Template" : p.dir;
+        if (dir) dt.append(el("span", "dir", dir));
+        dl.append(dt, el("dd", "", p.text));
+      }
+      box.append(dl);
+    }
+    if (doc.returns) {
+      const p = el("p");
+      p.append(el("strong", "", "Rückgabe: "), document.createTextNode(doc.returns));
+      box.append(p);
+    }
+    for (const n of doc.notes || []) box.append(el("p", "note", "Hinweis: " + n));
+    if (!hasText) box.append(el("p", "note", "Kein Doxygen-Kommentar im Quelltext. Die Doxygen-Seite zeigt trotzdem Aufruf- und Aufrufergraph."));
+    if (M.doxygen) {
+      const bar = el("div", "row");
+      bar.append(button("Doxygen-Seite mit Graphen öffnen", () => showTab("doxygen")));
+      box.append(bar);
+    }
+    return box;
+  }
+
+  function shortPath(path) {
+    const parts = path.split("/");
+    return parts.length > 2 ? "…/" + parts.slice(-2).join("/") : path;
+  }
+
+  // Tabs for source code and Doxygen.
+
+  function docUrl() {
+    if (state.docUrl) return state.docUrl;
+    if (!state.doc || !M.doxygen) return null;
+    return "doxygen/html/" + state.doc.page + (state.doc.anchor ? "#" + state.doc.anchor : "");
+  }
+
+  function updateDocView() {
+    const url = docUrl();
+    const frame = $("docFrame");
+    $("docEmpty").hidden = !!url;
+    frame.hidden = !url;
+    $("docNewTab").hidden = !url;
+    if (url && frame.getAttribute("src") !== url) frame.setAttribute("src", url);
+  }
+
+  function showTab(tab) {
+    if (tab === "doxygen" && !M.doxygen) tab = "code";
+    state.tab = tab;
+    const isDoc = tab === "doxygen";
+    $("tabCode").setAttribute("aria-selected", String(!isDoc));
+    $("tabDoc").setAttribute("aria-selected", String(isDoc));
+    codeEl.hidden = isDoc;
+    $("docView").hidden = !isDoc;
+    for (const id of ["filePath", "fileLine"]) $(id).hidden = isDoc;
+    $("copyBtn").hidden = isDoc || !state.loc;
+    $("docNewTab").hidden = true;
+    if (isDoc) updateDocView();
+  }
+
+  $("tabCode").addEventListener("click", () => showTab("code"));
+  $("tabDoc").addEventListener("click", () => showTab("doxygen"));
+  $("docNewTab").addEventListener("click", () => {
+    const url = docUrl();
+    if (url) window.open(url, "_blank", "noopener");
+  });
+
+  // Source view.
+
+  function linesOf(path) {
+    if (!splitLines.has(path)) splitLines.set(path, SOURCES[path].split("\n"));
+    return splitLines.get(path);
+  }
+
+  function splitHighlighted(html) {
+    const out = [];
+    const open = [];
+    let cur = "";
+    for (const tok of html.match(/<span[^>]*>|<\/span>|\n|[^<\n]+/g) || []) {
+      if (tok === "\n") {
+        cur += "</span>".repeat(open.length);
+        out.push(cur);
+        cur = open.join("");
+      } else if (tok.startsWith("<span")) {
+        open.push(tok);
+        cur += tok;
+      } else if (tok === "</span>") {
+        open.pop();
+        cur += tok;
+      } else {
+        cur += tok;
+      }
+    }
+    out.push(cur);
+    return out;
+  }
+
+  function renderSource(path) {
+    if (!rendered.has(path)) {
+      const text = SOURCES[path];
+      let lines = null;
+      if (window.hljs) {
+        try {
+          lines = splitHighlighted(window.hljs.highlight(text, { language: "cpp", ignoreIllegals: true }).value);
+        } catch (e) {
+          lines = null;
+        }
+      }
+      if (!lines) lines = text.split("\n").map(escapeHtml);
+      rendered.set(path, lines.map((l, i) =>
+        '<div class="ln"><span class="no">' + (i + 1) + '</span><span class="tx">' + (l || " ") + "</span></div>").join(""));
+    }
+    return rendered.get(path);
+  }
+
+  function stripNoise(line) {
+    return line.replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g, '""').replace(/\/\/.*$/, "");
+  }
+
+  // Returns the line range of the body that starts at line, or of the statement if there is no body.
+  function blockRange(lines, start) {
+    let braces = 0, parens = 0, opened = false;
+    const limit = Math.min(lines.length, start + 2000);
+    for (let i = start - 1; i < limit; i++) {
+      for (const c of stripNoise(lines[i])) {
+        if (c === "(") parens++;
+        else if (c === ")") parens--;
+        else if (parens > 0) continue;
+        else if (c === "{") { braces++; opened = true; }
+        else if (c === "}") { braces--; if (opened && braces === 0) return [start, i + 1]; }
+        else if (c === ";" && !opened) return [start, i + 1];
+      }
+    }
+    return [start, start];
+  }
+
+  // Returns the line range of the statement that starts at line.
+  function stmtRange(lines, start) {
+    let parens = 0;
+    const limit = Math.min(lines.length, start + 30);
+    for (let i = start - 1; i < limit; i++) {
+      for (const c of stripNoise(lines[i])) {
+        if (c === "(") parens++;
+        else if (c === ")") parens--;
+        else if (parens <= 0 && (c === ";" || c === "{")) return [start, i + 1];
+      }
+    }
+    return [start, start];
+  }
+
+  function showLocation(loc) {
+    state.loc = loc;
+    $("filePath").textContent = loc.path;
+    $("filePath").title = loc.path;
+    $("fileLine").textContent = "Zeile " + loc.line;
+    $("copyBtn").hidden = state.tab !== "code";
+    if (SOURCES[loc.path] == null) {
+      codeEl.innerHTML = '<div class="empty">Diese Datei ist nicht eingebettet.</div>';
+      state.path = null;
+      return;
+    }
+    if (state.path !== loc.path) {
+      codeEl.innerHTML = renderSource(loc.path);
+      state.path = loc.path;
+      state.marked = [];
+    }
+    for (const n of state.marked) n.classList.remove("rng", "tgt");
+    state.marked = [];
+    const lines = linesOf(loc.path);
+    const [from, to] = loc.span === "block" ? blockRange(lines, loc.line) : stmtRange(lines, loc.line);
+    for (let i = from; i <= to; i++) {
+      const n = codeEl.children[i - 1];
+      if (n) {
+        n.classList.add("rng");
+        state.marked.push(n);
+      }
+    }
+    const target = codeEl.children[loc.line - 1];
+    if (target) {
+      target.classList.add("tgt");
+      state.marked.push(target);
+      codeEl.scrollTop = Math.max(0, target.offsetTop - codeEl.clientHeight / 3);
+    }
+  }
+
+  $("copyBtn").addEventListener("click", async () => {
+    if (!state.loc) return;
+    const text = state.loc.path + ":" + state.loc.line;
+    const btn = $("copyBtn");
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = "Kopiert";
+    } catch (e) {
+      btn.textContent = text;
+    }
+    setTimeout(() => { btn.textContent = "Kopieren"; }, 1500);
+  });
+
+  // Split between diagram and source.
+
+  const saved = parseFloat(recall("uml-explorer-split"));
+  if (saved > 10 && saved < 90) pane.style.flexBasis = saved + "%";
+  $("splitter").addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    const box = document.querySelector("main").getBoundingClientRect();
+    const move = (ev) => {
+      const pct = Math.min(85, Math.max(15, ((ev.clientX - box.left) / box.width) * 100));
+      pane.style.flexBasis = pct + "%";
+    };
+    const up = () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+      store("uml-explorer-split", String(parseFloat(pane.style.flexBasis)));
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  });
+
+  // Header.
+
+  $("btnOverview").addEventListener("click", () => openDiagram(M.index));
+  if (M.classes && byName.has(M.classes)) {
+    $("btnClasses").hidden = false;
+    $("btnClasses").addEventListener("click", () => openDiagram(M.classes));
+  }
+  if (M.doxygen) {
+    $("tabDoc").hidden = false;
+    $("btnDoxygen").hidden = false;
+    $("btnDoxygen").addEventListener("click", () => {
+      state.docUrl = M.doxygen;
+      showTab("doxygen");
+    });
+  }
+  if (M.fullDoxygen) {
+    $("lnkFullDoxygen").href = M.fullDoxygen;
+    $("lnkFullDoxygen").hidden = false;
+  }
+  window.addEventListener("popstate", () => openDiagram(hashName() || M.index, { push: false }));
+
+  buildSelect();
+  showIntro();
+  const initial = hashName() || M.index;
+  history.replaceState({ name: initial }, "", "#" + encodeURIComponent(initial));
+  openDiagram(initial, { push: false });
+})();
+</script>
+</body>
+</html>

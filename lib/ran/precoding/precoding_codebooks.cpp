@@ -10,6 +10,17 @@
 #include "ocudu/adt/format.h"
 #include "ocudu/adt/interval.h"
 
+
+/**
+ *Aufrufkette von make_type_sp_mode1():
+
+ * generate_precoding_codebooks(...)
+  → generate_pdsch_sp_type1(...)
+    → make_composite(...)
+      → make_precoding(...)
+        → make_type1_sp_mode1(...)
+ */
+
 using namespace ocudu;
 
 precoding_weight_matrix ocudu::make_single_port()

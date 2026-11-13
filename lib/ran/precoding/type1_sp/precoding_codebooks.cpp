@@ -260,7 +260,7 @@ static std::pair<unsigned, unsigned> get_k1_and_k2_3_4_layers(const pmi_codebook
   return {0, 0};
 }
 
-precoding_weight_matrix ocudu::make_type1_sp_mode1(const pmi_typeI_single_panel& pmi, unsigned nof_layers)
+precoding_weight_matrix ocudu::make_type1_sp_mode1(const pmi_typeI_single_panel& pmi, unsigned nof_layers) //Bekommt pmi von oben und die anzahl an layern
 {
   ocudu_assert(nof_layers <= precoding_constants::MAX_NOF_LAYERS,
                "The number of layers ({}) cannot be higher than the maximum ({}).",

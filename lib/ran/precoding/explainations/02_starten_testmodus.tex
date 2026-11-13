@@ -1,0 +1,115 @@
+\section{OCUDU mit PDSCH-Traffic starten und die Generierung beobachten}
+
+Es gibt zwei Wege: die komplette gNB im Testmodus mit Dummy-RU (kein Core, kein Funk, aber echter PDSCH-Traffic
+für ein Phantom-UE), oder die Unit-Tests der Codebook-Generierung im Debugger.
+
+\subsection{Bauen}
+
+\begin{lstlisting}[language=bash]
+cmake --build cmake-build-debug --target gnb precoding_codebook_generator_test precoding_codebooks_test -j4
+\end{lstlisting}
+
+\subsection{Konfiguration: Testmodus mit 4 Ports}
+
+Vorlage ist \file{configs/testmode.yml}. Für Type-I-Codebooks sind mindestens 4 DL-Antennen nötig, sonst wird
+nur das 2-Port- oder 1-Port-Codebook erzeugt.
+
+\begin{lstlisting}[language=yaml,title={configs/testmode\_4x4.yml (Beispiel)}]
+cu_cp:
+  amf:
+    no_core: true
+
+ru_dummy:
+  dl_processing_delay: 1
+
+cell_cfg:
+  dl_arfcn: 632628
+  band: 78
+  channel_bandwidth_MHz: 20
+  common_scs: 30
+  plmn: "00101"
+  tac: 7
+  pci: 1
+  nof_antennas_dl: 4
+  nof_antennas_ul: 4
+  # Optional: Topologie mit Beam-Raster. Ohne Angabe wird four_ports abgeleitet.
+  # tx_ant_topology: single_panel_two_one
+
+test_mode:
+  test_ue:
+    rnti: 0x44
+    nof_ues: 1
+    pdsch_active: true
+    pusch_active: false
+    cqi: 15
+    ri: 2          # 1..4, bestimmt die Layer-Anzahl
+    i_1_1: 1       # PMI-Felder, die das Phantom-UE "meldet"
+    i_1_3: 0
+    i_2: 1
+
+log:
+  filename: /tmp/gnb.log
+  all_level: warning
+  mac_level: debug
+  phy_level: debug
+\end{lstlisting}
+
+Das Phantom-UE meldet seine CSI aus genau diesen Werten. Das Packen passiert in
+\file{lib/du/du\_high/test\_mode/mac\_test\_mode\_helpers.cpp}:
+
+\begin{lstlisting}[language=C++,title={lib/du/du\_high/test\_mode/mac\_test\_mode\_helpers.cpp, fill\_pmi\_bits()}]
+const auto* single_panel = std::get_if<pmi_codebook_typeI_single_panel>(&pmi_codebook);
+if (single_panel == nullptr) {
+  return;
+}
+
+// The fields that the panel topology and the rank do not report have a zero bit-width.
+const pmi_typeI_single_panel_param_sizes sizes =
+    get_pmi_sizes_typeI_single_panel(get_single_panel_info(single_panel->n1_n2), rank);
+packed.push_back(test_ue_cfg.i_1_1, sizes.i_1_1);
+packed.push_back(test_ue_cfg.i_1_2.value_or(0), sizes.i_1_2);
+packed.push_back(test_ue_cfg.i_1_3.value_or(0), sizes.i_1_3);
+packed.push_back(test_ue_cfg.i_2, sizes.i_2);
+\end{lstlisting}
+
+Starten:
+\begin{lstlisting}[language=bash]
+./cmake-build-debug/apps/gnb/gnb -c configs/testmode_4x4.yml
+\end{lstlisting}
+
+Die Topologie-Namen liefert \code{./cmake-build-debug/apps/gnb/gnb cell\_cfg -h}. Namen mit Präfix
+\code{single\_panel\_} haben ein Beam-Raster.
+
+\subsection{Breakpoints für die Generierung}
+
+Die Codebook-Erzeugung loggt nichts und läuft genau einmal beim Start, bevor Traffic fließt.
+\begin{itemize}
+  \item \file{lib/fapi\_adaptor/precoding\_codebook\_generator.cpp:184}, die Zeile
+    \code{repo\_builder.add(pm\_index, make\_composite(...))} in der vierfachen Schleife.
+  \item \file{lib/ran/precoding/type1\_sp/precoding\_codebooks.cpp}, Einstieg von \code{make\_type1\_sp\_mode1()}
+    und der \code{switch (nof\_layers)}.
+  \item \file{lib/du/du\_low/o\_du\_low\_factory.cpp:64} und \file{lib/du/du\_high/o\_du\_high\_factory.cpp:105},
+    die beiden Aufrufer.
+\end{itemize}
+
+Isolierter geht es über die Unit-Tests:
+\begin{lstlisting}[language=bash]
+./cmake-build-debug/tests/unittests/fapi_adaptor/precoding_codebook_generator_test --gtest_filter='*TypeI*'
+./cmake-build-debug/tests/unittests/ran/precoding_codebooks_test
+\end{lstlisting}
+
+\subsection{Die Nutzung im laufenden Traffic}
+
+Mit \code{mac\_level: debug} schreibt der Scheduler pro PDSCH-Grant die gewählte PMI ins Log
+(\file{lib/scheduler/logging/scheduler\_result\_logger.cpp:627}, Format \code{ri=<layers>} gefolgt von den
+PMI-Feldern). Mit \code{phy\_level: debug} protokolliert der PDSCH-Prozessor die angewendete
+Precoding-Konfiguration.
+
+\begin{lstlisting}[language=bash]
+grep -E "PDSCH.*ri=" /tmp/gnb.log | head
+\end{lstlisting}
+
+Den Weg von der PMI im Scheduler zum Index im Repository zeigt \file{lib/fapi\_adaptor/precoding\_codebook\_mapper.cpp}.
+Zur Laufzeit wird nichts neu gerechnet: Der PHY-Adaptor holt in
+\file{lib/fapi\_adaptor/phy/p7/pdu\_translators/precoding.h:19} mit \code{get\_precoding\_config()} das fertige
+Composite aus dem Repository.

@@ -1,0 +1,64 @@
+% Erklaerungen zum Type-I-Precoding und Beamforming in OCUDU.
+% Uebersetzen: pdflatex main.tex  (zweimal fuer das Inhaltsverzeichnis)
+\documentclass[a4paper,11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[ngerman]{babel}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black}
+
+% Quellcode-Darstellung.
+\definecolor{codebg}{gray}{0.96}
+\definecolor{codecomment}{rgb}{0.3,0.5,0.3}
+\definecolor{codekw}{rgb}{0.1,0.1,0.6}
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebg},
+  commentstyle=\color{codecomment},
+  keywordstyle=\color{codekw}\bfseries,
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  frame=single,
+  framerule=0pt,
+  xleftmargin=4pt,
+  xrightmargin=4pt,
+  showstringspaces=false,
+  tabsize=2,
+}
+\lstdefinelanguage{yaml}{
+  keywords={true,false,null},
+  sensitive=false,
+  comment=[l]{\#},
+  morestring=[b]",
+}
+\newcommand{\file}[1]{\texttt{#1}}
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{Type-I-Precoding und Beamforming in OCUDU\\\large Erklärungen mit Quellcode-Ausschnitten}
+\author{Zusammengestellt aus einer Code-Analyse des Repositories}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\bigskip
+
+\noindent Alle Pfade sind relativ zur Wurzel des Repositories. Zeilennummern beziehen sich auf den Stand vom
+6.\,November 2026 (Commit \code{9f591a95fc}) und können sich mit späteren Änderungen verschieben.
+
+\input{01_dateien}
+\input{02_starten_testmodus}
+\input{03_zwei_matrizen}
+\input{04_mathematik}
+\input{05_dispatcher}
+\input{06_tests}
+
+\end{document}

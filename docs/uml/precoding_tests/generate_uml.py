@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Generates navigable UML diagrams and a source viewer for the precoding unit tests.
 
-Covers every test program built from tests/unittests/ran/precoding and produces:
+Covers every test program built from tests/unittests/ran/precoding and tests/unittests/ran/beamforming and
+produces:
 - a start page with all test programs and their source files,
 - per test program, the call chain from main() through gtest to every test case,
 - per test case, a sequence diagram with the static call chain from the fixture set-up and TestBody() into the
@@ -38,7 +39,9 @@ REPO = SCRIPT_DIR.parents[2]
 OUTPUT_NAME = "precoding_tests"
 TITLE = "Precoding-Unittests"
 
-TEST_DIR = "tests/unittests/ran/precoding"
+# Test directories covered. Test programs are the add_executable entries of CMAKE_FILE whose sources lie in one of them.
+TEST_DIRS = ["tests/unittests/ran/precoding", "tests/unittests/ran/beamforming"]
+TEST_DIR = TEST_DIRS[0]
 CMAKE_FILE = "tests/unittests/ran/CMakeLists.txt"
 GTEST_MAIN = "tests/test_doubles/utils/ocudu_gtest_main.cpp"
 GTEST_HEADER = "/usr/include/gtest/gtest.h"
@@ -62,7 +65,7 @@ LIBRARY_SOURCES = [
 # Only functions and classes declared under these paths appear in the sequence diagrams. Calls are followed from the
 # test, so a broad path adds only what the test reaches.
 SEQUENCE_PATHS = [
-    TEST_DIR,
+    *TEST_DIRS,
     "include/ocudu/ran",
     "lib/ran/precoding",
     "lib/ran/beamforming",
@@ -74,7 +77,7 @@ SEQUENCE_PATHS = [
 
 # Inputs of the Doxygen run and of the definition lookup.
 DOC_PATHS = [
-    TEST_DIR,
+    *TEST_DIRS,
     "include/ocudu/ran/precoding",
     "lib/ran/precoding",
     "include/ocudu/ran/beamforming",
@@ -104,8 +107,8 @@ CLASS_DIAGRAMS = [
       "include/ocudu/phy/support/resource_grid_writer.h", "include/ocudu/phy/generic_functions/precoding"],
      []),
     ("classes_test_fixtures", "Test-Fixtures und Testdaten",
-     [f"{TEST_DIR}/*.cpp"],
-     [TEST_DIR],
+     [f"{d}/*.cpp" for d in TEST_DIRS],
+     TEST_DIRS,
      [r".*_Test$"]),
 ]
 
@@ -265,13 +268,13 @@ def find_programs(sources, build_dir):
     programs = []
     for m in re.finditer(r"add_executable\(\s*(\w+)\s+([^)]*)\)", text):
         files = [os.path.normpath(f"{cmake_dir}/{s}") for s in m.group(2).split()]
-        files = [f for f in files if f.startswith(TEST_DIR + "/")]
+        files = [f for f in files if any(f.startswith(d + "/") for d in TEST_DIRS)]
         if files:
             programs.append(TestProgram(m.group(1), files))
     for program in programs:
         for source in program.sources:
             for inc in re.findall(r'^#include "(\w+\.h)"', sources.text(source) or "", re.M):
-                header = f"{TEST_DIR}/{inc}"
+                header = f"{os.path.dirname(source)}/{inc}"
                 if (REPO / header).is_file() and header not in program.headers:
                     program.headers.append(header)
         for path in program.sources + program.headers:
@@ -502,6 +505,16 @@ def run_clang_uml(config, threads, log, diagram=None):
 UNKNOWN_START_RE = re.compile(r"Failed to find participant matching '([^']+)' for 'from' condition")
 
 
+def is_complete_json(path):
+    """Whether the file holds a complete JSON document."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            json.load(f)
+        return True
+    except (ValueError, OSError):
+        return False
+
+
 def run_bridged(program, test, config_dir, build_dir, out_dir, tus, all_calls, log):
     """Regenerates one diagram with its bridges. Bridges clang-uml does not know are dropped and the run is
     repeated. Returns True when the bridged diagram was written."""
@@ -512,7 +525,14 @@ def run_bridged(program, test, config_dir, build_dir, out_dir, tus, all_calls, l
         write_sequence_config(config, build_dir, out_dir, program, tus, all_calls, [test], output="bridged")
         output = run_clang_uml(config, 1, log, test.key)
         if (out_dir / "bridged" / f"{test.key}.json").is_file():
-            return True
+            if is_complete_json(out_dir / "bridged" / f"{test.key}.json"):
+                return True
+            # clang-uml ran out of memory while writing the model, e.g. with std::bad_alloc at the address-space
+            # limit, and left a truncated file. The diagram of the first pass stays in use.
+            for suffix in (".json", ".puml"):
+                (out_dir / "bridged" / f"{test.key}{suffix}").unlink(missing_ok=True)
+            print(f"clang-uml: {test.key} with extra entry points is incomplete, keeping the first pass.")
+            return False
         unknown = UNKNOWN_START_RE.findall(output)
         if not unknown:
             return False
@@ -1472,7 +1492,7 @@ def write_start_page(path, programs, sources):
     w = OverviewWriter(sources)
     out = [
         "@startuml",
-        f"title {TITLE}: Test-Programme aus {TEST_DIR}",
+        f"title {TITLE}: Test-Programme aus {', '.join(TEST_DIRS)}",
         f"header Klick auf ein Test-Programm öffnet seine Aufrufkette. Klassendiagramme: {class_header_links('')}",
         "footer Die Test-Programme stehen in " + CMAKE_FILE + " und laufen über ctest.",
         "left to right direction",
@@ -1709,6 +1729,9 @@ def main():
                         help="keep trivial getters and expand every repeated call")
     parser.add_argument("--reuse", action="store_true",
                         help="skip clang-uml and Doxygen and reuse their previous output")
+    parser.add_argument("--add", nargs="+", metavar="PROGRAM",
+                        help="add these test programs to a previous run: clang-uml, gdb and the bridges run for them "
+                             "only, every other diagram is reused; implies --reuse")
     parser.add_argument("--no-gdb", action="store_true",
                         help="skip the gdb validation of the call chains")
     parser.add_argument("--memory-limit", type=int, default=MEMORY_LIMIT_GB,
@@ -1726,7 +1749,11 @@ def main():
     out_dir = build_dir / "clang_uml" / OUTPUT_NAME
     raw_dir, bridged_dir = out_dir / "raw", out_dir / "bridged"
     tests_dir, programs_dir = out_dir / "tests", out_dir / "executables"
-    for d in (tests_dir, programs_dir, bridged_dir) + (() if args.reuse else (raw_dir,)):
+    added = set(args.add or [])
+    reuse = args.reuse or bool(added)
+    # A plain run starts from scratch, --reuse keeps the first clang-uml pass, --add keeps the bridged diagrams and
+    # gdb traces of the other programs as well.
+    for d in (tests_dir, programs_dir) + (() if added else (bridged_dir,)) + (() if reuse else (raw_dir,)):
         shutil.rmtree(d, ignore_errors=True)
         d.mkdir(parents=True)
 
@@ -1734,29 +1761,44 @@ def main():
     compile_db = read_compile_db(build_dir)
     programs = find_programs(sources, build_dir)
     print(f"{len(programs)} test programs with {sum(len(p.tests) for p in programs)} test cases found.")
+    if unknown := added - {p.name for p in programs}:
+        sys.exit(f"Unknown test programs: {', '.join(sorted(unknown))}. "
+                 f"Known: {', '.join(p.name for p in programs)}.")
+    selected = [p for p in programs if not added or p.name in added]
+    for program in selected if added else []:
+        # Drop the previous output of the added programs so that every phase regenerates it.
+        for test in program.tests:
+            for d, suffix in ((raw_dir, ".puml"), (raw_dir, ".json"), (bridged_dir, ".puml"), (bridged_dir, ".json"),
+                              (out_dir / "gdb", ".jsonl")):
+                (d / f"{test.key}{suffix}").unlink(missing_ok=True)
 
     log = out_dir / "clang-uml.log"
     log.write_text("", encoding="utf-8")
-    if not args.reuse:
-        for program in programs:
+    if not reuse or added:
+        for program in selected:
             tus = library_tus(program, sources, compile_db)
             print(f"clang-uml: {program.name}, {len(program.tests)} test cases, {len(tus)} library files.")
             config = out_dir / f"clang-uml_{program.name}.yml"
             write_sequence_config(config, build_dir, out_dir, program, tus, args.all_calls)
             run_clang_uml(config, args.threads, log)
-        print("clang-uml: class diagrams.")
         class_config = out_dir / "clang-uml_classes.yml"
         write_class_config(class_config, build_dir, out_dir, compile_db)
-        run_clang_uml(class_config, min(args.threads, len(CLASS_DIAGRAMS)), log)
+        if added:
+            # The test fixtures of the added programs belong to this diagram; the library diagrams are unchanged.
+            print("clang-uml: class diagram of the test fixtures.")
+            run_clang_uml(class_config, 1, log, "classes_test_fixtures")
+        else:
+            print("clang-uml: class diagrams.")
+            run_clang_uml(class_config, min(args.threads, len(CLASS_DIAGRAMS)), log)
     report = {}
     if not args.no_gdb and shutil.which("gdb"):
         print("gdb: tracing every test case once.")
-        report = validate_with_gdb(programs, build_dir, out_dir, raw_dir, sources, args.reuse)
+        report = validate_with_gdb(programs, build_dir, out_dir, raw_dir, sources, reuse)
         (out_dir / "gdb_validation.json").write_text(json.dumps(report, indent=1, ensure_ascii=False),
                                                       encoding="utf-8")
         config_dir = out_dir / "configs"
         config_dir.mkdir(exist_ok=True)
-        for program in programs:
+        for program in selected:
             bridged = [t for t in program.tests if getattr(t, "bridges", [])]
             if not bridged:
                 continue
@@ -1776,7 +1818,7 @@ def main():
             shutil.copyfile(puml, tests_dir / puml.name)
             shutil.copyfile(puml.with_suffix(".json"), tests_dir / f"{puml.stem}.json")
 
-    if args.reuse and (out_dir / "doxygen_xml" / "index.xml").is_file():
+    if reuse and not added and (out_dir / "doxygen_xml" / "index.xml").is_file():
         doxygen = DoxygenIndex(out_dir / "doxygen_xml")
     else:
         print("Running Doxygen.")

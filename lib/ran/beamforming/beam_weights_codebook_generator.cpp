@@ -21,11 +21,11 @@ beam_weights_codebook ocudu::generate_beam_weights_codebook(antenna_topology top
   unsigned nof_total_beams    = get_total_nof_beams(topology);
 
   // Allocate beam weights.
-  beam_weights_codebook beam_weights = beam_weights_codebook(nof_total_beams, nof_total_antennas);
+  beam_weights_codebook beam_weights = beam_weights_codebook(nof_total_beams, nof_total_antennas); //Gibt eine matrix mit 0en
 
   // Iterate over single antennas.
   for (unsigned i_antenna = 0; i_antenna != nof_total_antennas; ++i_antenna) {
-    beam_weights.set_coefficient(1.0, get_beam_id(topology, i_antenna), i_antenna);
+    beam_weights.set_coefficient(1.0, get_beam_id(topology, i_antenna), i_antenna); //setzt an beam_id und ite antenne eine 1 in W
   }
 
   // Only direct beam to port mapping if the panels are 1x1 elements.

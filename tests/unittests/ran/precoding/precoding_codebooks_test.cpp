@@ -13,6 +13,8 @@
 
 using namespace ocudu;
 
+static void print_type1_sp_matrix(const pmi_typeI_single_panel& pmi, const precoding_weight_matrix& precoding);
+
 /// Tolerance for floating-point arithmetics equality comparisons.
 static constexpr float TOLERANCE_FLOATING_POINT = 1e-5;
 
@@ -223,6 +225,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_OneLayerFourPorts)
           .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = std::nullopt, .i_1_3 = std::nullopt, .i_2 = i_2};
 
       precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 1);
+      print_type1_sp_matrix(pmi, precoding);
 
       // Assert precoding matrix dimensions.
       ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
@@ -271,6 +274,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_TwoLayerFourPorts)
             .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = std::nullopt, .i_1_3 = i_1_3, .i_2 = i_2};
 
         precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 2);
+        print_type1_sp_matrix(pmi, precoding);
 
         // Assert precoding matrix dimensions.
         ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
@@ -321,6 +325,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_ThreeLayerFourPorts)
           .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = std::nullopt, .i_1_3 = std::nullopt, .i_2 = i_2};
 
       precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 3);
+      print_type1_sp_matrix(pmi, precoding);
 
       // Assert precoding matrix dimensions.
       ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
@@ -370,6 +375,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_FourLayerFourPorts)
           .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = std::nullopt, .i_1_3 = std::nullopt, .i_2 = i_2};
 
       precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 4);
+      print_type1_sp_matrix(pmi, precoding);
 
       // Assert precoding matrix dimensions.
       ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
@@ -416,6 +422,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_OneLayer_4x1)
       pmi_typeI_single_panel pmi = {
           .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = std::nullopt, .i_1_3 = std::nullopt, .i_2 = i_2};
       precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 1);
+      print_type1_sp_matrix(pmi, precoding);
 
       ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
       ASSERT_EQ(precoding.get_nof_layers(), 1);
@@ -459,6 +466,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_TwoLayer_4x1)
         pmi_typeI_single_panel pmi = {
             .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = std::nullopt, .i_1_3 = i_1_3, .i_2 = i_2};
         precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 2);
+        print_type1_sp_matrix(pmi, precoding);
 
         ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
         ASSERT_EQ(precoding.get_nof_layers(), nof_layers);
@@ -509,6 +517,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_ThreeLayer_4x1)
         pmi_typeI_single_panel pmi = {
             .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = std::nullopt, .i_1_3 = i_1_3, .i_2 = i_2};
         precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 3);
+        print_type1_sp_matrix(pmi, precoding);
 
         ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
         ASSERT_EQ(precoding.get_nof_layers(), nof_layers);
@@ -559,6 +568,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_FourLayer_4x1)
         pmi_typeI_single_panel pmi = {
             .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = std::nullopt, .i_1_3 = i_1_3, .i_2 = i_2};
         precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 4);
+        print_type1_sp_matrix(pmi, precoding);
 
         ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
         ASSERT_EQ(precoding.get_nof_layers(), nof_layers);
@@ -607,6 +617,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_FiveLayer_4x1)
       pmi_typeI_single_panel pmi = {
           .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = std::nullopt, .i_1_3 = std::nullopt, .i_2 = i_2};
       precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 5);
+      print_type1_sp_matrix(pmi, precoding);
 
       ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
       ASSERT_EQ(precoding.get_nof_layers(), nof_layers);
@@ -653,6 +664,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_SixLayer_4x1)
       pmi_typeI_single_panel pmi = {
           .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = std::nullopt, .i_1_3 = std::nullopt, .i_2 = i_2};
       precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 6);
+      print_type1_sp_matrix(pmi, precoding);
 
       ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
       ASSERT_EQ(precoding.get_nof_layers(), nof_layers);
@@ -699,6 +711,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_SevenLayer_4x1)
       pmi_typeI_single_panel pmi = {
           .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = std::nullopt, .i_1_3 = std::nullopt, .i_2 = i_2};
       precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 7);
+      print_type1_sp_matrix(pmi, precoding);
 
       ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
       ASSERT_EQ(precoding.get_nof_layers(), nof_layers);
@@ -746,6 +759,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_EightLayer_4x1)
       pmi_typeI_single_panel pmi = {
           .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = std::nullopt, .i_1_3 = std::nullopt, .i_2 = i_2};
       precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 8);
+      print_type1_sp_matrix(pmi, precoding);
 
       ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
       ASSERT_EQ(precoding.get_nof_layers(), nof_layers);
@@ -790,6 +804,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_OneLayer_2x2)
         pmi_typeI_single_panel pmi = {
             .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = i_1_2, .i_1_3 = std::nullopt, .i_2 = i_2};
         precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 1);
+        print_type1_sp_matrix(pmi, precoding);
 
         ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
         ASSERT_EQ(precoding.get_nof_layers(), 1);
@@ -832,6 +847,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_TwoLayer_2x2)
           pmi_typeI_single_panel pmi = {
               .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = i_1_2, .i_1_3 = i_1_3, .i_2 = i_2};
           precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 2);
+          print_type1_sp_matrix(pmi, precoding);
 
           ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
           ASSERT_EQ(precoding.get_nof_layers(), nof_layers);
@@ -883,6 +899,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_ThreeLayer_2x2)
           pmi_typeI_single_panel pmi = {
               .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = i_1_2, .i_1_3 = i_1_3, .i_2 = i_2};
           precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 3);
+          print_type1_sp_matrix(pmi, precoding);
 
           ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
           ASSERT_EQ(precoding.get_nof_layers(), nof_layers);
@@ -934,6 +951,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_FourLayer_2x2)
           pmi_typeI_single_panel pmi = {
               .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = i_1_2, .i_1_3 = i_1_3, .i_2 = i_2};
           precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 4);
+          print_type1_sp_matrix(pmi, precoding);
 
           ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
           ASSERT_EQ(precoding.get_nof_layers(), nof_layers);
@@ -983,6 +1001,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_FiveLayer_2x2)
         pmi_typeI_single_panel pmi = {
             .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = i_1_2, .i_1_3 = std::nullopt, .i_2 = i_2};
         precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 5);
+        print_type1_sp_matrix(pmi, precoding);
 
         ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
         ASSERT_EQ(precoding.get_nof_layers(), nof_layers);
@@ -1029,6 +1048,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_SixLayer_2x2)
         pmi_typeI_single_panel pmi = {
             .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = i_1_2, .i_1_3 = std::nullopt, .i_2 = i_2};
         precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 6);
+        print_type1_sp_matrix(pmi, precoding);
 
         ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
         ASSERT_EQ(precoding.get_nof_layers(), nof_layers);
@@ -1075,6 +1095,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_SevenLayer_2x2)
         pmi_typeI_single_panel pmi = {
             .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = i_1_2, .i_1_3 = std::nullopt, .i_2 = i_2};
         precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 7);
+        print_type1_sp_matrix(pmi, precoding);
 
         ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
         ASSERT_EQ(precoding.get_nof_layers(), nof_layers);
@@ -1121,6 +1142,7 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_EightLayer_2x2)
         pmi_typeI_single_panel pmi = {
             .panel_config = panel_config, .i_1_1 = i_1_1, .i_1_2 = i_1_2, .i_1_3 = std::nullopt, .i_2 = i_2};
         precoding_weight_matrix precoding = make_type1_sp_mode1(pmi, 8);
+        print_type1_sp_matrix(pmi, precoding);
 
         ASSERT_EQ(precoding.get_nof_ports(), nof_ports);
         ASSERT_EQ(precoding.get_nof_layers(), nof_layers);
@@ -1198,3 +1220,40 @@ TEST(precoding_codebooks_test, TypeISinglePanelMode1_UnsupportedCases)
       R"(For a 3 layer transmission using 4 antenna ports \(N1 = 2, N2 = 1\), the beam offset selector \(i_1_3\) can only take the zero value\.)");
 }
 #endif
+
+/// Prints the PMI combination, its normalization factor and its matrix.
+static void print_type1_sp_matrix(const pmi_typeI_single_panel& pmi, const precoding_weight_matrix& precoding)
+{
+  const auto& panel      = get_single_panel_info(pmi.panel_config.n1_n2);
+  unsigned    nof_layers = precoding.get_nof_layers();
+  unsigned    nof_ports  = precoding.get_nof_ports();
+  float       scaling   = 1.0F / std::sqrt(static_cast<float>(nof_layers * nof_ports));
+
+  const auto* test_info = ::testing::UnitTest::GetInstance()->current_test_info();
+
+  fmt::print("\nTest: {}\n"
+             "PMI (panel={}x{}, mode={}, i_1_1={}, i_1_2={}, i_1_3={}, i_2={})\n"
+             "scaling = 1/sqrt(layers * ports) = 1/sqrt({} * {}) = {:.9f}\n"
+             "W = scaling * W_unnormalized ({}x{}; rows: ports, columns: layers):\n",
+             test_info->name(),
+             panel.n1,
+             panel.n2,
+             static_cast<unsigned>(pmi.panel_config.mode),
+             pmi.i_1_1,
+             pmi.i_1_2.has_value() ? fmt::format("{}", *pmi.i_1_2) : "nullopt",
+             pmi.i_1_3.has_value() ? fmt::format("{}", *pmi.i_1_3) : "nullopt",
+             pmi.i_2,
+             nof_layers,
+             nof_ports,
+             scaling,
+             nof_ports,
+             nof_layers);
+  for (unsigned i_port = 0; i_port != nof_ports; ++i_port) {
+    fmt::print("  [");
+    for (unsigned i_layer = 0; i_layer != nof_layers; ++i_layer) {
+      cf_t weight = precoding.get_coefficient(i_layer, i_port);
+      fmt::print(" {:+.6f}{:+.6f}j{}", weight.real(), weight.imag(), i_layer + 1 == nof_layers ? "" : "  ");
+    }
+    fmt::print(" ]\n");
+  }
+}

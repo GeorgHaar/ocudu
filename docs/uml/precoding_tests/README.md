@@ -1,6 +1,6 @@
 # UML-Explorer für die Precoding-Unittests
 
-Erzeugt aus `tests/unittests/ran/precoding` eine lokale Webseite mit Sequenz- und Klassendiagrammen, dem Originalcode
+Erzeugt aus `tests/unittests/ran/precoding` und `tests/unittests/ran/beamforming` eine lokale Webseite mit Sequenz- und Klassendiagrammen, dem Originalcode
 und der Doxygen-Dokumentation. Ein Klick auf ein Diagrammelement zeigt die zugehörige Quellcodestelle.
 
 ## Voraussetzungen
@@ -26,6 +26,7 @@ Ein vollständiger Lauf dauert etwa zehn Minuten und braucht bis zu 3 GB Arbeits
 | `--build-dir DIR` | anderes Build-Verzeichnis |
 | `--threads N` | clang-uml-Threads, Standard 4; jeder Thread braucht mehrere hundert MB |
 | `--reuse` | clang-uml und Doxygen überspringen und die vorhandene Ausgabe neu verarbeiten |
+| `--add PROGRAMM...` | nur die genannten Test-Programme neu erzeugen (clang-uml, gdb, Ergänzungen) und alle anderen Diagramme aus dem vorigen Lauf übernehmen; Doxygen läuft erneut |
 | `--no-gdb` | gdb-Validierung überspringen |
 | `--memory-limit GB` | Adressraum je clang-uml-Prozess, Standard 6 GB; ein Diagramm, das mehr braucht, bleibt beim ersten Durchgang |
 | `--all-calls` | triviale Getter zeigen und wiederholte Aufrufe nicht zusammenfassen |

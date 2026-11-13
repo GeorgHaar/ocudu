@@ -1,0 +1,73 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 960 540] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 3582 >>
+stream
+BT /F2 27 Tf 0.09020 0.20784 0.30196 rg 1 0 0 1 37.44 490.14 Tm (Wo wird make_type1_sp_mode1 aufgerufen?) Tj ET
+BT /F1 16 Tf 0.14118 0.21176 0.29412 rg 1 0 0 1 38.88 454.40 Tm (Aufrufkette auﬂerhalb der Tests im aktuellen Repository) Tj ET
+0.09020 0.20784 0.30196 rg 39.60 362.16 176.40 59.04 re f
+BT /F2 18 Tf 1.00000 1.00000 1.00000 rg 1 0 0 1 51.84 394.20 Tm (DU-high / DU-low) Tj ET
+BT /F1 11 Tf 0.83137 0.90588 0.94902 rg 1 0 0 1 51.84 377.02 Tm (Einrichtung der Adaptoren) Tj ET
+0.92941 0.96078 0.98039 rg 259.20 362.16 296.64 59.04 re f
+BT /F2 16 Tf 0.09020 0.20784 0.30196 rg 1 0 0 1 271.44 396.08 Tm (generate_precoding_codebooks) Tj ET
+BT /F1 12 Tf 0.14118 0.21176 0.29412 rg 1 0 0 1 271.44 376.08 Tm (Aufbau der Precoding-Tabellen) Tj ET
+0.92941 0.96078 0.98039 rg 599.04 362.16 321.12 59.04 re f
+BT /F2 17 Tf 0.09020 0.20784 0.30196 rg 1 0 0 1 611.28 395.14 Tm (generate_pdsch_sp_type1) Tj ET
+BT /F1 11 Tf 0.14118 0.21176 0.29412 rg 1 0 0 1 611.28 377.02 Tm (Schleifen ¸ber Layer und PMI-Kombinationen) Tj ET
+0.43922 0.53725 0.61569 RG 1.5 w 217.44 391.68 m 256.32 391.68 l S
+0.43922 0.53725 0.61569 rg 256.32 391.68 m 249.84 394.92 l 249.84 388.44 l h f
+0.43922 0.53725 0.61569 RG 1.5 w 558.00 391.68 m 596.16 391.68 l S
+0.43922 0.53725 0.61569 rg 596.16 391.68 m 589.68 394.92 l 589.68 388.44 l h f
+0.00000 0.49804 0.53333 rg 336.24 266.40 288.00 51.84 re f
+BT /F2 13 Tf 1.00000 1.00000 1.00000 rg 1 0 0 1 349.20 295.94 Tm (make_composite\(pmi, layers, topology\)) Tj ET
+0.43922 0.53725 0.61569 RG 1.5 w 759.60 359.28 m 759.60 337.68 l 480.24 337.68 l 480.24 321.12 l S
+0.43922 0.53725 0.61569 rg 480.24 321.12 m 483.48 327.60 l 477.00 327.60 l h f
+0.00000 0.49804 0.53333 RG 1.5 w 385.20 263.52 m 385.20 244.80 l 255.60 244.80 l 255.60 219.60 l S
+0.00000 0.49804 0.53333 rg 255.60 219.60 m 258.84 226.08 l 252.36 226.08 l h f
+0.00000 0.49804 0.53333 RG 1.5 w 576.00 263.52 m 576.00 244.80 l 720.00 244.80 l 720.00 219.60 l S
+0.00000 0.49804 0.53333 rg 720.00 219.60 m 723.24 226.08 l 716.76 226.08 l h f
+BT /F2 15 Tf 0.00000 0.49804 0.53333 rg 1 0 0 1 46.80 235.74 Tm (Ohne Beam-Grid) Tj ET
+BT /F2 15 Tf 0.00000 0.49804 0.53333 rg 1 0 0 1 748.80 235.74 Tm (Mit Beam-Grid) Tj ET
+0.92941 0.96078 0.98039 rg 39.60 99.36 428.40 118.08 re f
+BT /F2 17 Tf 0.09020 0.20784 0.30196 rg 1 0 0 1 54.72 190.66 Tm (make_precoding\(pmi, nof_layers\)) Tj ET
+BT /F1 12 Tf 0.14118 0.21176 0.29412 rg 1 0 0 1 54.72 170.16 Tm (std::visit w‰hlt den Type-I-Single-Panel-Zweig) Tj ET
+BT /F2 17 Tf 0.00000 0.49804 0.53333 rg 1 0 0 1 54.72 136.66 Tm (make_type1_sp_mode1\(pmi, nof_layers\)) Tj ET
+BT /F1 11 Tf 0.14118 0.21176 0.29412 rg 1 0 0 1 54.72 109.90 Tm (Vollst‰ndige Precoding-Matrix wird im Repository abgelegt.) Tj ET
+0.94118 0.96078 0.96078 rg 492.48 99.36 427.68 118.08 re f
+BT /F2 15 Tf 0.09020 0.20784 0.30196 rg 1 0 0 1 507.60 186.06 Tm (get_mimo_matrix_from_pmi\(pmi, nof_layers\)) Tj ET
+BT /F1 14 Tf 0.14118 0.21176 0.29412 rg 1 0 0 1 507.60 153.16 Tm (MIMO-Matrix und Beamliste bleiben getrennt.) Tj ET
+BT /F1 11 Tf 0.14118 0.21176 0.29412 rg 1 0 0 1 507.60 109.90 Tm (Composite wird im Repository abgelegt.) Tj ET
+BT /F2 14 Tf 0.09020 0.20784 0.30196 rg 1 0 0 1 39.60 63.88 Tm (Direkter Aufruf: lib/ran/precoding/precoding_codebooks.cpp:153) Tj ET
+BT /F1 11 Tf 0.41569 0.48627 0.54902 rg 1 0 0 1 39.60 35.02 Tm (Generator: lib/fapi_adaptor/precoding_codebook_generator.cpp:30ñ38, 157ñ192, 247ñ262) Tj ET
+BT /F1 10 Tf 0.41569 0.48627 0.54902 rg 1 0 0 1 39.60 16.52 Tm (Initialisierung: lib/du/du_high/o_du_high_factory.cpp:105 ∑ lib/du/du_low/o_du_low_factory.cpp:64) Tj ET
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000257 00000 n 
+0000000354 00000 n 
+0000000456 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+4089
+%%EOF

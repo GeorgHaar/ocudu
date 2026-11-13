@@ -1,0 +1,37 @@
+\babel@toc {ngerman}{}\relax 
+\contentsline {section}{\numberline {1}Wo die Type-I-Codebooks erzeugt werden}{2}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Die Mathematik: eine Matrix aus einem PMI}{2}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Das komplette Codebook für die Zelle}{3}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Konfiguration und Nutzung im Scheduler}{4}{subsection.1.3}%
+\contentsline {section}{\numberline {2}OCUDU mit PDSCH-Traffic starten und die Generierung beobachten}{4}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Bauen}{4}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Konfiguration: Testmodus mit 4 Ports}{4}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Breakpoints für die Generierung}{5}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Die Nutzung im laufenden Traffic}{6}{subsection.2.4}%
+\contentsline {section}{\numberline {3}3GPP-Codebook und Beam-Codebook: zwei verschiedene $W$}{6}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Das 3GPP-Codebook}{6}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Das Beam-Codebook}{6}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Die Zerlegung}{7}{subsection.3.3}%
+\contentsline {paragraph}{Zahlenbeispiel}{8}{section*.2}%
+\contentsline {subsection}{\numberline {3.4}Wo die Multiplikation mit den IQ-Samples passiert}{8}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}Wann \texttt {generate\_beam\_weights\_codebook()} aufgerufen wird}{9}{subsection.3.5}%
+\contentsline {subsection}{\numberline {3.6}Wofür das Beam-Codebook trotzdem existiert}{9}{subsection.3.6}%
+\contentsline {subsection}{\numberline {3.7}Der UHD-SDR-Fall}{9}{subsection.3.7}%
+\contentsline {subsection}{\numberline {3.8}Was OCUDU beim Beamforming nicht macht}{10}{subsection.3.8}%
+\contentsline {section}{\numberline {4}Die Mathematik von \texttt {make\_type1\_sp\_mode1()}}{10}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Antennenmodell}{10}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Der Steuervektor $v_{l,m}$}{10}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Die Co-Phasierung $\varphi _n$}{11}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}Ein Layer}{11}{subsection.4.4}%
+\contentsline {subsection}{\numberline {4.5}Zwei Layer}{11}{subsection.4.5}%
+\contentsline {subsection}{\numberline {4.6}Drei und vier Layer}{12}{subsection.4.6}%
+\contentsline {subsection}{\numberline {4.7}Normierung}{13}{subsection.4.7}%
+\contentsline {subsection}{\numberline {4.8}Zahlenbeispiel}{13}{subsection.4.8}%
+\contentsline {subsection}{\numberline {4.9}Was das Precoding damit macht}{13}{subsection.4.9}%
+\contentsline {section}{\numberline {5}Die beiden Dateien \texttt {precoding\_codebooks.cpp}}{13}{section.5}%
+\contentsline {subsection}{\numberline {5.1}\texttt {lib/ran/precoding/precoding\_codebooks.cpp}, die Fassade}{13}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}\texttt {lib/ran/precoding/type1\_sp/precoding\_codebooks.cpp}, die Umsetzung}{14}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Warum die Aufteilung}{14}{subsection.5.3}%
+\contentsline {section}{\numberline {6}Die Tests: Parametrisierung und Matrix-Ausgabe}{15}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Wer über die Topologien iteriert}{15}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Beam-Gewichte als Matrix ausgeben}{16}{subsection.6.2}%

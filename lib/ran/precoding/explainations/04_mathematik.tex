@@ -1,0 +1,182 @@
+\section{Die Mathematik von \code{make\_type1\_sp\_mode1()}}
+
+TS\,38.214 Abschnitt 5.2.2.2.1, Type I Single Panel, Codebook-Mode 1.
+
+\subsection{Antennenmodell}
+
+Ein Panel mit $N_1$ Elementen horizontal, $N_2$ vertikal, jedes kreuzpolarisiert. CSI-RS-Ports $P = 2 N_1 N_2$.
+Die ersten $N_1 N_2$ Ports sind Polarisation 0, die zweiten Polarisation 1. $O_1$, $O_2$ sind die
+Oversampling-Faktoren; die Zahl der Richtungen ist $N_1 O_1$ horizontal und $N_2 O_2$ vertikal.
+
+\begin{table}[h]\centering
+\begin{tabular}{lcccccc}
+\toprule
+Codebook & $N_1$ & $N_2$ & $O_1$ & $O_2$ & Ports & Richtungen \\
+\midrule
+\code{two\_one}  & 2 & 1 & 4 & 1 & 4 & 8 \\
+\code{two\_two}  & 2 & 2 & 4 & 4 & 8 & $8\times8$ \\
+\code{four\_one} & 4 & 1 & 4 & 1 & 8 & 16 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Der Steuervektor $v_{l,m}$}
+
+\begin{align}
+  u_m &= \begin{bmatrix} 1 & e^{j\frac{2\pi m}{O_2 N_2}} & \cdots & e^{j\frac{2\pi m (N_2-1)}{O_2 N_2}} \end{bmatrix} \\
+  v_{l,m} &= \begin{bmatrix} u_m & u_m\, e^{j\frac{2\pi l}{O_1 N_1}} & \cdots & u_m\, e^{j\frac{2\pi l (N_1-1)}{O_1 N_1}} \end{bmatrix}^{\mathsf T}
+\end{align}
+Ein Kronecker-Produkt aus horizontalem und vertikalem DFT-Vektor, Länge $N_1 N_2$. $l$ wählt die horizontale
+Richtung, $m$ die vertikale. Alle Elemente haben Betrag 1, es gibt kein Tapering. Bei Elementabstand
+$d=\lambda/2$ liegt die Hauptkeule bei $\sin\theta = 2l/(O_1 N_1)$ für $l \le N_1 O_1/2$, negative Winkel für die
+obere Hälfte von $l$.
+
+Im Code wird der Vektor durch fortlaufende Multiplikation mit einem Phasor aufgebaut:
+
+\begin{lstlisting}[language=C++,title={lib/ran/precoding/type1\_sp/precoding\_codebooks.cpp, make\_layer\_type1\_sp\_mode1()}]
+static void make_layer_type1_sp_mode1(precoding_weight_matrix&              result,
+                                      const pmi_codebook_single_panel_info& panel,
+                                      unsigned                              i_layer,
+                                      unsigned                              l,
+                                      unsigned                              m,
+                                      cf_t                                  polarization_offset)
+{
+  // Phase increment for each beam coefficient. This defines the direction of the beam in the horizontal plane.
+  float phase_inc_h_rad = TWOPI * (static_cast<float>(l) / static_cast<float>(panel.o1 * panel.n1));
+  // Phase increment for each beam coefficient. This defines the direction of the beam in the vertical plane.
+  float phase_inc_v_rad = TWOPI * (static_cast<float>(m) / static_cast<float>(panel.o2 * panel.n2));
+  // Get the number of physical ports, which is half the number of CSI-RS ports given that two polarizations are used.
+  unsigned nof_ports_2 = result.get_nof_ports() / 2;
+
+  cf_t phase_inc_h = std::polar(1.0F, phase_inc_h_rad);
+  cf_t phase_inc_v = std::polar(1.0F, phase_inc_v_rad);
+  cf_t beam_coef_h = std::polar(1.0F, 0.0F);
+  cf_t beam_coef_v = std::polar(1.0F, 0.0F);
+
+  unsigned i_port = 0;
+  for (unsigned i_h = 0; i_h != panel.n1; ++i_h) {
+    beam_coef_v = std::polar(1.0F, 0.0F);
+    for (unsigned i_v = 0; i_v != panel.n2; ++i_v) {
+      cf_t beam_coef = beam_coef_h * beam_coef_v;
+      // First polarization.
+      result.set_coefficient(beam_coef, i_layer, i_port);
+      // Second polarization, same beam but with phase offset.
+      result.set_coefficient(polarization_offset * beam_coef, i_layer, nof_ports_2 + i_port);
+      i_port++;
+      beam_coef_v *= phase_inc_v;
+    }
+    beam_coef_h *= phase_inc_h;
+  }
+}
+\end{lstlisting}
+
+\subsection{Die Co-Phasierung $\varphi_n$}
+
+\begin{equation}
+  \varphi_n = e^{j\pi n/2},\qquad n = i_2 \in \{0,1,2,3\}\quad\Rightarrow\quad \varphi \in \{1,\, j,\, -1,\, -j\}
+\end{equation}
+Die Phase der zweiten Polarisation relativ zur ersten. Im Code \code{phi = std::polar(1, (TWOPI/4)*i\_2)}.
+
+\subsection{Ein Layer}
+\begin{equation}
+  W^{(1)} = \frac{1}{\sqrt{P}}\begin{bmatrix} v_{l,m} \\ \varphi_n v_{l,m} \end{bmatrix}\qquad (P\times1),
+  \quad l = i_{1,1},\; m = i_{1,2}
+\end{equation}
+Tabelle 5.2.2.2.1-5.
+
+\subsection{Zwei Layer}
+\begin{equation}
+  W^{(2)} = \frac{1}{\sqrt{2P}}\begin{bmatrix} v_{l,m} & v_{l',m'} \\ \varphi_n v_{l,m} & -\varphi_n v_{l',m'} \end{bmatrix}
+  \qquad (P\times2),\quad l' = l + k_1,\; m' = m + k_2
+\end{equation}
+Die Offsets $(k_1,k_2)$ kommen aus $i_{1,3}$ über Tabelle 5.2.2.2.1-3, im Code \code{get\_k1\_and\_k2\_2\_layers()}.
+Für \code{two\_one} ist $k_1\in\{0, O_1\}$: derselbe Beam oder der nächste Hauptkeulen-Nachbar. Das Minus in der
+zweiten Spalte macht die Layer orthogonal, auch bei $k_1=0$: $[v;\varphi v]\perp[v;-\varphi v]$. $i_2$ ist hier
+nur noch 0 oder 1.
+
+\subsection{Drei und vier Layer} ($P<16$)
+\begin{align}
+  W^{(3)} &= \frac{1}{\sqrt{3P}}\begin{bmatrix} v_{l,m} & v_{l',m'} & v_{l,m} \\ \varphi_n v_{l,m} & \varphi_n v_{l',m'} & -\varphi_n v_{l,m} \end{bmatrix} \\
+  W^{(4)} &= \frac{1}{\sqrt{4P}}\begin{bmatrix} v_{l,m} & v_{l',m'} & v_{l,m} & v_{l',m'} \\ \varphi_n v_{l,m} & \varphi_n v_{l',m'} & -\varphi_n v_{l,m} & -\varphi_n v_{l',m'} \end{bmatrix}
+\end{align}
+$(k_1,k_2)$ nach Tabelle 5.2.2.2.1-4, \code{get\_k1\_and\_k2\_3\_4\_layers()}; hier ist $k=0$ nicht erlaubt.
+
+\begin{lstlisting}[language=C++,title={make\_type1\_sp\_mode1(), Auswahl der Spalten}]
+switch (nof_layers) {
+  case 1: {
+    layer_beam_horizontal = {i_1_1};
+    layer_beam_vertical   = {i_1_2};
+    layer_pol             = {phi};
+    break;
+  }
+  case 2: {
+    std::tie(k1, k2) = get_k1_and_k2_2_layers(panel_info, i_1_3);
+    layer_beam_horizontal = {i_1_1, i_1_1 + k1};
+    layer_beam_vertical   = {i_1_2, i_1_2 + k2};
+    layer_pol             = {phi, -phi};
+    break;
+  }
+  case 3:
+  case 4: {
+    std::tie(k1, k2)      = get_k1_and_k2_3_4_layers(panel_info, i_1_3);
+    layer_beam_horizontal = {i_1_1, i_1_1 + k1, i_1_1, i_1_1 + k1};
+    layer_beam_vertical   = {i_1_2, i_1_2 + k2, i_1_2, i_1_2 + k2};
+    layer_pol             = {phi, phi, -phi, -phi};
+    break;
+  }
+  // ... Faelle 5 bis 8: Tabellen 5.2.2.2.1-9 bis -12 ...
+}
+
+// Build the coefficients for each port and layer.
+for (unsigned i_layer = 0; i_layer != nof_layers; ++i_layer) {
+  make_layer_type1_sp_mode1(result, panel_info, i_layer,
+                            layer_beam_horizontal[i_layer],
+                            is_2d_panel ? layer_beam_vertical[i_layer] : 0,
+                            layer_pol[i_layer]);
+}
+
+// Apply scaling.
+float scaling = 1.0F / std::sqrt(nof_layers * nof_ports);
+result *= scaling;
+\end{lstlisting}
+
+Fünf bis acht Layer benutzen bis zu vier Beams mit festen Offsets $O_1$ und $2O_1$ und abwechselnd $\varphi$ und
+$\pm1$ (Tabellen 5.2.2.2.1-9 bis -12).
+
+\subsection{Normierung}
+\begin{equation}
+  \text{scaling} = \frac{1}{\sqrt{\upsilon P}}
+\end{equation}
+$\upsilon$ Layer, $P$ Ports. Jeder Eintrag hat Betrag $1/\sqrt{\upsilon P}$, die Sendeleistung über alle Ports und
+Layer ist 1.
+
+\subsection{Zahlenbeispiel}
+
+\code{two\_one}, 2 Layer, $i_{1,1}=1$, $i_{1,3}=0$, $i_2=1$:
+\begin{equation*}
+  v_1 = \begin{bmatrix} 1 \\ e^{j2\pi/8} \end{bmatrix} = \begin{bmatrix} 1 \\ 0{,}707+0{,}707j \end{bmatrix},\quad
+  \varphi = j,\quad k_1 = 0
+\end{equation*}
+\begin{equation*}
+  W^{(2)} = \frac{1}{\sqrt 8}\begin{bmatrix}
+    1 & 1 \\
+    0{,}707+0{,}707j & 0{,}707+0{,}707j \\
+    j & -j \\
+    -0{,}707+0{,}707j & 0{,}707-0{,}707j
+  \end{bmatrix}
+\end{equation*}
+Spalte 1 ist $[\,0{,}354,\; 0{,}25+0{,}25j,\; 0{,}354j,\; -0{,}25+0{,}25j\,]$, derselbe Vektor wie aus der
+Zerlegung in Abschnitt~\ref{sec:zwei-matrizen}.
+
+\subsection{Was das Precoding damit macht}
+\begin{equation}
+  y_p[k] = \sum_{\upsilon} W[p,\upsilon]\, x_\upsilon[k]
+  \qquad\text{für jeden Subträger } k \text{ und jeden Port } p
+\end{equation}
+Das ist die Schleife in \code{apply\_precoding\_port()}: pro Port eine Zeile von $W$, pro Resource Element die
+Summe über die Layer. Am Empfänger in Richtung $\theta$ ergibt sich der Array-Faktor
+\begin{equation}
+  AF(\theta) = \sum_{i=0}^{N_1-1} e^{j2\pi i\left(\frac{l}{O_1 N_1} - \frac{d\sin\theta}{\lambda}\right)},
+\end{equation}
+maximal, wenn die Klammer null ist. Das ist die Hauptkeule; Nullstellen und Nebenkeulen folgen aus der Summe über
+$N_1$ Elemente.

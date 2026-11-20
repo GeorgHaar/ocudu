@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: Copyright (C) 2026 OCUDU contributors
+# SPDX-License-Identifier: BSD-3-Clause-Open-MPI
+
+# Test mode with a dummy radio unit and no core: one phantom UE with downlink traffic on four antenna ports.
+# The Type I single-panel codebook (2x1 panel, 8 beam directions) applies to the PDSCH precoding.
+
+cu_cp:
+  amf:
+    no_core: true
+    supported_tracking_areas:
+      - tac: 7
+        plmn_list:
+          - plmn: "00101"
+            tai_slice_support_list:
+              - sst: 1
+
+ru_dummy:
+  dl_processing_delay: 1
+  # Slows the slot clock so that a Debug build keeps up with four-port PDSCH processing. 1 is real time.
+  time_scaling: 40
+
+cell_cfg:
+  dl_arfcn: 632628
+  band: 78
+  channel_bandwidth_MHz: 20
+  common_scs: 30
+  plmn: "00101"
+  tac: 7
+  pci: 1
+  nof_antennas_dl: 4
+  nof_antennas_ul: 4
+
+test_mode:
+  test_ue:
+    rnti: 0x44
+    nof_ues: 1
+    pdsch_active: true
+    pusch_active: false
+    cqi: 15
+    ri: 2       # two layers, the gdb IQ tap samples two-layer PDSCH blocks only
+    i_1_1: 3     # horizontal beam, 0..7 for the 2x1 panel
+    i_1_3: 0
+    i_2: 1
+
+log:
+  filename: /tmp/gnb.log
+  all_level: warning
+  mac_level: debug
+  phy_level: info

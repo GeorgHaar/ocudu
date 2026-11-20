@@ -10,6 +10,7 @@
 #include "ocudu/ran/beamforming/beam_identifier_helpers.h"
 #include "ocudu/ran/precoding/precoding_codebook_configuration.h"
 #include "ocudu/ran/precoding/precoding_codebook_type1_helpers.h"
+#include "ocudu/ran/precoding/precoding_weight_quantization.h"
 #include "ocudu/support/math/math_utils.h"
 
 using namespace ocudu;
@@ -51,6 +52,9 @@ static void make_layer_type1_sp_mode1(precoding_weight_matrix&              resu
                                       unsigned                              m,
                                       cf_t                                  polarization_offset)
 {
+  // [Q1] Rechnung: Phasenschritt als float32 in Radiant. Der Wert ist exakt l/(N1*O1) Umdrehungen, also ein Bruch mit
+  // Nenner N1*O1 (8 oder 16). Statt float koennte hier ein ganzzahliger Phasenindex stehen (3 bzw. 4 Bit); die
+  // Wortbreite dieses Index ist die erste Quantisierungsstelle.
   // Phase increment for each beam coefficient. This defines the direction of the beam in the horizontal plane.
   float phase_inc_h_rad = TWOPI * (static_cast<float>(l) / static_cast<float>(panel.o1 * panel.n1));
   // Phase increment for each beam coefficient. This defines the direction of the beam in the vertical plane.
@@ -58,6 +62,8 @@ static void make_layer_type1_sp_mode1(precoding_weight_matrix&              resu
   // Get the number of physical ports, which is half the number of CSI-RS ports given that two polarizations are used.
   unsigned nof_ports_2 = result.get_nof_ports() / 2;
 
+  // [Q2] Rechnung: cos/sin des Phasenschritts, Ergebnis cf_t = 2 x float32. In Hardware waere das ein Tabelleneintrag
+  // (LUT mit 8 bzw. 16 Phasoren); die I/Q-Wortbreite der Tabelle ist eine Quantisierungsstelle (Festkomma, z.B. 8 Bit).
   // Phasor to increment the phase of each beam coefficient in the horizontal plane.
   cf_t phase_inc_h = std::polar(1.0F, phase_inc_h_rad);
   // Phasor to increment the phase of each beam coefficient in the vertical plane.
@@ -78,19 +84,31 @@ static void make_layer_type1_sp_mode1(precoding_weight_matrix&              resu
 
     // For each horizontal port, iterate every vertical physical port.
     for (unsigned i_v = 0; i_v != panel.n2; ++i_v) {
+      // [Q3] Rechnung: komplexe Multiplikation horizontal x vertikal in float32 (4 Produkte, 2 Summen). Mit
+      // Phasenindizes waere das eine Addition modulo L. Bei Festkomma-Phasoren entsteht hier der erste Rundungsfehler
+      // eines Produkts (Produktformat).
       // Compute the beam coefficient for this port and layer.
       cf_t beam_coef = beam_coef_h * beam_coef_v;
+      // [Q4] Speicherung: set_coefficient schreibt cf_t (64 Bit) in die precoding_weight_matrix. Das ist die
+      // Wortbreite, mit der das Gewicht im Repository liegt und spaeter in den Precoder geht. Hier greift heute die
+      // nachtraegliche quantize()-Stufe an (Phase, I/Q-Festkomma).
       // First polarization.
       result.set_coefficient(beam_coef, i_layer, i_port);
+      // [Q5] Rechnung: Multiplikation mit der Co-Phasierung {1, j, -1, -j}. In float32 eine volle komplexe
+      // Multiplikation, obwohl nur Vertauschen und Vorzeichen noetig waeren (kein Multiplizierer, keine Rundung).
       // Second polarization, same beam but with phase offset.
       result.set_coefficient(polarization_offset * beam_coef, i_layer, nof_ports_2 + i_port);
 
       // Increase the port index.
       i_port++;
+      // [Q6] Rechnung: rekursive Drehung (Phasor mal Phasor) statt std::polar pro Element. Bei quantisierten Phasoren
+      // summiert sich der Rundungsfehler ueber die Elemente; ein echter Phasenschieber rundet dagegen jede absolute
+      // Phase einzeln. Deshalb nicht hier quantisieren, sondern pro fertigem Koeffizienten (siehe [Q4]).
       // Apply the phase increment to the vertical beam coefficient.
       beam_coef_v *= phase_inc_v;
     }
 
+    // [Q6] gilt ebenso fuer die horizontale Rekursion.
     // Apply the phase increment to the horizontal beam coefficient.
     beam_coef_h *= phase_inc_h;
   }
@@ -260,7 +278,9 @@ static std::pair<unsigned, unsigned> get_k1_and_k2_3_4_layers(const pmi_codebook
   return {0, 0};
 }
 
-precoding_weight_matrix ocudu::make_type1_sp_mode1(const pmi_typeI_single_panel& pmi, unsigned nof_layers) //Bekommt pmi von oben und die anzahl an layern
+precoding_weight_matrix ocudu::make_type1_sp_mode1(const pmi_typeI_single_panel&        pmi,
+                                                   unsigned                             nof_layers,
+                                                   const precoding_weight_quantization& quantization)
 {
   ocudu_assert(nof_layers <= precoding_constants::MAX_NOF_LAYERS,
                "The number of layers ({}) cannot be higher than the maximum ({}).",
@@ -338,6 +358,8 @@ precoding_weight_matrix ocudu::make_type1_sp_mode1(const pmi_typeI_single_panel&
   // Create the resulting precoding weight matrix.
   precoding_weight_matrix result(nof_layers, nof_ports);
 
+  // [Q7] Rechnung: Co-Phasierung aus i_2 (2 Bit Information) als float32-Phasor. Exakt waere die Tabelle
+  // {1, j, -1, -j}; -phi und +-1.0f in den Layer-Listen unten sind reine Vorzeichenwechsel, ebenfalls ohne Rundung.
   // Polarization phase shift. This defines the relative phase between the cross-polarized antenna elements.
   cf_t phi = std::polar(1.0F, (TWOPI / 4.0F) * static_cast<float>(pmi.i_2));
 
@@ -465,9 +487,21 @@ precoding_weight_matrix ocudu::make_type1_sp_mode1(const pmi_typeI_single_panel&
                               layer_pol[i_layer]);
   }
 
+  // [Q8] Rechnung: Betrag 1/sqrt(v*P) als float32, ein Skalar fuer die ganze Matrix, und eine Multiplikation jedes
+  // Koeffizienten damit. Bis hierher haben alle Koeffizienten Betrag 1. Der Skalar koennte als gemeinsamer Exponent
+  // (Block Floating Point) gefuehrt werden; nur bei v*P ohne gerade Zweierpotenz (z.B. 8) ist er in Festkomma nicht
+  // exakt.
   // Apply scaling.
   float scaling = 1.0F / std::sqrt(nof_layers * nof_ports);
   result *= scaling;
+
+  // The quantization follows the scaling: the phase stage keeps the DFT grid of the unscaled weights, and the
+  // fixed-point stage sees the transmitted magnitudes.
+  // [Q9] Heutige Quantisierungsstufe: nachtraeglich auf der fertigen Matrix, Phase auf 2^b Stufen und/oder I/Q auf
+  // Festkomma. Modelliert Phasenschieber und Gewichtsregister pro Element, siehe precoding_weight_quantization.cpp.
+  if (quantization.is_enabled()) {
+    quantize(result, quantization);
+  }
 
   return result;
 }

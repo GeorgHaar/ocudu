@@ -26,14 +26,17 @@ using namespace fapi_adaptor;
 ///
 /// A topology with no beam grid cannot steer a beam. The configuration contains the complete \f$W_{PMI}\f$. The
 /// channel processors apply it at the upper physical layer. The radio unit transmits on the antenna ports.
-static precoding_beamforming_composite
-make_composite(const precoding_matrix_indicator& pmi, unsigned nof_layers, antenna_topology topology)
+static precoding_beamforming_composite make_composite(const precoding_matrix_indicator&    pmi,
+                                                      unsigned                             nof_layers,
+                                                      antenna_topology                     topology,
+                                                      const precoding_weight_quantization& quantization)
 {
+  // The beam list of a beam grid selects table entries; the quantization applies to explicit weights only.
   if (has_beam_grid(topology)) {
     return get_mimo_matrix_from_pmi(pmi, nof_layers);
   }
 
-  precoding_weight_matrix precoding = make_precoding(pmi, nof_layers);
+  precoding_weight_matrix precoding = make_precoding(pmi, nof_layers, quantization);
 
   return {precoding, get_default_beam_list(precoding.get_nof_ports())};
 }
@@ -158,6 +161,7 @@ static unsigned generate_pdsch_sp_type1(unsigned                               o
                                         const pmi_codebook_typeI_single_panel  panel,
                                         unsigned                               nof_layers,
                                         antenna_topology                       topology,
+                                        const precoding_weight_quantization&   quantization,
                                         precoding_codebook_repository_builder& repo_builder)
 {
   unsigned base_offset = offset;
@@ -181,7 +185,7 @@ static unsigned generate_pdsch_sp_type1(unsigned                               o
                                         .i_2          = i_2};
 
           unsigned pm_index = base_offset + get_pdsch_single_panel_type1_precoding_matrix_index(param_ranges, pmi);
-          repo_builder.add(pm_index, make_composite(pmi, nof_layers, topology));
+          repo_builder.add(pm_index, make_composite(pmi, nof_layers, topology, quantization));
 
           offset = pm_index;
         }
@@ -199,6 +203,8 @@ struct codebook_table_generator {
   precoding_codebook_mapper_codebook_offset_configuration& mapper_offsets;
   precoding_codebook_repository_builder&                   repo_builder;
   antenna_topology                                         topology;
+  /// Quantization of the Type I single-panel PDSCH weights.
+  precoding_weight_quantization quantization;
 
   void operator()(std::monostate) const { ocudu_assertion_failure("Unsupported PMI codebook configuration"); }
 
@@ -258,7 +264,7 @@ struct codebook_table_generator {
     offset                           = generate_pdsch_omnidirectional(offset, nof_ports, repo_builder);
     for (unsigned nof_layers = 1; nof_layers <= nof_ports; ++nof_layers) {
       mapper_offsets.pdsch_codebook_offsets.push_back(offset);
-      offset = generate_pdsch_sp_type1(offset, codebook_config, nof_layers, topology, repo_builder);
+      offset = generate_pdsch_sp_type1(offset, codebook_config, nof_layers, topology, quantization, repo_builder);
     }
     mapper_offsets.csi_rs_codebook_offsets.push_back(offset);
     offset = generate_csi_rs(offset, nof_ports, repo_builder);
@@ -275,9 +281,10 @@ struct codebook_table_generator {
 } // namespace
 
 std::pair<std::unique_ptr<precoding_codebook_mapper>, std::unique_ptr<precoding_codebook_repository>>
-ocudu::fapi_adaptor::generate_precoding_codebooks(const pmi_codebook_config& codebook_config,
-                                                  antenna_topology           topology,
-                                                  unsigned                   sector_id)
+ocudu::fapi_adaptor::generate_precoding_codebooks(const pmi_codebook_config&           codebook_config,
+                                                  antenna_topology                     topology,
+                                                  unsigned                             sector_id,
+                                                  const precoding_weight_quantization& quantization)
 {
   unsigned nof_ports = get_precoding_codebook_antenna_ports(codebook_config);
 
@@ -289,7 +296,7 @@ ocudu::fapi_adaptor::generate_precoding_codebooks(const pmi_codebook_config& cod
   precoding_codebook_mapper_codebook_offset_configuration mapper_offsets;
   precoding_codebook_repository_builder                   repo_builder(get_max_num_codebooks(nof_ports));
 
-  std::visit(codebook_table_generator{mapper_offsets, repo_builder, topology}, codebook_config);
+  std::visit(codebook_table_generator{mapper_offsets, repo_builder, topology, quantization}, codebook_config);
 
   return {std::make_unique<precoding_codebook_mapper>(sector_id, mapper_offsets), repo_builder.build()};
 }

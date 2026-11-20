@@ -1087,7 +1087,7 @@ ocudu::create_downlink_processor_factory_sw(const downlink_processor_factory_sw_
                                             const downlink_processor_factory_sw_dependencies& dependencies)
 {
   // Create channel precoder factory.
-  std::shared_ptr<channel_precoder_factory> precoding_factory = create_channel_precoder_factory("auto");
+  std::shared_ptr<channel_precoder_factory> precoding_factory = create_channel_precoder_factory("generic"); //Von auto zu generic
   report_fatal_error_if_not(precoding_factory, "Invalid channel precoder factory.");
 
   // Create resource grid mapper factory.

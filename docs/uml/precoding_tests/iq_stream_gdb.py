@@ -24,7 +24,8 @@ class IQStreamBreakpoint(gdb.Breakpoint):
         self.errors = 0
         self.snapshot_path = None
         self.one_shot = False
-        self.condition = "prg_weights.data.dimensions_size._M_elems[0] == 2"
+        # GDB ignores a condition on a breakpoint with a Python stop method; stop() filters the layers itself.
+        self.required_layers = 2
 
     def packet(self):
         weights = gdb.parse_and_eval("prg_weights")["data"]
@@ -69,6 +70,12 @@ class IQStreamBreakpoint(gdb.Breakpoint):
                 break
             frame = frame.older()
         if not is_pdsch:
+            return False
+        try:
+            layers = int(gdb.parse_and_eval("prg_weights")["data"]["dimensions_size"]["_M_elems"][0])
+        except gdb.error:
+            return False
+        if layers != self.required_layers:
             return False
         self.next_send = now + self.minimum_interval
         try:

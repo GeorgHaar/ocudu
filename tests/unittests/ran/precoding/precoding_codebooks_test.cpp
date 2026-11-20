@@ -7,8 +7,13 @@
 #include "lib/ran/precoding/type1_sp/precoding_codebooks.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/ran/precoding/precoding_codebook_configuration.h"
+#include "ocudu/ran/precoding/precoding_codebook_type1_helpers.h"
 #include "ocudu/ran/precoding/precoding_codebooks.h"
+#include "ocudu/ran/precoding/precoding_weight_quantization.h"
 #include <gtest/gtest.h>
+#include <algorithm>
+#include <array>
+#include <string>
 #include <vector>
 
 using namespace ocudu;
@@ -24,6 +29,12 @@ static constexpr float TOLERANCE_FLOATING_POINT = 1e-5;
     ASSERT_NEAR((val1).real(), (val2).real(), TOLERANCE_FLOATING_POINT);                                               \
     ASSERT_NEAR((val1).imag(), (val2).imag(), TOLERANCE_FLOATING_POINT);                                               \
   } while (false)
+
+/// Builds a complex value from a magnitude and a phase in degrees.
+static cf_t polar_deg(float magnitude, float degrees)
+{
+  return std::polar(magnitude, degrees * static_cast<float>(M_PI) / 180.0F);
+}
 
 /// \brief Parameters that define beam weights for Type I single-panel codebook.
 ///
@@ -1168,6 +1179,152 @@ TEST(precoding_codebooks_test, Type1SinglePanelMode1_EightLayer_2x2)
 }
 
 #ifdef ASSERTS_ENABLED
+TEST(precoding_codebooks_test, QuantizePhase_Coefficient)
+{
+  // Three bits give a 45 degree step: 40 and 50 degrees round to 45 degrees, the magnitude stays.
+  ASSERT_CF_EQ(quantize_phase(polar_deg(0.3F, 40.0F), 3), polar_deg(0.3F, 45.0F));
+  ASSERT_CF_EQ(quantize_phase(polar_deg(0.3F, 50.0F), 3), polar_deg(0.3F, 45.0F));
+
+  // Two bits give a 90 degree step: 45 degrees lies between two levels and rounds up.
+  ASSERT_CF_EQ(quantize_phase(polar_deg(1.0F, 45.0F), 2), polar_deg(1.0F, 90.0F));
+
+  // One bit keeps the sign only.
+  ASSERT_CF_EQ(quantize_phase(polar_deg(1.0F, 100.0F), 1), cf_t(-1.0F, 0.0F));
+  ASSERT_CF_EQ(quantize_phase(polar_deg(1.0F, -80.0F), 1), cf_t(1.0F, 0.0F));
+
+  // Zero stays zero.
+  ASSERT_CF_EQ(quantize_phase(cf_t(0.0F, 0.0F), 2), cf_t(0.0F, 0.0F));
+}
+
+// The Type I single-panel phases lie on the DFT grid of the panel. A resolution that resolves the grid reproduces the
+// weights exactly.
+TEST(precoding_codebooks_test, Type1SinglePanelMode1_PhaseQuantizationOnGridIsExact)
+{
+  static constexpr std::array<std::pair<pmi_codebook_single_panel_config, unsigned>, 3> cases = {
+      {{pmi_codebook_single_panel_config::two_one, 3},
+       {pmi_codebook_single_panel_config::two_two, 3},
+       {pmi_codebook_single_panel_config::four_one, 4}}};
+
+  for (const auto& [n1_n2, nof_bits] : cases) {
+    pmi_codebook_typeI_single_panel panel_config{n1_n2, pmi_codebook_typeI_mode::one};
+    unsigned                        nof_ports = get_precoding_codebook_antenna_ports(panel_config);
+
+    for (unsigned nof_layers = 1; nof_layers <= 4; ++nof_layers) {
+      pmi_typeI_single_panel_param_ranges ranges = get_pmi_ranges_typeI_single_panel(panel_config, nof_layers);
+      for (uint8_t i_1_1 = 0; i_1_1 != ranges.i_1_1; ++i_1_1) {
+        for (uint8_t i_1_2 = 0; i_1_2 != std::max(ranges.i_1_2, 1U); ++i_1_2) {
+          for (uint8_t i_1_3 = 0; i_1_3 != std::max(ranges.i_1_3, 1U); ++i_1_3) {
+            for (uint8_t i_2 = 0; i_2 != ranges.i_2; ++i_2) {
+              pmi_typeI_single_panel pmi = {.panel_config = panel_config,
+                                            .i_1_1        = i_1_1,
+                                            .i_1_2        = (ranges.i_1_2 > 0) ? std::optional(i_1_2) : std::nullopt,
+                                            .i_1_3        = (ranges.i_1_3 > 0) ? std::optional(i_1_3) : std::nullopt,
+                                            .i_2          = i_2};
+
+              precoding_weight_matrix reference = make_type1_sp_mode1(pmi, nof_layers);
+              precoding_weight_matrix quantized = make_type1_sp_mode1(pmi, nof_layers, {.phase_bits = nof_bits});
+
+              for (unsigned i_layer = 0; i_layer != nof_layers; ++i_layer) {
+                for (unsigned i_port = 0; i_port != nof_ports; ++i_port) {
+                  float error =
+                      std::abs(quantized.get_coefficient(i_layer, i_port) - reference.get_coefficient(i_layer, i_port));
+                  ASSERT_LT(error, TOLERANCE_FLOATING_POINT)
+                      << fmt::format("n1_n2={} bits={} layers={} i_1_1={} i_1_2={} i_1_3={} i_2={} layer={} port={}",
+                                     static_cast<unsigned>(n1_n2),
+                                     nof_bits,
+                                     nof_layers,
+                                     i_1_1,
+                                     i_1_2,
+                                     i_1_3,
+                                     i_2,
+                                     i_layer,
+                                     i_port);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// Below the grid resolution the phases move: with two bits the 45 degree step of the 2x1 panel becomes 90 degrees.
+TEST(precoding_codebooks_test, Type1SinglePanelMode1_PhaseQuantizationTwoBits)
+{
+  pmi_codebook_typeI_single_panel panel_config{pmi_codebook_single_panel_config::two_one, pmi_codebook_typeI_mode::one};
+  pmi_typeI_single_panel          pmi = {
+               .panel_config = panel_config, .i_1_1 = 1, .i_1_2 = std::nullopt, .i_1_3 = std::nullopt, .i_2 = 0};
+
+  // One layer, four ports: scaling 1/2, port 1 carries the 45 degree phase of i_1_1 = 1.
+  precoding_weight_matrix reference = make_type1_sp_mode1(pmi, 1);
+  precoding_weight_matrix quantized = make_type1_sp_mode1(pmi, 1, {.phase_bits = 2});
+
+  ASSERT_CF_EQ(reference.get_coefficient(0, 1), polar_deg(0.5F, 45.0F));
+  ASSERT_CF_EQ(quantized.get_coefficient(0, 0), reference.get_coefficient(0, 0));
+  ASSERT_CF_EQ(quantized.get_coefficient(0, 1), polar_deg(0.5F, 90.0F));
+  ASSERT_CF_EQ(quantized.get_coefficient(0, 2), reference.get_coefficient(0, 2));
+  ASSERT_CF_EQ(quantized.get_coefficient(0, 3), polar_deg(0.5F, 90.0F));
+
+  // The public dispatcher forwards the resolution.
+  precoding_weight_matrix dispatched = make_precoding(precoding_matrix_indicator(pmi), 1, {.phase_bits = 2});
+  ASSERT_EQ(dispatched, quantized);
+}
+
+TEST(precoding_codebooks_test, QuantizeFixedPoint_Coefficient)
+{
+  // Two fraction bits give a step of 0.25 with saturation at 0.75.
+  ASSERT_CF_EQ(quantize_fixed_point(cf_t(0.354F, -0.354F), 2), cf_t(0.25F, -0.25F));
+  ASSERT_CF_EQ(quantize_fixed_point(cf_t(0.9F, 1.7F), 2), cf_t(0.75F, 0.75F));
+  ASSERT_CF_EQ(quantize_fixed_point(cf_t(-0.9F, 0.0F), 2), cf_t(-0.75F, 0.0F));
+
+  // Ties round to even: 0.125 lies between 0 and 0.25 and rounds to 0, 0.375 rounds to 0.5.
+  ASSERT_CF_EQ(quantize_fixed_point(cf_t(0.125F, 0.375F), 2), cf_t(0.0F, 0.5F));
+
+  // Three fraction bits represent 0.5 and 0.125 exactly.
+  ASSERT_CF_EQ(quantize_fixed_point(cf_t(0.5F, 0.125F), 3), cf_t(0.5F, 0.125F));
+}
+
+// Two fraction bits put the 2x1 one-layer weights on the grid of 0.25: the 45 degree ports become 0.25 + 0.25j, the
+// on-axis ports keep 0.5.
+TEST(precoding_codebooks_test, Type1SinglePanelMode1_FixedPointTwoFractionBits)
+{
+  pmi_codebook_typeI_single_panel panel_config{pmi_codebook_single_panel_config::two_one, pmi_codebook_typeI_mode::one};
+  pmi_typeI_single_panel          pmi = {
+               .panel_config = panel_config, .i_1_1 = 1, .i_1_2 = std::nullopt, .i_1_3 = std::nullopt, .i_2 = 1};
+
+  precoding_weight_matrix quantized = make_type1_sp_mode1(pmi, 1, {.iq_fraction_bits = 2});
+
+  ASSERT_CF_EQ(quantized.get_coefficient(0, 0), cf_t(0.5F, 0.0F));
+  ASSERT_CF_EQ(quantized.get_coefficient(0, 1), cf_t(0.25F, 0.25F));
+  ASSERT_CF_EQ(quantized.get_coefficient(0, 2), cf_t(0.0F, 0.5F));
+  ASSERT_CF_EQ(quantized.get_coefficient(0, 3), cf_t(-0.25F, 0.25F));
+
+  // Both stages: the phase stage runs first, so the 45 degree port becomes 0.5j before the fixed-point rounding.
+  precoding_weight_matrix both = make_type1_sp_mode1(pmi, 1, {.phase_bits = 2, .iq_fraction_bits = 2});
+  ASSERT_CF_EQ(both.get_coefficient(0, 1), cf_t(0.0F, 0.5F));
+  ASSERT_CF_EQ(both.get_coefficient(0, 3), cf_t(-0.5F, 0.0F));
+}
+
+// Many fraction bits reproduce the weights within the test tolerance, and an empty quantization leaves them untouched.
+TEST(precoding_codebooks_test, Type1SinglePanelMode1_FixedPointControl)
+{
+  pmi_codebook_typeI_single_panel panel_config{pmi_codebook_single_panel_config::four_one, pmi_codebook_typeI_mode::one};
+  pmi_typeI_single_panel          pmi = {
+               .panel_config = panel_config, .i_1_1 = 5, .i_1_2 = std::nullopt, .i_1_3 = 1, .i_2 = 1};
+
+  precoding_weight_matrix reference = make_type1_sp_mode1(pmi, 2);
+  precoding_weight_matrix fine      = make_type1_sp_mode1(pmi, 2, {.iq_fraction_bits = 20});
+  precoding_weight_matrix none      = make_type1_sp_mode1(pmi, 2, precoding_weight_quantization{});
+
+  ASSERT_EQ(none, reference);
+  for (unsigned i_layer = 0; i_layer != 2; ++i_layer) {
+    for (unsigned i_port = 0; i_port != 8; ++i_port) {
+      ASSERT_CF_EQ(fine.get_coefficient(i_layer, i_port), reference.get_coefficient(i_layer, i_port));
+    }
+  }
+}
+
 TEST(precoding_codebooks_test, TypeISinglePanelMode1_UnsupportedCases)
 {
   // Use thread safe death test.

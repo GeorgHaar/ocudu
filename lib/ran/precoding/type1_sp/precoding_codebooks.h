@@ -5,6 +5,7 @@
 
 #pragma once
 #include "ocudu/ran/precoding/precoding_matrix_indicator.h"
+#include "ocudu/ran/precoding/precoding_weight_quantization.h"
 #include "ocudu/ran/precoding_beamforming_composite.h"
 
 namespace ocudu {
@@ -23,9 +24,13 @@ precoding_beamforming_composite calculate_mimo_matrix(const pmi_typeI_single_pan
 /// Single-Panel codebook for one to four layers. The generated precoding weights for the first half of ports
 /// corresponds to the first polarization, while the second half of ports corresponds to the second polarization.
 ///
-/// \param[in] pmi The Precoding Matrix Indicator (PMI) codebook parameters.
-/// \param[in] nof_layers The number of layers used for the transmission.
+/// \param[in] pmi                     The Precoding Matrix Indicator (PMI) codebook parameters.
+/// \param[in] nof_layers              The number of layers used for the transmission.
+/// \param[in] quantization            Quantization of the weights, see \ref precoding_weight_quantization. None by
+///                                    default.
 /// \return A precoding weight matrix for the given number of layers and the given antenna panel distribution.
-precoding_weight_matrix make_type1_sp_mode1(const pmi_typeI_single_panel& pmi, unsigned nof_layers);
+precoding_weight_matrix make_type1_sp_mode1(const pmi_typeI_single_panel&        pmi,
+                                            unsigned                             nof_layers,
+                                            const precoding_weight_quantization& quantization = {});
 
 } // namespace ocudu

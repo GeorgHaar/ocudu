@@ -1,0 +1,86 @@
+\section{Die Tests: Parametrisierung und Matrix-Ausgabe}
+
+\subsection{Wer über die Topologien iteriert}
+
+\file{tests/unittests/ran/beamforming/beam\_codebook\_generator\_test.cpp} enthält keine Schleife über die
+Topologien; der Test wird sieben Mal als eigenständiger Testfall ausgeführt. Der Iterator ist Google Test.
+
+\begin{lstlisting}[language=C++,title={tests/unittests/ran/beamforming/beam\_codebook\_generator\_test.cpp}]
+class BeamCodebookGeneratorFixture : public ::testing::TestWithParam<antenna_topology>
+{};
+
+TEST_P(BeamCodebookGeneratorFixture, Generate)
+{
+  antenna_topology topology = GetParam();
+  // ...
+}
+
+static constexpr auto antenna_topologies = to_array<antenna_topology>({antenna_topology::one_port,
+                                                                       antenna_topology::two_port,
+                                                                       antenna_topology::four_ports,
+                                                                       antenna_topology::eight_ports,
+                                                                       antenna_topology::single_panel_two_one,
+                                                                       antenna_topology::single_panel_two_two,
+                                                                       antenna_topology::single_panel_four_one});
+
+INSTANTIATE_TEST_SUITE_P(BeamCodebookGenerator, BeamCodebookGeneratorFixture, ::testing::ValuesIn(antenna_topologies));
+\end{lstlisting}
+
+\begin{enumerate}
+  \item Das Array ist nur die Datenquelle.
+  \item \code{INSTANTIATE\_TEST\_SUITE\_P} ist der Auslöser. \code{ValuesIn()} verpackt das Array in einen
+    \code{ParamGenerator<antenna\_topology>} (intern \code{ValuesInIteratorRangeGenerator}). Das Makro legt ein
+    statisches Objekt an, das den Generator bei Programmstart in der gtest-Registry hinterlegt.
+  \item Die Schleife steckt in gtest, \file{/usr/include/gtest/internal/gtest-param-util.h},
+    \code{ParameterizedTestSuiteInfo::RegisterTests()}, ausgeführt bei \code{InitGoogleTest()}:
+\begin{lstlisting}[language=C++]
+for (typename ParamGenerator<ParamType>::iterator param_it = generator.begin();
+     param_it != generator.end(); ++param_it, ++i) {
+  // ...
+  test_name_stream << test_info->test_base_name << "/" << param_name;
+  MakeAndRegisterTestInfo(test_suite_name.c_str(), test_name_stream.GetString().c_str(), ...);
+}
+\end{lstlisting}
+    Pro Wert entsteht ein Testfall \code{BeamCodebookGenerator/BeamCodebookGeneratorFixture.Generate/0} bis
+    \code{/6}, jeder mit einer Factory, die den Parameterwert gespeichert hat.
+  \item Zur Laufzeit erzeugt die Factory pro Testfall ein frisches Fixture-Objekt und setzt den Parameter.
+    \code{GetParam()} liest ihn nur aus.
+\end{enumerate}
+
+\begin{lstlisting}[language=bash]
+./cmake-build-debug/tests/unittests/ran/beam_codebook_generator_test --gtest_list_tests
+./cmake-build-debug/tests/unittests/ran/beam_codebook_generator_test --gtest_filter='*/4'   # single_panel_two_one
+\end{lstlisting}
+
+\subsection{Beam-Gewichte als Matrix ausgeben}
+
+Für \code{cf\_t} gibt es in \file{ocudu/adt/format.h} einen Formatter; \code{\{:+.2f\}} ergibt z.\,B.
+\code{+0.50-0.50j}. Für \code{beam\_weights\_codebook} existiert kein Formatter, anders als für
+\code{precoding\_weight\_matrix} (\file{include/ocudu/ran/precoding/precoding\_weight\_matrix\_formatters.h}).
+Direkt im Test, eine Zeile pro Beam:
+
+\begin{lstlisting}[language=C++]
+fmt::print("Topologie {}: {} Beams x {} Antennen\n", to_string(topology), beam_weights.get_nof_beams(), nof_total_antennas);
+for (unsigned i_beam = 0; i_beam != beam_weights.get_nof_beams(); ++i_beam) {
+  fmt::print("  beam {:2d}: [", i_beam);
+  for (unsigned i_antenna = 0; i_antenna != nof_total_antennas; ++i_antenna) {
+    fmt::print("{}{:+.2f}", (i_antenna != 0) ? "  " : "",
+               beam_weights.get_coefficient(static_cast<beam_identifier>(i_beam), i_antenna));
+  }
+  fmt::print("]\n");
+}
+\end{lstlisting}
+
+Die erwartete Zeile im selben Layout, an der Stelle nach der Berechnung von \code{expected\_coefficients}:
+
+\begin{lstlisting}[language=C++]
+fmt::print("  expected beam {:2d} (panel={} pol={} l={} m={}): [",
+           to_underlying(beam_id), i_panel, i_pol, i_beam_dim1, i_beam_dim2);
+for (unsigned i_antenna = 0; i_antenna != nof_total_antennas; ++i_antenna) {
+  fmt::print("{}{:+.2f}", (i_antenna != 0) ? "  " : "", expected_coefficients[i_antenna]);
+}
+fmt::print("]\n");
+\end{lstlisting}
+
+Die ersten Zeilen bis zur Antennenzahl sind die Einheitsmatrix (direkte Port-Beams), danach die DFT-Beams nach
+Panel, Polarisation, $l$ und $m$. Die Zeilennummer ist die \code{beam\_identifier}.

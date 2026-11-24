@@ -43,6 +43,15 @@ TEST_P(BeamCodebookGeneratorFixture, Generate)
   // Generate beam weights.
   beam_weights_codebook beam_weights = generate_beam_weights_codebook(topology);
 
+  fmt::print("Topologie {}: {} Beams x {} Antennen\n", to_string(topology), beam_weights.get_nof_beams(), nof_total_antennas);
+  for (unsigned i_beam = 0; i_beam != beam_weights.get_nof_beams(); ++i_beam) {
+    fmt::print("  beam {:2d}: [", i_beam);
+    for (unsigned i_antenna = 0; i_antenna != nof_total_antennas; ++i_antenna) {
+      fmt::print("{}{:+.2f}", (i_antenna != 0) ? "  " : "", beam_weights.get_coefficient(static_cast<beam_identifier>(i_beam), i_antenna));
+    }
+    fmt::print("]\n");
+  }
+
   // Calculate the beamforming coefficient normalization by the number of transmit antenna ports.
   float amplitude = std::sqrt(1.0F / static_cast<float>(nof_elements_dim1 * nof_elements_dim2));
 
@@ -69,6 +78,18 @@ TEST_P(BeamCodebookGeneratorFixture, Generate)
               expected_coefficients[i_port++] = v_l_m;
             }
           }
+
+          // Print the expected row in the same layout as the generated codebook above, for comparison.
+          fmt::print("  expected beam {:2d} (panel={} pol={} l={} m={}): [",
+                     to_underlying(beam_id),
+                     i_panel,
+                     i_pol,
+                     i_beam_dim1,
+                     i_beam_dim2);
+          for (unsigned i_antenna = 0; i_antenna != nof_total_antennas; ++i_antenna) {
+            fmt::print("{}{:+.2f}", (i_antenna != 0) ? "  " : "", expected_coefficients[i_antenna]);
+          }
+          fmt::print("]\n");
 
           // Check each of the antenna port coefficients.
           for (i_port = 0; i_port != nof_total_antennas; ++i_port) {

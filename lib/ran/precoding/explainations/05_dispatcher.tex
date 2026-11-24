@@ -1,0 +1,71 @@
+\section{Die beiden Dateien \file{precoding\_codebooks.cpp}}
+\label{sec:dispatcher}
+
+Zwei Dateien gleichen Namens mit klar getrennten Rollen: oben die Fassade und die codebook-unabhängigen
+Matrizen, unten die eigentliche 3GPP-Type-I-Mathematik.
+
+\subsection{\file{lib/ran/precoding/precoding\_codebooks.cpp}, die Fassade}
+
+Implementiert den öffentlichen Header \file{include/ocudu/ran/precoding/precoding\_codebooks.h}.
+\begin{itemize}
+  \item Einfache Matrizen ohne PMI: \code{make\_single\_port()}, \code{make\_one\_layer\_one\_port()},
+    \code{make\_one\_layer\_all\_ports()}, \code{make\_identity()}. Sie braucht der FAPI-Adaptor für SSB, PDCCH,
+    CSI-RS und das omnidirektionale PDSCH.
+  \item \code{get\_single\_panel\_topology()}: Abbildung von $2\times1$, $2\times2$, $4\times1$ auf die
+    Antennentopologie.
+  \item Zwei Dispatcher: \code{make\_precoding()} und \code{get\_mimo\_matrix\_from\_pmi()}. Die PMI ist ein
+    \code{std::variant}; die Visitor-Structs rufen die passende Implementierung.
+\end{itemize}
+
+\begin{lstlisting}[language=C++,title={lib/ran/precoding/precoding\_codebooks.cpp}]
+/// Precoding weight matrix calculator from a given PMI.
+struct precoding_calculator {
+  unsigned nof_layers;
+
+  precoding_weight_matrix operator()(const pmi_two_antenna_port& pmi) const
+  {
+    switch (nof_layers) {
+      case 1: return make_one_layer_two_ports(pmi.pmi);
+      case 2: return make_two_layer_two_ports(pmi.pmi);
+      default: ocudu_assertion_failure("Unsupported PMI codebook configuration");
+    }
+    return {};
+  }
+
+  precoding_weight_matrix operator()(const pmi_typeI_single_panel& pmi) const
+  {
+    return make_type1_sp_mode1(pmi, nof_layers);
+  }
+
+  precoding_weight_matrix operator()(const pmi_typeII& pmi) const { return make_type2(pmi, nof_layers); }
+};
+
+precoding_weight_matrix ocudu::make_precoding(const precoding_matrix_indicator& pmi, unsigned nof_layers)
+{
+  return std::visit(precoding_calculator{nof_layers}, pmi);
+}
+\end{lstlisting}
+
+Hier wird nichts gerechnet, nur verteilt.
+
+\subsection{\file{lib/ran/precoding/type1\_sp/precoding\_codebooks.cpp}, die Umsetzung}
+
+Die Implementierung von TS\,38.214 Abschnitt 5.2.2.2.1 für ein Single Panel:
+\begin{itemize}
+  \item \code{make\_layer\_type1\_sp\_mode1()}: ein Steuervektor $[v_{l,m};\,\varphi v_{l,m}]$ für einen Layer.
+  \item \code{get\_k1\_and\_k2\_2\_layers()}, \code{get\_k1\_and\_k2\_3\_4\_layers()}: Tabellen 5.2.2.2.1-3 und -4.
+  \item \code{make\_type1\_sp\_mode1()}: die vollständige Matrix Ports $\times$ Layer für 1 bis 8 Layer.
+  \item \code{get\_beams\_from\_pmi()}, \code{calculate\_mimo\_matrix()}: die zerlegte Variante für Beam-Raster.
+\end{itemize}
+
+Der zugehörige Header \file{type1\_sp/precoding\_codebooks.h} liegt bewusst in \file{lib/} statt in
+\file{include/}: Diese Funktionen sind intern, von außen soll nur über \code{make\_precoding()} zugegriffen werden.
+
+\subsection{Warum die Aufteilung}
+
+Der Rest des Systems soll nicht wissen, welcher Codebook-Typ gilt. Er ruft \code{make\_precoding(pmi, nof\_layers)}
+und bekommt eine Matrix. Jeder Codebook-Typ hat sein eigenes Unterverzeichnis mit eigener Datei desselben Namens.
+Zum Lesen geht man von \file{precoding\_codebooks.cpp:151} in den Visitor und von dort in
+\file{type1\_sp/precoding\_codebooks.cpp}. Die dritte Datei, \file{type1\_sp/precoding\_codebook\_helpers.cpp},
+liefert die Wertebereiche und Bitbreiten der PMI-Felder nach TS\,38.212 Tabelle 6.3.1.1.2-1, die der FAPI-Adaptor
+für seine Schleifen und der CSI-Report-Decoder brauchen.

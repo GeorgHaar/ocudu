@@ -8,6 +8,7 @@
 #include "precoding_matrix_indicator.h"
 #include "ocudu/ran/precoding/precoding_constants.h"
 #include "ocudu/ran/precoding/precoding_weight_matrix.h"
+#include "ocudu/ran/precoding/precoding_weight_quantization.h"
 #include "ocudu/ran/precoding_beamforming_composite.h"
 
 namespace ocudu {
@@ -62,10 +63,14 @@ precoding_weight_matrix make_one_layer_all_ports(unsigned nof_ports);
 
 /// \brief Constructs a precoding weight matrix from the specified PMI for the given number of layers.
 ///
-/// \param[in] pmi        The Precoding Matrix Indicator (PMI) codebook parameters.
-/// \param[in] nof_layers The number of layers used for the transmission.
+/// \param[in] pmi                     The Precoding Matrix Indicator (PMI) codebook parameters.
+/// \param[in] nof_layers              The number of layers used for the transmission.
+/// \param[in] quantization            Quantization of the Type I single-panel weights, see
+///                                    \ref precoding_weight_quantization. None by default. Other codebooks ignore it.
 /// \return A precoding weight matrix for the given number of layers and the codebook described by the PMI.
-precoding_weight_matrix make_precoding(const precoding_matrix_indicator& pmi, unsigned nof_layers);
+precoding_weight_matrix make_precoding(const precoding_matrix_indicator&    pmi,
+                                       unsigned                             nof_layers,
+                                       const precoding_weight_quantization& quantization = {});
 
 /// \brief Derives the MIMO precoding matrix and its beam list from the specified PMI for the given number of layers.
 ///

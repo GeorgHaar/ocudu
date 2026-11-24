@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
+#include "ocudu/ran/precoding/precoding_weight_quantization.h"
+#include <optional>
 #include "ocudu/du/du_low/o_du_low_factory.h"
 #include "o_du_low_impl.h"
 #include "ocudu/adt/format.h"
@@ -24,6 +26,11 @@ generate_fapi_fastpath_adaptor_dependencies(du_low&                             
   fapi_adaptor::phy_fapi_fastpath_adaptor_dependencies out_dependencies;
 
   auto& logger = ocudulog::fetch_basic_logger("FAPI");
+
+  // [Implementation-defined] Quantization of the Type I single-panel PDSCH weights. Experiment setting: phase
+  // resolution in bits and fraction bits of the fixed-point I/Q representation, each absent to disable the stage.
+  static constexpr precoding_weight_quantization weight_quantization = {.phase_bits       = 2,
+                                                                        .iq_fraction_bits = std::nullopt};
 
   for (unsigned i = 0, e = fapi_cfg.sectors.size(); i != e; ++i) {
     upper_phy& upper = du_low.get_upper_phy(i);
@@ -62,7 +69,7 @@ generate_fapi_fastpath_adaptor_dependencies(du_low&                             
         .ul_pdu_validator     = upper.get_uplink_pdu_validator(),
         .pm_repo              = std::move(std::get<std::unique_ptr<fapi_adaptor::precoding_codebook_repository>>(
             fapi_adaptor::generate_precoding_codebooks(
-                codebook_config, fapi_cfg.sectors[i].p7_config.tx_ant_topology, i))),
+                codebook_config, fapi_cfg.sectors[i].p7_config.tx_ant_topology, i, weight_quantization))),
         .part2_repo           = std::move(std::get<std::unique_ptr<fapi_adaptor::uci_part2_correspondence_repository>>(
             fapi_adaptor::generate_uci_part2_correspondence(1)))};
 

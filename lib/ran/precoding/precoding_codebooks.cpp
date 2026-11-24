@@ -10,6 +10,17 @@
 #include "ocudu/adt/format.h"
 #include "ocudu/adt/interval.h"
 
+
+/**
+ *Aufrufkette von make_type_sp_mode1():
+
+ * generate_precoding_codebooks(...)
+  → generate_pdsch_sp_type1(...)
+    → make_composite(...)
+      → make_precoding(...)
+        → make_type1_sp_mode1(...)
+ */
+
 using namespace ocudu;
 
 precoding_weight_matrix ocudu::make_single_port()
@@ -128,6 +139,8 @@ struct mimo_matrix_calculator {
 struct precoding_calculator {
   /// Number of transmission layers.
   unsigned nof_layers;
+  /// Quantization of the Type I single-panel weights.
+  precoding_weight_quantization quantization;
 
   precoding_weight_matrix operator()(std::monostate) const
   {
@@ -150,7 +163,7 @@ struct precoding_calculator {
 
   precoding_weight_matrix operator()(const pmi_typeI_single_panel& pmi) const
   {
-    return make_type1_sp_mode1(pmi, nof_layers);
+    return make_type1_sp_mode1(pmi, nof_layers, quantization);
   }
 
   precoding_weight_matrix operator()(const pmi_typeII& pmi) const { return make_type2(pmi, nof_layers); }
@@ -164,7 +177,9 @@ precoding_beamforming_composite ocudu::get_mimo_matrix_from_pmi(const precoding_
   return std::visit(mimo_matrix_calculator{nof_layers}, pmi);
 }
 
-precoding_weight_matrix ocudu::make_precoding(const precoding_matrix_indicator& pmi, unsigned nof_layers)
+precoding_weight_matrix ocudu::make_precoding(const precoding_matrix_indicator&    pmi,
+                                              unsigned                             nof_layers,
+                                              const precoding_weight_quantization& quantization)
 {
-  return std::visit(precoding_calculator{nof_layers}, pmi);
+  return std::visit(precoding_calculator{nof_layers, quantization}, pmi);
 }

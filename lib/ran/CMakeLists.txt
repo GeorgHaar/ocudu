@@ -38,6 +38,7 @@ add_library(ocudu_ran
         prach/ssb_to_ro_mapping.cpp
         precoding/precoding_codebook_configuration.cpp
         precoding/precoding_codebooks.cpp
+        precoding/precoding_weight_quantization.cpp
         precoding/two_port/precoding_codebooks.cpp
         precoding/type1_sp/precoding_codebook_helpers.cpp
         precoding/type1_sp/precoding_codebooks.cpp

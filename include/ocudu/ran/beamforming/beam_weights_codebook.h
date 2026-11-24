@@ -143,7 +143,7 @@ public:
                  "The antenna index (i.e., {}) exceeds the maximum (i.e., {}).",
                  i_antenna,
                  get_nof_antennas() - 1);
-    data[{i_beam, i_antenna}] = coefficient;
+    data[{i_beam, i_antenna}] = coefficient; //setzt einfach in W an der position x,y eine 1 hin
   }
 
   /// \brief  Gets a view of the coefficients associated with a given antenna index.

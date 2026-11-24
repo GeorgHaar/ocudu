@@ -248,7 +248,11 @@ static int run_benchmark(bench_params params, int algo)
     return -1;
   }
   fmt::print("------ Benchmarking: NIA{} NEA{} ------\n", algo, algo);
-
+#ifdef OCUDU_HAVE_IPSEC_MB
+  fmt::print("------ Using IPsec-MB ------\n", algo, algo);
+#else
+  fmt::print("------ Using MBedTLS ------\n", algo, algo);
+#endif
   auto int_algo  = static_cast<security::integrity_algorithm>(algo);
   auto ciph_algo = static_cast<security::ciphering_algorithm>(algo);
 

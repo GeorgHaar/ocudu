@@ -68,10 +68,10 @@ void ocudu::ocuduvec::bit_unpack(span<uint8_t> unpacked, const bit_buffer& packe
   uint8_t* unpacked_ptr = unpacked.data();
 
 #if defined(__AVX512F__) && defined(__AVX512BW__)
-  const __mmask64* avx512_packed_ptr = reinterpret_cast<const __mmask64*>(packed.get_buffer().data());
+  const uint8_t* avx512_packed_ptr = packed.get_buffer().data();
   for (unsigned i_byte_end = (packed.size() / 64) * 8; i_byte != i_byte_end; i_byte += 8) {
     // Load 64 bits in a go as a mask.
-    __mmask64 blend_mask = *(avx512_packed_ptr++);
+    __mmask64 blend_mask = _cvtu64_mask64(_mm_cvtsi128_si64(_mm_loadu_si64(avx512_packed_ptr + i_byte)));
 
     // Convert mask to 0x01 (for 1s) and 0x00 (for 0s).
     __m512i reg = _mm512_movm_epi8(blend_mask);
@@ -221,7 +221,7 @@ void ocudu::ocuduvec::bit_pack(bit_buffer& packed, span<const uint8_t> unpacked)
   unsigned i_byte = 0;
 
 #if defined(__AVX512F__) && defined(__AVX512BW__)
-  __mmask64* avx_packed_ptr = reinterpret_cast<__mmask64*>(packed.get_buffer().data());
+  uint8_t* avx_packed_ptr = packed.get_buffer().data();
   for (unsigned i_byte_end = (packed.size() / 64) * 8; i_byte != i_byte_end; i_byte += 8) {
     // Load the 64 input values into an AVX-512 register.
     __m512i reg = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(unpacked.data()));
@@ -242,7 +242,8 @@ void ocudu::ocuduvec::bit_pack(bit_buffer& packed, span<const uint8_t> unpacked)
     reg = _mm512_shuffle_epi8(reg, shuffle_idx);
 
     // Extract the LSBs using a bitwise AND operation.
-    *(avx_packed_ptr++) = _mm512_test_epi8_mask(reg, _mm512_set1_epi8(1));
+    __mmask64 mask = _mm512_test_epi8_mask(reg, _mm512_set1_epi8(1));
+    _mm_storeu_si64(avx_packed_ptr + i_byte, _mm_cvtsi64_si128(_cvtmask64_u64(mask)));
 
     unpacked = unpacked.last(unpacked.size() - 64);
   }

@@ -22,7 +22,7 @@ cell_group_cfg_s unpack_cell_group_config(const byte_buffer& container)
 {
   cell_group_cfg_s cell_group;
   asn1::cbit_ref   bref(container);
-  auto             err = cell_group.unpack(bref);
+  auto             err = asn1::unpack(cell_group, bref);
   ocudu_assert(err == asn1::OCUDUASN_SUCCESS, "Failed to unpack container");
   return cell_group;
 }
@@ -76,7 +76,7 @@ protected:
     cell_group_cfg_s cell_group = unpack_cell_group_config(container);
     if (verbose) {
       asn1::json_writer js;
-      cell_group.to_json(js);
+      asn1::to_json(js, cell_group);
       fmt::print("UE Creation produced CellGroup: {}\n", js.to_string());
     }
 
@@ -91,9 +91,8 @@ protected:
 
   void set_sr_offset(du_ue_index_t ue_index, du_cell_index_t cell_idx, unsigned sr_offset)
   {
-    this->cell_res_alloc.next_context_update_result.cell_group.cells.at(SERVING_PCELL_IDX)
-        .serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg->sr_res_list[0]
-        .offset = sr_offset;
+    this->cell_res_alloc.next_context_update_result.cell_group.cells.at(SERVING_PCELL_IDX).rrm.pucch.sr_offset =
+        sr_offset;
   }
 
   async_task<void>                        proc;
@@ -167,9 +166,7 @@ TEST_F(du_manager_ue_creation_tester,
   // > Generate SR offsets for two UEs.
   du_ue_index_t ue_idx1 = to_du_ue_index(0), ue_idx2 = to_du_ue_index(1);
   unsigned      sr_period =
-      sr_periodicity_to_slot(this->cell_res_alloc.next_context_update_result.cell_group.cells.at(SERVING_PCELL_IDX)
-                                 .serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg->sr_res_list[0]
-                                 .period);
+      sr_periodicity_to_slot(this->cell_res_alloc.get_cell_rrm_config(to_du_cell_index(0)).pucch.sr_period);
   unsigned sr_offset1 = test_rng::uniform_int<unsigned>(0, sr_period - 1);
   unsigned sr_offset2 = test_rng::uniform_int<unsigned>(0, sr_period - 1);
   // > Create first UE.
@@ -192,12 +189,8 @@ TEST_F(du_manager_ue_creation_tester,
   // > UE SR Offsets passed to scheduler match the ones generated.
   ASSERT_FALSE(req1.mac_cell_group_cfg.scheduling_request_config.empty());
   ASSERT_FALSE(req2.mac_cell_group_cfg.scheduling_request_config.empty());
-  const auto& sr_res_list1 = (*req1.sched_cfg.cells)[0].serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg->sr_res_list;
-  const auto& sr_res_list2 = (*req2.sched_cfg.cells)[0].serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg->sr_res_list;
-  ASSERT_FALSE(sr_res_list1.empty());
-  ASSERT_FALSE(sr_res_list2.empty());
-  ASSERT_EQ(sr_res_list1[0].offset, sr_offset1);
-  ASSERT_EQ(sr_res_list2[0].offset, sr_offset2);
+  ASSERT_EQ((*req1.sched_cfg.cells)[0].ded->rrm.pucch.sr_offset, sr_offset1);
+  ASSERT_EQ((*req2.sched_cfg.cells)[0].ded->rrm.pucch.sr_offset, sr_offset2);
 }
 
 TEST_F(du_manager_ue_creation_tester, when_ul_ccch_flush_fails_then_ue_is_destroyed)
@@ -299,6 +292,7 @@ TEST_F(du_manager_ntn_ue_creation_tester,
 
 TEST_F(du_manager_ue_creation_tester, redcap_initial_access_indication_reaches_f1ap)
 {
+  params.ran.cells[0].redcap.enabled = true;
   start_procedure(to_du_ue_index(0), to_rnti(0x4601), true, {}, std::nullopt, true);
   ASSERT_TRUE(cell_res_alloc.last_ue_index.has_value());
   auto* ue = ue_mng.find_ue(to_du_ue_index(0));
@@ -312,4 +306,39 @@ TEST_F(du_manager_ue_creation_tester, ordinary_initial_access_has_no_redcap_indi
   start_procedure();
   ASSERT_TRUE(f1ap.last_ue_create.has_value());
   EXPECT_FALSE(f1ap.last_ue_create->is_redcap);
+}
+
+TEST_F(du_manager_ue_creation_tester, when_redcap_accesses_two_antenna_cell_then_srb1_is_created)
+{
+  params.ran.cells[0].redcap.enabled         = true;
+  params.ran.cells[0].ran.dl_carrier.nof_ant = 2;
+  params.ran.cells[0].ran.ul_carrier.nof_ant = 2;
+  start_procedure(to_du_ue_index(0), to_rnti(0x4601), true, {}, std::nullopt, true);
+  ASSERT_TRUE(f1ap.last_ue_create.has_value());
+  EXPECT_TRUE(f1ap.last_ue_create->is_redcap);
+  check_du_to_cu_rrc_container_validity(false);
+}
+
+TEST_F(du_manager_ue_creation_tester, when_redcap_is_disabled_then_srb0_only_reject_path_is_used)
+{
+  params.ran.cells[0].redcap.enabled = false;
+  start_procedure(to_du_ue_index(0), to_rnti(0x4601), true, {}, std::nullopt, true);
+  ASSERT_TRUE(f1ap.last_ue_create.has_value());
+  EXPECT_TRUE(f1ap.last_ue_create->du_cu_rrc_container.empty());
+  ASSERT_EQ(f1ap.last_ue_create->f1c_bearers_to_add.size(), 1U);
+  EXPECT_EQ(f1ap.last_ue_create->f1c_bearers_to_add[0].srb_id, srb_id_t::srb0);
+  ASSERT_TRUE(mac.last_ue_create_msg.has_value());
+  ASSERT_EQ(mac.last_ue_create_msg->bearers.size(), 1U);
+}
+
+TEST_F(du_manager_ue_creation_tester, when_redcap_is_barred_then_srb0_only_reject_path_is_used)
+{
+  params.ran.cells[0].redcap.enabled     = true;
+  params.ran.cells[0].redcap.cell_barred = true;
+  start_procedure(to_du_ue_index(0), to_rnti(0x4601), true, {}, std::nullopt, true);
+  ASSERT_TRUE(f1ap.last_ue_create.has_value());
+  EXPECT_TRUE(f1ap.last_ue_create->du_cu_rrc_container.empty());
+  ASSERT_EQ(f1ap.last_ue_create->f1c_bearers_to_add.size(), 1U);
+  EXPECT_EQ(f1ap.last_ue_create->f1c_bearers_to_add[0].srb_id, srb_id_t::srb0);
+  ASSERT_TRUE(mac.last_ue_create_msg.has_value());
 }

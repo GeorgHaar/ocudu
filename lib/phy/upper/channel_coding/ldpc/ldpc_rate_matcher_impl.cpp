@@ -7,9 +7,12 @@
 #include "ldpc_luts_impl.h"
 #include "ocudu/adt/interval.h"
 #include "ocudu/ocuduvec/bit.h"
-#include "ocudu/ocuduvec/compare.h"
 #include "ocudu/ocuduvec/copy.h"
 #include "ocudu/support/ocudu_assert.h"
+
+#ifdef __AVX2__
+#include "immintrin.h"
+#endif // __AVX2__
 
 using namespace ocudu;
 using namespace ocudu::ldpc;
@@ -293,8 +296,87 @@ void interleave_bits_Qm<10>(bit_buffer& out, span<const uint8_t> in)
   // The phase repeats every four symbols: 4 * 10 bits = 5 bytes.
   unsigned phase = 0;
   uint8_t  carry = 0;
+  unsigned i     = 0;
 
-  for (unsigned i = 0; i != K; ++i) {
+#ifdef __AVX2__
+  // Each iteration packs 32 symbols (320 bits) into exactly 40 bytes, so the phase stays at zero.
+  for (unsigned i_end = (K / 32) * 32; i != i_end; i += 32) {
+    auto load_row = [&](unsigned r) {
+      return _mm256_loadu_si256(reinterpret_cast<const __m256i*>(in_ptr + r * K + i));
+    };
+    // Two MSB of each symbol, one symbol per byte.
+    __m256i hi = load_row(0);
+    hi         = _mm256_or_si256(_mm256_add_epi8(hi, hi), load_row(1));
+
+    // Eight LSB of each symbol, one symbol per byte.
+    __m256i lo = load_row(2);
+    for (unsigned r = 3; r != Qm; ++r) {
+      lo = _mm256_or_si256(_mm256_add_epi8(lo, lo), load_row(r));
+    }
+
+    // 16-bit symbols. Low half: symbols 0-7 and 16-23. High half: symbols 8-15 and 24-31.
+    __m256i sym_a = _mm256_unpacklo_epi8(lo, hi);
+    __m256i sym_b = _mm256_unpackhi_epi8(lo, hi);
+
+    // Merge symbol pairs into 20-bit words: (s[2n] << 10) | s[2n + 1].
+    __m256i pair_mul = _mm256_set1_epi32((1 << 16) | (1 << 10));
+    sym_a            = _mm256_madd_epi16(sym_a, pair_mul);
+    sym_b            = _mm256_madd_epi16(sym_b, pair_mul);
+
+    // Merge word pairs into 40-bit words in the 64-bit lanes: (w[2n] << 20) | w[2n + 1].
+    sym_a = _mm256_or_si256(_mm256_slli_epi64(sym_a, 20), _mm256_srli_epi64(sym_a, 32));
+    sym_b = _mm256_or_si256(_mm256_slli_epi64(sym_b, 20), _mm256_srli_epi64(sym_b, 32));
+
+    // Write the 40-bit words in big-endian order, ten bytes per 128-bit lane.
+    __m256i be_shuffle = _mm256_setr_epi8(4,
+                                          3,
+                                          2,
+                                          1,
+                                          0,
+                                          12,
+                                          11,
+                                          10,
+                                          9,
+                                          8,
+                                          -1,
+                                          -1,
+                                          -1,
+                                          -1,
+                                          -1,
+                                          -1,
+                                          4,
+                                          3,
+                                          2,
+                                          1,
+                                          0,
+                                          12,
+                                          11,
+                                          10,
+                                          9,
+                                          8,
+                                          -1,
+                                          -1,
+                                          -1,
+                                          -1,
+                                          -1,
+                                          -1);
+    sym_a              = _mm256_shuffle_epi8(sym_a, be_shuffle);
+    sym_b              = _mm256_shuffle_epi8(sym_b, be_shuffle);
+
+    // Overlapping stores in increasing address order: each one overwrites the padding of the previous one. The last
+    // one is split so nothing is written past the 40 bytes.
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(out_ptr + 0), _mm256_castsi256_si128(sym_a));
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(out_ptr + 10), _mm256_castsi256_si128(sym_b));
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(out_ptr + 20), _mm256_extracti128_si256(sym_a, 1));
+    __m128i last = _mm256_extracti128_si256(sym_b, 1);
+    _mm_storel_epi64(reinterpret_cast<__m128i*>(out_ptr + 30), last);
+    uint16_t last_two = static_cast<uint16_t>(_mm_extract_epi16(last, 4));
+    std::memcpy(out_ptr + 38, &last_two, sizeof(last_two));
+    out_ptr += 40;
+  }
+#endif // __AVX2__
+
+  for (; i != K; ++i) {
     uint16_t sym = static_cast<uint16_t>(
         (in_ptr[0 * K + i] << 9) | (in_ptr[1 * K + i] << 8) | (in_ptr[2 * K + i] << 7) | (in_ptr[3 * K + i] << 6) |
         (in_ptr[4 * K + i] << 5) | (in_ptr[5 * K + i] << 4) | (in_ptr[6 * K + i] << 3) | (in_ptr[7 * K + i] << 2) |

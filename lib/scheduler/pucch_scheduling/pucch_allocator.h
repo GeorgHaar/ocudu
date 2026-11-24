@@ -27,6 +27,7 @@ public:
   /// \param[in] k0 k0 value, or delay (in slots) of PDSCH slot vs the corresponding PDCCH slot.
   /// \param[in] k1 delay in slots of the UE's PUCCH HARQ-ACK report with respect to the PDSCH.
   /// \param[in] dci_info information with DL DCI, needed for HARQ-(N)-ACK scheduling info.
+  /// \param[in] ntn_koffset Koffset in slots the HARQ-ACK is placed with, as per TS 38.213, Section 4.2.
   /// \return The PUCCH resource indicator, if the allocation is successful; a \c std::nullopt otherwise.
   /// \remark \c pucch_res_indicator, or \f$\Delta_{PRI}\f$, is the <em>PUCCH resource indicator<\em> field for DCI 1_0
   /// and 1_1 as per TS 38.213, Section 9.2.1. It indicates the UE which PUCCH resource should be used for HARQ-(N)ACK
@@ -35,7 +36,8 @@ public:
                                                         rnti_t                      tcrnti,
                                                         unsigned                    k0,
                                                         unsigned                    k1,
-                                                        const pdcch_dl_information& dci_info) = 0;
+                                                        const pdcch_dl_information& dci_info,
+                                                        unsigned                    ntn_koffset) = 0;
 
   /// Allocate both common and dedicated PUCCH resources for HARQ-ACK for a given UE.
   /// \param[out,in] res_alloc struct with scheduling results.

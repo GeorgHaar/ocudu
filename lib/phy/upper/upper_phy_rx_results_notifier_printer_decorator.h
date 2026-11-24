@@ -62,7 +62,17 @@ public:
   void on_new_pucch_results(const ul_pucch_results& result) override { base_notifier.on_new_pucch_results(result); }
 
   // See the upper_phy_rx_results_notifier interface for documentation.
-  void on_new_srs_results(const ul_srs_results& result) override { base_notifier.on_new_srs_results(result); }
+  void on_new_srs_results(const ul_srs_results& result) override
+  {
+    bool trigger = (!std::isnan(triggers.srs_threshold_rsrp_dB) &&
+                    (result.processor_result.rsrp_dB > triggers.srs_threshold_rsrp_dB));
+
+    if (trigger) {
+      backend.on_grid_trigger(sector, result.context.slot);
+    }
+
+    base_notifier.on_new_srs_results(result);
+  }
 
 private:
   upper_phy_rx_results_notifier&    base_notifier;

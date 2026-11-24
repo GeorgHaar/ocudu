@@ -24,7 +24,7 @@ static ssb_pss_to_sss_epre convert_to_beta_pss(const fapi::dl_ssb_pdu& fapi_pdu)
 
   if (const auto* profile_sss = std::get_if<fapi::dl_ssb_pdu::power_profile_sss>(&fapi_pdu.power_config)) {
     float beta_pss_db = profile_sss->beta_pss_db;
-    ocudu_assert((beta_pss_db == 3.0F) || (beta_pss_db = 0.0F),
+    ocudu_assert((beta_pss_db == 3.0F) || (beta_pss_db == 0.0F),
                  "Invalid beta PSS value {} dB, expected {{{} dB, {} dB}}.",
                  beta_pss_db,
                  0.0F,

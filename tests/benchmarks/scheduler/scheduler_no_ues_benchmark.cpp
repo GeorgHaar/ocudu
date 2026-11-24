@@ -10,7 +10,6 @@
 #include "tests/unittests/scheduler/test_utils/indication_generators.h"
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/scheduler/config/scheduler_expert_config_factory.h"
-#include "ocudu/scheduler/result/sched_result.h"
 #include "ocudu/scheduler/scheduler_factory.h"
 #include "ocudu/support/benchmark_utils.h"
 #include <getopt.h>
@@ -99,14 +98,15 @@ void benchmark_rach_scheduling()
       // Avoid slots with SIB1, otherwise there might not be space in PDCCH.
       sch->handle_rach_indication(rach_ind);
     }
-    const sched_result* res = &sch->slot_indication(sl_tx, to_du_cell_index(0));
+    const auto res    = sch->slot_indication(sl_tx, to_du_cell_index(0));
+    const auto puschs = res.ul().puschs();
 
     // ack msg3s.
-    if (not res->ul.puschs.empty()) {
+    if (not puschs.empty()) {
       ul_crc_indication crc;
       crc.cell_index = to_du_cell_index(0);
       crc.sl_rx      = sl_tx.without_hyper_sfn() - 4;
-      for (const ul_sched_info& ulinfo : res->ul.puschs) {
+      for (const ul_sched_info& ulinfo : puschs) {
         crc.crcs.push_back(ul_crc_pdu_indication{
             ulinfo.pusch_cfg.rnti, INVALID_DU_UE_INDEX, to_harq_id(ulinfo.pusch_cfg.harq_id), true});
       }

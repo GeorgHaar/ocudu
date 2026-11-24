@@ -5,7 +5,6 @@
 
 #include "ocudu/phy/generic_functions/generic_functions_factories.h"
 #include "dft_processor_generic_impl.h"
-#include "ocudu/support/cpu_features.h"
 #include "ocudu/support/error_handling.h"
 
 #ifdef HAVE_FFTW
@@ -16,9 +15,9 @@
 #include "dft_processor_fftz_impl.h"
 #endif // HAVE_FFTZ
 
-#ifdef __x86_64__
-#include "dft_processor_ci16_avx2.h"
-#endif // __x86_64__
+#ifdef HAVE_HWY
+#include "dft_hwy/dft_processor_hwy_impl.h"
+#endif // HAVE_HWY
 
 // Check if any Clang sanitizer is enabled.
 #ifdef __has_feature
@@ -51,16 +50,22 @@ public:
   }
 };
 
-#ifdef __x86_64__
-class dft_processor_ci16_factory_avx2 : public dft_processor_ci16_factory
+#ifdef HAVE_HWY
+class dft_processor_factory_hwy : public dft_processor_factory
 {
 public:
-  std::unique_ptr<dft_processor_ci16> create(const dft_processor_ci16::configuration& config) override
+  explicit dft_processor_factory_hwy(int64_t target_) : target(target_) {}
+
+  std::unique_ptr<dft_processor> create(const dft_processor::configuration& config) override
   {
-    return create_dft_processor_ci16_avx2(config.size, config.dir);
+    return create_dft_processor_hwy(config, target);
   }
+
+private:
+  /// Highway target of the processors.
+  int64_t target;
 };
-#endif // __x86_64__
+#endif // HAVE_HWY
 
 #ifdef HAVE_FFTW
 class dft_processor_factory_fftw : public dft_processor_factory
@@ -146,15 +151,26 @@ std::shared_ptr<dft_processor_factory> ocudu::create_dft_processor_factory_fftz(
 #endif // HAVE_FFTZ
 }
 
-std::shared_ptr<dft_processor_ci16_factory> ocudu::create_dft_processor_ci16_factory_avx2()
+std::shared_ptr<dft_processor_factory> ocudu::create_dft_processor_factory_hwy(const std::string& arch)
 {
-#ifdef __x86_64__
-  if (cpu_supports_feature(cpu_feature::avx2)) {
-    return std::make_shared<dft_processor_ci16_factory_avx2>();
+#ifdef HAVE_HWY
+  int64_t target = resolve_dft_processor_hwy_target(arch);
+  if (target == 0) {
+    return nullptr;
   }
-#endif // __x86_64__
-
+  return std::make_shared<dft_processor_factory_hwy>(target);
+#else  // HAVE_HWY
   return nullptr;
+#endif // HAVE_HWY
+}
+
+std::string ocudu::get_dft_processor_hwy_architectures()
+{
+#ifdef HAVE_HWY
+  return list_dft_processor_hwy_architectures();
+#else  // HAVE_HWY
+  return "";
+#endif // HAVE_HWY
 }
 
 std::shared_ptr<dft_processor_factory> ocudu::create_dft_processor_factory_fftw()
@@ -164,4 +180,45 @@ std::shared_ptr<dft_processor_factory> ocudu::create_dft_processor_factory_fftw(
 #else
   return create_dft_processor_factory_fftw_fast();
 #endif
+}
+
+std::shared_ptr<dft_processor_factory> ocudu::create_dft_processor_factory(const std::string& type)
+{
+  if (type == "hwy") {
+    return create_dft_processor_factory_hwy();
+  }
+  if (type.rfind("hwy:", 0) == 0) {
+    // The architecture follows the colon.
+    return create_dft_processor_factory_hwy(type.substr(4));
+  }
+  if (type == "fftw") {
+    return create_dft_processor_factory_fftw();
+  }
+  if (type == "fftw_fast") {
+    return create_dft_processor_factory_fftw_fast();
+  }
+  if (type == "fftw_slow") {
+    return create_dft_processor_factory_fftw_slow();
+  }
+  if (type == "fftz") {
+    return create_dft_processor_factory_fftz();
+  }
+  if (type == "generic") {
+    return create_dft_processor_factory_generic();
+  }
+  if (type != "auto") {
+    return nullptr;
+  }
+
+  std::shared_ptr<dft_processor_factory> dft_proc_factory = create_dft_processor_factory_hwy();
+  if (!dft_proc_factory) {
+    dft_proc_factory = create_dft_processor_factory_fftw();
+  }
+  if (!dft_proc_factory) {
+    dft_proc_factory = create_dft_processor_factory_fftz();
+  }
+  if (!dft_proc_factory) {
+    dft_proc_factory = create_dft_processor_factory_generic();
+  }
+  return dft_proc_factory;
 }

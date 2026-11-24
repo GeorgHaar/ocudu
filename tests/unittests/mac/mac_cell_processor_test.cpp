@@ -36,9 +36,9 @@ public:
 
   bool is_pdsch_scheduled() const
   {
-    const auto& dl_res = *phy_notifier.last_sched_res->dl_res;
-    return not dl_res.rar_grants.empty() or not dl_res.bc.sibs.empty() or not dl_res.ue_grants.empty() or
-           not dl_res.paging_grants.empty();
+    const auto dl_res = phy_notifier.last_sched_res->dl_res;
+    return not dl_res.rar_grants().empty() or not dl_res.sibs().empty() or not dl_res.ue_grants().empty() or
+           not dl_res.paging_grants().empty();
   }
 
   test_helpers::dummy_mac_scheduler_adapter    sched_adapter;
@@ -78,15 +78,21 @@ protected:
       sib_grant.pdsch_cfg.codewords.resize(1);
       sib_grant.pdsch_cfg.codewords[0].tb_size_bytes = units::bytes{128};
     }
-    sched_adapter.next_sched_result.dl.rar_grants.resize(params.nof_rar_allocated);
-    for (auto& rar_grant : sched_adapter.next_sched_result.dl.rar_grants) {
+    for (unsigned i = 0; i != params.nof_rar_allocated; ++i) {
+      report_fatal_error_if_not(sched_adapter.results.get_builder(0).dl().rar_grants().emplace_back() != nullptr,
+                                "Failed to allocate RAR grant");
+    }
+    for (auto& rar_grant : sched_adapter.results.get_builder(0).dl().rar_grants()) {
       rar_grant.pdsch_cfg.rnti = to_rnti(0x1);
       rar_grant.pdsch_cfg.codewords.resize(1);
       rar_grant.pdsch_cfg.codewords[0].tb_size_bytes = units::bytes{128};
       rar_grant.grants.resize(1);
     }
-    sched_adapter.next_sched_result.dl.ue_grants.resize(params.nof_ue_allocated);
-    for (auto& ue_grant : sched_adapter.next_sched_result.dl.ue_grants) {
+    for (unsigned i = 0; i != params.nof_ue_allocated; ++i) {
+      report_fatal_error_if_not(sched_adapter.results.get_builder(0).dl().ue_grants().emplace_back() != nullptr,
+                                "Failed to allocate UE grant");
+    }
+    for (auto& ue_grant : sched_adapter.results.get_builder(0).dl().ue_grants()) {
       ue_grant.pdsch_cfg.rnti = to_rnti(0x4601);
       ue_grant.pdsch_cfg.codewords.resize(1);
       ue_grant.pdsch_cfg.codewords[0].tb_size_bytes = units::bytes{128};
@@ -116,9 +122,9 @@ TEST_P(mac_cell_processor_tester, when_cell_is_active_then_slot_indication_trigg
   ASSERT_TRUE(phy_notifier.is_complete);
 
   auto test_params = GetParam();
-  ASSERT_EQ(phy_notifier.last_sched_res->dl_res->bc.sibs.size(), test_params.nof_sib_allocated);
-  ASSERT_EQ(phy_notifier.last_sched_res->dl_res->rar_grants.size(), test_params.nof_rar_allocated);
-  ASSERT_EQ(phy_notifier.last_sched_res->dl_res->ue_grants.size(), test_params.nof_ue_allocated);
+  ASSERT_EQ(phy_notifier.last_sched_res->dl_res.sibs().size(), test_params.nof_sib_allocated);
+  ASSERT_EQ(phy_notifier.last_sched_res->dl_res.rar_grants().size(), test_params.nof_rar_allocated);
+  ASSERT_EQ(phy_notifier.last_sched_res->dl_res.ue_grants().size(), test_params.nof_ue_allocated);
 }
 
 TEST_P(mac_cell_processor_tester, when_cell_is_deactivated_then_scheduler_gets_notified)

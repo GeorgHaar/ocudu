@@ -79,6 +79,7 @@ si_scheduling_config ocudu::odu::make_si_scheduling_info_config(const du_cell_co
 sched_cell_configuration_request_message
 ocudu::odu::make_sched_cell_config_req(du_cell_index_t             cell_index,
                                        const odu::du_cell_config&  du_cfg,
+                                       const cell_rrm_config&      rrm_cfg,
                                        const si_scheduling_config& si_sched_cfg,
                                        unsigned                    max_nof_ue_contexts)
 {
@@ -88,6 +89,7 @@ ocudu::odu::make_sched_cell_config_req(du_cell_index_t             cell_index,
   sched_req.cell_index       = cell_index;
   sched_req.cell_group_index = (du_cell_group_index_t)cell_index; // No CA by default.
   sched_req.ran              = du_cfg.ran;
+  sched_req.rrm              = rrm_cfg;
 
   // Convert SIB1 and SI message info scheduling config. A cell starts out in the normal operation, so the SI messages
   // that only carry a warning are not broadcast yet, and must not take a position that the SIB1 of the cell gives to
@@ -107,7 +109,12 @@ sched_ue_config_request ocudu::odu::create_scheduler_ue_config_request(const du_
 
   sched_cfg.cells.emplace();
   sched_cfg.cells->resize(1);
-  (*sched_cfg.cells)[0] = ue_res_cfg.cell_group.cells.at(SERVING_PCELL_IDX);
+  if (ue_res_cfg.cell_group.cells.contains(SERVING_PCELL_IDX)) {
+    (*sched_cfg.cells)[0] = make_sched_ue_cell_config(ue_res_cfg.cell_group.cells.at(SERVING_PCELL_IDX));
+  } else {
+    // The UE got no resources in its PCell, e.g. a UE that gets an RRC Reject.
+    (*sched_cfg.cells)[0] = sched_ue_cell_config{.cell_index = ue_ctx.pcell_index, .ded = std::nullopt};
+  }
   // Add SRB and DRB logical channels.
   sched_cfg.lc_config_list.emplace();
   for (const auto& srb : ue_res_cfg.srbs) {
@@ -143,8 +150,9 @@ sched_ue_config_request ocudu::odu::create_scheduler_ue_config_request(const du_
       sched_lc_ch.qos->gbr_qos_info = drb.qos.gbr_qos_info;
     }
   }
-  sched_cfg.drx_cfg      = ue_res_cfg.cell_group.mcg_cfg.drx_cfg;
-  sched_cfg.meas_gap_cfg = ue_res_cfg.meas_gap;
+  sched_cfg.drx_cfg                       = ue_res_cfg.cell_group.mcg_cfg.drx_cfg;
+  sched_cfg.meas_gap_cfg                  = ue_res_cfg.meas_gap;
+  sched_cfg.ue_specific_koffset_supported = ue_res_cfg.ue_specific_koffset_supported;
 
   return sched_cfg;
 }

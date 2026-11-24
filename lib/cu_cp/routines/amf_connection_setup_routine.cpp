@@ -25,7 +25,6 @@ amf_connection_setup_routine::amf_connection_setup_routine(
     ngap_repository&                                          ngap_db_,
     std::unordered_map<cu_cp_amf_index_t, std::atomic<bool>>& amfs_connected_,
     cu_cp_ng_setup_complete_notifier*                         ng_setup_notifier_) :
-  ngap_db(ngap_db_),
   amfs_connected(amfs_connected_),
   ng_setup_notifier(ng_setup_notifier_),
   ngaps(ngap_db_.get_ngaps()),
@@ -42,8 +41,11 @@ void amf_connection_setup_routine::operator()(coro_context<async_task<bool>>& ct
     amf_index = ngap_it->first;
     ngap      = ngap_it->second;
 
+    // An AMF that cannot be reached does not stop the setup of the others (e.g. another AMF of the pool): unconnected
+    // AMFs are retried in the background.
     if (not ngap->handle_amf_tnl_connection_request()) {
-      CORO_EARLY_RETURN(false);
+      all_connected = false;
+      continue;
     }
 
     // Initiate NG Setup.
@@ -62,9 +64,6 @@ void amf_connection_setup_routine::operator()(coro_context<async_task<bool>>& ct
             std::move(ng_resp.packed_ng_setup_request), std::move(ng_resp.packed_ng_setup_response), ng_resp.amf_name);
       }
 
-      // Update PLMN lookups in NGAP repository after successful NGSetup.
-      ngap_db.update_plmn_lookup(amf_index);
-
       std::string plmn_list;
       for (const auto& plmn : ngap->get_ngap_context().get_supported_plmns()) {
         plmn_list += plmn.to_string() + " ";
@@ -79,11 +78,11 @@ void amf_connection_setup_routine::operator()(coro_context<async_task<bool>>& ct
 
       // Tear the N2 TNL association down, so that the NG Setup can be retried over a new one.
       CORO_AWAIT(ngap->handle_amf_disconnection_request());
-      CORO_EARLY_RETURN(false);
+      all_connected = false;
     }
   }
 
-  CORO_RETURN(success);
+  CORO_RETURN(all_connected);
 }
 
 void amf_connection_setup_routine::handle_connection_setup_result()

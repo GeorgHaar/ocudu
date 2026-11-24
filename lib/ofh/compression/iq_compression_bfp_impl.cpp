@@ -21,13 +21,34 @@ void iq_compression_bfp_impl::quantize_input(span<int16_t> out, span<const bf16_
   // Convert input to int16_t representation.
   q.to_fixed_point(out, in, scaling_table.get_compression_iq_scaling(data_width));
 
-  if (OCUDU_UNLIKELY(logger.debug.enabled() && !out.empty())) {
-    // Calculate and print RMS of quantized samples.
-    float sum_squares = ocuduvec::dot_prod(out, out, 0);
-    float rms         = std::sqrt(sum_squares / out.size());
-    if (std::isnormal(rms)) {
-      logger.debug("Quantized IQ samples RMS value of '{}'", rms);
-    }
+  log_post_quantization_rms(out);
+}
+
+void iq_compression_bfp_impl::log_quantized_input_rms(span<const bf16_t> in, unsigned data_width) const
+{
+  if (OCUDU_LIKELY(!logger.debug.enabled())) {
+    return;
+  }
+
+  ocudu_assert(in.size() <= NOF_SAMPLES_PER_PRB * MAX_NOF_PRBS, "Number of samples exceeds the maximum number of PRBs");
+
+  std::array<int16_t, NOF_SAMPLES_PER_PRB * MAX_NOF_PRBS> quantized;
+  span<int16_t>                                           quantized_span(quantized.data(), in.size());
+  quantizer(Q_BIT_WIDTH).to_fixed_point(quantized_span, in, scaling_table.get_compression_iq_scaling(data_width));
+  log_post_quantization_rms(quantized_span);
+}
+
+void iq_compression_bfp_impl::log_post_quantization_rms(span<const int16_t> samples) const
+{
+  if (OCUDU_LIKELY(!logger.debug.enabled() || samples.empty())) {
+    return;
+  }
+
+  // Calculate and print RMS of quantized samples.
+  float sum_squares = ocuduvec::dot_prod(samples, samples, 0.0F);
+  float rms         = std::sqrt(sum_squares / samples.size());
+  if (std::isnormal(rms)) {
+    logger.debug("Quantized IQ samples RMS value of '{}'", rms);
   }
 }
 
@@ -40,7 +61,9 @@ void iq_compression_bfp_impl::compress_prb_generic(span<uint8_t>       comp_prb_
   const auto* start_it = input_quantized.begin();
   const auto* max_it   = std::max_element(start_it, start_it + NOF_SAMPLES_PER_PRB);
   const auto* min_it   = std::min_element(start_it, start_it + NOF_SAMPLES_PER_PRB);
-  unsigned    max_abs  = std::max(std::abs(*max_it), std::abs(*min_it) - 1);
+  // O-RAN.WG4.CUS, Annex A.1.2: the most significant bit of a negative value can be one higher. As the minimum does not
+  // exceed the maximum, the result is not negative.
+  unsigned max_abs = std::max(static_cast<int>(*max_it), std::abs(*min_it) - 1);
 
   uint8_t exponent = determine_exponent(max_abs, data_width);
 

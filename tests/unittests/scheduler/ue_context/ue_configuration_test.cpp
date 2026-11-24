@@ -22,6 +22,7 @@ void widen_pucch_f2_for_csi(sched_cell_configuration_request_message& sched_cfg)
   auto& f2_params         = std::get<pucch_f2_params>(sched_cfg.ran.init_bwp.pucch.resources.f2_or_f3_or_f4_params);
   f2_params.max_code_rate = max_pucch_code_rate::dot_80;
   f2_params.max_nof_rbs   = pucch_f2_params::nof_rbs{3};
+  sched_cfg.rrm           = make_cell_rrm_config(sched_cfg.ran);
 }
 
 // Builds a UE configuration for a cell with the given number of DL antennas and returns the number of PDSCH configs
@@ -86,4 +87,36 @@ TEST(ue_configuration_test, pdsch_config_precompute_is_bounded_by_layers_not_por
   EXPECT_EQ(precomputed_pdsch_layer_configs(4), 4);
   // At and above the limit (MAX_NOF_LAYERS_PER_CODEWORD == 4), the count is clamped.
   EXPECT_EQ(precomputed_pdsch_layer_configs(8), pdsch_constants::MAX_NOF_LAYERS_PER_CODEWORD);
+}
+
+// The scheduler takes the PUCCH and CSI values of the UE from the resources that the RRM allocates to it.
+TEST(ue_configuration_test, ue_pucch_and_csi_configs_come_from_the_ue_rrm_config)
+{
+  scheduler_expert_config  expert_cfg = config_helpers::make_default_scheduler_expert_config();
+  sched_cfg_dummy_notifier metric_notif;
+  sched_config_manager     cfg_mng(scheduler_config{expert_cfg, metric_notif});
+
+  const cell_configuration& cell_cfg =
+      *cfg_mng.add_cell(sched_config_helper::make_default_sched_cell_configuration_request());
+
+  sched_ue_creation_request_message ue_req = sched_config_helper::create_default_sched_ue_creation_request(
+      cell_cfg.params, std::array<lcid_t, 3>{lcid_t::LCID_SRB1, lcid_t::LCID_SRB2, lcid_t::LCID_MIN_DRB});
+  ue_rrm_config& rrm = ue_req.cfg.cells->front().ded->rrm;
+  ASSERT_TRUE(rrm.csi.periodic_report.has_value());
+  rrm.pucch.sr_offset          = rrm.pucch.sr_offset + 1;
+  rrm.pucch.rep_f1_3_4_enabled = true;
+  rrm.csi.periodic_report->offset += 1;
+
+  ue_config_update_event ev = cfg_mng.add_ue(ue_req);
+  ASSERT_TRUE(ev.valid());
+  const ue_uplink_bwp_config& ue_ul = *ev.next_config().pcell_cfg().init_bwp().ul.ue_cfg();
+  EXPECT_EQ(ue_ul.pucch.res_set_cfg_id, rrm.pucch.res_set_cfg_id);
+  EXPECT_EQ(ue_ul.pucch.sr_res_id, rrm.pucch.sr_res_id);
+  EXPECT_EQ(ue_ul.pucch.sr_offset, rrm.pucch.sr_offset);
+  EXPECT_TRUE(ue_ul.pucch.rep_f1_3_4_enabled);
+  EXPECT_FALSE(ue_ul.pucch.rep_f0_2_enabled);
+  ASSERT_TRUE(ue_ul.csi.periodic_report.has_value());
+  EXPECT_EQ(ue_ul.csi.periodic_report->pucch_res_id, rrm.csi.periodic_report->res_id);
+  EXPECT_EQ(ue_ul.csi.periodic_report->offset, rrm.csi.periodic_report->offset);
+  ev.notify_completion();
 }

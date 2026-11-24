@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "ocudu/asn1/asn1_utils.h"
+#include "ocudu/asn1/asn1_dispatch.h"
 #include "ocudu/asn1/e1ap/e1ap_ies.h"
 #include "ocudu/e1ap/common/e1ap_types.h"
 #include "ocudu/ran/cause/e1ap_cause.h"
@@ -972,7 +972,8 @@ inline e1ap_cause_t asn1_to_cause(asn1::e1ap::cause_c e1ap_cause)
       cause = static_cast<cause_misc_t>(e1ap_cause.misc().value);
       break;
     default:
-      report_fatal_error("Cannot convert E1AP ASN.1 cause {} to common type", fmt::underlying(e1ap_cause.type().value));
+      // The ASN.1 defines no Cause extension. Use the unspecified cause for an unknown extension.
+      cause = cause_misc_t::unspecified;
   }
 
   return cause;
@@ -1091,7 +1092,7 @@ inline void e1ap_asn1_to_flow_map_info(slotted_id_vector<qos_flow_id_t, e1ap_qos
       const auto& asn1_dyn_5qi = asn1_flow_map_item.qos_flow_level_qos_params.qos_characteristics.dyn_5qi();
 
       dyn_5qi_descriptor dyn_5qi;
-      dyn_5qi.qos_prio_level      = qos_prio_level_t{asn1_dyn_5qi.qos_prio_level};
+      dyn_5qi.qos_prio_level      = qos_prio_level_t{static_cast<uint8_t>(asn1_dyn_5qi.qos_prio_level)};
       dyn_5qi.packet_delay_budget = asn1_dyn_5qi.packet_delay_budget;
       dyn_5qi.per.exponent        = asn1_dyn_5qi.packet_error_rate.per_exponent;
       dyn_5qi.per.scalar          = asn1_dyn_5qi.packet_error_rate.per_scalar;
@@ -1117,7 +1118,7 @@ inline void e1ap_asn1_to_flow_map_info(slotted_id_vector<qos_flow_id_t, e1ap_qos
       non_dyn_5qi_descriptor non_dyn_5qi;
       non_dyn_5qi.five_qi = uint_to_five_qi(asn1_non_dyn_5qi.five_qi);
       if (asn1_non_dyn_5qi.qos_prio_level_present) {
-        non_dyn_5qi.qos_prio_level = qos_prio_level_t{asn1_non_dyn_5qi.qos_prio_level};
+        non_dyn_5qi.qos_prio_level = qos_prio_level_t{static_cast<uint8_t>(asn1_non_dyn_5qi.qos_prio_level)};
       }
       if (asn1_non_dyn_5qi.averaging_win_present) {
         non_dyn_5qi.averaging_win = asn1_non_dyn_5qi.averaging_win;
@@ -1131,12 +1132,12 @@ inline void e1ap_asn1_to_flow_map_info(slotted_id_vector<qos_flow_id_t, e1ap_qos
 
     // Fill NR RAN alloc retention prio.
     flow_map_item.qos_flow_level_qos_params.ng_ran_alloc_retention.prio_level_arp =
-        asn1_flow_map_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.prio_level;
+        asn1_flow_map_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.prio_level;
     flow_map_item.qos_flow_level_qos_params.ng_ran_alloc_retention.may_trigger_preemption =
-        asn1_flow_map_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.pre_emption_cap.value ==
+        asn1_flow_map_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.pre_emption_cap.value ==
         asn1::e1ap::pre_emption_cap_opts::may_trigger_pre_emption;
     flow_map_item.qos_flow_level_qos_params.ng_ran_alloc_retention.is_preemptable =
-        asn1_flow_map_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.pre_emption_vulnerability.value ==
+        asn1_flow_map_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.pre_emption_vulnerability.value ==
         asn1::e1ap::pre_emption_vulnerability_opts::pre_emptable;
 
     // Fill GBR QoS flow info.

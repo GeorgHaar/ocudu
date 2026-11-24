@@ -30,7 +30,7 @@ namespace ocudu {
 ///                       next call to \c receive() after the overflow has occurred. Zeros are returned in place of the
 ///                       lost samples.
 class radio_session_realtime_loopback_impl : public radio_session,
-                                             public radio_management_plane,
+                                             public radio_capabilities_registry,
                                              public baseband_gateway,
                                              public baseband_gateway_transmitter,
                                              public baseband_gateway_receiver
@@ -51,7 +51,7 @@ public:
                                        const unique_function<baseband_gateway_timestamp()>& current_rf_timestamp_fn);
 
   // See the radio_session interface for documentation.
-  radio_management_plane& get_management_plane() override { return *this; }
+  radio_capabilities_registry& get_capabilities_registry() override { return *this; }
 
   // See the radio_session interface for documentation.
   baseband_gateway& get_baseband_gateway(unsigned stream_id) override
@@ -69,18 +69,6 @@ public:
 
   // See the radio_session interface for documentation.
   void stop() override;
-
-  // See the radio_management_plane interface for documentation.
-  bool set_tx_gain(unsigned port_id, double gain_dB) override;
-
-  // See the radio_management_plane interface for documentation.
-  bool set_rx_gain(unsigned port_id, double gain_dB) override;
-
-  // See the radio_management_plane interface for documentation.
-  bool set_tx_freq(unsigned stream_id, double center_freq_Hz) override;
-
-  // See the radio_management_plane interface for documentation.
-  bool set_rx_freq(unsigned stream_id, double center_freq_Hz) override;
 
   // See the baseband_gateway interface for documentation.
   unsigned get_transmitter_optimal_buffer_size() const override { return 0; }
@@ -101,6 +89,9 @@ public:
   void transmit(const baseband_gateway_buffer_reader& data, const baseband_gateway_transmitter_metadata& md) override;
 
 private:
+  // See the radio_capabilities_registry interface for documentation.
+  void* query(radio_capability_key key) override { return nullptr; }
+
   /// Radio session logger.
   ocudulog::basic_logger& logger;
 

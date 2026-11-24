@@ -16,8 +16,11 @@
 #include "ocudu/gtpu/gtpu_teid_pool.h"
 #include "ocudu/pcap/dlt_pcap.h"
 #include "ocudu/ran/gnb_cu_up_id.h"
+#include "ocudu/ran/s_nssai.h"
 #include "ocudu/support/timers.h"
 #include <map>
+#include <optional>
+#include <vector>
 
 namespace ocudu {
 
@@ -36,9 +39,11 @@ struct network_interface_config {
 struct ngu_interface_config {
   /// TS 29.281 Sec. 4.4.2.3 Encapsulated T-PDUs.
   int upf_port = GTPU_PORT;
+  /// NG-U global rate limiter.
+  std::optional<uint64_t> global_rate_limiter_bps;
   /// NG-U reordering timer.
   std::chrono::milliseconds gtpu_reordering_timer;
-  /// NG-U token bucket rate limiting period.
+  /// NG-U token bucket rate limiting period for UE-AMBR.
   std::chrono::milliseconds gtpu_rate_limiting_period;
   /// Error indication suppression time for released TEIDs.
   std::chrono::milliseconds gtpu_teid_release_linger_time;
@@ -50,6 +55,12 @@ struct ngu_interface_config {
   uint32_t gtpu_batch_size;
   /// Warn whenever a PDU is dropped.
   bool warn_on_drop;
+  /// \brief S-NSSAI each NG-U gateway is dedicated to, in the order of \c cu_up_dependencies::ngu_gws.
+  ///
+  /// A gateway dedicated to an S-NSSAI serves only the PDU sessions of that S-NSSAI. A gateway without an entry, or
+  /// with an empty one, is a default gateway and serves the PDU sessions of every S-NSSAI that has no dedicated
+  /// gateway. Holds at most one entry per NG-U gateway.
+  std::vector<std::optional<s_nssai_t>> gw_snssais;
 };
 
 struct xnu_interface_config {

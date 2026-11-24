@@ -12,7 +12,7 @@
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/ran/bwp/bwp_configuration.h"
 #include "ocudu/ran/pdcch/coreset.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/scheduler/scheduler_rach_handler.h"
 #include "ocudu/support/format/fmt_to_c_str.h"
 #include "fmt/ranges.h"
@@ -25,6 +25,13 @@ namespace {
 
 /// Outcome of reading one record from the input stream.
 enum class read_status { ok, clean_eof, truncated, corrupted };
+
+/// Returns the time at which the event was recorded.
+std::chrono::system_clock::time_point get_event_time(const fbs::CellEvent& ev)
+{
+  return std::chrono::system_clock::time_point{
+      std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::microseconds{ev.timestamp_us()})};
+}
 
 } // namespace
 
@@ -118,15 +125,16 @@ bool schedtrace::trace_to_log(std::istream& input, ocudulog::basic_logger& logge
                    cs.duration,
                    cs.interleaving.has_value() ? " interleaved" : "");
   }
-  logger.info("pci={}: Cell started. dl_bwp=[scs={} crbs=[{},{})] ul_bwp=[scs={} crbs=[{},{})] coresets=[{}]",
-              cell_cfg.pci,
-              to_string(cell_cfg.init_dl_bwp.generic_params.scs),
-              cell_cfg.init_dl_bwp.generic_params.crbs.start(),
-              cell_cfg.init_dl_bwp.generic_params.crbs.stop(),
-              to_string(cell_cfg.init_ul_bwp.generic_params.scs),
-              cell_cfg.init_ul_bwp.generic_params.crbs.start(),
-              cell_cfg.init_ul_bwp.generic_params.crbs.stop(),
-              to_c_str(coresets_str));
+  logger.info.log_at(get_event_time(*ev),
+                     "pci={}: Cell started. dl_bwp=[scs={} crbs=[{},{})] ul_bwp=[scs={} crbs=[{},{})] coresets=[{}]",
+                     cell_cfg.pci,
+                     to_string(cell_cfg.init_dl_bwp.generic_params.scs),
+                     cell_cfg.init_dl_bwp.generic_params.crbs.start(),
+                     cell_cfg.init_dl_bwp.generic_params.crbs.stop(),
+                     to_string(cell_cfg.init_ul_bwp.generic_params.scs),
+                     cell_cfg.init_ul_bwp.generic_params.crbs.start(),
+                     cell_cfg.init_ul_bwp.generic_params.crbs.stop(),
+                     to_c_str(coresets_str));
 
   // PDCCHs on CORESETs absent from this list refer to stub CORESETs.
   const std::vector<coreset_configuration> coresets = make_coreset_cfgs(cell_cfg.init_dl_bwp);
@@ -142,19 +150,23 @@ bool schedtrace::trace_to_log(std::istream& input, ocudulog::basic_logger& logge
   bool                    stop_received   = false;
   read_status             status;
   while ((status = read_record(input, record)) == read_status::ok) {
-    ev = fbs::GetSizePrefixedCellEvent(record.data());
+    ev                    = fbs::GetSizePrefixedCellEvent(record.data());
+    const auto event_time = get_event_time(*ev);
+    result_logger.set_event_time(event_time);
+    event_logger.set_event_time(event_time);
     switch (ev->value_type()) {
       case fbs::CellEventValue::CellStartEvent: {
         fmt::print(stderr, "Warning: Invalid schedtrace file format. Cause: CellStartEvent was duplicate\n");
       } break;
       case fbs::CellEventValue::CellSlotEvent: {
         const fbs::CellSlotEvent& slot_ev = *ev->value_as_CellSlotEvent();
-        sched_result              result;
-        result.success = true;
+        sched_result_grid         results{sched_result_grid_config{1}};
+        results.get_builder(0).set_success(true);
         if (slot_ev.decision() != nullptr) {
-          convert_fb_to_decision(result, *slot_ev.decision(), cell_cfg, coresets);
+          convert_fb_to_decision(results.get_builder(0), *slot_ev.decision(), cell_cfg, coresets);
         }
-        slot_point sl_tx = {dl_scs, slot_ev.slot_tx()};
+        const auto slot_result = results.get_reader(0);
+        slot_point sl_tx       = {dl_scs, slot_ev.slot_tx()};
         logger.set_context(sl_tx.sfn(), sl_tx.slot_index());
         const unsigned nof_inputs = slot_ev.inputs() != nullptr ? slot_ev.inputs()->size() : 0;
         for (unsigned i = 0; i != nof_inputs; ++i) {
@@ -183,16 +195,22 @@ bool schedtrace::trace_to_log(std::istream& input, ocudulog::basic_logger& logge
               convert_fb_to_csi_report_event(event, *csi_report, cell_cfg.init_ul_bwp.generic_params.scs);
               event_logger.enqueue(event);
             } break;
+            case fbs::SlotInput::CrcEvent: {
+              const auto*  crc_ev = static_cast<const fbs::CrcEvent*>(slot_ev.inputs()->Get(i));
+              ul_crc_event event;
+              convert_fb_to_ul_crc_event(event, *crc_ev, cell_cfg.init_ul_bwp.generic_params.scs, cell_index);
+              event_logger.enqueue(event);
+            } break;
             default:
               fmt::print(stderr, "ERROR: Unsupported schedtrace slot input");
               return false;
           }
         }
         event_logger.log();
-        result_logger.on_scheduler_result(result, std::chrono::microseconds(slot_ev.latency_us()));
+        result_logger.on_scheduler_result(slot_result, std::chrono::microseconds(slot_ev.latency_us()));
       } break;
       case fbs::CellEventValue::CellStopEvent: {
-        logger.info("pci={}: Cell stopped", cell_cfg.pci);
+        logger.info.log_at(event_time, "pci={}: Cell stopped", cell_cfg.pci);
         stop_received = true;
       } break;
       default:

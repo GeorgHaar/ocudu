@@ -140,6 +140,18 @@ struct roundtrip_traits<dci_0_1_configuration> {
                                                   field("mcs", &dci::modulation_coding_scheme));
 };
 
+// Carries the same fields as the C-RNTI f0_1 DCI it derives from -- only the RNTI scrambling the CRC differs, and
+// that is conveyed by which variant alternative dci_ul_info holds. Reflected separately so that the roundtrip also
+// pins down that a CS-RNTI DCI comes back as one, rather than decoding into its base.
+template <>
+struct roundtrip_traits<dci_0_1_cs_rnti_configuration> {
+  using dci                     = dci_0_1_cs_rnti_configuration;
+  static constexpr auto members = std::make_tuple(inherited_field<dci>("harq_id", &dci::harq_process_number),
+                                                  inherited_field<dci>("ndi", &dci::new_data_indicator),
+                                                  inherited_field<dci>("rv", &dci::redundancy_version),
+                                                  inherited_field<dci>("mcs", &dci::modulation_coding_scheme));
+};
+
 // --- PDCCH -------------------------------------------------------------------------------------
 
 template <>

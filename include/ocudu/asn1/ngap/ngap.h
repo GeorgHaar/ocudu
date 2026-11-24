@@ -82,15 +82,14 @@ struct ue_context_suspend_request_ies_container;
 using ue_context_suspend_request_s = elementary_procedure_option<ue_context_suspend_request_ies_container>;
 struct ue_radio_cap_check_request_ies_container;
 using ue_radio_cap_check_request_s = elementary_procedure_option<ue_radio_cap_check_request_ies_container>;
-struct ue_radio_cap_id_map_request_ies_o;
-using ue_radio_cap_id_map_request_s =
-    elementary_procedure_option<protocol_ie_container_l<ue_radio_cap_id_map_request_ies_o>>;
+struct ue_radio_cap_id_map_request_ies_container;
+using ue_radio_cap_id_map_request_s = elementary_procedure_option<ue_radio_cap_id_map_request_ies_container>;
 struct write_replace_warning_request_ies_container;
 using write_replace_warning_request_s = elementary_procedure_option<write_replace_warning_request_ies_container>;
 struct amf_cp_relocation_ind_ies_container;
 using amf_cp_relocation_ind_s = elementary_procedure_option<amf_cp_relocation_ind_ies_container>;
-struct amf_status_ind_ies_o;
-using amf_status_ind_s = elementary_procedure_option<protocol_ie_container_l<amf_status_ind_ies_o>>;
+struct amf_status_ind_ies_container;
+using amf_status_ind_s = elementary_procedure_option<amf_status_ind_ies_container>;
 struct broadcast_session_release_required_ies_container;
 using broadcast_session_release_required_s =
     elementary_procedure_option<broadcast_session_release_required_ies_container>;
@@ -111,8 +110,8 @@ struct dl_ran_early_status_transfer_ies_container;
 using dl_ran_early_status_transfer_s = elementary_procedure_option<dl_ran_early_status_transfer_ies_container>;
 struct dl_ran_status_transfer_ies_container;
 using dl_ran_status_transfer_s = elementary_procedure_option<dl_ran_status_transfer_ies_container>;
-struct dl_rim_info_transfer_ies_o;
-using dl_rim_info_transfer_s = elementary_procedure_option<protocol_ie_container_l<dl_rim_info_transfer_ies_o>>;
+struct dl_rim_info_transfer_ies_container;
+using dl_rim_info_transfer_s = elementary_procedure_option<dl_rim_info_transfer_ies_container>;
 struct dl_ue_associated_nrppa_transport_ies_container;
 using dl_ue_associated_nrppa_transport_s = elementary_procedure_option<dl_ue_associated_nrppa_transport_ies_container>;
 struct error_ind_ies_container;
@@ -152,8 +151,8 @@ struct ran_paging_request_ies_container;
 using ran_paging_request_s = elementary_procedure_option<ran_paging_request_ies_container>;
 struct reroute_nas_request_ies_container;
 using reroute_nas_request_s = elementary_procedure_option<reroute_nas_request_ies_container>;
-struct retrieve_ue_info_ies_o;
-using retrieve_ue_info_s = elementary_procedure_option<protocol_ie_container_l<retrieve_ue_info_ies_o>>;
+struct retrieve_ue_info_ies_container;
+using retrieve_ue_info_s = elementary_procedure_option<retrieve_ue_info_ies_container>;
 struct rrc_inactive_transition_report_ies_container;
 using rrc_inactive_transition_report_s = elementary_procedure_option<rrc_inactive_transition_report_ies_container>;
 struct secondary_rat_data_usage_report_ies_container;
@@ -184,8 +183,8 @@ struct ul_ran_early_status_transfer_ies_container;
 using ul_ran_early_status_transfer_s = elementary_procedure_option<ul_ran_early_status_transfer_ies_container>;
 struct ul_ran_status_transfer_ies_container;
 using ul_ran_status_transfer_s = elementary_procedure_option<ul_ran_status_transfer_ies_container>;
-struct ul_rim_info_transfer_ies_o;
-using ul_rim_info_transfer_s = elementary_procedure_option<protocol_ie_container_l<ul_rim_info_transfer_ies_o>>;
+struct ul_rim_info_transfer_ies_container;
+using ul_rim_info_transfer_s = elementary_procedure_option<ul_rim_info_transfer_ies_container>;
 struct ul_ue_associated_nrppa_transport_ies_container;
 using ul_ue_associated_nrppa_transport_s = elementary_procedure_option<ul_ue_associated_nrppa_transport_ies_container>;
 struct amf_cfg_upd_ack_ies_container;
@@ -236,8 +235,8 @@ struct pdu_session_res_setup_resp_ies_container;
 using pdu_session_res_setup_resp_s = elementary_procedure_option<pdu_session_res_setup_resp_ies_container>;
 struct pws_cancel_resp_ies_container;
 using pws_cancel_resp_s = elementary_procedure_option<pws_cancel_resp_ies_container>;
-struct ran_cfg_upd_ack_ies_o;
-using ran_cfg_upd_ack_s = elementary_procedure_option<protocol_ie_container_l<ran_cfg_upd_ack_ies_o>>;
+struct ran_cfg_upd_ack_ies_container;
+using ran_cfg_upd_ack_s = elementary_procedure_option<ran_cfg_upd_ack_ies_container>;
 struct timing_synchronisation_status_resp_ies_container;
 using timing_synchronisation_status_resp_s =
     elementary_procedure_option<timing_synchronisation_status_resp_ies_container>;
@@ -297,26 +296,6 @@ using ue_context_suspend_fail_s = elementary_procedure_option<ue_context_suspend
 /*******************************************************************************
  *                              Struct Definitions
  ******************************************************************************/
-
-// ProtocolIE-FieldPair{NGAP-PROTOCOL-IES-PAIR : IEsSetParam} ::= SEQUENCE{{NGAP-PROTOCOL-IES-PAIR}}
-template <class ies_set_paramT_>
-struct protocol_ie_field_pair_s {
-  uint32_t                                 id = 0;
-  crit_e                                   first_crit;
-  typename ies_set_paramT_::first_value_c  first_value;
-  crit_e                                   second_crit;
-  typename ies_set_paramT_::second_value_c second_value;
-
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  bool          load_info_obj(const uint32_t& id_);
-};
-
-// ProtocolIE-ContainerPair{NGAP-PROTOCOL-IES-PAIR : IEsSetParam} ::= SEQUENCE (SIZE (0..65535)) OF
-// ProtocolIE-FieldPair{NGAP-PROTOCOL-IES-PAIR : IEsSetParam}
-template <class ies_set_paramT_>
-using protocol_ie_container_pair_l = dyn_seq_of<protocol_ie_field_pair_s<ies_set_paramT_>, 0, 65535, true>;
 
 // NGAP-ELEMENTARY-PROCEDURES ::= OBJECT SET OF NGAP-ELEMENTARY-PROCEDURE
 struct ngap_elem_procs_o {
@@ -408,18 +387,13 @@ struct ngap_elem_procs_o {
         nulltype
       } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    init_msg_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
+    void                                            set(types::options e = types::nulltype);
+    types                                           type() const { return type_; }
+    static const asn1::table::choice_desc           desc;
     amf_cfg_upd_s&                                  amf_cfg_upd();
     broadcast_session_mod_request_s&                broadcast_session_mod_request();
     broadcast_session_release_request_s&            broadcast_session_release_request();
@@ -626,18 +600,13 @@ struct ngap_elem_procs_o {
         nulltype
       } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    successful_outcome_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
+    void                                         set(types::options e = types::nulltype);
+    types                                        type() const { return type_; }
+    static const asn1::table::choice_desc        desc;
     amf_cfg_upd_ack_s&                           amf_cfg_upd_ack();
     broadcast_session_mod_resp_s&                broadcast_session_mod_resp();
     broadcast_session_release_resp_s&            broadcast_session_release_resp();
@@ -732,18 +701,13 @@ struct ngap_elem_procs_o {
         nulltype
       } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    unsuccessful_outcome_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
+    void                                        set(types::options e = types::nulltype);
+    types                                       type() const { return type_; }
+    static const asn1::table::choice_desc       desc;
     amf_cfg_upd_fail_s&                         amf_cfg_upd_fail();
     broadcast_session_mod_fail_s&               broadcast_session_mod_fail();
     broadcast_session_setup_fail_s&             broadcast_session_setup_fail();
@@ -786,13 +750,7 @@ struct ngap_elem_procs_o {
     choice_buffer_ptr c;
   };
 
-  // members lookup methods
-  static uint16_t               idx_to_proc_code(uint32_t idx);
-  static bool                   is_proc_code_valid(const uint16_t& proc_code);
-  static init_msg_c             get_init_msg(const uint16_t& proc_code);
-  static successful_outcome_c   get_successful_outcome(const uint16_t& proc_code);
-  static unsuccessful_outcome_c get_unsuccessful_outcome(const uint16_t& proc_code);
-  static crit_e                 get_crit(const uint16_t& proc_code);
+  static const asn1::table::objset_desc desc;
 };
 
 // InitiatingMessage ::= SEQUENCE{{NGAP-ELEMENTARY-PROCEDURE}}
@@ -801,10 +759,8 @@ struct init_msg_s {
   crit_e                        crit;
   ngap_elem_procs_o::init_msg_c value;
 
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  bool          load_info_obj(const uint16_t& proc_code_);
+  static const asn1::table::seq_desc desc;
+  bool                               load_info_obj(const uint16_t& proc_code_);
 };
 
 // SuccessfulOutcome ::= SEQUENCE{{NGAP-ELEMENTARY-PROCEDURE}}
@@ -813,10 +769,8 @@ struct successful_outcome_s {
   crit_e                                  crit;
   ngap_elem_procs_o::successful_outcome_c value;
 
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  bool          load_info_obj(const uint16_t& proc_code_);
+  static const asn1::table::seq_desc desc;
+  bool                               load_info_obj(const uint16_t& proc_code_);
 };
 
 // UnsuccessfulOutcome ::= SEQUENCE{{NGAP-ELEMENTARY-PROCEDURE}}
@@ -825,10 +779,8 @@ struct unsuccessful_outcome_s {
   crit_e                                    crit;
   ngap_elem_procs_o::unsuccessful_outcome_c value;
 
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  bool          load_info_obj(const uint16_t& proc_code_);
+  static const asn1::table::seq_desc desc;
+  bool                               load_info_obj(const uint16_t& proc_code_);
 };
 
 // NGAP-PDU ::= CHOICE
@@ -836,49 +788,42 @@ struct ngap_pdu_c {
   struct types_opts {
     enum options { init_msg, successful_outcome, unsuccessful_outcome, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts, true>;
 
-  // choice methods
-  ngap_pdu_c() = default;
-  ngap_pdu_c(const ngap_pdu_c& other);
-  ngap_pdu_c& operator=(const ngap_pdu_c& other);
-  ~ngap_pdu_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  init_msg_s& init_msg()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  init_msg_s&                                   init_msg()
   {
-    assert_choice_type(types::init_msg, type_, "NGAP-PDU");
+    assert_choice_type(types::init_msg, c.type, "NGAP-PDU");
     return c.get<init_msg_s>();
   }
   successful_outcome_s& successful_outcome()
   {
-    assert_choice_type(types::successful_outcome, type_, "NGAP-PDU");
+    assert_choice_type(types::successful_outcome, c.type, "NGAP-PDU");
     return c.get<successful_outcome_s>();
   }
   unsuccessful_outcome_s& unsuccessful_outcome()
   {
-    assert_choice_type(types::unsuccessful_outcome, type_, "NGAP-PDU");
+    assert_choice_type(types::unsuccessful_outcome, c.type, "NGAP-PDU");
     return c.get<unsuccessful_outcome_s>();
   }
   const init_msg_s& init_msg() const
   {
-    assert_choice_type(types::init_msg, type_, "NGAP-PDU");
+    assert_choice_type(types::init_msg, c.type, "NGAP-PDU");
     return c.get<init_msg_s>();
   }
   const successful_outcome_s& successful_outcome() const
   {
-    assert_choice_type(types::successful_outcome, type_, "NGAP-PDU");
+    assert_choice_type(types::successful_outcome, c.type, "NGAP-PDU");
     return c.get<successful_outcome_s>();
   }
   const unsuccessful_outcome_s& unsuccessful_outcome() const
   {
-    assert_choice_type(types::unsuccessful_outcome, type_, "NGAP-PDU");
+    assert_choice_type(types::unsuccessful_outcome, c.type, "NGAP-PDU");
     return c.get<unsuccessful_outcome_s>();
   }
   init_msg_s&             set_init_msg();
@@ -886,10 +831,9 @@ struct ngap_pdu_c {
   unsuccessful_outcome_s& set_unsuccessful_outcome();
 
 private:
-  types                                                                     type_;
-  choice_buffer_t<init_msg_s, successful_outcome_s, unsuccessful_outcome_s> c;
-
-  void destroy_();
+  asn1::table::
+      choice_storage<ngap_pdu_c, types, choice_buffer_t<init_msg_s, successful_outcome_s, unsuccessful_outcome_s>>
+          c;
 };
 
 } // namespace ngap

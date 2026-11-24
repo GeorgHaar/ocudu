@@ -3,7 +3,11 @@
 // SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
+#include "asn1_test_utils.h"
+#include "ocudu/asn1/e2ap/common.h"
 #include "ocudu/asn1/e2ap/e2ap.h"
+#include "ocudu/asn1/e2ap/e2ap_ies.h"
+#include "ocudu/asn1/e2ap/e2ap_pdu_contents.h"
 #include "ocudu/pcap/dlt_pcap.h"
 #include <gtest/gtest.h>
 
@@ -91,7 +95,7 @@ TEST_F(asn1_e2ap_test, when_e2_setup_correct_then_packing_successful)
 
   ocudu::byte_buffer buffer;
   asn1::bit_ref      bref(buffer);
-  ASSERT_EQ(pdu.pack(bref), OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::pack(bref, pdu), OCUDUASN_SUCCESS);
 
   // TODO: Accept byte buffer in pcap and log.
   std::vector<uint8_t> bytes{buffer.begin(), buffer.end()};
@@ -102,7 +106,7 @@ TEST_F(asn1_e2ap_test, when_e2_setup_correct_then_packing_successful)
 #if JSON_OUTPUT
   int               unpacked_len = bref.distance_bytes();
   asn1::json_writer json_writer1;
-  pdu.to_json(json_writer1);
+  asn1::to_json(json_writer1, pdu);
   test_logger.info(
       bytes.data(), unpacked_len, "E1AP unpacked ({} B): \n {}", unpacked_len, json_writer1.to_string().c_str());
 #endif
@@ -123,13 +127,13 @@ TEST_F(asn1_e2ap_test, ric_control_request)
 
   asn1::cbit_ref         bref{buffer};
   asn1::e2ap::e2ap_pdu_c pdu;
-  ASSERT_EQ(pdu.unpack(bref), OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::unpack(pdu, bref), OCUDUASN_SUCCESS);
   ASSERT_EQ(pdu.type(), asn1::e2ap::e2ap_pdu_c::types_opts::init_msg);
   ASSERT_EQ(pdu.init_msg().value.type().value, asn1::e2ap::e2ap_elem_procs_o::init_msg_c::types_opts::ric_ctrl_request);
   asn1::e2ap::ric_ctrl_request_s& ric_ctrl = pdu.init_msg().value.ric_ctrl_request();
   ASSERT_EQ(ric_ctrl->ran_function_id, 3);
 
-  ASSERT_EQ(test_pack_unpack_consistency(pdu), OCUDUASN_SUCCESS);
+  ASSERT_EQ(test_pack_roundtrip(pdu), OCUDUASN_SUCCESS);
 }
 
 TEST_F(asn1_e2ap_test, ric_control_failure_message)
@@ -141,8 +145,23 @@ TEST_F(asn1_e2ap_test, ric_control_failure_message)
 
   asn1::cbit_ref         bref{buffer};
   asn1::e2ap::e2ap_pdu_c pdu;
-  ASSERT_EQ(pdu.unpack(bref), OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::unpack(pdu, bref), OCUDUASN_SUCCESS);
   ASSERT_EQ(pdu.type(), asn1::e2ap::e2ap_pdu_c::types_opts::unsuccessful_outcome);
 
-  ASSERT_EQ(test_pack_unpack_consistency(pdu), OCUDUASN_SUCCESS);
+  ASSERT_EQ(test_pack_roundtrip(pdu), OCUDUASN_SUCCESS);
+}
+
+TEST_F(asn1_e2ap_test, single_ie_container_skips_unknown_ignored_ies)
+{
+  // E2 Removal Request with an unknown IE of criticality ignore before the Transaction ID IE.
+  uint8_t e2ap_msg[] = {
+      0x00, 0x0d, 0x00, 0x0e, 0x00, 0x00, 0x02, 0x03, 0xe7, 0x40, 0x01, 0x00, 0x00, 0x31, 0x00, 0x02, 0x00, 0x07};
+  byte_buffer buffer = byte_buffer::create(e2ap_msg).value();
+
+  asn1::cbit_ref         bref{buffer};
+  asn1::e2ap::e2ap_pdu_c pdu;
+  ASSERT_EQ(asn1::unpack(pdu, bref), OCUDUASN_SUCCESS);
+  ASSERT_EQ(pdu.init_msg().value.type().value,
+            asn1::e2ap::e2ap_elem_procs_o::init_msg_c::types_opts::e2_removal_request);
+  ASSERT_EQ(pdu.init_msg().value.e2_removal_request()->transaction_id, 7);
 }

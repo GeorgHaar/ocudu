@@ -50,20 +50,24 @@ pdcch_dl_information* pdcch_resource_allocator_impl::alloc_dl_pdcch_common(cell_
                                                                            rnti_t                         rnti,
                                                                            search_space_id                ss_id,
                                                                            aggregation_level              aggr_lvl,
-                                                                           std::optional<beam_identifier> beam)
+                                                                           std::optional<beam_identifier> beam,
+                                                                           unsigned                       ssb_idx)
 {
   // Find Common BWP and CORESET configurations.
   const sched_search_space_config& ss_cfg = *cell_cfg.init_bwp.dl.pdcch().search_spaces()[ss_id];
   ocudu_sanity_check(ss_cfg.cfg().is_common_search_space(), "Invalid searchSpace type");
 
+  // In a common SearchSpace the payload scrambling does not depend on the RNTI (TS 38.211, Section 7.3.2.3).
   return alloc_dl_pdcch_helper(slot_alloc,
+                               rnti,
                                rnti,
                                cell_cfg.init_bwp.dl.cfg(),
                                ss_cfg.cs(),
                                ss_cfg.cfg(),
                                aggr_lvl,
                                pdcch_common_candidates[ss_id][to_aggregation_level_index(aggr_lvl)].candidates,
-                               beam);
+                               beam,
+                               ssb_idx);
 }
 
 pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_common(cell_slot_resource_allocator&  slot_alloc,
@@ -75,7 +79,9 @@ pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_common(cell_
   // Find Common BWP and CORESET configurations.
   const sched_search_space_config& ss_cfg = *cell_cfg.init_bwp.dl.pdcch().search_spaces()[ss_id];
 
+  // In a common SearchSpace the payload scrambling does not depend on the RNTI (TS 38.211, Section 7.3.2.3).
   return alloc_ul_pdcch_helper(slot_alloc,
+                               rnti,
                                rnti,
                                cell_cfg.init_bwp.ul.cfg(),
                                ss_cfg.cs(),
@@ -96,8 +102,11 @@ pdcch_dl_information* pdcch_resource_allocator_impl::alloc_dl_pdcch_ue(cell_slot
   const bwp_configuration& bwp_cfg    = ss_cfg.bwp->dl.cfg();
   span<const uint8_t>      candidates = ss_cfg.get_pdcch_candidates(aggr_lvl, slot_alloc.slot);
 
+  // NOTE: \c rnti scrambles the CRC and may be an RNTI other than the C-RNTI (e.g. the CS-RNTI of a Configured Grant
+  // Type 2 activation), but TS 38.211, Section 7.3.2.3 seeds the payload scrambling of a UE-specific SearchSpace with
+  // the C-RNTI in every case.
   return alloc_dl_pdcch_helper(
-      slot_alloc, rnti, bwp_cfg, *ss_cfg.coreset, *ss_cfg.cfg, aggr_lvl, candidates, std::nullopt);
+      slot_alloc, rnti, user.crnti, bwp_cfg, *ss_cfg.coreset, *ss_cfg.cfg, aggr_lvl, candidates, std::nullopt);
 }
 
 pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_ue(cell_slot_resource_allocator& slot_alloc,
@@ -111,14 +120,18 @@ pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_ue(cell_slot
   const bwp_configuration&         bwp_cfg    = ss_cfg.bwp->ul.cfg();
   span<const pdcch_candidate_type> candidates = ss_cfg.get_pdcch_candidates(aggr_lvl, slot_alloc.slot);
 
+  // NOTE: \c rnti scrambles the CRC and may be an RNTI other than the C-RNTI (e.g. the CS-RNTI of a Configured Grant
+  // Type 2 activation), but TS 38.211, Section 7.3.2.3 seeds the payload scrambling of a UE-specific SearchSpace with
+  // the C-RNTI in every case.
   return alloc_ul_pdcch_helper(
-      slot_alloc, rnti, bwp_cfg, *ss_cfg.coreset, *ss_cfg.cfg, aggr_lvl, candidates, std::nullopt);
+      slot_alloc, rnti, user.crnti, bwp_cfg, *ss_cfg.coreset, *ss_cfg.cfg, aggr_lvl, candidates, std::nullopt);
 }
 
-pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_helper(cell_slot_resource_allocator&     slot_alloc,
-                                                                           rnti_t                            rnti,
-                                                                           const bwp_configuration&          bwp_cfg,
-                                                                           const sched_coreset_config&       cs_cfg,
+pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_helper(cell_slot_resource_allocator& slot_alloc,
+                                                                           rnti_t                        rnti,
+                                                                           rnti_t                      scrambling_rnti,
+                                                                           const bwp_configuration&    bwp_cfg,
+                                                                           const sched_coreset_config& cs_cfg,
                                                                            const search_space_configuration& ss_cfg,
                                                                            aggregation_level                 aggr_lvl,
                                                                            span<const pdcch_candidate_type>  candidates,
@@ -126,15 +139,23 @@ pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_helper(cell_
 {
   if (not pdcch_helper::is_pdcch_monitoring_active(slot_alloc.slot, ss_cfg)) {
     // PDCCH monitoring is not active in this slot.
-    ++slot_alloc.result.failed_attempts.ul_pdcch;
+    ++slot_alloc.result_builder().failed_attempts().ul_pdcch;
     if (ss_cfg.is_common_search_space()) {
-      ++slot_alloc.result.failed_attempts.common_ul_pdcch;
+      ++slot_alloc.result_builder().failed_attempts().common_ul_pdcch;
     }
     return nullptr;
   }
 
   // Create PDCCH list element.
-  pdcch_ul_information& pdcch = slot_alloc.result.dl.ul_pdcchs.emplace_back();
+  pdcch_ul_information* pdcch_pdu = slot_alloc.result_builder().dl().ul_pdcchs().emplace_back();
+  if (pdcch_pdu == nullptr) {
+    ++slot_alloc.result_builder().failed_attempts().ul_pdcch;
+    if (ss_cfg.is_common_search_space()) {
+      ++slot_alloc.result_builder().failed_attempts().common_ul_pdcch;
+    }
+    return nullptr;
+  }
+  pdcch_ul_information& pdcch = *pdcch_pdu;
   pdcch.ctx.bwp_cfg           = &bwp_cfg;
   pdcch.ctx.coreset_cfg       = &cs_cfg.cfg();
   pdcch.ctx.rnti              = rnti;
@@ -143,7 +164,7 @@ pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_helper(cell_
   pdcch.ctx.starting_symbol   = 0;
   pdcch.ctx.cces.aggr_lvl     = aggr_lvl;
   pdcch.ctx.n_id_pdcch_data   = get_scrambling_n_ID(cell_cfg.params.pci, cs_cfg.cfg(), ss_cfg);
-  pdcch.ctx.n_rnti_pdcch_data = get_scrambling_n_RNTI(rnti, cs_cfg.cfg(), ss_cfg);
+  pdcch.ctx.n_rnti_pdcch_data = get_scrambling_n_RNTI(scrambling_rnti, cs_cfg.cfg(), ss_cfg);
   pdcch.ctx.n_id_pdcch_dmrs   = get_N_ID_dmrs(cell_cfg.params.pci, cs_cfg.cfg());
   pdcch.ctx.context.ss_id     = ss_cfg.get_id();
   // [Implementation-defined] The PDCCH is not precoded.
@@ -154,79 +175,80 @@ pdcch_ul_information* pdcch_resource_allocator_impl::alloc_ul_pdcch_helper(cell_
         search_space_configuration::ue_specific_dci_format::f0_0_and_f1_0))
           ? "0_0"
           : "0_1";
-  // Populate power offsets.
-  if (not cell_cfg.nzp_csi_rs_list.empty() and cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset_ss_db.has_value()) {
-    // [Implementation-defined] It is assumed that same powerControlOffset and powerControlOffsetSS is configured in
-    // NZP-CSI-RS-Resource across all resources.
-    pdcch.ctx.tx_pwr.pwr_ctrl_offset_ss = cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset_ss_db.value();
-  }
 
-  // Allocate a position for UL PDCCH in CORESET.
+  // Allocate a position for UL PDCCH in CORESET. No other resource is derived from the CCE position of a UL DCI.
   pdcch_slot_allocator& pdcch_alloc = get_pdcch_slot_alloc(slot_alloc.slot);
-  if (not pdcch_alloc.alloc_pdcch(pdcch.ctx, slot_alloc, cs_cfg, ss_cfg, candidates)) {
-    slot_alloc.result.dl.ul_pdcchs.pop_back();
-    ++slot_alloc.result.failed_attempts.ul_pdcch;
+  if (not pdcch_alloc.alloc_pdcch(pdcch.ctx, slot_alloc, cs_cfg, ss_cfg, candidates, true)) {
+    slot_alloc.result_builder().dl().ul_pdcchs().pop_back();
+    ++slot_alloc.result_builder().failed_attempts().ul_pdcch;
     if (ss_cfg.is_common_search_space()) {
-      ++slot_alloc.result.failed_attempts.common_ul_pdcch;
+      ++slot_alloc.result_builder().failed_attempts().common_ul_pdcch;
     }
     return nullptr;
   }
   return &pdcch;
 }
 
-pdcch_dl_information* pdcch_resource_allocator_impl::alloc_dl_pdcch_helper(cell_slot_resource_allocator&     slot_alloc,
-                                                                           rnti_t                            rnti,
-                                                                           const bwp_configuration&          bwp_cfg,
-                                                                           const sched_coreset_config&       cs_cfg,
+pdcch_dl_information* pdcch_resource_allocator_impl::alloc_dl_pdcch_helper(cell_slot_resource_allocator& slot_alloc,
+                                                                           rnti_t                        rnti,
+                                                                           rnti_t                      scrambling_rnti,
+                                                                           const bwp_configuration&    bwp_cfg,
+                                                                           const sched_coreset_config& cs_cfg,
                                                                            const search_space_configuration& ss_cfg,
                                                                            aggregation_level                 aggr_lvl,
                                                                            span<const pdcch_candidate_type>  candidates,
-                                                                           std::optional<beam_identifier>    beam)
+                                                                           std::optional<beam_identifier>    beam,
+                                                                           unsigned                          ssb_idx)
 {
   if (not pdcch_helper::is_pdcch_monitoring_active(slot_alloc.slot, ss_cfg)) {
     // PDCCH monitoring is not active in this slot.
-    ++slot_alloc.result.failed_attempts.dl_pdcch;
+    ++slot_alloc.result_builder().failed_attempts().dl_pdcch;
     if (ss_cfg.is_common_search_space()) {
-      ++slot_alloc.result.failed_attempts.common_dl_pdcch;
+      ++slot_alloc.result_builder().failed_attempts().common_dl_pdcch;
     }
     return nullptr;
   }
 
   // Create PDCCH list element.
-  pdcch_dl_information& pdcch = slot_alloc.result.dl.dl_pdcchs.emplace_back();
+  pdcch_dl_information* pdcch_pdu = slot_alloc.result_builder().dl().dl_pdcchs().emplace_back();
+  if (pdcch_pdu == nullptr) {
+    ++slot_alloc.result_builder().failed_attempts().dl_pdcch;
+    if (ss_cfg.is_common_search_space()) {
+      ++slot_alloc.result_builder().failed_attempts().common_dl_pdcch;
+    }
+    return nullptr;
+  }
+  pdcch_dl_information& pdcch = *pdcch_pdu;
   pdcch.ctx.bwp_cfg           = &bwp_cfg;
   pdcch.ctx.coreset_cfg       = &cs_cfg.cfg();
   pdcch.ctx.rnti              = rnti;
   pdcch.ctx.cces.ncce         = 0;
-  // [Implementation-defined] We allocate the DCI on the SearchSpace starting from symbols 0.
-  pdcch.ctx.starting_symbol   = 0;
+  // For SearchSpace#0 the monitoring occasion of the addressed SS/PBCH block sets the first symbol, as per TS 38.213
+  // Table 13-11: for the indexes with M = 1/2, an odd SS/PBCH block index is monitored from symbol N^CORESET_symb.
+  // [Implementation-defined] Any other SearchSpace is allocated starting from symbol 0.
+  pdcch.ctx.starting_symbol   = ss_cfg.is_search_space0() ? ss_cfg.get_first_symbol_index(ssb_idx) : 0;
   pdcch.ctx.cces.aggr_lvl     = aggr_lvl;
   pdcch.ctx.n_id_pdcch_data   = get_scrambling_n_ID(cell_cfg.params.pci, cs_cfg.cfg(), ss_cfg);
-  pdcch.ctx.n_rnti_pdcch_data = get_scrambling_n_RNTI(rnti, cs_cfg.cfg(), ss_cfg);
+  pdcch.ctx.n_rnti_pdcch_data = get_scrambling_n_RNTI(scrambling_rnti, cs_cfg.cfg(), ss_cfg);
   pdcch.ctx.n_id_pdcch_dmrs   = get_N_ID_dmrs(cell_cfg.params.pci, cs_cfg.cfg());
   pdcch.ctx.context.ss_id     = ss_cfg.get_id();
   // [Implementation-defined] The PDCCH is not precoded.
   pdcch.ctx.precoding_and_beamforming = beam.has_value() ? make_single_beam_precoding(*beam) : make_default_precoding();
-  pdcch.ctx.context.dci_format =
-      (ss_cfg.is_common_search_space() ||
-       (std::get<search_space_configuration::ue_specific_dci_format>(ss_cfg.get_monitored_dci_formats()) ==
-        search_space_configuration::ue_specific_dci_format::f0_0_and_f1_0))
-          ? "1_0"
-          : "1_1";
-  // Populate power offsets.
-  if (not cell_cfg.nzp_csi_rs_list.empty() and cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset_ss_db.has_value()) {
-    // [Implementation-defined] It is assumed that same powerControlOffset and powerControlOffsetSS is configured in
-    // NZP-CSI-RS-Resource across all resources.
-    pdcch.ctx.tx_pwr.pwr_ctrl_offset_ss = cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset_ss_db.value();
-  }
+  const bool fallback_dci =
+      ss_cfg.is_common_search_space() ||
+      (std::get<search_space_configuration::ue_specific_dci_format>(ss_cfg.get_monitored_dci_formats()) ==
+       search_space_configuration::ue_specific_dci_format::f0_0_and_f1_0);
+  pdcch.ctx.context.dci_format = fallback_dci ? "1_0" : "1_1";
 
-  // Allocate a position for DL PDCCH in CORESET.
+  // Allocate a position for DL PDCCH in CORESET. The HARQ-ACK of a DCI 1_0 may use a common PUCCH resource, which is
+  // derived from the first CCE of the PDCCH (TS 38.213, Section 9.2.1) right after this allocation, so such a PDCCH
+  // must not be moved.
   pdcch_slot_allocator& pdcch_alloc = get_pdcch_slot_alloc(slot_alloc.slot);
-  if (not pdcch_alloc.alloc_pdcch(pdcch.ctx, slot_alloc, cs_cfg, ss_cfg, candidates)) {
-    slot_alloc.result.dl.dl_pdcchs.pop_back();
-    ++slot_alloc.result.failed_attempts.dl_pdcch;
+  if (not pdcch_alloc.alloc_pdcch(pdcch.ctx, slot_alloc, cs_cfg, ss_cfg, candidates, not fallback_dci)) {
+    slot_alloc.result_builder().dl().dl_pdcchs().pop_back();
+    ++slot_alloc.result_builder().failed_attempts().dl_pdcch;
     if (ss_cfg.is_common_search_space()) {
-      ++slot_alloc.result.failed_attempts.common_dl_pdcch;
+      ++slot_alloc.result_builder().failed_attempts().common_dl_pdcch;
     }
     return nullptr;
   }

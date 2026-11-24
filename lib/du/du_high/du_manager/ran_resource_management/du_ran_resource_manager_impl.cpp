@@ -4,10 +4,10 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "du_ran_resource_manager_impl.h"
+#include "redcap_config_helpers.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/mac/config/mac_cell_group_config_factory.h"
 #include "ocudu/ocudulog/ocudulog.h"
-#include "ocudu/ran/csi_report/csi_report_config_helpers.h"
 #include "ocudu/scheduler/config/ran_cell_config_helper.h"
 #include "ocudu/scheduler/config/serving_cell_config_factory.h"
 #include "ocudu/scheduler/rrm/configured_grant_rrm_factory.h"
@@ -56,18 +56,12 @@ void du_ue_ran_resource_updater_impl::clear_cs_rnti()
 
 ///////////////////////////
 
-// Helper that resets the PUCCH and SRS configurations in the serving cell configuration.
+// Helper that removes the SRS and CG configurations from the default serving cell configuration. The SRS resource
+// manager allocates the SRS configuration, and the CG resource manager allocates the CG configuration once the UE has
+// DRBs.
 static void reset_serv_cell_cfg(serving_cell_config& serv_cell_cfg)
 {
-  ocudu_assert(serv_cell_cfg.ul_config.has_value() and
-                   serv_cell_cfg.ul_config.value().init_ul_bwp.pucch_cfg.has_value() and
-                   serv_cell_cfg.ul_config.value().init_ul_bwp.srs_cfg.has_value(),
-               "UL configuration in Serving cell config not configured");
-
-  serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg.reset();
-  if (serv_cell_cfg.csi_meas_cfg.has_value() and not is_pusch_configured(*serv_cell_cfg.csi_meas_cfg)) {
-    serv_cell_cfg.csi_meas_cfg.value().csi_report_cfg_list.clear();
-  }
+  ocudu_assert(serv_cell_cfg.ul_config.has_value(), "UL configuration in Serving cell config not configured");
 
   serv_cell_cfg.ul_config->init_ul_bwp.srs_cfg.reset();
   serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
@@ -84,7 +78,7 @@ du_ran_resource_manager_impl::du_ran_resource_manager_impl(span<const du_cell_co
   pucch_res_mng(scheduler_cfg.ue.max_pucchs_per_slot),
   pdsch_res_mng(cell_cfg_list, test_cfg),
   pusch_res_mng(cell_cfg_list, test_cfg),
-  csi_res_mng(cell_cfg_list, test_cfg),
+  csi_res_mng(test_cfg.test_ue.has_value() and test_cfg.test_ue->rnti != rnti_t::INVALID_RNTI),
   bearer_res_mng(srbs, qos, logger),
   // Extract Type of CG (i.e., Type1 or 2) from the first cell; all cell share the same type.
   srs_res_mng(create_srs_resource_manager(cell_cfg_list_[0].ran)),
@@ -113,11 +107,15 @@ du_ran_resource_manager_impl::du_ran_resource_manager_impl(span<const du_cell_co
     }
   }
 
+  // The resource managers keep references to the cell resources, so they cannot move.
+  cell_rrm_cfgs.reserve(cell_cfg_list.size());
   for (unsigned cell_idx_uint = 0; cell_idx_uint != cell_cfg_list.size(); ++cell_idx_uint) {
     const auto&           cell     = cell_cfg_list[cell_idx_uint];
     const du_cell_index_t cell_idx = to_du_cell_index(cell_idx_uint);
-    pucch_res_mng.add_cell(cell_idx, cell.ran);
+    cell_rrm_cfgs.push_back(make_cell_rrm_config(cell.ran));
+    pucch_res_mng.add_cell(cell_idx, cell.ran, cell_rrm_cfgs.back());
     srs_res_mng->add_cell(cell_idx, cell.ran);
+    csi_res_mng.add_cell(cell_idx, cell.ran);
     if (cell.ran.init_bwp.cg_cfg.has_value()) {
       cg_res_mng->add_cell(cell_idx, cell.ran);
     }
@@ -145,6 +143,26 @@ du_ran_resource_manager_impl::du_ran_resource_manager_impl(span<const du_cell_co
         max_nof_ue_ctxts_per_cell - max_nof_rejected_ue_ctxts,
         cell_ue_ctxts[cell_idx].max_nof_ue_ctxts());
   }
+}
+
+/// \brief Determines whether a UE may be sent a Differential Koffset, as per TS 38.321, Section 5.18.24.
+///
+/// Requires an NTN cell deriving a UE-specific Koffset and a UE declaring ue-specific-K-Offset-r17 for the band.
+static bool supports_ue_specific_koffset(const cell_group_config&     cell_grp_cfg,
+                                         span<const du_cell_config>   cell_cfg_list,
+                                         const ue_capability_summary& ue_caps)
+{
+  if (not cell_grp_cfg.cells.contains(SERVING_PCELL_IDX)) {
+    return false;
+  }
+
+  const du_cell_config& cell_cfg = cell_cfg_list[cell_grp_cfg.cells.at(SERVING_PCELL_IDX).serv_cell_cfg.cell_index];
+  if (not get_ue_koffset_cfg(cell_cfg.ran.ntn_params).has_value()) {
+    return false;
+  }
+
+  const auto band_it = ue_caps.bands.find(cell_cfg.ran.dl_carrier.band);
+  return band_it != ue_caps.bands.end() and band_it->second.ue_specific_k_offset_supported;
 }
 
 /// \brief Configures tar-Config for a UE, enabling variation-triggered Timing Advance reporting.
@@ -194,6 +212,11 @@ unsigned du_ran_resource_manager_impl::get_max_nof_rejected_ue_contexts(du_cell_
   return max_nof_rejected_ue_ctxts;
 }
 
+const cell_rrm_config& du_ran_resource_manager_impl::get_cell_rrm_config(du_cell_index_t cell_index) const
+{
+  return cell_rrm_cfgs[cell_index];
+}
+
 unsigned du_ran_resource_manager_impl::compute_max_nof_established_ue_ctxts(du_cell_index_t cell_index) const
 {
   const auto& cell = cell_cfg_list[cell_index];
@@ -211,14 +234,15 @@ unsigned du_ran_resource_manager_impl::compute_max_nof_established_ue_ctxts(du_c
   return std::min(max_nof_ues, max_nof_ue_ctxts_per_cell - max_nof_rejected_ue_ctxts);
 }
 
-void du_ran_resource_manager_impl::move_ue_ctxt_count(du_cell_index_t old_pcell_index, du_cell_index_t new_pcell_index)
+void du_ran_resource_manager_impl::move_ue_ctxt_count(ue_resource_context& u, du_cell_index_t new_pcell_index)
 {
-  if (old_pcell_index != INVALID_DU_CELL_INDEX) {
-    --cell_ue_ctxts[old_pcell_index].nof_allocated;
+  if (u.counted_cell_index != INVALID_DU_CELL_INDEX) {
+    --cell_ue_ctxts[u.counted_cell_index].nof_allocated;
   }
   if (new_pcell_index != INVALID_DU_CELL_INDEX) {
     ++cell_ue_ctxts[new_pcell_index].nof_allocated;
   }
+  u.counted_cell_index = new_pcell_index;
 }
 
 expected<ue_ran_resource_configurator, std::string>
@@ -242,8 +266,9 @@ du_ran_resource_manager_impl::create_ue_resource_configurator(du_ue_index_t   ue
   ++cell_ctxts.nof_allocated;
 
   ue_res_pool.emplace(ue_index, *this);
-  auto& ue_res = ue_res_pool[ue_index];
-  auto& mcg    = ue_res.cg_cfg;
+  auto& ue_res              = ue_res_pool[ue_index];
+  auto& mcg                 = ue_res.cg_cfg;
+  ue_res.counted_cell_index = pcell_index;
 
   // UE initialized PCell.
   // Note: In case of lack of RAN resource availability, the return will be error type.
@@ -255,8 +280,9 @@ du_ran_resource_manager_impl::create_ue_resource_configurator(du_ue_index_t   ue
   // Initialize UE with DRX disabled.
   drx_res_mng.handle_ue_creation(ue_res.cg_cfg.cell_group);
 
-  // Allocate CFRA resources when TC-RNTI was not yet assigned (e.g. during for Handover).
-  if (not has_tc_rnti) {
+  // Allocate CFRA resources when TC-RNTI was not yet assigned (e.g. during for Handover). A UE without PCell resources
+  // cannot complete the handover.
+  if (not has_tc_rnti and err.has_value()) {
     ra_res_alloc.allocate_cfra_resources(ue_res.cg_cfg);
   }
 
@@ -288,7 +314,7 @@ du_ran_resource_manager_impl::update_context(du_ue_index_t                      
     }
 
     // >> Deallocate PCell resources.
-    move_ue_ctxt_count(ue_mcg.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg.cell_index, pcell_idx);
+    move_ue_ctxt_count(u, pcell_idx);
     deallocate_cell_resources(ue_index, SERVING_PCELL_IDX);
   }
   for (serv_cell_index_t scell_idx : upd_req.scells_to_rem) {
@@ -328,15 +354,39 @@ du_ran_resource_manager_impl::update_context(du_ue_index_t                      
       u.ue_cap_manager.update(*reestablished_ue_caps);
     }
     if (not upd_req.ue_cap_rat_list.empty()) {
-      u.ue_cap_manager.update(upd_req.ue_cap_rat_list);
+      if (not u.ue_cap_manager.update(upd_req.ue_cap_rat_list)) {
+        resp.procedure_error = make_unexpected(std::string{"Invalid UE capability container"});
+        return resp;
+      }
     } else if (not upd_req.ho_prep_info.empty()) {
-      u.ue_cap_manager.update_from_ho_prep_info(upd_req.ho_prep_info);
+      if (not u.ue_cap_manager.update_from_ho_prep_info(upd_req.ho_prep_info)) {
+        resp.procedure_error = make_unexpected(std::string{"Invalid handover capability container"});
+        return resp;
+      }
     }
   }
 
   // Update measGaps based on the UE measConfig, location measurements and supportedGapPatterns UE capabilities.
   const ue_capability_summary* ue_caps_summary =
       u.ue_cap_manager.summary().has_value() ? &*u.ue_cap_manager.summary() : nullptr;
+  if (ue_caps_summary != nullptr and ue_caps_summary->is_redcap) {
+    if (not supports_redcap_admission(cell_cfg_list[pcell_idx]) or ue_mcg.cell_group.cells.size() != 1) {
+      resp.procedure_error = make_unexpected(std::string{"Unsupported RedCap cell configuration"});
+      return resp;
+    }
+    const auto compatible_rlc = [&](const du_ue_resource_config& config) {
+      return std::all_of(config.drbs.begin(), config.drbs.end(), [&](const auto& drb) {
+        return drb.rlc_cfg.mode != rlc_mode::am or ue_caps_summary->redcap_rlc_am_long_sn_supported or
+               (drb.rlc_cfg.am.tx.sn_field_length == rlc_am_sn_size::size12bits and
+                drb.rlc_cfg.am.rx.sn_field_length == rlc_am_sn_size::size12bits);
+      });
+    };
+    if (not compatible_rlc(ue_mcg) or
+        (reestablished_context != nullptr and not compatible_rlc(*reestablished_context))) {
+      resp.procedure_error = make_unexpected(std::string{"RedCap context has an unsupported RLC AM SN length"});
+      return resp;
+    }
+  }
   if (not meas_cfg_mng.update(ue_mcg, upd_req.meas_cfg, upd_req.location_meas_info, ue_caps_summary)) {
     resp.procedure_error = make_unexpected(std::string{"Unable to configure a measurement gap for the PRS"});
     return resp;
@@ -348,9 +398,12 @@ du_ran_resource_manager_impl::update_context(du_ue_index_t                      
     drx_res_mng.handle_ue_cap_update(ue_mcg.cell_group, u.ue_cap_manager.summary());
     if (ue_mcg.cell_group.cells.contains(SERVING_PCELL_IDX)) {
       pucch_res_mng.update_resources(ue_mcg.cell_group.cells.at(SERVING_PCELL_IDX), *u.ue_cap_manager.summary());
+      csi_res_mng.update_resources(
+          ue_mcg.cell_group.cells.at(SERVING_PCELL_IDX), *u.ue_cap_manager.summary(), ue_index);
     }
     update_tar_config(ue_mcg.cell_group, cell_cfg_list, *u.ue_cap_manager.summary(), ue_index, logger);
-    csi_res_mng.update_resources(ue_mcg.cell_group, *u.ue_cap_manager.summary(), ue_index);
+    ue_mcg.ue_specific_koffset_supported =
+        supports_ue_specific_koffset(ue_mcg.cell_group, cell_cfg_list, *u.ue_cap_manager.summary());
   }
 
   // > Update UE SRBs and DRBs.
@@ -358,7 +411,8 @@ du_ran_resource_manager_impl::update_context(du_ue_index_t                      
       bearer_res_mng.update(ue_mcg,
                             du_ue_bearer_resource_update_request{
                                 upd_req.srbs_to_setup, upd_req.drbs_to_setup, upd_req.drbs_to_mod, upd_req.drbs_to_rem},
-                            reestablished_context);
+                            reestablished_context,
+                            ue_caps_summary);
   resp.failed_drbs = std::move(bearer_resp.drbs_failed_to_setup);
   resp.failed_drbs.insert(
       resp.failed_drbs.end(), bearer_resp.drbs_failed_to_mod.begin(), bearer_resp.drbs_failed_to_mod.end());
@@ -397,6 +451,10 @@ du_ran_resource_manager_impl::update_context(du_ue_index_t                      
       }
       // NOTE: no-op for case with CG config not requested.
     }
+    // The UE keeps its CG config, so it keeps needing its CS-RNTI; otherwise the MAC would release it.
+    else if (has_drbs and cg_was_active) {
+      resp.cs_rnti_requested = true;
+    }
     // Remove old CG config when DRBs are removed.
     else if (not has_drbs and cg_was_active) {
       cg_res_mng->reset_ue_cg_config(ue_mcg.cell_group.cells.at(SERVING_PCELL_IDX));
@@ -409,19 +467,16 @@ du_ran_resource_manager_impl::update_context(du_ue_index_t                      
 void du_ran_resource_manager_impl::deallocate_context(du_ue_index_t ue_index)
 {
   ocudu_assert(ue_res_pool.contains(ue_index), "This function should only be called for an already allocated UE");
-  ue_resource_context&   ue_res = ue_res_pool[ue_index];
-  du_ue_resource_config& ue_mcg = ue_res.cg_cfg;
-
-  // The PCell resources are deallocated below, which clears the DU cell index of the UE.
-  const du_cell_index_t pcell_index = ue_mcg.cell_group.cells.contains(SERVING_PCELL_IDX)
-                                          ? ue_mcg.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg.cell_index
-                                          : INVALID_DU_CELL_INDEX;
+  ue_resource_context&   ue_res      = ue_res_pool[ue_index];
+  du_ue_resource_config& ue_mcg      = ue_res.cg_cfg;
+  const du_cell_index_t  pcell_index = ue_res.counted_cell_index;
 
   ra_res_alloc.deallocate_cfra_resources(ue_mcg);
   drx_res_mng.handle_ue_removal(ue_mcg.cell_group);
 
-  for (auto p : ue_mcg.cell_group.cells) {
-    deallocate_cell_resources(ue_index, p.first);
+  // Each deallocation removes the cell from the list.
+  while (not ue_mcg.cell_group.cells.empty()) {
+    deallocate_cell_resources(ue_index, ue_mcg.cell_group.cells.begin()->first);
   }
 
   ue_res_pool.erase(ue_index);
@@ -461,26 +516,23 @@ error_type<std::string> du_ran_resource_manager_impl::allocate_cell_resources(du
     }
     ue_res.cell_group.pcg_cfg.pdsch_harq_codebook = pdsch_harq_ack_codebook::dynamic;
 
-    // Start with removing PUCCH and SRS configurations. This step simplifies the handling of the allocation failure
-    // path.
     reset_serv_cell_cfg(ue_res.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg);
 
+    // On failure, the UE keeps no dedicated configuration. It uses only the common configuration of the cell.
     if (not srs_res_mng->alloc_resources(ue_res.cell_group.cells.at(SERVING_PCELL_IDX))) {
-      // Clear dedicated PDCCH config so the UE falls back to common search spaces only.
-      ue_res.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg.init_dl_bwp.pdcch_cfg.reset();
+      ue_res.cell_group.cells.erase(SERVING_PCELL_IDX);
       return make_unexpected(fmt::format("Unable to allocate SRS resources for cell={}", cell_index));
     }
 
     if (not pucch_res_mng.alloc_resources(ue_res.cell_group.cells.at(SERVING_PCELL_IDX))) {
-      // Deallocate previously allocated SRS resources and clear dedicated PDCCH config.
       srs_res_mng->dealloc_resources(ue_res.cell_group.cells.at(SERVING_PCELL_IDX));
-      ue_res.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg.init_dl_bwp.pdcch_cfg.reset();
+      ue_res.cell_group.cells.erase(SERVING_PCELL_IDX);
       return make_unexpected(fmt::format("Unable to allocate dedicated PUCCH resources for cell={}", cell_index));
     }
 
     pdsch_res_mng.alloc_resources(ue_res.cell_group);
     pusch_res_mng.alloc_resources(ue_res.cell_group);
-    csi_res_mng.alloc_resources(ue_res.cell_group, ue_index);
+    csi_res_mng.alloc_resources(ue_res.cell_group.cells.at(SERVING_PCELL_IDX), ue_index);
   } else {
     ocudu_assert(not ue_res.cell_group.cells.contains(serv_cell_index), "Reallocation of SCell detected");
     ue_res.cell_group.cells.emplace(serv_cell_index, ue_cell_config{});
@@ -496,22 +548,20 @@ void du_ran_resource_manager_impl::deallocate_cell_resources(du_ue_index_t ue_in
   ue_resource_context&   ue_res_updater = ue_res_pool[ue_index];
   du_ue_resource_config& ue_res         = ue_res_updater.cg_cfg;
 
-  // Return resources back to free lists.
+  ocudu_assert(ue_res.cell_group.cells.contains(serv_cell_index),
+               "ue={}: Deallocation of serv_cell_index={}, which the UE does not have",
+               ue_index,
+               serv_cell_index);
+
+  // Return resources back to free lists. SCells hold no resources yet.
   if (serv_cell_index == SERVING_PCELL_IDX) {
-    ocudu_assert(not ue_res.cell_group.cells.empty() and
-                     ue_res.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg.cell_index != INVALID_DU_CELL_INDEX,
-                 "Double deallocation of same UE cell resources detected");
     pucch_res_mng.dealloc_resources(ue_res.cell_group.cells.at(SERVING_PCELL_IDX));
     srs_res_mng->dealloc_resources(ue_res.cell_group.cells.at(SERVING_PCELL_IDX));
     pdsch_res_mng.dealloc_resources(ue_res.cell_group);
     pusch_res_mng.dealloc_resources(ue_res.cell_group);
-    csi_res_mng.dealloc_resources(ue_res.cell_group);
     cg_res_mng->reset_ue_cg_config(ue_res.cell_group.cells.at(SERVING_PCELL_IDX));
-    ue_res.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg.cell_index = INVALID_DU_CELL_INDEX;
-  } else {
-    // TODO: Remove of SCell params.
-    ue_res.cell_group.cells.erase(serv_cell_index);
   }
+  ue_res.cell_group.cells.erase(serv_cell_index);
 }
 
 du_ran_resource_manager_impl::ue_resource_context::ue_resource_context(du_ran_resource_manager_impl& parent) :

@@ -6,8 +6,10 @@
 #pragma once
 
 #include "ocudu/adt/slotted_array.h"
-#include "ocudu/scheduler/config/cell_bwp_res_config.h"
+#include "ocudu/ran/csi_report/csi_report_configuration.h"
+#include "ocudu/scheduler/config/ran_cell_config.h"
 #include "ocudu/scheduler/config/serving_cell_config.h"
+#include "ocudu/scheduler/rrm/cell_rrm_config.h"
 #include "ocudu/scheduler/rrm/ue_capability_summary.h"
 #include "ocudu/scheduler/scheduler_configurator.h"
 #include <optional>
@@ -27,8 +29,11 @@ public:
   pucch_resource_manager& operator=(const pucch_resource_manager&) = delete;
   pucch_resource_manager& operator=(pucch_resource_manager&&)      = delete;
 
-  /// Add resources for a new DU cell.
-  void add_cell(du_cell_index_t cell_idx, const ran_cell_config& cell_cfg);
+  /// \brief Add resources for a new DU cell.
+  ///
+  /// The manager keeps a reference to the PUCCH resources of \c rrm_cfg. The caller must keep \c rrm_cfg valid and at
+  /// the same address until it calls \c rem_cell.
+  void add_cell(du_cell_index_t cell_idx, const ran_cell_config& cell_cfg, const cell_rrm_config& rrm_cfg);
 
   /// Remove all resources for a DU cell.
   void rem_cell(du_cell_index_t cell_idx);
@@ -36,15 +41,17 @@ public:
   /// \brief Allocate PUCCH resources for a given UE. The resources are stored in the UE's cell configuration.
   ///
   /// \remark PUCCH repetition is disabled until \c update_resources is called with the UE's reported capabilities.
-  /// \return true if allocation was successful.
+  /// \return true if allocation was successful. On failure, the UE's cell configuration is not changed.
   bool alloc_resources(ue_cell_config& ue_cell_cfg);
 
   /// \brief Deallocate PUCCH resources previously given to a UE. The resources are returned back to a pool.
-  void dealloc_resources(ue_cell_config& ue_cell_cfg);
+  /// \remark Call it only for a UE whose \c alloc_resources call succeeded.
+  void dealloc_resources(const ue_cell_config& ue_cell_cfg);
 
   /// \brief Update the UE's PUCCH resources based on its reported capabilities.
   ///
   /// Enables PUCCH repetition for the resources the UE has indicated support for.
+  /// \remark Call it only for a UE whose \c alloc_resources call succeeded.
   void update_resources(ue_cell_config& ue_cell_cfg, const ue_capability_summary& ue_caps);
 
   /// Gets the current number of free SR configurations for a given cell.
@@ -63,13 +70,14 @@ private:
   };
 
   struct cell_resource_context {
-    ran_cell_config     cell_params;
-    cell_bwp_res_config cell_bwp_cfg;
-    // Default CSI report configuration. Only set if periodic CSI reporting is configured.
-    std::optional<csi_report_config> default_csi_report_cfg;
-    unsigned                         lcm_csi_sr_period;
-    unsigned                         sr_period_slots;
-    unsigned                         csi_period_slots;
+    ran_cell_config cell_params;
+    /// PUCCH resources of the cell that the manager allocates to the UEs. Owned by the caller of \c add_cell.
+    const cell_pucch_rrm_config* pucch_res = nullptr;
+    /// CSI report on PUCCH. Absent if the cell configures no periodic CSI reports.
+    std::optional<csi_report_configuration> csi_report;
+    unsigned                                lcm_csi_sr_period;
+    unsigned                                sr_period_slots;
+    unsigned                                csi_period_slots;
     /// Pool of SR configurations currently available to be allocated to UEs.
     std::vector<periodic_pucch_config> free_sr_configs;
     /// Pool of periodic CSI configurations currently available to be allocated to UEs.
@@ -77,6 +85,9 @@ private:
     /// UE index for randomization of resources.
     unsigned              ue_idx = 0;
     std::vector<unsigned> periodic_pucchs_per_slot;
+
+    /// CSI report on PUCCH. Null if the cell configures no periodic CSI reports.
+    const csi_report_configuration* pucch_csi_report() const { return csi_report.has_value() ? &*csi_report : nullptr; }
   };
 
   const unsigned max_pucch_grants_per_slot;
@@ -109,9 +120,6 @@ private:
   /// \remark Slot offsets common to SR and CSI are counted only once, as they will be sent together in one PUCCH.
   static std::set<unsigned>
   compute_periodic_uci_slot_offsets(const cell_resource_context& cell_ctx, unsigned sr_offset, unsigned csi_offset = 0);
-
-  /// Called when PUCCH allocation fails for a given UE.
-  static void disable_pucch_cfg(serving_cell_config& serv_cell_cfg, const cell_resource_context& cell_ctx);
 
   /// \brief Enable PUCCH repetition conditionally based on the UE's reported capabilities.
   ///

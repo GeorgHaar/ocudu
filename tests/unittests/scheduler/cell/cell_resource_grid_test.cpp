@@ -177,27 +177,27 @@ TEST(pusch_resource_allocation_test, test_all)
 
   // Test: No allocations made yet
   ASSERT_TRUE(res_grid_alloc[0].ul_res_grid.used_crbs(bwp_cfg, {0, 14}).none());
-  ASSERT_TRUE(res_grid_alloc[0].result.ul.puschs.empty());
+  ASSERT_TRUE(res_grid_alloc[0].result_reader().ul().puschs().empty());
 
   // Action 2: Allocate PUSCH grant in current slot_tx
   bwp_sch_grant_info ul_grant{bwp_cfg, {0, 14}, {1, 5}};
   res_grid_alloc[0].ul_res_grid.fill(ul_grant);
-  res_grid_alloc[0].result.ul.puschs.emplace_back();
+  ASSERT_NE(res_grid_alloc[0].result_builder().ul().puschs().emplace_back(), nullptr);
 
   // Test: Allocated PUSCH was registered in the cell resource grid for slot_tx
   ASSERT_TRUE(res_grid_alloc[0].ul_res_grid.used_crbs(bwp_cfg, {0, 14}).any());
   ASSERT_EQ(res_grid_alloc[0].ul_res_grid.used_crbs(bwp_cfg, {0, 14}).count(), ul_grant.prbs.length());
-  ASSERT_EQ(1, res_grid_alloc[0].result.ul.puschs.size());
+  ASSERT_EQ(1, res_grid_alloc[0].result_reader().ul().puschs().size());
 
   // Action 3: Allocate PUSCH grant in slot_tx + 1
   bwp_sch_grant_info ul_grant2{bwp_cfg, {0, 14}, {4, 20}};
   res_grid_alloc[1].ul_res_grid.fill(ul_grant2);
-  res_grid_alloc[1].result.ul.puschs.emplace_back();
+  ASSERT_NE(res_grid_alloc[1].result_builder().ul().puschs().emplace_back(), nullptr);
 
   // Test: Allocated PUSCH was registered in the cell resource grid for slot_tx + 1
   ASSERT_TRUE(res_grid_alloc[1].ul_res_grid.used_crbs(bwp_cfg, {0, 14}).any());
   ASSERT_EQ(res_grid_alloc[1].ul_res_grid.used_crbs(bwp_cfg, {0, 14}).count(), ul_grant2.prbs.length());
-  ASSERT_EQ(1, res_grid_alloc[1].result.ul.puschs.size());
+  ASSERT_EQ(1, res_grid_alloc[1].result_reader().ul().puschs().size());
 
   // Action 4: New slot
   res_grid_alloc.slot_indication(++sl_tx);
@@ -206,38 +206,135 @@ TEST(pusch_resource_allocation_test, test_all)
   ASSERT_EQ(res_grid_alloc[0].ul_res_grid.used_crbs(bwp_cfg, {0, 14}).count(), ul_grant2.prbs.length());
 }
 
-/// In an NTN cell, the UL grant of a DCI lands up to Koffset slots later, so the grid must keep the allocations of that
-/// many more slots ahead without the ring wrapping onto them.
-TEST(cell_resource_grid_test, ntn_grid_keeps_allocations_up_to_the_koffset_delayed_ul_slot)
+/// In an NTN cell, the UL grant of a DCI lands up to Koffset slots later and reaches the gNB a further k_mac slots
+/// later, so the grid must keep the allocations of that many more slots ahead without the ring wrapping onto them.
+TEST(cell_resource_grid_test, ntn_grid_keeps_allocations_up_to_the_delayed_ul_slot)
 {
   OCUDU_TEST_REQUIREMENTS("DU-NTN-TIM-1");
 
-  // Cell-specific Koffset, in milliseconds, of LEO and GEO cells.
-  for (unsigned koffset_ms : {16U, 240U, 480U}) {
+  // Cell-specific Koffset and k_mac, in milliseconds, of LEO and GEO cells.
+  struct ntn_delays {
+    unsigned koffset_ms;
+    unsigned k_mac_ms;
+  };
+  for (ntn_delays delays : {ntn_delays{16, 0},
+                            ntn_delays{240, 0},
+                            ntn_delays{480, 0},
+                            ntn_delays{0, 20},
+                            ntn_delays{16, 4},
+                            ntn_delays{240, 20}}) {
     scheduler_expert_config                  sched_cfg = config_helpers::make_default_scheduler_expert_config();
     test_helpers::test_sched_config_manager  cfg_mng{sched_cfg};
     sched_cell_configuration_request_message cell_req =
         sched_config_helper::make_default_sched_cell_configuration_request();
     cell_req.ran.ntn_params.emplace();
-    cell_req.ran.ntn_params->ntn_cfg.cell_specific_koffset = std::chrono::milliseconds{koffset_ms};
-    const cell_configuration& cell_cfg                     = *cfg_mng.add_cell(cell_req);
+    if (delays.koffset_ms != 0) {
+      cell_req.ran.ntn_params->ntn_cfg.cell_specific_koffset = std::chrono::milliseconds{delays.koffset_ms};
+    }
+    if (delays.k_mac_ms != 0) {
+      cell_req.ran.ntn_params->ntn_cfg.k_mac = std::chrono::milliseconds{delays.k_mac_ms};
+    }
+    const cell_configuration& cell_cfg = *cfg_mng.add_cell(cell_req);
     cell_resource_allocator   res_grid{cell_cfg};
 
-    ASSERT_GT(cell_cfg.ntn_cs_koffset, 0U);
-    const unsigned max_ul_delay = get_max_slot_ul_alloc_delay(cell_cfg.ntn_cs_koffset);
+    const auto ctx = fmt::format("Koffset={}ms, k_mac={}ms", delays.koffset_ms, delays.k_mac_ms);
+    ASSERT_GT(cell_cfg.ntn_ul_alloc_delay_slots(), 0U) << ctx;
+    ASSERT_EQ(cell_cfg.ntn_ul_alloc_delay_slots(), cell_cfg.ntn_cs_koffset + cell_cfg.ntn_k_mac_slots) << ctx;
+    const unsigned max_ul_delay = get_max_slot_ul_alloc_delay(cell_cfg.ntn_ul_alloc_delay_slots());
     // The ring must reach the furthest UL slot: operator[] accepts delays up to and including max_ul_delay.
-    ASSERT_GE(res_grid.ring_size(), max_ul_delay) << fmt::format("Koffset={}ms", koffset_ms);
+    ASSERT_GE(res_grid.ring_size(), max_ul_delay) << ctx;
 
     // An allocation in the furthest UL slot stays in place until that slot is reached.
     slot_point sl_tx{0, 0};
     res_grid.slot_indication(sl_tx);
     const slot_point alloc_slot = sl_tx + max_ul_delay;
-    res_grid[alloc_slot].result.ul.puschs.emplace_back();
+    ASSERT_NE(res_grid[alloc_slot].result_builder().ul().puschs().emplace_back(), nullptr);
     for (unsigned i = 0; i != max_ul_delay; ++i) {
       res_grid.slot_indication(++sl_tx);
-      ASSERT_EQ(res_grid[alloc_slot].result.ul.puschs.size(), 1U)
-          << fmt::format("Koffset={}ms: allocation lost at slot {}", koffset_ms, sl_tx);
+      ASSERT_EQ(res_grid[alloc_slot].result_reader().ul().puschs().size(), 1U)
+          << fmt::format("{}: allocation lost at slot {}", ctx, sl_tx);
     }
     ASSERT_EQ(res_grid[0].slot, alloc_slot);
+  }
+}
+
+/// Fills every pooled PDU list of a slot up to the capacity the slot gives it.
+static void fill_pooled_lists(cell_slot_resource_allocator& slot_res, slot_point sl_tx, const std::string& ctx)
+{
+  const auto fail = [sl_tx, &ctx](const char* list) {
+    return fmt::format("{}: pool of {} ran out at slot {}", ctx, list, sl_tx);
+  };
+
+  auto dl = slot_res.result_builder().dl();
+  for (unsigned i = 0; i != MAX_DL_PDCCH_PDUS_PER_SLOT; ++i) {
+    ASSERT_NE(dl.dl_pdcchs().emplace_back(), nullptr) << fail("dl_pdcchs");
+  }
+  for (unsigned i = 0; i != MAX_UL_PDCCH_PDUS_PER_SLOT; ++i) {
+    ASSERT_NE(dl.ul_pdcchs().emplace_back(), nullptr) << fail("ul_pdcchs");
+  }
+  for (unsigned i = 0; i != MAX_RAR_PDUS_PER_SLOT; ++i) {
+    ASSERT_NE(dl.rar_grants().emplace_back(), nullptr) << fail("rar_grants");
+  }
+  for (unsigned i = 0; i != MAX_UE_PDUS_PER_SLOT; ++i) {
+    ASSERT_NE(dl.ue_grants().emplace_back(), nullptr) << fail("ue_grants");
+  }
+  for (unsigned i = 0; i != MAX_CSI_RS_PDUS_PER_SLOT; ++i) {
+    ASSERT_NE(dl.csi_rs().emplace_back(), nullptr) << fail("csi_rs");
+  }
+  auto ul = slot_res.result_builder().ul();
+  for (unsigned i = 0; i != MAX_PUSCH_PDUS_PER_SLOT; ++i) {
+    ASSERT_NE(ul.puschs().emplace_back(), nullptr) << fail("puschs");
+  }
+}
+
+TEST(cell_resource_grid_test, pools_hold_every_slot_the_grid_can_reach_filled_to_capacity)
+{
+  OCUDU_TEST_REQUIREMENTS("DU-NTN-TIM-1");
+
+  // Non-NTN, then the cell-specific Koffset of LEO and GEO cells, in milliseconds, each with and without a k_mac,
+  // and a cell that configures k_mac alone.
+  struct ntn_delays {
+    unsigned koffset_ms;
+    unsigned k_mac_ms;
+  };
+  for (ntn_delays delays : {ntn_delays{0, 0},
+                            ntn_delays{16, 0},
+                            ntn_delays{240, 0},
+                            ntn_delays{0, 20},
+                            ntn_delays{16, 4},
+                            ntn_delays{240, 20}}) {
+    scheduler_expert_config                  sched_cfg = config_helpers::make_default_scheduler_expert_config();
+    test_helpers::test_sched_config_manager  cfg_mng{sched_cfg};
+    sched_cell_configuration_request_message cell_req =
+        sched_config_helper::make_default_sched_cell_configuration_request();
+    if (delays.koffset_ms != 0 or delays.k_mac_ms != 0) {
+      cell_req.ran.ntn_params.emplace();
+      if (delays.koffset_ms != 0) {
+        cell_req.ran.ntn_params->ntn_cfg.cell_specific_koffset = std::chrono::milliseconds{delays.koffset_ms};
+      }
+      if (delays.k_mac_ms != 0) {
+        cell_req.ran.ntn_params->ntn_cfg.k_mac = std::chrono::milliseconds{delays.k_mac_ms};
+      }
+    }
+    const cell_configuration& cell_cfg = *cfg_mng.add_cell(cell_req);
+    cell_resource_allocator   res_grid{cell_cfg};
+
+    const auto     ctx          = fmt::format("Koffset={}ms, k_mac={}ms", delays.koffset_ms, delays.k_mac_ms);
+    const unsigned max_ul_delay = get_max_slot_ul_alloc_delay(cell_cfg.ntn_ul_alloc_delay_slots());
+
+    slot_point sl_tx{0, 0};
+    res_grid.slot_indication(sl_tx);
+
+    // Every slot the grid can reach right now holds a full slot worth of PDUs.
+    for (unsigned d = 0; d <= max_ul_delay; ++d) {
+      ASSERT_NO_FATAL_FAILURE(fill_pooled_lists(res_grid[d], sl_tx + d, ctx));
+    }
+
+    // Advancing past the history window keeps the furthest slot reachable and full, so the pools must cover the
+    // history and the allocation delay at the same time.
+    for (unsigned i = 0; i != cell_resource_allocator::RING_MAX_HISTORY_SIZE + 1; ++i) {
+      res_grid.slot_indication(++sl_tx);
+      ASSERT_NO_FATAL_FAILURE(fill_pooled_lists(res_grid[max_ul_delay], sl_tx + max_ul_delay, ctx));
+    }
   }
 }

@@ -11,13 +11,27 @@
 #  ROHC_LIBRARIES    - The ROHC library
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(PC_ROHC rohc>=2.3.1)
 
-#find Mbedtls
+# Let pkg-config also look in ROHC_DIR, it provides the version reported in the SBOM
+set(_rohc_prefix_path ${CMAKE_PREFIX_PATH})
+if (DEFINED ENV{ROHC_DIR})
+    file(TO_CMAKE_PATH "$ENV{ROHC_DIR}" _rohc_dir)
+    list(APPEND CMAKE_PREFIX_PATH "${_rohc_dir}")
+endif (DEFINED ENV{ROHC_DIR})
+pkg_check_modules(PC_ROHC rohc>=2.3.1)
+set(CMAKE_PREFIX_PATH ${_rohc_prefix_path})
+unset(_rohc_prefix_path)
+unset(_rohc_dir)
+
+if(NOT "$ENV{ROHC_DIR}" STREQUAL "")
+  set(_ROHC_INCLUDE_HINTS "$ENV{ROHC_DIR}/include")
+  set(_ROHC_LIB_HINTS     "$ENV{ROHC_DIR}/lib")
+endif()
+
 find_path(
     ROHC_INCLUDE_DIRS
     NAMES rohc/rohc.h
-    HINTS $ENV{ROHC_DIR}/include
+    HINTS ${_ROHC_INCLUDE_HINTS}
           ${PC_ROHC_INCLUDEDIR}
           ${CMAKE_INSTALL_PREFIX}/include
     PATHS /usr/local/include
@@ -27,7 +41,7 @@ find_path(
 find_library(
     ROHC_LIBRARIES
     NAMES rohc
-    HINTS $ENV{ROHC_DIR}/lib
+    HINTS ${_ROHC_LIB_HINTS}
           ${PC_ROHC_LIBDIR}
           ${CMAKE_INSTALL_PREFIX}/lib
           ${CMAKE_INSTALL_PREFIX}/lib64
@@ -36,6 +50,9 @@ find_library(
           /usr/lib
           /usr/lib64
 )
+
+unset(_ROHC_INCLUDE_HINTS)
+unset(_ROHC_LIB_HINTS)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(ROHC DEFAULT_MSG ROHC_LIBRARIES ROHC_INCLUDE_DIRS)

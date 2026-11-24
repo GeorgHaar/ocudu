@@ -255,6 +255,35 @@ TEST(mac_ul_subpdu, decode_long_bsr_with_8_lcgs)
   fmt::print("subPDU: {}\n", subpdu);
 }
 
+// A zero-length Long BSR or Long Truncated BSR MAC CE must be rejected rather than read.
+TEST(mac_ul_pdu, decode_zero_length_long_bsr_fails)
+{
+  // R/F/LCID/L MAC subheader = 0x3e - F=0, LCID=62 (Long BSR), L=0.
+  // R/F/LCID/L MAC subheader = 0x3c - F=0, LCID=60 (Long Truncated BSR), L=0.
+  const std::array<std::pair<uint8_t, bsr_format>, 2> cases = {
+      {{0x3e, bsr_format::LONG_BSR}, {0x3c, bsr_format::LONG_TRUNC_BSR}}};
+
+  for (const auto& [lcid, bsr_fmt] : cases) {
+    // Zero-length CE as the last subPDU of the PDU.
+    mac_ul_sch_pdu pdu;
+    byte_buffer    msg = byte_buffer::create({lcid, 0x00}).value();
+    ASSERT_TRUE(pdu.unpack(msg));
+    ASSERT_EQ(pdu.nof_subpdus(), 1);
+    ASSERT_EQ(pdu.subpdu(0).sdu_length(), 0);
+    ASSERT_FALSE(decode_lbsr(bsr_fmt, pdu.subpdu(0).payload()).has_value());
+    fmt::print("PDU: {}\n", pdu);
+
+    // Zero-length CE followed by another subPDU.
+    // R/LCID MAC subheader = 0x3d - LCID=61 (Short BSR), MAC CE = 0x5f.
+    mac_ul_sch_pdu pdu2;
+    byte_buffer    msg2 = byte_buffer::create({lcid, 0x00, 0x3d, 0x5f}).value();
+    ASSERT_TRUE(pdu2.unpack(msg2));
+    ASSERT_EQ(pdu2.nof_subpdus(), 2);
+    ASSERT_FALSE(decode_lbsr(bsr_fmt, pdu2.subpdu(0).payload()).has_value());
+    fmt::print("PDU: {}\n", pdu2);
+  }
+}
+
 // Test the unpacking function for MAC subPDU with MAC CE (Long Truncated BSR).
 TEST(mac_ul_subpdu, decode_long_trunc_bsr)
 {
@@ -485,6 +514,36 @@ TEST(mac_ul_subpdu, decode_timing_advance_report_boundary_values)
     byte_buffer msg = byte_buffer::create(tc.ce.begin(), tc.ce.end()).value();
     ASSERT_EQ(tc.expected, decode_ta_report(byte_buffer_view(msg))) << tc.description;
   }
+}
+
+// Test the unpacking function for MAC subPDU with MAC CE (Configured Grant Confirmation).
+TEST(mac_ul_subpdu, decode_cg_confirmation)
+{
+  const lcid_ul_sch_t cg_conf{lcid_ul_sch_t::CG_CONFIRMATION};
+  ASSERT_TRUE(cg_conf.is_valid_lcid());
+  ASSERT_TRUE(cg_conf.is_ce());
+  // The CE has a fixed size of zero (TS 38.321, 6.1.3.7), so the subheader carries no length field.
+  ASSERT_FALSE(cg_conf.has_length_field());
+  ASSERT_FALSE(cg_conf.is_var_len_ce());
+  ASSERT_EQ(0, cg_conf.sizeof_ce());
+
+  mac_ul_sch_subpdu subpdu;
+
+  // MAC subPDU with:
+  // - 8-bit R/LCID MAC subheader.
+  // - Configured Grant Confirmation MAC CE, which has zero size.
+  //
+  // |   |   |   |   |   |   |   |   |
+  // | R | R |         LCID          |  Octet 1
+
+  // R/LCID MAC subheader = R|R|LCID = 0x37 or LCID=55
+  byte_buffer msg = byte_buffer::create({0x37}).value();
+  ASSERT_TRUE(subpdu.unpack(msg));
+
+  // Test expected length.
+  ASSERT_EQ(0, subpdu.sdu_length()) << "Wrong SDU length for MAC CE CG Confirmation (0 bytes)";
+  ASSERT_EQ(1, subpdu.total_length()) << "Wrong subPDU length for MAC CE CG Confirmation (1 B header + 0B SDU)";
+  fmt::print("subPDU: {}\n", subpdu);
 }
 
 // Test the unpacking function for MAC subPDU with padding.

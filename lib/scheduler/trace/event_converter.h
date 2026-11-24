@@ -19,6 +19,7 @@
 #include "ocudu/adt/span.h"
 #include "ocudu/ran/du_cell_index.h"
 #include "ocudu/ran/subcarrier_spacing.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include <vector>
 
 namespace ocudu {
@@ -31,6 +32,7 @@ struct rach_indication_message;
 struct harq_ack_event;
 struct sr_event;
 struct csi_report_event;
+struct ul_crc_event;
 struct ul_sched_info;
 struct dl_msg_alloc;
 struct sib_information;
@@ -201,12 +203,12 @@ void convert_fb_to_failed_attempts(failed_alloc_attempts& failed_attempts, const
 
 /// Convert a scheduler decision to the respective flatbuffer table.
 flatbuffers::Offset<fbs::SlotDecision> convert_decision_to_fb(flatbuffers::FlatBufferBuilder& fbb,
-                                                              const sched_result&             result);
+                                                              sched_slot_result_reader        result);
 
 /// \brief Convert a flatbuffer SlotDecision into the original scheduler decision.
 ///
 /// \p coresets resolves the coreset IDs of the PDCCHs, see convert_fb_to_dl_pdcch.
-void convert_fb_to_decision(sched_result&                     result,
+void convert_fb_to_decision(sched_slot_result_builder         result,
                             const fbs::SlotDecision&          decision,
                             const cell_configuration&         cell_cfg,
                             span<const coreset_configuration> coresets = {});
@@ -243,6 +245,16 @@ flatbuffers::Offset<fbs::CsiReportEvent> convert_csi_report_event_to_fb(flatbuff
 
 /// Convert a flatbuffer CSI report event into the original CSI report event.
 void convert_fb_to_csi_report_event(csi_report_event& event, const fbs::CsiReportEvent& input, subcarrier_spacing scs);
+
+/// Convert a UL CRC event to the respective flatbuffer table.
+flatbuffers::Offset<fbs::CrcEvent> convert_ul_crc_event_to_fb(flatbuffers::FlatBufferBuilder& fbb,
+                                                              const ul_crc_event&             event);
+
+/// Convert a flatbuffer CRC event into the original UL CRC event.
+void convert_fb_to_ul_crc_event(ul_crc_event&        event,
+                                const fbs::CrcEvent& input,
+                                subcarrier_spacing   scs,
+                                du_cell_index_t      cell_index);
 
 } // namespace schedtrace
 } // namespace ocudu

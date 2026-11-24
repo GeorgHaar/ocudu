@@ -30,7 +30,7 @@ public:
   /// symbol interval over any other symbol intervals on the same or on different slots.
   bool alloc_resources(ue_cell_config& ue_cell_cfg) override;
 
-  void dealloc_resources(ue_cell_config& ue_cell_cfg) override;
+  void dealloc_resources(const ue_cell_config& ue_cell_cfg) override;
 
   unsigned get_nof_srs_free_res_offsets(du_cell_index_t cell_idx) const override
   {

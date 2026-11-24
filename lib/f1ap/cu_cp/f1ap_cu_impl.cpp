@@ -13,6 +13,7 @@
 #include "procedures/f1_setup_procedure.h"
 #include "procedures/f1ap_e_cid_measurement_initiation_procedure.h"
 #include "procedures/f1ap_positioning_activation_procedure.h"
+#include "procedures/f1ap_positioning_asn1_converters.h"
 #include "procedures/f1ap_positioning_information_exchange_procedure.h"
 #include "procedures/f1ap_positioning_measurement_procedure.h"
 #include "procedures/f1ap_stop_procedure.h"
@@ -35,14 +36,15 @@
 using namespace ocudu;
 using namespace ocucp;
 
-f1ap_cu_impl::f1ap_cu_impl(const f1ap_configuration&   f1ap_cfg_,
-                           f1ap_message_notifier&      tx_pdu_notifier_,
-                           f1ap_du_processor_notifier& f1ap_du_processor_notifier_,
-                           timer_manager&              timers_,
-                           task_executor&              ctrl_exec_) :
+f1ap_cu_impl::f1ap_cu_impl(const f1ap_configuration&    f1ap_cfg_,
+                           f1ap_message_notifier&       tx_pdu_notifier_,
+                           f1ap_du_processor_notifier&  f1ap_du_processor_notifier_,
+                           gnb_cu_ue_f1ap_id_allocator& cu_ue_id_alloc_,
+                           timer_manager&               timers_,
+                           task_executor&               ctrl_exec_) :
   cfg(f1ap_cfg_),
   logger(ocudulog::fetch_basic_logger("CU-CP-F1")),
-  ue_ctxt_list(timer_factory{timers_, ctrl_exec_}, logger),
+  ue_ctxt_list(cu_ue_id_alloc_, timer_factory{timers_, ctrl_exec_}, logger),
   du_processor_notifier(f1ap_du_processor_notifier_),
   ctrl_exec(ctrl_exec_),
   tx_pdu_notifier(*this, tx_pdu_notifier_),
@@ -93,7 +95,7 @@ async_task<cu_cp_ue_index_t> f1ap_cu_impl::handle_ue_context_release_command(con
     });
   }
 
-  return launch_async<ue_context_release_procedure>(cfg, msg, ue_ctxt_list[msg.ue_index], tx_pdu_notifier);
+  return launch_async<ue_context_release_procedure>(cfg, msg, ue_ctxt_list, tx_pdu_notifier);
 }
 
 async_task<f1ap_ue_context_modification_response>
@@ -290,6 +292,12 @@ void f1ap_cu_impl::handle_initiating_message(const asn1::f1ap::init_msg_s& msg)
     case asn1::f1ap::f1ap_elem_procs_o::init_msg_c::types_opts::options::ref_time_info_report:
       handle_ref_time_info_report(msg.value.ref_time_info_report());
       break;
+    case asn1::f1ap::f1ap_elem_procs_o::init_msg_c::types_opts::options::e_c_id_meas_report:
+      handle_e_cid_measurement_report(msg.value.e_c_id_meas_report());
+      break;
+    case asn1::f1ap::f1ap_elem_procs_o::init_msg_c::types_opts::options::e_c_id_meas_fail_ind:
+      handle_e_cid_measurement_failure_indication(msg.value.e_c_id_meas_fail_ind());
+      break;
     default:
       logger.warning("Initiating message of type {} is not supported", msg.value.type().to_string());
       break;
@@ -387,6 +395,7 @@ void f1ap_cu_impl::handle_initial_ul_rrc_message(const asn1::f1ap::init_ul_rrc_m
   if (ue_index == cu_cp_ue_index_t::invalid) {
     logger.warning("du_ue={}: Dropping \"InitialULRRCMessageTransfer\". Cause: Failed to create UE context",
                    fmt::underlying(du_ue_id));
+    ue_ctxt_list.release_gnb_cu_ue_f1ap_id(cu_ue_f1ap_id);
     return;
   }
 
@@ -418,27 +427,19 @@ void f1ap_cu_impl::handle_initial_ul_rrc_message(const asn1::f1ap::init_ul_rrc_m
     return;
   }
 
-  // If the UE context creation was successful, create/update the UE context in the CU-CP and forward the RRC container
-  // to RRC. Otherwise the UE will be rejected and the context will be released by higher layers.
-  if (resp->ue_index != ue_index && ue_ctxt_list.contains(resp->ue_index)) {
-    // This is a resumed UE. Update the existing context with the new DU UE F1AP ID.
-    f1ap_ue_context& resume_ue_ctxt = ue_ctxt_list[resp->ue_index];
-    ue_ctxt_list.add_du_ue_f1ap_id(resume_ue_ctxt.ue_ids.cu_ue_f1ap_id, du_ue_id);
-
-    // Reset release state so the context can be released again if needed (e.g. RRC Resume with invalid MAC).
-    resume_ue_ctxt.reset_release_state(); // TODO: This is a temporary solution, F1AP context should not be reused
-
-    resume_ue_ctxt.logger.log_info("Updated resumed UE context with new DU UE F1AP ID");
-
-    // Note: We the newly created UE will be released and removed by higher layers.
-  } else {
-    // Add SRB notifiers to the UE context.
-    ue_ctxt_list.add_srb0_rrc_notifier(resp->ue_index, resp->f1ap_srb0_notifier);
-    ue_ctxt_list.add_srb1_rrc_notifier(resp->ue_index, resp->f1ap_srb1_notifier);
-    ue_ctxt_list.add_srb2_rrc_notifier(resp->ue_index, resp->f1ap_srb2_notifier);
-
-    ue_ctxt.logger.log_info("Added UE context");
+  // If the UE context creation was successful, add the SRB notifiers and forward the RRC container to RRC. Otherwise
+  // the UE will be rejected and the context will be released by higher layers.
+  if (resp->ue_index != ue_index) {
+    // This is a resumed UE. The new UE context is the new F1-connection of the resumed UE (TS 38.401 section 8.6.2).
+    ue_ctxt_list.update_ue_index(cu_ue_f1ap_id, resp->ue_index);
   }
+
+  // Add SRB notifiers to the UE context.
+  ue_ctxt_list.add_srb0_rrc_notifier(resp->ue_index, resp->f1ap_srb0_notifier);
+  ue_ctxt_list.add_srb1_rrc_notifier(resp->ue_index, resp->f1ap_srb1_notifier);
+  ue_ctxt_list.add_srb2_rrc_notifier(resp->ue_index, resp->f1ap_srb2_notifier);
+
+  ue_ctxt.logger.log_info("Added UE context");
 
   // Forward RRC container.
   std::variant<f1c_initial_ul_bearer_handler*, f1c_ul_bearer_handler*> bearer_var =
@@ -707,6 +708,70 @@ void f1ap_cu_impl::handle_ref_time_info_report(const asn1::f1ap::ref_time_info_r
   info.is_local_clock = msg->time_ref_info.time_info_type_present;
 
   du_processor_notifier.on_ref_time_info_report(info);
+}
+
+void f1ap_cu_impl::handle_e_cid_measurement_report(const asn1::f1ap::e_c_id_meas_report_s& msg)
+{
+  f1ap_ue_context* ue_ctxt = ue_ctxt_list.find(int_to_gnb_cu_ue_f1ap_id(msg->gnb_cu_ue_f1ap_id));
+  if (ue_ctxt == nullptr) {
+    logger.warning("cu_ue={} du_ue={}: Dropping \"ECIDMeasurementReport\". UE context does not exist",
+                   msg->gnb_cu_ue_f1ap_id,
+                   msg->gnb_du_ue_f1ap_id);
+    return;
+  }
+
+  e_cid_measurement_report_t report;
+  report.ue_index          = ue_ctxt->ue_ids.ue_index;
+  report.lmf_ue_meas_id    = uint_to_lmf_ue_meas_id(msg->lmf_ue_meas_id);
+  report.ran_ue_meas_id    = uint_to_ran_ue_meas_id(msg->ran_ue_meas_id);
+  report.e_cid_meas_result = fill_e_cid_measurement_result(msg->e_c_id_meas_result);
+  if (msg->cell_portion_id_present) {
+    report.cell_portion_id = msg->cell_portion_id;
+  }
+
+  du_processor_notifier.on_e_cid_measurement_report(report);
+}
+
+void f1ap_cu_impl::handle_e_cid_measurement_failure_indication(const asn1::f1ap::e_c_id_meas_fail_ind_s& msg)
+{
+  f1ap_ue_context* ue_ctxt = ue_ctxt_list.find(int_to_gnb_cu_ue_f1ap_id(msg->gnb_cu_ue_f1ap_id));
+  if (ue_ctxt == nullptr) {
+    logger.warning("cu_ue={} du_ue={}: Dropping \"ECIDMeasurementFailureIndication\". UE context does not exist",
+                   msg->gnb_cu_ue_f1ap_id,
+                   msg->gnb_du_ue_f1ap_id);
+    return;
+  }
+
+  e_cid_measurement_failure_indication_t ind;
+  ind.ue_index       = ue_ctxt->ue_ids.ue_index;
+  ind.lmf_ue_meas_id = uint_to_lmf_ue_meas_id(msg->lmf_ue_meas_id);
+  ind.ran_ue_meas_id = uint_to_ran_ue_meas_id(msg->ran_ue_meas_id);
+  ind.cause          = asn1_to_cause(msg->cause);
+
+  du_processor_notifier.on_e_cid_measurement_failure_indication(ind);
+}
+
+void f1ap_cu_impl::handle_e_cid_measurement_termination_command(const e_cid_measurement_termination_command_t& command)
+{
+  if (!ue_ctxt_list.contains(command.ue_index)) {
+    logger.warning("ue={}: Dropping \"ECIDMeasurementTerminationCommand\". UE context does not exist",
+                   command.ue_index);
+    return;
+  }
+
+  f1ap_ue_context& ue_ctxt = ue_ctxt_list[command.ue_index];
+  ocudu_sanity_check(ue_ctxt.ue_ids.du_ue_f1ap_id && ue_ctxt.ue_ids.du_ue_f1ap_id != gnb_du_ue_f1ap_id_t::invalid,
+                     "Invalid gNB-DU-UE-F1AP-Id");
+
+  f1ap_message f1ap_msg;
+  f1ap_msg.pdu.set_init_msg().load_info_obj(ASN1_F1AP_ID_E_C_ID_MEAS_TERMINATION);
+  auto& cmd              = f1ap_msg.pdu.init_msg().value.e_c_id_meas_termination_cmd();
+  cmd->gnb_cu_ue_f1ap_id = to_underlying(ue_ctxt.ue_ids.cu_ue_f1ap_id);
+  cmd->gnb_du_ue_f1ap_id = to_underlying(*ue_ctxt.ue_ids.du_ue_f1ap_id);
+  cmd->lmf_ue_meas_id    = to_underlying(command.lmf_ue_meas_id);
+  cmd->ran_ue_meas_id    = to_underlying(command.ran_ue_meas_id);
+
+  tx_pdu_notifier.on_new_message(f1ap_msg);
 }
 
 void f1ap_cu_impl::handle_ref_time_info_report_ctrl(const f1ap_ref_time_report_ctrl_request& request)

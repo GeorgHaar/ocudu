@@ -10,17 +10,15 @@
 using namespace ocudu;
 using namespace ocucp;
 
-#define LOG_CHAN ("CU-CP")
-
 /// Checks if the given NCI is in the NCIs span.
-static bool is_nci_present(span<nr_cell_identity> ncis, nr_cell_identity nci)
+static bool is_nci_present(span<const nr_cell_identity> ncis, nr_cell_identity nci, ocudulog::basic_logger& logger)
 {
   if (std::find(ncis.begin(), ncis.end(), nci) == ncis.end()) {
     return false;
   }
 
   auto msg = fmt::format("Cell {:#x} already present, but must be unique", nci);
-  ocudulog::fetch_basic_logger(LOG_CHAN).error("{}", msg);
+  logger.error("{}", msg);
   fmt::println("CU-CP: {}", msg);
   return true;
 }
@@ -28,7 +26,8 @@ static bool is_nci_present(span<nr_cell_identity> ncis, nr_cell_identity nci)
 /// Checks the validity of the given SSB frequency to MEAS configuration.
 static bool
 check_ssb_freq_to_meas_object(const std::unordered_map<ssb_frequency_t, rrc_meas_obj_nr>& ssb_freq_to_meas_object,
-                              const serving_cell_meas_config&                             serving_cell_cfg)
+                              const serving_cell_meas_config&                             serving_cell_cfg,
+                              ocudulog::basic_logger&                                     logger)
 {
   if (ssb_freq_to_meas_object.empty()) {
     return true;
@@ -38,21 +37,22 @@ check_ssb_freq_to_meas_object(const std::unordered_map<ssb_frequency_t, rrc_meas
     return true;
   }
 
-  ssb_frequency_t ssb_freq = serving_cell_cfg.ssb_arfcn->value();
-  if (ssb_freq_to_meas_object.find(ssb_freq) == ssb_freq_to_meas_object.end()) {
+  ssb_frequency_t ssb_freq    = serving_cell_cfg.ssb_arfcn->value();
+  auto            meas_obj_it = ssb_freq_to_meas_object.find(ssb_freq);
+  if (meas_obj_it == ssb_freq_to_meas_object.end()) {
     return true;
   }
 
   // Check if the measurement object is already present.
-  if (const rrc_meas_obj_nr meas_obj_nr = generate_measurement_object(serving_cell_cfg);
-      is_duplicate(meas_obj_nr, ssb_freq_to_meas_object.at(ssb_freq))) {
+  if (rrc_meas_obj_nr meas_obj_nr = generate_measurement_object(serving_cell_cfg);
+      is_duplicate(meas_obj_nr, meas_obj_it->second)) {
     return true;
   }
 
   // If a measurement object for this ssb_freq is already present but not an update, we reject the update.
   auto msg = fmt::format(
       "Measurement object for ssb_freq={} already exists, but has different ssb_scs, smtc1 and/or smtc2", ssb_freq);
-  ocudulog::fetch_basic_logger(LOG_CHAN).error("{}", msg);
+  logger.error("{}", msg);
   fmt::println("CU-CP: {}", msg);
 
   return false;
@@ -60,8 +60,9 @@ check_ssb_freq_to_meas_object(const std::unordered_map<ssb_frequency_t, rrc_meas
 
 /// Checks the validity of the periodic report configuration.
 static bool check_periodic_report_configuration(std::optional<report_cfg_id_t> periodic_report_cfg_id,
+                                                nr_cell_identity               nci,
                                                 const std::map<report_cfg_id_t, rrc_report_cfg_nr>& report_config_ids,
-                                                nr_cell_identity                                    nci)
+                                                ocudulog::basic_logger&                             logger)
 {
   if (!periodic_report_cfg_id.has_value()) {
     return true;
@@ -74,32 +75,33 @@ static bool check_periodic_report_configuration(std::optional<report_cfg_id_t> p
   auto msg = fmt::format("Cell {:#x}: periodic report config id {} not found in configuration",
                          nci,
                          to_underlying(*periodic_report_cfg_id));
-  ocudulog::fetch_basic_logger(LOG_CHAN).error("{}", msg);
+  logger.error("{}", msg);
   fmt::println("CU-CP: {}", msg);
 
   return false;
 }
 
-/// Checks the neighbour configuration validity.
-static bool check_neighbour_configuration(span<const neighbor_cell_meas_config>               ncells,
-                                          const std::map<report_cfg_id_t, rrc_report_cfg_nr>& report_config_ids,
-                                          nr_cell_identity                                    nci)
+/// Checks the neighbor configuration validity.
+static bool check_neighbor_configuration(span<const neighbor_cell_meas_config>               ncells,
+                                         nr_cell_identity                                    nci,
+                                         const std::map<report_cfg_id_t, rrc_report_cfg_nr>& report_config_ids,
+                                         ocudulog::basic_logger&                             logger)
 {
-  for (const auto& ncell_nci : ncells) {
-    if (nci == ncell_nci.nci) {
+  for (const auto& ncell : ncells) {
+    if (nci == ncell.nci) {
       auto msg = fmt::format("Cell {:#x} must not be its own neighbor", nci);
-      ocudulog::fetch_basic_logger(LOG_CHAN).error("{}", msg);
+      logger.error("{}", msg);
       fmt::println("CU-CP: {}", msg);
       return false;
     }
 
-    for (const auto& report_cfg_id : ncell_nci.report_cfg_ids) {
+    for (const auto& report_cfg_id : ncell.report_cfg_ids) {
       if (report_config_ids.find(report_cfg_id) == report_config_ids.end()) {
         auto msg = fmt::format("Cell {:#x}: report config id {} for neighbor {:#x} not found in configuration",
                                nci,
                                to_underlying(report_cfg_id),
-                               ncell_nci.nci);
-        ocudulog::fetch_basic_logger(LOG_CHAN).error("{}", msg);
+                               ncell.nci);
+        logger.error("{}", msg);
         fmt::println("CU-CP: {}", msg);
         return false;
       }
@@ -109,13 +111,15 @@ static bool check_neighbour_configuration(span<const neighbor_cell_meas_config> 
   return true;
 }
 
-void ocudu::ocucp::log_cells(const ocudulog::basic_logger& logger, const cell_meas_manager_config& cfg)
+void ocudu::ocucp::log_cells(const std::map<nr_cell_identity, cell_meas_config>& cells, ocudulog::basic_logger& logger)
 {
-  if (!cfg.cells.empty()) {
-    logger.debug("Configured cells:");
-    for (const auto& cell : cfg.cells) {
-      logger.debug(" - {}", cell.second);
-    }
+  if (cells.empty()) {
+    return;
+  }
+
+  logger.debug("Configured cells:");
+  for (const auto& cell : cells) {
+    logger.debug(" - {}", cell.second);
   }
 }
 
@@ -132,11 +136,11 @@ bool ocudu::ocucp::is_complete(const serving_cell_meas_config& cfg)
     return false;
   }
 
-  // TODO: validate ssb arfcn
+  // TODO: validate SSB ARFCN.
 #ifdef SSB_ARFC_VALIDATOR
   if (error_type<std::string> ret = band_helper::is_dl_arfcn_valid_given_band(*cfg.band, *cfg.ssb_arfcn, *cfg.ssb_scs);
       !ret.has_value()) {
-    ocudulog::fetch_basic_logger(LOG_CHAN).error(
+    ocudulog::fetch_basic_logger("CU-CP").error(
         "Invalid SSB ARFCN={} for band {}. Cause: {}", *cfg.ssb_arfcn, *cfg.band, ret.error());
     return false;
   }
@@ -147,28 +151,27 @@ bool ocudu::ocucp::is_complete(const serving_cell_meas_config& cfg)
 
 bool ocudu::ocucp::is_valid_configuration(
     const cell_meas_manager_config&                             cfg,
+    ocudulog::basic_logger&                                     logger,
     const std::unordered_map<ssb_frequency_t, rrc_meas_obj_nr>& ssb_freq_to_meas_object)
 {
   std::vector<nr_cell_identity> ncis;
   // Verify neighbor cell lists: cell id must not be included in neighbor cell list.
-  for (const auto& cell : cfg.cells) {
-    const auto& nci = cell.first;
-
-    if (is_nci_present(ncis, nci)) {
+  for (const auto& [nci, cell_cfg] : cfg.cells) {
+    if (is_nci_present(ncis, nci, logger)) {
       return false;
     }
 
     ncis.push_back(nci);
 
-    if (!check_ssb_freq_to_meas_object(ssb_freq_to_meas_object, cell.second.serving_cell_cfg)) {
+    if (!check_ssb_freq_to_meas_object(ssb_freq_to_meas_object, cell_cfg.serving_cell_cfg, logger)) {
       return false;
     }
 
-    if (!check_periodic_report_configuration(cell.second.periodic_report_cfg_id, cfg.report_config_ids, nci)) {
+    if (!check_periodic_report_configuration(cell_cfg.periodic_report_cfg_id, nci, cfg.report_config_ids, logger)) {
       return false;
     }
 
-    if (!check_neighbour_configuration(cell.second.ncells, cfg.report_config_ids, nci)) {
+    if (!check_neighbor_configuration(cell_cfg.ncells, nci, cfg.report_config_ids, logger)) {
       return false;
     }
   }
@@ -176,9 +179,9 @@ bool ocudu::ocucp::is_valid_configuration(
   return true;
 }
 
-bool ocudu::ocucp::is_complete(const cell_meas_manager_config& cfg)
+bool ocudu::ocucp::is_complete(const cell_meas_manager_config& cfg, ocudulog::basic_logger& logger)
 {
-  if (!is_valid_configuration(cfg)) {
+  if (!is_valid_configuration(cfg, logger)) {
     return false;
   }
 
@@ -186,14 +189,15 @@ bool ocudu::ocucp::is_complete(const cell_meas_manager_config& cfg)
   for (const auto& cell : cfg.cells) {
     for (const auto& ncell : cell.second.ncells) {
       // Verify NCI is present.
-      if (cfg.cells.find(ncell.nci) == cfg.cells.end()) {
-        ocudulog::fetch_basic_logger(LOG_CHAN).error("No config for cell id {} found", ncell.nci);
+      auto ncell_it = cfg.cells.find(ncell.nci);
+      if (ncell_it == cfg.cells.end()) {
+        logger.error("No config for cell id {} found", ncell.nci);
         return false;
       }
 
       // Verify the config for this cell is complete.
-      if (!is_complete(cfg.cells.at(ncell.nci).serving_cell_cfg)) {
-        ocudulog::fetch_basic_logger(LOG_CHAN).error("Measurement config for cell id {} is not complete", ncell.nci);
+      if (!is_complete(ncell_it->second.serving_cell_cfg)) {
+        logger.error("Measurement config for cell id {} is not complete", ncell.nci);
         return false;
       }
     }
@@ -202,7 +206,7 @@ bool ocudu::ocucp::is_complete(const cell_meas_manager_config& cfg)
   return true;
 }
 
-void ocudu::ocucp::add_old_meas_config_to_rem_list(const rrc_meas_cfg& old_cfg, rrc_meas_cfg& new_cfg)
+void ocudu::ocucp::add_old_meas_config_to_rem_list(rrc_meas_cfg& new_cfg, const rrc_meas_cfg& old_cfg)
 {
   // Remove measurement objects.
   for (const auto& meas_obj : old_cfg.meas_obj_to_add_mod_list) {
@@ -220,13 +224,14 @@ void ocudu::ocucp::add_old_meas_config_to_rem_list(const rrc_meas_cfg& old_cfg, 
   }
 }
 
-void ocudu::ocucp::prune_redundant_rem_list_entries(const rrc_meas_cfg& old_cfg, rrc_meas_cfg& new_cfg)
+void ocudu::ocucp::prune_redundant_rem_list_entries(rrc_meas_cfg& new_cfg, const rrc_meas_cfg& old_cfg)
 {
   // Reusing an id assumes the encoded measObject fully determines the entry: only its delta lists survive a
   // modification. cellsToAddMod is handled below; excludedCells/allowedCells are never populated. Populating those, or
   // adding a Need-M field, needs the same handling.
+  std::vector<meas_obj_id_t>& meas_obj_rem_list = new_cfg.meas_obj_to_rem_list;
   for (auto& meas_obj : new_cfg.meas_obj_to_add_mod_list) {
-    const auto old_it = std::find_if(
+    auto old_it = std::find_if(
         old_cfg.meas_obj_to_add_mod_list.begin(),
         old_cfg.meas_obj_to_add_mod_list.end(),
         [&meas_obj](const rrc_meas_obj_to_add_mod& old_obj) { return old_obj.meas_obj_id == meas_obj.meas_obj_id; });
@@ -234,190 +239,225 @@ void ocudu::ocucp::prune_redundant_rem_list_entries(const rrc_meas_cfg& old_cfg,
       continue;
     }
 
-    new_cfg.meas_obj_to_rem_list.erase(
-        std::remove(new_cfg.meas_obj_to_rem_list.begin(), new_cfg.meas_obj_to_rem_list.end(), meas_obj.meas_obj_id),
-        new_cfg.meas_obj_to_rem_list.end());
+    meas_obj_rem_list.erase(std::remove(meas_obj_rem_list.begin(), meas_obj_rem_list.end(), meas_obj.meas_obj_id),
+                            meas_obj_rem_list.end());
 
     // Cell lists are applied as a delta, so dropped cells must be removed explicitly.
     if (!old_it->meas_obj_nr.has_value() || !meas_obj.meas_obj_nr.has_value()) {
       continue;
     }
-    const auto& new_cells = meas_obj.meas_obj_nr.value().cells_to_add_mod_list;
-    for (const auto& old_cell : old_it->meas_obj_nr.value().cells_to_add_mod_list) {
+    rrc_meas_obj_nr& new_obj_nr = *meas_obj.meas_obj_nr;
+    const auto&      new_cells  = new_obj_nr.cells_to_add_mod_list;
+    for (const auto& old_cell : old_it->meas_obj_nr->cells_to_add_mod_list) {
       if (std::none_of(new_cells.begin(), new_cells.end(), [&old_cell](const rrc_cells_to_add_mod& new_cell) {
             return new_cell.pci == old_cell.pci;
           })) {
-        meas_obj.meas_obj_nr.value().cells_to_rem_list.push_back(old_cell.pci);
+        new_obj_nr.cells_to_rem_list.push_back(old_cell.pci);
       }
     }
   }
 
+  std::vector<report_cfg_id_t>& report_cfg_rem_list = new_cfg.report_cfg_to_rem_list;
   for (const auto& report_cfg : new_cfg.report_cfg_to_add_mod_list) {
-    new_cfg.report_cfg_to_rem_list.erase(std::remove(new_cfg.report_cfg_to_rem_list.begin(),
-                                                     new_cfg.report_cfg_to_rem_list.end(),
-                                                     report_cfg.report_cfg_id),
-                                         new_cfg.report_cfg_to_rem_list.end());
+    report_cfg_rem_list.erase(
+        std::remove(report_cfg_rem_list.begin(), report_cfg_rem_list.end(), report_cfg.report_cfg_id),
+        report_cfg_rem_list.end());
   }
 
+  std::vector<meas_id_t>& meas_id_rem_list = new_cfg.meas_id_to_rem_list;
   for (const auto& meas_id : new_cfg.meas_id_to_add_mod_list) {
-    new_cfg.meas_id_to_rem_list.erase(
-        std::remove(new_cfg.meas_id_to_rem_list.begin(), new_cfg.meas_id_to_rem_list.end(), meas_id.meas_id),
-        new_cfg.meas_id_to_rem_list.end());
+    meas_id_rem_list.erase(std::remove(meas_id_rem_list.begin(), meas_id_rem_list.end(), meas_id.meas_id),
+                           meas_id_rem_list.end());
   }
 }
 
-std::vector<ssb_frequency_t> ocudu::ocucp::generate_measurement_object_list(const cell_meas_manager_config& cfg,
-                                                                            nr_cell_identity                serving_nci)
+std::vector<ssb_frequency_t> ocudu::ocucp::generate_measurement_object_list(nr_cell_identity                serving_nci,
+                                                                            const cell_meas_manager_config& cfg,
+                                                                            ocudulog::basic_logger&         logger)
 {
-  ocudu_assert(cfg.cells.find(serving_nci) != cfg.cells.end(), "No cell config for nci={:#x}", serving_nci);
+  auto serving_it = cfg.cells.find(serving_nci);
+  ocudu_assert(serving_it != cfg.cells.end(), "No cell config for nci={:#x}", serving_nci);
 
   // Add cells to lookup if report is configured.
   std::vector<ssb_frequency_t> ssb_freqs;
 
   // Add the serving cell frequency measurement object. Required for inter-frequency handovers (e.g. A3 HO).
-  const auto& serving_cell = cfg.cells.at(serving_nci);
+  const cell_meas_config& serving_cell = serving_it->second;
 
   if (is_complete(serving_cell.serving_cell_cfg)) {
-    ssb_freqs.push_back(serving_cell.serving_cell_cfg.ssb_arfcn.value().value());
+    ssb_freqs.push_back(serving_cell.serving_cell_cfg.ssb_arfcn->value());
   }
 
   // Add neighbor cells measurement objects if a non-conditional report is configured.
   for (const auto& ncell : serving_cell.ncells) {
     auto ncell_it = cfg.cells.find(ncell.nci);
     if (ncell_it == cfg.cells.end()) {
-      ocudulog::fetch_basic_logger(LOG_CHAN).warning("No cell config for nci={:#x}, skipping", ncell.nci);
+      logger.warning("No cell config for nci={:#x}, skipping", ncell.nci);
       continue;
     }
-    const auto& cell_cfg               = ncell_it->second;
-    const bool  has_regular_report_cfg = std::any_of(
+    const serving_cell_meas_config& ncell_cfg              = ncell_it->second.serving_cell_cfg;
+    bool                            has_regular_report_cfg = std::any_of(
         ncell.report_cfg_ids.begin(), ncell.report_cfg_ids.end(), [&cfg](const report_cfg_id_t report_cfg_id) {
-          return !is_cond_trigger_report_config(cfg, report_cfg_id);
+          return !is_cond_trigger_report_config(report_cfg_id, cfg.report_config_ids);
         });
 
-    if (has_regular_report_cfg && is_complete(cell_cfg.serving_cell_cfg)) {
-      if (std::find(ssb_freqs.begin(), ssb_freqs.end(), cell_cfg.serving_cell_cfg.ssb_arfcn.value()) ==
-          ssb_freqs.end()) {
-        ssb_freqs.push_back(cell_cfg.serving_cell_cfg.ssb_arfcn.value().value());
-      }
+    if (!has_regular_report_cfg || !is_complete(ncell_cfg)) {
+      continue;
+    }
+
+    if (ssb_frequency_t ssb_freq = ncell_cfg.ssb_arfcn->value();
+        std::find(ssb_freqs.begin(), ssb_freqs.end(), ssb_freq) == ssb_freqs.end()) {
+      ssb_freqs.push_back(ssb_freq);
     }
   }
 
   return ssb_freqs;
 }
 
-std::vector<ssb_frequency_t> ocudu::ocucp::generate_cho_measurement_object_list(const cell_meas_manager_config& cfg,
-                                                                                nr_cell_identity  serving_nci,
-                                                                                span<const pci_t> candidate_pcis)
+std::vector<ssb_frequency_t>
+ocudu::ocucp::generate_cho_measurement_object_list(nr_cell_identity                                    serving_nci,
+                                                   span<const pci_t>                                   candidate_pcis,
+                                                   const std::map<nr_cell_identity, cell_meas_config>& cells,
+                                                   ocudulog::basic_logger&                             logger)
 {
-  ocudu_assert(cfg.cells.count(serving_nci), "No cell config for nci={:#x}", serving_nci);
+  auto serving_it = cells.find(serving_nci);
+  ocudu_assert(serving_it != cells.end(), "No cell config for nci={:#x}", serving_nci);
 
-  std::unordered_set<pci_t>           candidate_pcis_set(candidate_pcis.begin(), candidate_pcis.end());
   std::unordered_set<ssb_frequency_t> freqs;
 
   // Add the serving cell frequency measurement object. Required for inter-frequency handovers (e.g. A5 CHO).
-  const auto& serving_cell_cfg = cfg.cells.at(serving_nci).serving_cell_cfg;
-  if (is_complete(serving_cell_cfg)) {
-    freqs.insert(serving_cell_cfg.ssb_arfcn->value());
+  const cell_meas_config& serving_cell = serving_it->second;
+  if (is_complete(serving_cell.serving_cell_cfg)) {
+    freqs.insert(serving_cell.serving_cell_cfg.ssb_arfcn->value());
   }
 
-  for (const auto& ncell : cfg.cells.at(serving_nci).ncells) {
-    auto it = cfg.cells.find(ncell.nci);
-    if (it == cfg.cells.end()) {
-      ocudulog::fetch_basic_logger(LOG_CHAN).warning("No cell config for nci={:#x}, skipping", ncell.nci);
+  std::unordered_set<pci_t> candidate_pcis_set(candidate_pcis.begin(), candidate_pcis.end());
+  for (const auto& ncell : serving_cell.ncells) {
+    auto ncell_it = cells.find(ncell.nci);
+    if (ncell_it == cells.end()) {
+      logger.warning("No cell config for nci={:#x}, skipping", ncell.nci);
       continue;
     }
 
-    const auto& scfg = it->second.serving_cell_cfg;
+    const serving_cell_meas_config& ncell_cfg = ncell_it->second.serving_cell_cfg;
 
-    if (!is_complete(scfg) || !scfg.pci || (!candidate_pcis_set.empty() && !candidate_pcis_set.count(*scfg.pci))) {
+    if (!is_complete(ncell_cfg) || !ncell_cfg.pci ||
+        (!candidate_pcis_set.empty() && !candidate_pcis_set.count(*ncell_cfg.pci))) {
       continue;
     }
 
-    freqs.insert(scfg.ssb_arfcn->value());
+    freqs.insert(ncell_cfg.ssb_arfcn->value());
   }
 
   return {freqs.begin(), freqs.end()};
 }
 
-bool ocudu::ocucp::is_cond_trigger_report_config(const cell_meas_manager_config& cfg,
-                                                 const report_cfg_id_t           report_cfg_id)
+bool ocudu::ocucp::is_cond_trigger_report_config(report_cfg_id_t                                     report_cfg_id,
+                                                 const std::map<report_cfg_id_t, rrc_report_cfg_nr>& report_config_ids)
 {
-  const auto report_cfg_it = cfg.report_config_ids.find(report_cfg_id);
-  return report_cfg_it != cfg.report_config_ids.end() &&
+  auto report_cfg_it = report_config_ids.find(report_cfg_id);
+  return report_cfg_it != report_config_ids.end() &&
          std::holds_alternative<rrc_cond_trigger_cfg>(report_cfg_it->second);
 }
 
-void ocudu::ocucp::generate_report_config(const cell_meas_manager_config& cfg,
-                                          const nr_cell_identity          nci,
-                                          const report_cfg_id_t           report_cfg_id,
-                                          rrc_meas_cfg&                   meas_cfg,
-                                          cell_meas_manager_ue_context&   ue_meas_context)
+void ocudu::ocucp::generate_report_config(rrc_meas_cfg&                   meas_cfg,
+                                          cell_meas_manager_ue_context&   ue_meas_context,
+                                          nr_cell_identity                nci,
+                                          report_cfg_id_t                 report_cfg_id,
+                                          const cell_meas_manager_config& cfg,
+                                          ocudulog::basic_logger&         logger)
 {
-  // Add report cfg to add mod
-  if (cfg.report_config_ids.find(report_cfg_id) == cfg.report_config_ids.end()) {
-    ocudulog::fetch_basic_logger("CU-CP").error("Report config ID {} not found in configuration",
-                                                to_underlying(report_cfg_id));
+  // Add the report config to the add/mod list.
+  auto report_cfg_it = cfg.report_config_ids.find(report_cfg_id);
+  if (report_cfg_it == cfg.report_config_ids.end()) {
+    logger.error("Report config ID {} not found in configuration", to_underlying(report_cfg_id));
     return;
   }
 
-  rrc_report_cfg_to_add_mod report_cfg_to_add_mod;
-  report_cfg_to_add_mod.report_cfg_id = report_cfg_id;
-  report_cfg_to_add_mod.report_cfg    = cfg.report_config_ids.at(report_cfg_id);
-  meas_cfg.report_cfg_to_add_mod_list.push_back(report_cfg_to_add_mod);
+  meas_cfg.report_cfg_to_add_mod_list.push_back(
+      rrc_report_cfg_to_add_mod{.report_cfg_id = report_cfg_id, .report_cfg = report_cfg_it->second});
 
   // Add meas id to link the cell and the report together.
-  rrc_meas_id_to_add_mod meas_id_to_add_mod;
-  meas_id_to_add_mod.meas_id       = ue_meas_context.allocate_meas_id();
-  meas_id_to_add_mod.meas_obj_id   = ue_meas_context.nci_to_meas_obj_id.at(nci);
-  meas_id_to_add_mod.report_cfg_id = report_cfg_id;
+  rrc_meas_id_to_add_mod meas_id_to_add_mod{.meas_id       = ue_meas_context.allocate_meas_id(),
+                                            .meas_obj_id   = ue_meas_context.nci_to_meas_obj_id.at(nci),
+                                            .report_cfg_id = report_cfg_id};
   meas_cfg.meas_id_to_add_mod_list.push_back(meas_id_to_add_mod);
 
   // Add meas id to lookup.
   const auto& serving_cell_cfg = cfg.cells.at(nci).serving_cell_cfg;
-  ue_meas_context.meas_id_to_meas_context.emplace(meas_id_to_add_mod.meas_id,
-                                                  meas_context_t{meas_id_to_add_mod.meas_obj_id,
-                                                                 meas_id_to_add_mod.report_cfg_id,
-                                                                 serving_cell_cfg.gnb_id_bit_length,
-                                                                 serving_cell_cfg.nci,
-                                                                 serving_cell_cfg.pci.value()});
+  ocudu_assert(serving_cell_cfg.pci.has_value(), "PCI must be set for nci={:#x}", nci);
+  ue_meas_context.meas_id_to_meas_context.emplace(
+      meas_id_to_add_mod.meas_id,
+      meas_context_t{.meas_obj_id       = meas_id_to_add_mod.meas_obj_id,
+                     .report_cfg_id     = meas_id_to_add_mod.report_cfg_id,
+                     .gnb_id_bit_length = serving_cell_cfg.gnb_id_bit_length,
+                     .nci               = serving_cell_cfg.nci,
+                     .pci               = *serving_cell_cfg.pci});
 
   // Set T312 value in the measurement object if it's linked to (event-triggered) report config with T312 configured.
-  const auto* event_triggered = std::get_if<rrc_event_trigger_cfg>(&report_cfg_to_add_mod.report_cfg);
-  if (event_triggered != nullptr && event_triggered->t312.has_value()) {
-    auto meas_obj_it = std::find_if(
-        meas_cfg.meas_obj_to_add_mod_list.begin(),
-        meas_cfg.meas_obj_to_add_mod_list.end(),
-        [&](const rrc_meas_obj_to_add_mod& obj) { return obj.meas_obj_id == meas_id_to_add_mod.meas_obj_id; });
+  if (const auto* event_triggered = std::get_if<rrc_event_trigger_cfg>(&report_cfg_it->second);
+      event_triggered != nullptr && event_triggered->t312.has_value()) {
+    auto meas_obj_it = std::find_if(meas_cfg.meas_obj_to_add_mod_list.begin(),
+                                    meas_cfg.meas_obj_to_add_mod_list.end(),
+                                    [&meas_id_to_add_mod](const rrc_meas_obj_to_add_mod& obj) {
+                                      return obj.meas_obj_id == meas_id_to_add_mod.meas_obj_id;
+                                    });
     if (meas_obj_it != meas_cfg.meas_obj_to_add_mod_list.end() && meas_obj_it->meas_obj_nr.has_value()) {
-      meas_obj_it->meas_obj_nr.value().t312 = event_triggered->t312;
+      meas_obj_it->meas_obj_nr->t312 = event_triggered->t312;
     }
   }
 }
 
 rrc_meas_obj_nr ocudu::ocucp::generate_measurement_object(const serving_cell_meas_config& cfg)
 {
-  rrc_meas_obj_nr meas_obj_nr;
-
-  meas_obj_nr.ssb_freq = cfg.ssb_arfcn.has_value() ? std::optional{cfg.ssb_arfcn.value().value()} : std::nullopt;
-  meas_obj_nr.ssb_subcarrier_spacing = cfg.ssb_scs;
-  meas_obj_nr.smtc1                  = cfg.ssb_mtc;
-
-  // Mandatory fields.
-  meas_obj_nr.ref_sig_cfg.ssb_cfg_mob.emplace().derive_ssb_idx_from_cell = true;
   // TODO: remove hardcoded values.
-  meas_obj_nr.nrof_ss_blocks_to_average.emplace() = 8;
-  // TODO: remove hardcoded values.
-  meas_obj_nr.quant_cfg_idx              = 1;
-  meas_obj_nr.freq_band_ind_nr.emplace() = to_underlying(cfg.band.value());
+  static constexpr unsigned nof_ss_blocks_to_average = 8;
+  static constexpr unsigned quant_cfg_idx            = 1;
+
+  ocudu_assert(cfg.band.has_value(), "Band must be set to generate the measurement object of nci={:#x}", cfg.nci);
+
+  std::optional<ssb_frequency_t> ssb_freq =
+      cfg.ssb_arfcn.has_value() ? std::optional{cfg.ssb_arfcn->value()} : std::nullopt;
 
   // TODO: Add optional fields.
-
-  return meas_obj_nr;
+  return rrc_meas_obj_nr{.ssb_freq               = ssb_freq,
+                         .ssb_subcarrier_spacing = cfg.ssb_scs,
+                         .smtc1                  = cfg.ssb_mtc,
+                         .smtc2                  = std::nullopt,
+                         .ref_freq_csi_rs        = std::nullopt,
+                         // Mandatory field.
+                         .ref_sig_cfg = rrc_ref_sig_cfg{.ssb_cfg_mob = rrc_ssb_cfg_mob{.ssb_to_measure = std::nullopt,
+                                                                                       .derive_ssb_idx_from_cell = true,
+                                                                                       .ss_rssi_meas = std::nullopt},
+                                                        .csi_rs_res_cfg_mob = std::nullopt},
+                         .abs_thresh_ss_blocks_consolidation = std::nullopt,
+                         .abs_thresh_csi_rs_consolidation    = std::nullopt,
+                         // Mandatory field.
+                         .nrof_ss_blocks_to_average  = nof_ss_blocks_to_average,
+                         .nrof_csi_rs_res_to_average = std::nullopt,
+                         // Mandatory field.
+                         .quant_cfg_idx                  = quant_cfg_idx,
+                         .offset_mo                      = rrc_q_offset_range_list{.rsrp_offset_ssb    = std::nullopt,
+                                                                                   .rsrq_offset_ssb    = std::nullopt,
+                                                                                   .sinr_offset_ssb    = std::nullopt,
+                                                                                   .rsrp_offset_csi_rs = std::nullopt,
+                                                                                   .rsrq_offset_csi_rs = std::nullopt,
+                                                                                   .sinr_offset_csi_rs = std::nullopt},
+                         .cells_to_rem_list              = {},
+                         .cells_to_add_mod_list          = {},
+                         .excluded_cells_to_rem_list     = {},
+                         .excluded_cells_to_add_mod_list = {},
+                         .allowed_cells_to_rem_list      = {},
+                         .allowed_cells_to_add_mod_list  = {},
+                         // Mandatory field.
+                         .freq_band_ind_nr = to_underlying(*cfg.band),
+                         .meas_cycle_scell = std::nullopt,
+                         .t312             = std::nullopt};
 }
 
 bool ocudu::ocucp::is_duplicate(const rrc_meas_obj_nr& obj_1, const rrc_meas_obj_nr& obj_2)
 {
-  // TS 38.331 section 5.5.2.1:
+  // TS38.331 Section 5.5.2.1:
   // For all SSB based measurements there is at most one measurement object with
   // the same ssbFrequency;
   // - an smtc1 included in any measurement object with the same ssbFrequency has the
@@ -429,8 +469,8 @@ bool ocudu::ocucp::is_duplicate(const rrc_meas_obj_nr& obj_1, const rrc_meas_obj
          obj_1.smtc1 == obj_2.smtc1 && obj_1.smtc2 == obj_2.smtc2;
 }
 
-void ocudu::ocucp::log_meas_objects(const ocudulog::basic_logger&                               logger,
-                                    const std::unordered_map<ssb_frequency_t, rrc_meas_obj_nr>& meas_objects)
+void ocudu::ocucp::log_meas_objects(const std::unordered_map<ssb_frequency_t, rrc_meas_obj_nr>& meas_objects,
+                                    ocudulog::basic_logger&                                     logger)
 {
   if (meas_objects.empty()) {
     return;
@@ -442,20 +482,25 @@ void ocudu::ocucp::log_meas_objects(const ocudulog::basic_logger&               
   }
 }
 
-std::vector<report_cfg_id_t> ocudu::ocucp::collect_cond_trigger_report_configs(const cell_meas_manager_config& cfg,
-                                                                               rrc_meas_cfg&                   meas_cfg,
-                                                                               const rrc_ue_capability_handler& ue_caps,
-                                                                               ocudulog::basic_logger&          logger)
+std::vector<report_cfg_id_t>
+ocudu::ocucp::collect_cond_trigger_report_configs(rrc_meas_cfg&                                       meas_cfg,
+                                                  const rrc_ue_capability_handler&                    ue_caps,
+                                                  const std::map<report_cfg_id_t, rrc_report_cfg_nr>& report_config_ids,
+                                                  ocudulog::basic_logger&                             logger)
 {
+  // Maximum number of conditional trigger events, with and without support for condHO-TwoTriggerEvents-r16.
+  static constexpr unsigned max_nof_cond_triggers_two_events = 2;
+  static constexpr unsigned max_nof_cond_triggers_one_event  = 1;
+
   if (!ue_caps.is_conditional_handover_supported()) {
     logger.debug("UE does not support CHO (Rel-16); no conditional trigger configs will be added");
     return {};
   }
-  const bool     two_trigger_capable = ue_caps.is_conditional_handover_two_trigger_events_supported();
-  const unsigned max_configs         = two_trigger_capable ? 2U : 1U;
+  bool     two_trigger_capable = ue_caps.is_conditional_handover_two_trigger_events_supported();
+  unsigned max_configs = two_trigger_capable ? max_nof_cond_triggers_two_events : max_nof_cond_triggers_one_event;
 
   std::vector<report_cfg_id_t> cond_trigger_ids;
-  for (const auto& [report_cfg_id, report_cfg] : cfg.report_config_ids) {
+  for (const auto& [report_cfg_id, report_cfg] : report_config_ids) {
     if (cond_trigger_ids.size() >= max_configs) {
       break;
     }
@@ -463,8 +508,8 @@ std::vector<report_cfg_id_t> ocudu::ocucp::collect_cond_trigger_report_configs(c
       continue;
     }
     // Filter Rel-17 trigger types by UE capability.
-    const auto& cond_trigger = std::get<rrc_cond_trigger_cfg>(report_cfg);
-    const auto  event_id     = cond_trigger.cond_event_id.id;
+    const auto&              cond_trigger = std::get<rrc_cond_trigger_cfg>(report_cfg);
+    rrc_event_id::event_id_t event_id     = cond_trigger.cond_event_id.id;
     if (event_id == rrc_event_id::event_id_t::a4 && !ue_caps.is_conditional_handover_event_a4_supported()) {
       logger.debug("Skipping event-A4 CHO trigger (report_cfg_id={}): UE does not support eventA4BasedCondHandover-r17",
                    fmt::underlying(report_cfg_id));
@@ -481,40 +526,41 @@ std::vector<report_cfg_id_t> ocudu::ocucp::collect_cond_trigger_report_configs(c
                    fmt::underlying(report_cfg_id));
       continue;
     }
-    rrc_report_cfg_to_add_mod report_cfg_to_add{.report_cfg_id = report_cfg_id, .report_cfg = report_cfg};
-    meas_cfg.report_cfg_to_add_mod_list.push_back(report_cfg_to_add);
+    meas_cfg.report_cfg_to_add_mod_list.push_back(
+        rrc_report_cfg_to_add_mod{.report_cfg_id = report_cfg_id, .report_cfg = report_cfg});
     cond_trigger_ids.push_back(report_cfg_id);
   }
   return cond_trigger_ids;
 }
 
-bool ocudu::ocucp::generate_cho_meas_ids(const cell_meas_manager_config& cfg,
-                                         span<const report_cfg_id_t>     cond_trigger_ids,
-                                         rrc_meas_cfg&                   meas_cfg,
-                                         cell_meas_manager_ue_context&   ue_meas_context)
+bool ocudu::ocucp::generate_cho_meas_ids(rrc_meas_cfg&                                       meas_cfg,
+                                         cell_meas_manager_ue_context&                       ue_meas_context,
+                                         span<const report_cfg_id_t>                         cond_trigger_ids,
+                                         const std::map<nr_cell_identity, cell_meas_config>& cells)
 {
-  for (const auto& mo : meas_cfg.meas_obj_to_add_mod_list) {
+  for (const auto& meas_obj : meas_cfg.meas_obj_to_add_mod_list) {
     for (const auto& report_cfg_id : cond_trigger_ids) {
       meas_id_t meas_id = ue_meas_context.allocate_meas_id();
       if (meas_id == meas_id_t::invalid) {
         return false;
       }
 
-      meas_cfg.meas_id_to_add_mod_list.push_back({meas_id, mo.meas_obj_id, report_cfg_id});
+      meas_cfg.meas_id_to_add_mod_list.push_back(rrc_meas_id_to_add_mod{
+          .meas_id = meas_id, .meas_obj_id = meas_obj.meas_obj_id, .report_cfg_id = report_cfg_id});
 
-      for (const auto& [context_nci, context_mo_id] : ue_meas_context.nci_to_meas_obj_id) {
-        if (context_mo_id == mo.meas_obj_id) {
-          const auto& cell_cfg = cfg.cells.at(context_nci);
-          ocudu_assert(
-              cell_cfg.serving_cell_cfg.pci.has_value(), "PCI must be set for CHO candidate nci={:#x}", context_nci);
-          ue_meas_context.meas_id_to_meas_context.emplace(meas_id,
-                                                          meas_context_t{mo.meas_obj_id,
-                                                                         report_cfg_id,
-                                                                         cell_cfg.serving_cell_cfg.gnb_id_bit_length,
-                                                                         context_nci,
-                                                                         cell_cfg.serving_cell_cfg.pci.value()});
-          meas_cfg.nci_to_meas_ids[context_nci].push_back(meas_id);
+      for (const auto& [context_nci, context_meas_obj_id] : ue_meas_context.nci_to_meas_obj_id) {
+        if (context_meas_obj_id != meas_obj.meas_obj_id) {
+          continue;
         }
+        const serving_cell_meas_config& cell_cfg = cells.at(context_nci).serving_cell_cfg;
+        ocudu_assert(cell_cfg.pci.has_value(), "PCI must be set for CHO candidate nci={:#x}", context_nci);
+        ue_meas_context.meas_id_to_meas_context.emplace(meas_id,
+                                                        meas_context_t{.meas_obj_id       = meas_obj.meas_obj_id,
+                                                                       .report_cfg_id     = report_cfg_id,
+                                                                       .gnb_id_bit_length = cell_cfg.gnb_id_bit_length,
+                                                                       .nci               = context_nci,
+                                                                       .pci               = *cell_cfg.pci});
+        meas_cfg.nci_to_meas_ids[context_nci].push_back(meas_id);
       }
     }
   }

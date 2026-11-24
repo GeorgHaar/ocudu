@@ -332,6 +332,8 @@ private:
     static_vector<lcid_t, MAX_NOF_RB_LCIDS> sorted_channels;
     /// Context of channels currently configured.
     static_flat_map<lcid_t, soa::row_id, MAX_NOF_RB_LCIDS> channels;
+    /// Slices holding a channel that restricts the transport blocks it can be multiplexed into.
+    static_vector<ran_slice_id_t, MAX_RAN_SLICES_PER_UE> restricted_slices;
   };
   /// UE context relative to its UL channel management.
   struct ue_ul_channel_context {
@@ -339,6 +341,8 @@ private:
     static_flat_map<lcg_id_t, soa::row_id, MAX_NOF_LCGS> lcgs;
     /// Slot at which the oldest, unserved SR indication was received for this UE.
     slot_point oldest_sr_sl_rx;
+    /// Slices holding a channel that restricts the grants it can be served on.
+    static_vector<ran_slice_id_t, MAX_RAN_SLICES_PER_UE> restricted_slices;
   };
   /// UE context relative to its DL state.
   struct ue_context {
@@ -387,6 +391,12 @@ private:
   void set_lcg_ran_slice(soa::row_id, lcg_id_t lcgid, ran_slice_id_t slice_id);
   void deregister_lcg_ran_slice(soa::row_id ue_rid, lcg_id_t lcgid);
 
+  /// \brief Rebuilds the slices of a UE that hold a restricted logical channel.
+  ///
+  /// Runs whenever a channel configuration or a slice mapping changes, so that a slice without a restricted
+  /// channel resolves its grant without walking the channels.
+  void refresh_restricted_slices(soa::row_id ue_rid);
+
   void
   handle_dl_buffer_status_indication(soa::row_id ue_row_id, lcid_t lcid, unsigned buffer_status, slot_point hol_toa);
   void handle_mac_ce_indication(soa::row_id ue_row_id, const mac_ce_info& ce);
@@ -422,7 +432,7 @@ private:
   }
   unsigned ul_pending_bytes(lcg_id_t lcgid, soa::row_id lcg_rid) const
   {
-    // Note: TS38.321, 6.1.3.1 - The size of the RLC and MAC headers are not considered in the buffer size computation.
+    // Note: TS 38.321, 6.1.3.1 - The size of the RLC and MAC headers are not considered in the buffer size computation.
     return get_mac_sdu_required_bytes(add_upper_layer_header_bytes(lcgid, lc_mapper.ul_buf_st(lcg_rid).value()));
   }
 
@@ -527,12 +537,7 @@ public:
 
   ue_logical_channel_repository()                                     = default;
   ue_logical_channel_repository(const ue_logical_channel_repository&) = delete;
-  ue_logical_channel_repository(ue_logical_channel_repository&& other) noexcept :
-    ue_logical_channel_repository_view(*other.parent, other.ue_index, other.ue_row_id)
-  {
-    other.parent   = nullptr;
-    other.ue_index = INVALID_DU_UE_INDEX;
-  }
+  ue_logical_channel_repository(ue_logical_channel_repository&& other) noexcept { *this = std::move(other); }
   ue_logical_channel_repository& operator=(const ue_logical_channel_repository&) = delete;
   ue_logical_channel_repository& operator=(ue_logical_channel_repository&& other) noexcept
   {
@@ -696,65 +701,36 @@ public:
     return lcg_rid.has_value() and parent->lc_mapper.ul_buf_st(*lcg_rid).value() > 0;
   }
 
-  /// \brief Returns the DL HARQ feedback a new transport block for the given slice must carry, if any channel
-  /// restricts it.
-  ///
-  /// The highest priority channel holding data decides, as the block is filled in that same order. With nothing
-  /// buffered the highest priority restricted channel decides on its own configuration.
-  [[nodiscard]] std::optional<dl_harq_feedback> required_dl_harq_feedback(ran_slice_id_t slice_id) const
-  {
-    const logical_channel_config_list& lc_cfgs = cfg();
-    std::optional<dl_harq_feedback>    configured;
-    for (const lcid_t lcid : get_prioritized_logical_channels()) {
-      if (not lc_cfgs.contains(lcid)) {
-        continue;
-      }
-      const std::optional<dl_harq_feedback>& allowed = lc_cfgs[lcid]->allowed_dl_harq_feedback;
-      if (not allowed.has_value() or get_slice_id(lcid) != slice_id) {
-        continue;
-      }
-      // The channels come in decreasing order of priority, so the first one holding data decides.
-      if (pending_bytes(lcid) > 0) {
-        return allowed;
-      }
-      if (not configured.has_value()) {
-        configured = allowed;
-      }
-    }
-    return configured;
-  }
+  /// Transport block a slice can build next.
+  struct dl_transport_block_selection {
+    /// Restrictions the block carries, as the channels it serves set them.
+    dl_transport_block_restrictions restrictions;
+    /// Pending bytes the block can carry, i.e. the slice total less the channels it leaves out.
+    unsigned pending_bytes;
+  };
 
-  /// \brief Returns the UL HARQ mode a new grant for the given slice must use, if any channel restricts it.
+  /// \brief Selects the transport block a new grant for the given slice is built on.
+  ///
+  /// The channels holding data join in decreasing order of priority, the order the block is filled in, and the bytes
+  /// of those left out are dropped from the size. With nothing buffered the highest priority restricted channel
+  /// decides.
+  [[nodiscard]] dl_transport_block_selection select_dl_transport_block(ran_slice_id_t slice_id) const;
+
+  /// Grant a slice can build next.
+  struct ul_grant_selection {
+    /// Restrictions the grant satisfies, as the channels served on it set them.
+    ul_grant_restrictions restrictions;
+    /// Pending bytes the grant can serve, i.e. the slice total less the groups it leaves out.
+    unsigned pending_bytes;
+  };
+
+  /// \brief Selects the grant a new allocation for the given slice is built on.
   ///
   /// A channel bound to mode A wins as soon as it has data: mode A holds each process a full round trip, so it cannot
-  /// crowd mode B out. Without buffer status, as in the grant an SR earns, the configuration decides, mode A first.
-  [[nodiscard]] std::optional<ul_harq_mode> required_ul_harq_mode(ran_slice_id_t slice_id) const
-  {
-    std::optional<ul_harq_mode> with_data;
-    std::optional<ul_harq_mode> configured;
-    for (const logical_channel_config_ptr& lc_cfg : cfg()) {
-      if (not lc_cfg->allowed_harq_mode.has_value()) {
-        continue;
-      }
-      const std::optional<soa::row_id> lcg_rid = parent->lc_mapper.find_row_id(ue_index, lc_cfg->lc_group);
-      if (not lcg_rid.has_value() or parent->lc_mapper.ul_slice_id(*lcg_rid) != slice_id) {
-        continue;
-      }
-      // Mode A outranks mode B, so it wins whichever channel is seen first.
-      const ul_harq_mode mode = *lc_cfg->allowed_harq_mode;
-      if (not configured.has_value() or mode == ul_harq_mode::mode_a) {
-        configured = mode;
-      }
-      if (parent->lc_mapper.ul_buf_st(*lcg_rid).value() > 0 and
-          (not with_data.has_value() or mode == ul_harq_mode::mode_a)) {
-        with_data = mode;
-      }
-    }
-    if (with_data.has_value()) {
-      return with_data;
-    }
-    return configured;
-  }
+  /// crowd mode B out. Otherwise the configuration decides, mode A first, as the UE cannot be served on a grant its
+  /// channels forbid, whatever it buffers after its last report. The UE leaves a group the grant cannot serve out of
+  /// its LCP, so its bytes are dropped from the size.
+  [[nodiscard]] ul_grant_selection select_ul_grant(ran_slice_id_t slice_id) const;
 
   /// \brief Checks whether a ConRes CE is pending for transmission.
   bool is_con_res_id_pending() const { return get_ue_row().at<ue_context>().pending_con_res_id; }
@@ -957,10 +933,10 @@ unsigned build_dl_fallback_transport_block_info(dl_msg_tb_info&                t
 /// given RAN slice.
 /// \return Returns the number of bytes reserved in the TB for subPDUs (other than padding).
 /// \remark Excludes SRB0, as this operation is specific to a given RAN slice.
-unsigned build_dl_transport_block_info(dl_msg_tb_info&                tb_info,
-                                       ue_logical_channel_repository& lch_mng,
-                                       units::bytes                   tb_size_bytes,
-                                       ran_slice_id_t                 slice_id,
-                                       dl_harq_feedback               feedback);
+unsigned build_dl_transport_block_info(dl_msg_tb_info&                 tb_info,
+                                       ue_logical_channel_repository&  lch_mng,
+                                       units::bytes                    tb_size_bytes,
+                                       ran_slice_id_t                  slice_id,
+                                       dl_transport_block_restrictions restrictions);
 
 } // namespace ocudu

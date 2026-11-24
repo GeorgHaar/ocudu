@@ -60,8 +60,8 @@ TEST_F(f1ap_du_positioning_exchange_procedure_test, when_positioning_info_exchan
   auto tx_msg = this->f1c_gw.pop_tx_pdu();
   ASSERT_TRUE(test_helpers::is_valid_positioning_information_response(tx_msg.value()));
   auto& resp = tx_msg.value().pdu.successful_outcome().value.positioning_info_resp();
-  ASSERT_EQ(resp->srs_configuration.srs_carrier_list.size(), 1);
-  ASSERT_EQ(resp->srs_configuration.srs_carrier_list[0].pci, 0);
-  ASSERT_EQ(resp->srs_configuration.srs_carrier_list[0].ul_ch_bw_per_scs_list.size(), 1);
-  ASSERT_EQ(resp->srs_configuration.srs_carrier_list[0].ul_ch_bw_per_scs_list[0].carrier_bw, 5);
+  ASSERT_EQ(resp->srs_cfg.srs_carrier_list.size(), 1);
+  ASSERT_EQ(resp->srs_cfg.srs_carrier_list[0].pci, 0);
+  ASSERT_EQ(resp->srs_cfg.srs_carrier_list[0].ul_ch_bw_per_scs_list.size(), 1);
+  ASSERT_EQ(resp->srs_cfg.srs_carrier_list[0].ul_ch_bw_per_scs_list[0].carrier_bw, 5);
 }

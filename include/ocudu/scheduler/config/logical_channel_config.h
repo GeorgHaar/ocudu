@@ -64,4 +64,63 @@ struct logical_channel_config {
   }
 };
 
+/// \brief Restrictions a DL transport block carries.
+///
+/// A logical channel joins the block where the two agree, and closes the restrictions it sets for the channels after
+/// it. A block carrying none serves every channel.
+///
+/// [Implementation-defined] TS 38.331 binds no logical channel to a DL HARQ feedback. The feedback a process carries
+/// follows \c downlinkHARQ-FeedbackDisabled, which the cell sets per HARQ process.
+struct dl_transport_block_restrictions {
+  /// DL HARQ feedback the block carries, once a channel of the block restricts it.
+  std::optional<dl_harq_feedback> harq_feedback;
+
+  /// Checks whether the block carries any restriction, so that it serves only part of the logical channels.
+  [[nodiscard]] bool is_restricted() const { return harq_feedback.has_value(); }
+
+  /// Checks whether this block admits the given logical channel, which then joins the channels it carries.
+  [[nodiscard]] bool admits(const logical_channel_config& lc_cfg) const
+  {
+    // A restriction either side leaves open agrees with the other.
+    return not harq_feedback.has_value() or not lc_cfg.allowed_dl_harq_feedback.has_value() or
+           harq_feedback == lc_cfg.allowed_dl_harq_feedback;
+  }
+
+  /// Narrows these restrictions by the ones the given logical channel sets, leaving the others open.
+  void narrow(const logical_channel_config& lc_cfg)
+  {
+    if (lc_cfg.allowed_dl_harq_feedback.has_value()) {
+      harq_feedback = lc_cfg.allowed_dl_harq_feedback;
+    }
+  }
+};
+
+/// \brief Restrictions a UL grant satisfies, as per the LCP mapping restrictions of TS 38.321, Section 5.4.3.1.2.
+///
+/// The UE serves a logical channel on the grant only where the two agree. A channel leaving a restriction unset rides
+/// any grant.
+struct ul_grant_restrictions {
+  /// UL HARQ mode the grant uses, once a channel served by it restricts the mode.
+  std::optional<ul_harq_mode> harq_mode;
+
+  /// Checks whether the grant carries any restriction, so that it serves only part of the logical channels.
+  [[nodiscard]] bool is_restricted() const { return harq_mode.has_value(); }
+
+  /// Checks whether this grant admits the given logical channel, which the UE then serves on it.
+  [[nodiscard]] bool admits(const logical_channel_config& lc_cfg) const
+  {
+    // A restriction either side leaves open agrees with the other.
+    return not harq_mode.has_value() or not lc_cfg.allowed_harq_mode.has_value() or
+           harq_mode == lc_cfg.allowed_harq_mode;
+  }
+
+  /// Narrows these restrictions by the ones the given logical channel sets, leaving the others open.
+  void narrow(const logical_channel_config& lc_cfg)
+  {
+    if (lc_cfg.allowed_harq_mode.has_value()) {
+      harq_mode = lc_cfg.allowed_harq_mode;
+    }
+  }
+};
+
 } // namespace ocudu

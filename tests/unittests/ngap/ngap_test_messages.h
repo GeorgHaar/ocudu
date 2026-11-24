@@ -13,6 +13,7 @@
 #include "ocudu/ngap/ngap_types.h"
 #include "ocudu/ran/cause/ngap_cause.h"
 #include "ocudu/ran/gtpu/gtpu_teid.h"
+#include "ocudu/ran/guami.h"
 #include "ocudu/ran/nr_cgi.h"
 #include "ocudu/ran/tai.h"
 
@@ -82,7 +83,40 @@ static const uint8_t ng_setup_request_packed[] = {
     0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0xf1, 0x10, 0x00, 0x00, 0x00, 0x08, 0x00, 0x15, 0x40, 0x01, 0x60};
 
 /// \brief Generate a dummy NG Setup Response.
-ngap_message generate_ng_setup_response(plmn_identity plmn = plmn_identity::test_value());
+/// \param[in] plmn PLMN of the served GUAMI and of the PLMN support item.
+/// \param[in] amf_pointer AMF Pointer of the served GUAMI, whose AMF Region ID is 2.
+/// \param[in] relative_amf_capacity Relative AMF Capacity of the AMF.
+/// \param[in] amf_set_id AMF Set ID of the served GUAMI.
+ngap_message generate_ng_setup_response(plmn_identity plmn                  = plmn_identity::test_value(),
+                                        uint8_t       amf_pointer           = 0,
+                                        uint16_t      relative_amf_capacity = 255,
+                                        uint16_t      amf_set_id            = 1);
+
+/// \brief Generate an AMF Configuration Update message without any IE.
+ngap_message generate_amf_configuration_update();
+
+/// \brief Generate an AMF Status Indication message with one unavailable GUAMI.
+/// \param[in] guami The unavailable GUAMI.
+/// \param[in] backup_amf_name The Backup AMF Name of the GUAMI, if any.
+ngap_message generate_amf_status_indication(const guami_t&                    guami,
+                                            const std::optional<std::string>& backup_amf_name = std::nullopt);
+
+/// \brief Generate an Overload Start message.
+/// \param[in] overload_action The AMF Overload Response, if any.
+/// \param[in] traffic_load_reduction The AMF Traffic Load Reduction Indication, if any.
+ngap_message
+generate_overload_start(std::optional<asn1::ngap::overload_action_opts::options> overload_action        = std::nullopt,
+                        std::optional<uint8_t>                                   traffic_load_reduction = std::nullopt);
+
+/// \brief Generate an Overload Stop message.
+ngap_message generate_overload_stop();
+
+/// \brief Generate a Reroute NAS Request message.
+/// \param[in] ran_ue_id The RAN UE NGAP ID of the UE.
+/// \param[in] initial_ue_message The INITIAL UE MESSAGE to reroute.
+/// \param[in] amf_set_id The AMF Set ID of the AMF to reroute to.
+ngap_message
+generate_reroute_nas_request(ran_ue_id_t ran_ue_id, const ngap_message& initial_ue_message, uint16_t amf_set_id);
 
 /// \brief Generate a dummy NG Setup Failure.
 ngap_message generate_ng_setup_failure();
@@ -266,6 +300,9 @@ struct handover_request_params {
   bool data_forwarding_not_possible = false;
   /// Whether the 5GC reports a direct forwarding path towards this target (TS 38.413 section 9.3.1.64).
   bool direct_forwarding_path_available = false;
+  /// Whether the target cell ID in the Source to Target Transparent Container carries a PLMN identity that is not valid
+  /// BCD.
+  bool invalid_target_cell_plmn_id = false;
 };
 
 /// \brief Generate a valid dummy Handover Request message.

@@ -6,6 +6,7 @@
 #pragma once
 
 #include "xnap_message_notifier.h"
+#include "ocudu/adt/expected.h"
 #include "ocudu/ran/cu_cp_cell_configuration.h"
 #include "ocudu/ran/cu_cp_types.h"
 #include "ocudu/ran/gnb_id.h"
@@ -112,17 +113,17 @@ public:
   virtual async_task<bool> on_new_rrc_handover_command(cu_cp_rrc_handover_command command) = 0;
 
   /// \brief Request UE index allocation on the CU-CP on XNAP handover request.
-  virtual cu_cp_ue_index_t request_new_ue_index_allocation(const nr_cell_global_id_t& cgi,
-                                                           const plmn_identity&       plmn) = 0;
+  /// \param[in] cgi The target cell of the handover.
+  /// \param[in] guami The GUAMI of the AMF that serves the UE.
+  /// \return The index of the new UE, or the cause to reject the handover with.
+  virtual expected<cu_cp_ue_index_t, xnap_cause_t> request_new_ue_index_allocation(const nr_cell_global_id_t& cgi,
+                                                                                   const guami_t& guami) = 0;
 
   /// \brief Notify the CU-CP about a handover request received.
   /// \param[in] ue_index Index of the UE.
-  /// \param[in] selected_plmn The selected PLMN identity of the UE.
   /// \param[in] sec_ctxt The received security context.
   /// \return True if the handover request handling is successful, false otherwise.
-  virtual bool on_handover_request_received(cu_cp_ue_index_t                  ue_index,
-                                            const plmn_identity&              selected_plmn,
-                                            const security::security_context& sec_ctxt) = 0;
+  virtual bool on_handover_request_received(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt) = 0;
 
   /// \brief Request scheduling a task for a UE.
   /// \param[in] ue_index The index of the UE.

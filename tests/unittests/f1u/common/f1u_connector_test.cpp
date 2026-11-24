@@ -541,6 +541,67 @@ TEST_F(f1u_connector_test, update_du_f1u)
   check_ul_path_connected(du_buf2.deep_copy().value(), du_bearer2.get(), cu_rx);
 }
 
+/// After a path switch (intra-CU HO), attach_dl_teid must clear the source DU bearer's
+/// UL notifier. Without this, a subsequent timer-triggered on_new_pdu from the source
+/// bearer reaches a freed CU-UP f1u_bearer (use-after-free on teardown).
+TEST_F(f1u_connector_test, path_switch_clears_source_du_notifier)
+{
+  f1u_cu_up_gateway&   cu_gw = f1u_conn->get_f1u_cu_up_gateway();
+  odu::f1u_du_gateway* du_gw = f1u_conn->get_f1u_du_gateway();
+
+  up_transport_layer_info ul_tnl{transport_layer_address::create_from_string("127.0.0.1"), gtpu_teid_t{1}};
+  up_transport_layer_info dl_tnl1{transport_layer_address::create_from_string("127.0.0.2"), gtpu_teid_t{2}};
+  up_transport_layer_info dl_tnl2{transport_layer_address::create_from_string("127.0.0.3"), gtpu_teid_t{3}};
+
+  dummy_teid_pool dl_teid_pool;
+
+  dummy_f1u_cu_up_rx_notifier                 cu_rx;
+  std::unique_ptr<ocuup::f1u_tx_pdu_notifier> cu_bearer = cu_gw.create_cu_bearer(
+      0, s_nssai_t{}, drb_id_t::drb1, five_qi_t{9}, f1u_cu_up_cfg, ul_tnl.gtp_teid, cu_rx, ue_worker);
+
+  // Source DU bearer
+  dummy_f1u_du_gateway_bearer_rx_notifier   du_rx1;
+  std::unique_ptr<odu::f1u_tx_pdu_notifier> du_bearer1 = du_gw->create_du_bearer(0,
+                                                                                 drb_id_t::drb1,
+                                                                                 s_nssai_t{},
+                                                                                 five_qi_t{9},
+                                                                                 f1u_du_config,
+                                                                                 dl_tnl1.gtp_teid,
+                                                                                 dl_teid_pool,
+                                                                                 ul_tnl,
+                                                                                 du_rx1,
+                                                                                 timers,
+                                                                                 ue_worker);
+  cu_gw.attach_dl_teid(ul_tnl, dl_tnl1);
+
+  byte_buffer du_buf1 = make_byte_buffer("beef").value();
+  check_ul_path_connected(du_buf1.deep_copy().value(), du_bearer1.get(), cu_rx);
+
+  // Target DU bearer (path switch)
+  dummy_f1u_du_gateway_bearer_rx_notifier   du_rx2;
+  std::unique_ptr<odu::f1u_tx_pdu_notifier> du_bearer2 = du_gw->create_du_bearer(0,
+                                                                                 drb_id_t::drb1,
+                                                                                 s_nssai_t{},
+                                                                                 five_qi_t{9},
+                                                                                 f1u_du_config,
+                                                                                 dl_tnl2.gtp_teid,
+                                                                                 dl_teid_pool,
+                                                                                 ul_tnl,
+                                                                                 du_rx2,
+                                                                                 timers,
+                                                                                 ue_worker);
+  cu_gw.attach_dl_teid(ul_tnl, dl_tnl2);
+
+  // Source DU bearer UL notifier must now be null — if not, its timer could fire into
+  // a freed CU-UP f1u_bearer after teardown.
+  byte_buffer du_buf2 = make_byte_buffer("dead").value();
+  check_ul_path_disconnected(du_buf2.deep_copy().value(), du_bearer1.get(), cu_rx);
+
+  // Target DU bearer UL path must still work
+  byte_buffer du_buf3 = make_byte_buffer("cafe").value();
+  check_ul_path_connected(du_buf3.deep_copy().value(), du_bearer2.get(), cu_rx);
+}
+
 int main(int argc, char** argv)
 {
   ::testing::InitGoogleTest(&argc, argv);

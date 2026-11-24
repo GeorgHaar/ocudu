@@ -18,7 +18,6 @@ pucch_power_controller::pucch_power_controller(const ue_cell_configuration& ue_c
   enable_cl_pw_control(ue_cell_cfg.cell_cfg_common.expert_cfg.ue.ul_power_ctrl.enable_pucch_cl_pw_control),
   rnti(ue_cell_cfg.crnti),
   res_params(ue_cell_cfg.cell_cfg_common.params.init_bwp.pucch.resources),
-  ue_pucch_cfg(ue_cell_cfg.init_bwp().ul.ue_cfg()->pucch),
   target_sinr_dB_01(ue_cell_cfg.cell_cfg_common.expert_cfg.ue.ul_power_ctrl.pucch_f0_sinr_target_dB),
   target_sinr_dB_234(res_params.format_234() == pucch_format::FORMAT_2
                          ? ue_cell_cfg.cell_cfg_common.expert_cfg.ue.ul_power_ctrl.pucch_f2_sinr_target_dB

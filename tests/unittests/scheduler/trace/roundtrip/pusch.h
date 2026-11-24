@@ -20,15 +20,17 @@ struct test_values<vrb_alloc> {
   static std::vector<vrb_alloc> get()
   {
     constexpr uint16_t max_vrb = std::numeric_limits<uint16_t>::max();
-    rbg_bitmap         rbgs(4);
-    rbgs.from_uint64(0b1001);
-    return {vrb_alloc(vrb_interval{0, 0}), vrb_alloc(vrb_interval{0, max_vrb}), vrb_alloc(rbgs)};
+    vrb_bitmap         vrbs(MAX_NOF_PRBS);
+    vrbs.set(0);
+    vrbs.fill(70, 140);
+    vrbs.set(MAX_NOF_PRBS - 1);
+    return {vrb_alloc(vrb_interval{0, 0}), vrb_alloc(vrb_interval{0, max_vrb}), vrb_alloc(vrbs)};
   }
 };
 
 // The wire carries intra_slot_freq_hopping and pusch_second_hop_prb together, as the optional
 // fbs::VrbAlloc::vrb_second_hop_start, and only for a type-1 (contiguous VRB) allocation -- intra-slot frequency
-// hopping is only defined for resource allocation type 1, as per TS38.214 Section 6.3. Hence both are compare-only:
+// hopping is only defined for resource allocation type 1, as per TS 38.214 Section 6.3. Hence both are compare-only:
 // a sweep would set each in isolation (a second hop PRB with hopping disabled is not encoded) and would carry
 // hopping enabled forward into the type-0 instance test_values<vrb_alloc> ends on. test_values<pusch_information>
 // below appends the valid combinations instead.

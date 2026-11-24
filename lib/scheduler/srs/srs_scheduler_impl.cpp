@@ -330,8 +330,11 @@ void srs_scheduler_impl::schedule_updated_ues_srs(cell_resource_allocator& cell_
       for (const ue_update& ue_upd : updated_ues) {
         if (ue_upd.type == ue_update::type_t::positioning_stop or
             ue_upd.type == ue_update::type_t::positioning_request) {
-          for (auto& pdu : slot_alloc.result.ul.srss) {
-            pdu.positioning_report_requested = ue_upd.type == ue_update::type_t::positioning_request;
+          for (auto& pdu : slot_alloc.result_builder().ul().srss()) {
+            // Several positioning measurements can run at the same time, so only the PDUs of this RNTI change.
+            if (pdu.crnti == ue_upd.rnti) {
+              pdu.positioning_report_requested = ue_upd.type == ue_update::type_t::positioning_request;
+            }
           }
         }
       }
@@ -371,7 +374,7 @@ bool srs_scheduler_impl::allocate_srs_opportunity(cell_slot_resource_allocator& 
 {
   slot_point sl_srs = slot_alloc.slot;
 
-  if (slot_alloc.result.ul.srss.full()) {
+  if (slot_alloc.result_builder().ul().srss().full()) {
     logger.warning("cell={} c-rnti={}: SRS resource id={} cannot be allocated for slot={}. Cause: SRS list is full",
                    cell_cfg.cell_index,
                    srs_opportunity.rnti,
@@ -452,8 +455,9 @@ bool srs_scheduler_impl::allocate_srs_opportunity(cell_slot_resource_allocator& 
   slot_alloc.ul_res_grid.fill(srs_grant);
 
   // Add SRS PDU into results.
-  slot_alloc.result.ul.srss.emplace_back(
+  [[maybe_unused]] const srs_info* pdu = slot_alloc.result_builder().ul().srss().emplace_back(
       create_srs_pdu(srs_opportunity.rnti, ul_bwp_cfg, *srs_res, pos_req != nullptr));
+  ocudu_assert(pdu != nullptr, "c-rnti={}: Failed to allocate SRS PDU", srs_opportunity.rnti);
 
   return true;
 }
@@ -465,7 +469,9 @@ void srs_scheduler_impl::add_resource(rnti_t                 crnti,
 {
   // Add UE-SRS resource element for each offset in the periodic SRS slot wheel.
   auto srs_period = static_cast<unsigned>(res_period);
-  for (unsigned wheel_offset = res_offset, wheel_size = periodic_srs_slot_wheel.size(); wheel_offset < wheel_size;
+  // The wheel is indexed by DL slot, the SRS period/offset by UE UL slot.
+  const unsigned wheel_start = cell_cfg.ue_ul_to_dl_slot_offset(res_offset, srs_period);
+  for (unsigned wheel_offset = wheel_start, wheel_size = periodic_srs_slot_wheel.size(); wheel_offset < wheel_size;
        wheel_offset += srs_period) {
     auto& slot_wheel = periodic_srs_slot_wheel[wheel_offset];
 
@@ -481,7 +487,8 @@ void srs_scheduler_impl::add_resource(rnti_t                 crnti,
       logger.error("rnti={}: SRS resource id={} with period={} and offset={} already exists in the SRS slot wheel",
                    crnti,
                    fmt::underlying(res_id),
-                   fmt::underlying(res_period));
+                   fmt::underlying(res_period),
+                   res_offset);
     }
   }
 }
@@ -491,9 +498,10 @@ void srs_scheduler_impl::rem_resource(rnti_t                 crnti,
                                       unsigned               res_offset,
                                       srs_config::srs_res_id res_id)
 {
-  // For each offset in the periodic SRS slot wheel.
-  auto srs_period = static_cast<unsigned>(res_period);
-  for (unsigned wheel_offset = res_offset, wheel_size = periodic_srs_slot_wheel.size(); wheel_offset < wheel_size;
+  // For each offset in the periodic SRS slot wheel. The registration was shifted by k_mac in add_resource().
+  auto           srs_period  = static_cast<unsigned>(res_period);
+  const unsigned wheel_start = cell_cfg.ue_ul_to_dl_slot_offset(res_offset, srs_period);
+  for (unsigned wheel_offset = wheel_start, wheel_size = periodic_srs_slot_wheel.size(); wheel_offset < wheel_size;
        wheel_offset += srs_period) {
     auto& slot_wheel = periodic_srs_slot_wheel[wheel_offset];
 

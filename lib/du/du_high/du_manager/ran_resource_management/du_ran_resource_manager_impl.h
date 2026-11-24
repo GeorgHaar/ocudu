@@ -6,7 +6,6 @@
 #pragma once
 
 #include "du_bearer_resource_manager.h"
-#include "du_csi_resource_manager.h"
 #include "du_drx_resource_manager.h"
 #include "du_meas_config_manager.h"
 #include "du_pdsch_resource_manager.h"
@@ -16,6 +15,7 @@
 #include "ue_capability_manager.h"
 #include "ocudu/ran/qos/five_qi.h"
 #include "ocudu/scheduler/rrm/configured_grant_type1_rrm.h"
+#include "ocudu/scheduler/rrm/csi_resource_manager.h"
 #include "ocudu/scheduler/rrm/pucch_resource_manager.h"
 #include "ocudu/scheduler/rrm/srs_resource_manager.h"
 #include <vector>
@@ -86,6 +86,8 @@ public:
 
   unsigned get_max_nof_rejected_ue_contexts(du_cell_index_t cell_index) const override;
 
+  const cell_rrm_config& get_cell_rrm_config(du_cell_index_t cell_index) const override;
+
   /// \brief Updates a UE's cell configuration context based on the F1 UE Context Update request.
   ///
   /// UE Context updates may include the addition of new bearers, reservation of PUCCH Resources for Scheduling
@@ -132,15 +134,23 @@ private:
   // Computes the upper-bound on the number of UEs that a cell can support with dedicated resources.
   unsigned compute_max_nof_established_ue_ctxts(du_cell_index_t cell_index) const;
 
+  struct ue_resource_context;
+
   // Reattributes an allocated UE context from one cell to another, on PCell change.
-  void move_ue_ctxt_count(du_cell_index_t old_pcell_index, du_cell_index_t new_pcell_index);
+  void move_ue_ctxt_count(ue_resource_context& u, du_cell_index_t new_pcell_index);
 
   span<const du_cell_config> cell_cfg_list;
   ocudulog::basic_logger&    logger;
   const du_test_mode_config& test_cfg;
 
+  /// Resources that the RRM allocates to the UEs of each cell, indexed by cell index.
+  std::vector<cell_rrm_config> cell_rrm_cfgs;
+
   struct ue_resource_context {
     du_ue_resource_config cg_cfg;
+
+    /// Cell whose UE context count includes this UE.
+    du_cell_index_t counted_cell_index = INVALID_DU_CELL_INDEX;
 
     /// Processor of UE capabilities.
     ue_capability_manager ue_cap_manager;
@@ -161,7 +171,7 @@ private:
   du_pusch_resource_manager pusch_res_mng;
 
   // Manager of UE CSI configuration.
-  du_csi_resource_manager csi_res_mng;
+  csi_resource_manager csi_res_mng;
 
   // Allocator of UE bearer resources.
   du_bearer_resource_manager bearer_res_mng;

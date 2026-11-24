@@ -22,11 +22,12 @@ namespace ocudu::ocucp {
 class f1ap_cu_impl final : public f1ap_cu
 {
 public:
-  f1ap_cu_impl(const f1ap_configuration&   f1ap_cfg_,
-               f1ap_message_notifier&      tx_pdu_notifier_,
-               f1ap_du_processor_notifier& f1ap_du_processor_notifier_,
-               timer_manager&              timers_,
-               task_executor&              ctrl_exec_);
+  f1ap_cu_impl(const f1ap_configuration&    f1ap_cfg_,
+               f1ap_message_notifier&       tx_pdu_notifier_,
+               f1ap_du_processor_notifier&  f1ap_du_processor_notifier_,
+               gnb_cu_ue_f1ap_id_allocator& cu_ue_id_alloc_,
+               timer_manager&               timers_,
+               task_executor&               ctrl_exec_);
   ~f1ap_cu_impl() override;
 
   const f1ap_du_context& get_context() const override;
@@ -72,6 +73,8 @@ public:
 
   async_task<expected<e_cid_measurement_response_t, e_cid_measurement_failure_t>>
   handle_e_cid_measurement_request(const e_cid_measurement_request_t& request) override;
+
+  void handle_e_cid_measurement_termination_command(const e_cid_measurement_termination_command_t& command) override;
 
   // f1ap_interface_management_handler functions.
   async_task<f1ap_gnb_cu_configuration_update_response>
@@ -155,6 +158,12 @@ private:
 
   /// \brief Handle REFERENCE TIME INFORMATION REPORT from the gNB-DU as per TS 38.473 section 8.12.2.
   void handle_ref_time_info_report(const asn1::f1ap::ref_time_info_report_s& msg);
+
+  /// \brief Handle an E-CID Measurement Report from the gNB-DU, as per TS 38.473 section 8.13.14.
+  void handle_e_cid_measurement_report(const asn1::f1ap::e_c_id_meas_report_s& msg);
+
+  /// \brief Handle an E-CID Measurement Failure Indication from the gNB-DU, as per TS 38.473 section 8.13.13.
+  void handle_e_cid_measurement_failure_indication(const asn1::f1ap::e_c_id_meas_fail_ind_s& msg);
 
   /// \brief Log F1AP PDU.
   void log_pdu(bool is_rx, const f1ap_message& pdu);

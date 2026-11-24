@@ -7,7 +7,7 @@
 
 #include "ngap_asn1_converters.h"
 #include "ocudu/adt/byte_buffer.h"
-#include "ocudu/asn1/asn1_utils.h"
+#include "ocudu/asn1/asn1_dispatch.h"
 #include "ocudu/asn1/ngap/ngap_ies.h"
 #include "ocudu/asn1/ngap/ngap_pdu_contents.h"
 #include "ocudu/ngap/ngap_context.h"
@@ -168,7 +168,7 @@ ngap_asn1_to_qos_flow_level_qos_parameters(const asn1::ngap::qos_flow_level_qos_
     const auto& asn1_dyn_5qi = asn1_qos_params.qos_characteristics.dyn5qi();
 
     dyn_5qi_descriptor dyn_5qi  = {};
-    dyn_5qi.qos_prio_level      = qos_prio_level_t{asn1_dyn_5qi.prio_level_qos};
+    dyn_5qi.qos_prio_level      = qos_prio_level_t{static_cast<uint8_t>(asn1_dyn_5qi.prio_level_qos)};
     dyn_5qi.packet_delay_budget = asn1_dyn_5qi.packet_delay_budget;
     dyn_5qi.per.exponent        = asn1_dyn_5qi.packet_error_rate.per_exponent;
     dyn_5qi.per.scalar          = asn1_dyn_5qi.packet_error_rate.per_scalar;
@@ -240,7 +240,7 @@ inline bool fill_cu_cp_pdu_session_resource_setup_item_base(cu_cp_pdu_session_re
   asn1::ngap::pdu_session_res_setup_request_transfer_s asn1_setup_req_transfer;
   asn1::cbit_ref bref({asn1_request_transfer.begin(), asn1_request_transfer.end()});
 
-  if (asn1_setup_req_transfer.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(asn1_setup_req_transfer, bref) != asn1::OCUDUASN_SUCCESS) {
     ocudulog::fetch_basic_logger("NGAP").error("Couldn't unpack PDU Session Resource Setup Request Transfer PDU");
     return false;
   }
@@ -398,8 +398,12 @@ inline bool fill_ngap_initial_context_setup_request(ngap_init_context_setup_requ
 
   // Fill core network assist info for inactive.
   if (asn1_request->core_network_assist_info_for_inactive_present) {
-    request.core_network_assist_info_for_inactive =
+    expected<cu_cp_core_network_assist_info_for_inactive> cn_assist_info =
         asn1_to_core_network_assist_info_for_inactive(asn1_request->core_network_assist_info_for_inactive);
+    if (!cn_assist_info.has_value()) {
+      return false;
+    }
+    request.core_network_assist_info_for_inactive = cn_assist_info.value();
   }
 
   // Fill GUAMI.
@@ -467,7 +471,12 @@ inline bool fill_ngap_initial_context_setup_request(ngap_init_context_setup_requ
 
   // Fill Location Report Request Type.
   if (asn1_request->location_report_request_type_present) {
-    request.location_report_request_type = asn1_to_location_report_request(asn1_request->location_report_request_type);
+    expected<location_report_request> location_report_request_type =
+        asn1_to_location_report_request(asn1_request->location_report_request_type);
+    if (!location_report_request_type.has_value()) {
+      return false;
+    }
+    request.location_report_request_type = std::move(location_report_request_type.value());
   }
 
   // TODO: Add missing optional values.
@@ -559,7 +568,7 @@ inline bool fill_ngap_pdu_session_resource_modify_item_base(
 
   asn1::ngap::pdu_session_res_modify_request_transfer_s asn1_modify_req_transfer;
   asn1::cbit_ref                                        bref(asn1_session_item.pdu_session_res_modify_request_transfer);
-  if (asn1_modify_req_transfer.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(asn1_modify_req_transfer, bref) != asn1::OCUDUASN_SUCCESS) {
     ocudulog::fetch_basic_logger("NGAP").error("Couldn't unpack PDU Session Resource Modify Request Transfer PDU.");
     return false;
   }
@@ -700,7 +709,7 @@ inline void fill_ngap_pdu_session_resource_release_command(
     asn1::ngap::pdu_session_res_release_cmd_transfer_s asn1_pdu_session_res_release_cmd_transfer;
     asn1::cbit_ref bref(pdu_session_res_to_release_item.pdu_session_res_release_cmd_transfer);
 
-    if (asn1_pdu_session_res_release_cmd_transfer.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+    if (asn1::unpack(asn1_pdu_session_res_release_cmd_transfer, bref) != asn1::OCUDUASN_SUCCESS) {
       ocudulog::fetch_basic_logger("NGAP").error("Couldn't unpack PDU Session Resource Release Command Transfer PDU.");
       return;
     }
@@ -808,7 +817,8 @@ inline void fill_asn1_ue_context_release_complete(asn1::ngap::ue_context_release
 /// \brief Convert NGAP ASN1 Paging ASN1 struct to common type.
 /// \param[out] paging The cu_cp_paging_message struct to fill.
 /// \param[in] asn1_paging The Paging ASN1 struct.
-inline void fill_cu_cp_paging_message(cu_cp_paging_message& paging, const asn1::ngap::paging_s& asn1_paging)
+/// \return True on success, otherwise false.
+inline bool fill_cu_cp_paging_message(cu_cp_paging_message& paging, const asn1::ngap::paging_s& asn1_paging)
 {
   // Fill UE paging id.
   paging.ue_paging_id = ngap_asn1_to_ue_paging_id(asn1_paging->ue_paging_id);
@@ -823,9 +833,12 @@ inline void fill_cu_cp_paging_message(cu_cp_paging_message& paging, const asn1::
 
   // Fill TAI list for paging.
   for (const auto& asn1_tai_item : asn1_paging->tai_list_for_paging) {
+    expected<tai_t> tai = ngap_asn1_to_tai(asn1_tai_item.tai);
+    if (!tai.has_value()) {
+      return false;
+    }
     cu_cp_tai_list_for_paging_item tai_item;
-    tai_item.tai.plmn_id = plmn_identity::from_bytes(asn1_tai_item.tai.plmn_id.to_bytes()).value();
-    tai_item.tai.tac     = asn1_tai_item.tai.tac.to_number();
+    tai_item.tai = tai.value();
 
     paging.tai_list_for_paging.push_back(tai_item);
   }
@@ -859,13 +872,18 @@ inline void fill_cu_cp_paging_message(cu_cp_paging_message& paging, const asn1::
 
       for (const auto& asn1_recommended_cell : asn1_paging->assist_data_for_paging.assist_data_for_recommended_cells
                                                    .recommended_cells_for_paging.recommended_cell_list) {
-        cu_cp_recommended_cell_item recommended_cell_item;
+        if (asn1_recommended_cell.ngran_cgi.type() != asn1::ngap::ngran_cgi_c::types_opts::nr_cgi) {
+          ocudulog::fetch_basic_logger("NGAP").debug("Ignoring non-NR recommended cell for paging");
+          continue;
+        }
 
         // Fill NG RAN CGI.
-        recommended_cell_item.ngran_cgi.nci =
-            nr_cell_identity::create(asn1_recommended_cell.ngran_cgi.nr_cgi().nr_cell_id.to_number()).value();
-        recommended_cell_item.ngran_cgi.plmn_id =
-            plmn_identity::from_bytes(asn1_recommended_cell.ngran_cgi.nr_cgi().plmn_id.to_bytes()).value();
+        expected<nr_cell_global_id_t> ngran_cgi = ngap_asn1_to_nr_cgi(asn1_recommended_cell.ngran_cgi.nr_cgi());
+        if (!ngran_cgi.has_value()) {
+          return false;
+        }
+        cu_cp_recommended_cell_item recommended_cell_item;
+        recommended_cell_item.ngran_cgi = ngran_cgi.value();
 
         // Fill time stayed in cell.
         if (asn1_recommended_cell.time_stayed_in_cell_present) {
@@ -909,6 +927,8 @@ inline void fill_cu_cp_paging_message(cu_cp_paging_message& paging, const asn1::
     }
     paging.paging_edrx_info = paging_edrx_info;
   }
+
+  return true;
 }
 
 /// \brief Convert Handover Request ASN1 struct to common type.
@@ -929,8 +949,12 @@ inline bool fill_ngap_handover_request(ngap_handover_request& request, const asn
 
   // Fill core network assist info for inactive.
   if (asn1_request->core_network_assist_info_for_inactive_present) {
-    request.core_network_assist_info_for_inactive =
+    expected<cu_cp_core_network_assist_info_for_inactive> cn_assist_info =
         asn1_to_core_network_assist_info_for_inactive(asn1_request->core_network_assist_info_for_inactive);
+    if (!cn_assist_info.has_value()) {
+      return false;
+    }
+    request.core_network_assist_info_for_inactive = cn_assist_info.value();
   }
 
   // Fill UE security cap & security context.
@@ -975,18 +999,26 @@ inline bool fill_ngap_handover_request(ngap_handover_request& request, const asn
   // Fill source to target transparent container.
   asn1::cbit_ref bref(asn1_request->source_to_target_transparent_container);
   asn1::ngap::source_ngran_node_to_target_ngran_node_transparent_container_s asn1_transparent_container;
-  if (asn1_transparent_container.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(asn1_transparent_container, bref) != asn1::OCUDUASN_SUCCESS) {
     ocudulog::fetch_basic_logger("NGAP").error("Couldn't unpack Source to Target Transparent Container.");
     return false;
   }
-  asn1_to_source_to_target_transport_container(request.source_to_target_transparent_container,
-                                               asn1_transparent_container);
+  if (!asn1_to_source_to_target_transport_container(request.source_to_target_transparent_container,
+                                                    asn1_transparent_container)) {
+    ocudulog::fetch_basic_logger("NGAP").error("Couldn't convert Source to Target Transparent Container.");
+    return false;
+  }
 
   // TODO: Add Mob restrict list.
 
   // Fill Location Report Request Type.
   if (asn1_request->location_report_request_type_present) {
-    request.location_report_request_type = asn1_to_location_report_request(asn1_request->location_report_request_type);
+    expected<location_report_request> location_report_request_type =
+        asn1_to_location_report_request(asn1_request->location_report_request_type);
+    if (!location_report_request_type.has_value()) {
+      return false;
+    }
+    request.location_report_request_type = std::move(location_report_request_type.value());
   }
 
   // Fill RRC Inactive Transition Report Request.
@@ -1129,10 +1161,17 @@ inline void fill_asn1_rrc_inactive_transition_report(asn1::ngap::rrc_inactive_tr
 }
 
 /// \brief Convert NGAP ASN1 Location Reporting Control message to common type.
-inline void fill_ngap_location_report_request(location_report_request&                  location_report_ctrl,
+/// \return True on success, otherwise false.
+inline bool fill_ngap_location_report_request(location_report_request&                  location_report_ctrl,
                                               const asn1::ngap::location_report_ctrl_s& asn1_location_report_ctrl)
 {
-  location_report_ctrl = asn1_to_location_report_request(asn1_location_report_ctrl->location_report_request_type);
+  expected<location_report_request> req =
+      asn1_to_location_report_request(asn1_location_report_ctrl->location_report_request_type);
+  if (!req.has_value()) {
+    return false;
+  }
+  location_report_ctrl = std::move(req.value());
+  return true;
 }
 
 /// \brief Fill ASN1 Location Report IEs from common type.
@@ -1169,8 +1208,12 @@ inline bool ue_context_modification_request_from_asn1(ngap_ue_context_modificati
 
   // Fill core network assist info for inactive.
   if (asn1_request->core_network_assist_info_for_inactive_present) {
-    request.core_network_assist_info_for_inactive =
+    expected<cu_cp_core_network_assist_info_for_inactive> cn_assist_info =
         asn1_to_core_network_assist_info_for_inactive(asn1_request->core_network_assist_info_for_inactive);
+    if (!cn_assist_info.has_value()) {
+      return false;
+    }
+    request.core_network_assist_info_for_inactive = cn_assist_info.value();
   }
 
   // Fill new GUAMI.
@@ -1190,7 +1233,8 @@ inline bool ue_context_modification_request_from_asn1(ngap_ue_context_modificati
 /// \brief Convert NGAP ASN.1 Write-Replace Warning Request to common type.
 /// \param[out] req  The common-type struct to fill.
 /// \param[in]  msg  The ASN.1 Write-Replace Warning Request.
-inline void fill_ngap_write_replace_warning_request(ngap_write_replace_warning_request&                req,
+/// \return True on success, false if the warning area list holds an invalid PLMN identity.
+inline bool fill_ngap_write_replace_warning_request(ngap_write_replace_warning_request&                req,
                                                     const asn1::ngap::write_replace_warning_request_s& msg)
 {
   // Mandatory IEs.
@@ -1206,10 +1250,11 @@ inline void fill_ngap_write_replace_warning_request(ngap_write_replace_warning_r
       case asn1::ngap::warning_area_list_c::types_opts::nr_cgi_list_for_warning: {
         ngap_nr_cgi_list_for_warning cgi_list;
         for (const auto& asn1_cgi : wal.nr_cgi_list_for_warning()) {
-          nr_cell_global_id_t cgi;
-          cgi.plmn_id = plmn_identity::from_bytes(asn1_cgi.plmn_id.to_bytes()).value();
-          cgi.nci     = nr_cell_identity::create(asn1_cgi.nr_cell_id.to_number()).value();
-          cgi_list.push_back(cgi);
+          expected<nr_cell_global_id_t> cgi = ngap_asn1_to_nr_cgi(asn1_cgi);
+          if (!cgi.has_value()) {
+            return false;
+          }
+          cgi_list.push_back(cgi.value());
         }
         req.warning_area_list = std::move(cgi_list);
         break;
@@ -1217,10 +1262,11 @@ inline void fill_ngap_write_replace_warning_request(ngap_write_replace_warning_r
       case asn1::ngap::warning_area_list_c::types_opts::tai_list_for_warning: {
         ngap_tai_list_for_warning tai_list;
         for (const auto& asn1_tai : wal.tai_list_for_warning()) {
-          tai_t tai;
-          tai.plmn_id = plmn_identity::from_bytes(asn1_tai.plmn_id.to_bytes()).value();
-          tai.tac     = asn1_tai.tac.to_number();
-          tai_list.push_back(tai);
+          expected<tai_t> tai = ngap_asn1_to_tai(asn1_tai);
+          if (!tai.has_value()) {
+            return false;
+          }
+          tai_list.push_back(tai.value());
         }
         req.warning_area_list = std::move(tai_list);
         break;
@@ -1251,14 +1297,21 @@ inline void fill_ngap_write_replace_warning_request(ngap_write_replace_warning_r
 
   // Warning Message Contents (optional, bounded_octstring<1,9600>).
   if (msg->warning_msg_contents_present) {
-    const auto& wmc          = msg->warning_msg_contents;
-    req.warning_msg_contents = byte_buffer::create(wmc.data(), wmc.data() + wmc.size()).value();
+    const auto&           wmc = msg->warning_msg_contents;
+    expected<byte_buffer> buf = byte_buffer::create(wmc.data(), wmc.data() + wmc.size());
+    if (!buf.has_value()) {
+      ocudulog::fetch_basic_logger("NGAP").warning("Failed to allocate buffer for Warning Message Contents");
+      return false;
+    }
+    req.warning_msg_contents = std::move(buf.value());
   }
 
   // Concurrent Warning Message Indication (optional).
   if (msg->concurrent_warning_msg_ind_present) {
     req.concurrent_warning_msg_ind = true;
   }
+
+  return true;
 }
 
 /// \brief Fill ASN.1 Write-Replace Warning Response from common type.

@@ -14,6 +14,7 @@
 #include "ocudu/rrc/rrc_ue.h"
 #include <chrono>
 #include <optional>
+#include <variant>
 
 namespace ocudu::ocucp {
 
@@ -72,6 +73,14 @@ struct rrc_resume_context_t {
   std::optional<resume_cause_t>                              resume_cause  = std::nullopt;
 };
 
+/// Identify RRCReestablishmentRequest, which carries no extra fields.
+struct rrc_reest_request_t {};
+
+/// Parsing an UL-CCCH message to link a subsequent UE context creation failure to the correct RRC procedure and metric.
+/// Exactly one alternative is active: the establishment cause for an RRCSetupRequest, an RRCReestablishmentRequest
+/// indicator, or the context of an RRCResumeRequest/RRCResumeRequest1.
+using ul_ccch_msg_info_t = std::variant<establishment_cause_t, rrc_reest_request_t, rrc_resume_context_t>;
+
 struct rrc_ue_creation_message {
   cu_cp_ue_index_t                       ue_index;
   rnti_t                                 c_rnti;
@@ -106,11 +115,10 @@ public:
   /// context exists. Returns an empty buffer on packing failure.
   virtual byte_buffer pack_meas_config(const rrc_meas_cfg& meas_cfg) = 0;
 
-  /// \brief Get the RRC Resume context containing the resume ID and resume cause from a RRC container.
+  /// \brief Parse an UL-CCCH message and notify metrics about the attempted RRC procedure it starts.
   /// \param[in] rrc_container The RRC container from the DU.
-  /// \returns The RRC Resume context if the container contains a valid UL CCCH Message, std::nullopt if an error
-  /// occured e.g. during unpacking.
-  virtual std::optional<rrc_resume_context_t> get_rrc_resume_context(byte_buffer rrc_container) = 0;
+  /// \returns Information about the parsed message, or std::nullopt if an error occured e.g. during unpacking.
+  virtual std::optional<ul_ccch_msg_info_t> parse_ul_ccch_msg(byte_buffer rrc_container) = 0;
 
   /// Creates a new RRC UE object and returns a handle to it.
   virtual rrc_ue_interface* add_ue(const rrc_ue_creation_message& msg) = 0;

@@ -193,6 +193,9 @@ ngap_path_switch_procedure::handle_successful_outcome(const asn1::ngap::path_swi
   if (ue_ctxt == nullptr) {
     logger.log_debug("Skipping the update of the UE context. Cause: UE context not found");
   } else {
+    // Store the Allowed NSSAI of the UE.
+    ue_ctxt->allowed_nssai = request_ack.allowed_nssai;
+
     // Store Core Network Assist Info for Inactive if present.
     if (request_ack.core_network_assist_info_for_inactive.has_value()) {
       ue_ctxt->core_network_assist_info_for_inactive = request_ack.core_network_assist_info_for_inactive.value();
@@ -233,7 +236,7 @@ bool ngap_path_switch_procedure::asn1_to_path_switch_request_ack(
     // Unpack path_switch_request_ack_transfer.
     asn1::cbit_ref                     bref{asn1_switched_item.path_switch_request_ack_transfer};
     path_switch_request_ack_transfer_s path_switch_request_ack_transfer;
-    if (path_switch_request_ack_transfer.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+    if (asn1::unpack(path_switch_request_ack_transfer, bref) != asn1::OCUDUASN_SUCCESS) {
       return false;
     }
 
@@ -260,7 +263,7 @@ bool ngap_path_switch_procedure::asn1_to_path_switch_request_ack(
       // Unpack path_switch_request_unsuccessful_transfer to get the cause of release.
       asn1::cbit_ref                              bref{asn1_release_item.path_switch_request_unsuccessful_transfer};
       path_switch_request_unsuccessful_transfer_s path_switch_request_unsuccessful_transfer;
-      if (path_switch_request_unsuccessful_transfer.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+      if (asn1::unpack(path_switch_request_unsuccessful_transfer, bref) != asn1::OCUDUASN_SUCCESS) {
         return false;
       }
 
@@ -276,8 +279,12 @@ bool ngap_path_switch_procedure::asn1_to_path_switch_request_ack(
 
   // Convert Core Network Assist Info for Inactive if present.
   if (asn1_response->core_network_assist_info_for_inactive_present) {
-    res.core_network_assist_info_for_inactive =
+    expected<cu_cp_core_network_assist_info_for_inactive> cn_assist_info =
         asn1_to_core_network_assist_info_for_inactive(asn1_response->core_network_assist_info_for_inactive);
+    if (!cn_assist_info.has_value()) {
+      return false;
+    }
+    res.core_network_assist_info_for_inactive = cn_assist_info.value();
   }
 
   // Convert RRC inactive transition report request if present.
@@ -313,7 +320,7 @@ cu_cp_path_switch_request_failure ngap_path_switch_procedure::asn1_to_path_switc
     // Unpack path_switch_request_unsuccessful_transfer to get the cause of release.
     asn1::cbit_ref                              bref{asn1_release_item.path_switch_request_unsuccessful_transfer};
     path_switch_request_unsuccessful_transfer_s path_switch_request_unsuccessful_transfer;
-    if (path_switch_request_unsuccessful_transfer.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+    if (asn1::unpack(path_switch_request_unsuccessful_transfer, bref) != asn1::OCUDUASN_SUCCESS) {
       return fail;
     }
 

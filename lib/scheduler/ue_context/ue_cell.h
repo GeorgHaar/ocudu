@@ -13,11 +13,15 @@
 #include "ue_conf_grant_state_manager.h"
 #include "ue_drx_controller.h"
 #include "ue_fsm_states.h"
+#include "ue_koffset_tracker.h"
 #include "ue_link_adaptation_controller.h"
 #include "ue_ta_report_tracker.h"
+#include "ocudu/ran/logical_channel/lcid_dl_sch.h"
+#include "ocudu/ran/slot_point.h"
 #include "ocudu/scheduler/config/scheduler_expert_config.h"
 #include "ocudu/scheduler/scheduler_feedback_handler.h"
 #include "ocudu/support/memory_pool/free_list_memory_pool.h"
+#include <algorithm>
 
 namespace ocudu {
 
@@ -31,7 +35,20 @@ struct ue_shared_context {
   ue_drx_controller& drx_ctrl;
   /// Tracker of the uplink timing advance reported by the UE.
   ue_ta_report_tracker& ta_report_tracker;
+  /// Tracker of the Differential Koffset the UE applies.
+  ue_koffset_tracker& koffset_tracker;
 };
+
+/// \brief Returns whether the transport block of a DL HARQ process carried a Differential Koffset MAC CE.
+///
+/// A retransmission carries no logical channel list of its own, so the one the HARQ saved identifies the block.
+inline bool carries_differential_koffset_ce(const dl_harq_process_handle& h_dl)
+{
+  const auto& lc_sched_info = h_dl.get_grant_params().lc_sched_info;
+  return std::any_of(lc_sched_info.begin(), lc_sched_info.end(), [](const auto& lc) {
+    return lc.lcid == lcid_dl_sch_t::from_elcid(elcid_dl_sch_t::DIFFERENTIAL_KOFFSET);
+  });
+}
 
 /// State of the UE PCell.
 struct ue_pcell_state {
@@ -45,11 +62,16 @@ struct ue_pcell_state {
   /// Slot at which the PRACH preamble was received, set for RACH-created UEs tracked by the RA scheduler.
   slot_point prach_slot_rx;
 
-  /// \brief Reference slot for the start of the ra-ContentionResolutionTimer window.
+  /// \brief Reference slot for the start of the ra-ContentionResolutionTimer window, on the gNB DL clock.
+  ///
   /// \c prach_slot_rx precedes \c msg3_rx_slot and is therefore the more accurate reference, but it is only known
   /// if the RA scheduler still had a live entry for this UE by the time it was created; \c msg3_rx_slot is used as
-  /// a fallback otherwise.
-  slot_point conres_win_start() const { return prach_slot_rx.valid() ? prach_slot_rx : msg3_rx_slot; }
+  /// a fallback otherwise. \c ntn_ul_alloc_delay_slots makes up the part of the PRACH to Msg3 gap that an NTN cell
+  /// dominates; the RAR wait and the k2 of the Msg3 grant are left as margin, so the gNB gives up before the UE.
+  slot_point conres_win_start(unsigned ntn_ul_alloc_delay_slots) const
+  {
+    return prach_slot_rx.valid() ? prach_slot_rx + ntn_ul_alloc_delay_slots : msg3_rx_slot;
+  }
 };
 
 struct ue_cell_components {
@@ -101,9 +123,13 @@ public:
 
   void handle_reconfiguration_request(const ue_cell_configuration& ue_cell_cfg);
 
+  /// \brief Determines whether a PDCCH for this UE is possible in the provided slot.
+  ///
+  /// Requires the Koffset the UE applies to the PDCCH to be known, see \c ue_koffset_tracker::is_known_at.
   bool is_pdcch_enabled(slot_point dl_slot) const
   {
-    return active and cfg().is_dl_enabled(dl_slot) and shared_ctx.drx_ctrl.is_pdcch_enabled();
+    return active and cfg().is_dl_enabled(dl_slot) and shared_ctx.drx_ctrl.is_pdcch_enabled() and
+           (cell_cfg.ntn_cs_koffset == 0 or shared_ctx.koffset_tracker.is_known_at(dl_slot));
   }
   /// \brief Determines whether UL allocations are possible in the provided slot.
   ///
@@ -117,7 +143,28 @@ public:
   /// \brief Returns the Koffset in slots of the UE, as per TS 38.213, Section 4.2.
   ///
   /// RAR UL grants and TC-RNTI DCIs use the cell-specific Koffset instead, as per TS 38.213, Sections 8.3 and 9.
-  unsigned ntn_koffset() const { return cfg().cell_cfg_common.ntn_cs_koffset; }
+  unsigned ntn_koffset() const
+  {
+    if (cell_cfg.ntn_cs_koffset == 0) {
+      return 0;
+    }
+    const unsigned ue_koffset_slots = static_cast<unsigned>(shared_ctx.koffset_tracker.applied_koffset().count()) *
+                                      get_nof_slots_per_subframe(cell_cfg.scs_common());
+    ocudu_assert(ue_koffset_slots <= cell_cfg.ntn_cs_koffset, "Differential Koffset exceeds the cell-specific one");
+    return ue_koffset_slots < cell_cfg.ntn_cs_koffset ? cell_cfg.ntn_cs_koffset - ue_koffset_slots : 0;
+  }
+
+  /// Returns whether a DL HARQ process of the UE still holds a transport block carrying a Differential Koffset MAC CE.
+  bool holds_differential_koffset_ce() const
+  {
+    for (unsigned h_id = 0, e = harqs.nof_dl_harqs(); h_id != e; ++h_id) {
+      const std::optional<const dl_harq_process_handle> h_dl = harqs.dl_harq(to_harq_id(h_id));
+      if (h_dl.has_value() and carries_differential_koffset_ce(*h_dl)) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   bool is_pdsch_enabled(slot_point pdcch_slot, slot_point pdsch_slot) const
   {
@@ -175,17 +222,25 @@ public:
     held_for_bundle
   };
 
+  /// Outcome of a CRC PDU that concluded an UL HARQ transmission of this UE cell.
+  struct crc_outcome {
+    /// TBS that was (N)ACKed, or 0 if the PUSCH was not detected (DTX).
+    units::bytes tbs;
+    /// Whether the PUSCH was detected as transmitted (false if DTX).
+    bool pusch_transmitted;
+    /// Whether the PUSCH was a Configured Grant PUSCH.
+    bool is_cg;
+  };
+
   /// \brief Handle CRC PDU indication.
   ///
   /// Dynamic PUSCH CRC always yields a "detected" outcome (i.e., ACK or NACK); whereas, the Configured Grant PUSCH CRC
   /// can yield a not-detected outcome, e.g., when the SINR associated with its PUSCH is below the detection threshold.
   /// When PUSCH repetitions are scheduled, the concluded crc is returned only in last slot occasion.
   ///
-  /// \return A pair with the TBS that was (N)ACKed or not detected (DTX) and boolean indicating whether the PDU was
-  /// detected as transmitted (True if detected, false if not detected). Return unexpected, when the transmission was
-  /// not concluded for PUSCH repetition bundle; see \ref crc_not_concluded.
-  expected<std::pair<units::bytes, bool>, crc_not_concluded> handle_crc_pdu(slot_point                   pusch_slot,
-                                                                            const ul_crc_pdu_indication& crc_pdu);
+  /// \return The outcome of the concluded transmission; see \ref crc_outcome. Return unexpected, when the CRC did not
+  /// conclude a transmission; see \ref crc_not_concluded.
+  expected<crc_outcome, crc_not_concluded> handle_crc_pdu(slot_point pusch_slot, const ul_crc_pdu_indication& crc_pdu);
 
   /// \brief Handle Sounding Reference Signal (SRS) channel matrix.
   void handle_srs_channel_matrix(const srs_channel_matrix& channel_matrix);

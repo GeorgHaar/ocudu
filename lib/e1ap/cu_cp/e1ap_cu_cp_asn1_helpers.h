@@ -6,7 +6,7 @@
 #pragma once
 
 #include "../common/e1ap_asn1_converters.h"
-#include "ocudu/asn1/asn1_utils.h"
+#include "ocudu/asn1/asn1_dispatch.h"
 #include "ocudu/asn1/e1ap/e1ap_ies.h"
 #include "ocudu/asn1/e1ap/e1ap_pdu_contents.h"
 #include "ocudu/e1ap/cu_cp/e1ap_cu_cp_bearer_context_update.h"
@@ -73,13 +73,13 @@ inline void fill_asn1_qos_flow_info_item(asn1::e1ap::qos_flow_qos_param_item_s& 
   }
 
   // Fill NG RAN alloc retention prio.
-  asn1_qos_flow_info_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.prio_level =
+  asn1_qos_flow_info_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.prio_level =
       qos_flow_level_params.ng_ran_alloc_retention.prio_level_arp.value();
-  asn1_qos_flow_info_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.pre_emption_cap.value =
+  asn1_qos_flow_info_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.pre_emption_cap.value =
       qos_flow_level_params.ng_ran_alloc_retention.may_trigger_preemption
           ? asn1::e1ap::pre_emption_cap_opts::may_trigger_pre_emption
           : asn1::e1ap::pre_emption_cap_opts::shall_not_trigger_pre_emption;
-  asn1_qos_flow_info_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.pre_emption_vulnerability.value =
+  asn1_qos_flow_info_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.pre_emption_vulnerability.value =
       qos_flow_level_params.ng_ran_alloc_retention.is_preemptable
           ? asn1::e1ap::pre_emption_vulnerability_opts::pre_emptable
           : asn1::e1ap::pre_emption_vulnerability_opts::not_pre_emptable;
@@ -271,13 +271,11 @@ inline void fill_asn1_bearer_context_setup_request(asn1::e1ap::bearer_context_se
 
   // Fill PDU session resource to setup list.
   asn1_request->sys_bearer_context_setup_request.set_ng_ran_bearer_context_setup_request();
-  auto& ng_ran_bearer_context_setup_request =
-      asn1_request->sys_bearer_context_setup_request.ng_ran_bearer_context_setup_request();
+  auto& asn1_pdu_session_res_items =
+      asn1_request->sys_bearer_context_setup_request.ng_ran_bearer_context_setup_request()
+          .pdu_session_res_to_setup_list;
 
   for (const auto& pdu_session_res_item : request.pdu_session_res_to_setup_list) {
-    asn1::protocol_ie_field_s<asn1::e1ap::ng_ran_bearer_context_setup_request_o> bearer_request_item;
-    auto& asn1_pdu_session_res_items = bearer_request_item.value().pdu_session_res_to_setup_list();
-
     asn1::e1ap::pdu_session_res_to_setup_item_s asn1_pdu_session_res_item;
 
     // Fill PDU session ID.
@@ -337,8 +335,6 @@ inline void fill_asn1_bearer_context_setup_request(asn1::e1ap::bearer_context_se
     }
 
     asn1_pdu_session_res_items.push_back(asn1_pdu_session_res_item);
-
-    ng_ran_bearer_context_setup_request.push_back(bearer_request_item);
   }
 
   // UE DL maximum integrity protection data rate.

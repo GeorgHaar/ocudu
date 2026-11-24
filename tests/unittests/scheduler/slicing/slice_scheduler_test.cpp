@@ -12,7 +12,11 @@
 #include "tests/unittests/scheduler/test_utils/dummy_test_components.h"
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/scheduler/config/logical_channel_config_factory.h"
+#include <algorithm>
+#include <array>
+#include <functional>
 #include <gtest/gtest.h>
+#include <set>
 
 using namespace ocudu;
 
@@ -26,7 +30,10 @@ static constexpr logical_channel_config create_logical_channel_config(lcid_t lci
 class slice_scheduler_test
 {
 protected:
-  slice_scheduler_test(const std::vector<slice_rrm_policy_config>& rrm_policy_members = {}) :
+  using cell_cfg_customiser = std::function<void(sched_cell_configuration_request_message&)>;
+
+  slice_scheduler_test(const std::vector<slice_rrm_policy_config>& rrm_policy_members = {},
+                       const cell_cfg_customiser&                  customise_cell     = {}) :
     test_cfg(
         []() {
           cell_config_builder_params params{};
@@ -37,9 +44,12 @@ protected:
           return params;
         }(),
         scheduler_expert_config{}),
-    cell_cfg([this, rrm_policy_members]() -> const cell_configuration& {
+    cell_cfg([this, rrm_policy_members, customise_cell]() -> const cell_configuration& {
       auto req               = test_cfg.get_default_cell_config_request();
       req.rrm_policy_members = rrm_policy_members;
+      if (customise_cell) {
+        customise_cell(req);
+      }
       return *test_cfg.add_cell(req);
     }()),
     ues(cell_cfg.expert_cfg.ue)
@@ -907,5 +917,130 @@ TEST_F(dedicated_empty_slice_scheduler_test, when_slice_has_no_ues_its_rbs_will_
       // DRB1 slice can use max the all RBs left after the dedicated for DRB2 + those allocated to DRB3 slices.
       ASSERT_LE(next_ul_slice->remaining_rbs(), max_prbs - DED_SLICE_RB - drb3_grant_rbs);
     }
+  }
+}
+
+/// Cell where the UEs may apply a Differential Koffset of their own on top of the cell-specific one.
+class ntn_koffset_slice_scheduler_test : public slice_scheduler_test, public ::testing::Test
+{
+protected:
+  /// Cell-specific Koffset.
+  static constexpr std::chrono::milliseconds cell_koffset{20};
+  /// Differential Koffset the UE is made to apply.
+  static constexpr std::chrono::milliseconds ue_differential_koffset{8};
+  /// Margin added to the reported T_TA when deriving a UE Koffset.
+  static constexpr std::chrono::milliseconds ue_koffset_margin{2};
+
+  ntn_koffset_slice_scheduler_test() :
+    slice_scheduler_test({}, [](sched_cell_configuration_request_message& req) {
+      req.ran.ntn_params.emplace();
+      req.ran.ntn_params->ntn_cfg.cell_specific_koffset = cell_koffset;
+      req.ran.ntn_params->ue_koffset_cfg                = ue_koffset_config{ue_koffset_margin};
+    })
+  {
+  }
+
+  /// Adds a UE out of fallback with the given index, and returns its configuration.
+  const ue_configuration* add_ue(du_ue_index_t ue_idx)
+  {
+    auto req               = test_cfg.get_default_ue_config_request();
+    req.ue_index           = ue_idx;
+    req.crnti              = to_rnti(0x4601 + ue_idx);
+    req.starts_in_fallback = false;
+    return slice_scheduler_test::add_ue(req);
+  }
+
+  /// Makes the UE apply \c koffset, so that its uplink reaches a slot earlier than the cell-specific Koffset leads to.
+  void apply_differential_koffset(du_ue_index_t ue_idx, std::chrono::milliseconds koffset = ue_differential_koffset)
+  {
+    ue_koffset_tracker& tracker = ues[ue_idx].koffset_tracker();
+    tracker.handle_ce_sent(koffset, next_slot);
+    tracker.handle_ce_acked();
+    tracker.slot_indication(next_slot, slot_point{});
+  }
+
+  /// Returns the Koffset in slots of a UE applying \c koffset.
+  unsigned ue_koffset_slots(std::chrono::milliseconds koffset = ue_differential_koffset) const
+  {
+    return cell_cfg.ntn_cs_koffset - koffset.count() * get_nof_slots_per_subframe(cell_cfg.scs_common());
+  }
+};
+
+TEST_F(ntn_koffset_slice_scheduler_test, ul_slice_candidate_carries_the_k2_its_slot_was_built_from)
+{
+  ASSERT_NE(this->add_ue(to_du_ue_index(0)), nullptr);
+  apply_differential_koffset(to_du_ue_index(0));
+  ASSERT_LT(ue_koffset_slots(), cell_cfg.ntn_cs_koffset) << "The UE did not apply a Differential Koffset";
+
+  const span<const pusch_time_domain_resource_allocation> pusch_td_list =
+      cell_cfg.params.ul_cfg_common.init_ul_bwp.pusch_cfg_common.value().pusch_td_alloc_list;
+
+  // Slots over which the UL slice candidates are checked.
+  static constexpr unsigned nof_slots_to_run = 20;
+
+  unsigned nof_candidates            = 0;
+  unsigned nof_ue_koffset_candidates = 0;
+  for (unsigned count = 0; count != nof_slots_to_run; ++count) {
+    const slot_point pdcch_slot = next_slot;
+    run_slot();
+
+    for (auto candidate = slice_sched.get_next_ul_candidate(); candidate.has_value();
+         candidate      = slice_sched.get_next_ul_candidate()) {
+      // The k2 the candidate reports is one the cell offers, and its slot follows from that k2 and one of the
+      // Koffsets in use. Deriving it from the cell-specific Koffset alone gets the UE-specific candidates wrong.
+      const unsigned k2    = candidate->get_k2();
+      const unsigned delay = candidate->get_slot_tx() - pdcch_slot;
+      ASSERT_TRUE(std::any_of(pusch_td_list.begin(),
+                              pusch_td_list.end(),
+                              [k2](const pusch_time_domain_resource_allocation& td_res) { return td_res.k2 == k2; }))
+          << "k2=" << k2 << " of the candidate is not a PUSCH TD resource of the cell";
+      ASSERT_EQ(delay, k2 + candidate->get_ntn_koffset())
+          << "Candidate scheduled " << delay
+          << " slots after its PDCCH does not follow from the k2 and the Koffset "
+             "it carries";
+      ASSERT_TRUE(candidate->get_ntn_koffset() == cell_cfg.ntn_cs_koffset or
+                  candidate->get_ntn_koffset() == ue_koffset_slots())
+          << "Candidate carries a Koffset no UE of the cell applies";
+      ++nof_candidates;
+      nof_ue_koffset_candidates += candidate->get_ntn_koffset() == ue_koffset_slots() ? 1 : 0;
+    }
+  }
+  ASSERT_GT(nof_candidates, 0U) << "No uplink slice candidate was offered";
+  ASSERT_GT(nof_ue_koffset_candidates, 0U) << "No candidate was offered for the Koffset the UE applies, so the slot "
+                                              "the candidates carry says nothing about their k2";
+}
+
+TEST_F(ntn_koffset_slice_scheduler_test, every_koffset_in_use_is_offered_candidates_over_time)
+{
+  // More distinct Koffsets than MAX_NOF_NTN_KOFFSETS_PER_SLICE holds, so no slot can carry a candidate for all of
+  // them. Which ones are left out has to change from slot to slot, or the same UEs are never scheduled.
+  static constexpr std::array<std::chrono::milliseconds, 5> ue_koffsets{std::chrono::milliseconds{2},
+                                                                        std::chrono::milliseconds{4},
+                                                                        std::chrono::milliseconds{6},
+                                                                        std::chrono::milliseconds{8},
+                                                                        std::chrono::milliseconds{10}};
+  ASSERT_GT(ue_koffsets.size() + 1, MAX_NOF_NTN_KOFFSETS_PER_SLICE) << "The Koffsets of this test all fit in a slot";
+
+  for (unsigned ue_count = 0, e = ue_koffsets.size(); ue_count != e; ++ue_count) {
+    const du_ue_index_t ue_idx = to_du_ue_index(ue_count);
+    ASSERT_NE(this->add_ue(ue_idx), nullptr);
+    apply_differential_koffset(ue_idx, ue_koffsets[ue_count]);
+  }
+
+  // Slots over which the offered Koffsets are collected.
+  static constexpr unsigned nof_slots_to_run = 40;
+
+  std::set<unsigned> koffsets_offered;
+  for (unsigned count = 0; count != nof_slots_to_run; ++count) {
+    run_slot();
+    for (auto candidate = slice_sched.get_next_ul_candidate(); candidate.has_value();
+         candidate      = slice_sched.get_next_ul_candidate()) {
+      koffsets_offered.insert(candidate->get_ntn_koffset());
+    }
+  }
+
+  for (const std::chrono::milliseconds koffset : ue_koffsets) {
+    ASSERT_EQ(koffsets_offered.count(ue_koffset_slots(koffset)), 1U)
+        << "No candidate was ever offered for the Koffset of " << koffset.count() << "ms, so its UE is never scheduled";
   }
 }

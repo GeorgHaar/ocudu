@@ -26,8 +26,9 @@ variables:
     OVERWRITE: "false"
     ATTESTATION_FILE: ""
     ATTESTATION_EXPECTED_FILES: ""
-    GRYPE_SKIP: "false"
+    CONTAINER_SECURITY_ANALYSIS_SKIP: "false" # Skip container SBOM and vulnerability analysis for CI-only images
     BUILDKITD_FLAGS: "--root ${CI_BUILDS_DIR}/.buildkit-${CI_CONCURRENT_ID}" # Non-overlay root so BuildKit can use the overlayfs snapshotter
+    CONTAINER_SPDX_MAX_BYTES: "10000000"
     COSIGN_YES: "true" # Used by Cosign to skip confirmation prompts for non-destructive operations
     REGISTRY_URI: ${CI_REGISTRY_IMAGE}
     REGISTRY_AUTH_SERVER: ${CI_REGISTRY}
@@ -40,6 +41,9 @@ variables:
   artifacts:
     paths:
       - grype-report.json
+      - vuln-predicate.json
+      - container.spdx.json
+      - build.spdx
     expire_in: 7 days
     when: always
   after_script:
@@ -75,6 +79,7 @@ variables:
       if [ "${MODE}" = "publish" ] && [ "${CI_COMMIT_REF_PROTECTED}" = "true" ]; then
         [ -z "${COSIGN_PRIVATE_KEY_B64}" ] && echo "COSIGN_PRIVATE_KEY_B64 is mandatory on protected publish pipelines" && exit 1
         [ -z "${COSIGN_PASSWORD}" ] && echo "COSIGN_PASSWORD is mandatory on protected publish pipelines" && exit 1
+        [ -z "${COSIGN_PUBLIC_KEY}" ] && echo "COSIGN_PUBLIC_KEY is mandatory on protected publish pipelines" && exit 1
 
         COSIGN_KEY_FILE=/tmp/cosign.key
         COSIGN_PUBLIC_KEY_FILE=/tmp/cosign.pub
@@ -82,6 +87,9 @@ variables:
         trap 'rm -f "${COSIGN_KEY_FILE}" "${COSIGN_PUBLIC_KEY_FILE}"' EXIT
         printf '%s' "${COSIGN_PRIVATE_KEY_B64}" | base64 --decode > "${COSIGN_KEY_FILE}"
         cosign public-key --key "${COSIGN_KEY_FILE}" > "${COSIGN_PUBLIC_KEY_FILE}"
+        [ "$(printf '%s' "${COSIGN_PUBLIC_KEY}" | tr -d '[:space:]')" = \
+          "$(tr -d '[:space:]' < "${COSIGN_PUBLIC_KEY_FILE}")" ] ||
+          { echo "COSIGN_PUBLIC_KEY does not match COSIGN_PRIVATE_KEY_B64" >&2; exit 1; }
       fi
 
     # Add docker config
@@ -101,6 +109,9 @@ variables:
       OUTPUT="type=image,name=${IMAGE_NAME_VERSION}"
       if [ "${MODE}" = "publish" ]; then
         OUTPUT="${OUTPUT},push=true"
+      elif [ "${MODE}" = "test" ]; then
+        # Test builds are not pushed, so the scan reads them from an OCI archive
+        OUTPUT="type=oci,dest=image.tar"
       fi
 
     # Check if the image must be built
@@ -138,74 +149,174 @@ variables:
     # Attestation functions
     - |
       generate_container_spdx() {
-        # Catalog OS packages only. Skip package-owned file entries: dpkg file lists inflate the
-        # SPDX beyond 19MB, which breaks cosign attest. JSON because cosign v3 rejects non-JSON predicates.
+        local source=$1
+        # Skip package-owned file entries: dpkg file lists inflate the SPDX beyond 19MB, which
+        # breaks cosign attest. The syft JSON is kept so grype can scan the same inventory.
         SYFT_REGISTRY_AUTH_USERNAME="${REGISTRY_AUTH_USERNAME}" \
           SYFT_REGISTRY_AUTH_PASSWORD="${REGISTRY_AUTH_PASSWORD}" \
           SYFT_REGISTRY_AUTH_AUTHORITY="${REGISTRY_AUTH_SERVER}" \
           SYFT_FILE_METADATA_SELECTION=none \
           SYFT_RELATIONSHIPS_PACKAGE_FILE_OWNERSHIP=false \
-          syft registry:${IMAGE_NAME_VERSION} \
-          --select-catalogers "os,-file-metadata-cataloger,-file-executable-cataloger" \
+          syft ${source} \
+          -o syft-json=container.syft.json \
           -o spdx-json=container.spdx.json
+
+        [ -s container.spdx.json ] || { echo "syft produced an empty container.spdx.json" >&2; exit 1; }
+        if [ "$(wc -c < container.spdx.json)" -gt "${CONTAINER_SPDX_MAX_BYTES}" ]; then
+          echo "container.spdx.json exceeds ${CONTAINER_SPDX_MAX_BYTES} bytes" >&2
+          exit 1
+        fi
+      }
+
+      image_is_signed() {
+        if [ -n "${COSIGN_PUBLIC_KEY_FILE}" ]; then
+          cosign verify --key "${COSIGN_PUBLIC_KEY_FILE}" ${IMAGE_DIGEST} > /dev/null 2>&1
+        else
+          cosign verify \
+            --certificate-identity-regexp "^${CI_SERVER_URL}/${CI_PROJECT_PATH}//" \
+            --certificate-oidc-issuer "${CI_SERVER_URL}" \
+            ${IMAGE_DIGEST} > /dev/null 2>&1
+        fi
+      }
+
+      # Keyless signatures are always created; protected refs also sign with the published cosign key
+      sign_image() {
+        cosign sign ${IMAGE_DIGEST}
+        if [ -n "${COSIGN_KEY_FILE}" ]; then
+          cosign sign --key "${COSIGN_KEY_FILE}" ${IMAGE_DIGEST}
+        fi
+      }
+
+      attest_image() {
+        local predicate=$1
+        local type=$2
+        cosign attest --predicate "${predicate}" --type "${type}" ${IMAGE_DIGEST}
+        if [ -n "${COSIGN_KEY_FILE}" ]; then
+          cosign attest --key "${COSIGN_KEY_FILE}" --predicate "${predicate}" --type "${type}" ${IMAGE_DIGEST}
+        fi
+      }
+
+      upload_package_file() {
+        local file=$1
+        local name=$2
+        # The package version is the pushed tag, so each architecture of a multi-arch build keeps its own files
+        local base_url="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${NAME}/${IMAGE_NAME_VERSION##*:}"
+        echo "Publishing ${name} to package registry (${base_url})"
+        curl --fail --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          --upload-file "${file}" "${base_url}/${name}"
+      }
+
+      publish_signed_file() {
+        local file=$1
+        if [ -n "${COSIGN_KEY_FILE}" ]; then
+          echo "Signing ${file} as detached blob signature"
+          cosign sign-blob --key "${COSIGN_KEY_FILE}" \
+            --bundle "${file}.bundle" "${file}"
+          upload_package_file "${file}" "${file}"
+          upload_package_file "${file}.bundle" "${file}.bundle"
+        else
+          echo "Skipping detached blob signature on unprotected pipeline"
+        fi
       }
 
       attest_spdx() {
         local predicate=$1
         local type=$2
-        shift 2
-        local base_url="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${NAME}/${VERSION}"
-
         echo "Attesting ${predicate} ($(wc -c < ${predicate}) bytes)"
-        cosign attest "$@" --predicate "${predicate}" --type "${type}" ${IMAGE_DIGEST}
+        attest_image "${predicate}" "${type}"
+        publish_signed_file "${predicate}"
+      }
 
-        if [ -n "${COSIGN_KEY_FILE}" ]; then
-          echo "Signing ${predicate} as detached blob signature"
-          cosign sign-blob --key "${COSIGN_KEY_FILE}" \
-            --bundle "${predicate}.bundle" "${predicate}"
+      generate_vuln_predicate() {
+        # cosign --type vuln expects the CosignVulnPredicate schema, raw grype JSON is silently dropped
+        # Ignored matches and per-match details stay in grype-report.json only, the full report is too
+        # large for the transparency log.
+        jq -c -n \
+          --slurpfile report grype-report.json \
+          --arg job_url "${CI_JOB_URL}" \
+          --arg pipeline_id "${CI_PIPELINE_ID}" \
+          --arg started "$1" \
+          --arg finished "$2" \
+          '{
+            invocation: {parameters: null, uri: $job_url, event_id: $pipeline_id, "builder.id": "gitlab-ci"},
+            scanner: {
+              uri: ("pkg:github/anchore/grype@" + $report[0].descriptor.version),
+              version: $report[0].descriptor.version,
+              db: {uri: ($report[0].descriptor.db.status.from // ""), version: ($report[0].descriptor.db.status.schemaVersion // "")},
+              result: {
+                descriptor: $report[0].descriptor,
+                matches: [$report[0].matches[] | {
+                  vulnerability: {id: .vulnerability.id, severity: .vulnerability.severity, fix: .vulnerability.fix},
+                  artifact: {name: .artifact.name, version: .artifact.version, type: .artifact.type, purl: .artifact.purl}
+                }]
+              }
+            },
+            metadata: {scanStartedOn: $started, scanFinishedOn: $finished}
+          }' > vuln-predicate.json
+      }
 
-          echo "Publishing ${predicate}, ${predicate}.bundle and cosign.pub to package registry (${base_url})"
-          curl --fail --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-            --upload-file "${predicate}" "${base_url}/${predicate}"
-          curl --fail --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-            --upload-file "${predicate}.bundle" "${base_url}/${predicate}.bundle"
-          curl --fail --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-            --upload-file "${COSIGN_PUBLIC_KEY_FILE}" "${base_url}/cosign.pub"
-        else
-          echo "Skipping detached blob signature on unprotected pipeline"
+      scan_container() {
+        # Scan the syft inventory instead of pulling the image again, so the report matches the SBOM
+        grype sbom:container.syft.json -o json > grype-report.json
+        echo "=== Vulnerability summary ==="
+        jq -r '.matches[] | .vulnerability.severity' grype-report.json | sort | uniq -c | awk '{printf "  %s: %d\n", $2, $1}'
+        echo "  Total: $(jq '.matches | length' grype-report.json)"
+      }
+
+      check_fixable_critical() {
+        echo "=== Checking fixable critical vulnerabilities ==="
+        FIXABLE_CRITICAL=$(jq '[.matches[] | select(.vulnerability.severity == "Critical" and .vulnerability.fix.state == "fixed")]' grype-report.json)
+        if [ "$(echo "${FIXABLE_CRITICAL}" | jq 'length')" -gt 0 ]; then
+          echo "${FIXABLE_CRITICAL}" | jq -r '.[] | "  \(.vulnerability.id) \(.artifact.name) \(.artifact.version) -> \(.vulnerability.fix.versions | join(","))"'
+          case ",${CI_MERGE_REQUEST_LABELS:-}," in
+            *",ci-ignore-vulnerabilities,"*)
+              echo "WARNING: Vulnerability failure threshold disabled by ci-ignore-vulnerabilities label"
+              ;;
+            *)
+              echo "Fixable critical vulnerabilities found" >&2
+              exit 1
+              ;;
+          esac
         fi
       }
 
     # Attestation functions
     - |
       if [ ${MODE} = "publish" ]; then
-        IMAGE_DIGEST="${IMAGE_NAME_VERSION}@$(regctl image digest ${IMAGE_NAME_VERSION})"
+        IMAGE_DIGEST="${IMAGE_NAME}@$(regctl image digest ${IMAGE_NAME_VERSION})"
 
         if [ -n "$ATTESTATION_FILE" ]; then
           echo "=== Validating ${ATTESTATION_FILE} ==="
           [ -n "${ATTESTATION_EXPECTED_FILES}" ] || { echo "ATTESTATION_EXPECTED_FILES is mandatory" >&2; exit 1; }
-          regctl image get-file "${IMAGE_NAME_VERSION}" "${ATTESTATION_FILE}" > build.spdx
-          ATTESTATION_IMAGE="${IMAGE_NAME_VERSION}" \
+          regctl image get-file "${IMAGE_DIGEST}" "${ATTESTATION_FILE}" > build.spdx
+          ATTESTATION_IMAGE="${IMAGE_DIGEST}" \
             "${CI_PROJECT_DIR}/.gitlab/ci/deploy/validate_vendor_spdx.sh" \
             build.spdx ${ATTESTATION_EXPECTED_FILES}
           syft convert build.spdx -o spdx-json=build.spdx.json
         fi
 
-        # If we don't clean the attestation, every iteration amends the signature/sbom/grype_report and it can grow unbounded
-        # We clean up the attested files and then re-push everything again
-        echo "=== Cleaning previous signature/attestations ==="
-        cosign clean --type=all --force ${IMAGE_DIGEST}
+        # Re-runs on an existing image (retries, promote tags) would otherwise stack duplicate signatures
+        if [ "${SKIP_IMAGE_BUILD}" = "true" ] && image_is_signed; then
+          echo "=== Image ${IMAGE_DIGEST} is already signed, skipping signing ==="
+        else
+          echo "=== Signing image ==="
+          sign_image
+          if [ -n "${COSIGN_PUBLIC_KEY_FILE}" ]; then
+            upload_package_file "${COSIGN_PUBLIC_KEY_FILE}" cosign.pub
+          fi
+        fi
 
-        echo "=== Signing image ==="
-        cosign sign ${IMAGE_DIGEST}
+        if [ "${CONTAINER_SECURITY_ANALYSIS_SKIP}" != "true" ] || [ -n "${ATTESTATION_FILE}" ]; then
+          # Re-runs replace attestations so SBOM and vulnerability records do not accumulate
+          echo "=== Cleaning previous attestations ==="
+          cosign clean --type=attestation --force ${IMAGE_DIGEST}
+        fi
 
-        echo "=== Generating container SPDX ==="
-        generate_container_spdx
-        if [ -s container.spdx.json ]; then
+        if [ "${CONTAINER_SECURITY_ANALYSIS_SKIP}" != "true" ]; then
+          echo "=== Generating container SPDX ==="
+          generate_container_spdx "registry:${IMAGE_DIGEST}"
           echo "=== Attesting container SPDX ==="
           attest_spdx container.spdx.json spdxjson
-        else
-          echo "WARNING: syft produced an empty container.spdx.json, skipping container attestation"
         fi
 
         if [ -n "$ATTESTATION_FILE" ]; then
@@ -214,27 +325,33 @@ variables:
           echo ""
         fi
 
-        if [ "${GRYPE_SKIP}" != "true" ]; then
-          # syft (above) already cached a full copy of the image under /tmp/stereoscope-*; grype
-          # caches its own on top instead of reusing it, so back-to-back they need ~2x the image
-          # size in temp space. Drop syft's copy first so large images don't run out of disk here.
-          rm -rf /tmp/stereoscope-*
-          echo "=== Running grype CVE scan on ${IMAGE_NAME_VERSION} ==="
-          case ",${CI_MERGE_REQUEST_LABELS:-}," in
-            *",ci-ignore-vulnerabilities,"*)
-              echo "WARNING: Vulnerability failure threshold disabled by ci-ignore-vulnerabilities label"
-              grype registry:${IMAGE_NAME_VERSION} -o json > grype-report.json
-              ;;
-            *)
-              grype registry:${IMAGE_NAME_VERSION} --fail-on critical --ignore-states wont-fix,not-fixed -o json > grype-report.json
-              ;;
-          esac
-          echo "=== Vulnerability summary ==="
-          jq -r '.matches[] | .vulnerability.severity' grype-report.json | sort | uniq -c | awk '{printf "  %s: %d\n", $2, $1}'
-          echo "  Total: $(jq '.matches | length' grype-report.json)"
+        if [ "${CONTAINER_SECURITY_ANALYSIS_SKIP}" != "true" ]; then
+          echo "=== Running grype CVE scan on ${IMAGE_DIGEST} ==="
+          SCAN_STARTED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          # Keep every finding in the report, the failure threshold is applied after attesting it
+          scan_container
           echo "=== Attesting grype report ==="
-          cosign attest --predicate grype-report.json --type vuln ${IMAGE_DIGEST}
+          generate_vuln_predicate "${SCAN_STARTED}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          attest_image vuln-predicate.json vuln
+          publish_signed_file grype-report.json
+
+          check_fixable_critical
         fi
+      fi
+
+    # Scan test builds
+    - |
+      if [ "${MODE}" = "test" ] && [ "${CONTAINER_SECURITY_ANALYSIS_SKIP}" != "true" ]; then
+        # Same inventory and gate as a publish, so a merge request fails where the publish would
+        SCAN_SOURCE="oci-archive:image.tar"
+        if [ "${SKIP_IMAGE_BUILD}" = "true" ]; then
+          SCAN_SOURCE="registry:${IMAGE_NAME_VERSION}"
+        fi
+        echo "=== Generating container SPDX ==="
+        generate_container_spdx "${SCAN_SOURCE}"
+        echo "=== Running grype CVE scan on ${SCAN_SOURCE} ==="
+        scan_container
+        check_fixable_critical
       fi
 
 .docker manifest:

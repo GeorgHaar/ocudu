@@ -7,6 +7,7 @@
 
 #include "../procedures/e2ap_indication_procedure.h"
 #include "ocudu/asn1/e2ap/e2ap.h"
+#include "ocudu/asn1/e2ap/e2ap_pdu_contents.h"
 #include "ocudu/asn1/e2sm/e2sm_kpm_ies.h"
 #include "ocudu/e2/e2.h"
 #include "ocudu/e2/e2sm/e2sm_manager.h"
@@ -38,10 +39,13 @@ public:
   /// \param[in] ran_func_id  The RAN function id.
   /// \param[in] ev_mng The event manager that will be used to start the subscription procedure.
   /// \param[in] tx_pdu_notifier The E2 message notifier.
-  void start_subscription(const asn1::e2ap::ric_request_id_s& ric_request_id,
+  /// \param[in] timers The timer factory used to arm the subscription delete event source.
+  /// \return true if the subscription procedure was started, false otherwise (e.g. already active).
+  bool start_subscription(const asn1::e2ap::ric_request_id_s& ric_request_id,
                           uint16_t                            ran_func_id,
                           e2_event_manager&                   ev_mng,
-                          e2_message_notifier&                tx_pdu_notifier) override;
+                          e2_message_notifier&                tx_pdu_notifier,
+                          timer_factory                       timers) override;
 
   /// @brief  Stops the subscription procedure associated with the given ric instance id.
   /// @param[in] ric_request_id  The ric request id.

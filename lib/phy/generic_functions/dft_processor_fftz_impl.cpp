@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "dft_processor_fftz_impl.h"
+#include "ocudu/ocuduvec/conversion.h"
 #include "ocudu/support/ocudu_assert.h"
 
 using namespace ocudu;
@@ -89,4 +90,13 @@ span<const cf_t> dft_processor_fftz_impl::run()
                static_cast<std::underlying_type_t<aoclfftz_error_type>>(st));
 
   return output;
+}
+
+void dft_processor_fftz_impl::run(span<ci16_t> out)
+{
+  ocudu_assert(out.size() == get_size(),
+               "The DFT output size (i.e., {}) is not equal to the DFT size (i.e., {}).",
+               out.size(),
+               get_size());
+  ocuduvec::convert(out, run(), 1.0F);
 }

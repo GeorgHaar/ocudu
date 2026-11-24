@@ -11,6 +11,7 @@
 #include "lib/rrc/ue/rrc_ue_impl.h"
 #include "rrc_ue_test_messages.h"
 #include "test_helpers.h"
+#include "tests/test_doubles/rrc/rrc_test_messages.h"
 #include "ocudu/adt/byte_buffer.h"
 #include "ocudu/asn1/rrc_nr/dl_ccch_msg.h"
 #include "ocudu/cu_cp/cu_cp_configuration_helpers.h"
@@ -91,8 +92,9 @@ protected:
   {
   }
 
-  void init(const rrc_ue_test_cell_params&         cell_params      = {},
-            std::optional<rrc_ue_transfer_context> transfer_context = std::nullopt)
+  void init(const rrc_ue_test_cell_params&         cell_params             = {},
+            std::optional<rrc_ue_transfer_context> transfer_context        = std::nullopt,
+            bool                                   with_du_to_cu_container = true)
   {
     // Add UE to UE manager.
     allocated_ue_index = ue_mng.add_ue(cu_cp_du_index_t::min);
@@ -105,7 +107,9 @@ protected:
     rrc_ue_creation_message rrc_ue_create_msg{};
     rrc_ue_create_msg.ue_index = allocated_ue_index;
     rrc_ue_create_msg.c_rnti   = to_rnti(0x1234);
-    (void)rrc_ue_create_msg.du_to_cu_container.resize(1);
+    if (with_du_to_cu_container) {
+      (void)rrc_ue_create_msg.du_to_cu_container.resize(1);
+    }
     rrc_ue_create_msg.f1ap_pdu_notifier     = &rrc_ue_f1ap_notifier;
     rrc_ue_create_msg.rrc_ue_cu_cp_notifier = &rrc_ue_cu_cp_notifier;
     rrc_ue_create_msg.measurement_notifier  = &rrc_ue_cu_cp_notifier;
@@ -163,7 +167,7 @@ protected:
         byte_buffer::create(rrc_ue_f1ap_notifier.last_rrc_pdu.begin(), rrc_ue_f1ap_notifier.last_rrc_pdu.end()).value();
     asn1::cbit_ref              bref(rx_pdu);
     asn1::rrc_nr::dl_ccch_msg_s dl_ccch;
-    EXPECT_EQ(dl_ccch.unpack(bref), asn1::OCUDUASN_SUCCESS);
+    EXPECT_EQ(asn1::unpack(dl_ccch, bref), asn1::OCUDUASN_SUCCESS);
     return dl_ccch;
   }
 
@@ -351,6 +355,12 @@ protected:
     pdcp_ctx->handle_ul_dcch_pdu(srb_id_t::srb1, byte_buffer::create(rrc_smc_complete_pdu).value());
   }
 
+  /// Delivers a UL-DCCH message on SRB1 to the RRC UE, as PDCP does after the integrity check.
+  void receive_ul_dcch_msg(const asn1::rrc_nr::ul_dcch_msg_s& msg, bool integrity_verified = true)
+  {
+    rrc_ue->handle_ul_dcch_pdu(srb_id_t::srb1, test_helpers::pack_ul_dcch_msg(msg), integrity_verified);
+  }
+
   void check_smc_pdu() { ASSERT_EQ(rrc_ue_f1ap_notifier.last_rrc_pdu, byte_buffer::create(rrc_smc_pdu).value()); }
 
   void check_initial_ue_message_sent() const { ASSERT_TRUE(rrc_ue_ngap_notifier.initial_ue_msg_received); }
@@ -387,12 +397,14 @@ protected:
         generate_security_context(ue_mng.find_ue(allocated_ue_index)->get_security_manager());
   }
 
-  void add_ue_reestablishment_context(cu_cp_ue_index_t ue_index)
+  void add_ue_reestablishment_context(cu_cp_ue_index_t                               ue_index,
+                                      std::optional<rrc_ue_cap_rat_container_list_t> capabilities = std::nullopt)
   {
     rrc_ue_reestablishment_context_response reest_context = {};
     reest_context.ue_index                                = ue_index;
     reest_context.sec_context = generate_security_context(ue_mng.find_ue(allocated_ue_index)->get_security_manager());
     reest_context.old_ue_fully_attached = true;
+    reest_context.capabilities_list     = std::move(capabilities);
 
     logger.debug("Adding reestablishment context for ue={}", ue_index);
 
@@ -586,8 +598,8 @@ protected:
   // DL-DCCH with RRC reconfiguration.
   std::array<uint8_t, 54> rrc_reconfig_pdu = {
       0x00, 0x00, 0x02, 0xa8, 0xa0, 0x49, 0x40, 0xbc, 0x3e, 0x00, 0x61, 0x4a, 0xa0, 0x00, 0x3c, 0xa0, 0x09, 0x92,
-      0x2a, 0x08, 0x06, 0x18, 0x91, 0x80, 0x00, 0x81, 0x42, 0x68, 0x00, 0x00, 0x64, 0xfd, 0xf1, 0xc0, 0x00, 0x00,
-      0x09, 0x0d, 0x0d, 0x40, 0x09, 0xbd, 0x5b, 0x7d, 0xde, 0x00, 0x3a, 0xab, 0xbc, 0xc0, 0x00, 0x00, 0x00, 0x00};
+      0x2a, 0x08, 0x06, 0x18, 0x91, 0x80, 0x04, 0x80, 0x14, 0x26, 0x80, 0x00, 0x06, 0x4f, 0xdf, 0x1c, 0x00, 0x00,
+      0x00, 0x90, 0xd0, 0xd4, 0x00, 0x9b, 0xd5, 0xb7, 0xdd, 0xe0, 0x03, 0xaa, 0xbb, 0xcc, 0x00, 0x00, 0x00, 0x00};
 
   // UL-DCCH with RRC reconfiguration complete.
   std::array<uint8_t, 8> rrc_reconfig_complete_pdu = {0x0, 0x1, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00};

@@ -69,8 +69,11 @@ class benchmarker
   /// Get percentile column width for execution time, including one decimal point.
   unsigned get_percentile_width_time(double scaling = 1.0) const
   {
-    uint64_t max_meas_ns  = get_max_meas_time_ns().first;
-    auto percentile_width = static_cast<unsigned>(std::ceil(std::log10(static_cast<double>(max_meas_ns) * scaling)));
+    uint64_t max_meas_ns = std::max(get_max_meas_time_ns().first, 1UL);
+    // The logarithm is negative for values below one, which cannot be cast to unsigned.
+    double nof_digits = std::max(std::ceil(std::log10(static_cast<double>(max_meas_ns) * scaling)), 0.0);
+
+    auto percentile_width = static_cast<unsigned>(nof_digits);
     percentile_width      = std::max(percentile_width, 6U);
     return percentile_width + 2;
   }
@@ -82,7 +85,10 @@ class benchmarker
     max_meas.first                         = std::max(max_meas.first, 1UL);
     double throughput_max                  = convert_to_throughput(max_meas.first, max_meas.second);
 
-    unsigned percentile_width = static_cast<unsigned>(std::ceil(std::log10(throughput_max * scaling))) + 2U;
+    // The logarithm is negative (or -inf for a zero throughput) for values below one, which cannot be cast to unsigned.
+    double nof_digits = std::max(std::ceil(std::log10(throughput_max * scaling)), 0.0);
+
+    unsigned percentile_width = static_cast<unsigned>(nof_digits) + 2U;
     percentile_width          = std::max(percentile_width, 8U);
     return percentile_width;
   }

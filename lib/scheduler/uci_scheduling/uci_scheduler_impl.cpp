@@ -45,8 +45,10 @@ void uci_scheduler_impl::stop()
 
 void uci_scheduler_impl::add_resource(rnti_t crnti, unsigned res_offset, unsigned res_period, bool is_sr)
 {
+  // The wheel is indexed by DL slot, the SR/CSI offsets by UE UL slot.
+  const unsigned wheel_start = cell_cfg.ue_ul_to_dl_slot_offset(res_offset, res_period);
   // For each offset in the periodic UCI slot wheel.
-  for (unsigned wheel_offset = res_offset; wheel_offset < periodic_uci_slot_wheel.size(); wheel_offset += res_period) {
+  for (unsigned wheel_offset = wheel_start; wheel_offset < periodic_uci_slot_wheel.size(); wheel_offset += res_period) {
     auto& slot_wheel = periodic_uci_slot_wheel[wheel_offset];
 
     // Check if the UE is already in the slot wheel.
@@ -77,7 +79,8 @@ void uci_scheduler_impl::rem_resource(rnti_t crnti, unsigned res_offset, unsigne
                  res_offset);
   };
 
-  for (unsigned wheel_offset = res_offset; wheel_offset < periodic_uci_slot_wheel.size(); wheel_offset += res_period) {
+  const unsigned wheel_start = cell_cfg.ue_ul_to_dl_slot_offset(res_offset, res_period);
+  for (unsigned wheel_offset = wheel_start; wheel_offset < periodic_uci_slot_wheel.size(); wheel_offset += res_period) {
     auto& slot_wheel = periodic_uci_slot_wheel[wheel_offset];
 
     auto* it = std::find_if(slot_wheel.begin(), slot_wheel.end(), [crnti](const auto& r) { return r.rnti == crnti; });
@@ -117,18 +120,18 @@ void uci_scheduler_impl::add_ue(const ue_cell_configuration& ue_cfg)
 
 void uci_scheduler_impl::add_ue_to_grid(const ue_cell_configuration& ue_cfg, bool is_reconf)
 {
-  if (ue_cfg.init_bwp().ul.ded() == nullptr or not ue_cfg.init_bwp().ul.ded()->pucch_cfg.has_value()) {
+  const ue_uplink_bwp_config* ue_ul_cfg = ue_cfg.init_bwp().ul.ue_cfg();
+  if (ue_ul_cfg == nullptr) {
     return;
   }
-  const ue_uplink_bwp_config* ue_ul_cfg = ue_cfg.init_bwp().ul.ue_cfg();
 
   // Save SR resource in the slot wheel.
   const unsigned sr_period_slots = sr_periodicity_to_slot(cell_cfg.params.init_bwp.pucch.sr_period);
   add_resource(ue_cfg.crnti, ue_ul_cfg->pucch.sr_offset, sr_period_slots, true);
 
-  if (ue_ul_cfg->periodic_csi_report.has_value()) {
+  if (ue_ul_cfg->csi.periodic_report.has_value()) {
     const unsigned csi_period_slots = to_underlying(cell_cfg.params.init_bwp.csi->csi_rs_period);
-    add_resource(ue_cfg.crnti, ue_ul_cfg->periodic_csi_report->offset, csi_period_slots, false);
+    add_resource(ue_cfg.crnti, ue_ul_cfg->csi.periodic_report->offset, csi_period_slots, false);
   }
 
   // Register the UE in the list of recently configured UEs.
@@ -143,11 +146,10 @@ void uci_scheduler_impl::add_ue_to_grid(const ue_cell_configuration& ue_cfg, boo
 void uci_scheduler_impl::reconf_ue(const ue_cell_configuration& new_ue_cfg, const ue_cell_configuration& old_ue_cfg)
 {
   // Detect whether there are any differences in the old and new UE cell config that affect periodic UCI scheduling.
-  if (new_ue_cfg.init_bwp().ul.ded() != nullptr and old_ue_cfg.init_bwp().ul.ded() != nullptr and
-      new_ue_cfg.init_bwp().ul.ded()->pucch_cfg.has_value() and old_ue_cfg.init_bwp().ul.ded()->pucch_cfg.has_value()) {
-    const ue_uplink_bwp_config* new_ul_cfg = new_ue_cfg.init_bwp().ul.ue_cfg();
-    const ue_uplink_bwp_config* old_ul_cfg = old_ue_cfg.init_bwp().ul.ue_cfg();
-    if (new_ul_cfg->pucch == old_ul_cfg->pucch and new_ul_cfg->periodic_csi_report == old_ul_cfg->periodic_csi_report) {
+  const ue_uplink_bwp_config* new_ul_cfg = new_ue_cfg.init_bwp().ul.ue_cfg();
+  const ue_uplink_bwp_config* old_ul_cfg = old_ue_cfg.init_bwp().ul.ue_cfg();
+  if (new_ul_cfg != nullptr and old_ul_cfg != nullptr) {
+    if (new_ul_cfg->pucch == old_ul_cfg->pucch and new_ul_cfg->csi.periodic_report == old_ul_cfg->csi.periodic_report) {
       // Nothing changed.
       return;
     }
@@ -159,17 +161,17 @@ void uci_scheduler_impl::reconf_ue(const ue_cell_configuration& new_ue_cfg, cons
 
 void uci_scheduler_impl::rem_ue(const ue_cell_configuration& ue_cfg)
 {
-  if (ue_cfg.init_bwp().ul.ded() == nullptr or not ue_cfg.init_bwp().ul.ded()->pucch_cfg.has_value()) {
+  const ue_uplink_bwp_config* ue_ul_cfg = ue_cfg.init_bwp().ul.ue_cfg();
+  if (ue_ul_cfg == nullptr) {
     return;
   }
-  const ue_uplink_bwp_config* ue_ul_cfg = ue_cfg.init_bwp().ul.ue_cfg();
 
   const unsigned sr_period_slots = sr_periodicity_to_slot(cell_cfg.params.init_bwp.pucch.sr_period);
   rem_resource(ue_cfg.crnti, ue_ul_cfg->pucch.sr_offset, sr_period_slots, true);
 
-  if (ue_ul_cfg->periodic_csi_report.has_value()) {
+  if (ue_ul_cfg->csi.periodic_report.has_value()) {
     const unsigned csi_period_slots = to_underlying(cell_cfg.params.init_bwp.csi->csi_rs_period);
-    rem_resource(ue_cfg.crnti, ue_ul_cfg->periodic_csi_report->offset, csi_period_slots, false);
+    rem_resource(ue_cfg.crnti, ue_ul_cfg->csi.periodic_report->offset, csi_period_slots, false);
   }
 }
 
@@ -250,7 +252,7 @@ void uci_scheduler_impl::schedule_updated_ues_ucis(cell_resource_allocator& res_
       auto& slot_ucis = periodic_uci_slot_wheel[(res_alloc.slot_tx() + n).count() % periodic_uci_slot_wheel.size()];
 
       // Skip UCI scheduling for this UE and slot, if they collide with other resources.
-      if (not has_space_for_uci_pdu(res_alloc[n].result, rnti, cell_cfg.expert_cfg.ue)) {
+      if (not has_space_for_uci_pdu(res_alloc[n].result_reader(), rnti, cell_cfg.expert_cfg.ue)) {
         if (logger.debug.enabled()) {
           // If we want more detailed logs on the skipped allocations.
           for (const periodic_uci_info& uci_info : slot_ucis) {
@@ -278,7 +280,7 @@ void uci_scheduler_impl::schedule_updated_ues_ucis(cell_resource_allocator& res_
           // capacity.
 
           if (uci_info.sr_counter > 0) {
-            span<const pucch_info> pucchs          = res_alloc[n].result.ul.pucchs.unsorted();
+            span<const pucch_info> pucchs          = res_alloc[n].result_reader().ul().pucchs().unsorted();
             bool                   existing_grants = std::any_of(
                 pucchs.begin(), pucchs.end(), [rnti](const pucch_info& grant) { return grant.crnti == rnti; });
             if (not existing_grants) {

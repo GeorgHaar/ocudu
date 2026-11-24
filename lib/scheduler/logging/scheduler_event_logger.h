@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "log_event_time.h"
 #include "ocudu/ocudulog/logger.h"
 #include "ocudu/ran/du_types.h"
 #include "ocudu/ran/harq_id.h"
@@ -14,6 +15,7 @@
 #include "ocudu/ran/rnti.h"
 #include "ocudu/ran/slot_point.h"
 #include "ocudu/ran/ssb/ssb_configuration.h"
+#include "ocudu/scheduler/input/crc_inputs.h"
 #include "ocudu/scheduler/input/uci_inputs.h"
 #include "ocudu/scheduler/scheduler_configurator.h"
 #include "ocudu/scheduler/scheduler_dl_buffer_state_indication_handler.h"
@@ -53,16 +55,6 @@ public:
     du_ue_index_t ue_index;
     rnti_t        rnti;
   };
-  struct crc_event {
-    enum class crc_res_t { ok, ko, dtx };
-    du_ue_index_t        ue_index;
-    rnti_t               rnti;
-    du_cell_index_t      cell_index;
-    slot_point           sl_rx;
-    harq_id_t            h_id;
-    crc_res_t            crc;
-    std::optional<float> ul_sinr_db;
-  };
   struct error_indication_event {
     slot_point                            sl_tx;
     scheduler_slot_handler::error_outcome outcome;
@@ -78,6 +70,9 @@ public:
 
   scheduler_event_logger(du_cell_index_t cell_index_, pci_t pci_);
   ~scheduler_event_logger();
+
+  /// Stamps the next log entries with \c t instead of the current time. An empty value restores the current time.
+  void set_event_time(log_event_time t) { event_time = t; }
 
   void log()
   {
@@ -121,17 +116,19 @@ private:
   void enqueue_impl(const ul_bsr_indication_message& bsr);
   void enqueue_impl(const harq_ack_event& harq_ev);
   void enqueue_impl(const csi_report_event& csi);
-  void enqueue_impl(const crc_event& crc_ev);
+  void enqueue_impl(const ul_crc_event& crc_ev);
   void enqueue_impl(const dl_mac_ce_indication& mac_ce);
   void enqueue_impl(const dl_buffer_state_indication_message& bs);
   void enqueue_impl(const ul_phr_indication_message& phr_ind);
   void enqueue_impl(const srs_indication_event& srs_ev);
   void enqueue_impl(const slice_reconfiguration_event& slice_reconf_ev);
+  void enqueue_impl(const cg_confirmation_indication_message& cg_conf_ind);
 
   const du_cell_index_t   cell_index;
   const pci_t             pci;
   ocudulog::basic_logger& logger;
   mode_t                  mode = mode_t::none;
+  log_event_time          event_time;
 
   std::unique_ptr<event_buffer_writer> slot_buffer_writer;
 };

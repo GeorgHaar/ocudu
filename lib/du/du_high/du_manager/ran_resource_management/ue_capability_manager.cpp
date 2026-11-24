@@ -11,15 +11,14 @@
 #include "ocudu/du/du_high/du_test_mode_config.h"
 #include "ocudu/ran/band_helper.h"
 #include "ocudu/ran/pusch/tx_scheme_configuration.h"
+#include "ocudu/rrc/ue_cap_utils.h"
 
 using namespace ocudu;
 using namespace odu;
 
 static const asn1::rrc_nr::ntn_params_r17_s* get_ntn_params_r17(const asn1::rrc_nr::ue_nr_cap_s& ue_cap)
 {
-  const asn1::rrc_nr::ue_nr_cap_s* ue_cap_ptr = &ue_cap;
-  auto        next  = [](const auto* p) { return p && p->non_crit_ext_present ? &p->non_crit_ext : nullptr; };
-  const auto* v1700 = next(next(next(next(next(next(next(next(next(next(ue_cap_ptr))))))))));
+  const auto* v1700 = asn1::rrc_nr::get_ue_nr_cap_v1700(ue_cap);
   if (!v1700 || !v1700->non_terrestrial_network_r17_present || !v1700->ntn_params_r17_present) {
     return nullptr;
   }
@@ -136,14 +135,14 @@ static expected<ue_capability_summary, std::string> decode_advanced_ue_nr_caps(u
     // Parse SRS capabilities.
     if (feature_set_ul.supported_srs_res_features_present) {
       switch (feature_set_ul.supported_srs_res_features.max_num_srs_ports_per_res) {
-        case asn1::rrc_nr::srs_res_features_s::max_num_srs_ports_per_res_opts::n1:
-        case asn1::rrc_nr::srs_res_features_s::max_num_srs_ports_per_res_opts::nulltype:
+        case asn1::rrc_nr::srs_resources_s::max_num_srs_ports_per_res_opts::n1:
+        case asn1::rrc_nr::srs_resources_s::max_num_srs_ports_per_res_opts::nulltype:
           band_cap.nof_srs_tx_ports = std::max(band_cap.nof_srs_tx_ports, static_cast<uint8_t>(1U));
           break;
-        case asn1::rrc_nr::srs_res_features_s::max_num_srs_ports_per_res_opts::n2:
+        case asn1::rrc_nr::srs_resources_s::max_num_srs_ports_per_res_opts::n2:
           band_cap.nof_srs_tx_ports = std::max(band_cap.nof_srs_tx_ports, static_cast<uint8_t>(2U));
           break;
-        case asn1::rrc_nr::srs_res_features_s::max_num_srs_ports_per_res_opts::n4:
+        case asn1::rrc_nr::srs_resources_s::max_num_srs_ports_per_res_opts::n4:
           band_cap.nof_srs_tx_ports = std::max(band_cap.nof_srs_tx_ports, static_cast<uint8_t>(4U));
           break;
       }
@@ -237,11 +236,24 @@ static void decode_advanced_ue_nr_ntn_caps(ue_capability_summary&           ue_c
     // UE indicating support of this feature shall also indicate support of uplinkPreCompensation-r17 for this band.
     band_cap.ul_ta_reporting_supported = band.ul_ta_report_r17_present && band_cap.ul_pre_compensation_supported;
 
-    // UE indicating support of this feature shall also indicate support of uplinkPreCompensation-r17 and
-    // uplink-TA-Reporting-r17 for this band.
+    // A UE indicating this feature also indicates uplinkPreCompensation-r17 and uplink-TA-Reporting-r17 for the band,
+    // as per TS 38.306, Section 4.2.7.1.
     band_cap.ue_specific_k_offset_supported =
         band.ue_specific_k_offset_r17_present && band_cap.ul_ta_reporting_supported;
   }
+}
+
+static void decode_advanced_ue_nr_redcap_caps(ue_capability_summary&           capabilities,
+                                              const asn1::rrc_nr::ue_nr_cap_s& ue_cap)
+{
+  const auto* v1700 = asn1::rrc_nr::get_ue_nr_cap_v1700(ue_cap);
+  if (v1700 == nullptr or not v1700->red_cap_params_r17_present or
+      not v1700->red_cap_params_r17.support_of_red_cap_r17_present) {
+    return;
+  }
+  capabilities.is_redcap = true;
+  capabilities.redcap_rlc_am_long_sn_supported =
+      ue_cap.rlc_params_present and ue_cap.rlc_params.am_with_long_sn_red_cap_r17_present;
 }
 
 expected<ue_capability_summary, std::string> odu::decode_ue_nr_cap_container(const byte_buffer& ue_cap_container)
@@ -249,7 +261,7 @@ expected<ue_capability_summary, std::string> odu::decode_ue_nr_cap_container(con
   asn1::rrc_nr::ue_nr_cap_s ue_cap;
   {
     asn1::cbit_ref bref{ue_cap_container};
-    if (ue_cap.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+    if (asn1::unpack(ue_cap, bref) != asn1::OCUDUASN_SUCCESS) {
       return make_unexpected(std::string("Couldn't unpack UE NR Capability RRC container"));
     }
   }
@@ -267,6 +279,8 @@ expected<ue_capability_summary, std::string> odu::decode_ue_nr_cap_container(con
   if (ue_cap.phy_params.phy_params_common_present) {
     ue_caps.pdsch_interleaving_vrb_to_prb_supported =
         ue_cap.phy_params.phy_params_common.interleaving_vrb_to_prb_pdsch_present;
+    ue_caps.pdsch_dyn_switch_ra_type0_1_supported =
+        ue_cap.phy_params.phy_params_common.dyn_switch_ra_type0_1_pdsch_present;
     if (ue_cap.phy_params.phy_params_common.pusch_repeat_type_a_r16.is_present()) {
       ue_caps.pusch_rep_type_a_supported =
           ue_cap.phy_params.phy_params_common.pusch_repeat_type_a_r16->non_shared_spec_ch_access_r16_present;
@@ -311,6 +325,7 @@ expected<ue_capability_summary, std::string> odu::decode_ue_nr_cap_container(con
 
   // Convert advanced UE NR NTN capabilities.
   decode_advanced_ue_nr_ntn_caps(ue_caps, ue_cap);
+  decode_advanced_ue_nr_redcap_caps(ue_caps, ue_cap);
 
   return ue_caps;
 }
@@ -344,6 +359,7 @@ bool ue_capability_manager::update(const byte_buffer& ue_cap_rat_list)
     }
   }
 
+  bool invalid_nr_container = false;
   for (const ue_cap_rat_container_s& ue_cap_rat : asn1_cap_list) {
     if (ue_cap_rat.rat_type.value != rat_type_opts::nr) {
       logger.warning("Unsupported RAT type in UE Capability RAT Container List RRC container");
@@ -352,13 +368,15 @@ bool ue_capability_manager::update(const byte_buffer& ue_cap_rat_list)
     expected<ue_capability_summary, std::string> asn1_cap = decode_ue_nr_cap_container(ue_cap_rat.ue_cap_rat_container);
     if (not asn1_cap.has_value()) {
       logger.warning("{}", asn1_cap.error());
+      invalid_nr_container = true;
       continue;
     }
     ue_caps = asn1_cap.value();
     return true;
   }
 
-  return false;
+  // A list without NR capabilities leaves the current summary unchanged.
+  return not invalid_nr_container;
 }
 
 bool ue_capability_manager::update_from_ho_prep_info(const byte_buffer& ho_prep_info)
@@ -371,7 +389,7 @@ bool ue_capability_manager::update_from_ho_prep_info(const byte_buffer& ho_prep_
 
   ho_prep_info_s ho_prep;
   asn1::cbit_ref bref{ho_prep_info};
-  if (ho_prep.unpack(bref) != asn1::OCUDUASN_SUCCESS or
+  if (asn1::unpack(ho_prep, bref) != asn1::OCUDUASN_SUCCESS or
       ho_prep.crit_exts.type() != ho_prep_info_s::crit_exts_c_::types::c1 or
       ho_prep.crit_exts.c1().type() != ho_prep_info_s::crit_exts_c_::c1_c_::types::ho_prep_info) {
     logger.warning("Couldn't unpack HandoverPreparationInformation for UE capability extraction");

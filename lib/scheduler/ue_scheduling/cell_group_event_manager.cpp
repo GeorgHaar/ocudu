@@ -52,7 +52,7 @@ bool cell_group_event_handler_impl::handle_ue_creation(ue_config_update_event ev
 
   // Check if this UE was created via RACH and is still tracked by the RA scheduler, so its PRACH reception slot
   // can be carried over into the UE's PCell context. A 2-step RACH successRAR completion already resolved
-  // contention (TS38.321 6.2.3a), so no MAC ConRes CE is needed.
+  // contention (TS 38.321 6.2.3a), so no MAC ConRes CE is needed.
   auto                      ra_it = ra_ue_repo.find(crnti);
   std::optional<slot_point> prach_slot_rx =
       ra_it != ra_ue_repo.end() ? std::optional<slot_point>(ra_it->prach_slot_rx) : std::nullopt;
@@ -61,7 +61,7 @@ bool cell_group_event_handler_impl::handle_ue_creation(ue_config_update_event ev
   ue_creation_mode creation_mode  = ue_creation_mode::skip_fallback;
   if (is_in_fallback) {
     if (ev.get_ul_ccch_slot_rx().has_value()) {
-      // RACH-created UE. A 2-step RACH successRAR completion already resolved contention (TS38.321 6.2.3a), so
+      // RACH-created UE. A 2-step RACH successRAR completion already resolved contention (TS 38.321 6.2.3a), so
       // no MAC ConRes CE is needed; any other RACH path (native 4-step, or 2-step fallback) still needs one.
       creation_mode = ra_it != ra_ue_repo.end() and ra_it->is_msgb_success_rar()
                           ? ue_creation_mode::two_step_success_rar
@@ -164,6 +164,62 @@ bool cell_group_event_handler_impl::handle_ue_deletion(ue_config_delete_event ev
   return true;
 }
 
+/// \brief Signals a UE the Differential Koffset derived from its reported T_TA, as per TS 38.321, Section 5.18.24.
+///
+/// Runs on each T_TA report, and on the configuration that declares the UE accepts the MAC CE.
+///
+/// Nothing is signalled while a value is in flight, since the scheduler cannot tell which one the UE applies.
+static void update_differential_koffset(ue& u, ocudulog::basic_logger& logger)
+{
+  const cell_configuration&              cell_cfg       = u.get_pcell().cfg().cell_cfg_common;
+  const std::optional<ue_koffset_config> ue_koffset_cfg = get_ue_koffset_cfg(cell_cfg.params.ntn_params);
+  if (not ue_koffset_cfg.has_value()) {
+    return;
+  }
+
+  const ue_configuration* ue_cfg = u.ue_cfg_dedicated();
+  if (ue_cfg == nullptr or not ue_cfg->supports_ue_specific_koffset()) {
+    logger.debug(
+        "ue={} rnti={}: No Differential Koffset derived. Cause: UE does not accept the MAC CE", u.ue_index, u.crnti);
+    return;
+  }
+
+  const std::optional<std::chrono::microseconds> reported_ul_ta = u.ta_report_tracker().last_reported_ul_ta();
+  if (not reported_ul_ta.has_value()) {
+    logger.debug(
+        "ue={} rnti={}: No Differential Koffset derived. Cause: UE has not reported its T_TA", u.ue_index, u.crnti);
+    return;
+  }
+
+  ue_koffset_tracker& tracker = u.koffset_tracker();
+  if (tracker.has_pending_ce()) {
+    logger.debug("ue={} rnti={}: No Differential Koffset derived. Cause: an earlier value has not reached the UE",
+                 u.ue_index,
+                 u.crnti);
+    return;
+  }
+
+  const std::chrono::milliseconds cell_koffset{cell_cfg.ntn_cs_koffset /
+                                               get_nof_slots_per_subframe(cell_cfg.scs_common())};
+  const std::chrono::milliseconds derived =
+      derive_differential_koffset(cell_koffset, *reported_ul_ta, ue_koffset_cfg->margin);
+  if (derived == tracker.applied_koffset()) {
+    logger.debug("ue={} rnti={}: Keeping Differential Koffset={}ms. Cause: the derived value has not changed",
+                 u.ue_index,
+                 u.crnti,
+                 tracker.applied_koffset().count());
+    return;
+  }
+
+  logger.info("ue={} rnti={}: Signalling Differential Koffset={}ms, derived from T_TA={}us",
+              u.ue_index,
+              u.crnti,
+              derived.count(),
+              reported_ul_ta->count());
+  u.logical_channels().handle_mac_ce_indication(
+      {lcid_dl_sch_t::from_elcid(elcid_dl_sch_t::DIFFERENTIAL_KOFFSET), differential_koffset_ce_payload{derived}});
+}
+
 bool cell_group_event_handler_impl::handle_ue_config_applied(du_ue_index_t ue_idx)
 {
   if (not ue_db.contains(ue_idx)) {
@@ -174,9 +230,15 @@ bool cell_group_event_handler_impl::handle_ue_config_applied(du_ue_index_t ue_id
   // Confirm that UE applied new config.
   ue_db.ue_config_applied(ue_idx);
 
+  // The applied configuration declares whether the UE accepts a Differential Koffset.
+  update_differential_koffset(ue_db[ue_idx], logger);
+
   // Notify slice scheduler only when the UE fully exits fallback (conres also done).
   if (not ue_db[ue_idx].get_pcell().is_in_fallback_mode()) {
     slice_sched.config_applied(ue_idx);
+    if (cg_sched != nullptr) {
+      cg_sched->start_ue_cg_activation(ue_idx);
+    }
   }
 
   return true;
@@ -224,7 +286,13 @@ void cell_group_event_handler_impl::handle_conres_ce_acked(du_ue_index_t ue_inde
     log_invalid_ue_index(ue_index, "ConRes CE ACKed");
     return;
   }
+  const bool was_in_fallback = ue_db[ue_index].get_pcell().is_in_fallback_mode();
   ue_db.handle_conres_ce_outcome(ue_index, true);
+
+  // The UE exits fallback once both the ConRes CE is ACKed and its config is applied, in any order.
+  if (was_in_fallback and not ue_db[ue_index].get_pcell().is_in_fallback_mode()) {
+    slice_sched.config_applied(ue_index);
+  }
 }
 
 void cell_group_event_handler_impl::handle_sr_detected(du_ue_index_t ue_index, slot_point uci_slot)
@@ -303,7 +371,9 @@ bool cell_group_event_handler_impl::handle_ul_ta_report_indication(const ul_ta_r
     return false;
   }
 
-  ue_db[ta_report.ue_index].ta_report_tracker().handle_ta_report(ta_report.ul_ta);
+  ue& u = ue_db[ta_report.ue_index];
+  u.ta_report_tracker().handle_ta_report(ta_report.ul_ta);
+  update_differential_koffset(u, logger);
 
   return true;
 }
@@ -337,20 +407,30 @@ bool cell_group_event_handler_impl::handle_crnti_ce_received(du_ue_index_t ue_in
     return false;
   }
 
+  const bool was_pending_cfra = ue_cc.get_pcell_state().conres_st == ue_conres_state::pending_cfra;
   if (ue_db.crnti_ce_received(ue_index)) {
     // C-RNTI CE received: contention resolution completed for this F1AP-created UE.
 
-    // Initiate UCI and SRS schedulers with the confirmed UE resources.
-    uci_sched.add_ue(ue_cc.cfg());
-    srs_sched.add_ue(ue_cc.cfg());
+    // Initiate UCI and SRS schedulers with the confirmed UE resources. CFRA UEs already have them from creation.
+    if (not was_pending_cfra) {
+      uci_sched.add_ue(ue_cc.cfg());
+      srs_sched.add_ue(ue_cc.cfg());
+    }
 
-    if (cg_sched != nullptr) {
+    if (cg_sched != nullptr and not was_pending_cfra) {
       cg_sched->add_reconf_ue(ue_cc.cfg(), nullptr);
     }
 
     // Notify slice scheduler only when the UE fully exits fallback (config also applied).
     if (not ue_cc.is_in_fallback_mode()) {
       slice_sched.config_applied(ue_index);
+      if (cg_sched != nullptr) {
+        // A CG Type 2 UE is queued for activation by the configuration-applied indication, which is skipped while the
+        // UE is still in fallback. When the configuration was applied before the C-RNTI CE arrived, this is the only
+        // chance to catch that up: nothing would send the indication a second time, and the UE would be left with a
+        // CG that is never activated. No-op for CG Type 1, which needs no activation.
+        cg_sched->start_ue_cg_activation(ue_index);
+      }
     }
   }
 
@@ -378,6 +458,38 @@ bool cell_group_event_handler_impl::handle_dl_buffer_state_indication(const dl_b
 void cell_group_event_handler_impl::handle_slice_reconfiguration(const du_cell_slice_reconfig_request& req)
 {
   slice_sched.handle_slice_reconfiguration_request(req);
+}
+
+void cell_group_event_handler_impl::handle_cg_activation_complete_indication(du_ue_index_t ue_index)
+{
+  // This notification can come either from a MAC-CE Configured Grant Confirmation, or from the reception of a CRC OK.
+
+  if (cg_sched == nullptr) {
+    // CG Confirmation received in a cell with no configured grants configured.
+    logger.warning("ue={}: Discarding CG confirmation. Cause: No CG configured in this cell", ue_index);
+    return;
+  }
+
+  // The CG confirmation is decoded in the MAC and only reaches the scheduler at the next slot boundary, by which time
+  // the UE may already have been removed. The MAC drains the pending UL PDUs of a UE before removing it, so the index
+  // cannot have been reassigned to another UE by now, but it can be stale.
+  if (not ue_db.contains(ue_index)) {
+    log_invalid_ue_index(ue_index, "CG confirmation");
+    return;
+  }
+
+  cg_sched->handle_cg_activation_complete_indication(ue_index);
+}
+
+void cell_group_event_handler_impl::handle_error_indication(slot_point                            sl_tx,
+                                                            scheduler_slot_handler::error_outcome event)
+{
+  if (cg_sched == nullptr) {
+    // No configured grants in this cell. Unlike the CG confirmation, error indications are a normal occurrence in any
+    // cell, so this is not worth logging.
+    return;
+  }
+  cg_sched->handle_error_indication(sl_tx, event);
 }
 
 void cell_group_event_handler_impl::log_invalid_ue_index(du_ue_index_t ue_index,

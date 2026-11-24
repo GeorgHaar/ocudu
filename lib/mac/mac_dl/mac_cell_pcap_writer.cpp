@@ -6,7 +6,6 @@
 #include "mac_cell_pcap_writer.h"
 #include "ocudu/mac/mac_cell_result.h"
 #include "ocudu/pcap/mac_pcap.h"
-#include "ocudu/scheduler/result/sched_result.h"
 #include <algorithm>
 #include <limits>
 
@@ -26,10 +25,10 @@ mac_cell_pcap_writer::mac_cell_pcap_writer(mac_pcap&                            
 }
 
 void mac_cell_pcap_writer::write_slot_result(slot_point                sl_tx,
-                                             const sched_result&       sl_res,
+                                             sched_slot_result_reader  sl_res,
                                              const mac_dl_data_result& dl_res)
 {
-  if (not pcap.is_write_enabled() or sl_res.dl.nof_dl_symbols == 0) {
+  if (not pcap.is_write_enabled() or sl_res.dl().nof_dl_symbols() == 0) {
     return;
   }
 
@@ -39,10 +38,13 @@ void mac_cell_pcap_writer::write_slot_result(slot_point                sl_tx,
   write_ue_pdus(sl_tx, sl_res, dl_res);
 }
 
-void mac_cell_pcap_writer::write_si_pdus(slot_point sl_tx, const sched_result& sl_res, const mac_dl_data_result& dl_res)
+void mac_cell_pcap_writer::write_si_pdus(slot_point                sl_tx,
+                                         sched_slot_result_reader  sl_res,
+                                         const mac_dl_data_result& dl_res)
 {
+  const auto sibs = sl_res.dl().sibs();
   for (unsigned i = 0, e = dl_res.si_pdus.size(); i != e; ++i) {
-    const sib_information& dl_alloc = sl_res.dl.bc.sibs[i];
+    const sib_information& dl_alloc = sibs[i];
 
     // A PWS (ETWS/CMAS) SI-message cycles through multiple content segments and repetitions without bumping "version"
     // (which only tracks SI scheduling info updates), so it bypasses the version-based dedup, which would wrongly
@@ -79,12 +81,13 @@ void mac_cell_pcap_writer::write_si_pdus(slot_point sl_tx, const sched_result& s
 }
 
 void mac_cell_pcap_writer::write_rar_pdus(slot_point                sl_tx,
-                                          const sched_result&       sl_res,
+                                          sched_slot_result_reader  sl_res,
                                           const mac_dl_data_result& dl_res)
 {
+  const auto rar_grants = sl_res.dl().rar_grants();
   for (unsigned i = 0, e = dl_res.rar_pdus.size(); i != e; ++i) {
     const mac_dl_data_result::dl_pdu& rar_pdu  = dl_res.rar_pdus[i];
-    const rar_information&            dl_alloc = sl_res.dl.rar_grants[i];
+    const rar_information&            dl_alloc = rar_grants[i];
     mac_nr_context_info               context  = {};
     context.radioType                          = radio_type;
     context.direction                          = PCAP_DIRECTION_DOWNLINK;
@@ -98,12 +101,13 @@ void mac_cell_pcap_writer::write_rar_pdus(slot_point                sl_tx,
 }
 
 void mac_cell_pcap_writer::write_paging_pdus(slot_point                sl_tx,
-                                             const sched_result&       sl_res,
+                                             sched_slot_result_reader  sl_res,
                                              const mac_dl_data_result& dl_res)
 {
+  const auto paging_grants = sl_res.dl().paging_grants();
   for (unsigned i = 0, e = dl_res.paging_pdus.size(); i != e; ++i) {
     const mac_dl_data_result::dl_pdu& pg_pdu   = dl_res.paging_pdus[i];
-    const dl_paging_allocation&       dl_alloc = sl_res.dl.paging_grants[i];
+    const dl_paging_allocation&       dl_alloc = paging_grants[i];
     mac_nr_context_info               context  = {};
     context.radioType                          = radio_type;
     context.direction                          = PCAP_DIRECTION_DOWNLINK;
@@ -116,10 +120,12 @@ void mac_cell_pcap_writer::write_paging_pdus(slot_point                sl_tx,
   }
 }
 
-void mac_cell_pcap_writer::write_ue_pdus(slot_point sl_tx, const sched_result& sl_res, const mac_dl_data_result& dl_res)
+void mac_cell_pcap_writer::write_ue_pdus(slot_point                sl_tx,
+                                         sched_slot_result_reader  sl_res,
+                                         const mac_dl_data_result& dl_res)
 {
   unsigned pdu_idx = 0;
-  for (const dl_msg_alloc& dl_alloc : sl_res.dl.ue_grants) {
+  for (const dl_msg_alloc& dl_alloc : sl_res.dl().ue_grants()) {
     for (unsigned cw_idx = 0, sz = dl_alloc.pdsch_cfg.codewords.size(); cw_idx != sz; ++cw_idx, ++pdu_idx) {
       const mac_dl_data_result::dl_pdu& ue_pdu = dl_res.ue_pdus[pdu_idx];
       if (not dl_alloc.pdsch_cfg.codewords[cw_idx].new_data) {

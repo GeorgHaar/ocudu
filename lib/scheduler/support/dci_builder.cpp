@@ -6,17 +6,51 @@
 #include "dci_builder.h"
 #include "../cell/cell_harq_manager.h"
 #include "../config/time_domain_mapper.h"
+#include "dmrs_helpers.h"
 #include "ocudu/ran/pdcch/dci_packing.h"
 #include "ocudu/ran/pdcch/search_space.h"
-#include "ocudu/ran/pdsch/pdsch_antenna_ports_mapping.h"
 #include "ocudu/ran/pusch/pusch_antenna_ports_mapping.h"
 #include "ocudu/scheduler/config/bwp_configuration.h"
 #include "ocudu/scheduler/support/rb_helper.h"
 #include <algorithm>
+#include <type_traits>
+#include <variant>
 
 using namespace ocudu;
 
-/// Get PDSCH-to-HARQ-timing-indicator field as per TS38.213, 9.2.3.
+// dci_dl_info::type() and dci_ul_info::type() convert the payload variant index into the DCI type. Each enumerator must
+// therefore index the payload alternative it names, and each payload alternative must have an enumerator.
+namespace {
+
+template <dci_dl_rnti_config_type Type, typename Payload>
+constexpr bool dl_dci_type_matches_payload =
+    std::is_same_v<std::variant_alternative_t<static_cast<std::size_t>(Type), dci_dl_info::payload_type>, Payload>;
+
+template <dci_ul_rnti_config_type Type, typename Payload>
+constexpr bool ul_dci_type_matches_payload =
+    std::is_same_v<std::variant_alternative_t<static_cast<std::size_t>(Type), dci_ul_info::payload_type>, Payload>;
+
+} // namespace
+
+static_assert(dl_dci_type_matches_payload<dci_dl_rnti_config_type::si_f1_0, dci_1_0_si_rnti_configuration>);
+static_assert(dl_dci_type_matches_payload<dci_dl_rnti_config_type::ra_f1_0, dci_1_0_ra_rnti_configuration>);
+static_assert(dl_dci_type_matches_payload<dci_dl_rnti_config_type::c_rnti_f1_0, dci_1_0_c_rnti_configuration>);
+static_assert(dl_dci_type_matches_payload<dci_dl_rnti_config_type::tc_rnti_f1_0, dci_1_0_tc_rnti_configuration>);
+static_assert(dl_dci_type_matches_payload<dci_dl_rnti_config_type::p_rnti_f1_0, dci_1_0_p_rnti_configuration>);
+static_assert(dl_dci_type_matches_payload<dci_dl_rnti_config_type::c_rnti_f1_1, dci_1_1_configuration>);
+static_assert(std::variant_size_v<dci_dl_info::payload_type> ==
+                  static_cast<std::size_t>(dci_dl_rnti_config_type::c_rnti_f1_1) + 1,
+              "dci_dl_info::payload_type has alternatives with no matching dci_dl_rnti_config_type");
+
+static_assert(ul_dci_type_matches_payload<dci_ul_rnti_config_type::tc_rnti_f0_0, dci_0_0_tc_rnti_configuration>);
+static_assert(ul_dci_type_matches_payload<dci_ul_rnti_config_type::c_rnti_f0_0, dci_0_0_c_rnti_configuration>);
+static_assert(ul_dci_type_matches_payload<dci_ul_rnti_config_type::c_rnti_f0_1, dci_0_1_configuration>);
+static_assert(ul_dci_type_matches_payload<dci_ul_rnti_config_type::cs_rnti_f0_1, dci_0_1_cs_rnti_configuration>);
+static_assert(std::variant_size_v<dci_ul_info::payload_type> ==
+                  static_cast<std::size_t>(dci_ul_rnti_config_type::cs_rnti_f0_1) + 1,
+              "dci_ul_info::payload_type has alternatives with no matching dci_ul_rnti_config_type");
+
+/// Get PDSCH-to-HARQ-timing-indicator field as per TS 38.213, 9.2.3.
 static unsigned get_dci_1_0_pdsch_to_harq_timing_indicator(unsigned k1)
 {
   // PDSCH-to-HARQ-timing-indicator maps to {1,2,3,4,5,6,7,8} for DCI 1_0.
@@ -24,7 +58,7 @@ static unsigned get_dci_1_0_pdsch_to_harq_timing_indicator(unsigned k1)
   return k1 - 1;
 }
 
-/// Get PDSCH-to-HARQ-timing-indicator field as per TS38.213, 9.2.3.
+/// Get PDSCH-to-HARQ-timing-indicator field as per TS 38.213, 9.2.3.
 static unsigned get_dci_1_1_pdsch_to_harq_timing_indicator(unsigned k1, span<const uint8_t> dl_data_to_ul_ack)
 {
   // PDSCH-to-HARQ-timing-indicator maps to dl-DataToUL-ACK for DCI 1_1.
@@ -42,7 +76,7 @@ void ocudu::build_dci_f1_0_si_rnti(dci_dl_info&               dci,
                                    uint8_t                    si_indicator)
 {
   dci_1_0_si_rnti_configuration& si_dci = dci.set_si_rnti_f1_0();
-  // as per TS38.212, clause 7.3.1.2.1 - N^{DL,BWP}_RB.
+  // as per TS 38.212, clause 7.3.1.2.1 - N^{DL,BWP}_RB.
   si_dci.N_rb_dl_bwp = init_dl_bwp.pdcch_common.coreset0->coreset0_crbs().length();
   const vrb_interval si_vrbs =
       crb_to_vrb_f1_0_common_ss_non_interleaved(crbs, init_dl_bwp.pdcch_common.coreset0->get_coreset_start_crb());
@@ -89,7 +123,7 @@ void ocudu::build_dci_f1_0_p_rnti(dci_dl_info& dci, const bwp_downlink_common& i
   p_dci.short_messages           = short_messages;
 }
 
-/// Builds DCI f1_0 shared by RA-RNTI and MsgB-RNTI, as per TS38.212, clause 7.3.1.2.1.
+/// Builds DCI f1_0 shared by RA-RNTI and MsgB-RNTI, as per TS 38.212, clause 7.3.1.2.1.
 static void build_dci_f1_0_ra_or_msgb_rnti(dci_dl_info&               dci,
                                            const bwp_downlink_common& init_dl_bwp,
                                            crb_interval               crbs,
@@ -98,7 +132,7 @@ static void build_dci_f1_0_ra_or_msgb_rnti(dci_dl_info&               dci,
                                            unsigned                   lsb_sfn)
 {
   dci_1_0_ra_rnti_configuration& ra_dci = dci.set_ra_rnti_f1_0();
-  // as per TS38.212, clause 7.3.1.2.1 - N^{DL,BWP}_RB.
+  // as per TS 38.212, clause 7.3.1.2.1 - N^{DL,BWP}_RB.
   ra_dci.N_rb_dl_bwp = init_dl_bwp.pdcch_common.coreset0.has_value()
                            ? init_dl_bwp.pdcch_common.coreset0->coreset0_crbs().length()
                            : init_dl_bwp.generic_params.crbs.length();
@@ -130,7 +164,7 @@ void ocudu::build_dci_f1_0_msgb_rnti(dci_dl_info&               dci,
                                      unsigned                   msgb_resp_window_ms,
                                      unsigned                   prach_sfn)
 {
-  // TS38.213, Section 8.2A: the LSBs of SFN field is only present if msgB-ResponseWindow is configured larger than
+  // TS 38.213, Section 8.2A: the LSBs of SFN field is only present if msgB-ResponseWindow is configured larger than
   // 10 msec; otherwise these bits are reserved.
   const unsigned lsb_sfn = msgb_resp_window_ms > 10 ? prach_sfn & 0b11U : 0U;
   build_dci_f1_0_ra_or_msgb_rnti(dci, init_dl_bwp, crbs, time_resource, mcs_index, lsb_sfn);
@@ -155,7 +189,7 @@ void ocudu::build_dci_f1_0_tc_rnti(dci_dl_info&                  dci,
   // See 38.212, clause 7.3.1.2.1 - N^{DL,BWP}_RB is the size of CORESET 0 for TC-RNTI.
   const crb_interval cs0_crbs = init_dl_bwp.pdcch_common.coreset0->coreset0_crbs();
   f1_0.N_rb_dl_bwp            = cs0_crbs.length();
-  // See TS38.211 7.3.1.6 - Mapping from VRBs to PRBs.
+  // See TS 38.211 7.3.1.6 - Mapping from VRBs to PRBs.
   f1_0.frequency_resource =
       ra_frequency_type1_get_riv(ra_frequency_type1_configuration{f1_0.N_rb_dl_bwp, vrbs.start(), vrbs.length()});
   f1_0.time_resource = time_resource;
@@ -223,7 +257,7 @@ void ocudu::build_dci_f1_0_c_rnti(dci_dl_info&                  dci,
 void ocudu::build_dci_f1_1_c_rnti(dci_dl_info&                  dci,
                                   const ue_cell_configuration&  ue_cell_cfg,
                                   search_space_id               ss_id,
-                                  vrb_interval                  vrbs,
+                                  const vrb_alloc&              vrbs,
                                   unsigned                      time_resource,
                                   unsigned                      k1,
                                   unsigned                      pucch_res_indicator,
@@ -231,7 +265,7 @@ void ocudu::build_dci_f1_1_c_rnti(dci_dl_info&                  dci,
                                   sch_mcs_index                 tb1_mcs_index,
                                   uint8_t                       rv,
                                   const dl_harq_process_handle& h_dl,
-                                  unsigned                      nof_layers,
+                                  const dmrs_information&       dmrs,
                                   uint8_t                       tpc,
                                   bool                          enable_interleaving,
                                   unsigned                      srs_request)
@@ -239,13 +273,6 @@ void ocudu::build_dci_f1_1_c_rnti(dci_dl_info&                  dci,
   const search_space_info& ss_info = ue_cell_cfg.search_space(ss_id);
   ocudu_assert(not ss_info.cfg->is_common_search_space(), "SearchSpace must be of type UE-Specific SearchSpace");
   ocudu_sanity_check(ss_info.get_dl_dci_format() == dci_dl_format::f1_1, "Invalid DCI format");
-
-  // Two codewords require maxLength=2 for nof_layers > 4 per 3GPP TS 38.212 Table 7.3.1.2.2; the two-codeword table
-  // does not exist otherwise.
-  const auto&           dmrs_cfg             = ss_info.bwp->dl.pdsch().ded()->pdsch_mapping_type_a_dmrs.value();
-  const bool            has_len2             = dmrs_cfg.is_max_length_len2;
-  const bool            are_both_cws_enabled = (nof_layers > 4) && has_len2;
-  const dmrs_max_length max_len              = has_len2 ? dmrs_max_length::len2 : dmrs_max_length::len1;
 
   const bwp_configuration& active_dl_bwp = ss_info.bwp->dl.cfg();
   const auto               k1_candidates = ss_info.bwp->ul.td_mapper().dedicated_k1_candidates();
@@ -256,20 +283,36 @@ void ocudu::build_dci_f1_1_c_rnti(dci_dl_info&                  dci,
   f1_1.srs_request             = srs_request;
   f1_1.dmrs_seq_initialization = 0;
 
-  f1_1.antenna_ports = get_pdsch_antenna_port_mapping_row_index(nof_layers,
-                                                                ue_cell_cfg.cell_cfg_common.params.dl_carrier.nof_ant,
-                                                                dmrs_cfg.is_dmrs_type2 ? dmrs_config_type::type2
-                                                                                       : dmrs_config_type::type1,
-                                                                max_len,
-                                                                are_both_cws_enabled);
-
-  // See 38.212, clause 7.3.1.2.2 - N^{DL,BWP}_RB for C-RNTI.
-  f1_1.frequency_resource = ra_frequency_type1_get_riv(
-      ra_frequency_type1_configuration{active_dl_bwp.crbs.length(), vrbs.start(), vrbs.length()});
-  f1_1.time_resource = time_resource;
+  const std::optional<unsigned> antenna_ports_row =
+      find_pdsch_antenna_ports_row_index(dmrs, ss_info.bwp->dl.pdsch().ded()->pdsch_mapping_type_a_dmrs.value());
+  ocudu_assert(antenna_ports_row.has_value(),
+               "DCI f1_1 cannot signal DM-RS ports {:#x} with {} CDM group(s) without data",
+               dmrs.dmrs_ports.to_uint64(),
+               dmrs.num_dmrs_cdm_grps_no_data);
+  f1_1.antenna_ports = *antenna_ports_row;
 
   const dci_size_config& dci_sz_cfg = ss_info.dci_sz_cfg;
   const dci_sizes&       dci_sz     = ss_info.dci_sz;
+
+  if (vrbs.is_type0()) {
+    ocudu_assert(dci_sz_cfg.pdsch_res_allocation_type != resource_allocation::resource_allocation_type_1,
+                 "Resource allocation type 0 is not configured");
+    ocudu_assert(not enable_interleaving, "Resource allocation type 0 requires non-interleaved VRB-to-PRB mapping");
+    // See 38.214, clause 5.1.2.2.1 - The RBG bitmap maps RBG 0 to the MSB.
+    const nominal_rbg_size P = get_nominal_rbg_size(active_dl_bwp.crbs.length(), ss_info.bwp->dl.pdsch().ded()->rbg_sz);
+    f1_1.frequency_resource  = convert_vrbs_to_rbgs(vrbs.type0(), active_dl_bwp.crbs, P).to_uint64();
+  } else {
+    ocudu_assert(dci_sz_cfg.pdsch_res_allocation_type != resource_allocation::resource_allocation_type_0,
+                 "Resource allocation type 1 is not configured");
+    // See 38.212, clause 7.3.1.2.2 - N^{DL,BWP}_RB for C-RNTI.
+    f1_1.frequency_resource = ra_frequency_type1_get_riv(
+        ra_frequency_type1_configuration{active_dl_bwp.crbs.length(), vrbs.type1().start(), vrbs.type1().length()});
+  }
+  if (dci_sz_cfg.pdsch_res_allocation_type == resource_allocation::dynamic_switch) {
+    f1_1.dynamic_pdsch_res_allocation_type =
+        vrbs.is_type0() ? dynamic_resource_allocation::type_0 : dynamic_resource_allocation::type_1;
+  }
+  f1_1.time_resource = time_resource;
 
   // Compute DCI size.
   f1_1.payload_size = dci_sz.format1_1_ue_size.value();
@@ -433,7 +476,6 @@ void ocudu::build_dci_f0_1_c_rnti(dci_ul_info&                  dci,
 
   // TODO: Set values for -
   //  - srs_resource_indicator
-  //  - precoding_info_nof_layers
   //  - beta_offset_indicator
   //  - ptrs_dmrs_association
   //  - cbg_transmission_info
@@ -447,4 +489,79 @@ void ocudu::build_dci_f0_1_c_rnti(dci_ul_info&                  dci,
   }
 
   f0_1.srs_request = srs_request;
+}
+
+void ocudu::build_dci_f0_1_cg_activation(dci_ul_info&                 dci,
+                                         const ue_cell_configuration& ue_cell_cfg,
+                                         search_space_id              ss_id,
+                                         const vrb_interval&          vrbs,
+                                         unsigned                     time_resource,
+                                         sch_mcs_index                mcs_index)
+{
+  const search_space_info& ss_info = ue_cell_cfg.search_space(ss_id);
+  ocudu_assert(not ss_info.cfg->is_common_search_space(), "SearchSpace must be of type UE-Specific SearchSpace");
+
+  const bwp_configuration& active_ul_bwp = ss_info.bwp->ul.cfg();
+
+  // The CG Type 2 activation DCI has its CRC scrambled with the CS-RNTI, as per TS 38.213, Section 10.2.
+  dci_0_1_cs_rnti_configuration& f0_1 = dci.set_cs_rnti_f0_1();
+
+  const dci_sizes& dci_sz = ss_info.dci_sz;
+
+  f0_1.payload_size = dci_sz.format0_1_ue_size.value();
+
+  f0_1.ul_sul_indicator                = {};
+  static constexpr uint8_t default_tpc = 1;
+  f0_1.tpc_command                     = default_tpc;
+  f0_1.dmrs_seq_initialization         = 0;
+  // NOTE: unlike the C-RNTI builder, this does not consult use_pusch_transform_precoding_dci_0_1(): the whole CG path
+  // assumes CP-OFDM, and build_cg_pusch_cfg_params() sizes the grant on the same assumption, so the antenna-port row
+  // has to be picked from the same table. validate_cg_cfg() rejects a CG combined with transform precoding.
+  bool use_transform_precoder = false;
+  // Only 1 layer currently supported for Configured Grant.
+  static constexpr uint8_t nof_layers = 1;
+  f0_1.antenna_ports                  = get_pusch_antenna_port_mapping_row_index(
+      nof_layers, use_transform_precoder, dmrs_config_type::type1, dmrs_max_length::len1);
+  // TODO: adapt this to more than 1 antenna.
+  constexpr unsigned default_tpmi = 0U;
+  f0_1.precoding_info_nof_layers  = get_pusch_precoding_info_row_index(
+      nof_layers,
+      ue_cell_cfg.get_pusch_codebook_config().max_rank.value(),
+      static_cast<srs_resource_configuration::one_two_four_enum>(ue_cell_cfg.get_srs_nof_ports()),
+      default_tpmi);
+
+  // See 38.212, clause 7.3.1.1.2 - N^{UL,BWP}_RB for C-RNTI.
+  f0_1.frequency_resource = ra_frequency_type1_get_riv(
+      ra_frequency_type1_configuration{active_ul_bwp.crbs.length(), vrbs.start(), vrbs.length()});
+  f0_1.time_resource = time_resource;
+
+  f0_1.modulation_coding_scheme = mcs_index.value();
+
+  // Values set to 0U as per TS for CG type 2 activation.
+  static constexpr uint8_t cg_activation_fields = 0U;
+  f0_1.harq_process_number                      = cg_activation_fields;
+  f0_1.new_data_indicator                       = false;
+  f0_1.redundancy_version                       = cg_activation_fields;
+
+  // TODO: Set values for -
+  //  - srs_resource_indicator
+  //  - beta_offset_indicator
+  //  - ptrs_dmrs_association
+  //  - cbg_transmission_info
+
+  // The CG PUSCH carries UL-SCH, so this must be set. A value of 0 tells the UE not to transmit UL-SCH on the PUSCH
+  // and, combined with an all-zero CSI request and SRS request, forms a field combination that a UE "is not expected to
+  // receive" and may discard outright, as per TS 38.212, Section 7.3.1.1.2.
+  f0_1.ul_sch_indicator = 1;
+
+  // Not applicable for CG activation.
+  f0_1.first_dl_assignment_index = 0;
+  f0_1.srs_request               = 0U;
+
+  // The activation must not trigger an aperiodic CSI report, so the CSI request field is all zeros. It still has to be
+  // set whenever the field has a non-zero size, since dci_0_1_pack() skips the field altogether when the optional is
+  // empty, and the payload would then fall short of payload_size.total.
+  if (f0_1.payload_size.csi_request.value() > 0) {
+    f0_1.csi_request = 0;
+  }
 }

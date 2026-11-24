@@ -139,10 +139,12 @@ protected:
               cell_req.ran.init_bwp.srs_cfg.max_nof_symbols.value(),
               cell_req.ran.init_bwp.srs_cfg.nof_symbols);
     }
+    cell_req.rrm = make_cell_rrm_config(cell_req.ran);
     this->add_cell(cell_req);
 
     // Setup PUCCH and SRS resource builders.
-    pucch_builder.add_cell(to_du_cell_index(0), cell_cfg().params);
+    cell_rrm = cell_req.rrm;
+    pucch_builder.add_cell(to_du_cell_index(0), cell_cfg().params, cell_rrm);
     if (srs_enabled) {
       srs_builder = create_srs_resource_manager(cell_cfg().params);
       srs_builder->add_cell(to_du_cell_index(0), cell_cfg().params);
@@ -155,23 +157,24 @@ protected:
   sched_ue_creation_request_message
   build_ue_request(du_ue_index_t idx, rnti_t rnti, std::initializer_list<lcid_t> lcids)
   {
-    auto ue_cfg     = sched_config_helper::create_default_sched_ue_creation_request(cell_cfg().params, lcids);
-    ue_cfg.ue_index = idx;
-    ue_cfg.crnti    = rnti;
+    auto ue_cfg           = sched_config_helper::create_default_sched_ue_creation_request(cell_cfg().params, lcids);
+    ue_cfg.ue_index       = idx;
+    ue_cfg.crnti          = rnti;
+    ue_cell_config& pcell = *(*ue_cfg.cfg.cells)[0].ded;
     report_fatal_error_if_not(
-        pucch_builder.alloc_resources((*ue_cfg.cfg.cells)[0]), "Failed to allocate PUCCH resources for UE {}", idx);
+        pucch_builder.alloc_resources(pcell), "Failed to allocate PUCCH resources for UE {}", idx);
     if (srs_builder != nullptr) {
       // The SRS resource manager expects the SRS config to be unset before allocating, mirroring the DU manager's own
       // reset_serv_cell_cfg() call ahead of its own srs_res_mng->alloc_resources() call.
-      (*ue_cfg.cfg.cells)[0].serv_cell_cfg.ul_config->init_ul_bwp.srs_cfg.reset();
-      report_fatal_error_if_not(
-          srs_builder->alloc_resources((*ue_cfg.cfg.cells)[0]), "Failed to allocate SRS resources for UE {}", idx);
+      pcell.serv_cell_cfg.ul_config->init_ul_bwp.srs_cfg.reset();
+      report_fatal_error_if_not(srs_builder->alloc_resources(pcell), "Failed to allocate SRS resources for UE {}", idx);
     }
     return ue_cfg;
   }
 
   cell_config_builder_params params;
   // Builds a distinct per-UE dedicated PUCCH config from the cell pool for every UE created by these tests.
+  cell_rrm_config        cell_rrm;
   pucch_resource_manager pucch_builder{120};
   // Builds a distinct per-UE periodic SRS occasion from the cell pool. Null when SRS is disabled for the test.
   std::unique_ptr<srs_resource_manager> srs_builder;
@@ -652,9 +655,9 @@ protected:
       CORO_AWAIT(launch_run_until(false_until_slots(ack_margin_slots)));
       CORO_AWAIT(launch_rem_ue_task(idx));
       // Free the UE's PUCCH/SRS resources so the next transient UE reusing this index gets a fresh allocation.
-      pucch_builder.dealloc_resources(req.cfg.cells.value()[0]);
+      pucch_builder.dealloc_resources(*req.cfg.cells.value()[0].ded);
       if (srs_builder != nullptr) {
-        srs_builder->dealloc_resources(req.cfg.cells.value()[0]);
+        srs_builder->dealloc_resources(*req.cfg.cells.value()[0].ded);
       }
       transient_pool.push_back(idx);
 

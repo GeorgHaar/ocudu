@@ -5,8 +5,9 @@
 
 #pragma once
 
+#include "tests/test_doubles/scheduler/sched_result_copy.h"
 #include "ocudu/mac/mac_cell_result.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include <memory>
 
 namespace ocudu {
 class task_executor;
@@ -25,9 +26,12 @@ public:
   std::optional<mac_ul_sched_result> last_ul_res;
 
 private:
-  task_executor&  test_exec;
-  dl_sched_result last_dl_sched_res;
-  ul_sched_result last_ul_sched_res;
+  task_executor& test_exec;
+
+  /// \brief Holds the last result handed to the tests, so that its readers outlive the slot it was built in.
+  ///
+  /// Held by pointer, as the pools of a grid are neither copyable nor movable.
+  std::unique_ptr<sched_result_grid> results = std::make_unique<sched_result_grid>(sched_result_grid_config{1, 1});
 
   std::optional<mac_dl_sched_result> cached_dl_res;
   std::optional<mac_dl_data_result>  cached_dl_data;
@@ -38,7 +42,13 @@ private:
 /// specify through which task executor the results are transferred and stored.
 struct phy_test_dummy : public mac_result_notifier {
 public:
-  phy_test_dummy(unsigned nof_cells, task_executor& exec_) : cells(nof_cells, phy_cell_test_dummy(exec_)) {}
+  phy_test_dummy(unsigned nof_cells, task_executor& exec_)
+  {
+    cells.reserve(nof_cells);
+    for (unsigned i = 0; i != nof_cells; ++i) {
+      cells.emplace_back(exec_);
+    }
+  }
 
   mac_cell_result_notifier& get_cell(du_cell_index_t cell_index) override { return cells[cell_index]; }
 

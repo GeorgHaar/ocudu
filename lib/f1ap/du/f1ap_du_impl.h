@@ -9,11 +9,14 @@
 #include "f1ap_du_connection_handler.h"
 #include "f1ap_du_context.h"
 #include "f1ap_du_metrics_collector_impl.h"
+#include "f1ap_du_positioning_procedure_launcher.h"
 #include "procedures/f1ap_du_ref_time_info_report_procedure.h"
 #include "ocudu/asn1/f1ap/f1ap.h"
 #include "ocudu/f1ap/du/f1ap_du.h"
 #include "ocudu/support/async/async_task.h"
+#include "ocudu/support/async/eager_async_task.h"
 #include <memory>
+#include <vector>
 
 namespace ocudu {
 namespace odu {
@@ -22,7 +25,7 @@ class f1ap_ue_executor_mapper;
 class f1c_connection_client;
 class f1ap_event_manager;
 
-class f1ap_du_impl final : public f1ap_du
+class f1ap_du_impl final : public f1ap_du, public f1ap_du_positioning_procedure_launcher
 {
 public:
   f1ap_du_impl(f1c_connection_client&   f1c_client_handler_,
@@ -34,17 +37,20 @@ public:
                timer_manager&           timers_);
   ~f1ap_du_impl() override;
 
+  /// Returns a task that starts the given positioning measurement procedure when a task loop runs it.
+  async_task<void> start_positioning_measurement_procedure_task(async_task<void> proc) override;
+
   bool             connect_to_cu_cp() override;
   async_task<void> disconnect_from_cu_cp() override;
 
-  // F1AP interface management procedures functions as per TS38.473, Section 8.2.
+  // F1AP interface management procedures functions as per TS 38.473, Section 8.2.
   async_task<f1_reset_acknowledgement>     handle_f1_reset_request(const f1_reset_request& req) override;
   async_task<f1_setup_result>              handle_f1_setup_request(const f1_setup_request_message& request) override;
   async_task<void>                         handle_f1_removal_request() override;
   async_task<gnbdu_config_update_response> handle_du_config_update(const gnbdu_config_update_request& request) override;
   bool                                     is_f1_setup() const override { return ctxt.f1c_setup; }
 
-  // F1AP RRC Message Transfer Procedure functions as per TS38.473, Section 8.4.
+  // F1AP RRC Message Transfer Procedure functions as per TS 38.473, Section 8.4.
   void handle_rrc_delivery_report(const f1ap_rrc_delivery_report_msg& report) override {}
 
   // F1AP message handler functions
@@ -95,19 +101,19 @@ private:
   /// \brief Handle RESET as per TS 38.473, Section 8.2.1.
   void handle_reset(const asn1::f1ap::reset_s& msg);
 
-  /// \brief Handle GNB-CU CONFIGURATION UPDATE as per TS38.473, Section 8.2.5.2.
+  /// \brief Handle GNB-CU CONFIGURATION UPDATE as per TS 38.473, Section 8.2.5.2.
   void handle_gnb_cu_configuration_update(const asn1::f1ap::gnb_cu_cfg_upd_s& msg);
 
-  /// \brief Handle UE CONTEXT SETUP REQUEST as per TS38.473, Section 8.3.1.
+  /// \brief Handle UE CONTEXT SETUP REQUEST as per TS 38.473, Section 8.3.1.
   void handle_ue_context_setup_request(const asn1::f1ap::ue_context_setup_request_s& msg);
 
-  /// \brief Handle UE CONTEXT MODIFICATION REQUEST as per TS38.473, Section 8.3.3.
+  /// \brief Handle UE CONTEXT MODIFICATION REQUEST as per TS 38.473, Section 8.3.3.
   void handle_ue_context_release_command(const asn1::f1ap::ue_context_release_cmd_s& msg);
 
-  /// \brief Handle UE CONTEXT MODIFICATION REQUEST as per TS38.473, Section 8.3.4.
+  /// \brief Handle UE CONTEXT MODIFICATION REQUEST as per TS 38.473, Section 8.3.4.
   void handle_ue_context_modification_request(const asn1::f1ap::ue_context_mod_request_s& msg);
 
-  /// \brief Handle DL RRC Message Transfer as per TS38.473, Section 8.4.2.2.
+  /// \brief Handle DL RRC Message Transfer as per TS 38.473, Section 8.4.2.2.
   void handle_dl_rrc_message_transfer(const asn1::f1ap::dl_rrc_msg_transfer_s& msg);
 
   bool handle_rx_message_gnb_cu_ue_f1ap_id(f1ap_du_ue& ue, gnb_cu_ue_f1ap_id_t cu_ue_id);
@@ -117,7 +123,7 @@ private:
                              std::optional<gnb_du_ue_f1ap_id_t> du_ue_id       = {},
                              std::optional<gnb_cu_ue_f1ap_id_t> cu_ue_id       = {});
 
-  /// \brief Handle Paging as per TS38.473, Section 8.7.
+  /// \brief Handle Paging as per TS 38.473, Section 8.7.
   void handle_paging_request(const asn1::f1ap::paging_s& msg);
 
   /// \brief Handle WRITE-REPLACE WARNING REQUEST as per TS 38.473, Section 8.5.1.
@@ -138,11 +144,23 @@ private:
   /// Sends an E-CID MEASUREMENT INITIATION FAILURE without a UE context.
   void send_e_cid_measurement_initiation_failure(const asn1::f1ap::e_c_id_meas_initiation_request_s& msg) const;
 
+  /// \brief Handle E-CID MEASUREMENT TERMINATION COMMAND as per TS 38.473, Section 8.13.15.
+  void handle_e_cid_measurement_termination_command(const asn1::f1ap::e_c_id_meas_termination_cmd_s& msg);
+
   /// \brief Handle REFERENCE TIME INFORMATION REPORTING CONTROL as per TS 38.473, Section 8.12.1.
   void handle_ref_time_info_report_ctrl(const asn1::f1ap::ref_time_info_report_ctrl_s& msg);
 
   /// \brief Log F1AP PDU.
   void log_pdu(bool is_rx, const f1ap_message& pdu);
+
+  /// Starts a positioning measurement procedure that runs concurrently with the other procedures.
+  void launch_positioning_measurement_procedure(async_task<void> proc);
+
+  /// \brief Stops the procedures tied to the CU-CP association, before the association is replaced or removed.
+  ///
+  /// These procedures hold a reference to the Tx PDU notifier of the association. The running and the queued
+  /// positioning measurement procedures are dropped.
+  void stop_cu_cp_association_procedures();
 
   ocudulog::basic_logger&  logger;
   task_executor&           ctrl_exec;
@@ -162,6 +180,9 @@ private:
   std::unique_ptr<f1ap_message_notifier> tx_pdu_notifier;
 
   std::unique_ptr<f1ap_du_ref_time_info_report_procedure> ref_time_proc;
+
+  /// Positioning measurement procedures that wait for SRS measurements outside the task loops.
+  std::vector<eager_async_task<void>> pos_meas_procs;
 
   f1ap_metrics_collector_impl metrics;
 };

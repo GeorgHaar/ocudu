@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "apps/cu/cu_appconfig_cli11_schema.h"
+#include "apps/helpers/config/config_file_cli11_utils.h"
 #include "apps/helpers/config/config_yaml_schema.h"
 #include "apps/helpers/e2/e2_config_translators.h"
 #include "apps/helpers/f1/f1_gateway_helpers.h"
@@ -76,19 +77,15 @@ using namespace ocudu;
 ///
 /// The app serves as an example for an all-integrated CU.
 
-static std::string config_file;
-
 /// Flag that indicates if the application is running or being shutdown.
 static std::atomic<bool> is_app_running = {true};
-/// Maximum number of configuration files allowed to be concatenated in the command line.
-static constexpr unsigned MAX_CONFIG_FILES = 10;
 
 static void populate_cli11_generic_args(CLI::App& app)
 {
   fmt::memory_buffer buffer;
   format_to(std::back_inserter(buffer), "OCUDU 5G CU version {} ({})", get_version(), get_build_hash());
   app.set_version_flag("-v,--version", ocudu::to_c_str(buffer));
-  app.set_config("-c,", config_file, "Read config from file", false)->expected(1, MAX_CONFIG_FILES);
+  app_helpers::add_config_file_option(app);
 }
 
 /// Function to call when the application is interrupted.

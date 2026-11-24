@@ -7,6 +7,9 @@
 #include "ru_sdr_config_helpers.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/adt/interval.h"
+#include "ocudu/ran/phy_time_unit.h"
+#include "ocudu/support/string_parsing_utils.h"
+#include <chrono>
 #include <sstream>
 #include <string_view>
 
@@ -24,10 +27,37 @@ static std::string trim_whitespace(const std::string& text)
   return text.substr(first, text.find_last_not_of(whitespace) - first + 1);
 }
 
-/// Validates the DIFI device arguments. Returns true on success, otherwise false.
-static bool validate_difi_device_arguments(const std::string& device_arguments)
+/// Returns true if \p key starts with \p prefix.
+static bool starts_with(const std::string& key, std::string_view prefix)
+{
+  return key.compare(0, prefix.size(), prefix) == 0;
+}
+
+/// Validates the DIFI device arguments against the antennas of \p cell_config. Returns true on success, otherwise
+/// false.
+static bool validate_difi_device_arguments(const std::string&                        device_arguments,
+                                           span<const ru_sdr_cell_validation_config> cell_config)
 {
   static constexpr std::string_view iq_byte_order_key = "iq_byte_order";
+  static constexpr std::string_view tx_addr_key       = "tx_addr";
+  static constexpr std::string_view rx_addr_key       = "rx_addr";
+  static constexpr std::string_view tx_port_key       = "tx_port";
+  static constexpr std::string_view rx_port_key       = "rx_port";
+  static constexpr std::string_view pkt_samples_key   = "pkt_samples";
+  static constexpr std::string_view rx_lag_key        = "rx_lag_us";
+  // The receive lag delays every hybrid ARQ round trip, so it is bounded to a few slots of the slowest numerology.
+  static constexpr std::chrono::microseconds max_rx_lag{20000};
+  // A transmitted data packet must fit one UDP datagram: its payload of 65507 bytes holds the 28-byte DIFI header and
+  // 4 bytes per 16-bit IQ sample.
+  static constexpr unsigned max_udp_payload_bytes = 65507;
+  static constexpr unsigned difi_header_bytes     = 28;
+  static constexpr unsigned bytes_per_iq16_sample = 4;
+  static constexpr unsigned max_pkt_samples       = (max_udp_payload_bytes - difi_header_bytes) / bytes_per_iq16_sample;
+
+  unsigned nof_tx_addr = 0;
+  unsigned nof_rx_addr = 0;
+  unsigned nof_tx_port = 0;
+  unsigned nof_rx_port = 0;
 
   std::istringstream stream(device_arguments);
   std::string        argument;
@@ -38,15 +68,85 @@ static bool validate_difi_device_arguments(const std::string& device_arguments)
     }
 
     // Device arguments may be folded across lines in the configuration file, so surrounding whitespace is ignored.
-    if (trim_whitespace(argument.substr(0, equal)) != iq_byte_order_key) {
+    const std::string key = trim_whitespace(argument.substr(0, equal));
+
+    // Keys match by prefix, since each port takes an indexed key, as in tx_port0 and tx_port1, and the addresses
+    // accept the same spelling.
+    if (starts_with(key, tx_addr_key)) {
+      ++nof_tx_addr;
+      continue;
+    }
+    if (starts_with(key, rx_addr_key)) {
+      ++nof_rx_addr;
+      continue;
+    }
+    if (starts_with(key, tx_port_key)) {
+      ++nof_tx_port;
+      continue;
+    }
+    if (starts_with(key, rx_port_key)) {
+      ++nof_rx_port;
       continue;
     }
 
     const std::string value = trim_whitespace(argument.substr(equal + 1));
-    if ((value != "big") && (value != "little")) {
+
+    if ((key == iq_byte_order_key) && (value != "big") && (value != "little")) {
       fmt::print("Invalid DIFI {} '{}'. Valid values are 'big' and 'little'.\n", iq_byte_order_key, value);
       return false;
     }
+
+    if (key == rx_lag_key) {
+      const expected<int64_t, std::string> lag_us = parse_int<int64_t>(value);
+      if (!lag_us.has_value() || (lag_us.value() < 0) || (lag_us.value() > max_rx_lag.count())) {
+        fmt::print(
+            "Invalid DIFI {} '{}'. Valid values are integers from 0 to {}.\n", rx_lag_key, value, max_rx_lag.count());
+        return false;
+      }
+    }
+
+    if (key == pkt_samples_key) {
+      const expected<unsigned, std::string> nof_samples = parse_int<unsigned>(value);
+      if (!nof_samples.has_value() || (nof_samples.value() == 0) || (nof_samples.value() > max_pkt_samples)) {
+        fmt::print(
+            "Invalid DIFI {} '{}'. Valid values are integers from 1 to {}.\n", pkt_samples_key, value, max_pkt_samples);
+        return false;
+      }
+    }
+  }
+
+  // Every port of the radio shares one address per direction and differs only by UDP port, so a second address
+  // would be silently ignored.
+  if (nof_tx_addr > 1) {
+    fmt::print("DIFI takes at most one {} for all ports, but {} were given.\n", tx_addr_key, nof_tx_addr);
+    return false;
+  }
+  if (nof_rx_addr > 1) {
+    fmt::print("DIFI takes at most one {} for all ports, but {} were given.\n", rx_addr_key, nof_rx_addr);
+    return false;
+  }
+
+  // DIFI carries every antenna as a stream of its own, numbered by cell and then by antenna. Without a port list,
+  // a single antenna per direction takes the driver default port.
+  unsigned nof_tx_antennas = 0;
+  unsigned nof_rx_antennas = 0;
+  for (const ru_sdr_cell_validation_config& cell : cell_config) {
+    nof_tx_antennas += cell.nof_antennas_dl;
+    nof_rx_antennas += cell.nof_antennas_ul;
+  }
+  if (((nof_tx_port != 0) || (nof_tx_antennas > 1)) && (nof_tx_port != nof_tx_antennas)) {
+    fmt::print("DIFI takes one {} per transmit antenna, i.e., {}, but {} were given.\n",
+               tx_port_key,
+               nof_tx_antennas,
+               nof_tx_port);
+    return false;
+  }
+  if (((nof_rx_port != 0) || (nof_rx_antennas > 1)) && (nof_rx_port != nof_rx_antennas)) {
+    fmt::print("DIFI takes one {} per receive antenna, i.e., {}, but {} were given.\n",
+               rx_port_key,
+               nof_rx_antennas,
+               nof_rx_port);
+    return false;
   }
 
   return true;
@@ -136,7 +236,7 @@ static bool validate_ru_sdr_appconfig(const ru_sdr_unit_config&                 
     return false;
   }
 
-  if ((config.device_driver == "difi") && !validate_difi_device_arguments(config.device_arguments)) {
+  if ((config.device_driver == "difi") && !validate_difi_device_arguments(config.device_arguments, cell_config)) {
     return false;
   }
 

@@ -40,7 +40,6 @@ struct ue_context_dependencies {
   std::unique_ptr<ue_executor_mapper> ue_exec_mapper;
   fifo_async_task_scheduler&          task_sched;
   timer_factory                       ue_dl_timer_factory;
-  timer_factory                       ue_ul_timer_factory;
   timer_factory                       ue_ctrl_timer_factory;
   f1u_cu_up_gateway&                  f1u_gw;
   ngu_session_manager&                ngu_session_mngr;
@@ -77,7 +76,6 @@ public:
                         {logger,
                          ue_inactivity_timer,
                          dependencies.ue_dl_timer_factory,
-                         dependencies.ue_ul_timer_factory,
                          dependencies.ue_ctrl_timer_factory,
                          dependencies.e1ap,
                          dependencies.f1u_gw,
@@ -94,7 +92,6 @@ public:
                          ue_exec_mapper->crypto_executor(),
                          dependencies.gtpu_pcap}),
     ue_dl_timer_factory(dependencies.ue_dl_timer_factory),
-    ue_ul_timer_factory(dependencies.ue_ul_timer_factory),
     ue_ctrl_timer_factory(dependencies.ue_ctrl_timer_factory)
   {
     if (cfg.activity_level == activity_notification_level_t::ue) {
@@ -220,7 +217,6 @@ private:
   pdu_session_manager_impl pdu_session_manager;
 
   timer_factory ue_dl_timer_factory;
-  timer_factory ue_ul_timer_factory;
   timer_factory ue_ctrl_timer_factory;
 
   // Inactivity related variables.

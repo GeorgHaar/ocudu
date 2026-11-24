@@ -340,9 +340,7 @@ f1ap_message ocudu::test_helpers::generate_f1_removal_request(unsigned transacti
   req.pdu.set_init_msg().load_info_obj(ASN1_F1AP_ID_F1_REMOVAL);
   f1_removal_request_s& ie = req.pdu.init_msg().value.f1_removal_request();
 
-  ie->resize(1);
-  (*ie)[0].load_info_obj(ASN1_F1AP_ID_TRANSACTION_ID);
-  (*ie)[0]->transaction_id() = transaction_id;
+  ie->transaction_id = transaction_id;
 
   return req;
 }
@@ -357,7 +355,7 @@ f1ap_message ocudu::test_helpers::generate_f1_removal_response(const f1ap_messag
   f1ap_message resp;
   resp.pdu.set_successful_outcome().load_info_obj(ASN1_F1AP_ID_F1_REMOVAL);
   f1_removal_resp_s& ie = resp.pdu.successful_outcome().value.f1_removal_resp();
-  ie->transaction_id    = (*f1_removal_request.pdu.init_msg().value.f1_removal_request())[0]->transaction_id();
+  ie->transaction_id    = f1_removal_request.pdu.init_msg().value.f1_removal_request()->transaction_id;
 
   return resp;
 }
@@ -371,10 +369,10 @@ static drbs_to_be_setup_item_s generate_drb_am_setup_item(drb_id_t drbid)
   drb.qos_info.set_choice_ext().load_info_obj(ASN1_F1AP_ID_DRB_INFO);
   auto& drb_info                                                 = drb.qos_info.choice_ext()->drb_info();
   drb_info.drb_qos.qos_characteristics.set_non_dyn_5qi().five_qi = 9;
-  drb_info.drb_qos.ngra_nalloc_retention_prio.prio_level         = 1;
-  drb_info.drb_qos.ngra_nalloc_retention_prio.pre_emption_cap.value =
+  drb_info.drb_qos.ngran_alloc_retention_prio.prio_level         = 1;
+  drb_info.drb_qos.ngran_alloc_retention_prio.pre_emption_cap.value =
       pre_emption_cap_opts::shall_not_trigger_pre_emption;
-  drb_info.drb_qos.ngra_nalloc_retention_prio.pre_emption_vulnerability.value =
+  drb_info.drb_qos.ngran_alloc_retention_prio.pre_emption_vulnerability.value =
       pre_emption_vulnerability_opts::not_pre_emptable;
   drb_info.drb_qos.reflective_qos_attribute_present = true;
   drb_info.drb_qos.reflective_qos_attribute.value =
@@ -385,8 +383,8 @@ static drbs_to_be_setup_item_s generate_drb_am_setup_item(drb_id_t drbid)
   drb_info.flows_mapped_to_drb_list[0].qos_flow_id = 1;
   drb_info.flows_mapped_to_drb_list[0].qos_flow_level_qos_params.qos_characteristics =
       drb_info.drb_qos.qos_characteristics;
-  drb_info.flows_mapped_to_drb_list[0].qos_flow_level_qos_params.ngra_nalloc_retention_prio =
-      drb_info.drb_qos.ngra_nalloc_retention_prio;
+  drb_info.flows_mapped_to_drb_list[0].qos_flow_level_qos_params.ngran_alloc_retention_prio =
+      drb_info.drb_qos.ngran_alloc_retention_prio;
   drb.rlc_mode.value         = rlc_mode_opts::rlc_am;
   drb.ie_exts_present        = true;
   drb.ie_exts.dl_pdcp_sn_len = pdcp_sn_len_opts::twelve_bits;
@@ -602,10 +600,10 @@ static asn1::f1ap::drbs_to_be_setup_mod_item_s generate_drb_am_mod_item(drb_id_t
   drb.qos_info.set_choice_ext().load_info_obj(ASN1_F1AP_ID_DRB_INFO);
   auto& drb_info                                                 = drb.qos_info.choice_ext()->drb_info();
   drb_info.drb_qos.qos_characteristics.set_non_dyn_5qi().five_qi = 8;
-  drb_info.drb_qos.ngra_nalloc_retention_prio.prio_level         = 1;
-  drb_info.drb_qos.ngra_nalloc_retention_prio.pre_emption_cap.value =
+  drb_info.drb_qos.ngran_alloc_retention_prio.prio_level         = 1;
+  drb_info.drb_qos.ngran_alloc_retention_prio.pre_emption_cap.value =
       pre_emption_cap_opts::shall_not_trigger_pre_emption;
-  drb_info.drb_qos.ngra_nalloc_retention_prio.pre_emption_vulnerability.value =
+  drb_info.drb_qos.ngran_alloc_retention_prio.pre_emption_vulnerability.value =
       pre_emption_vulnerability_opts::not_pre_emptable;
   drb_info.drb_qos.reflective_qos_attribute_present = true;
   drb_info.drb_qos.reflective_qos_attribute.value =
@@ -615,8 +613,8 @@ static asn1::f1ap::drbs_to_be_setup_mod_item_s generate_drb_am_mod_item(drb_id_t
   auto& qos_flow                                   = drb_info.flows_mapped_to_drb_list[0].qos_flow_level_qos_params;
   auto& desc                                       = qos_flow.qos_characteristics.set_non_dyn_5qi();
   desc.five_qi                                     = 8;
-  qos_flow.ngra_nalloc_retention_prio.pre_emption_cap.value = pre_emption_cap_opts::shall_not_trigger_pre_emption;
-  qos_flow.ngra_nalloc_retention_prio.pre_emption_vulnerability.value =
+  qos_flow.ngran_alloc_retention_prio.pre_emption_cap.value = pre_emption_cap_opts::shall_not_trigger_pre_emption;
+  qos_flow.ngran_alloc_retention_prio.pre_emption_vulnerability.value =
       pre_emption_vulnerability_opts::not_pre_emptable;
   drb_info.snssai.sst.from_string("01");
   drb_info.snssai.sd.from_string("0027db");
@@ -1078,8 +1076,8 @@ f1ap_message ocudu::test_helpers::generate_positioning_information_response(gnb_
   pos_info_resp->gnb_cu_ue_f1ap_id = to_underlying(cu_ue_id);
   pos_info_resp->gnb_du_ue_f1ap_id = to_underlying(du_ue_id);
 
-  pos_info_resp->srs_configuration_present = true;
-  pos_info_resp->srs_configuration         = generate_srs_configuration();
+  pos_info_resp->srs_cfg_present = true;
+  pos_info_resp->srs_cfg         = generate_srs_configuration();
 
   return pdu;
 }
@@ -1137,7 +1135,9 @@ f1ap_message ocudu::test_helpers::generate_e_cid_measurement_initiation_request(
     const std::vector<asn1::f1ap::e_c_id_meas_quantities_value_opts::options>& quantities,
     asn1::f1ap::e_c_id_report_characteristics_opts::options                    report_characteristics,
     uint16_t                                                                   lmf_ue_meas_id,
-    uint16_t                                                                   ran_ue_meas_id)
+    uint16_t                                                                   ran_ue_meas_id,
+    std::optional<asn1::f1ap::pos_meas_periodicity_nr_ao_a_opts::options>      meas_periodicity_nr_aoa,
+    std::optional<asn1::f1ap::meas_periodicity_opts::options>                  e_cid_meas_periodicity)
 {
   f1ap_message pdu = {};
 
@@ -1156,6 +1156,34 @@ f1ap_message ocudu::test_helpers::generate_e_cid_measurement_initiation_request(
     req->e_c_id_meas_quantities[i].load_info_obj(ASN1_F1AP_ID_E_C_ID_MEAS_QUANTITIES_ITEM);
     req->e_c_id_meas_quantities[i]->e_c_id_meas_quantities_item().e_c_id_meas_quantities_value = quantities[i];
   }
+
+  if (meas_periodicity_nr_aoa.has_value()) {
+    req->pos_meas_periodicity_nr_ao_a_present = true;
+    req->pos_meas_periodicity_nr_ao_a         = meas_periodicity_nr_aoa.value();
+  }
+  if (e_cid_meas_periodicity.has_value()) {
+    req->e_c_id_meas_periodicity_present = true;
+    req->e_c_id_meas_periodicity         = e_cid_meas_periodicity.value();
+  }
+
+  return pdu;
+}
+
+f1ap_message ocudu::test_helpers::generate_e_cid_measurement_termination_command(gnb_cu_ue_f1ap_id_t cu_ue_id,
+                                                                                 gnb_du_ue_f1ap_id_t du_ue_id,
+                                                                                 uint16_t            lmf_ue_meas_id,
+                                                                                 uint16_t            ran_ue_meas_id)
+{
+  f1ap_message pdu = {};
+
+  pdu.pdu.set_init_msg();
+  pdu.pdu.init_msg().load_info_obj(ASN1_F1AP_ID_E_C_ID_MEAS_TERMINATION);
+
+  auto& cmd              = pdu.pdu.init_msg().value.e_c_id_meas_termination_cmd();
+  cmd->gnb_cu_ue_f1ap_id = to_underlying(cu_ue_id);
+  cmd->gnb_du_ue_f1ap_id = to_underlying(du_ue_id);
+  cmd->lmf_ue_meas_id    = lmf_ue_meas_id;
+  cmd->ran_ue_meas_id    = ran_ue_meas_id;
 
   return pdu;
 }
@@ -1202,8 +1230,8 @@ f1ap_message ocudu::test_helpers::generate_positioning_measurement_request(
     pos_meas_req->resp_time.time_unit = asn1::f1ap::resp_time_s::time_unit_opts::ten_milliseconds;
   }
 
-  pos_meas_req->srs_configuration_present = true;
-  pos_meas_req->srs_configuration         = generate_srs_configuration(scs, srs_offset);
+  pos_meas_req->srs_cfg_present = true;
+  pos_meas_req->srs_cfg         = generate_srs_configuration(scs, srs_offset);
 
   return pdu;
 }
@@ -1453,6 +1481,50 @@ f1ap_message ocudu::test_helpers::generate_e_cid_measurement_initiation_failure(
   fail->lmf_ue_meas_id            = lmf_ue_meas_id;
   fail->ran_ue_meas_id            = ran_ue_meas_id;
   fail->cause.set_radio_network() = asn1::f1ap::cause_radio_network_opts::unspecified;
+
+  return pdu;
+}
+
+f1ap_message ocudu::test_helpers::generate_e_cid_measurement_report(gnb_du_ue_f1ap_id_t du_ue_id,
+                                                                    gnb_cu_ue_f1ap_id_t cu_ue_id,
+                                                                    uint16_t            lmf_ue_meas_id,
+                                                                    uint16_t            ran_ue_meas_id,
+                                                                    uint16_t            azimuth_aoa)
+{
+  f1ap_message pdu = {};
+
+  pdu.pdu.set_init_msg();
+  pdu.pdu.init_msg().load_info_obj(ASN1_F1AP_ID_E_C_ID_MEAS_REPORT);
+
+  auto& report              = pdu.pdu.init_msg().value.e_c_id_meas_report();
+  report->gnb_cu_ue_f1ap_id = to_underlying(cu_ue_id);
+  report->gnb_du_ue_f1ap_id = to_underlying(du_ue_id);
+  report->lmf_ue_meas_id    = lmf_ue_meas_id;
+  report->ran_ue_meas_id    = ran_ue_meas_id;
+
+  asn1::f1ap::e_c_id_measured_results_item_s item;
+  item.e_c_id_measured_results_value.set_value_angleof_arrival_nr().azimuth_ao_a = azimuth_aoa;
+  report->e_c_id_meas_result.measured_results_list.push_back(item);
+
+  return pdu;
+}
+
+f1ap_message ocudu::test_helpers::generate_e_cid_measurement_failure_indication(gnb_du_ue_f1ap_id_t du_ue_id,
+                                                                                gnb_cu_ue_f1ap_id_t cu_ue_id,
+                                                                                uint16_t            lmf_ue_meas_id,
+                                                                                uint16_t            ran_ue_meas_id)
+{
+  f1ap_message pdu = {};
+
+  pdu.pdu.set_init_msg();
+  pdu.pdu.init_msg().load_info_obj(ASN1_F1AP_ID_E_C_ID_MEAS_FAIL_IND);
+
+  auto& ind                      = pdu.pdu.init_msg().value.e_c_id_meas_fail_ind();
+  ind->gnb_cu_ue_f1ap_id         = to_underlying(cu_ue_id);
+  ind->gnb_du_ue_f1ap_id         = to_underlying(du_ue_id);
+  ind->lmf_ue_meas_id            = lmf_ue_meas_id;
+  ind->ran_ue_meas_id            = ran_ue_meas_id;
+  ind->cause.set_radio_network() = asn1::f1ap::cause_radio_network_opts::unspecified;
 
   return pdu;
 }

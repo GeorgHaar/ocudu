@@ -49,7 +49,7 @@ static bool is_edrx_enabled(const byte_buffer& packed_sib1)
   asn1::rrc_nr::sib1_s sib1;
   {
     asn1::cbit_ref bref{packed_sib1};
-    auto           unpack_result = sib1.unpack(bref);
+    auto           unpack_result = asn1::unpack(sib1, bref);
     ocudu_assert(unpack_result == asn1::OCUDUASN_SUCCESS, "Failed to decode SIB1");
   }
   return is_edrx_enabled(sib1);
@@ -61,7 +61,7 @@ static std::optional<uint16_t> extract_bcch_dl_sch_msg_hyper_sfn(span<const uint
   {
     auto           buf = byte_buffer::create(pdu).value();
     asn1::cbit_ref bref{buf};
-    auto           unpack_result = msg.unpack(bref);
+    auto           unpack_result = asn1::unpack(msg, bref);
     ocudu_assert(unpack_result == asn1::OCUDUASN_SUCCESS, "Failed to decode SIB1");
   }
   ocudu_assert(msg.msg.type().value == asn1::rrc_nr::bcch_dl_sch_msg_type_c::types_opts::c1,
@@ -126,7 +126,10 @@ TEST_F(paging_tester, when_paging_message_is_received_its_relayed_to_ue)
   for (unsigned i = 0; i != MAX_COUNT; ++i) {
     this->run_slot();
 
-    for (const auto& pg_grant : this->phy.cells[0].last_dl_res->dl_res->paging_grants) {
+    if (not this->phy.cells[0].last_dl_res.has_value()) {
+      continue;
+    }
+    for (const auto& pg_grant : this->phy.cells[0].last_dl_res->dl_res.paging_grants()) {
       const auto& pg_ue_it =
           std::find_if(pg_grant.paging_ue_list.begin(), pg_grant.paging_ue_list.end(), [](const paging_ue_info& ue) {
             return ue.paging_type_indicator == ocudu::paging_ue_info::cn_ue_paging_identity and
@@ -173,8 +176,8 @@ TEST_F(edrx_paging_test, when_edrx_enabled_then_hypersfn_is_updated_in_sib1)
   for (unsigned i = 0; i != MAX_COUNT; ++i) {
     this->run_slot();
 
-    if (this->phy.cells[0].last_dl_res.has_value() and not this->phy.cells[0].last_dl_res->dl_res->bc.sibs.empty()) {
-      auto& sibs = this->phy.cells[0].last_dl_res->dl_res->bc.sibs;
+    if (this->phy.cells[0].last_dl_res.has_value() and not this->phy.cells[0].last_dl_res->dl_res.sibs().empty()) {
+      const auto sibs = this->phy.cells[0].last_dl_res->dl_res.sibs();
       for (const auto& sib : sibs) {
         if (sib.si_indicator == sib_information::sib1) {
           sib1_count++;
@@ -231,8 +234,8 @@ TEST_F(edrx_paging_test, when_f1_edrx_paging_is_received_then_it_is_sent_to_lowe
   for (unsigned i = 0; i != MAX_SLOT_COUNT and not found; ++i) {
     this->run_slot();
     if (this->phy.cells[0].last_dl_res.has_value() and
-        not this->phy.cells[0].last_dl_res->dl_res->paging_grants.empty()) {
-      for (const auto& grant : this->phy.cells[0].last_dl_res->dl_res->paging_grants) {
+        not this->phy.cells[0].last_dl_res->dl_res.paging_grants().empty()) {
+      for (const auto& grant : this->phy.cells[0].last_dl_res->dl_res.paging_grants()) {
         ASSERT_FALSE(grant.paging_ue_list.empty());
         for (const auto& ue_pg : grant.paging_ue_list) {
           ASSERT_EQ(ue_pg.paging_type_indicator, paging_ue_info::cn_ue_paging_identity);

@@ -27,9 +27,9 @@ public:
                                 slot_point               pusch_slot,
                                 span<ue_newtx_candidate> ue_candidates) override;
 
-  void save_dl_newtx_grants(span<const dl_msg_alloc> dl_grants) override;
+  void save_dl_newtx_grants(pdu_span<dl_msg_alloc> dl_grants) override;
 
-  void save_ul_newtx_grants(span<const ul_sched_info> ul_grants) override;
+  void save_ul_newtx_grants(pdu_span<ul_sched_info> ul_grants) override;
 
 private:
   // Tables to keep track of UE priorities.

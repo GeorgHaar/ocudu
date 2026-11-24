@@ -58,7 +58,10 @@ test_sched_config_manager::~test_sched_config_manager() {}
 
 const cell_configuration* test_sched_config_manager::add_cell(const sched_cell_configuration_request_message& msg)
 {
-  default_cell_req = msg;
+  // Callers may pass the default request itself. Skip the self-assignment, which overlaps in memcpy.
+  if (&msg != &default_cell_req) {
+    default_cell_req = msg;
+  }
   default_ue_req =
       sched_config_helper::create_default_sched_ue_creation_request(default_cell_req.ran, {lcid_t::LCID_MIN_DRB});
   return cfg_mng.add_cell(msg);

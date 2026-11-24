@@ -72,7 +72,7 @@ public:
   void stop() override;
 
   // NGAP interface.
-  ngap_message_handler* get_ngap_message_handler(const plmn_identity& plmn) override;
+  ngap_message_handler* get_ngap_message_handler(cu_cp_amf_index_t amf_index) override;
 
   bool amfs_are_connected() override;
 
@@ -83,9 +83,12 @@ public:
   void handle_e1_release_request(cu_cp_cu_up_index_t cu_up_index) override;
 
   // cu_cp_rrc_ue_interface.
-  bool handle_ue_plmn_selected(cu_cp_ue_index_t ue_index, const plmn_identity& plmn) override;
-  rrc_ue_reestablishment_context_response
-  handle_rrc_reestablishment_request(pci_t old_pci, rnti_t old_c_rnti, cu_cp_ue_index_t ue_index) override;
+  bool handle_ue_setup_request(cu_cp_ue_index_t ue_index, establishment_cause_t establishment_cause) override;
+  bool handle_ue_setup_complete_received(cu_cp_ue_index_t ue_index, const amf_selection_request& request) override;
+  rrc_ue_reestablishment_context_response handle_rrc_reestablishment_request(pci_t            old_pci,
+                                                                             rnti_t           old_c_rnti,
+                                                                             reest_cause_t    reest_cause,
+                                                                             cu_cp_ue_index_t ue_index) override;
   async_task<rrc_ue_context_retrieval_response>
                    handle_ue_context_retrieval_required(cu_cp_ue_index_t                        ue_index,
                                                         const rrc_ue_context_retrieval_request& request) override;
@@ -106,6 +109,8 @@ public:
   void             handle_cho_reconfiguration_sent(const cu_cp_cho_target_request& request) override;
   async_task<bool> handle_handover_ue_context_push(cu_cp_ue_index_t source_ue_index,
                                                    cu_cp_ue_index_t target_ue_index) override;
+  bool             handle_handover_target_ue_amf_binding(cu_cp_ue_index_t source_ue_index,
+                                                         cu_cp_ue_index_t target_ue_index) override;
   void
        initialize_handover_ue_release_timer(cu_cp_ue_index_t                        ue_index,
                                             std::chrono::milliseconds               handover_ue_release_timeout,
@@ -142,16 +147,17 @@ public:
   handle_write_replace_warning_request(const ngap_write_replace_warning_request& request) override;
 
   // cu_cp_inter_cu_handover_handler.
-  async_task<bool> handle_new_rrc_handover_command(cu_cp_rrc_handover_command      command,
-                                                   std::optional<xnc_peer_index_t> xnc_index = std::nullopt) override;
-  cu_cp_ue_index_t handle_ue_index_allocation_request(const nr_cell_global_id_t& cgi,
-                                                      const plmn_identity&       plmn) override;
-  bool             handle_handover_request(cu_cp_ue_index_t                  ue_index,
-                                           const plmn_identity&              selected_plmn,
-                                           const security::security_context& sec_ctxt) override;
-  void             handle_inter_cu_target_handover_execution(cu_cp_ue_index_t ue_index,
-                                                             const std::optional<xnap_handover_target_execution_context>&
-                                                                 xnap_ho_target_execution_ctxt = std::nullopt) override;
+  async_task<bool>                         handle_new_rrc_handover_command(cu_cp_rrc_handover_command      command,
+                                                                           std::optional<xnc_peer_index_t> xnc_index = std::nullopt) override;
+  expected<cu_cp_ue_index_t, xnap_cause_t> handle_ue_index_allocation_request_for_guami(const nr_cell_global_id_t& cgi,
+                                                                                        const guami_t& guami) override;
+  cu_cp_ue_index_t                         handle_ue_index_allocation_request_for_amf(const nr_cell_global_id_t& cgi,
+                                                                                      const plmn_identity&       plmn,
+                                                                                      cu_cp_amf_index_t          amf_index) override;
+  bool handle_handover_request(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt) override;
+  void handle_inter_cu_target_handover_execution(cu_cp_ue_index_t ue_index,
+                                                 const std::optional<xnap_handover_target_execution_context>&
+                                                     xnap_ho_target_execution_ctxt = std::nullopt) override;
 
   // cu_cp_xnap_handler.
   async_task<cu_cp_handover_resource_allocation_response>
@@ -264,6 +270,7 @@ public:
 
 private:
   // Handling of DU events.
+  bool handle_ue_resume_admission_request(cu_cp_ue_index_t ue_index, resume_cause_t resume_cause) override;
   void handle_rrc_ue_creation(cu_cp_ue_index_t ue_index, rrc_ue_interface& rrc_ue) override;
 
   byte_buffer handle_target_cell_sib1_required(cu_cp_du_index_t du_index, nr_cell_global_id_t cgi) override;
@@ -280,8 +287,14 @@ private:
 
   void handle_served_cells_updated() override;
 
+  void handle_e_cid_measurement_report(const e_cid_measurement_report_t& report) override;
+
+  void handle_e_cid_measurement_failure_indication(const e_cid_measurement_failure_indication_t& ind) override;
+
   // NGAP UE creation handler.
   ngap_cu_cp_ue_notifier* handle_new_ngap_ue(cu_cp_ue_index_t ue_index) override;
+  cu_cp_ue_index_t        handle_ue_association_transfer(ran_ue_id_t ran_ue_id, cu_cp_amf_index_t amf_index) override;
+  bool handle_reroute_nas_request(const ngap_reroute_nas_request& request, cu_cp_amf_index_t amf_index) override;
 
   // cu_cp_task_scheduler_handler.
   bool schedule_ue_task(cu_cp_ue_index_t ue_index, async_task<void> task) override;
@@ -293,6 +306,18 @@ private:
   /// \param[in] full_i_rnti Full I-RNTI of the UE to page.
   /// message.
   void send_ran_paging(cu_cp_ue_index_t ue_index, full_i_rnti_t full_i_rnti);
+
+  /// \brief Binds a UE to the AMF that serves it, and connects the RRC UE to the NGAP of this AMF.
+  /// \returns False if no NGAP exists for the AMF.
+  bool bind_ue_to_amf(cu_cp_ue_index_t ue_index, cu_cp_amf_index_t amf_index);
+
+  /// \brief Binds a UE with a context retrieved from a peer to the AMF that the peer reported.
+  /// \returns False if the CU-CP is not connected to this AMF or to its AMF Set.
+  bool bind_retrieved_ue_to_amf(cu_cp_ue_index_t ue_index);
+
+  /// \brief Creates a UE in the target cell of a handover.
+  /// \returns The index of the new UE, or cu_cp_ue_index_t::invalid if the UE cannot be served.
+  cu_cp_ue_index_t add_handover_target_ue(const nr_cell_global_id_t& cgi);
 
   /// \brief Request the release of an inactive UE that failed to resume within the expected time.
   /// \param[in] ue_index The index of the UE to release.

@@ -264,6 +264,19 @@ f1ap_message generate_e_cid_measurement_initiation_response(gnb_du_ue_f1ap_id_t 
                                                             std::optional<uint16_t> azimuth_aoa,
                                                             std::optional<uint16_t> zenith_aoa = std::nullopt);
 
+/// \brief Generates an F1AP E-CID MEASUREMENT REPORT, as per TS 38.473, Section 9.2.12.24.
+f1ap_message generate_e_cid_measurement_report(gnb_du_ue_f1ap_id_t du_ue_id,
+                                               gnb_cu_ue_f1ap_id_t cu_ue_id,
+                                               uint16_t            lmf_ue_meas_id,
+                                               uint16_t            ran_ue_meas_id,
+                                               uint16_t            azimuth_aoa);
+
+/// \brief Generates an F1AP E-CID MEASUREMENT FAILURE INDICATION, as per TS 38.473, Section 9.2.12.23.
+f1ap_message generate_e_cid_measurement_failure_indication(gnb_du_ue_f1ap_id_t du_ue_id,
+                                                           gnb_cu_ue_f1ap_id_t cu_ue_id,
+                                                           uint16_t            lmf_ue_meas_id,
+                                                           uint16_t            ran_ue_meas_id);
+
 /// \brief Generates an F1AP E-CID MEASUREMENT INITIATION FAILURE, as per TS 38.473, Section 9.2.12.22.
 f1ap_message generate_e_cid_measurement_initiation_failure(gnb_du_ue_f1ap_id_t du_ue_id,
                                                            gnb_cu_ue_f1ap_id_t cu_ue_id,
@@ -287,8 +300,17 @@ f1ap_message generate_e_cid_measurement_initiation_request(
         {asn1::f1ap::e_c_id_meas_quantities_value_opts::options::angle_of_arrival_nr},
     asn1::f1ap::e_c_id_report_characteristics_opts::options report_characteristics =
         asn1::f1ap::e_c_id_report_characteristics_opts::options::on_demand,
-    uint16_t lmf_ue_meas_id = 1,
-    uint16_t ran_ue_meas_id = 2);
+    uint16_t                                                              lmf_ue_meas_id          = 1,
+    uint16_t                                                              ran_ue_meas_id          = 2,
+    std::optional<asn1::f1ap::pos_meas_periodicity_nr_ao_a_opts::options> meas_periodicity_nr_aoa = std::nullopt,
+    std::optional<asn1::f1ap::meas_periodicity_opts::options>             e_cid_meas_periodicity  = std::nullopt);
+
+/// \brief Generates dummy F1AP E-CID MEASUREMENT TERMINATION COMMAND message, sent by the CU to the DU, as per
+/// TS 38.473 section 8.13.15.
+f1ap_message generate_e_cid_measurement_termination_command(gnb_cu_ue_f1ap_id_t cu_ue_id,
+                                                            gnb_du_ue_f1ap_id_t du_ue_id,
+                                                            uint16_t            lmf_ue_meas_id = 1,
+                                                            uint16_t            ran_ue_meas_id = 2);
 
 /// \brief Generates dummy F1AP POSITIONING MEASUREMENT REQUEST message, sent by the CU to the DU, as per
 /// TS 38.473 section 8.13.3.2.

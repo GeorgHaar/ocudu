@@ -86,15 +86,12 @@ std::vector<cell_lifecycle_target> ocudu::ocucp::resolve_deactivation_targets(du
   return targets;
 }
 
-std::vector<cu_cp_ue_index_t> ocudu::ocucp::collect_ues_for_plmns(ue_manager&                       ue_mng,
-                                                                  const std::vector<plmn_identity>& plmns)
+std::vector<cu_cp_ue_index_t> ocudu::ocucp::collect_ues_for_amf(ue_manager& ue_mng, cu_cp_amf_index_t amf_index)
 {
   std::vector<cu_cp_ue_index_t> ue_indexes;
-  for (const plmn_identity& plmn : plmns) {
-    for (cu_cp_ue* ue : ue_mng.find_ues(plmn)) {
-      if (ue != nullptr) {
-        ue_indexes.push_back(ue->get_ue_index());
-      }
+  for (cu_cp_ue* ue : ue_mng.find_ues(amf_index)) {
+    if (ue != nullptr) {
+      ue_indexes.push_back(ue->get_ue_index());
     }
   }
   return ue_indexes;

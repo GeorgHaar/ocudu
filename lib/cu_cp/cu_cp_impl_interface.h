@@ -6,6 +6,7 @@
 #pragma once
 
 #include "du_processor/du_reported_cell.h"
+#include "ocudu/adt/expected.h"
 #include "ocudu/cu_cp/cell_meas_manager_config.h"
 #include "ocudu/cu_cp/cu_cp_intra_cu_ho_types.h"
 #include "ocudu/e1ap/cu_cp/e1ap_cu_cp_bearer_context_update.h"
@@ -60,18 +61,26 @@ public:
   handle_new_rrc_handover_command(cu_cp_rrc_handover_command      command,
                                   std::optional<xnc_peer_index_t> xnc_index = std::nullopt) = 0;
 
-  /// \brief Handles UE index allocation request for N2 handover at target gNB.
-  virtual cu_cp_ue_index_t handle_ue_index_allocation_request(const nr_cell_global_id_t& cgi,
-                                                              const plmn_identity&       plmn) = 0;
+  /// \brief Handles UE index allocation request for a handover target UE that the AMF of a GUAMI serves.
+  /// \param[in] cgi The target cell of the handover.
+  /// \param[in] guami The GUAMI of the AMF that serves the UE.
+  /// \return The index of the new UE, or the cause to reject the handover with.
+  virtual expected<cu_cp_ue_index_t, xnap_cause_t>
+  handle_ue_index_allocation_request_for_guami(const nr_cell_global_id_t& cgi, const guami_t& guami) = 0;
+
+  /// \brief Handles UE index allocation request for a handover target UE that a given AMF serves.
+  /// \param[in] cgi The target cell of the handover.
+  /// \param[in] plmn The PLMN of the UE.
+  /// \param[in] amf_index The AMF that serves the UE.
+  virtual cu_cp_ue_index_t handle_ue_index_allocation_request_for_amf(const nr_cell_global_id_t& cgi,
+                                                                      const plmn_identity&       plmn,
+                                                                      cu_cp_amf_index_t          amf_index) = 0;
 
   /// \brief Handle a received handover request.
   /// \param[in] ue_index Index of the UE.
-  /// \param[in] selected_plmn The selected PLMN identity of the UE.
   /// \param[in] sec_ctxt The received security context.
   /// \return True if the handover request was successfully handled, false otherwise.
-  virtual bool handle_handover_request(cu_cp_ue_index_t                  ue_index,
-                                       const plmn_identity&              selected_plmn,
-                                       const security::security_context& sec_ctxt) = 0;
+  virtual bool handle_handover_request(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt) = 0;
 
   /// \brief Handle the handover execution phase of the inter-CU handover at target gNB.
   /// \param[in] ue_index The index of the UE that is performing the handover.
@@ -94,6 +103,19 @@ public:
   /// \param[in] ue_index The index of the new NGAP UE.
   /// \returns Pointer to the NGAP UE notifier.
   virtual ngap_cu_cp_ue_notifier* handle_new_ngap_ue(cu_cp_ue_index_t ue_index) = 0;
+
+  /// \brief Handle the transfer of a UE association to the NGAP of the AMF that takes over the UE.
+  /// \param[in] ran_ue_id The RAN UE NGAP ID of the UE association.
+  /// \param[in] amf_index The index of the AMF that takes over the UE.
+  /// \returns The index of the UE, or cu_cp_ue_index_t::invalid if no other NGAP holds the UE association.
+  virtual cu_cp_ue_index_t handle_ue_association_transfer(ran_ue_id_t ran_ue_id, cu_cp_amf_index_t amf_index) = 0;
+
+  /// \brief Handle the request of the source AMF to reroute the INITIAL UE MESSAGE of a UE to a target AMF of an AMF
+  /// Set.
+  /// \param[in] request The REROUTE NAS REQUEST of the source AMF.
+  /// \param[in] amf_index The index of the source AMF.
+  /// \returns True if the NGAP of the target AMF sent the rerouted INITIAL UE MESSAGE.
+  virtual bool handle_reroute_nas_request(const ngap_reroute_nas_request& request, cu_cp_amf_index_t amf_index) = 0;
 
   /// \brief Handle the reception of a new Initial Context Setup Request.
   /// \param[in] request The received Initial Context Setup Request.
@@ -217,6 +239,12 @@ class cu_cp_du_event_handler
 public:
   virtual ~cu_cp_du_event_handler() = default;
 
+  /// \brief Handle the request of an RRC_INACTIVE UE to resume.
+  /// \param[in] ue_index The index of the RRC_INACTIVE UE.
+  /// \param[in] resume_cause The resume cause of the RRC Resume Request.
+  /// \return True if the UE is accepted.
+  virtual bool handle_ue_resume_admission_request(cu_cp_ue_index_t ue_index, resume_cause_t resume_cause) = 0;
+
   /// \brief Handle a RRC UE creation notification from the DU processor.
   /// \param[in] ue_index The index of the UE.
   /// \param[in] rrc_ue The interface of the created RRC UE.
@@ -253,6 +281,12 @@ public:
 
   /// \brief Handle a change of the NR cells the connected DUs serve.
   virtual void handle_served_cells_updated() = 0;
+
+  /// \brief Handle an E-CID measurement report of the gNB-DU, as per TS 38.473 section 8.13.14.
+  virtual void handle_e_cid_measurement_report(const e_cid_measurement_report_t& report) = 0;
+
+  /// \brief Handle an E-CID measurement failure indication of the gNB-DU, as per TS 38.473 section 8.13.13.
+  virtual void handle_e_cid_measurement_failure_indication(const e_cid_measurement_failure_indication_t& ind) = 0;
 };
 
 /// Interface for an RRC UE entity to communicate with the CU-CP.
@@ -261,19 +295,28 @@ class cu_cp_rrc_ue_interface
 public:
   virtual ~cu_cp_rrc_ue_interface() = default;
 
-  /// \brief Handles a new UE connection with a selected PLMN.
+  /// \brief Handles the RRC Setup Request of a new UE: decides which AMFs reject the UE because of an overload.
   /// \param[in] ue_index The index of the UE.
-  /// \param[in] plmn The selected PLMN of the UE.
+  /// \param[in] establishment_cause The establishment cause of the RRC Setup Request.
+  /// \return True if an AMF accepts the UE, false otherwise.
+  virtual bool handle_ue_setup_request(cu_cp_ue_index_t ue_index, establishment_cause_t establishment_cause) = 0;
+
+  /// \brief Handles a new UE connection: sets the selected PLMN of the UE and selects the AMF of the UE.
+  /// \param[in] ue_index The index of the UE.
+  /// \param[in] request The selected PLMN of the UE and the identities that the AMF selection uses.
   /// \return True if the UE connection is accepted, false otherwise.
-  virtual bool handle_ue_plmn_selected(cu_cp_ue_index_t ue_index, const plmn_identity& plmn) = 0;
+  virtual bool handle_ue_setup_complete_received(cu_cp_ue_index_t ue_index, const amf_selection_request& request) = 0;
 
   /// \brief Handle the reception of an RRC Reestablishment Request by transfering UE Contexts at the RRC.
   /// \param[in] old_pci The old PCI contained in the RRC Reestablishment Request.
   /// \param[in] old_c_rnti The old C-RNTI contained in the RRC Reestablishment Request.
+  /// \param[in] reest_cause The reestablishment cause contained in the RRC Reestablishment Request.
   /// \param[in] ue_index The new UE index of the UE that sent the Reestablishment Request.
   /// \returns The RRC Reestablishment UE context for the old UE.
-  virtual rrc_ue_reestablishment_context_response
-  handle_rrc_reestablishment_request(pci_t old_pci, rnti_t old_c_rnti, cu_cp_ue_index_t ue_index) = 0;
+  virtual rrc_ue_reestablishment_context_response handle_rrc_reestablishment_request(pci_t            old_pci,
+                                                                                     rnti_t           old_c_rnti,
+                                                                                     reest_cause_t    reest_cause,
+                                                                                     cu_cp_ue_index_t ue_index) = 0;
 
   /// \brief Handle a required UE context retrieval from a peer NG-RAN node over Xn (TS 38.423 section 8.2.4).
   /// \param[in] ue_index The index of the UE the context is retrieved for.
@@ -382,6 +425,13 @@ public:
   /// \return True if the UE context was pushed to the target UE, false otherwise.
   virtual async_task<bool> handle_handover_ue_context_push(cu_cp_ue_index_t source_ue_index,
                                                            cu_cp_ue_index_t target_ue_index) = 0;
+
+  /// \brief Handle the binding of an intra-CU handover target UE to the PLMN and the AMF of the source UE.
+  /// \param[in] source_ue_index The index of the UE that is the source of the handover.
+  /// \param[in] target_ue_index The index of the UE that is the target of the handover.
+  /// \return True if the target UE is bound to the AMF of the source UE, false otherwise.
+  virtual bool handle_handover_target_ue_amf_binding(cu_cp_ue_index_t source_ue_index,
+                                                     cu_cp_ue_index_t target_ue_index) = 0;
 
   /// \brief Initialize a handover UE release timer. When the timeout is reached, a release request is sent to the AMF.
   /// \param[in] ue_index The index of the UE.

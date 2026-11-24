@@ -36,7 +36,6 @@ protected:
                                                                 task_sched,
                                                                 timers,
                                                                 timers,
-                                                                timers,
                                                                 f1u_gw,
                                                                 ngu_session_mngr,
                                                                 pdcp_if,
@@ -88,6 +87,7 @@ private:
 
   // NG-U Configs.
   ngu_interface_config ngu_cfg{GTPU_PORT,
+                               std::nullopt,
                                std::chrono::milliseconds{0},
                                std::chrono::milliseconds{200},
                                GTPU_DEFAULT_TEID_RELEASE_LINGER_TIME,

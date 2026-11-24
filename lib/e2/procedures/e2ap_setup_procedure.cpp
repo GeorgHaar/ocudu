@@ -6,6 +6,7 @@
 #include "e2ap_setup_procedure.h"
 #include "../common/e2ap_asn1_utils.h"
 #include "ocudu/asn1/e2ap/e2ap.h"
+#include "ocudu/asn1/e2ap/e2ap_pdu_contents.h"
 #include "ocudu/support/async/async_event_source.h"
 
 using namespace ocudu;

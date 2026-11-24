@@ -4,7 +4,9 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "../cu_cp_test_messages.h"
+#include "lib/cu_cp/routines/mobility/mobility_helpers.h"
 #include "lib/cu_cp/up_resource_manager/up_resource_manager_impl.h"
+#include "tests/test_doubles/rrc/redcap_ue_capability_fixture.h"
 #include "ocudu/ran/rb_id.h"
 #include <gtest/gtest.h>
 
@@ -39,7 +41,7 @@ protected:
 
     // single PDU Session/DRB could be added
     const auto       psi    = uint_to_pdu_session_id(1);
-    up_config_update update = manager.calculate_update(msg.pdu_session_res_setup_items);
+    up_config_update update = manager.calculate_update(msg.pdu_session_res_setup_items, {});
     ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 1);
     ASSERT_EQ(update.pdu_sessions_to_setup_list.at(psi).drb_to_add.size(), 1);
 
@@ -64,7 +66,7 @@ protected:
     const auto                               psi = uint_to_pdu_session_id(1);
 
     ASSERT_TRUE(manager.validate_request(msg));
-    up_config_update update = manager.calculate_update(msg);
+    up_config_update update = manager.calculate_update(msg, {});
 
     // Verify calculated update.
     ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 0);
@@ -106,7 +108,7 @@ TEST_F(up_resource_manager_test, when_same_pdu_session_is_created_no_new_drb_is_
   ASSERT_TRUE(manager.validate_request(msg.pdu_session_res_setup_items));
 
   // single DRB should be added
-  up_config_update update = manager.calculate_update(msg.pdu_session_res_setup_items);
+  up_config_update update = manager.calculate_update(msg.pdu_session_res_setup_items, {});
   ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 1);
   ASSERT_EQ(update.pdu_sessions_to_setup_list.at(uint_to_pdu_session_id(1)).drb_to_add.size(), 1);
 
@@ -125,7 +127,7 @@ TEST_F(up_resource_manager_test, when_drb_is_added_pdcp_config_is_valid)
 {
   ngap_pdu_session_resource_setup_request msg = generate_pdu_session_resource_setup();
   ASSERT_TRUE(manager.validate_request(msg.pdu_session_res_setup_items));
-  up_config_update update = manager.calculate_update(msg.pdu_session_res_setup_items);
+  up_config_update update = manager.calculate_update(msg.pdu_session_res_setup_items, {});
 
   // Verify DRB config
   ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 1);
@@ -139,7 +141,7 @@ TEST_F(up_resource_manager_test, when_pdu_session_setup_with_two_qos_flows_both_
 {
   ngap_pdu_session_resource_setup_request msg = generate_pdu_session_resource_setup(cu_cp_ue_index_t::min, 1, 2);
   ASSERT_TRUE(manager.validate_request(msg.pdu_session_res_setup_items));
-  up_config_update update = manager.calculate_update(msg.pdu_session_res_setup_items);
+  up_config_update update = manager.calculate_update(msg.pdu_session_res_setup_items, {});
 
   // Verify created DRBs.
   ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 1);
@@ -161,9 +163,9 @@ TEST_F(up_resource_manager_test, when_source_used_different_drb_ids_target_prese
   // would pick.
   up_old_drb_association old_drb_association = {
       {uint_to_pdu_session_id(1),
-       {{uint_to_qos_flow_id(1), uint_to_drb_id(2)}, {uint_to_qos_flow_id(2), uint_to_drb_id(1)}}}};
+       {{uint_to_qos_flow_id(1), {uint_to_drb_id(2)}}, {uint_to_qos_flow_id(2), {uint_to_drb_id(1)}}}}};
 
-  up_config_update update = manager.calculate_update(msg.pdu_session_res_setup_items, old_drb_association);
+  up_config_update update = manager.calculate_update(msg.pdu_session_res_setup_items, {}, old_drb_association);
 
   ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 1);
   const auto& drb_to_add = update.pdu_sessions_to_setup_list.at(uint_to_pdu_session_id(1)).drb_to_add;
@@ -187,7 +189,7 @@ TEST_F(up_resource_manager_test, when_no_preference_is_given_the_allocated_drb_i
   ngap_pdu_session_resource_setup_request msg = generate_pdu_session_resource_setup();
   ASSERT_TRUE(manager.validate_request(msg.pdu_session_res_setup_items));
 
-  up_config_update update = manager.calculate_update(msg.pdu_session_res_setup_items);
+  up_config_update update = manager.calculate_update(msg.pdu_session_res_setup_items, {});
 
   ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 1);
   const auto& drb_to_add = update.pdu_sessions_to_setup_list.at(uint_to_pdu_session_id(1)).drb_to_add;
@@ -209,9 +211,10 @@ TEST_F(up_resource_manager_test, when_preferred_drb_id_is_already_taken_allocati
   ASSERT_TRUE(manager.validate_request(msg.pdu_session_res_setup_items));
 
   up_old_drb_association old_drb_association = {
-      {uint_to_pdu_session_id(2), {{uint_to_qos_flow_id(1), uint_to_drb_id(1)}}}};
+      {uint_to_pdu_session_id(2),
+       {{uint_to_qos_flow_id(1), {uint_to_drb_id(1), pdcp_sn_size::size18bits, pdcp_sn_size::size18bits}}}}};
 
-  up_config_update update = manager.calculate_update(msg.pdu_session_res_setup_items, old_drb_association);
+  up_config_update update = manager.calculate_update(msg.pdu_session_res_setup_items, {}, old_drb_association);
 
   ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 1);
   const auto& drb_to_add = update.pdu_sessions_to_setup_list.at(uint_to_pdu_session_id(2)).drb_to_add;
@@ -220,6 +223,10 @@ TEST_F(up_resource_manager_test, when_preferred_drb_id_is_already_taken_allocati
   EXPECT_TRUE(drb_to_add.find(uint_to_drb_id(1)) == drb_to_add.end());
   // The fallback-allocated ID must not be treated as confirmed, since it isn't the one the source asked for.
   EXPECT_FALSE(drb_to_add.at(uint_to_drb_id(2)).source_drb_id_confirmed);
+  EXPECT_EQ(drb_to_add.at(uint_to_drb_id(2)).pdcp_cfg.tx.sn_size,
+            cfg.five_qi_config.at(uint_to_five_qi(9)).pdcp.tx.sn_size);
+  EXPECT_EQ(drb_to_add.at(uint_to_drb_id(2)).pdcp_cfg.rx.sn_size,
+            cfg.five_qi_config.at(uint_to_five_qi(9)).pdcp.rx.sn_size);
 }
 
 TEST_F(up_resource_manager_test, when_pdu_session_gets_modified_new_drb_is_set_up)
@@ -272,7 +279,7 @@ TEST_F(up_resource_manager_test, when_existing_qos_flow_gets_removed_removal_suc
 
   ASSERT_TRUE(manager.validate_request(msg));
 
-  up_config_update update = manager.calculate_update(msg);
+  up_config_update update = manager.calculate_update(msg, {});
 
   // Verify calculated update.
   ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 0);
@@ -352,7 +359,7 @@ TEST_F(up_resource_manager_test, when_all_drb_ids_are_used_allocation_fails_unti
     ASSERT_TRUE(manager.validate_request(setup_msg.pdu_session_res_setup_items));
 
     // Calculate update
-    up_config_update update = manager.calculate_update(setup_msg.pdu_session_res_setup_items);
+    up_config_update update = manager.calculate_update(setup_msg.pdu_session_res_setup_items, {});
 
     // Verify calculated update.
     ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 1);
@@ -409,7 +416,7 @@ TEST_F(up_resource_manager_test, when_all_drb_ids_are_used_allocation_fails_unti
     ASSERT_TRUE(manager.validate_request(setup_msg.pdu_session_res_setup_items));
 
     // Calculate update
-    up_config_update update = manager.calculate_update(setup_msg.pdu_session_res_setup_items);
+    up_config_update update = manager.calculate_update(setup_msg.pdu_session_res_setup_items, {});
 
     // Verify calculated update.
     ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 0);
@@ -427,7 +434,7 @@ TEST_F(up_resource_manager_test, when_all_drb_ids_are_used_allocation_fails_unti
     ASSERT_TRUE(manager.validate_request(setup_msg.pdu_session_res_setup_items));
 
     // Calculate update
-    up_config_update update = manager.calculate_update(setup_msg.pdu_session_res_setup_items);
+    up_config_update update = manager.calculate_update(setup_msg.pdu_session_res_setup_items, {});
 
     // Verify calculated update.
     ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 1);
@@ -460,7 +467,7 @@ TEST_P(up_resource_manager_used_drb_ids_test, when_there_are_no_stale_drb_ids_th
     ASSERT_TRUE(manager.validate_request(setup_msg.pdu_session_res_setup_items));
 
     // Calculate update
-    up_config_update update = manager.calculate_update(setup_msg.pdu_session_res_setup_items);
+    up_config_update update = manager.calculate_update(setup_msg.pdu_session_res_setup_items, {});
 
     // Verify calculated update.
     ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 1);
@@ -510,7 +517,7 @@ TEST_P(up_resource_manager_key_refresh_useful_test,
     ASSERT_TRUE(manager.validate_request(setup_msg.pdu_session_res_setup_items));
 
     // Calculate update
-    up_config_update update = manager.calculate_update(setup_msg.pdu_session_res_setup_items);
+    up_config_update update = manager.calculate_update(setup_msg.pdu_session_res_setup_items, {});
 
     // Verify calculated update.
     ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 1);
@@ -586,7 +593,7 @@ TEST_P(up_resource_manager_max_nof_drbs_per_ue_test, max_nof_drbs_per_ue_is_chec
     ASSERT_TRUE(manager.validate_request(setup_msg.pdu_session_res_setup_items));
 
     // Calculate update
-    up_config_update update = manager.calculate_update(setup_msg.pdu_session_res_setup_items);
+    up_config_update update = manager.calculate_update(setup_msg.pdu_session_res_setup_items, {});
 
     // Verify calculated update.
     ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 1);
@@ -613,7 +620,7 @@ TEST_P(up_resource_manager_max_nof_drbs_per_ue_test, max_nof_drbs_per_ue_is_chec
   ASSERT_TRUE(manager.validate_request(setup_msg.pdu_session_res_setup_items));
 
   // Calculate update
-  up_config_update update = manager.calculate_update(setup_msg.pdu_session_res_setup_items);
+  up_config_update update = manager.calculate_update(setup_msg.pdu_session_res_setup_items, {});
 
   // Verify calculated update - it should fail to add PDU session because of DRB limit
   ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 0);
@@ -626,4 +633,383 @@ TEST_P(up_resource_manager_max_nof_drbs_per_ue_test, max_nof_drbs_per_ue_is_chec
   ASSERT_EQ(manager.get_total_nof_qos_flows(), 1);
   ASSERT_EQ(manager.get_nof_drbs(), GetParam());
   ASSERT_EQ(manager.get_nof_used_drb_ids(), GetParam());
+}
+
+static rrc_ue_capabilities_t redcap_bearer_capabilities(bool long_sn = false, bool drbs16 = false)
+{
+  rrc_ue_capabilities_t caps;
+  caps.redcap.emplace();
+  caps.redcap->pdcp_long_sn_supported = long_sn;
+  caps.redcap->support_of_16_drb      = drbs16;
+  return caps;
+}
+
+TEST_F(up_resource_manager_test, redcap_pdcp_policy_preserves_independent_optional_support_and_ordinary_defaults)
+{
+  cfg.max_nof_drbs_per_ue = 32;
+  for (auto& qos : cfg.five_qi_config) {
+    qos.second.pdcp.tx.sn_size = pdcp_sn_size::size18bits;
+    qos.second.pdcp.rx.sn_size = pdcp_sn_size::size18bits;
+  }
+  for (bool redcap : {false, true}) {
+    for (bool long_sn : {false, true}) {
+      up_resource_manager m{cfg};
+      auto                caps    = redcap ? redcap_bearer_capabilities(long_sn) : rrc_ue_capabilities_t{};
+      auto                request = generate_pdu_session_resource_setup();
+      auto                update  = m.calculate_update(request.pdu_session_res_setup_items, caps);
+      const auto& drb      = update.pdu_sessions_to_setup_list.at(uint_to_pdu_session_id(1)).drb_to_add.begin()->second;
+      const auto  expected = redcap && !long_sn ? pdcp_sn_size::size12bits : pdcp_sn_size::size18bits;
+      EXPECT_EQ(drb.pdcp_cfg.tx.sn_size, expected);
+      EXPECT_EQ(drb.pdcp_cfg.rx.sn_size, expected);
+    }
+  }
+}
+
+TEST_F(up_resource_manager_test, redcap_drb_limit_counts_pending_allocations_and_keeps_configured_lower_limit)
+{
+  for (unsigned configured : {4U, 32U}) {
+    for (bool drbs16 : {false, true}) {
+      cfg.max_nof_drbs_per_ue = configured;
+      up_resource_manager m{cfg};
+      auto                request = generate_pdu_session_resource_setup(cu_cp_ue_index_t::min, 3, 7);
+      auto update  = m.calculate_update(request.pdu_session_res_setup_items, redcap_bearer_capabilities(false, drbs16));
+      size_t count = 0;
+      for (const auto& session : update.pdu_sessions_to_setup_list) {
+        count += session.second.drb_to_add.size();
+      }
+      EXPECT_EQ(count, std::min(configured, drbs16 ? 16U : 8U));
+    }
+  }
+}
+
+TEST_F(up_resource_manager_test, redcap_modify_respects_active_and_pending_drb_limit)
+{
+  cfg.max_nof_drbs_per_ue = 32;
+  up_resource_manager     m{cfg};
+  auto                    caps    = redcap_bearer_capabilities();
+  auto                    request = generate_pdu_session_resource_setup(cu_cp_ue_index_t::min, 1, 7);
+  auto                    update  = m.calculate_update(request.pdu_session_res_setup_items, caps);
+  up_config_update_result result;
+  result.pdu_sessions_added_list.push_back(update.pdu_sessions_to_setup_list.begin()->second);
+  m.apply_config_update(result);
+  auto modification = generate_pdu_session_resource_modification(cu_cp_ue_index_t::min, 1, 8);
+  auto extra = *modification.pdu_session_res_modify_items.begin()->transfer.qos_flow_add_or_modify_request_list.begin();
+  extra.qos_flow_id = uint_to_qos_flow_id(9);
+  modification.pdu_session_res_modify_items.begin()->transfer.qos_flow_add_or_modify_request_list.emplace(
+      extra.qos_flow_id, extra);
+  auto modified = m.calculate_update(modification, caps);
+  EXPECT_EQ(modified.pdu_sessions_to_modify_list.begin()->second.drb_to_add.size(), 1U);
+}
+
+TEST_F(up_resource_manager_test, redcap_context_import_rejects_incompatible_sn_without_replacing_existing_state)
+{
+  setup_initial_pdu_session();
+  auto  imported          = manager.get_up_context();
+  auto& drb               = imported.pdu_sessions.begin()->second.drbs.begin()->second;
+  drb.pdcp_cfg.tx.sn_size = pdcp_sn_size::size18bits;
+  drb.pdcp_cfg.rx.sn_size = pdcp_sn_size::size18bits;
+  auto caps               = redcap_bearer_capabilities();
+  EXPECT_FALSE(manager.set_up_context(imported, caps));
+  EXPECT_NE(manager.get_drb_context(drb.drb_id).pdcp_cfg.tx.sn_size, pdcp_sn_size::size18bits);
+  caps.redcap->pdcp_long_sn_supported = true;
+  EXPECT_TRUE(manager.set_up_context(imported, caps));
+  EXPECT_EQ(manager.get_drb_context(drb.drb_id).pdcp_cfg.tx.sn_size, pdcp_sn_size::size18bits);
+}
+
+static byte_buffer make_handover_source_config(bool     redcap,
+                                               unsigned dl_sn_bits,
+                                               unsigned ul_sn_bits,
+                                               bool     pdcp_present = true,
+                                               bool     dl_present   = true,
+                                               bool     ul_present   = true,
+                                               bool     sdap_present = true)
+{
+  auto                         container = test_helpers::make_redcap_handover_preparation(true, dl_sn_bits);
+  asn1::rrc_nr::ho_prep_info_s info;
+  asn1::cbit_ref               reader{container};
+  report_fatal_error_if_not(asn1::unpack(info, reader) == asn1::OCUDUASN_SUCCESS, "Invalid handover fixture");
+  auto& ies = info.crit_exts.c1().ho_prep_info();
+  if (not redcap) {
+    ies.ue_cap_rat_list.clear();
+  }
+  asn1::rrc_nr::rrc_recfg_s recfg;
+  asn1::cbit_ref            recfg_reader{ies.source_cfg.rrc_recfg};
+  report_fatal_error_if_not(asn1::unpack(recfg, recfg_reader) == asn1::OCUDUASN_SUCCESS, "Invalid source fixture");
+  auto& drb                                = recfg.crit_exts.rrc_recfg().radio_bearer_cfg.drb_to_add_mod_list[0];
+  drb.cn_assoc_present                     = sdap_present;
+  drb.pdcp_cfg_present                     = pdcp_present;
+  drb.pdcp_cfg.drb.pdcp_sn_size_dl_present = dl_present;
+  drb.pdcp_cfg.drb.pdcp_sn_size_ul_present = ul_present;
+  asn1::number_to_enum(drb.pdcp_cfg.drb.pdcp_sn_size_ul, ul_sn_bits);
+  byte_buffer   packed_recfg;
+  asn1::bit_ref recfg_writer{packed_recfg};
+  report_fatal_error_if_not(asn1::pack(recfg_writer, recfg) == asn1::OCUDUASN_SUCCESS, "Invalid source fixture");
+  ies.source_cfg.rrc_recfg = std::move(packed_recfg);
+  byte_buffer   result;
+  asn1::bit_ref writer{result};
+  report_fatal_error_if_not(asn1::pack(writer, info) == asn1::OCUDUASN_SUCCESS, "Invalid handover fixture");
+  return result;
+}
+
+TEST_F(up_resource_manager_test,
+       when_source_pdcp_sn_lengths_differ_from_target_defaults_then_source_lengths_are_preserved)
+{
+  for (bool redcap : {false, true}) {
+    for (unsigned target_sn : {12U, 18U}) {
+      for (unsigned dl_sn : {12U, 18U}) {
+        for (unsigned ul_sn : {12U, 18U}) {
+          SCOPED_TRACE(fmt::format("redcap={} target={} dl={} ul={}", redcap, target_sn, dl_sn, ul_sn));
+          auto container = make_handover_source_config(redcap, dl_sn, ul_sn);
+          auto caps      = decode_handover_capabilities(container);
+          ASSERT_TRUE(caps.has_value());
+          ASSERT_EQ(caps->redcap.has_value(), redcap);
+          up_old_drb_association association;
+          merge_old_drb_association_from_as_config(association, container, ocudulog::fetch_basic_logger("CU-CP"));
+          auto& pdcp      = cfg.five_qi_config.at(uint_to_five_qi(9)).pdcp;
+          pdcp.tx.sn_size = target_sn == 12 ? pdcp_sn_size::size12bits : pdcp_sn_size::size18bits;
+          pdcp.rx.sn_size = pdcp.tx.sn_size;
+          up_resource_manager m{cfg};
+          auto                request = generate_pdu_session_resource_setup();
+          auto                update  = m.calculate_update(request.pdu_session_res_setup_items, *caps, association);
+          ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 1U);
+          const auto& drb = update.pdu_sessions_to_setup_list.begin()->second.drb_to_add.begin()->second;
+          EXPECT_EQ(pdcp_sn_size_to_uint(drb.pdcp_cfg.tx.sn_size), dl_sn);
+          EXPECT_EQ(pdcp_sn_size_to_uint(drb.pdcp_cfg.rx.sn_size), ul_sn);
+          EXPECT_TRUE(drb.source_drb_id_confirmed);
+        }
+      }
+    }
+  }
+}
+
+TEST_F(up_resource_manager_test, redcap_handover_uses_forwarded_capabilities_and_preserves_source_pdcp_sn)
+{
+  for (bool support_long_sn : {false, true}) {
+    for (unsigned source_sn_bits : {12U, 18U}) {
+      SCOPED_TRACE(fmt::format("long_sn={} source_sn={}", support_long_sn, source_sn_bits));
+      auto container = test_helpers::make_redcap_handover_preparation(support_long_sn, source_sn_bits);
+      auto caps      = decode_handover_capabilities(container);
+      ASSERT_TRUE(caps.has_value());
+      ASSERT_TRUE(caps->redcap.has_value());
+      EXPECT_EQ(caps->redcap->pdcp_long_sn_supported, support_long_sn);
+      up_old_drb_association association;
+      merge_old_drb_association_from_as_config(association, container, ocudulog::fetch_basic_logger("CU-CP"));
+      cfg.five_qi_config.at(uint_to_five_qi(9)).pdcp.tx.sn_size = pdcp_sn_size::size18bits;
+      cfg.five_qi_config.at(uint_to_five_qi(9)).pdcp.rx.sn_size = pdcp_sn_size::size18bits;
+      up_resource_manager m{cfg};
+      auto                request  = generate_pdu_session_resource_setup();
+      auto                update   = m.calculate_update(request.pdu_session_res_setup_items, *caps, association);
+      const bool          expected = support_long_sn || source_sn_bits == 12;
+      ASSERT_EQ(not update.pdu_sessions_to_setup_list.empty(), expected);
+      if (expected) {
+        const auto& drb = update.pdu_sessions_to_setup_list.begin()->second.drb_to_add.begin()->second;
+        EXPECT_EQ(pdcp_sn_size_to_uint(drb.pdcp_cfg.tx.sn_size), source_sn_bits);
+        EXPECT_EQ(pdcp_sn_size_to_uint(drb.pdcp_cfg.rx.sn_size), source_sn_bits);
+        EXPECT_TRUE(drb.source_drb_id_confirmed);
+      }
+    }
+  }
+}
+
+TEST_F(up_resource_manager_test, when_forwarded_capabilities_are_malformed_then_decoding_fails)
+{
+  EXPECT_FALSE(decode_handover_capabilities(byte_buffer::create({0xff}).value()).has_value());
+}
+
+TEST_F(up_resource_manager_test, when_source_pdcp_configuration_is_absent_then_compatible_defaults_are_used)
+{
+  for (bool redcap : {false, true}) {
+    for (bool source_present : {false, true}) {
+      auto caps      = redcap ? redcap_bearer_capabilities(false) : rrc_ue_capabilities_t{};
+      auto container = source_present ? make_handover_source_config(redcap, 18, 18, false) : byte_buffer{};
+      up_old_drb_association association;
+      merge_old_drb_association_from_as_config(association, container, ocudulog::fetch_basic_logger("CU-CP"));
+      cfg.five_qi_config.at(uint_to_five_qi(9)).pdcp.tx.sn_size = pdcp_sn_size::size18bits;
+      cfg.five_qi_config.at(uint_to_five_qi(9)).pdcp.rx.sn_size = pdcp_sn_size::size18bits;
+      up_resource_manager m{cfg};
+      auto                request = generate_pdu_session_resource_setup();
+      auto                update  = m.calculate_update(request.pdu_session_res_setup_items, caps, association);
+      ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 1U);
+      const auto& drb      = update.pdu_sessions_to_setup_list.begin()->second.drb_to_add.begin()->second;
+      const auto  expected = redcap ? pdcp_sn_size::size12bits : pdcp_sn_size::size18bits;
+      EXPECT_EQ(drb.pdcp_cfg.tx.sn_size, expected);
+      EXPECT_EQ(drb.pdcp_cfg.rx.sn_size, expected);
+    }
+  }
+}
+
+TEST_F(up_resource_manager_test, when_only_one_source_sn_length_is_present_then_only_that_direction_is_preserved)
+{
+  for (bool dl_present : {false, true}) {
+    auto                   container = make_handover_source_config(false, 12, 12, true, dl_present, not dl_present);
+    up_old_drb_association association;
+    merge_old_drb_association_from_as_config(association, container, ocudulog::fetch_basic_logger("CU-CP"));
+    cfg.five_qi_config.at(uint_to_five_qi(9)).pdcp.tx.sn_size = pdcp_sn_size::size18bits;
+    cfg.five_qi_config.at(uint_to_five_qi(9)).pdcp.rx.sn_size = pdcp_sn_size::size18bits;
+    up_resource_manager m{cfg};
+    auto                request = generate_pdu_session_resource_setup();
+    auto                update  = m.calculate_update(request.pdu_session_res_setup_items, {}, association);
+    ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 1U);
+    const auto& drb = update.pdu_sessions_to_setup_list.begin()->second.drb_to_add.begin()->second;
+    EXPECT_EQ(drb.pdcp_cfg.tx.sn_size, dl_present ? pdcp_sn_size::size12bits : pdcp_sn_size::size18bits);
+    EXPECT_EQ(drb.pdcp_cfg.rx.sn_size, dl_present ? pdcp_sn_size::size18bits : pdcp_sn_size::size12bits);
+  }
+}
+
+TEST_F(up_resource_manager_test, when_flow_mapping_is_forwarded_separately_then_as_config_still_supplies_pdcp_lengths)
+{
+  auto                   container = make_handover_source_config(false, 12, 18, true, true, true, false);
+  up_old_drb_association association;
+  association[uint_to_pdu_session_id(1)][uint_to_qos_flow_id(1)] = {drb_id_t::drb1};
+  merge_old_drb_association_from_as_config(association, container, ocudulog::fetch_basic_logger("CU-CP"));
+  cfg.five_qi_config.at(uint_to_five_qi(9)).pdcp.tx.sn_size = pdcp_sn_size::size18bits;
+  cfg.five_qi_config.at(uint_to_five_qi(9)).pdcp.rx.sn_size = pdcp_sn_size::size12bits;
+  up_resource_manager m{cfg};
+  auto                request = generate_pdu_session_resource_setup();
+  auto                update  = m.calculate_update(request.pdu_session_res_setup_items, {}, association);
+  ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 1U);
+  const auto& drb = update.pdu_sessions_to_setup_list.begin()->second.drb_to_add.begin()->second;
+  EXPECT_EQ(drb.pdcp_cfg.tx.sn_size, pdcp_sn_size::size12bits);
+  EXPECT_EQ(drb.pdcp_cfg.rx.sn_size, pdcp_sn_size::size18bits);
+}
+
+TEST_F(up_resource_manager_test, redcap_existing_bearer_keeps_sn_lengths_when_qos_changes)
+{
+  auto caps    = redcap_bearer_capabilities(true);
+  auto request = generate_pdu_session_resource_setup();
+  auto update  = manager.calculate_update(request.pdu_session_res_setup_items, caps);
+  auto session = update.pdu_sessions_to_setup_list.begin()->second;
+  session.drb_to_add.begin()->second.pdcp_cfg.tx.sn_size = pdcp_sn_size::size18bits;
+  session.drb_to_add.begin()->second.pdcp_cfg.rx.sn_size = pdcp_sn_size::size18bits;
+  up_config_update_result result;
+  result.pdu_sessions_added_list.push_back(session);
+  manager.apply_config_update(result);
+  auto        modification = generate_pdu_session_resource_modification(cu_cp_ue_index_t::min, 1, 1);
+  auto        modified     = manager.calculate_update(modification, caps);
+  const auto& drb          = modified.pdu_sessions_to_modify_list.begin()->second.drb_to_modify.begin()->second;
+  EXPECT_EQ(drb.pdcp_cfg.tx.sn_size, pdcp_sn_size::size18bits);
+  EXPECT_EQ(drb.pdcp_cfg.rx.sn_size, pdcp_sn_size::size18bits);
+}
+
+TEST_F(up_resource_manager_test, modifying_existing_drbs_does_not_consume_new_drb_capacity)
+{
+  auto                    caps    = redcap_bearer_capabilities();
+  auto                    request = generate_pdu_session_resource_setup(cu_cp_ue_index_t::min, 2, 3);
+  auto                    update  = manager.calculate_update(request.pdu_session_res_setup_items, caps);
+  up_config_update_result result;
+  for (const auto& session : update.pdu_sessions_to_setup_list) {
+    result.pdu_sessions_added_list.push_back(session.second);
+  }
+  manager.apply_config_update(result);
+  ASSERT_EQ(manager.get_nof_drbs(), 6U);
+  auto modification = generate_pdu_session_resource_modification(cu_cp_ue_index_t::min, 1, 1);
+  auto second       = generate_pdu_session_resource_modification(cu_cp_ue_index_t::min, 2, 4);
+  auto extra = *second.pdu_session_res_modify_items.begin()->transfer.qos_flow_add_or_modify_request_list.begin();
+  for (unsigned qfi : {7U, 8U}) {
+    extra.qos_flow_id = uint_to_qos_flow_id(qfi);
+    second.pdu_session_res_modify_items.begin()->transfer.qos_flow_add_or_modify_request_list.emplace(extra.qos_flow_id,
+                                                                                                      extra);
+  }
+  modification.pdu_session_res_modify_items.emplace(uint_to_pdu_session_id(2),
+                                                    *second.pdu_session_res_modify_items.begin());
+  auto modified = manager.calculate_update(modification, caps);
+  ASSERT_TRUE(modified.pdu_sessions_failed_to_modify_list.empty());
+  EXPECT_EQ(modified.pdu_sessions_to_modify_list.at(uint_to_pdu_session_id(1)).drb_to_modify.size(), 1U);
+  EXPECT_EQ(modified.pdu_sessions_to_modify_list.at(uint_to_pdu_session_id(2)).drb_to_modify.size(), 1U);
+  EXPECT_EQ(modified.pdu_sessions_to_modify_list.at(uint_to_pdu_session_id(2)).drb_to_add.size(), 2U);
+}
+
+TEST_F(up_resource_manager_test, modification_rejects_a_bearer_that_belongs_to_another_session)
+{
+  auto                    caps    = redcap_bearer_capabilities();
+  auto                    request = generate_pdu_session_resource_setup(cu_cp_ue_index_t::min, 2, 1);
+  auto                    update  = manager.calculate_update(request.pdu_session_res_setup_items, caps);
+  up_config_update_result result;
+  for (const auto& session : update.pdu_sessions_to_setup_list) {
+    result.pdu_sessions_added_list.push_back(session.second);
+  }
+  manager.apply_config_update(result);
+  ASSERT_EQ(manager.get_nof_drbs(), 2U);
+  auto modification = generate_pdu_session_resource_modification(cu_cp_ue_index_t::min, 2, 1);
+  ASSERT_TRUE(manager.validate_request(modification));
+  auto modified = manager.calculate_update(modification, caps);
+  ASSERT_EQ(modified.pdu_sessions_failed_to_modify_list.size(), 1U);
+  EXPECT_EQ(modified.pdu_sessions_failed_to_modify_list.front(), uint_to_pdu_session_id(2));
+  EXPECT_EQ(manager.get_nof_drbs(), 2U);
+}
+
+TEST_F(up_resource_manager_test, capability_policy_does_not_change_configured_pdcp_defaults)
+{
+  for (auto& qos : cfg.five_qi_config) {
+    qos.second.pdcp.tx.sn_size = pdcp_sn_size::size18bits;
+    qos.second.pdcp.rx.sn_size = pdcp_sn_size::size18bits;
+  }
+  up_resource_manager m{cfg};
+  auto                request = generate_pdu_session_resource_setup();
+  for (const auto& caps : {redcap_bearer_capabilities(), rrc_ue_capabilities_t{}, redcap_bearer_capabilities(true)}) {
+    const auto update = m.calculate_update(request.pdu_session_res_setup_items, caps);
+    ASSERT_EQ(update.pdu_sessions_to_setup_list.size(), 1U);
+    const auto& drb      = update.pdu_sessions_to_setup_list.begin()->second.drb_to_add.begin()->second;
+    const auto  expected = caps.redcap.has_value() && !caps.redcap->pdcp_long_sn_supported ? pdcp_sn_size::size12bits
+                                                                                           : pdcp_sn_size::size18bits;
+    EXPECT_EQ(drb.pdcp_cfg.tx.sn_size, expected);
+    EXPECT_EQ(drb.pdcp_cfg.rx.sn_size, expected);
+  }
+  EXPECT_EQ(cfg.five_qi_config.at(uint_to_five_qi(9)).pdcp.tx.sn_size, pdcp_sn_size::size18bits);
+}
+
+TEST_F(up_resource_manager_test, handover_capabilities_skip_malformed_nr_containers_without_losing_redcap_identity)
+{
+  asn1::rrc_nr::ho_prep_info_s info;
+  auto&                        list = info.crit_exts.set_c1().set_ho_prep_info().ue_cap_rat_list;
+  list.resize(2);
+  list[0].rat_type             = asn1::rrc_nr::rat_type_opts::nr;
+  list[0].ue_cap_rat_container = byte_buffer::create({0xff}).value();
+  list[1].rat_type             = asn1::rrc_nr::rat_type_opts::nr;
+  list[1].ue_cap_rat_container = test_helpers::make_captured_redcap_nr_capability();
+  byte_buffer   packed;
+  asn1::bit_ref writer{packed};
+  ASSERT_EQ(asn1::pack(writer, info), asn1::OCUDUASN_SUCCESS);
+  const auto caps = decode_handover_capabilities(packed);
+  ASSERT_TRUE(caps.has_value());
+  EXPECT_TRUE(caps->redcap.has_value());
+  list.resize(1);
+  byte_buffer   malformed;
+  asn1::bit_ref malformed_writer{malformed};
+  ASSERT_EQ(asn1::pack(malformed_writer, info), asn1::OCUDUASN_SUCCESS);
+  EXPECT_FALSE(decode_handover_capabilities(malformed).has_value());
+}
+
+TEST_F(up_resource_manager_test, when_imported_redcap_drb_count_exceeds_effective_limit_then_context_is_unchanged)
+{
+  for (unsigned configured : {4U, 32U}) {
+    for (bool supports_16_drbs : {false, true}) {
+      const unsigned limit = std::min(configured, supports_16_drbs ? 16U : 8U);
+      for (unsigned count : {limit, limit + 1}) {
+        SCOPED_TRACE(fmt::format("configured={} supports16={} count={}", configured, supports_16_drbs, count));
+        auto source_cfg                = cfg;
+        source_cfg.max_nof_drbs_per_ue = 32;
+        for (auto& qos : source_cfg.five_qi_config) {
+          qos.second.pdcp.tx.sn_size = pdcp_sn_size::size12bits;
+          qos.second.pdcp.rx.sn_size = pdcp_sn_size::size12bits;
+        }
+
+        up_resource_manager source{source_cfg};
+        auto                request = generate_pdu_session_resource_setup(cu_cp_ue_index_t::min, 1, count);
+        auto update = source.calculate_update(request.pdu_session_res_setup_items, rrc_ue_capabilities_t{});
+        up_config_update_result result;
+        result.pdu_sessions_added_list.push_back(update.pdu_sessions_to_setup_list.begin()->second);
+        source.apply_config_update(result);
+        ASSERT_EQ(source.get_nof_drbs(), count);
+
+        cfg.max_nof_drbs_per_ue = configured;
+        up_resource_manager target{cfg};
+        const auto          caps = redcap_bearer_capabilities(false, supports_16_drbs);
+        EXPECT_EQ(target.validate_context(source.get_up_context(), caps), count <= limit);
+        EXPECT_EQ(target.get_nof_drbs(), 0U);
+        EXPECT_EQ(target.set_up_context(source.get_up_context(), caps), count <= limit);
+        EXPECT_EQ(target.get_nof_drbs(), count <= limit ? count : 0U);
+      }
+    }
+  }
 }

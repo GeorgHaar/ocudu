@@ -35,7 +35,7 @@ handover_reconfiguration_routine::handover_reconfiguration_routine(
   // Unpack MasterCellGroup to extract T304.
   asn1::rrc_nr::cell_group_cfg_s cell_group_cfg;
   asn1::cbit_ref                 bref(request.non_crit_ext->master_cell_group);
-  if (cell_group_cfg.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(cell_group_cfg, bref) != asn1::OCUDUASN_SUCCESS) {
     report_fatal_error("Failed to unpack MasterCellGroupCfg");
   }
   unsigned t304_ms = cell_group_cfg.sp_cell_cfg.recfg_with_sync.t304.to_number();
@@ -45,7 +45,7 @@ handover_reconfiguration_routine::handover_reconfiguration_routine(
   // Unpack SIB1 to extract T311.
   asn1::rrc_nr::sib1_s sib1_msg;
   asn1::cbit_ref       bref2(request.non_crit_ext->ded_sib1_delivery);
-  if (sib1_msg.unpack(bref2) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(sib1_msg, bref2) != asn1::OCUDUASN_SUCCESS) {
     report_fatal_error("Failed to unpack SIB1");
   }
   unsigned t301_ms = sib1_msg.ue_timers_and_consts.t301.to_number();
@@ -65,6 +65,10 @@ void handover_reconfiguration_routine::operator()(coro_context<async_task<bool>>
 
   generate_ue_context_modification_request();
 
+  // Store handover context in case of a reestablishment. The target routine clears it when the handover ends.
+  source_ue.get_ho_context() = cu_cp_ue_handover_context{
+      .target_ue_index = target_ue_index, .rrc_reconfig_transaction_id = (uint8_t)ho_reconf_ctxt.transaction_id};
+
   // Notify CU-CP to prepare for RRC Reconfig Complete on target DU.
   cu_cp_handler.handle_handover_reconfiguration_sent({target_ue_index,
                                                       source_ue.get_ue_index(),
@@ -76,7 +80,12 @@ void handover_reconfiguration_routine::operator()(coro_context<async_task<bool>>
   CORO_AWAIT_VALUE(ue_context_mod_response,
                    source_f1ap_ue_ctxt_mng.handle_ue_context_modification_request(ue_context_mod_request));
 
+  // Initialize UE release timer for source UE. The source DU can stop the data transmission for the UE also when the
+  // procedure fails.
+  initialize_handover_ue_release_timer(source_ue.get_ue_index());
+
   if (!ue_context_mod_response.success) {
+    source_ue.get_ho_context().reset();
     logger.debug(
         "source_ue={} target_ue={}: UE context modification failed", source_ue.get_ue_index(), target_ue_index);
     logger.debug("source_ue={} target_ue={}: \"{}\" failed", source_ue.get_ue_index(), target_ue_index, name());
@@ -85,16 +94,6 @@ void handover_reconfiguration_routine::operator()(coro_context<async_task<bool>>
 
   // Store updated cell group config.
   source_ue.get_rrc_ue()->update_cell_group_config(ue_context_mod_response.du_to_cu_rrc_info.cell_group_cfg.copy());
-
-  // Initialize UE release timer for source UE.
-  initialize_handover_ue_release_timer(source_ue.get_ue_index());
-
-  // Store handover context in case of for possible re-establishment.
-  logger.debug("ue={}: Storing handover context", source_ue.get_ue_index());
-  cu_cp_ue_handover_context ue_ho_ctxt;
-  ue_ho_ctxt.target_ue_index             = target_ue_index;
-  ue_ho_ctxt.rrc_reconfig_transaction_id = (uint8_t)ho_reconf_ctxt.transaction_id;
-  source_ue.get_ho_context()             = ue_ho_ctxt;
 
   logger.debug(
       "source_ue={} target_ue={}: \"{}\" finished successfully", source_ue.get_ue_index(), target_ue_index, name());

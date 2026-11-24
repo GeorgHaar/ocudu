@@ -24,7 +24,7 @@ namespace e1ap {
 struct trigger_msg_opts {
   enum options { init_msg, successful_outcome, unsuccessful_outcome, nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using trigger_msg_e = enumerated<trigger_msg_opts>;
 
@@ -32,7 +32,7 @@ using trigger_msg_e = enumerated<trigger_msg_opts>;
 struct drb_activity_opts {
   enum options { active, not_active, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using drb_activity_e = enumerated<drb_activity_opts, true>;
 
@@ -43,17 +43,13 @@ using drb_activity_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // DRB-Activity-Item ::= SEQUENCE
 struct drb_activity_item_s {
-  bool                                ext             = false;
   bool                                ie_exts_present = false;
   uint8_t                             drb_id          = 1;
   drb_activity_e                      drb_activity;
   drb_activity_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Activity-List ::= SEQUENCE (SIZE (1..32)) OF DRB-Activity-Item
@@ -63,7 +59,7 @@ using drb_activity_list_l = dyn_array<drb_activity_item_s>;
 struct pdu_session_res_activity_opts {
   enum options { active, not_active, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using pdu_session_res_activity_e = enumerated<pdu_session_res_activity_opts, true>;
 
@@ -74,17 +70,13 @@ using pdu_session_res_activity_item_ext_ies_container = protocol_ext_container_e
 
 // PDU-Session-Resource-Activity-Item ::= SEQUENCE
 struct pdu_session_res_activity_item_s {
-  bool                                            ext             = false;
   bool                                            ie_exts_present = false;
   uint16_t                                        pdu_session_id  = 0;
   pdu_session_res_activity_e                      pdu_session_res_activity;
   pdu_session_res_activity_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDU-Session-Resource-Activity-List ::= SEQUENCE (SIZE (1..256)) OF PDU-Session-Resource-Activity-Item
@@ -94,7 +86,7 @@ using pdu_session_res_activity_list_l = dyn_array<pdu_session_res_activity_item_
 struct ue_activity_opts {
   enum options { active, not_active, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using ue_activity_e = enumerated<ue_activity_opts, true>;
 
@@ -106,59 +98,52 @@ struct activity_info_c {
   struct types_opts {
     enum options { drb_activity_list, pdu_session_res_activity_list, ue_activity, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  activity_info_c() = default;
-  activity_info_c(const activity_info_c& other);
-  activity_info_c& operator=(const activity_info_c& other);
-  ~activity_info_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  drb_activity_list_l& drb_activity_list()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  drb_activity_list_l&                          drb_activity_list()
   {
-    assert_choice_type(types::drb_activity_list, type_, "ActivityInformation");
+    assert_choice_type(types::drb_activity_list, c.type, "ActivityInformation");
     return c.get<drb_activity_list_l>();
   }
   pdu_session_res_activity_list_l& pdu_session_res_activity_list()
   {
-    assert_choice_type(types::pdu_session_res_activity_list, type_, "ActivityInformation");
+    assert_choice_type(types::pdu_session_res_activity_list, c.type, "ActivityInformation");
     return c.get<pdu_session_res_activity_list_l>();
   }
   ue_activity_e& ue_activity()
   {
-    assert_choice_type(types::ue_activity, type_, "ActivityInformation");
+    assert_choice_type(types::ue_activity, c.type, "ActivityInformation");
     return c.get<ue_activity_e>();
   }
   protocol_ie_single_container_s<activity_info_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "ActivityInformation");
+    assert_choice_type(types::choice_ext, c.type, "ActivityInformation");
     return c.get<protocol_ie_single_container_s<activity_info_ext_ies_o>>();
   }
   const drb_activity_list_l& drb_activity_list() const
   {
-    assert_choice_type(types::drb_activity_list, type_, "ActivityInformation");
+    assert_choice_type(types::drb_activity_list, c.type, "ActivityInformation");
     return c.get<drb_activity_list_l>();
   }
   const pdu_session_res_activity_list_l& pdu_session_res_activity_list() const
   {
-    assert_choice_type(types::pdu_session_res_activity_list, type_, "ActivityInformation");
+    assert_choice_type(types::pdu_session_res_activity_list, c.type, "ActivityInformation");
     return c.get<pdu_session_res_activity_list_l>();
   }
   const ue_activity_e& ue_activity() const
   {
-    assert_choice_type(types::ue_activity, type_, "ActivityInformation");
+    assert_choice_type(types::ue_activity, c.type, "ActivityInformation");
     return c.get<ue_activity_e>();
   }
   const protocol_ie_single_container_s<activity_info_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "ActivityInformation");
+    assert_choice_type(types::choice_ext, c.type, "ActivityInformation");
     return c.get<protocol_ie_single_container_s<activity_info_ext_ies_o>>();
   }
   drb_activity_list_l&                                     set_drb_activity_list();
@@ -167,20 +152,20 @@ struct activity_info_c {
   protocol_ie_single_container_s<activity_info_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<drb_activity_list_l,
-                  pdu_session_res_activity_list_l,
-                  protocol_ie_single_container_s<activity_info_ext_ies_o>>
+  asn1::table::choice_storage<activity_info_c,
+                              types,
+                              choice_buffer_t<drb_activity_list_l,
+                                              pdu_session_res_activity_list_l,
+                                              protocol_ie_single_container_s<activity_info_ext_ies_o>,
+                                              ue_activity_e>>
       c;
-
-  void destroy_();
 };
 
 // ActivityNotificationLevel ::= ENUMERATED
 struct activity_notif_level_opts {
   enum options { drb, pdu_session, ue, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using activity_notif_level_e = enumerated<activity_notif_level_opts, true>;
 
@@ -188,17 +173,16 @@ using activity_notif_level_e = enumerated<activity_notif_level_opts, true>;
 struct add_ho_info_opts {
   enum options { discard_pdpc_sn, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using add_ho_info_e = enumerated<add_ho_info_opts, true>;
 
 // AdditionalPDCPduplicationInformation ::= ENUMERATED
 struct add_pdcp_dupl_info_opts {
   enum options { three, four, /*...*/ nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using add_pdcp_dupl_info_e = enumerated<add_pdcp_dupl_info_opts, true>;
 
@@ -209,72 +193,39 @@ using packet_error_rate_ext_ies_container = protocol_ext_container_empty_l;
 
 // PacketErrorRate ::= SEQUENCE
 struct packet_error_rate_s {
-  bool                                ext             = false;
   bool                                ie_exts_present = false;
   uint8_t                             per_scalar      = 0;
   uint8_t                             per_exponent    = 0;
   packet_error_rate_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // AlternativeQoSParaSetItem-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct alt_qos_para_set_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { max_data_burst_volume, nulltype } value;
-      typedef uint8_t number_type;
+struct alt_qos_para_set_item_ext_ies_container {
+  bool     max_data_burst_volume_present = false;
+  uint16_t max_data_burst_volume;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::max_data_burst_volume; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint16_t&       max_data_burst_volume() { return c; }
-    const uint16_t& max_data_burst_volume() const { return c; }
-
-  private:
-    uint16_t c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // AlternativeQoSParaSetItem ::= SEQUENCE
 struct alt_qos_para_set_item_s {
-  bool                                                      ext                                 = false;
-  bool                                                      guaranteed_flow_bit_rate_dl_present = false;
-  bool                                                      guaranteed_flow_bit_rate_ul_present = false;
-  bool                                                      packet_delay_budget_present         = false;
-  bool                                                      packet_error_rate_present           = false;
-  uint8_t                                                   alt_qos_param_idx                   = 1;
-  uint64_t                                                  guaranteed_flow_bit_rate_dl         = 0;
-  uint64_t                                                  guaranteed_flow_bit_rate_ul         = 0;
-  uint16_t                                                  packet_delay_budget                 = 0;
-  packet_error_rate_s                                       packet_error_rate;
-  protocol_ext_container_l<alt_qos_para_set_item_ext_ies_o> ie_exts;
+  bool                                    guaranteed_flow_bit_rate_dl_present = false;
+  bool                                    guaranteed_flow_bit_rate_ul_present = false;
+  bool                                    packet_delay_budget_present         = false;
+  bool                                    packet_error_rate_present           = false;
+  bool                                    ie_exts_present                     = false;
+  uint8_t                                 alt_qos_param_idx                   = 1;
+  uint64_t                                guaranteed_flow_bit_rate_dl         = 0;
+  uint64_t                                guaranteed_flow_bit_rate_ul         = 0;
+  uint16_t                                packet_delay_budget                 = 0;
+  packet_error_rate_s                     packet_error_rate;
+  alt_qos_para_set_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // AlternativeQoSParaSetList ::= SEQUENCE (SIZE (1..8)) OF AlternativeQoSParaSetItem
@@ -287,17 +238,13 @@ using gtp_tunnel_ext_ies_container = protocol_ext_container_empty_l;
 
 // GTPTunnel ::= SEQUENCE
 struct gtp_tunnel_s {
-  bool                                  ext             = false;
   bool                                  ie_exts_present = false;
   bounded_bitstring<1, 160, true, true> transport_layer_address;
   fixed_octstring<4, true>              gtp_teid;
   gtp_tunnel_ext_ies_container          ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // UP-TNL-Information-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-IES
@@ -308,49 +255,42 @@ struct up_tnl_info_c {
   struct types_opts {
     enum options { gtp_tunnel, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  up_tnl_info_c() = default;
-  up_tnl_info_c(const up_tnl_info_c& other);
-  up_tnl_info_c& operator=(const up_tnl_info_c& other);
-  ~up_tnl_info_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  gtp_tunnel_s& gtp_tunnel()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  gtp_tunnel_s&                                 gtp_tunnel()
   {
-    assert_choice_type(types::gtp_tunnel, type_, "UP-TNL-Information");
+    assert_choice_type(types::gtp_tunnel, c.type, "UP-TNL-Information");
     return c.get<gtp_tunnel_s>();
   }
   protocol_ie_single_container_s<up_tnl_info_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "UP-TNL-Information");
+    assert_choice_type(types::choice_ext, c.type, "UP-TNL-Information");
     return c.get<protocol_ie_single_container_s<up_tnl_info_ext_ies_o>>();
   }
   const gtp_tunnel_s& gtp_tunnel() const
   {
-    assert_choice_type(types::gtp_tunnel, type_, "UP-TNL-Information");
+    assert_choice_type(types::gtp_tunnel, c.type, "UP-TNL-Information");
     return c.get<gtp_tunnel_s>();
   }
   const protocol_ie_single_container_s<up_tnl_info_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "UP-TNL-Information");
+    assert_choice_type(types::choice_ext, c.type, "UP-TNL-Information");
     return c.get<protocol_ie_single_container_s<up_tnl_info_ext_ies_o>>();
   }
   gtp_tunnel_s&                                          set_gtp_tunnel();
   protocol_ie_single_container_s<up_tnl_info_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                                type_;
-  choice_buffer_t<gtp_tunnel_s, protocol_ie_single_container_s<up_tnl_info_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<up_tnl_info_c,
+                              types,
+                              choice_buffer_t<gtp_tunnel_s, protocol_ie_single_container_s<up_tnl_info_ext_ies_o>>>
+      c;
 };
 
 // MBSF1UInformationAtCU-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -360,16 +300,12 @@ using mbsf1_u_info_at_cu_ext_ies_container = protocol_ext_container_empty_l;
 
 // MBSF1UInformationAtCU ::= SEQUENCE
 struct mbsf1_u_info_at_cu_s {
-  bool                                 ext             = false;
   bool                                 ie_exts_present = false;
   up_tnl_info_c                        mbs_f1u_info_at_cu;
   mbsf1_u_info_at_cu_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // LocationDependentMBSF1UInformationAtCU-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -379,17 +315,13 @@ using location_dependent_mbsf1_u_info_at_cu_item_ext_ies_container = protocol_ex
 
 // LocationDependentMBSF1UInformationAtCU-Item ::= SEQUENCE
 struct location_dependent_mbsf1_u_info_at_cu_item_s {
-  bool                                                         ext                 = false;
   bool                                                         ie_exts_present     = false;
   uint32_t                                                     mbs_area_session_id = 0;
   up_tnl_info_c                                                mbs_f1u_info_at_cu;
   location_dependent_mbsf1_u_info_at_cu_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // LocationDependentMBSF1UInformationAtCU ::= SEQUENCE (SIZE (1..256)) OF LocationDependentMBSF1UInformationAtCU-Item
@@ -403,49 +335,42 @@ struct bc_bearer_context_f1_u_tnl_infoat_cu_c {
   struct types_opts {
     enum options { locationindependent, locationdependent, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  bc_bearer_context_f1_u_tnl_infoat_cu_c() = default;
-  bc_bearer_context_f1_u_tnl_infoat_cu_c(const bc_bearer_context_f1_u_tnl_infoat_cu_c& other);
-  bc_bearer_context_f1_u_tnl_infoat_cu_c& operator=(const bc_bearer_context_f1_u_tnl_infoat_cu_c& other);
-  ~bc_bearer_context_f1_u_tnl_infoat_cu_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  mbsf1_u_info_at_cu_s& locationindependent()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  mbsf1_u_info_at_cu_s&                         locationindependent()
   {
-    assert_choice_type(types::locationindependent, type_, "BCBearerContextF1U-TNLInfoatCU");
+    assert_choice_type(types::locationindependent, c.type, "BCBearerContextF1U-TNLInfoatCU");
     return c.get<mbsf1_u_info_at_cu_s>();
   }
   location_dependent_mbsf1_u_info_at_cu_l& locationdependent()
   {
-    assert_choice_type(types::locationdependent, type_, "BCBearerContextF1U-TNLInfoatCU");
+    assert_choice_type(types::locationdependent, c.type, "BCBearerContextF1U-TNLInfoatCU");
     return c.get<location_dependent_mbsf1_u_info_at_cu_l>();
   }
   protocol_ie_single_container_s<bc_bearer_context_f1_u_tnl_infoat_cu_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "BCBearerContextF1U-TNLInfoatCU");
+    assert_choice_type(types::choice_ext, c.type, "BCBearerContextF1U-TNLInfoatCU");
     return c.get<protocol_ie_single_container_s<bc_bearer_context_f1_u_tnl_infoat_cu_ext_ies_o>>();
   }
   const mbsf1_u_info_at_cu_s& locationindependent() const
   {
-    assert_choice_type(types::locationindependent, type_, "BCBearerContextF1U-TNLInfoatCU");
+    assert_choice_type(types::locationindependent, c.type, "BCBearerContextF1U-TNLInfoatCU");
     return c.get<mbsf1_u_info_at_cu_s>();
   }
   const location_dependent_mbsf1_u_info_at_cu_l& locationdependent() const
   {
-    assert_choice_type(types::locationdependent, type_, "BCBearerContextF1U-TNLInfoatCU");
+    assert_choice_type(types::locationdependent, c.type, "BCBearerContextF1U-TNLInfoatCU");
     return c.get<location_dependent_mbsf1_u_info_at_cu_l>();
   }
   const protocol_ie_single_container_s<bc_bearer_context_f1_u_tnl_infoat_cu_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "BCBearerContextF1U-TNLInfoatCU");
+    assert_choice_type(types::choice_ext, c.type, "BCBearerContextF1U-TNLInfoatCU");
     return c.get<protocol_ie_single_container_s<bc_bearer_context_f1_u_tnl_infoat_cu_ext_ies_o>>();
   }
   mbsf1_u_info_at_cu_s&                                                           set_locationindependent();
@@ -453,116 +378,58 @@ struct bc_bearer_context_f1_u_tnl_infoat_cu_c {
   protocol_ie_single_container_s<bc_bearer_context_f1_u_tnl_infoat_cu_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<location_dependent_mbsf1_u_info_at_cu_l,
-                  mbsf1_u_info_at_cu_s,
-                  protocol_ie_single_container_s<bc_bearer_context_f1_u_tnl_infoat_cu_ext_ies_o>>
+  asn1::table::choice_storage<
+      bc_bearer_context_f1_u_tnl_infoat_cu_c,
+      types,
+      choice_buffer_t<location_dependent_mbsf1_u_info_at_cu_l,
+                      mbsf1_u_info_at_cu_s,
+                      protocol_ie_single_container_s<bc_bearer_context_f1_u_tnl_infoat_cu_ext_ies_o>>>
       c;
-
-  void destroy_();
 };
 
 // F1UTunnelNotEstablished ::= ENUMERATED
 struct f1_u_tunnel_not_established_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using f1_u_tunnel_not_established_e = enumerated<f1_u_tunnel_not_established_opts, true>;
 
 // MBSF1UInformationAtDU-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct mbsf1_u_info_at_du_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { f1_u_tunnel_not_established, nulltype } value;
-      typedef uint8_t number_type;
+struct mbsf1_u_info_at_du_ext_ies_container {
+  bool                          f1_u_tunnel_not_established_present = false;
+  f1_u_tunnel_not_established_e f1_u_tunnel_not_established;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::f1_u_tunnel_not_established; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    f1_u_tunnel_not_established_e&       f1_u_tunnel_not_established() { return c; }
-    const f1_u_tunnel_not_established_e& f1_u_tunnel_not_established() const { return c; }
-
-  private:
-    f1_u_tunnel_not_established_e c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // MBSF1UInformationAtDU ::= SEQUENCE
 struct mbsf1_u_info_at_du_s {
-  bool                                                   ext = false;
-  up_tnl_info_c                                          mbs_f1u_info_at_du;
-  protocol_ext_container_l<mbsf1_u_info_at_du_ext_ies_o> ie_exts;
+  bool                                 ie_exts_present = false;
+  up_tnl_info_c                        mbs_f1u_info_at_du;
+  mbsf1_u_info_at_du_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // LocationDependentMBSF1UInformationAtDU-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct location_dependent_mbsf1_u_info_at_du_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { f1_u_tunnel_not_established, nulltype } value;
-      typedef uint8_t number_type;
+struct location_dependent_mbsf1_u_info_at_du_item_ext_ies_container {
+  bool                          f1_u_tunnel_not_established_present = false;
+  f1_u_tunnel_not_established_e f1_u_tunnel_not_established;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::f1_u_tunnel_not_established; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    f1_u_tunnel_not_established_e&       f1_u_tunnel_not_established() { return c; }
-    const f1_u_tunnel_not_established_e& f1_u_tunnel_not_established() const { return c; }
-
-  private:
-    f1_u_tunnel_not_established_e c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // LocationDependentMBSF1UInformationAtDU-Item ::= SEQUENCE
 struct location_dependent_mbsf1_u_info_at_du_item_s {
-  bool                                                                           ext                 = false;
-  uint32_t                                                                       mbs_area_session_id = 0;
-  up_tnl_info_c                                                                  mbs_f1u_info_at_du;
-  protocol_ext_container_l<location_dependent_mbsf1_u_info_at_du_item_ext_ies_o> ie_exts;
+  bool                                                         ie_exts_present     = false;
+  uint32_t                                                     mbs_area_session_id = 0;
+  up_tnl_info_c                                                mbs_f1u_info_at_du;
+  location_dependent_mbsf1_u_info_at_du_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // LocationDependentMBSF1UInformationAtDU ::= SEQUENCE (SIZE (1..256)) OF LocationDependentMBSF1UInformationAtDU-Item
@@ -576,49 +443,42 @@ struct bc_bearer_context_f1_u_tnl_infoat_du_c {
   struct types_opts {
     enum options { locationindependent, locationdependent, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  bc_bearer_context_f1_u_tnl_infoat_du_c() = default;
-  bc_bearer_context_f1_u_tnl_infoat_du_c(const bc_bearer_context_f1_u_tnl_infoat_du_c& other);
-  bc_bearer_context_f1_u_tnl_infoat_du_c& operator=(const bc_bearer_context_f1_u_tnl_infoat_du_c& other);
-  ~bc_bearer_context_f1_u_tnl_infoat_du_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  mbsf1_u_info_at_du_s& locationindependent()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  mbsf1_u_info_at_du_s&                         locationindependent()
   {
-    assert_choice_type(types::locationindependent, type_, "BCBearerContextF1U-TNLInfoatDU");
+    assert_choice_type(types::locationindependent, c.type, "BCBearerContextF1U-TNLInfoatDU");
     return c.get<mbsf1_u_info_at_du_s>();
   }
   location_dependent_mbsf1_u_info_at_du_l& locationdependent()
   {
-    assert_choice_type(types::locationdependent, type_, "BCBearerContextF1U-TNLInfoatDU");
+    assert_choice_type(types::locationdependent, c.type, "BCBearerContextF1U-TNLInfoatDU");
     return c.get<location_dependent_mbsf1_u_info_at_du_l>();
   }
   protocol_ie_single_container_s<bc_bearer_context_f1_u_tnl_infoat_du_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "BCBearerContextF1U-TNLInfoatDU");
+    assert_choice_type(types::choice_ext, c.type, "BCBearerContextF1U-TNLInfoatDU");
     return c.get<protocol_ie_single_container_s<bc_bearer_context_f1_u_tnl_infoat_du_ext_ies_o>>();
   }
   const mbsf1_u_info_at_du_s& locationindependent() const
   {
-    assert_choice_type(types::locationindependent, type_, "BCBearerContextF1U-TNLInfoatDU");
+    assert_choice_type(types::locationindependent, c.type, "BCBearerContextF1U-TNLInfoatDU");
     return c.get<mbsf1_u_info_at_du_s>();
   }
   const location_dependent_mbsf1_u_info_at_du_l& locationdependent() const
   {
-    assert_choice_type(types::locationdependent, type_, "BCBearerContextF1U-TNLInfoatDU");
+    assert_choice_type(types::locationdependent, c.type, "BCBearerContextF1U-TNLInfoatDU");
     return c.get<location_dependent_mbsf1_u_info_at_du_l>();
   }
   const protocol_ie_single_container_s<bc_bearer_context_f1_u_tnl_infoat_du_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "BCBearerContextF1U-TNLInfoatDU");
+    assert_choice_type(types::choice_ext, c.type, "BCBearerContextF1U-TNLInfoatDU");
     return c.get<protocol_ie_single_container_s<bc_bearer_context_f1_u_tnl_infoat_du_ext_ies_o>>();
   }
   mbsf1_u_info_at_du_s&                                                           set_locationindependent();
@@ -626,13 +486,13 @@ struct bc_bearer_context_f1_u_tnl_infoat_du_c {
   protocol_ie_single_container_s<bc_bearer_context_f1_u_tnl_infoat_du_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<location_dependent_mbsf1_u_info_at_du_l,
-                  mbsf1_u_info_at_du_s,
-                  protocol_ie_single_container_s<bc_bearer_context_f1_u_tnl_infoat_du_ext_ies_o>>
+  asn1::table::choice_storage<
+      bc_bearer_context_f1_u_tnl_infoat_du_c,
+      types,
+      choice_buffer_t<location_dependent_mbsf1_u_info_at_du_l,
+                      mbsf1_u_info_at_du_s,
+                      protocol_ie_single_container_s<bc_bearer_context_f1_u_tnl_infoat_du_ext_ies_o>>>
       c;
-
-  void destroy_();
 };
 
 // MBSNGUInformationAt5GC-Multicast-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -642,7 +502,6 @@ using mb_sn_gu_info_at5_gc_multicast_ext_ies_container = protocol_ext_container_
 
 // MBSNGUInformationAt5GC-Multicast ::= SEQUENCE
 struct mb_sn_gu_info_at5_gc_multicast_s {
-  bool                                             ext             = false;
   bool                                             ie_exts_present = false;
   bounded_bitstring<1, 160, true, true>            ipmc_address;
   bounded_bitstring<1, 160, true, true>            ipsource_address;
@@ -650,10 +509,7 @@ struct mb_sn_gu_info_at5_gc_multicast_s {
   mb_sn_gu_info_at5_gc_multicast_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MBSNGUInformationAt5GC-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-IES
@@ -664,49 +520,43 @@ struct mb_sn_gu_info_at5_gc_c {
   struct types_opts {
     enum options { multicast, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  mb_sn_gu_info_at5_gc_c() = default;
-  mb_sn_gu_info_at5_gc_c(const mb_sn_gu_info_at5_gc_c& other);
-  mb_sn_gu_info_at5_gc_c& operator=(const mb_sn_gu_info_at5_gc_c& other);
-  ~mb_sn_gu_info_at5_gc_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  mb_sn_gu_info_at5_gc_multicast_s& multicast()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  mb_sn_gu_info_at5_gc_multicast_s&             multicast()
   {
-    assert_choice_type(types::multicast, type_, "MBSNGUInformationAt5GC");
+    assert_choice_type(types::multicast, c.type, "MBSNGUInformationAt5GC");
     return c.get<mb_sn_gu_info_at5_gc_multicast_s>();
   }
   protocol_ie_single_container_s<mb_sn_gu_info_at5_gc_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "MBSNGUInformationAt5GC");
+    assert_choice_type(types::choice_ext, c.type, "MBSNGUInformationAt5GC");
     return c.get<protocol_ie_single_container_s<mb_sn_gu_info_at5_gc_ext_ies_o>>();
   }
   const mb_sn_gu_info_at5_gc_multicast_s& multicast() const
   {
-    assert_choice_type(types::multicast, type_, "MBSNGUInformationAt5GC");
+    assert_choice_type(types::multicast, c.type, "MBSNGUInformationAt5GC");
     return c.get<mb_sn_gu_info_at5_gc_multicast_s>();
   }
   const protocol_ie_single_container_s<mb_sn_gu_info_at5_gc_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "MBSNGUInformationAt5GC");
+    assert_choice_type(types::choice_ext, c.type, "MBSNGUInformationAt5GC");
     return c.get<protocol_ie_single_container_s<mb_sn_gu_info_at5_gc_ext_ies_o>>();
   }
   mb_sn_gu_info_at5_gc_multicast_s&                               set_multicast();
   protocol_ie_single_container_s<mb_sn_gu_info_at5_gc_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<mb_sn_gu_info_at5_gc_multicast_s, protocol_ie_single_container_s<mb_sn_gu_info_at5_gc_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      mb_sn_gu_info_at5_gc_c,
+      types,
+      choice_buffer_t<mb_sn_gu_info_at5_gc_multicast_s, protocol_ie_single_container_s<mb_sn_gu_info_at5_gc_ext_ies_o>>>
+      c;
 };
 
 // LocationDependentMBSNGUInformationAt5GC-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -716,17 +566,13 @@ using location_dependent_mb_sn_gu_info_at5_gc_item_ext_ies_container = protocol_
 
 // LocationDependentMBSNGUInformationAt5GC-Item ::= SEQUENCE
 struct location_dependent_mb_sn_gu_info_at5_gc_item_s {
-  bool                                                           ext                 = false;
   bool                                                           ie_exts_present     = false;
   uint32_t                                                       mbs_area_session_id = 0;
   mb_sn_gu_info_at5_gc_c                                         mbs_ngu_info_at5_gc;
   location_dependent_mb_sn_gu_info_at5_gc_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // LocationDependentMBSNGUInformationAt5GC ::= SEQUENCE (SIZE (1..256)) OF LocationDependentMBSNGUInformationAt5GC-Item
@@ -740,49 +586,42 @@ struct bc_bearer_context_ngu_tnl_infoat5_gc_c {
   struct types_opts {
     enum options { locationindependent, locationdependent, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  bc_bearer_context_ngu_tnl_infoat5_gc_c() = default;
-  bc_bearer_context_ngu_tnl_infoat5_gc_c(const bc_bearer_context_ngu_tnl_infoat5_gc_c& other);
-  bc_bearer_context_ngu_tnl_infoat5_gc_c& operator=(const bc_bearer_context_ngu_tnl_infoat5_gc_c& other);
-  ~bc_bearer_context_ngu_tnl_infoat5_gc_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  mb_sn_gu_info_at5_gc_c& locationindependent()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  mb_sn_gu_info_at5_gc_c&                       locationindependent()
   {
-    assert_choice_type(types::locationindependent, type_, "BCBearerContextNGU-TNLInfoat5GC");
+    assert_choice_type(types::locationindependent, c.type, "BCBearerContextNGU-TNLInfoat5GC");
     return c.get<mb_sn_gu_info_at5_gc_c>();
   }
   location_dependent_mb_sn_gu_info_at5_gc_l& locationdependent()
   {
-    assert_choice_type(types::locationdependent, type_, "BCBearerContextNGU-TNLInfoat5GC");
+    assert_choice_type(types::locationdependent, c.type, "BCBearerContextNGU-TNLInfoat5GC");
     return c.get<location_dependent_mb_sn_gu_info_at5_gc_l>();
   }
   protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat5_gc_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "BCBearerContextNGU-TNLInfoat5GC");
+    assert_choice_type(types::choice_ext, c.type, "BCBearerContextNGU-TNLInfoat5GC");
     return c.get<protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat5_gc_ext_ies_o>>();
   }
   const mb_sn_gu_info_at5_gc_c& locationindependent() const
   {
-    assert_choice_type(types::locationindependent, type_, "BCBearerContextNGU-TNLInfoat5GC");
+    assert_choice_type(types::locationindependent, c.type, "BCBearerContextNGU-TNLInfoat5GC");
     return c.get<mb_sn_gu_info_at5_gc_c>();
   }
   const location_dependent_mb_sn_gu_info_at5_gc_l& locationdependent() const
   {
-    assert_choice_type(types::locationdependent, type_, "BCBearerContextNGU-TNLInfoat5GC");
+    assert_choice_type(types::locationdependent, c.type, "BCBearerContextNGU-TNLInfoat5GC");
     return c.get<location_dependent_mb_sn_gu_info_at5_gc_l>();
   }
   const protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat5_gc_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "BCBearerContextNGU-TNLInfoat5GC");
+    assert_choice_type(types::choice_ext, c.type, "BCBearerContextNGU-TNLInfoat5GC");
     return c.get<protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat5_gc_ext_ies_o>>();
   }
   mb_sn_gu_info_at5_gc_c&                                                         set_locationindependent();
@@ -790,13 +629,13 @@ struct bc_bearer_context_ngu_tnl_infoat5_gc_c {
   protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat5_gc_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<location_dependent_mb_sn_gu_info_at5_gc_l,
-                  mb_sn_gu_info_at5_gc_c,
-                  protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat5_gc_ext_ies_o>>
+  asn1::table::choice_storage<
+      bc_bearer_context_ngu_tnl_infoat5_gc_c,
+      types,
+      choice_buffer_t<location_dependent_mb_sn_gu_info_at5_gc_l,
+                      mb_sn_gu_info_at5_gc_c,
+                      protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat5_gc_ext_ies_o>>>
       c;
-
-  void destroy_();
 };
 
 // MBSNGUInformationAtNGRAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-IES
@@ -807,49 +646,43 @@ struct mb_sn_gu_info_at_ngran_c {
   struct types_opts {
     enum options { unicast, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  mb_sn_gu_info_at_ngran_c() = default;
-  mb_sn_gu_info_at_ngran_c(const mb_sn_gu_info_at_ngran_c& other);
-  mb_sn_gu_info_at_ngran_c& operator=(const mb_sn_gu_info_at_ngran_c& other);
-  ~mb_sn_gu_info_at_ngran_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  up_tnl_info_c& unicast()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  up_tnl_info_c&                                unicast()
   {
-    assert_choice_type(types::unicast, type_, "MBSNGUInformationAtNGRAN");
+    assert_choice_type(types::unicast, c.type, "MBSNGUInformationAtNGRAN");
     return c.get<up_tnl_info_c>();
   }
   protocol_ie_single_container_s<mb_sn_gu_info_at_ngran_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "MBSNGUInformationAtNGRAN");
+    assert_choice_type(types::choice_ext, c.type, "MBSNGUInformationAtNGRAN");
     return c.get<protocol_ie_single_container_s<mb_sn_gu_info_at_ngran_ext_ies_o>>();
   }
   const up_tnl_info_c& unicast() const
   {
-    assert_choice_type(types::unicast, type_, "MBSNGUInformationAtNGRAN");
+    assert_choice_type(types::unicast, c.type, "MBSNGUInformationAtNGRAN");
     return c.get<up_tnl_info_c>();
   }
   const protocol_ie_single_container_s<mb_sn_gu_info_at_ngran_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "MBSNGUInformationAtNGRAN");
+    assert_choice_type(types::choice_ext, c.type, "MBSNGUInformationAtNGRAN");
     return c.get<protocol_ie_single_container_s<mb_sn_gu_info_at_ngran_ext_ies_o>>();
   }
   up_tnl_info_c&                                                    set_unicast();
   protocol_ie_single_container_s<mb_sn_gu_info_at_ngran_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                                            type_;
-  choice_buffer_t<protocol_ie_single_container_s<mb_sn_gu_info_at_ngran_ext_ies_o>, up_tnl_info_c> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      mb_sn_gu_info_at_ngran_c,
+      types,
+      choice_buffer_t<protocol_ie_single_container_s<mb_sn_gu_info_at_ngran_ext_ies_o>, up_tnl_info_c>>
+      c;
 };
 
 // LocationDependentMBSNGUInformationAtNGRAN-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -859,17 +692,13 @@ using location_dependent_mb_sn_gu_info_at_ngran_item_ext_ies_container = protoco
 
 // LocationDependentMBSNGUInformationAtNGRAN-Item ::= SEQUENCE
 struct location_dependent_mb_sn_gu_info_at_ngran_item_s {
-  bool                                                             ext                 = false;
   bool                                                             ie_exts_present     = false;
   uint32_t                                                         mbs_area_session_id = 0;
   mb_sn_gu_info_at_ngran_c                                         mbs_ngu_info_at_ngran;
   location_dependent_mb_sn_gu_info_at_ngran_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // LocationDependentMBSNGUInformationAtNGRAN ::= SEQUENCE (SIZE (1..256)) OF
@@ -884,49 +713,42 @@ struct bc_bearer_context_ngu_tnl_infoat_ngran_c {
   struct types_opts {
     enum options { locationindependent, locationdependent, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  bc_bearer_context_ngu_tnl_infoat_ngran_c() = default;
-  bc_bearer_context_ngu_tnl_infoat_ngran_c(const bc_bearer_context_ngu_tnl_infoat_ngran_c& other);
-  bc_bearer_context_ngu_tnl_infoat_ngran_c& operator=(const bc_bearer_context_ngu_tnl_infoat_ngran_c& other);
-  ~bc_bearer_context_ngu_tnl_infoat_ngran_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  mb_sn_gu_info_at_ngran_c& locationindependent()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  mb_sn_gu_info_at_ngran_c&                     locationindependent()
   {
-    assert_choice_type(types::locationindependent, type_, "BCBearerContextNGU-TNLInfoatNGRAN");
+    assert_choice_type(types::locationindependent, c.type, "BCBearerContextNGU-TNLInfoatNGRAN");
     return c.get<mb_sn_gu_info_at_ngran_c>();
   }
   location_dependent_mb_sn_gu_info_at_ngran_l& locationdependent()
   {
-    assert_choice_type(types::locationdependent, type_, "BCBearerContextNGU-TNLInfoatNGRAN");
+    assert_choice_type(types::locationdependent, c.type, "BCBearerContextNGU-TNLInfoatNGRAN");
     return c.get<location_dependent_mb_sn_gu_info_at_ngran_l>();
   }
   protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat_ngran_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "BCBearerContextNGU-TNLInfoatNGRAN");
+    assert_choice_type(types::choice_ext, c.type, "BCBearerContextNGU-TNLInfoatNGRAN");
     return c.get<protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat_ngran_ext_ies_o>>();
   }
   const mb_sn_gu_info_at_ngran_c& locationindependent() const
   {
-    assert_choice_type(types::locationindependent, type_, "BCBearerContextNGU-TNLInfoatNGRAN");
+    assert_choice_type(types::locationindependent, c.type, "BCBearerContextNGU-TNLInfoatNGRAN");
     return c.get<mb_sn_gu_info_at_ngran_c>();
   }
   const location_dependent_mb_sn_gu_info_at_ngran_l& locationdependent() const
   {
-    assert_choice_type(types::locationdependent, type_, "BCBearerContextNGU-TNLInfoatNGRAN");
+    assert_choice_type(types::locationdependent, c.type, "BCBearerContextNGU-TNLInfoatNGRAN");
     return c.get<location_dependent_mb_sn_gu_info_at_ngran_l>();
   }
   const protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat_ngran_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "BCBearerContextNGU-TNLInfoatNGRAN");
+    assert_choice_type(types::choice_ext, c.type, "BCBearerContextNGU-TNLInfoatNGRAN");
     return c.get<protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat_ngran_ext_ies_o>>();
   }
   mb_sn_gu_info_at_ngran_c&                                                         set_locationindependent();
@@ -934,20 +756,20 @@ struct bc_bearer_context_ngu_tnl_infoat_ngran_c {
   protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat_ngran_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<location_dependent_mb_sn_gu_info_at_ngran_l,
-                  mb_sn_gu_info_at_ngran_c,
-                  protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat_ngran_ext_ies_o>>
+  asn1::table::choice_storage<
+      bc_bearer_context_ngu_tnl_infoat_ngran_c,
+      types,
+      choice_buffer_t<location_dependent_mb_sn_gu_info_at_ngran_l,
+                      mb_sn_gu_info_at_ngran_c,
+                      protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat_ngran_ext_ies_o>>>
       c;
-
-  void destroy_();
 };
 
 // MBSNGUInformationAtNGRAN-Request ::= ENUMERATED
 struct mb_sn_gu_info_at_ngran_request_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using mb_sn_gu_info_at_ngran_request_e = enumerated<mb_sn_gu_info_at_ngran_request_opts, true>;
 
@@ -958,17 +780,13 @@ using mb_sn_gu_info_at_ngran_request_item_ext_ies_container = protocol_ext_conta
 
 // MBSNGUInformationAtNGRAN-Request-Item ::= SEQUENCE
 struct mb_sn_gu_info_at_ngran_request_item_s {
-  bool                                                  ext                 = false;
   bool                                                  ie_exts_present     = false;
   uint32_t                                              mbs_area_session_id = 0;
   mb_sn_gu_info_at_ngran_request_e                      mbs_ngu_info_at_ngran_request;
   mb_sn_gu_info_at_ngran_request_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MBSNGUInformationAtNGRAN-Request-List ::= SEQUENCE (SIZE (1..256)) OF MBSNGUInformationAtNGRAN-Request-Item
@@ -982,50 +800,42 @@ struct bc_bearer_context_ngu_tnl_infoat_ngran_request_c {
   struct types_opts {
     enum options { locationindependent, locationdependent, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  bc_bearer_context_ngu_tnl_infoat_ngran_request_c() = default;
-  bc_bearer_context_ngu_tnl_infoat_ngran_request_c(const bc_bearer_context_ngu_tnl_infoat_ngran_request_c& other);
-  bc_bearer_context_ngu_tnl_infoat_ngran_request_c&
-  operator=(const bc_bearer_context_ngu_tnl_infoat_ngran_request_c& other);
-  ~bc_bearer_context_ngu_tnl_infoat_ngran_request_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  mb_sn_gu_info_at_ngran_request_e& locationindependent()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  mb_sn_gu_info_at_ngran_request_e&             locationindependent()
   {
-    assert_choice_type(types::locationindependent, type_, "BCBearerContextNGU-TNLInfoatNGRAN-Request");
+    assert_choice_type(types::locationindependent, c.type, "BCBearerContextNGU-TNLInfoatNGRAN-Request");
     return c.get<mb_sn_gu_info_at_ngran_request_e>();
   }
   mb_sn_gu_info_at_ngran_request_list_l& locationdependent()
   {
-    assert_choice_type(types::locationdependent, type_, "BCBearerContextNGU-TNLInfoatNGRAN-Request");
+    assert_choice_type(types::locationdependent, c.type, "BCBearerContextNGU-TNLInfoatNGRAN-Request");
     return c.get<mb_sn_gu_info_at_ngran_request_list_l>();
   }
   protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat_ngran_request_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "BCBearerContextNGU-TNLInfoatNGRAN-Request");
+    assert_choice_type(types::choice_ext, c.type, "BCBearerContextNGU-TNLInfoatNGRAN-Request");
     return c.get<protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat_ngran_request_ext_ies_o>>();
   }
   const mb_sn_gu_info_at_ngran_request_e& locationindependent() const
   {
-    assert_choice_type(types::locationindependent, type_, "BCBearerContextNGU-TNLInfoatNGRAN-Request");
+    assert_choice_type(types::locationindependent, c.type, "BCBearerContextNGU-TNLInfoatNGRAN-Request");
     return c.get<mb_sn_gu_info_at_ngran_request_e>();
   }
   const mb_sn_gu_info_at_ngran_request_list_l& locationdependent() const
   {
-    assert_choice_type(types::locationdependent, type_, "BCBearerContextNGU-TNLInfoatNGRAN-Request");
+    assert_choice_type(types::locationdependent, c.type, "BCBearerContextNGU-TNLInfoatNGRAN-Request");
     return c.get<mb_sn_gu_info_at_ngran_request_list_l>();
   }
   const protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat_ngran_request_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "BCBearerContextNGU-TNLInfoatNGRAN-Request");
+    assert_choice_type(types::choice_ext, c.type, "BCBearerContextNGU-TNLInfoatNGRAN-Request");
     return c.get<protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat_ngran_request_ext_ies_o>>();
   }
   mb_sn_gu_info_at_ngran_request_e&                                                         set_locationindependent();
@@ -1033,21 +843,21 @@ struct bc_bearer_context_ngu_tnl_infoat_ngran_request_c {
   protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat_ngran_request_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<mb_sn_gu_info_at_ngran_request_list_l,
-                  protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat_ngran_request_ext_ies_o>>
+  asn1::table::choice_storage<
+      bc_bearer_context_ngu_tnl_infoat_ngran_request_c,
+      types,
+      choice_buffer_t<mb_sn_gu_info_at_ngran_request_e,
+                      mb_sn_gu_info_at_ngran_request_list_l,
+                      protocol_ie_single_container_s<bc_bearer_context_ngu_tnl_infoat_ngran_request_ext_ies_o>>>
       c;
-
-  void destroy_();
 };
 
 // PDCP-SN-Size ::= ENUMERATED
 struct pdcp_sn_size_opts {
   enum options { s_neg12, s_neg18, /*...*/ s_neg7, s_neg15, s_neg16, nulltype } value;
-  typedef int8_t number_type;
 
-  const char* to_string() const;
-  int8_t      to_number() const;
+  static const asn1::table::enum_desc desc;
+  int8_t                              to_number() const;
 };
 using pdcp_sn_size_e = enumerated<pdcp_sn_size_opts, true, 3>;
 
@@ -1062,7 +872,7 @@ struct rlc_mode_opts {
     /*...*/ nulltype
   } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using rlc_mode_e = enumerated<rlc_mode_opts, true>;
 
@@ -1076,7 +886,7 @@ struct rohc_s {
   struct continue_rohc_opts {
     enum options { true_value, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using continue_rohc_e_ = enumerated<continue_rohc_opts, true>;
 
@@ -1088,10 +898,7 @@ struct rohc_s {
   continue_rohc_e_       continue_rohc;
   rohc_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // UplinkOnlyROHC-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -1104,7 +911,7 @@ struct ul_only_rohc_s {
   struct continue_rohc_opts {
     enum options { true_value, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using continue_rohc_e_ = enumerated<continue_rohc_opts, true>;
 
@@ -1116,10 +923,7 @@ struct ul_only_rohc_s {
   continue_rohc_e_               continue_rohc;
   ul_only_rohc_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ROHC-Parameters-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-IES
@@ -1130,49 +934,42 @@ struct rohc_params_c {
   struct types_opts {
     enum options { rohc, ul_only_rohc, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  rohc_params_c() = default;
-  rohc_params_c(const rohc_params_c& other);
-  rohc_params_c& operator=(const rohc_params_c& other);
-  ~rohc_params_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  rohc_s& rohc()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  rohc_s&                                       rohc()
   {
-    assert_choice_type(types::rohc, type_, "ROHC-Parameters");
+    assert_choice_type(types::rohc, c.type, "ROHC-Parameters");
     return c.get<rohc_s>();
   }
   ul_only_rohc_s& ul_only_rohc()
   {
-    assert_choice_type(types::ul_only_rohc, type_, "ROHC-Parameters");
+    assert_choice_type(types::ul_only_rohc, c.type, "ROHC-Parameters");
     return c.get<ul_only_rohc_s>();
   }
   protocol_ie_single_container_s<rohc_params_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "ROHC-Parameters");
+    assert_choice_type(types::choice_ext, c.type, "ROHC-Parameters");
     return c.get<protocol_ie_single_container_s<rohc_params_ext_ies_o>>();
   }
   const rohc_s& rohc() const
   {
-    assert_choice_type(types::rohc, type_, "ROHC-Parameters");
+    assert_choice_type(types::rohc, c.type, "ROHC-Parameters");
     return c.get<rohc_s>();
   }
   const ul_only_rohc_s& ul_only_rohc() const
   {
-    assert_choice_type(types::ul_only_rohc, type_, "ROHC-Parameters");
+    assert_choice_type(types::ul_only_rohc, c.type, "ROHC-Parameters");
     return c.get<ul_only_rohc_s>();
   }
   const protocol_ie_single_container_s<rohc_params_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "ROHC-Parameters");
+    assert_choice_type(types::choice_ext, c.type, "ROHC-Parameters");
     return c.get<protocol_ie_single_container_s<rohc_params_ext_ies_o>>();
   }
   rohc_s&                                                set_rohc();
@@ -1180,10 +977,11 @@ struct rohc_params_c {
   protocol_ie_single_container_s<rohc_params_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                                          type_;
-  choice_buffer_t<protocol_ie_single_container_s<rohc_params_ext_ies_o>, rohc_s, ul_only_rohc_s> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      rohc_params_c,
+      types,
+      choice_buffer_t<protocol_ie_single_container_s<rohc_params_ext_ies_o>, rohc_s, ul_only_rohc_s>>
+      c;
 };
 
 // T-Reordering ::= ENUMERATED
@@ -1228,10 +1026,9 @@ struct t_reordering_opts {
     // ...
     nulltype
   } value;
-  typedef uint16_t number_type;
 
-  const char* to_string() const;
-  uint16_t    to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint16_t                            to_number() const;
 };
 using t_reordering_e = enumerated<t_reordering_opts, true>;
 
@@ -1242,16 +1039,12 @@ using t_reordering_timer_ext_ies_container = protocol_ext_container_empty_l;
 
 // T-ReorderingTimer ::= SEQUENCE
 struct t_reordering_timer_s {
-  bool                                 ext             = false;
   bool                                 ie_exts_present = false;
   t_reordering_e                       t_reordering;
   t_reordering_timer_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DiscardTimer ::= ENUMERATED
@@ -1275,10 +1068,9 @@ struct discard_timer_opts {
     infinity,
     nulltype
   } value;
-  typedef int16_t number_type;
 
-  const char* to_string() const;
-  int16_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  int16_t                             to_number() const;
 };
 using discard_timer_e = enumerated<discard_timer_opts>;
 
@@ -1312,10 +1104,9 @@ struct ul_data_split_thres_opts {
     // ...
     nulltype
   } value;
-  typedef int32_t number_type;
 
-  const char* to_string() const;
-  int32_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  int32_t                             to_number() const;
 };
 using ul_data_split_thres_e = enumerated<ul_data_split_thres_opts, true>;
 
@@ -1323,7 +1114,7 @@ using ul_data_split_thres_e = enumerated<ul_data_split_thres_opts, true>;
 struct pdcp_dupl_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using pdcp_dupl_e = enumerated<pdcp_dupl_opts, true>;
 
@@ -1331,7 +1122,7 @@ using pdcp_dupl_e = enumerated<pdcp_dupl_opts, true>;
 struct pdcp_reest_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using pdcp_reest_e = enumerated<pdcp_reest_opts, true>;
 
@@ -1339,7 +1130,7 @@ using pdcp_reest_e = enumerated<pdcp_reest_opts, true>;
 struct pdcp_data_recovery_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using pdcp_data_recovery_e = enumerated<pdcp_data_recovery_opts, true>;
 
@@ -1347,7 +1138,7 @@ using pdcp_data_recovery_e = enumerated<pdcp_data_recovery_opts, true>;
 struct dupl_activation_opts {
   enum options { active, inactive, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using dupl_activation_e = enumerated<dupl_activation_opts, true>;
 
@@ -1355,7 +1146,7 @@ using dupl_activation_e = enumerated<dupl_activation_opts, true>;
 struct out_of_order_delivery_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using out_of_order_delivery_e = enumerated<out_of_order_delivery_opts, true>;
 
@@ -1363,7 +1154,7 @@ using out_of_order_delivery_e = enumerated<out_of_order_delivery_opts, true>;
 struct pdcp_status_report_ind_opts {
   enum options { dl, ul, both, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using pdcp_status_report_ind_e = enumerated<pdcp_status_report_ind_opts, true>;
 
@@ -1376,10 +1167,9 @@ using ehc_common_params_ext_ies_container = protocol_ext_container_empty_l;
 struct ehc_common_params_s {
   struct ehc_c_id_len_opts {
     enum options { bits7, bits15, /*...*/ nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using ehc_c_id_len_e_ = enumerated<ehc_c_id_len_opts, true>;
 
@@ -1388,44 +1178,15 @@ struct ehc_common_params_s {
   ehc_c_id_len_e_                     ehc_c_id_len;
   ehc_common_params_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // EHC-Downlink-Parameters-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct ehc_dl_params_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { max_c_id_ehc_dl, nulltype } value;
-      typedef uint8_t number_type;
+struct ehc_dl_params_ext_ies_container {
+  bool     max_c_id_ehc_dl_present = false;
+  uint32_t max_c_id_ehc_dl;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::max_c_id_ehc_dl; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint16_t&       max_c_id_ehc_dl() { return c; }
-    const uint16_t& max_c_id_ehc_dl() const { return c; }
-
-  private:
-    uint16_t c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // EHC-Downlink-Parameters ::= SEQUENCE
@@ -1433,18 +1194,16 @@ struct ehc_dl_params_s {
   struct drb_continue_ehc_dl_opts {
     enum options { true_value, /*...*/ false_value, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using drb_continue_ehc_dl_e_ = enumerated<drb_continue_ehc_dl_opts, true, 1>;
 
   // member variables
-  drb_continue_ehc_dl_e_                            drb_continue_ehc_dl;
-  protocol_ext_container_l<ehc_dl_params_ext_ies_o> ie_exts;
+  bool                            ie_exts_present = false;
+  drb_continue_ehc_dl_e_          drb_continue_ehc_dl;
+  ehc_dl_params_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // EHC-Uplink-Parameters-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -1457,7 +1216,7 @@ struct ehc_ul_params_s {
   struct drb_continue_ehc_ul_opts {
     enum options { true_value, /*...*/ false_value, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using drb_continue_ehc_ul_e_ = enumerated<drb_continue_ehc_ul_opts, true, 1>;
 
@@ -1466,10 +1225,7 @@ struct ehc_ul_params_s {
   drb_continue_ehc_ul_e_          drb_continue_ehc_ul;
   ehc_ul_params_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // EHC-Parameters-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -1487,19 +1243,15 @@ struct ehc_params_s {
   ehc_ul_params_s              ehc_ul;
   ehc_params_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // BufferSize ::= ENUMERATED
 struct buffer_size_opts {
   enum options { kbyte2, kbyte4, kbyte8, /*...*/ nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using buffer_size_e = enumerated<buffer_size_opts, true>;
 
@@ -1507,42 +1259,16 @@ using buffer_size_e = enumerated<buffer_size_opts, true>;
 struct dictionary_opts {
   enum options { sip_sdp, operator_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using dictionary_e = enumerated<dictionary_opts, true>;
 
 // UDC-Parameters-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct udc_params_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { version_id, nulltype } value;
-      typedef uint8_t number_type;
+struct udc_params_ext_ies_container {
+  bool    version_id_present = false;
+  uint8_t version_id;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::version_id; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint8_t&       version_id() { return c; }
-    const uint8_t& version_id() const { return c; }
-
-  private:
-    uint8_t c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // UDC-Parameters ::= SEQUENCE
@@ -1550,32 +1276,29 @@ struct udc_params_s {
   struct continue_udc_opts {
     enum options { true_value, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using continue_udc_e_ = enumerated<continue_udc_opts, true>;
 
   // member variables
-  bool                                           dictionary_present   = false;
-  bool                                           continue_udc_present = false;
-  buffer_size_e                                  buffer_size;
-  dictionary_e                                   dictionary;
-  continue_udc_e_                                continue_udc;
-  protocol_ext_container_l<udc_params_ext_ies_o> ie_exts;
+  bool                         dictionary_present   = false;
+  bool                         continue_udc_present = false;
+  bool                         ie_exts_present      = false;
+  buffer_size_e                buffer_size;
+  dictionary_e                 dictionary;
+  continue_udc_e_              continue_udc;
+  udc_params_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DiscardTimerExtended ::= ENUMERATED
 struct discard_timer_extended_opts {
   enum options { ms0dot5, ms1, ms2, ms4, ms6, ms8, /*...*/ ms2000, nulltype } value;
-  typedef float number_type;
 
-  const char* to_string() const;
-  float       to_number() const;
-  const char* to_number_string() const;
+  static const asn1::table::enum_desc desc;
+  float                               to_number() const;
+  const char*                         to_number_string() const;
 };
 using discard_timer_extended_e = enumerated<discard_timer_extended_opts, true, 1>;
 
@@ -1601,10 +1324,9 @@ struct psi_based_discard_timer_opts {
     // ...
     nulltype
   } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using psi_based_discard_timer_e = enumerated<psi_based_discard_timer_opts, true>;
 
@@ -1612,66 +1334,11 @@ using psi_based_discard_timer_e = enumerated<psi_based_discard_timer_opts, true>
 struct pdcp_sn_gap_report_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using pdcp_sn_gap_report_e = enumerated<pdcp_sn_gap_report_opts, true>;
 
 // PDCP-Configuration-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct pdcp_cfg_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options {
-        pdcp_status_report_ind,
-        add_pdcp_dupl_info,
-        ehc_params,
-        udc_params,
-        discard_timer_extended,
-        psi_based_discard_timer,
-        pdcp_sn_gap_report,
-        nulltype
-      } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    pdcp_status_report_ind_e&        pdcp_status_report_ind();
-    add_pdcp_dupl_info_e&            add_pdcp_dupl_info();
-    ehc_params_s&                    ehc_params();
-    udc_params_s&                    udc_params();
-    discard_timer_extended_e&        discard_timer_extended();
-    psi_based_discard_timer_e&       psi_based_discard_timer();
-    pdcp_sn_gap_report_e&            pdcp_sn_gap_report();
-    const pdcp_status_report_ind_e&  pdcp_status_report_ind() const;
-    const add_pdcp_dupl_info_e&      add_pdcp_dupl_info() const;
-    const ehc_params_s&              ehc_params() const;
-    const udc_params_s&              udc_params() const;
-    const discard_timer_extended_e&  discard_timer_extended() const;
-    const psi_based_discard_timer_e& psi_based_discard_timer() const;
-    const pdcp_sn_gap_report_e&      pdcp_sn_gap_report() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct pdcp_cfg_ext_ies_container {
   bool                      pdcp_status_report_ind_present  = false;
   bool                      add_pdcp_dupl_info_present      = false;
@@ -1688,15 +1355,11 @@ struct pdcp_cfg_ext_ies_container {
   psi_based_discard_timer_e psi_based_discard_timer;
   pdcp_sn_gap_report_e      pdcp_sn_gap_report;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // PDCP-Configuration ::= SEQUENCE
 struct pdcp_cfg_s {
-  bool                       ext                           = false;
   bool                       rohc_params_present           = false;
   bool                       t_reordering_timer_present    = false;
   bool                       discard_timer_present         = false;
@@ -1722,59 +1385,17 @@ struct pdcp_cfg_s {
   pdcp_cfg_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Non-Dynamic5QIDescriptor-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct non_dyn_5qi_descriptor_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { cn_packet_delay_budget_dl, cn_packet_delay_budget_ul, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint32_t&       cn_packet_delay_budget_dl();
-    uint32_t&       cn_packet_delay_budget_ul();
-    const uint32_t& cn_packet_delay_budget_dl() const;
-    const uint32_t& cn_packet_delay_budget_ul() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct non_dyn_5qi_descriptor_ext_ies_container {
   bool     cn_packet_delay_budget_dl_present = false;
   bool     cn_packet_delay_budget_ul_present = false;
   uint32_t cn_packet_delay_budget_dl;
   uint32_t cn_packet_delay_budget_ul;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // Non-Dynamic5QIDescriptor ::= SEQUENCE
@@ -1784,61 +1405,15 @@ struct non_dyn_5qi_descriptor_s {
   bool                                     max_data_burst_volume_present = false;
   bool                                     ie_exts_present               = false;
   uint16_t                                 five_qi                       = 0;
-  uint8_t                                  qos_prio_level                = 0;
+  uint16_t                                 qos_prio_level                = 0;
   uint16_t                                 averaging_win                 = 0;
   uint16_t                                 max_data_burst_volume         = 0;
   non_dyn_5qi_descriptor_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Dynamic5QIDescriptor-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct dyn_5qi_descriptor_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options {
-        extended_packet_delay_budget,
-        cn_packet_delay_budget_dl,
-        cn_packet_delay_budget_ul,
-        nulltype
-      } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint32_t&       extended_packet_delay_budget();
-    uint32_t&       cn_packet_delay_budget_dl();
-    uint32_t&       cn_packet_delay_budget_ul();
-    const uint32_t& extended_packet_delay_budget() const;
-    const uint32_t& cn_packet_delay_budget_dl() const;
-    const uint32_t& cn_packet_delay_budget_ul() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct dyn_5qi_descriptor_ext_ies_container {
   bool     extended_packet_delay_budget_present = false;
   bool     cn_packet_delay_budget_dl_present    = false;
@@ -1847,10 +1422,7 @@ struct dyn_5qi_descriptor_ext_ies_container {
   uint32_t cn_packet_delay_budget_dl;
   uint32_t cn_packet_delay_budget_ul;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // Dynamic5QIDescriptor ::= SEQUENCE
@@ -1858,7 +1430,7 @@ struct dyn_5qi_descriptor_s {
   struct delay_crit_opts {
     enum options { delay_crit, non_delay_crit, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using delay_crit_e_ = enumerated<delay_crit_opts>;
 
@@ -1868,7 +1440,7 @@ struct dyn_5qi_descriptor_s {
   bool                                 averaging_win_present         = false;
   bool                                 max_data_burst_volume_present = false;
   bool                                 ie_exts_present               = false;
-  uint8_t                              qos_prio_level                = 0;
+  uint16_t                             qos_prio_level                = 0;
   uint16_t                             packet_delay_budget           = 0;
   packet_error_rate_s                  packet_error_rate;
   uint16_t                             five_qi = 0;
@@ -1877,10 +1449,7 @@ struct dyn_5qi_descriptor_s {
   uint16_t                             max_data_burst_volume = 0;
   dyn_5qi_descriptor_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // QoS-Characteristics-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-IES
@@ -1891,49 +1460,42 @@ struct qos_characteristics_c {
   struct types_opts {
     enum options { non_dyn_5qi, dyn_5qi, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  qos_characteristics_c() = default;
-  qos_characteristics_c(const qos_characteristics_c& other);
-  qos_characteristics_c& operator=(const qos_characteristics_c& other);
-  ~qos_characteristics_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  non_dyn_5qi_descriptor_s& non_dyn_5qi()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  non_dyn_5qi_descriptor_s&                     non_dyn_5qi()
   {
-    assert_choice_type(types::non_dyn_5qi, type_, "QoS-Characteristics");
+    assert_choice_type(types::non_dyn_5qi, c.type, "QoS-Characteristics");
     return c.get<non_dyn_5qi_descriptor_s>();
   }
   dyn_5qi_descriptor_s& dyn_5qi()
   {
-    assert_choice_type(types::dyn_5qi, type_, "QoS-Characteristics");
+    assert_choice_type(types::dyn_5qi, c.type, "QoS-Characteristics");
     return c.get<dyn_5qi_descriptor_s>();
   }
   protocol_ie_single_container_s<qos_characteristics_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "QoS-Characteristics");
+    assert_choice_type(types::choice_ext, c.type, "QoS-Characteristics");
     return c.get<protocol_ie_single_container_s<qos_characteristics_ext_ies_o>>();
   }
   const non_dyn_5qi_descriptor_s& non_dyn_5qi() const
   {
-    assert_choice_type(types::non_dyn_5qi, type_, "QoS-Characteristics");
+    assert_choice_type(types::non_dyn_5qi, c.type, "QoS-Characteristics");
     return c.get<non_dyn_5qi_descriptor_s>();
   }
   const dyn_5qi_descriptor_s& dyn_5qi() const
   {
-    assert_choice_type(types::dyn_5qi, type_, "QoS-Characteristics");
+    assert_choice_type(types::dyn_5qi, c.type, "QoS-Characteristics");
     return c.get<dyn_5qi_descriptor_s>();
   }
   const protocol_ie_single_container_s<qos_characteristics_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "QoS-Characteristics");
+    assert_choice_type(types::choice_ext, c.type, "QoS-Characteristics");
     return c.get<protocol_ie_single_container_s<qos_characteristics_ext_ies_o>>();
   }
   non_dyn_5qi_descriptor_s&                                      set_non_dyn_5qi();
@@ -1941,20 +1503,19 @@ struct qos_characteristics_c {
   protocol_ie_single_container_s<qos_characteristics_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<dyn_5qi_descriptor_s,
-                  non_dyn_5qi_descriptor_s,
-                  protocol_ie_single_container_s<qos_characteristics_ext_ies_o>>
+  asn1::table::choice_storage<qos_characteristics_c,
+                              types,
+                              choice_buffer_t<dyn_5qi_descriptor_s,
+                                              non_dyn_5qi_descriptor_s,
+                                              protocol_ie_single_container_s<qos_characteristics_ext_ies_o>>>
       c;
-
-  void destroy_();
 };
 
 // Pre-emptionCapability ::= ENUMERATED
 struct pre_emption_cap_opts {
   enum options { shall_not_trigger_pre_emption, may_trigger_pre_emption, nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using pre_emption_cap_e = enumerated<pre_emption_cap_opts>;
 
@@ -1962,7 +1523,7 @@ using pre_emption_cap_e = enumerated<pre_emption_cap_opts>;
 struct pre_emption_vulnerability_opts {
   enum options { not_pre_emptable, pre_emptable, nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using pre_emption_vulnerability_e = enumerated<pre_emption_vulnerability_opts>;
 
@@ -1979,69 +1540,39 @@ struct ngran_alloc_and_retention_prio_s {
   pre_emption_vulnerability_e                      pre_emption_vulnerability;
   ngran_alloc_and_retention_prio_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // GBR-QosFlowInformation-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct gbr_qos_flow_info_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { alt_qos_para_set_list, nulltype } value;
+struct gbr_qos_flow_info_ext_ies_container {
+  bool                    alt_qos_para_set_list_present = false;
+  alt_qos_para_set_list_l alt_qos_para_set_list;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::alt_qos_para_set_list; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    alt_qos_para_set_list_l&       alt_qos_para_set_list() { return c; }
-    const alt_qos_para_set_list_l& alt_qos_para_set_list() const { return c; }
-
-  private:
-    alt_qos_para_set_list_l c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // GBR-QoSFlowInformation ::= SEQUENCE
 struct gbr_qos_flow_info_s {
-  bool                                                  ext                             = false;
-  bool                                                  max_packet_loss_rate_dl_present = false;
-  bool                                                  max_packet_loss_rate_ul_present = false;
-  uint64_t                                              max_flow_bit_rate_dl            = 0;
-  uint64_t                                              max_flow_bit_rate_ul            = 0;
-  uint64_t                                              guaranteed_flow_bit_rate_dl     = 0;
-  uint64_t                                              guaranteed_flow_bit_rate_ul     = 0;
-  uint16_t                                              max_packet_loss_rate_dl         = 0;
-  uint16_t                                              max_packet_loss_rate_ul         = 0;
-  protocol_ext_container_l<gbr_qos_flow_info_ext_ies_o> ie_exts;
+  bool                                max_packet_loss_rate_dl_present = false;
+  bool                                max_packet_loss_rate_ul_present = false;
+  bool                                ie_exts_present                 = false;
+  uint64_t                            max_flow_bit_rate_dl            = 0;
+  uint64_t                            max_flow_bit_rate_ul            = 0;
+  uint64_t                            guaranteed_flow_bit_rate_dl     = 0;
+  uint64_t                            guaranteed_flow_bit_rate_ul     = 0;
+  uint16_t                            max_packet_loss_rate_dl         = 0;
+  uint16_t                            max_packet_loss_rate_ul         = 0;
+  gbr_qos_flow_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // QosMonitoringRequest ::= ENUMERATED
 struct qos_monitoring_request_opts {
   enum options { ul, dl, both, nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using qos_monitoring_request_e = enumerated<qos_monitoring_request_opts>;
 
@@ -2049,7 +1580,7 @@ using qos_monitoring_request_e = enumerated<qos_monitoring_request_opts>;
 struct qos_monitoring_disabled_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using qos_monitoring_disabled_e = enumerated<qos_monitoring_disabled_opts, true>;
 
@@ -2063,7 +1594,7 @@ struct pdu_set_qos_info_s {
   struct pdu_set_integrated_handling_info_opts {
     enum options { true_value, false_value, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using pdu_set_integrated_handling_info_e_ = enumerated<pdu_set_integrated_handling_info_opts, true>;
 
@@ -2077,10 +1608,7 @@ struct pdu_set_qos_info_s {
   pdu_set_integrated_handling_info_e_ pdu_set_integrated_handling_info;
   pdu_set_qos_info_ext_ies_container  ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDUSetQoSParameters-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -2097,67 +1625,10 @@ struct pdu_set_qos_params_s {
   pdu_set_qos_info_s                   dl_pdu_set_qos_info;
   pdu_set_qos_params_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // QoSFlowLevelQoSParameters-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct qos_flow_level_qos_params_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options {
-        qos_monitoring_request,
-        mcg_offered_gbr_qos_flow_info,
-        qos_monitoring_report_freq,
-        qos_monitoring_disabled,
-        data_forwarding_source_ip_address,
-        pdu_set_qos_params,
-        nulltype
-      } value;
-      typedef uint8_t number_type;
-
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    qos_monitoring_request_e&                    qos_monitoring_request();
-    gbr_qos_flow_info_s&                         mcg_offered_gbr_qos_flow_info();
-    uint16_t&                                    qos_monitoring_report_freq();
-    qos_monitoring_disabled_e&                   qos_monitoring_disabled();
-    bounded_bitstring<1, 160, true, true>&       data_forwarding_source_ip_address();
-    pdu_set_qos_params_s&                        pdu_set_qos_params();
-    const qos_monitoring_request_e&              qos_monitoring_request() const;
-    const gbr_qos_flow_info_s&                   mcg_offered_gbr_qos_flow_info() const;
-    const uint16_t&                              qos_monitoring_report_freq() const;
-    const qos_monitoring_disabled_e&             qos_monitoring_disabled() const;
-    const bounded_bitstring<1, 160, true, true>& data_forwarding_source_ip_address() const;
-    const pdu_set_qos_params_s&                  pdu_set_qos_params() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct qos_flow_level_qos_params_ext_ies_container {
   bool                                  qos_monitoring_request_present            = false;
   bool                                  mcg_offered_gbr_qos_flow_info_present     = false;
@@ -2172,10 +1643,7 @@ struct qos_flow_level_qos_params_ext_ies_container {
   bounded_bitstring<1, 160, true, true> data_forwarding_source_ip_address;
   pdu_set_qos_params_s                  pdu_set_qos_params;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // QoSFlowLevelQoSParameters ::= SEQUENCE
@@ -2183,19 +1651,19 @@ struct qos_flow_level_qos_params_s {
   struct reflective_qos_attribute_opts {
     enum options { subject_to, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using reflective_qos_attribute_e_ = enumerated<reflective_qos_attribute_opts, true>;
   struct add_qos_info_opts {
     enum options { more_likely, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using add_qos_info_e_ = enumerated<add_qos_info_opts, true>;
   struct reflective_qos_ind_opts {
     enum options { enabled, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using reflective_qos_ind_e_ = enumerated<reflective_qos_ind_opts, true>;
 
@@ -2207,7 +1675,7 @@ struct qos_flow_level_qos_params_s {
   bool                                        reflective_qos_ind_present       = false;
   bool                                        ie_exts_present                  = false;
   qos_characteristics_c                       qos_characteristics;
-  ngran_alloc_and_retention_prio_s            ngra_nalloc_retention_prio;
+  ngran_alloc_and_retention_prio_s            ngran_alloc_retention_prio;
   gbr_qos_flow_info_s                         gbr_qos_flow_info;
   reflective_qos_attribute_e_                 reflective_qos_attribute;
   add_qos_info_e_                             add_qos_info;
@@ -2215,17 +1683,14 @@ struct qos_flow_level_qos_params_s {
   reflective_qos_ind_e_                       reflective_qos_ind;
   qos_flow_level_qos_params_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // QoS-Flow-Mapping-Indication ::= ENUMERATED
 struct qos_flow_map_ind_opts {
   enum options { ul, dl, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using qos_flow_map_ind_e = enumerated<qos_flow_map_ind_opts, true>;
 
@@ -2233,7 +1698,7 @@ using qos_flow_map_ind_e = enumerated<qos_flow_map_ind_opts, true>;
 struct redundant_qos_flow_ind_opts {
   enum options { true_value, false_value, nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using redundant_qos_flow_ind_e = enumerated<redundant_qos_flow_ind_opts>;
 
@@ -2244,68 +1709,23 @@ using n6_jitter_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // N6JitterInformation ::= SEQUENCE
 struct n6_jitter_info_s {
-  bool                             ext                   = false;
   bool                             ie_exts_present       = false;
   int16_t                          n6_jitter_lower_bound = -127;
   int16_t                          n6_jitter_upper_bound = -127;
   n6_jitter_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TSCAssistanceInformation-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct tsc_assist_info_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { survival_time, n6_jitter_info, nulltype } value;
-      typedef uint8_t number_type;
-
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint32_t&               survival_time();
-    n6_jitter_info_s&       n6_jitter_info();
-    const uint32_t&         survival_time() const;
-    const n6_jitter_info_s& n6_jitter_info() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct tsc_assist_info_ext_ies_container {
   bool             survival_time_present  = false;
   bool             n6_jitter_info_present = false;
   uint32_t         survival_time;
   n6_jitter_info_s n6_jitter_info;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // TSCAssistanceInformation ::= SEQUENCE
@@ -2315,10 +1735,7 @@ struct tsc_assist_info_s {
   unbounded_octstring<true>         burst_arrival_time;
   tsc_assist_info_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TSCTrafficCharacteristics-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -2335,10 +1752,7 @@ struct tsc_traffic_characteristics_s {
   tsc_assist_info_s                             tsc_traffic_characteristics_dl;
   tsc_traffic_characteristics_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ECNMarkingorCongestionInformationReportingRequest-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-IES
@@ -2349,78 +1763,70 @@ struct ecn_markingor_congestion_info_report_request_c {
   struct ecn_markingat_ngran_opts {
     enum options { ul, dl, both, stop, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using ecn_markingat_ngran_e_ = enumerated<ecn_markingat_ngran_opts, true>;
   struct ecn_markingat_up_f_opts {
     enum options { ul, dl, both, stop, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using ecn_markingat_up_f_e_ = enumerated<ecn_markingat_up_f_opts, true>;
   struct congestion_info_opts {
     enum options { ul, dl, both, stop, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using congestion_info_e_ = enumerated<congestion_info_opts, true>;
   struct types_opts {
     enum options { ecn_markingat_ngran, ecn_markingat_up_f, congestion_info, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  ecn_markingor_congestion_info_report_request_c() = default;
-  ecn_markingor_congestion_info_report_request_c(const ecn_markingor_congestion_info_report_request_c& other);
-  ecn_markingor_congestion_info_report_request_c&
-  operator=(const ecn_markingor_congestion_info_report_request_c& other);
-  ~ecn_markingor_congestion_info_report_request_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  ecn_markingat_ngran_e_& ecn_markingat_ngran()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  ecn_markingat_ngran_e_&                       ecn_markingat_ngran()
   {
-    assert_choice_type(types::ecn_markingat_ngran, type_, "ECNMarkingorCongestionInformationReportingRequest");
+    assert_choice_type(types::ecn_markingat_ngran, c.type, "ECNMarkingorCongestionInformationReportingRequest");
     return c.get<ecn_markingat_ngran_e_>();
   }
   ecn_markingat_up_f_e_& ecn_markingat_up_f()
   {
-    assert_choice_type(types::ecn_markingat_up_f, type_, "ECNMarkingorCongestionInformationReportingRequest");
+    assert_choice_type(types::ecn_markingat_up_f, c.type, "ECNMarkingorCongestionInformationReportingRequest");
     return c.get<ecn_markingat_up_f_e_>();
   }
   congestion_info_e_& congestion_info()
   {
-    assert_choice_type(types::congestion_info, type_, "ECNMarkingorCongestionInformationReportingRequest");
+    assert_choice_type(types::congestion_info, c.type, "ECNMarkingorCongestionInformationReportingRequest");
     return c.get<congestion_info_e_>();
   }
   protocol_ie_single_container_s<ecn_markingor_congestion_info_report_request_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "ECNMarkingorCongestionInformationReportingRequest");
+    assert_choice_type(types::choice_ext, c.type, "ECNMarkingorCongestionInformationReportingRequest");
     return c.get<protocol_ie_single_container_s<ecn_markingor_congestion_info_report_request_ext_ies_o>>();
   }
   const ecn_markingat_ngran_e_& ecn_markingat_ngran() const
   {
-    assert_choice_type(types::ecn_markingat_ngran, type_, "ECNMarkingorCongestionInformationReportingRequest");
+    assert_choice_type(types::ecn_markingat_ngran, c.type, "ECNMarkingorCongestionInformationReportingRequest");
     return c.get<ecn_markingat_ngran_e_>();
   }
   const ecn_markingat_up_f_e_& ecn_markingat_up_f() const
   {
-    assert_choice_type(types::ecn_markingat_up_f, type_, "ECNMarkingorCongestionInformationReportingRequest");
+    assert_choice_type(types::ecn_markingat_up_f, c.type, "ECNMarkingorCongestionInformationReportingRequest");
     return c.get<ecn_markingat_up_f_e_>();
   }
   const congestion_info_e_& congestion_info() const
   {
-    assert_choice_type(types::congestion_info, type_, "ECNMarkingorCongestionInformationReportingRequest");
+    assert_choice_type(types::congestion_info, c.type, "ECNMarkingorCongestionInformationReportingRequest");
     return c.get<congestion_info_e_>();
   }
   const protocol_ie_single_container_s<ecn_markingor_congestion_info_report_request_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "ECNMarkingorCongestionInformationReportingRequest");
+    assert_choice_type(types::choice_ext, c.type, "ECNMarkingorCongestionInformationReportingRequest");
     return c.get<protocol_ie_single_container_s<ecn_markingor_congestion_info_report_request_ext_ies_o>>();
   }
   ecn_markingat_ngran_e_&                                                                 set_ecn_markingat_ngran();
@@ -2429,56 +1835,17 @@ struct ecn_markingor_congestion_info_report_request_c {
   protocol_ie_single_container_s<ecn_markingor_congestion_info_report_request_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                                                   type_;
-  choice_buffer_t<protocol_ie_single_container_s<ecn_markingor_congestion_info_report_request_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      ecn_markingor_congestion_info_report_request_c,
+      types,
+      choice_buffer_t<congestion_info_e_,
+                      ecn_markingat_ngran_e_,
+                      ecn_markingat_up_f_e_,
+                      protocol_ie_single_container_s<ecn_markingor_congestion_info_report_request_ext_ies_o>>>
+      c;
 };
 
 // QoS-Flow-QoS-Parameter-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct qos_flow_qos_param_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options {
-        redundant_qos_flow_ind,
-        tsc_traffic_characteristics,
-        ecn_markingor_congestion_info_report_request,
-        nulltype
-      } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    redundant_qos_flow_ind_e&                             redundant_qos_flow_ind();
-    tsc_traffic_characteristics_s&                        tsc_traffic_characteristics();
-    ecn_markingor_congestion_info_report_request_c&       ecn_markingor_congestion_info_report_request();
-    const redundant_qos_flow_ind_e&                       redundant_qos_flow_ind() const;
-    const tsc_traffic_characteristics_s&                  tsc_traffic_characteristics() const;
-    const ecn_markingor_congestion_info_report_request_c& ecn_markingor_congestion_info_report_request() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct qos_flow_qos_param_item_ext_ies_container {
   bool                                           redundant_qos_flow_ind_present                       = false;
   bool                                           tsc_traffic_characteristics_present                  = false;
@@ -2487,15 +1854,11 @@ struct qos_flow_qos_param_item_ext_ies_container {
   tsc_traffic_characteristics_s                  tsc_traffic_characteristics;
   ecn_markingor_congestion_info_report_request_c ecn_markingor_congestion_info_report_request;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // QoS-Flow-QoS-Parameter-Item ::= SEQUENCE
 struct qos_flow_qos_param_item_s {
-  bool                                      ext                      = false;
   bool                                      qos_flow_map_ind_present = false;
   bool                                      ie_exts_present          = false;
   uint8_t                                   qos_flow_id              = 0;
@@ -2504,10 +1867,7 @@ struct qos_flow_qos_param_item_s {
   qos_flow_qos_param_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // QoS-Flow-QoS-Parameter-List ::= SEQUENCE (SIZE (1..64)) OF QoS-Flow-QoS-Parameter-Item
@@ -2520,70 +1880,37 @@ using f1_u_tnl_info_to_add_item_ext_ies_container = protocol_ext_container_empty
 
 // F1U-TNL-InfoToAdd-Item ::= SEQUENCE
 struct f1_u_tnl_info_to_add_item_s {
-  bool                                        ext             = false;
   bool                                        ie_exts_present = false;
   fixed_octstring<4, true>                    broadcast_f1_u_context_ref_e1;
   f1_u_tnl_info_to_add_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // F1U-TNL-InfoToAdd-List ::= SEQUENCE (SIZE (1..512)) OF F1U-TNL-InfoToAdd-Item
 using f1_u_tnl_info_to_add_list_l = dyn_array<f1_u_tnl_info_to_add_item_s>;
 
 // BCMRBSetupConfiguration-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct bcmrb_setup_cfg_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { f1_u_tnl_info_to_add_list, nulltype } value;
-      typedef uint8_t number_type;
+struct bcmrb_setup_cfg_item_ext_ies_container {
+  bool                        f1_u_tnl_info_to_add_list_present = false;
+  f1_u_tnl_info_to_add_list_l f1_u_tnl_info_to_add_list;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::f1_u_tnl_info_to_add_list; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    f1_u_tnl_info_to_add_list_l&       f1_u_tnl_info_to_add_list() { return c; }
-    const f1_u_tnl_info_to_add_list_l& f1_u_tnl_info_to_add_list() const { return c; }
-
-  private:
-    f1_u_tnl_info_to_add_list_l c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // BCMRBSetupConfiguration-Item ::= SEQUENCE
 struct bcmrb_setup_cfg_item_s {
-  bool                                                     ext                               = false;
-  bool                                                     qos_flow_level_qos_params_present = false;
-  uint16_t                                                 mrb_id                            = 1;
-  pdcp_cfg_s                                               mbs_pdcp_cfg;
-  qos_flow_qos_param_list_l                                qos_flow_qos_param_list;
-  qos_flow_level_qos_params_s                              qos_flow_level_qos_params;
-  protocol_ext_container_l<bcmrb_setup_cfg_item_ext_ies_o> ie_exts;
+  bool                                   qos_flow_level_qos_params_present = false;
+  bool                                   ie_exts_present                   = false;
+  uint16_t                               mrb_id                            = 1;
+  pdcp_cfg_s                             mbs_pdcp_cfg;
+  qos_flow_qos_param_list_l              qos_flow_qos_param_list;
+  qos_flow_level_qos_params_s            qos_flow_level_qos_params;
+  bcmrb_setup_cfg_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // BCMRBSetupConfiguration ::= SEQUENCE (SIZE (1..32)) OF BCMRBSetupConfiguration-Item
@@ -2596,7 +1923,6 @@ using f1_u_tnl_info_to_add_or_modify_item_ext_ies_container = protocol_ext_conta
 
 // F1U-TNL-InfoToAddOrModify-Item ::= SEQUENCE
 struct f1_u_tnl_info_to_add_or_modify_item_s {
-  bool                                                  ext                                          = false;
   bool                                                  bc_bearer_context_f1_u_tnl_infoat_du_present = false;
   bool                                                  ie_exts_present                              = false;
   fixed_octstring<4, true>                              broadcast_f1_u_context_ref_e1;
@@ -2604,10 +1930,7 @@ struct f1_u_tnl_info_to_add_or_modify_item_s {
   f1_u_tnl_info_to_add_or_modify_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // F1U-TNL-InfoToAddOrModify-List ::= SEQUENCE (SIZE (1..512)) OF F1U-TNL-InfoToAddOrModify-Item
@@ -2620,73 +1943,29 @@ using f1_u_tnl_info_to_release_item_ext_ies_container = protocol_ext_container_e
 
 // F1U-TNL-InfoToRelease-Item ::= SEQUENCE
 struct f1_u_tnl_info_to_release_item_s {
-  bool                                            ext             = false;
   bool                                            ie_exts_present = false;
   fixed_octstring<4, true>                        broadcast_f1_u_context_ref_e1;
   f1_u_tnl_info_to_release_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // F1U-TNL-InfoToRelease-List ::= SEQUENCE (SIZE (1..512)) OF F1U-TNL-InfoToRelease-Item
 using f1_u_tnl_info_to_release_list_l = dyn_array<f1_u_tnl_info_to_release_item_s>;
 
 // BCMRBModifyConfiguration-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct bcmrb_modify_cfg_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { f1_u_tnl_info_to_add_or_modify_list, f1_u_tnl_info_to_release_list, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    f1_u_tnl_info_to_add_or_modify_list_l&       f1_u_tnl_info_to_add_or_modify_list();
-    f1_u_tnl_info_to_release_list_l&             f1_u_tnl_info_to_release_list();
-    const f1_u_tnl_info_to_add_or_modify_list_l& f1_u_tnl_info_to_add_or_modify_list() const;
-    const f1_u_tnl_info_to_release_list_l&       f1_u_tnl_info_to_release_list() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct bcmrb_modify_cfg_item_ext_ies_container {
   bool                                  f1_u_tnl_info_to_add_or_modify_list_present = false;
   bool                                  f1_u_tnl_info_to_release_list_present       = false;
   f1_u_tnl_info_to_add_or_modify_list_l f1_u_tnl_info_to_add_or_modify_list;
   f1_u_tnl_info_to_release_list_l       f1_u_tnl_info_to_release_list;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // BCMRBModifyConfiguration-Item ::= SEQUENCE
 struct bcmrb_modify_cfg_item_s {
-  bool                                    ext                                          = false;
   bool                                    bc_bearer_context_f1_u_tnl_infoat_du_present = false;
   bool                                    mbs_pdcp_cfg_present                         = false;
   bool                                    qos_flow_level_qos_params_present            = false;
@@ -2699,10 +1978,7 @@ struct bcmrb_modify_cfg_item_s {
   bcmrb_modify_cfg_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // BCMRBModifyConfiguration ::= SEQUENCE (SIZE (1..32)) OF BCMRBModifyConfiguration-Item
@@ -2712,55 +1988,25 @@ using bcmrb_modify_cfg_l = dyn_array<bcmrb_modify_cfg_item_s>;
 using bcmrb_rem_cfg_l = bounded_array<uint16_t, 32>;
 
 // BCBearerContextToModify-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct bc_bearer_context_to_modify_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { bc_bearer_context_ngu_tnl_infoat_ngran_request, nulltype } value;
+struct bc_bearer_context_to_modify_ext_ies_container {
+  bool                                             bc_bearer_context_ngu_tnl_infoat_ngran_request_present = false;
+  bc_bearer_context_ngu_tnl_infoat_ngran_request_c bc_bearer_context_ngu_tnl_infoat_ngran_request;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::bc_bearer_context_ngu_tnl_infoat_ngran_request; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    bc_bearer_context_ngu_tnl_infoat_ngran_request_c& bc_bearer_context_ngu_tnl_infoat_ngran_request() { return c; }
-    const bc_bearer_context_ngu_tnl_infoat_ngran_request_c& bc_bearer_context_ngu_tnl_infoat_ngran_request() const
-    {
-      return c;
-    }
-
-  private:
-    bc_bearer_context_ngu_tnl_infoat_ngran_request_c c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // BCBearerContextToModify ::= SEQUENCE
 struct bc_bearer_context_to_modify_s {
-  bool                                                            ext                                          = false;
-  bool                                                            bc_bearer_context_ngu_tnl_infoat5_gc_present = false;
-  bc_bearer_context_ngu_tnl_infoat5_gc_c                          bc_bearer_context_ngu_tnl_infoat5_gc;
-  bcmrb_setup_cfg_l                                               bc_mrb_to_setup_list;
-  bcmrb_modify_cfg_l                                              bc_mrb_to_modify_list;
-  bcmrb_rem_cfg_l                                                 bc_mrb_to_rem_list;
-  protocol_ext_container_l<bc_bearer_context_to_modify_ext_ies_o> ie_exts;
+  bool                                          bc_bearer_context_ngu_tnl_infoat5_gc_present = false;
+  bool                                          ie_exts_present                              = false;
+  bc_bearer_context_ngu_tnl_infoat5_gc_c        bc_bearer_context_ngu_tnl_infoat5_gc;
+  bcmrb_setup_cfg_l                             bc_mrb_to_setup_list;
+  bcmrb_modify_cfg_l                            bc_mrb_to_modify_list;
+  bcmrb_rem_cfg_l                               bc_mrb_to_rem_list;
+  bc_bearer_context_to_modify_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // BCBearerContextToModifyConfirm-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -2770,15 +2016,11 @@ using bc_bearer_context_to_modify_confirm_ext_ies_container = protocol_ext_conta
 
 // BCBearerContextToModifyConfirm ::= SEQUENCE
 struct bc_bearer_context_to_modify_confirm_s {
-  bool                                                  ext             = false;
   bool                                                  ie_exts_present = false;
   bc_bearer_context_to_modify_confirm_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // BCBearerContextToModifyRequired-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -2788,71 +2030,24 @@ using bc_bearer_context_to_modify_required_ext_ies_container = protocol_ext_cont
 
 // BCBearerContextToModifyRequired ::= SEQUENCE
 struct bc_bearer_context_to_modify_required_s {
-  bool                                                   ext             = false;
   bool                                                   ie_exts_present = false;
   bcmrb_rem_cfg_l                                        bc_mrb_to_rem_list;
   bc_bearer_context_to_modify_required_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ECNMarkingorCongestionInformationReportingStatus ::= ENUMERATED
 struct ecn_markingor_congestion_info_report_status_opts {
   enum options { active, not_active, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using ecn_markingor_congestion_info_report_status_e =
     enumerated<ecn_markingor_congestion_info_report_status_opts, true>;
 
 // QoS-Flow-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct qos_flow_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options {
-        qos_flow_map_ind,
-        data_forwarding_source_ip_address,
-        ecn_markingor_congestion_info_report_status,
-        nulltype
-      } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    qos_flow_map_ind_e&                                  qos_flow_map_ind();
-    bounded_bitstring<1, 160, true, true>&               data_forwarding_source_ip_address();
-    ecn_markingor_congestion_info_report_status_e&       ecn_markingor_congestion_info_report_status();
-    const qos_flow_map_ind_e&                            qos_flow_map_ind() const;
-    const bounded_bitstring<1, 160, true, true>&         data_forwarding_source_ip_address() const;
-    const ecn_markingor_congestion_info_report_status_e& ecn_markingor_congestion_info_report_status() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct qos_flow_item_ext_ies_container {
   bool                                          qos_flow_map_ind_present                            = false;
   bool                                          data_forwarding_source_ip_address_present           = false;
@@ -2861,24 +2056,17 @@ struct qos_flow_item_ext_ies_container {
   bounded_bitstring<1, 160, true, true>         data_forwarding_source_ip_address;
   ecn_markingor_congestion_info_report_status_e ecn_markingor_congestion_info_report_status;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // QoS-Flow-Item ::= SEQUENCE
 struct qos_flow_item_s {
-  bool                            ext             = false;
   bool                            ie_exts_present = false;
   uint8_t                         qos_flow_id     = 0;
   qos_flow_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // QoS-Flow-List ::= SEQUENCE (SIZE (1..64)) OF QoS-Flow-Item
@@ -2931,7 +2119,7 @@ struct cause_radio_network_opts {
     nulltype
   } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using cause_radio_network_e = enumerated<cause_radio_network_opts, true, 15>;
 
@@ -2939,7 +2127,7 @@ using cause_radio_network_e = enumerated<cause_radio_network_opts, true, 15>;
 struct cause_transport_opts {
   enum options { unspecified, transport_res_unavailable, /*...*/ unknown_tnl_address_for_iab, nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using cause_transport_e = enumerated<cause_transport_opts, true, 1>;
 
@@ -2957,7 +2145,7 @@ struct cause_protocol_opts {
     nulltype
   } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using cause_protocol_e = enumerated<cause_protocol_opts, true>;
 
@@ -2973,7 +2161,7 @@ struct cause_misc_opts {
     nulltype
   } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using cause_misc_e = enumerated<cause_misc_opts, true>;
 
@@ -2984,72 +2172,64 @@ using cause_ext_ies_o = protocol_ies_empty_o;
 struct cause_c {
   struct types_opts {
     enum options { radio_network, transport, protocol, misc, choice_ext, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  cause_c() = default;
-  cause_c(const cause_c& other);
-  cause_c& operator=(const cause_c& other);
-  ~cause_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  cause_radio_network_e& radio_network()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  cause_radio_network_e&                        radio_network()
   {
-    assert_choice_type(types::radio_network, type_, "Cause");
+    assert_choice_type(types::radio_network, c.type, "Cause");
     return c.get<cause_radio_network_e>();
   }
   cause_transport_e& transport()
   {
-    assert_choice_type(types::transport, type_, "Cause");
+    assert_choice_type(types::transport, c.type, "Cause");
     return c.get<cause_transport_e>();
   }
   cause_protocol_e& protocol()
   {
-    assert_choice_type(types::protocol, type_, "Cause");
+    assert_choice_type(types::protocol, c.type, "Cause");
     return c.get<cause_protocol_e>();
   }
   cause_misc_e& misc()
   {
-    assert_choice_type(types::misc, type_, "Cause");
+    assert_choice_type(types::misc, c.type, "Cause");
     return c.get<cause_misc_e>();
   }
   protocol_ie_single_container_s<cause_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "Cause");
+    assert_choice_type(types::choice_ext, c.type, "Cause");
     return c.get<protocol_ie_single_container_s<cause_ext_ies_o>>();
   }
   const cause_radio_network_e& radio_network() const
   {
-    assert_choice_type(types::radio_network, type_, "Cause");
+    assert_choice_type(types::radio_network, c.type, "Cause");
     return c.get<cause_radio_network_e>();
   }
   const cause_transport_e& transport() const
   {
-    assert_choice_type(types::transport, type_, "Cause");
+    assert_choice_type(types::transport, c.type, "Cause");
     return c.get<cause_transport_e>();
   }
   const cause_protocol_e& protocol() const
   {
-    assert_choice_type(types::protocol, type_, "Cause");
+    assert_choice_type(types::protocol, c.type, "Cause");
     return c.get<cause_protocol_e>();
   }
   const cause_misc_e& misc() const
   {
-    assert_choice_type(types::misc, type_, "Cause");
+    assert_choice_type(types::misc, c.type, "Cause");
     return c.get<cause_misc_e>();
   }
   const protocol_ie_single_container_s<cause_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "Cause");
+    assert_choice_type(types::choice_ext, c.type, "Cause");
     return c.get<protocol_ie_single_container_s<cause_ext_ies_o>>();
   }
   cause_radio_network_e&                           set_radio_network();
@@ -3059,10 +2239,14 @@ struct cause_c {
   protocol_ie_single_container_s<cause_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                            type_;
-  choice_buffer_t<protocol_ie_single_container_s<cause_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<cause_c,
+                              types,
+                              choice_buffer_t<cause_misc_e,
+                                              cause_protocol_e,
+                                              cause_radio_network_e,
+                                              cause_transport_e,
+                                              protocol_ie_single_container_s<cause_ext_ies_o>>>
+      c;
 };
 
 // QoS-Flow-Failed-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -3072,17 +2256,13 @@ using qos_flow_failed_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // QoS-Flow-Failed-Item ::= SEQUENCE
 struct qos_flow_failed_item_s {
-  bool                                   ext             = false;
   bool                                   ie_exts_present = false;
   uint8_t                                qos_flow_id     = 0;
   cause_c                                cause;
   qos_flow_failed_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // QoS-Flow-Failed-List ::= SEQUENCE (SIZE (1..64)) OF QoS-Flow-Failed-Item
@@ -3095,7 +2275,6 @@ using f1_u_tnl_info_added_or_modified_item_ext_ies_container = protocol_ext_cont
 
 // F1U-TNL-InfoAddedOrModified-Item ::= SEQUENCE
 struct f1_u_tnl_info_added_or_modified_item_s {
-  bool                                                   ext                                          = false;
   bool                                                   bc_bearer_context_f1_u_tnl_infoat_cu_present = false;
   bool                                                   ie_exts_present                              = false;
   fixed_octstring<4, true>                               broadcast_f1_u_context_ref_e1;
@@ -3103,64 +2282,32 @@ struct f1_u_tnl_info_added_or_modified_item_s {
   f1_u_tnl_info_added_or_modified_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // F1U-TNL-InfoAddedOrModified-List ::= SEQUENCE (SIZE (1..512)) OF F1U-TNL-InfoAddedOrModified-Item
 using f1_u_tnl_info_added_or_modified_list_l = dyn_array<f1_u_tnl_info_added_or_modified_item_s>;
 
 // BCMRBSetupModifyResponseList-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct bcmrb_setup_modify_resp_list_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { f1_u_tnl_info_added_or_modified_list, nulltype } value;
-      typedef uint8_t number_type;
+struct bcmrb_setup_modify_resp_list_item_ext_ies_container {
+  bool                                   f1_u_tnl_info_added_or_modified_list_present = false;
+  f1_u_tnl_info_added_or_modified_list_l f1_u_tnl_info_added_or_modified_list;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::f1_u_tnl_info_added_or_modified_list; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    f1_u_tnl_info_added_or_modified_list_l&       f1_u_tnl_info_added_or_modified_list() { return c; }
-    const f1_u_tnl_info_added_or_modified_list_l& f1_u_tnl_info_added_or_modified_list() const { return c; }
-
-  private:
-    f1_u_tnl_info_added_or_modified_list_l c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // BCMRBSetupModifyResponseList-Item ::= SEQUENCE
 struct bcmrb_setup_modify_resp_list_item_s {
-  bool                                   ext                                          = false;
-  bool                                   bc_bearer_context_f1_u_tnl_infoat_cu_present = false;
-  uint16_t                               mrb_id                                       = 1;
-  qos_flow_list_l                        qosflow_setup;
-  qos_flow_failed_list_l                 qosflow_failed;
-  bc_bearer_context_f1_u_tnl_infoat_cu_c bc_bearer_context_f1_u_tnl_infoat_cu;
-  protocol_ext_container_l<bcmrb_setup_modify_resp_list_item_ext_ies_o> ie_exts;
+  bool                                                bc_bearer_context_f1_u_tnl_infoat_cu_present = false;
+  bool                                                ie_exts_present                              = false;
+  uint16_t                                            mrb_id                                       = 1;
+  qos_flow_list_l                                     qosflow_setup;
+  qos_flow_failed_list_l                              qosflow_failed;
+  bc_bearer_context_f1_u_tnl_infoat_cu_c              bc_bearer_context_f1_u_tnl_infoat_cu;
+  bcmrb_setup_modify_resp_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // BCMRBSetupModifyResponseList ::= SEQUENCE (SIZE (1..32)) OF BCMRBSetupModifyResponseList-Item
@@ -3173,17 +2320,13 @@ using bcmrb_failed_list_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // BCMRBFailedList-Item ::= SEQUENCE
 struct bcmrb_failed_list_item_s {
-  bool                                     ext             = false;
   bool                                     ie_exts_present = false;
   uint16_t                                 mrb_id          = 1;
   cause_c                                  cause;
   bcmrb_failed_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // BCMRBFailedList ::= SEQUENCE (SIZE (1..32)) OF BCMRBFailedList-Item
@@ -3196,7 +2339,6 @@ using bc_bearer_context_to_modify_resp_ext_ies_container = protocol_ext_containe
 
 // BCBearerContextToModifyResponse ::= SEQUENCE
 struct bc_bearer_context_to_modify_resp_s {
-  bool                                               ext                                            = false;
   bool                                               bc_bearer_context_ngu_tnl_infoat_ngran_present = false;
   bool                                               ie_exts_present                                = false;
   bc_bearer_context_ngu_tnl_infoat_ngran_c           bc_bearer_context_ngu_tnl_infoat_ngran;
@@ -3206,10 +2348,7 @@ struct bc_bearer_context_to_modify_resp_s {
   bc_bearer_context_to_modify_resp_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SNSSAI-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -3219,7 +2358,6 @@ using snssai_ext_ies_container = protocol_ext_container_empty_l;
 
 // SNSSAI ::= SEQUENCE
 struct snssai_s {
-  bool                     ext             = false;
   bool                     sd_present      = false;
   bool                     ie_exts_present = false;
   fixed_octstring<1, true> sst;
@@ -3227,10 +2365,7 @@ struct snssai_s {
   snssai_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // RequestedAction4AvailNGUTermination ::= ENUMERATED
@@ -3242,7 +2377,7 @@ struct requested_action4_avail_ngu_termination_opts {
     nulltype
   } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using requested_action4_avail_ngu_termination_e = enumerated<requested_action4_avail_ngu_termination_opts, true, 1>;
 
@@ -3253,7 +2388,6 @@ using bc_bearer_context_to_setup_ext_ies_container = protocol_ext_container_empt
 
 // BCBearerContextToSetup ::= SEQUENCE
 struct bc_bearer_context_to_setup_s {
-  bool                                         ext                                          = false;
   bool                                         bc_bearer_context_ngu_tnl_infoat5_gc_present = false;
   bool                                         requested_action_present                     = false;
   bool                                         ie_exts_present                              = false;
@@ -3264,10 +2398,7 @@ struct bc_bearer_context_to_setup_s {
   bc_bearer_context_to_setup_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // F1U-TNL-InfoAdded-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -3277,70 +2408,37 @@ using f1_u_tnl_info_added_item_ext_ies_container = protocol_ext_container_empty_
 
 // F1U-TNL-InfoAdded-Item ::= SEQUENCE
 struct f1_u_tnl_info_added_item_s {
-  bool                                       ext             = false;
   bool                                       ie_exts_present = false;
   fixed_octstring<4, true>                   broadcast_f1_u_context_ref_e1;
   bc_bearer_context_f1_u_tnl_infoat_cu_c     bc_bearer_context_f1_u_tnl_infoat_cu;
   f1_u_tnl_info_added_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // F1U-TNL-InfoAdded-List ::= SEQUENCE (SIZE (1..512)) OF F1U-TNL-InfoAdded-Item
 using f1_u_tnl_info_added_list_l = dyn_array<f1_u_tnl_info_added_item_s>;
 
 // BCMRBSetupResponseList-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct bcmrb_setup_resp_list_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { f1_u_tnl_info_added_list, nulltype } value;
-      typedef uint8_t number_type;
+struct bcmrb_setup_resp_list_item_ext_ies_container {
+  bool                       f1_u_tnl_info_added_list_present = false;
+  f1_u_tnl_info_added_list_l f1_u_tnl_info_added_list;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::f1_u_tnl_info_added_list; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    f1_u_tnl_info_added_list_l&       f1_u_tnl_info_added_list() { return c; }
-    const f1_u_tnl_info_added_list_l& f1_u_tnl_info_added_list() const { return c; }
-
-  private:
-    f1_u_tnl_info_added_list_l c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // BCMRBSetupResponseList-Item ::= SEQUENCE
 struct bcmrb_setup_resp_list_item_s {
-  bool                                                           ext    = false;
-  uint16_t                                                       mrb_id = 1;
-  qos_flow_list_l                                                qosflow_setup;
-  qos_flow_failed_list_l                                         qosflow_failed;
-  bc_bearer_context_f1_u_tnl_infoat_cu_c                         bc_bearer_context_f1_u_tnl_infoat_cu;
-  protocol_ext_container_l<bcmrb_setup_resp_list_item_ext_ies_o> ie_exts;
+  bool                                         ie_exts_present = false;
+  uint16_t                                     mrb_id          = 1;
+  qos_flow_list_l                              qosflow_setup;
+  qos_flow_failed_list_l                       qosflow_failed;
+  bc_bearer_context_f1_u_tnl_infoat_cu_c       bc_bearer_context_f1_u_tnl_infoat_cu;
+  bcmrb_setup_resp_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // BCMRBSetupResponseList ::= SEQUENCE (SIZE (1..32)) OF BCMRBSetupResponseList-Item
@@ -3353,7 +2451,6 @@ using bc_bearer_context_to_setup_resp_ext_ies_container = protocol_ext_container
 
 // BCBearerContextToSetupResponse ::= SEQUENCE
 struct bc_bearer_context_to_setup_resp_s {
-  bool                                              ext                                            = false;
   bool                                              bc_bearer_context_ngu_tnl_infoat_ngran_present = false;
   bool                                              ie_exts_present                                = false;
   bc_bearer_context_ngu_tnl_infoat_ngran_c          bc_bearer_context_ngu_tnl_infoat_ngran;
@@ -3363,17 +2460,14 @@ struct bc_bearer_context_to_setup_resp_s {
   bc_bearer_context_to_setup_resp_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // BearerContextStatusChange ::= ENUMERATED
 struct bearer_context_status_change_opts {
   enum options { suspend, resume, /*...*/ resumefor_sdt, nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using bearer_context_status_change_e = enumerated<bearer_context_status_change_opts, true, 1>;
 
@@ -3381,17 +2475,16 @@ using bearer_context_status_change_e = enumerated<bearer_context_status_change_o
 struct cho_initiation_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using cho_initiation_e = enumerated<cho_initiation_opts, true>;
 
 // CNSupport ::= ENUMERATED
 struct cn_support_opts {
   enum options { c_epc, c_5gc, both, /*...*/ nulltype } value;
-  typedef int8_t number_type;
 
-  const char* to_string() const;
-  int8_t      to_number() const;
+  static const asn1::table::enum_desc desc;
+  int8_t                              to_number() const;
 };
 using cn_support_e = enumerated<cn_support_opts, true>;
 
@@ -3407,10 +2500,7 @@ struct endpoint_ip_address_and_port_s {
   fixed_bitstring<16, false, true>               port_num;
   endpoint_ip_address_and_port_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // CP-TNL-Information-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-IES
@@ -3420,16 +2510,12 @@ struct cp_tnl_info_ext_ies_o {
     struct types_opts {
       enum options { endpoint_ip_address_and_port, nulltype } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    types         type() const { return types::endpoint_ip_address_and_port; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
+    types                                 type() const { return types::endpoint_ip_address_and_port; }
+    static const asn1::table::choice_desc desc;
     endpoint_ip_address_and_port_s&       endpoint_ip_address_and_port() { return c; }
     const endpoint_ip_address_and_port_s& endpoint_ip_address_and_port() const { return c; }
 
@@ -3437,12 +2523,7 @@ struct cp_tnl_info_ext_ies_o {
     endpoint_ip_address_and_port_s c;
   };
 
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static value_c    get_value(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::objset_desc desc;
 };
 
 // CP-TNL-Information ::= CHOICE
@@ -3450,56 +2531,50 @@ struct cp_tnl_info_c {
   struct types_opts {
     enum options { endpoint_ip_address, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  cp_tnl_info_c() = default;
-  cp_tnl_info_c(const cp_tnl_info_c& other);
-  cp_tnl_info_c& operator=(const cp_tnl_info_c& other);
-  ~cp_tnl_info_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  bounded_bitstring<1, 160, true, true>& endpoint_ip_address()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  bounded_bitstring<1, 160, true, true>&        endpoint_ip_address()
   {
-    assert_choice_type(types::endpoint_ip_address, type_, "CP-TNL-Information");
+    assert_choice_type(types::endpoint_ip_address, c.type, "CP-TNL-Information");
     return c.get<bounded_bitstring<1, 160, true, true>>();
   }
   protocol_ie_single_container_s<cp_tnl_info_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "CP-TNL-Information");
+    assert_choice_type(types::choice_ext, c.type, "CP-TNL-Information");
     return c.get<protocol_ie_single_container_s<cp_tnl_info_ext_ies_o>>();
   }
   const bounded_bitstring<1, 160, true, true>& endpoint_ip_address() const
   {
-    assert_choice_type(types::endpoint_ip_address, type_, "CP-TNL-Information");
+    assert_choice_type(types::endpoint_ip_address, c.type, "CP-TNL-Information");
     return c.get<bounded_bitstring<1, 160, true, true>>();
   }
   const protocol_ie_single_container_s<cp_tnl_info_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "CP-TNL-Information");
+    assert_choice_type(types::choice_ext, c.type, "CP-TNL-Information");
     return c.get<protocol_ie_single_container_s<cp_tnl_info_ext_ies_o>>();
   }
   bounded_bitstring<1, 160, true, true>&                 set_endpoint_ip_address();
   protocol_ie_single_container_s<cp_tnl_info_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                                                         type_;
-  choice_buffer_t<bounded_bitstring<1, 160, true, true>, protocol_ie_single_container_s<cp_tnl_info_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      cp_tnl_info_c,
+      types,
+      choice_buffer_t<bounded_bitstring<1, 160, true, true>, protocol_ie_single_container_s<cp_tnl_info_ext_ies_o>>>
+      c;
 };
 
 // UL-Configuration ::= ENUMERATED
 struct ul_cfg_opts {
   enum options { no_data, shared, only, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using ul_cfg_e = enumerated<ul_cfg_opts, true>;
 
@@ -3507,7 +2582,7 @@ using ul_cfg_e = enumerated<ul_cfg_opts, true>;
 struct dl_tx_stop_opts {
   enum options { stop, resume, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using dl_tx_stop_e = enumerated<dl_tx_stop_opts, true>;
 
@@ -3515,61 +2590,32 @@ using dl_tx_stop_e = enumerated<dl_tx_stop_opts, true>;
 struct rat_type_opts {
   enum options { e_utra, nr, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using rat_type_e = enumerated<rat_type_opts, true>;
 
 // Cell-Group-Information-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct cell_group_info_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { nof_tunnels, nulltype } value;
-      typedef uint8_t number_type;
+struct cell_group_info_item_ext_ies_container {
+  bool    nof_tunnels_present = false;
+  uint8_t nof_tunnels;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::nof_tunnels; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint8_t&       nof_tunnels() { return c; }
-    const uint8_t& nof_tunnels() const { return c; }
-
-  private:
-    uint8_t c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // Cell-Group-Information-Item ::= SEQUENCE
 struct cell_group_info_item_s {
-  bool                                                     ext                = false;
-  bool                                                     ul_cfg_present     = false;
-  bool                                                     dl_tx_stop_present = false;
-  bool                                                     rat_type_present   = false;
-  uint8_t                                                  cell_group_id      = 0;
-  ul_cfg_e                                                 ul_cfg;
-  dl_tx_stop_e                                             dl_tx_stop;
-  rat_type_e                                               rat_type;
-  protocol_ext_container_l<cell_group_info_item_ext_ies_o> ie_exts;
+  bool                                   ul_cfg_present     = false;
+  bool                                   dl_tx_stop_present = false;
+  bool                                   rat_type_present   = false;
+  bool                                   ie_exts_present    = false;
+  uint8_t                                cell_group_id      = 0;
+  ul_cfg_e                               ul_cfg;
+  dl_tx_stop_e                           dl_tx_stop;
+  rat_type_e                             rat_type;
+  cell_group_info_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Cell-Group-Information ::= SEQUENCE (SIZE (1..4)) OF Cell-Group-Information-Item
@@ -3579,7 +2625,7 @@ using cell_group_info_l = dyn_array<cell_group_info_item_s>;
 struct ciphering_algorithm_opts {
   enum options { nea0, c_neg128_nea1, c_neg128_nea2, c_neg128_nea3, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using ciphering_algorithm_e = enumerated<ciphering_algorithm_opts, true>;
 
@@ -3587,7 +2633,7 @@ using ciphering_algorithm_e = enumerated<ciphering_algorithm_opts, true>;
 struct confidentiality_protection_ind_opts {
   enum options { required, preferred, not_needed, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using confidentiality_protection_ind_e = enumerated<confidentiality_protection_ind_opts, true>;
 
@@ -3595,7 +2641,7 @@ using confidentiality_protection_ind_e = enumerated<confidentiality_protection_i
 struct confidentiality_protection_result_opts {
   enum options { performed, not_performed, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using confidentiality_protection_result_e = enumerated<confidentiality_protection_result_opts, true>;
 
@@ -3603,7 +2649,7 @@ using confidentiality_protection_result_e = enumerated<confidentiality_protectio
 struct type_of_error_opts {
   enum options { not_understood, missing, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using type_of_error_e = enumerated<type_of_error_opts, true>;
 
@@ -3613,7 +2659,6 @@ using crit_diagnostics_ie_list_ext_ies_o = protocol_ext_empty_o;
 using crit_diagnostics_ie_list_ext_ies_container = protocol_ext_container_empty_l;
 
 struct crit_diagnostics_ie_list_item_s_ {
-  bool                                       ext             = false;
   bool                                       ie_exts_present = false;
   crit_e                                     ie_crit;
   uint32_t                                   ie_id = 0;
@@ -3621,10 +2666,7 @@ struct crit_diagnostics_ie_list_item_s_ {
   crit_diagnostics_ie_list_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // CriticalityDiagnostics-IE-List ::= SEQUENCE (SIZE (1..256)) OF CriticalityDiagnostics-IE-List-item
@@ -3637,7 +2679,6 @@ using crit_diagnostics_ext_ies_container = protocol_ext_container_empty_l;
 
 // CriticalityDiagnostics ::= SEQUENCE
 struct crit_diagnostics_s {
-  bool                               ext                    = false;
   bool                               proc_code_present      = false;
   bool                               trigger_msg_present    = false;
   bool                               proc_crit_present      = false;
@@ -3651,10 +2692,7 @@ struct crit_diagnostics_s {
   crit_diagnostics_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DAPSRequestInfo-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -3667,21 +2705,17 @@ struct daps_request_info_s {
   struct daps_ind_opts {
     enum options { daps_ho_required, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using daps_ind_e_ = enumerated<daps_ind_opts, true>;
 
   // member variables
-  bool                                ext             = false;
   bool                                ie_exts_present = false;
   daps_ind_e_                         daps_ind;
   daps_request_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDCP-Count-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -3691,17 +2725,13 @@ using pdcp_count_ext_ies_container = protocol_ext_container_empty_l;
 
 // PDCP-Count ::= SEQUENCE
 struct pdcp_count_s {
-  bool                         ext             = false;
   bool                         ie_exts_present = false;
   uint32_t                     pdcp_sn         = 0;
   uint64_t                     hfn             = 0;
   pdcp_count_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DLDiscarding-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -3715,10 +2745,7 @@ struct dl_discarding_s {
   pdcp_count_s                    dl_discarding_count_val;
   dl_discarding_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DLUPTNLAddressToUpdateItemExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -3728,17 +2755,13 @@ using dl_up_tnl_address_to_upd_item_ext_ies_container = protocol_ext_container_e
 
 // DLUPTNLAddressToUpdateItem ::= SEQUENCE
 struct dl_up_tnl_address_to_upd_item_s {
-  bool                                            ext             = false;
   bool                                            ie_exts_present = false;
   bounded_bitstring<1, 160, true, true>           old_tnl_adress;
   bounded_bitstring<1, 160, true, true>           new_tnl_adress;
   dl_up_tnl_address_to_upd_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Confirm-Modified-Item-EUTRAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -3748,17 +2771,13 @@ using drb_confirm_modified_item_eutran_ext_ies_container = protocol_ext_containe
 
 // DRB-Confirm-Modified-Item-EUTRAN ::= SEQUENCE
 struct drb_confirm_modified_item_eutran_s {
-  bool                                               ext             = false;
   bool                                               ie_exts_present = false;
   uint8_t                                            drb_id          = 1;
   cell_group_info_l                                  cell_group_info;
   drb_confirm_modified_item_eutran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Confirm-Modified-Item-NG-RAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -3768,17 +2787,13 @@ using drb_confirm_modified_item_ng_ran_ext_ies_container = protocol_ext_containe
 
 // DRB-Confirm-Modified-Item-NG-RAN ::= SEQUENCE
 struct drb_confirm_modified_item_ng_ran_s {
-  bool                                               ext             = false;
   bool                                               ie_exts_present = false;
   uint8_t                                            drb_id          = 1;
   cell_group_info_l                                  cell_group_info;
   drb_confirm_modified_item_ng_ran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Confirm-Modified-List-EUTRAN ::= SEQUENCE (SIZE (1..32)) OF DRB-Confirm-Modified-Item-EUTRAN
@@ -3794,17 +2809,13 @@ using drb_failed_item_eutran_ext_ies_container = protocol_ext_container_empty_l;
 
 // DRB-Failed-Item-EUTRAN ::= SEQUENCE
 struct drb_failed_item_eutran_s {
-  bool                                     ext             = false;
   bool                                     ie_exts_present = false;
   uint8_t                                  drb_id          = 1;
   cause_c                                  cause;
   drb_failed_item_eutran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Failed-Item-NG-RAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -3814,17 +2825,13 @@ using drb_failed_item_ng_ran_ext_ies_container = protocol_ext_container_empty_l;
 
 // DRB-Failed-Item-NG-RAN ::= SEQUENCE
 struct drb_failed_item_ng_ran_s {
-  bool                                     ext             = false;
   bool                                     ie_exts_present = false;
   uint8_t                                  drb_id          = 1;
   cause_c                                  cause;
   drb_failed_item_ng_ran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Failed-List-EUTRAN ::= SEQUENCE (SIZE (1..32)) OF DRB-Failed-Item-EUTRAN
@@ -3840,17 +2847,13 @@ using drb_failed_mod_item_eutran_ext_ies_container = protocol_ext_container_empt
 
 // DRB-Failed-Mod-Item-EUTRAN ::= SEQUENCE
 struct drb_failed_mod_item_eutran_s {
-  bool                                         ext             = false;
   bool                                         ie_exts_present = false;
   uint8_t                                      drb_id          = 1;
   cause_c                                      cause;
   drb_failed_mod_item_eutran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Failed-Mod-Item-NG-RAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -3860,17 +2863,13 @@ using drb_failed_mod_item_ng_ran_ext_ies_container = protocol_ext_container_empt
 
 // DRB-Failed-Mod-Item-NG-RAN ::= SEQUENCE
 struct drb_failed_mod_item_ng_ran_s {
-  bool                                         ext             = false;
   bool                                         ie_exts_present = false;
   uint8_t                                      drb_id          = 1;
   cause_c                                      cause;
   drb_failed_mod_item_ng_ran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Failed-Mod-List-EUTRAN ::= SEQUENCE (SIZE (1..32)) OF DRB-Failed-Mod-Item-EUTRAN
@@ -3886,17 +2885,13 @@ using drb_failed_to_modify_item_eutran_ext_ies_container = protocol_ext_containe
 
 // DRB-Failed-To-Modify-Item-EUTRAN ::= SEQUENCE
 struct drb_failed_to_modify_item_eutran_s {
-  bool                                               ext             = false;
   bool                                               ie_exts_present = false;
   uint8_t                                            drb_id          = 1;
   cause_c                                            cause;
   drb_failed_to_modify_item_eutran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Failed-To-Modify-Item-NG-RAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -3906,17 +2901,13 @@ using drb_failed_to_modify_item_ng_ran_ext_ies_container = protocol_ext_containe
 
 // DRB-Failed-To-Modify-Item-NG-RAN ::= SEQUENCE
 struct drb_failed_to_modify_item_ng_ran_s {
-  bool                                               ext             = false;
   bool                                               ie_exts_present = false;
   uint8_t                                            drb_id          = 1;
   cause_c                                            cause;
   drb_failed_to_modify_item_ng_ran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Failed-To-Modify-List-EUTRAN ::= SEQUENCE (SIZE (1..32)) OF DRB-Failed-To-Modify-Item-EUTRAN
@@ -3932,7 +2923,6 @@ using drb_meas_results_info_item_ext_ies_container = protocol_ext_container_empt
 
 // DRB-Measurement-Results-Information-Item ::= SEQUENCE
 struct drb_meas_results_info_item_s {
-  bool                                         ext                  = false;
   bool                                         ul_d1_result_present = false;
   bool                                         ie_exts_present      = false;
   uint8_t                                      drb_id               = 1;
@@ -3940,10 +2930,7 @@ struct drb_meas_results_info_item_s {
   drb_meas_results_info_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Measurement-Results-Information-List ::= SEQUENCE (SIZE (1..32)) OF DRB-Measurement-Results-Information-Item
@@ -3956,7 +2943,6 @@ using drb_b_status_transfer_ext_ies_container = protocol_ext_container_empty_l;
 
 // DRBBStatusTransfer ::= SEQUENCE
 struct drb_b_status_transfer_s {
-  bool                                      ext                               = false;
   bool                                      receive_statusof_pdcp_sdu_present = false;
   bool                                      ie_ext_present                    = false;
   bounded_bitstring<1, 131072, false, true> receive_statusof_pdcp_sdu;
@@ -3964,10 +2950,7 @@ struct drb_b_status_transfer_s {
   drb_b_status_transfer_ext_ies_container   ie_ext;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDCP-SN-Status-Information-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -3977,104 +2960,53 @@ using pdcp_sn_status_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // PDCP-SN-Status-Information ::= SEQUENCE
 struct pdcp_sn_status_info_s {
-  bool                                  ext            = false;
   bool                                  ie_ext_present = false;
   drb_b_status_transfer_s               pdcp_status_transfer_ul;
   pdcp_count_s                          pdcp_status_transfer_dl;
   pdcp_sn_status_info_ext_ies_container ie_ext;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // QoS-Mapping-Information ::= SEQUENCE
 struct qos_map_info_s {
-  bool                             ext                = false;
   bool                             dscp_present       = false;
   bool                             flow_label_present = false;
   fixed_bitstring<6, false, true>  dscp;
   fixed_bitstring<20, false, true> flow_label;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // IndirectPathIndication ::= ENUMERATED
 struct indirect_path_ind_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using indirect_path_ind_e = enumerated<indirect_path_ind_opts, true>;
 
 // UP-Parameters-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct up_params_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { qos_map_info, indirect_path_ind, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    qos_map_info_s&            qos_map_info();
-    indirect_path_ind_e&       indirect_path_ind();
-    const qos_map_info_s&      qos_map_info() const;
-    const indirect_path_ind_e& indirect_path_ind() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct up_params_item_ext_ies_container {
   bool                qos_map_info_present      = false;
   bool                indirect_path_ind_present = false;
   qos_map_info_s      qos_map_info;
   indirect_path_ind_e indirect_path_ind;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // UP-Parameters-Item ::= SEQUENCE
 struct up_params_item_s {
-  bool                             ext             = false;
   bool                             ie_exts_present = false;
   up_tnl_info_c                    up_tnl_info;
   uint8_t                          cell_group_id = 0;
   up_params_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // UP-Parameters ::= SEQUENCE (SIZE (1..8)) OF UP-Parameters-Item
@@ -4087,7 +3019,6 @@ using drb_modified_item_eutran_ext_ies_container = protocol_ext_container_empty_
 
 // DRB-Modified-Item-EUTRAN ::= SEQUENCE
 struct drb_modified_item_eutran_s {
-  bool                                       ext                         = false;
   bool                                       s1_dl_up_tnl_info_present   = false;
   bool                                       pdcp_sn_status_info_present = false;
   bool                                       ie_exts_present             = false;
@@ -4098,10 +3029,7 @@ struct drb_modified_item_eutran_s {
   drb_modified_item_eutran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // FirstDLCount-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -4115,10 +3043,7 @@ struct first_dl_count_s {
   pdcp_count_s                     first_dl_count_val;
   first_dl_count_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // EarlyForwardingCOUNTInfo-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-IES
@@ -4129,49 +3054,42 @@ struct early_forwarding_count_info_c {
   struct types_opts {
     enum options { first_dl_count, dl_discarding_count, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  early_forwarding_count_info_c() = default;
-  early_forwarding_count_info_c(const early_forwarding_count_info_c& other);
-  early_forwarding_count_info_c& operator=(const early_forwarding_count_info_c& other);
-  ~early_forwarding_count_info_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  first_dl_count_s& first_dl_count()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  first_dl_count_s&                             first_dl_count()
   {
-    assert_choice_type(types::first_dl_count, type_, "EarlyForwardingCOUNTInfo");
+    assert_choice_type(types::first_dl_count, c.type, "EarlyForwardingCOUNTInfo");
     return c.get<first_dl_count_s>();
   }
   dl_discarding_s& dl_discarding_count()
   {
-    assert_choice_type(types::dl_discarding_count, type_, "EarlyForwardingCOUNTInfo");
+    assert_choice_type(types::dl_discarding_count, c.type, "EarlyForwardingCOUNTInfo");
     return c.get<dl_discarding_s>();
   }
   protocol_ie_single_container_s<early_forwarding_count_info_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "EarlyForwardingCOUNTInfo");
+    assert_choice_type(types::choice_ext, c.type, "EarlyForwardingCOUNTInfo");
     return c.get<protocol_ie_single_container_s<early_forwarding_count_info_ext_ies_o>>();
   }
   const first_dl_count_s& first_dl_count() const
   {
-    assert_choice_type(types::first_dl_count, type_, "EarlyForwardingCOUNTInfo");
+    assert_choice_type(types::first_dl_count, c.type, "EarlyForwardingCOUNTInfo");
     return c.get<first_dl_count_s>();
   }
   const dl_discarding_s& dl_discarding_count() const
   {
-    assert_choice_type(types::dl_discarding_count, type_, "EarlyForwardingCOUNTInfo");
+    assert_choice_type(types::dl_discarding_count, c.type, "EarlyForwardingCOUNTInfo");
     return c.get<dl_discarding_s>();
   }
   const protocol_ie_single_container_s<early_forwarding_count_info_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "EarlyForwardingCOUNTInfo");
+    assert_choice_type(types::choice_ext, c.type, "EarlyForwardingCOUNTInfo");
     return c.get<protocol_ie_single_container_s<early_forwarding_count_info_ext_ies_o>>();
   }
   first_dl_count_s&                                                      set_first_dl_count();
@@ -4179,67 +3097,26 @@ struct early_forwarding_count_info_c {
   protocol_ie_single_container_s<early_forwarding_count_info_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<dl_discarding_s,
-                  first_dl_count_s,
-                  protocol_ie_single_container_s<early_forwarding_count_info_ext_ies_o>>
+  asn1::table::choice_storage<early_forwarding_count_info_c,
+                              types,
+                              choice_buffer_t<dl_discarding_s,
+                                              first_dl_count_s,
+                                              protocol_ie_single_container_s<early_forwarding_count_info_ext_ies_o>>>
       c;
-
-  void destroy_();
 };
 
 // DRB-Modified-Item-NG-RAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct drb_modified_item_ng_ran_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { early_forwarding_count_info, old_qos_flow_map_ul_endmarkerexpected, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    early_forwarding_count_info_c&       early_forwarding_count_info();
-    qos_flow_list_l&                     old_qos_flow_map_ul_endmarkerexpected();
-    const early_forwarding_count_info_c& early_forwarding_count_info() const;
-    const qos_flow_list_l&               old_qos_flow_map_ul_endmarkerexpected() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct drb_modified_item_ng_ran_ext_ies_container {
   bool                          early_forwarding_count_info_present           = false;
   bool                          old_qos_flow_map_ul_endmarkerexpected_present = false;
   early_forwarding_count_info_c early_forwarding_count_info;
   qos_flow_list_l               old_qos_flow_map_ul_endmarkerexpected;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // DRB-Modified-Item-NG-RAN ::= SEQUENCE
 struct drb_modified_item_ng_ran_s {
-  bool                                       ext                         = false;
   bool                                       pdcp_sn_status_info_present = false;
   bool                                       ie_exts_present             = false;
   uint8_t                                    drb_id                      = 1;
@@ -4250,10 +3127,7 @@ struct drb_modified_item_ng_ran_s {
   drb_modified_item_ng_ran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Modified-List-EUTRAN ::= SEQUENCE (SIZE (1..32)) OF DRB-Modified-Item-EUTRAN
@@ -4272,12 +3146,11 @@ struct qos_flow_remd_item_s {
   struct qos_flow_released_in_session_opts {
     enum options { released_in_session, not_released_in_session, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using qos_flow_released_in_session_e_ = enumerated<qos_flow_released_in_session_opts, true>;
 
   // member variables
-  bool                                 ext                                       = false;
   bool                                 qos_flow_released_in_session_present      = false;
   bool                                 qos_flow_accumulated_session_time_present = false;
   bool                                 ie_exts_present                           = false;
@@ -4287,10 +3160,7 @@ struct qos_flow_remd_item_s {
   qos_flow_remd_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Removed-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -4303,13 +3173,12 @@ struct drb_remd_item_s {
   struct drb_released_in_session_opts {
     enum options { released_in_session, not_released_in_session, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using drb_released_in_session_e_ = enumerated<drb_released_in_session_opts, true>;
   using qos_flow_remd_list_l_      = dyn_array<qos_flow_remd_item_s>;
 
   // member variables
-  bool                            ext                                  = false;
   bool                            drb_released_in_session_present      = false;
   bool                            drb_accumulated_session_time_present = false;
   bool                            ie_exts_present                      = false;
@@ -4320,10 +3189,7 @@ struct drb_remd_item_s {
   drb_remd_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // GNB-CU-UP-CellGroupRelatedConfiguration-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -4340,10 +3206,7 @@ struct gnb_cu_up_cell_group_related_cfg_item_s {
   ul_cfg_e                                                ul_cfg;
   gnb_cu_up_cell_group_related_cfg_item_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // GNB-CU-UP-CellGroupRelatedConfiguration ::= SEQUENCE (SIZE (1..8)) OF GNB-CU-UP-CellGroupRelatedConfiguration-Item
@@ -4356,7 +3219,6 @@ using drb_required_to_modify_item_eutran_ext_ies_container = protocol_ext_contai
 
 // DRB-Required-To-Modify-Item-EUTRAN ::= SEQUENCE
 struct drb_required_to_modify_item_eutran_s {
-  bool                                                 ext                       = false;
   bool                                                 s1_dl_up_tnl_info_present = false;
   bool                                                 cause_present             = false;
   bool                                                 ie_exts_present           = false;
@@ -4367,10 +3229,7 @@ struct drb_required_to_modify_item_eutran_s {
   drb_required_to_modify_item_eutran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Required-To-Modify-Item-NG-RAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -4380,7 +3239,6 @@ using drb_required_to_modify_item_ng_ran_ext_ies_container = protocol_ext_contai
 
 // DRB-Required-To-Modify-Item-NG-RAN ::= SEQUENCE
 struct drb_required_to_modify_item_ng_ran_s {
-  bool                                                 ext             = false;
   bool                                                 cause_present   = false;
   bool                                                 ie_exts_present = false;
   uint8_t                                              drb_id          = 1;
@@ -4390,10 +3248,7 @@ struct drb_required_to_modify_item_ng_ran_s {
   drb_required_to_modify_item_ng_ran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Required-To-Modify-List-EUTRAN ::= SEQUENCE (SIZE (1..32)) OF DRB-Required-To-Modify-Item-EUTRAN
@@ -4409,17 +3264,13 @@ using drb_required_to_rem_item_eutran_ext_ies_container = protocol_ext_container
 
 // DRB-Required-To-Remove-Item-EUTRAN ::= SEQUENCE
 struct drb_required_to_rem_item_eutran_s {
-  bool                                              ext             = false;
   bool                                              ie_exts_present = false;
   uint8_t                                           drb_id          = 1;
   cause_c                                           cause;
   drb_required_to_rem_item_eutran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Required-To-Remove-Item-NG-RAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -4429,17 +3280,13 @@ using drb_required_to_rem_item_ng_ran_ext_ies_container = protocol_ext_container
 
 // DRB-Required-To-Remove-Item-NG-RAN ::= SEQUENCE
 struct drb_required_to_rem_item_ng_ran_s {
-  bool                                              ext             = false;
   bool                                              ie_exts_present = false;
   uint8_t                                           drb_id          = 1;
   cause_c                                           cause;
   drb_required_to_rem_item_ng_ran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Required-To-Remove-List-EUTRAN ::= SEQUENCE (SIZE (1..32)) OF DRB-Required-To-Remove-Item-EUTRAN
@@ -4455,16 +3302,12 @@ using data_forwardingto_ng_ran_qos_flow_info_list_item_ext_ies_container = proto
 
 // DataForwardingtoNG-RANQoSFlowInformationList-Item ::= SEQUENCE
 struct data_forwardingto_ng_ran_qos_flow_info_list_item_s {
-  bool                                                               ext             = false;
   bool                                                               ie_exts_present = false;
   uint8_t                                                            qos_flow_id     = 0;
   data_forwardingto_ng_ran_qos_flow_info_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DataForwardingtoNG-RANQoSFlowInformationList ::= SEQUENCE (SIZE (1..64)) OF
@@ -4475,62 +3318,22 @@ using data_forwardingto_ng_ran_qos_flow_info_list_l = dyn_array<data_forwardingt
 struct pdu_setbased_handling_ind_opts {
   enum options { supported, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using pdu_setbased_handling_ind_e = enumerated<pdu_setbased_handling_ind_opts, true>;
 
 // Data-Forwarding-Information-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct data_forwarding_info_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { data_forwardingto_ng_ran_qos_flow_info_list, pdu_setbased_handling_ind, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    data_forwardingto_ng_ran_qos_flow_info_list_l&       data_forwardingto_ng_ran_qos_flow_info_list();
-    pdu_setbased_handling_ind_e&                         pdu_setbased_handling_ind();
-    const data_forwardingto_ng_ran_qos_flow_info_list_l& data_forwardingto_ng_ran_qos_flow_info_list() const;
-    const pdu_setbased_handling_ind_e&                   pdu_setbased_handling_ind() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct data_forwarding_info_ext_ies_container {
   bool                                          data_forwardingto_ng_ran_qos_flow_info_list_present = false;
   bool                                          pdu_setbased_handling_ind_present                   = false;
   data_forwardingto_ng_ran_qos_flow_info_list_l data_forwardingto_ng_ran_qos_flow_info_list;
   pdu_setbased_handling_ind_e                   pdu_setbased_handling_ind;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // Data-Forwarding-Information ::= SEQUENCE
 struct data_forwarding_info_s {
-  bool                                   ext                        = false;
   bool                                   ul_data_forwarding_present = false;
   bool                                   dl_data_forwarding_present = false;
   bool                                   ie_exts_present            = false;
@@ -4539,17 +3342,14 @@ struct data_forwarding_info_s {
   data_forwarding_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // IntegrityProtectionResult ::= ENUMERATED
 struct integrity_protection_result_opts {
   enum options { performed, not_performed, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using integrity_protection_result_e = enumerated<integrity_protection_result_opts, true>;
 
@@ -4560,66 +3360,23 @@ using security_result_ext_ies_container = protocol_ext_container_empty_l;
 
 // SecurityResult ::= SEQUENCE
 struct security_result_s {
-  bool                                ext             = false;
   bool                                ie_exts_present = false;
   integrity_protection_result_e       integrity_protection_result;
   confidentiality_protection_result_e confidentiality_protection_result;
   security_result_ext_ies_container   ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Setup-Item-EUTRAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct drb_setup_item_eutran_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { data_forwarding_source_ip_address, security_result, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    bounded_bitstring<1, 160, true, true>&       data_forwarding_source_ip_address();
-    security_result_s&                           security_result();
-    const bounded_bitstring<1, 160, true, true>& data_forwarding_source_ip_address() const;
-    const security_result_s&                     security_result() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct drb_setup_item_eutran_ext_ies_container {
   bool                                  data_forwarding_source_ip_address_present = false;
   bool                                  security_result_present                   = false;
   bounded_bitstring<1, 160, true, true> data_forwarding_source_ip_address;
   security_result_s                     security_result;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // DRB-Setup-Item-EUTRAN ::= SEQUENCE
@@ -4627,12 +3384,11 @@ struct drb_setup_item_eutran_s {
   struct s1_dl_up_unchanged_opts {
     enum options { true_value, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using s1_dl_up_unchanged_e_ = enumerated<s1_dl_up_unchanged_opts, true>;
 
   // member variables
-  bool                                    ext                               = false;
   bool                                    data_forwarding_info_resp_present = false;
   bool                                    s1_dl_up_unchanged_present        = false;
   bool                                    ie_exts_present                   = false;
@@ -4644,10 +3400,7 @@ struct drb_setup_item_eutran_s {
   drb_setup_item_eutran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Setup-Item-NG-RAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -4657,7 +3410,6 @@ using drb_setup_item_ng_ran_ext_ies_container = protocol_ext_container_empty_l;
 
 // DRB-Setup-Item-NG-RAN ::= SEQUENCE
 struct drb_setup_item_ng_ran_s {
-  bool                                    ext                                   = false;
   bool                                    drb_data_forwarding_info_resp_present = false;
   bool                                    ie_exts_present                       = false;
   uint8_t                                 drb_id                                = 1;
@@ -4668,10 +3420,7 @@ struct drb_setup_item_ng_ran_s {
   drb_setup_item_ng_ran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Setup-List-EUTRAN ::= SEQUENCE (SIZE (1..32)) OF DRB-Setup-Item-EUTRAN
@@ -4681,57 +3430,17 @@ using drb_setup_list_eutran_l = dyn_array<drb_setup_item_eutran_s>;
 using drb_setup_list_ng_ran_l = dyn_array<drb_setup_item_ng_ran_s>;
 
 // DRB-Setup-Mod-Item-EUTRAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct drb_setup_mod_item_eutran_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { security_result, data_forwarding_source_ip_address, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    security_result_s&                           security_result();
-    bounded_bitstring<1, 160, true, true>&       data_forwarding_source_ip_address();
-    const security_result_s&                     security_result() const;
-    const bounded_bitstring<1, 160, true, true>& data_forwarding_source_ip_address() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct drb_setup_mod_item_eutran_ext_ies_container {
   bool                                  security_result_present                   = false;
   bool                                  data_forwarding_source_ip_address_present = false;
   security_result_s                     security_result;
   bounded_bitstring<1, 160, true, true> data_forwarding_source_ip_address;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // DRB-Setup-Mod-Item-EUTRAN ::= SEQUENCE
 struct drb_setup_mod_item_eutran_s {
-  bool                                        ext                               = false;
   bool                                        data_forwarding_info_resp_present = false;
   bool                                        ie_exts_present                   = false;
   uint8_t                                     drb_id                            = 1;
@@ -4741,10 +3450,7 @@ struct drb_setup_mod_item_eutran_s {
   drb_setup_mod_item_eutran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Setup-Mod-Item-NG-RAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -4754,7 +3460,6 @@ using drb_setup_mod_item_ng_ran_ext_ies_container = protocol_ext_container_empty
 
 // DRB-Setup-Mod-Item-NG-RAN ::= SEQUENCE
 struct drb_setup_mod_item_ng_ran_s {
-  bool                                        ext                                   = false;
   bool                                        drb_data_forwarding_info_resp_present = false;
   bool                                        ie_exts_present                       = false;
   uint8_t                                     drb_id                                = 1;
@@ -4765,10 +3470,7 @@ struct drb_setup_mod_item_ng_ran_s {
   drb_setup_mod_item_ng_ran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Setup-Mod-List-EUTRAN ::= SEQUENCE (SIZE (1..32)) OF DRB-Setup-Mod-Item-EUTRAN
@@ -4784,7 +3486,6 @@ using drb_status_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // DRB-Status-Item ::= SEQUENCE
 struct drb_status_item_s {
-  bool                              ext                   = false;
   bool                              pdcp_dl_count_present = false;
   bool                              pdcp_ul_count_present = false;
   bool                              ie_exts_present       = false;
@@ -4794,10 +3495,7 @@ struct drb_status_item_s {
   drb_status_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // EUTRANAllocationAndRetentionPriority-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -4807,7 +3505,6 @@ using eutran_alloc_and_retention_prio_ext_ies_container = protocol_ext_container
 
 // EUTRANAllocationAndRetentionPriority ::= SEQUENCE
 struct eutran_alloc_and_retention_prio_s {
-  bool                                              ext             = false;
   bool                                              ie_exts_present = false;
   uint8_t                                           prio_level      = 0;
   pre_emption_cap_e                                 pre_emption_cap;
@@ -4815,10 +3512,7 @@ struct eutran_alloc_and_retention_prio_s {
   eutran_alloc_and_retention_prio_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // GBR-QosInformation-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -4828,7 +3522,6 @@ using gbr_qos_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // GBR-QosInformation ::= SEQUENCE
 struct gbr_qos_info_s {
-  bool                           ext                        = false;
   bool                           ie_exts_present            = false;
   uint64_t                       erab_max_bitrate_dl        = 0;
   uint64_t                       erab_max_bitrate_ul        = 0;
@@ -4837,10 +3530,7 @@ struct gbr_qos_info_s {
   gbr_qos_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // EUTRAN-QoS-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -4850,7 +3540,6 @@ using eutran_qos_ext_ies_container = protocol_ext_container_empty_l;
 
 // EUTRAN-QoS ::= SEQUENCE
 struct eutran_qos_s {
-  bool                              ext                  = false;
   bool                              gbr_qos_info_present = false;
   bool                              ie_exts_present      = false;
   uint16_t                          qci                  = 0;
@@ -4859,17 +3548,14 @@ struct eutran_qos_s {
   eutran_qos_ext_ies_container      ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDCP-SN-Status-Request ::= ENUMERATED
 struct pdcp_sn_status_request_opts {
   enum options { requested, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using pdcp_sn_status_request_e = enumerated<pdcp_sn_status_request_opts, true>;
 
@@ -4880,7 +3566,6 @@ using drb_to_modify_item_eutran_ext_ies_container = protocol_ext_container_empty
 
 // DRB-To-Modify-Item-EUTRAN ::= SEQUENCE
 struct drb_to_modify_item_eutran_s {
-  bool                                        ext                            = false;
   bool                                        pdcp_cfg_present               = false;
   bool                                        eutran_qos_present             = false;
   bool                                        s1_ul_up_tnl_info_present      = false;
@@ -4904,17 +3589,14 @@ struct drb_to_modify_item_eutran_s {
   drb_to_modify_item_eutran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DefaultDRB ::= ENUMERATED
 struct default_drb_opts {
   enum options { true_value, false_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using default_drb_e = enumerated<default_drb_opts, true>;
 
@@ -4922,7 +3604,7 @@ using default_drb_e = enumerated<default_drb_opts, true>;
 struct sdap_hdr_ul_opts {
   enum options { present, absent, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using sdap_hdr_ul_e = enumerated<sdap_hdr_ul_opts, true>;
 
@@ -4930,7 +3612,7 @@ using sdap_hdr_ul_e = enumerated<sdap_hdr_ul_opts, true>;
 struct sdap_hdr_dl_opts {
   enum options { present, absent, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using sdap_hdr_dl_e = enumerated<sdap_hdr_dl_opts, true>;
 
@@ -4941,7 +3623,6 @@ using sdap_cfg_ext_ies_container = protocol_ext_container_empty_l;
 
 // SDAP-Configuration ::= SEQUENCE
 struct sdap_cfg_s {
-  bool                       ext             = false;
   bool                       ie_exts_present = false;
   default_drb_e              default_drb;
   sdap_hdr_ul_e              sdap_hdr_ul;
@@ -4949,17 +3630,14 @@ struct sdap_cfg_s {
   sdap_cfg_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // EarlyForwardingCOUNTReq ::= ENUMERATED
 struct early_forwarding_count_req_opts {
   enum options { first_dl_count, dl_discarding, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using early_forwarding_count_req_e = enumerated<early_forwarding_count_req_opts, true>;
 
@@ -4967,7 +3645,7 @@ using early_forwarding_count_req_e = enumerated<early_forwarding_count_req_opts,
 struct early_data_forwarding_ind_opts {
   enum options { stop, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using early_data_forwarding_ind_e = enumerated<early_data_forwarding_ind_opts, true>;
 
@@ -4975,7 +3653,7 @@ using early_data_forwarding_ind_e = enumerated<early_data_forwarding_ind_opts, t
 struct sd_tind_mod_opts {
   enum options { true_value, false_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using sd_tind_mod_e = enumerated<sd_tind_mod_opts, true>;
 
@@ -4983,69 +3661,11 @@ using sd_tind_mod_e = enumerated<sd_tind_mod_opts, true>;
 struct pdcp_count_reset_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using pdcp_count_reset_e = enumerated<pdcp_count_reset_opts, true>;
 
 // DRB-To-Modify-Item-NG-RAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct drb_to_modify_item_ng_ran_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options {
-        old_qos_flow_map_ul_endmarkerexpected,
-        drb_qos,
-        early_forwarding_count_req,
-        early_forwarding_count_info,
-        daps_request_info,
-        early_data_forwarding_ind,
-        sd_tind_mod,
-        pdcp_count_reset,
-        nulltype
-      } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    qos_flow_list_l&                     old_qos_flow_map_ul_endmarkerexpected();
-    qos_flow_level_qos_params_s&         drb_qos();
-    early_forwarding_count_req_e&        early_forwarding_count_req();
-    early_forwarding_count_info_c&       early_forwarding_count_info();
-    daps_request_info_s&                 daps_request_info();
-    early_data_forwarding_ind_e&         early_data_forwarding_ind();
-    sd_tind_mod_e&                       sd_tind_mod();
-    pdcp_count_reset_e&                  pdcp_count_reset();
-    const qos_flow_list_l&               old_qos_flow_map_ul_endmarkerexpected() const;
-    const qos_flow_level_qos_params_s&   drb_qos() const;
-    const early_forwarding_count_req_e&  early_forwarding_count_req() const;
-    const early_forwarding_count_info_c& early_forwarding_count_info() const;
-    const daps_request_info_s&           daps_request_info() const;
-    const early_data_forwarding_ind_e&   early_data_forwarding_ind() const;
-    const sd_tind_mod_e&                 sd_tind_mod() const;
-    const pdcp_count_reset_e&            pdcp_count_reset() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct drb_to_modify_item_ng_ran_ext_ies_container {
   bool                          old_qos_flow_map_ul_endmarkerexpected_present = false;
   bool                          drb_qos_present                               = false;
@@ -5064,15 +3684,11 @@ struct drb_to_modify_item_ng_ran_ext_ies_container {
   sd_tind_mod_e                 sd_tind_mod;
   pdcp_count_reset_e            pdcp_count_reset;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // DRB-To-Modify-Item-NG-RAN ::= SEQUENCE
 struct drb_to_modify_item_ng_ran_s {
-  bool                                        ext                              = false;
   bool                                        sdap_cfg_present                 = false;
   bool                                        pdcp_cfg_present                 = false;
   bool                                        drb_data_forwarding_info_present = false;
@@ -5095,10 +3711,7 @@ struct drb_to_modify_item_ng_ran_s {
   drb_to_modify_item_ng_ran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-To-Modify-List-EUTRAN ::= SEQUENCE (SIZE (1..32)) OF DRB-To-Modify-Item-EUTRAN
@@ -5114,16 +3727,12 @@ using drb_to_rem_item_eutran_ext_ies_container = protocol_ext_container_empty_l;
 
 // DRB-To-Remove-Item-EUTRAN ::= SEQUENCE
 struct drb_to_rem_item_eutran_s {
-  bool                                     ext             = false;
   bool                                     ie_exts_present = false;
   uint8_t                                  drb_id          = 1;
   drb_to_rem_item_eutran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-To-Remove-Item-NG-RAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -5133,16 +3742,12 @@ using drb_to_rem_item_ng_ran_ext_ies_container = protocol_ext_container_empty_l;
 
 // DRB-To-Remove-Item-NG-RAN ::= SEQUENCE
 struct drb_to_rem_item_ng_ran_s {
-  bool                                     ext             = false;
   bool                                     ie_exts_present = false;
   uint8_t                                  drb_id          = 1;
   drb_to_rem_item_ng_ran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-To-Remove-List-EUTRAN ::= SEQUENCE (SIZE (1..32)) OF DRB-To-Remove-Item-EUTRAN
@@ -5155,7 +3760,7 @@ using drb_to_rem_list_ng_ran_l = dyn_array<drb_to_rem_item_ng_ran_s>;
 struct data_forwarding_request_opts {
   enum options { ul, dl, both, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using data_forwarding_request_e = enumerated<data_forwarding_request_opts, true>;
 
@@ -5166,7 +3771,6 @@ using qos_flow_map_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // QoS-Flow-Mapping-Item ::= SEQUENCE
 struct qos_flow_map_item_s {
-  bool                                ext                      = false;
   bool                                qos_flow_map_ind_present = false;
   bool                                ie_exts_present          = false;
   uint8_t                             qos_flow_id              = 0;
@@ -5174,10 +3778,7 @@ struct qos_flow_map_item_s {
   qos_flow_map_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // QoS-Flow-Mapping-List ::= SEQUENCE (SIZE (1..64)) OF QoS-Flow-Mapping-Item
@@ -5190,34 +3791,29 @@ using data_forwarding_info_request_ext_ies_container = protocol_ext_container_em
 
 // Data-Forwarding-Information-Request ::= SEQUENCE
 struct data_forwarding_info_request_s {
-  bool                                           ext             = false;
   bool                                           ie_exts_present = false;
   data_forwarding_request_e                      data_forwarding_request;
   qos_flow_map_list_l                            qos_flows_forwarded_on_fwd_tunnels;
   data_forwarding_info_request_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // IntegrityProtectionIndication ::= ENUMERATED
 struct integrity_protection_ind_opts {
   enum options { required, preferred, not_needed, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using integrity_protection_ind_e = enumerated<integrity_protection_ind_opts, true>;
 
 // MaxIPrate ::= ENUMERATED
 struct max_ip_rate_opts {
   enum options { bitrate64kbs, max_ue_rate, /*...*/ nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using max_ip_rate_e = enumerated<max_ip_rate_opts, true>;
 
@@ -5228,16 +3824,12 @@ using max_ip_datarate_ext_ies_container = protocol_ext_container_empty_l;
 
 // MaximumIPdatarate ::= SEQUENCE
 struct max_ip_datarate_s {
-  bool                              ext             = false;
   bool                              ie_exts_present = false;
   max_ip_rate_e                     max_ip_rate;
   max_ip_datarate_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SecurityIndication-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -5247,7 +3839,6 @@ using security_ind_ext_ies_container = protocol_ext_container_empty_l;
 
 // SecurityIndication ::= SEQUENCE
 struct security_ind_s {
-  bool                             ext                     = false;
   bool                             max_ip_datarate_present = false;
   bool                             ie_exts_present         = false;
   integrity_protection_ind_e       integrity_protection_ind;
@@ -5256,64 +3847,21 @@ struct security_ind_s {
   security_ind_ext_ies_container   ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-To-Setup-Item-EUTRAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct drb_to_setup_item_eutran_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { data_forwarding_source_ip_address, security_ind, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    bounded_bitstring<1, 160, true, true>&       data_forwarding_source_ip_address();
-    security_ind_s&                              security_ind();
-    const bounded_bitstring<1, 160, true, true>& data_forwarding_source_ip_address() const;
-    const security_ind_s&                        security_ind() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct drb_to_setup_item_eutran_ext_ies_container {
   bool                                  data_forwarding_source_ip_address_present = false;
   bool                                  security_ind_present                      = false;
   bounded_bitstring<1, 160, true, true> data_forwarding_source_ip_address;
   security_ind_s                        security_ind;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // DRB-To-Setup-Item-EUTRAN ::= SEQUENCE
 struct drb_to_setup_item_eutran_s {
-  bool                                       ext                                          = false;
   bool                                       data_forwarding_info_request_present         = false;
   bool                                       drb_inactivity_timer_present                 = false;
   bool                                       existing_allocated_s1_dl_up_tnl_info_present = false;
@@ -5330,17 +3878,14 @@ struct drb_to_setup_item_eutran_s {
   drb_to_setup_item_eutran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // IgnoreMappingRuleIndication ::= ENUMERATED
 struct ignore_map_rule_ind_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using ignore_map_rule_ind_e = enumerated<ignore_map_rule_ind_opts, true>;
 
@@ -5348,7 +3893,7 @@ using ignore_map_rule_ind_e = enumerated<ignore_map_rule_ind_opts, true>;
 struct qos_flows_drb_remap_opts {
   enum options { upd, source_cfg, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using qos_flows_drb_remap_e = enumerated<qos_flows_drb_remap_opts, true>;
 
@@ -5356,7 +3901,7 @@ using qos_flows_drb_remap_e = enumerated<qos_flows_drb_remap_opts, true>;
 struct sd_tind_setup_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using sd_tind_setup_e = enumerated<sd_tind_setup_opts, true>;
 
@@ -5364,63 +3909,11 @@ using sd_tind_setup_e = enumerated<sd_tind_setup_opts, true>;
 struct special_trigger_purpose_opts {
   enum options { indirect_data_forwarding, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using special_trigger_purpose_e = enumerated<special_trigger_purpose_opts, true>;
 
 // DRB-To-Setup-Item-NG-RAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct drb_to_setup_item_ng_ran_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options {
-        drb_qos,
-        daps_request_info,
-        ignore_map_rule_ind,
-        qos_flows_drb_remap,
-        sd_tind_setup,
-        special_trigger_purpose,
-        nulltype
-      } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    qos_flow_level_qos_params_s&       drb_qos();
-    daps_request_info_s&               daps_request_info();
-    ignore_map_rule_ind_e&             ignore_map_rule_ind();
-    qos_flows_drb_remap_e&             qos_flows_drb_remap();
-    sd_tind_setup_e&                   sd_tind_setup();
-    special_trigger_purpose_e&         special_trigger_purpose();
-    const qos_flow_level_qos_params_s& drb_qos() const;
-    const daps_request_info_s&         daps_request_info() const;
-    const ignore_map_rule_ind_e&       ignore_map_rule_ind() const;
-    const qos_flows_drb_remap_e&       qos_flows_drb_remap() const;
-    const sd_tind_setup_e&             sd_tind_setup() const;
-    const special_trigger_purpose_e&   special_trigger_purpose() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct drb_to_setup_item_ng_ran_ext_ies_container {
   bool                        drb_qos_present                 = false;
   bool                        daps_request_info_present       = false;
@@ -5435,15 +3928,11 @@ struct drb_to_setup_item_ng_ran_ext_ies_container {
   sd_tind_setup_e             sd_tind_setup;
   special_trigger_purpose_e   special_trigger_purpose;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // DRB-To-Setup-Item-NG-RAN ::= SEQUENCE
 struct drb_to_setup_item_ng_ran_s {
-  bool                                       ext                                      = false;
   bool                                       drb_data_forwarding_info_request_present = false;
   bool                                       drb_inactivity_timer_present             = false;
   bool                                       pdcp_sn_status_info_present              = false;
@@ -5459,10 +3948,7 @@ struct drb_to_setup_item_ng_ran_s {
   drb_to_setup_item_ng_ran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-To-Setup-List-EUTRAN ::= SEQUENCE (SIZE (1..32)) OF DRB-To-Setup-Item-EUTRAN
@@ -5472,57 +3958,17 @@ using drb_to_setup_list_eutran_l = dyn_array<drb_to_setup_item_eutran_s>;
 using drb_to_setup_list_ng_ran_l = dyn_array<drb_to_setup_item_ng_ran_s>;
 
 // DRB-To-Setup-Mod-Item-EUTRAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct drb_to_setup_mod_item_eutran_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { security_ind, data_forwarding_source_ip_address, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    security_ind_s&                              security_ind();
-    bounded_bitstring<1, 160, true, true>&       data_forwarding_source_ip_address();
-    const security_ind_s&                        security_ind() const;
-    const bounded_bitstring<1, 160, true, true>& data_forwarding_source_ip_address() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct drb_to_setup_mod_item_eutran_ext_ies_container {
   bool                                  security_ind_present                      = false;
   bool                                  data_forwarding_source_ip_address_present = false;
   security_ind_s                        security_ind;
   bounded_bitstring<1, 160, true, true> data_forwarding_source_ip_address;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // DRB-To-Setup-Mod-Item-EUTRAN ::= SEQUENCE
 struct drb_to_setup_mod_item_eutran_s {
-  bool                                           ext                                  = false;
   bool                                           data_forwarding_info_request_present = false;
   bool                                           drb_inactivity_timer_present         = false;
   bool                                           ie_exts_present                      = false;
@@ -5537,62 +3983,10 @@ struct drb_to_setup_mod_item_eutran_s {
   drb_to_setup_mod_item_eutran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-To-Setup-Mod-Item-NG-RAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct drb_to_setup_mod_item_ng_ran_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options {
-        drb_qos,
-        ignore_map_rule_ind,
-        daps_request_info,
-        sd_tind_setup,
-        special_trigger_purpose,
-        nulltype
-      } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    qos_flow_level_qos_params_s&       drb_qos();
-    ignore_map_rule_ind_e&             ignore_map_rule_ind();
-    daps_request_info_s&               daps_request_info();
-    sd_tind_setup_e&                   sd_tind_setup();
-    special_trigger_purpose_e&         special_trigger_purpose();
-    const qos_flow_level_qos_params_s& drb_qos() const;
-    const ignore_map_rule_ind_e&       ignore_map_rule_ind() const;
-    const daps_request_info_s&         daps_request_info() const;
-    const sd_tind_setup_e&             sd_tind_setup() const;
-    const special_trigger_purpose_e&   special_trigger_purpose() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct drb_to_setup_mod_item_ng_ran_ext_ies_container {
   bool                        drb_qos_present                 = false;
   bool                        ignore_map_rule_ind_present     = false;
@@ -5605,15 +3999,11 @@ struct drb_to_setup_mod_item_ng_ran_ext_ies_container {
   sd_tind_setup_e             sd_tind_setup;
   special_trigger_purpose_e   special_trigger_purpose;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // DRB-To-Setup-Mod-Item-NG-RAN ::= SEQUENCE
 struct drb_to_setup_mod_item_ng_ran_s {
-  bool                                           ext                                      = false;
   bool                                           drb_data_forwarding_info_request_present = false;
   bool                                           drb_inactivity_timer_present             = false;
   bool                                           pdcp_sn_status_info_present              = false;
@@ -5629,10 +4019,7 @@ struct drb_to_setup_mod_item_ng_ran_s {
   drb_to_setup_mod_item_ng_ran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-To-Setup-Mod-List-EUTRAN ::= SEQUENCE (SIZE (1..32)) OF DRB-To-Setup-Mod-Item-EUTRAN
@@ -5648,7 +4035,6 @@ using drb_usage_report_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // DRB-Usage-Report-Item ::= SEQUENCE
 struct drb_usage_report_item_s {
-  bool                                    ext             = false;
   bool                                    ie_exts_present = false;
   fixed_octstring<4, true>                start_time_stamp;
   fixed_octstring<4, true>                end_time_stamp;
@@ -5657,10 +4043,7 @@ struct drb_usage_report_item_s {
   drb_usage_report_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRB-Usage-Report-List ::= SEQUENCE (SIZE (1..2)) OF DRB-Usage-Report-Item
@@ -5673,7 +4056,6 @@ using drbs_subject_to_counter_check_item_eutran_ext_ies_container = protocol_ext
 
 // DRBs-Subject-To-Counter-Check-Item-EUTRAN ::= SEQUENCE
 struct drbs_subject_to_counter_check_item_eutran_s {
-  bool                                                        ext             = false;
   bool                                                        ie_exts_present = false;
   uint8_t                                                     drb_id          = 1;
   pdcp_count_s                                                pdcp_ul_count;
@@ -5681,10 +4063,7 @@ struct drbs_subject_to_counter_check_item_eutran_s {
   drbs_subject_to_counter_check_item_eutran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRBs-Subject-To-Counter-Check-Item-NG-RAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -5694,7 +4073,6 @@ using drbs_subject_to_counter_check_item_ng_ran_ext_ies_container = protocol_ext
 
 // DRBs-Subject-To-Counter-Check-Item-NG-RAN ::= SEQUENCE
 struct drbs_subject_to_counter_check_item_ng_ran_s {
-  bool                                                        ext             = false;
   bool                                                        ie_exts_present = false;
   uint16_t                                                    pdu_session_id  = 0;
   uint8_t                                                     drb_id          = 1;
@@ -5703,10 +4081,7 @@ struct drbs_subject_to_counter_check_item_ng_ran_s {
   drbs_subject_to_counter_check_item_ng_ran_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRBs-Subject-To-Counter-Check-List-EUTRAN ::= SEQUENCE (SIZE (1..32)) OF DRBs-Subject-To-Counter-Check-Item-EUTRAN
@@ -5722,17 +4097,13 @@ using drbs_subject_to_early_forwarding_item_ext_ies_container = protocol_ext_con
 
 // DRBs-Subject-To-Early-Forwarding-Item ::= SEQUENCE
 struct drbs_subject_to_early_forwarding_item_s {
-  bool                                                    ext             = false;
   bool                                                    ie_exts_present = false;
   uint8_t                                                 drb_id          = 1;
   pdcp_count_s                                            dl_count_value;
   drbs_subject_to_early_forwarding_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DRBs-Subject-To-Early-Forwarding-List ::= SEQUENCE (SIZE (1..32)) OF DRBs-Subject-To-Early-Forwarding-Item
@@ -5745,7 +4116,6 @@ using data_usage_report_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // Data-Usage-Report-Item ::= SEQUENCE
 struct data_usage_report_item_s {
-  bool                                     ext             = false;
   bool                                     ie_exts_present = false;
   uint8_t                                  drb_id          = 1;
   rat_type_e                               rat_type;
@@ -5753,10 +4123,7 @@ struct data_usage_report_item_s {
   data_usage_report_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Data-Usage-Report-List ::= SEQUENCE (SIZE (1..32)) OF Data-Usage-Report-Item
@@ -5769,7 +4136,6 @@ using mrdc_data_usage_report_item_ext_ies_container = protocol_ext_container_emp
 
 // MRDC-Data-Usage-Report-Item ::= SEQUENCE
 struct mrdc_data_usage_report_item_s {
-  bool                                          ext             = false;
   bool                                          ie_exts_present = false;
   fixed_octstring<4, true>                      start_time_stamp;
   fixed_octstring<4, true>                      end_time_stamp;
@@ -5778,10 +4144,7 @@ struct mrdc_data_usage_report_item_s {
   mrdc_data_usage_report_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Data-Usage-per-PDU-Session-Report-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -5794,23 +4157,19 @@ struct data_usage_per_pdu_session_report_s {
   struct secondary_rat_type_opts {
     enum options { nr, e_utra, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using secondary_rat_type_e_            = enumerated<secondary_rat_type_opts, true>;
   using pdu_session_timed_report_list_l_ = dyn_array<mrdc_data_usage_report_item_s>;
 
   // member variables
-  bool                                                ext             = false;
   bool                                                ie_exts_present = false;
   secondary_rat_type_e_                               secondary_rat_type;
   pdu_session_timed_report_list_l_                    pdu_session_timed_report_list;
   data_usage_per_pdu_session_report_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Data-Usage-per-QoS-Flow-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -5823,13 +4182,12 @@ struct data_usage_per_qos_flow_item_s {
   struct secondary_rat_type_opts {
     enum options { nr, e_utra, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using secondary_rat_type_e_         = enumerated<secondary_rat_type_opts, true>;
   using qos_flow_timed_report_list_l_ = dyn_array<mrdc_data_usage_report_item_s>;
 
   // member variables
-  bool                                           ext             = false;
   bool                                           ie_exts_present = false;
   uint8_t                                        qos_flow_id     = 0;
   secondary_rat_type_e_                          secondary_rat_type;
@@ -5837,10 +4195,7 @@ struct data_usage_per_qos_flow_item_s {
   data_usage_per_qos_flow_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Data-Usage-per-QoS-Flow-List ::= SEQUENCE (SIZE (1..64)) OF Data-Usage-per-QoS-Flow-Item
@@ -5850,7 +4205,7 @@ using data_usage_per_qos_flow_list_l = dyn_array<data_usage_per_qos_flow_item_s>
 struct data_discard_required_opts {
   enum options { required, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using data_discard_required_e = enumerated<data_discard_required_opts, true>;
 
@@ -5861,16 +4216,12 @@ using qos_flows_to_be_forwarded_item_ext_ies_container = protocol_ext_container_
 
 // QoS-Flows-to-be-forwarded-Item ::= SEQUENCE
 struct qos_flows_to_be_forwarded_item_s {
-  bool                                             ext             = false;
   bool                                             ie_exts_present = false;
   uint8_t                                          qos_flow_id     = 0;
   qos_flows_to_be_forwarded_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // QoS-Flows-to-be-forwarded-List ::= SEQUENCE (SIZE (1..64)) OF QoS-Flows-to-be-forwarded-Item
@@ -5883,17 +4234,13 @@ using data_forwardingto_e_utran_info_list_item_ext_ies_container = protocol_ext_
 
 // DataForwardingtoE-UTRANInformationListItem ::= SEQUENCE
 struct data_forwardingto_e_utran_info_list_item_s {
-  bool                                                       ext             = false;
   bool                                                       ie_exts_present = false;
   up_tnl_info_c                                              data_forwarding_tunnel_info;
   qos_flows_to_be_forwarded_list_l                           qos_flows_to_be_forwarded_list;
   data_forwardingto_e_utran_info_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DataForwardingtoE-UTRANInformationList ::= SEQUENCE (SIZE (1..256)) OF DataForwardingtoE-UTRANInformationListItem
@@ -5903,7 +4250,7 @@ using data_forwardingto_e_utran_info_list_l = dyn_array<data_forwardingto_e_utra
 struct direct_forwarding_path_availability_opts {
   enum options { inter_sys_direct_path_available, /*...*/ intra_sys_direct_path_available, nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using direct_forwarding_path_availability_e = enumerated<direct_forwarding_path_availability_opts, true, 1>;
 
@@ -5919,10 +4266,7 @@ struct ecgi_s {
   fixed_bitstring<28, false, true> eutran_cell_id;
   ecgi_ext_ies_container           ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ECGI-Support-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -5936,10 +4280,7 @@ struct ecgi_support_item_s {
   ecgi_s                              ecgi;
   ecgi_support_item_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ECGI-Support-List ::= SEQUENCE (SIZE (1..512)) OF ECGI-Support-Item
@@ -5956,10 +4297,7 @@ struct eutran_qos_support_item_s {
   eutran_qos_s                              eutran_qos;
   eutran_qos_support_item_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // EUTRAN-QoS-Support-List ::= SEQUENCE (SIZE (1..256)) OF EUTRAN-QoS-Support-Item
@@ -5972,19 +4310,15 @@ using extended_gnb_cu_cp_name_ext_ies_container = protocol_ext_container_empty_l
 
 // Extended-GNB-CU-CP-Name ::= SEQUENCE
 struct extended_gnb_cu_cp_name_s {
-  bool                                      ext                                   = false;
   bool                                      gnb_cu_cp_name_visible_string_present = false;
   bool                                      gnb_cu_cp_name_utf8_string_present    = false;
   bool                                      ie_exts_present                       = false;
   visible_string<1, 150, true, true>        gnb_cu_cp_name_visible_string;
-  utf8_string<1, 150, true, true>           gnb_cu_cp_name_utf8_string;
+  utf8_string<true>                         gnb_cu_cp_name_utf8_string;
   extended_gnb_cu_cp_name_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Extended-GNB-CU-UP-Name-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -5994,19 +4328,15 @@ using extended_gnb_cu_up_name_ext_ies_container = protocol_ext_container_empty_l
 
 // Extended-GNB-CU-UP-Name ::= SEQUENCE
 struct extended_gnb_cu_up_name_s {
-  bool                                      ext                                   = false;
   bool                                      gnb_cu_up_name_visible_string_present = false;
   bool                                      gnb_cu_up_name_utf8_string_present    = false;
   bool                                      ie_exts_present                       = false;
   visible_string<1, 150, true, true>        gnb_cu_up_name_visible_string;
-  utf8_string<1, 150, true, true>           gnb_cu_up_name_utf8_string;
+  utf8_string<true>                         gnb_cu_up_name_utf8_string;
   extended_gnb_cu_up_name_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // NR-CGI-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -6021,10 +4351,7 @@ struct nr_cgi_s {
   fixed_bitstring<36, false, true> nr_cell_id;
   nr_cgi_ext_ies_container         ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Extended-NR-CGI-Support-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -6038,10 +4365,7 @@ struct extended_nr_cgi_support_item_s {
   nr_cgi_s                                       nr_cgi;
   extended_nr_cgi_support_item_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Extended-NR-CGI-Support-List ::= SEQUENCE (SIZE (1..16384)) OF Extended-NR-CGI-Support-Item
@@ -6058,10 +4382,7 @@ struct slice_support_item_s {
   snssai_s                             snssai;
   slice_support_item_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ExtendedSliceSupportList ::= SEQUENCE (SIZE (1..65535)) OF Slice-Support-Item
@@ -6079,10 +4400,7 @@ struct gnb_cu_cp_tnl_a_failed_to_setup_item_s {
   cause_c                                                cause;
   gnb_cu_cp_tnl_a_failed_to_setup_item_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // GNB-CU-CP-TNLA-Setup-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -6092,23 +4410,19 @@ using gnb_cu_cp_tnl_a_setup_item_ext_ies_container = protocol_ext_container_empt
 
 // GNB-CU-CP-TNLA-Setup-Item ::= SEQUENCE
 struct gnb_cu_cp_tnl_a_setup_item_s {
-  bool                                         ext             = false;
   bool                                         ie_exts_present = false;
   cp_tnl_info_c                                tnl_assoc_transport_layer_address;
   gnb_cu_cp_tnl_a_setup_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TNLAssociationUsage ::= ENUMERATED
 struct tnl_assoc_usage_opts {
   enum options { ue, non_ue, both, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using tnl_assoc_usage_e = enumerated<tnl_assoc_usage_opts, true>;
 
@@ -6124,53 +4438,24 @@ struct gnb_cu_cp_tnl_a_to_add_item_s {
   tnl_assoc_usage_e                             tnl_assoc_usage;
   gnb_cu_cp_tnl_a_to_add_item_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // GNB-CU-CP-TNLA-To-Remove-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct gnb_cu_cp_tnl_a_to_rem_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { tnl_assoc_transport_layer_address_gnb_cu_up, nulltype } value;
+struct gnb_cu_cp_tnl_a_to_rem_item_ext_ies_container {
+  bool          tnl_assoc_transport_layer_address_gnb_cu_up_present = false;
+  cp_tnl_info_c tnl_assoc_transport_layer_address_gnb_cu_up;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::tnl_assoc_transport_layer_address_gnb_cu_up; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    cp_tnl_info_c&       tnl_assoc_transport_layer_address_gnb_cu_up() { return c; }
-    const cp_tnl_info_c& tnl_assoc_transport_layer_address_gnb_cu_up() const { return c; }
-
-  private:
-    cp_tnl_info_c c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // GNB-CU-CP-TNLA-To-Remove-Item ::= SEQUENCE
 struct gnb_cu_cp_tnl_a_to_rem_item_s {
-  cp_tnl_info_c                                                   tnl_assoc_transport_layer_address;
-  protocol_ext_container_l<gnb_cu_cp_tnl_a_to_rem_item_ext_ies_o> ie_exts;
+  bool                                          ie_exts_present = false;
+  cp_tnl_info_c                                 tnl_assoc_transport_layer_address;
+  gnb_cu_cp_tnl_a_to_rem_item_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // GNB-CU-CP-TNLA-To-Update-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -6186,10 +4471,7 @@ struct gnb_cu_cp_tnl_a_to_upd_item_s {
   tnl_assoc_usage_e                             tnl_assoc_usage;
   gnb_cu_cp_tnl_a_to_upd_item_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // GlobalMBSSessionID-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -6199,7 +4481,6 @@ using global_mbs_session_id_ext_ies_container = protocol_ext_container_empty_l;
 
 // GlobalMBSSessionID ::= SEQUENCE
 struct global_mbs_session_id_s {
-  bool                                    ext             = false;
   bool                                    nid_present     = false;
   bool                                    ie_exts_present = false;
   fixed_octstring<6, true>                tmgi;
@@ -6207,10 +4488,7 @@ struct global_mbs_session_id_s {
   global_mbs_session_id_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MBS-Support-Info-ToAdd-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -6220,16 +4498,12 @@ using mbs_support_info_to_add_item_ext_ies_container = protocol_ext_container_em
 
 // MBS-Support-Info-ToAdd-Item ::= SEQUENCE
 struct mbs_support_info_to_add_item_s {
-  bool                                           ext             = false;
   bool                                           ie_exts_present = false;
   global_mbs_session_id_s                        global_mbs_session_id;
   mbs_support_info_to_add_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MBS-Support-Info-ToAdd-List ::= SEQUENCE (SIZE (1..512)) OF MBS-Support-Info-ToAdd-Item
@@ -6242,16 +4516,12 @@ using mbs_support_info_to_rem_item_ext_ies_container = protocol_ext_container_em
 
 // MBS-Support-Info-ToRemove-Item ::= SEQUENCE
 struct mbs_support_info_to_rem_item_s {
-  bool                                           ext             = false;
   bool                                           ie_exts_present = false;
   global_mbs_session_id_s                        global_mbs_session_id;
   mbs_support_info_to_rem_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MBS-Support-Info-ToRemove-List ::= SEQUENCE (SIZE (1..512)) OF MBS-Support-Info-ToRemove-Item
@@ -6264,24 +4534,20 @@ using gnb_cu_up_mbs_support_info_ext_ies_container = protocol_ext_container_empt
 
 // GNB-CU-UP-MBS-Support-Info ::= SEQUENCE
 struct gnb_cu_up_mbs_support_info_s {
-  bool                                         ext             = false;
   bool                                         ie_exts_present = false;
   mbs_support_info_to_add_list_l               mbs_support_info_to_add_list;
   mbs_support_info_to_rem_list_l               mbs_support_info_to_rem_list;
   gnb_cu_up_mbs_support_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // GNB-CU-UP-OverloadInformation ::= ENUMERATED
 struct gnb_cu_up_overload_info_opts {
   enum options { overloaded, not_overloaded, nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using gnb_cu_up_overload_info_e = enumerated<gnb_cu_up_overload_info_opts>;
 
@@ -6298,10 +4564,7 @@ struct gnb_cu_up_tnl_a_to_rem_item_s {
   cp_tnl_info_c                                 tnl_assoc_transport_layer_address_gnb_cu_cp;
   gnb_cu_up_tnl_a_to_rem_item_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // GTPTLA-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -6311,16 +4574,12 @@ using gtp_tla_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // GTPTLA-Item ::= SEQUENCE
 struct gtp_tla_item_s {
-  bool                                  ext             = false;
   bool                                  ie_exts_present = false;
   bounded_bitstring<1, 160, true, true> gtp_transport_layer_addresses;
   gtp_tla_item_ext_ies_container        ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // GTPTLAs ::= SEQUENCE (SIZE (1..16)) OF GTPTLA-Item
@@ -6333,17 +4592,13 @@ using hw_capacity_ind_ext_ies_container = protocol_ext_container_empty_l;
 
 // HW-CapacityIndicator ::= SEQUENCE
 struct hw_capacity_ind_s {
-  bool                              ext                  = false;
   bool                              ie_exts_present      = false;
   uint32_t                          offered_throughput   = 1;
-  uint8_t                           available_throughput = 0;
+  uint16_t                          available_throughput = 0;
   hw_capacity_ind_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // IAB-donor-CU-UPPSKInfoItemExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -6353,7 +4608,6 @@ using iab_donor_cu_up_psk_info_item_ext_ies_container = protocol_ext_container_e
 
 // IAB-Donor-CU-UPPSKInfo-Item ::= SEQUENCE
 struct iab_donor_cu_up_psk_info_item_s {
-  bool                                            ext             = false;
   bool                                            ie_exts_present = false;
   unbounded_octstring<true>                       iab_donor_cu_up_psk;
   bounded_bitstring<1, 160, true, true>           iab_donor_cu_up_ip_address;
@@ -6361,19 +4615,15 @@ struct iab_donor_cu_up_psk_info_item_s {
   iab_donor_cu_up_psk_info_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // M4period ::= ENUMERATED
 struct m4period_opts {
   enum options { ms1024, ms2048, ms5120, ms10240, min1, /*...*/ nulltype } value;
-  typedef uint16_t number_type;
 
-  const char* to_string() const;
-  uint16_t    to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint16_t                            to_number() const;
 };
 using m4period_e = enumerated<m4period_opts, true>;
 
@@ -6381,66 +4631,36 @@ using m4period_e = enumerated<m4period_opts, true>;
 struct links_to_log_opts {
   enum options { ul, dl, both_ul_and_dl, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using links_to_log_e = enumerated<links_to_log_opts, true>;
 
 // M4ReportAmount ::= ENUMERATED
 struct m4_report_amount_opts {
   enum options { r1, r2, r4, r8, r16, r32, r64, infinity, /*...*/ nulltype } value;
-  typedef int8_t number_type;
 
-  const char* to_string() const;
-  int8_t      to_number() const;
+  static const asn1::table::enum_desc desc;
+  int8_t                              to_number() const;
 };
 using m4_report_amount_e = enumerated<m4_report_amount_opts, true>;
 
 // M4Configuration-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct m4_cfg_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { m4_report_amount, nulltype } value;
-      typedef uint8_t number_type;
+struct m4_cfg_ext_ies_container {
+  bool               m4_report_amount_present = false;
+  m4_report_amount_e m4_report_amount;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::m4_report_amount; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    m4_report_amount_e&       m4_report_amount() { return c; }
-    const m4_report_amount_e& m4_report_amount() const { return c; }
-
-  private:
-    m4_report_amount_e c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // M4Configuration ::= SEQUENCE
 struct m4_cfg_s {
-  bool                                       ext = false;
-  m4period_e                                 m4period;
-  links_to_log_e                             m4_links_to_log;
-  protocol_ext_container_l<m4_cfg_ext_ies_o> ie_exts;
+  bool                     ie_exts_present = false;
+  m4period_e               m4period;
+  links_to_log_e           m4_links_to_log;
+  m4_cfg_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // M6report-Interval ::= ENUMERATED
@@ -6463,127 +4683,66 @@ struct m6report_interv_opts {
     // ...
     nulltype
   } value;
-  typedef uint16_t number_type;
 
-  const char* to_string() const;
-  uint16_t    to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint16_t                            to_number() const;
 };
 using m6report_interv_e = enumerated<m6report_interv_opts, true>;
 
 // M6ReportAmount ::= ENUMERATED
 struct m6_report_amount_opts {
   enum options { r1, r2, r4, r8, r16, r32, r64, infinity, /*...*/ nulltype } value;
-  typedef int8_t number_type;
 
-  const char* to_string() const;
-  int8_t      to_number() const;
+  static const asn1::table::enum_desc desc;
+  int8_t                              to_number() const;
 };
 using m6_report_amount_e = enumerated<m6_report_amount_opts, true>;
 
 // M6Configuration-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct m6_cfg_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { m6_report_amount, nulltype } value;
-      typedef uint8_t number_type;
+struct m6_cfg_ext_ies_container {
+  bool               m6_report_amount_present = false;
+  m6_report_amount_e m6_report_amount;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::m6_report_amount; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    m6_report_amount_e&       m6_report_amount() { return c; }
-    const m6_report_amount_e& m6_report_amount() const { return c; }
-
-  private:
-    m6_report_amount_e c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // M6Configuration ::= SEQUENCE
 struct m6_cfg_s {
-  bool                                       ext = false;
-  m6report_interv_e                          m6report_interv;
-  links_to_log_e                             m6_links_to_log;
-  protocol_ext_container_l<m6_cfg_ext_ies_o> ie_exts;
+  bool                     ie_exts_present = false;
+  m6report_interv_e        m6report_interv;
+  links_to_log_e           m6_links_to_log;
+  m6_cfg_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // M7ReportAmount ::= ENUMERATED
 struct m7_report_amount_opts {
   enum options { r1, r2, r4, r8, r16, r32, r64, infinity, /*...*/ nulltype } value;
-  typedef int8_t number_type;
 
-  const char* to_string() const;
-  int8_t      to_number() const;
+  static const asn1::table::enum_desc desc;
+  int8_t                              to_number() const;
 };
 using m7_report_amount_e = enumerated<m7_report_amount_opts, true>;
 
 // M7Configuration-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct m7_cfg_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { m7_report_amount, nulltype } value;
-      typedef uint8_t number_type;
+struct m7_cfg_ext_ies_container {
+  bool               m7_report_amount_present = false;
+  m7_report_amount_e m7_report_amount;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::m7_report_amount; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    m7_report_amount_e&       m7_report_amount() { return c; }
-    const m7_report_amount_e& m7_report_amount() const { return c; }
-
-  private:
-    m7_report_amount_e c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // M7Configuration ::= SEQUENCE
 struct m7_cfg_s {
-  bool                                       ext      = false;
-  uint8_t                                    m7period = 1;
-  links_to_log_e                             m7_links_to_log;
-  protocol_ext_container_l<m7_cfg_ext_ies_o> ie_exts;
+  bool                     ie_exts_present = false;
+  uint8_t                  m7period        = 1;
+  links_to_log_e           m7_links_to_log;
+  m7_cfg_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ImmediateMDT-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -6593,7 +4752,6 @@ using immediate_mdt_ext_ies_container = protocol_ext_container_empty_l;
 
 // ImmediateMDT ::= SEQUENCE
 struct immediate_mdt_s {
-  bool                            ext                = false;
   bool                            meas_four_present  = false;
   bool                            meas_six_present   = false;
   bool                            meas_seven_present = false;
@@ -6605,17 +4763,14 @@ struct immediate_mdt_s {
   immediate_mdt_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // InactivityInformationRequest ::= ENUMERATED
 struct inactivity_info_request_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using inactivity_info_request_e = enumerated<inactivity_info_request_opts, true>;
 
@@ -6623,7 +4778,7 @@ using inactivity_info_request_e = enumerated<inactivity_info_request_opts, true>
 struct integrity_protection_algorithm_opts {
   enum options { nia0, i_neg128_nia1, i_neg128_nia2, i_neg128_nia3, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using integrity_protection_algorithm_e = enumerated<integrity_protection_algorithm_opts, true>;
 
@@ -6637,12 +4792,11 @@ struct mbs_dl_data_arrival_s {
   struct dl_data_arrival_opts {
     enum options { true_value, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using dl_data_arrival_e_ = enumerated<dl_data_arrival_opts, true>;
 
   // member variables
-  bool                                  ext             = false;
   bool                                  ppi_present     = false;
   bool                                  ie_exts_present = false;
   dl_data_arrival_e_                    dl_data_arrival;
@@ -6650,17 +4804,14 @@ struct mbs_dl_data_arrival_s {
   mbs_dl_data_arrival_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MBS-PDCP-COUNT-Req ::= ENUMERATED
 struct mbs_pdcp_count_req_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using mbs_pdcp_count_req_e = enumerated<mbs_pdcp_count_req_opts, true>;
 
@@ -6674,17 +4825,13 @@ using mbs_service_area_tai_list_item_ext_ies_container = protocol_ext_container_
 
 // MBS-ServiceAreaTAIList-Item ::= SEQUENCE
 struct mbs_service_area_tai_list_item_s {
-  bool                                             ext             = false;
   bool                                             ie_exts_present = false;
   fixed_octstring<3, true>                         plmn_id;
   fixed_octstring<3, true>                         five_gs_tac;
   mbs_service_area_tai_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MBS-ServiceAreaTAIList ::= SEQUENCE (SIZE (1..512)) OF MBS-ServiceAreaTAIList-Item
@@ -6697,17 +4844,13 @@ using mbs_service_area_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // MBS-ServiceAreaInformation ::= SEQUENCE
 struct mbs_service_area_info_s {
-  bool                                    ext             = false;
   bool                                    ie_exts_present = false;
   mbs_service_area_cell_list_l            mbs_service_area_cell_list;
   mbs_service_area_tai_list_l             mbs_service_area_tai_list;
   mbs_service_area_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MBS-ServiceAreaInformationItem-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -6717,17 +4860,13 @@ using mbs_service_area_info_item_ext_ies_container = protocol_ext_container_empt
 
 // MBS-ServiceAreaInformationItem ::= SEQUENCE
 struct mbs_service_area_info_item_s {
-  bool                                         ext                 = false;
   bool                                         ie_exts_present     = false;
   uint32_t                                     mbs_area_session_id = 0;
   mbs_service_area_info_s                      mbs_service_area_info;
   mbs_service_area_info_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MBS-ServiceAreaInformationList ::= SEQUENCE (SIZE (1..256)) OF MBS-ServiceAreaInformationItem
@@ -6740,16 +4879,12 @@ using mbs_service_area_ext_ies_container = protocol_ext_container_empty_l;
 
 // MBS-ServiceArea ::= SEQUENCE
 struct mbs_service_area_s {
-  bool                               ext             = false;
   bool                               ie_exts_present = false;
   mbs_service_area_info_list_l       mbs_service_area_info_list;
   mbs_service_area_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MBSMulticastF1UContextDescriptor-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -6762,12 +4897,11 @@ struct mbs_multicast_f1_u_context_descriptor_s {
   struct mc_f1_u_ctxtusage_opts {
     enum options { ptm, ptp, ptp_retx, ptp_forwarding, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using mc_f1_u_ctxtusage_e_ = enumerated<mc_f1_u_ctxtusage_opts, true>;
 
   // member variables
-  bool                                                    ext                      = false;
   bool                                                    mbs_area_session_present = false;
   bool                                                    ie_exts_present          = false;
   fixed_octstring<4, true>                                multicast_f1_u_context_ref_e1;
@@ -6776,10 +4910,7 @@ struct mbs_multicast_f1_u_context_descriptor_s {
   mbs_multicast_f1_u_context_descriptor_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MBSSessionAssociatedInformation-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -6789,17 +4920,13 @@ using mbs_session_associated_info_item_ext_ies_container = protocol_ext_containe
 
 // MBSSessionAssociatedInformation-Item ::= SEQUENCE
 struct mbs_session_associated_info_item_s {
-  bool                                               ext                            = false;
   bool                                               ie_exts_present                = false;
   uint8_t                                            mbs_qos_flow_id                = 0;
   uint8_t                                            associated_unicast_qos_flow_id = 0;
   mbs_session_associated_info_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MBSSessionAssociatedInformationList ::= SEQUENCE (SIZE (1..64)) OF MBSSessionAssociatedInformation-Item
@@ -6812,7 +4939,6 @@ using mbs_session_associated_info_non_support_to_support_ext_ies_container = pro
 
 // MBSSessionAssociatedInfoNonSupportToSupport ::= SEQUENCE
 struct mbs_session_associated_info_non_support_to_support_s {
-  bool                                                                 ext             = false;
   bool                                                                 ie_exts_present = false;
   uint64_t                                                             ue_ref_id       = 0;
   uint16_t                                                             pdu_session_id  = 0;
@@ -6820,10 +4946,7 @@ struct mbs_session_associated_info_non_support_to_support_s {
   mbs_session_associated_info_non_support_to_support_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MBSSessionAssociatedInformation-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -6833,17 +4956,13 @@ using mbs_session_associated_info_ext_ies_container = protocol_ext_container_emp
 
 // MBSSessionAssociatedInformation ::= SEQUENCE
 struct mbs_session_associated_info_s {
-  bool                                          ext             = false;
   bool                                          ie_exts_present = false;
   mbs_session_associated_info_list_l            mbs_session_associated_info_list;
   up_tnl_info_c                                 mbs_session_forwarding_address;
   mbs_session_associated_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCBearerContext-Inactivity-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -6856,21 +4975,17 @@ struct mc_bearer_context_inactivity_s {
   struct mc_bearer_context_inactivity_ind_opts {
     enum options { true_value, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using mc_bearer_context_inactivity_ind_e_ = enumerated<mc_bearer_context_inactivity_ind_opts, true>;
 
   // member variables
-  bool                                           ext             = false;
   bool                                           ie_exts_present = false;
   mc_bearer_context_inactivity_ind_e_            mc_bearer_context_inactivity_ind;
   mc_bearer_context_inactivity_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MBSSessionResourceNotification-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-IES
@@ -6881,49 +4996,42 @@ struct mbs_session_res_notif_c {
   struct types_opts {
     enum options { mbs_dl_data_arrival, inactivity, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  mbs_session_res_notif_c() = default;
-  mbs_session_res_notif_c(const mbs_session_res_notif_c& other);
-  mbs_session_res_notif_c& operator=(const mbs_session_res_notif_c& other);
-  ~mbs_session_res_notif_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  mbs_dl_data_arrival_s& mbs_dl_data_arrival()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  mbs_dl_data_arrival_s&                        mbs_dl_data_arrival()
   {
-    assert_choice_type(types::mbs_dl_data_arrival, type_, "MBSSessionResourceNotification");
+    assert_choice_type(types::mbs_dl_data_arrival, c.type, "MBSSessionResourceNotification");
     return c.get<mbs_dl_data_arrival_s>();
   }
   mc_bearer_context_inactivity_s& inactivity()
   {
-    assert_choice_type(types::inactivity, type_, "MBSSessionResourceNotification");
+    assert_choice_type(types::inactivity, c.type, "MBSSessionResourceNotification");
     return c.get<mc_bearer_context_inactivity_s>();
   }
   protocol_ie_single_container_s<mbs_session_res_notif_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "MBSSessionResourceNotification");
+    assert_choice_type(types::choice_ext, c.type, "MBSSessionResourceNotification");
     return c.get<protocol_ie_single_container_s<mbs_session_res_notif_ext_ies_o>>();
   }
   const mbs_dl_data_arrival_s& mbs_dl_data_arrival() const
   {
-    assert_choice_type(types::mbs_dl_data_arrival, type_, "MBSSessionResourceNotification");
+    assert_choice_type(types::mbs_dl_data_arrival, c.type, "MBSSessionResourceNotification");
     return c.get<mbs_dl_data_arrival_s>();
   }
   const mc_bearer_context_inactivity_s& inactivity() const
   {
-    assert_choice_type(types::inactivity, type_, "MBSSessionResourceNotification");
+    assert_choice_type(types::inactivity, c.type, "MBSSessionResourceNotification");
     return c.get<mc_bearer_context_inactivity_s>();
   }
   const protocol_ie_single_container_s<mbs_session_res_notif_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "MBSSessionResourceNotification");
+    assert_choice_type(types::choice_ext, c.type, "MBSSessionResourceNotification");
     return c.get<protocol_ie_single_container_s<mbs_session_res_notif_ext_ies_o>>();
   }
   mbs_dl_data_arrival_s&                                           set_mbs_dl_data_arrival();
@@ -6931,13 +5039,12 @@ struct mbs_session_res_notif_c {
   protocol_ie_single_container_s<mbs_session_res_notif_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<mbs_dl_data_arrival_s,
-                  mc_bearer_context_inactivity_s,
-                  protocol_ie_single_container_s<mbs_session_res_notif_ext_ies_o>>
+  asn1::table::choice_storage<mbs_session_res_notif_c,
+                              types,
+                              choice_buffer_t<mbs_dl_data_arrival_s,
+                                              mc_bearer_context_inactivity_s,
+                                              protocol_ie_single_container_s<mbs_session_res_notif_ext_ies_o>>>
       c;
-
-  void destroy_();
 };
 
 // MCBearerContextF1UTNLInfoatDU-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -6947,17 +5054,13 @@ using mc_bearer_context_f1_u_tnl_infoat_du_ext_ies_container = protocol_ext_cont
 
 // MCBearerContextF1UTNLInfoatDU ::= SEQUENCE
 struct mc_bearer_context_f1_u_tnl_infoat_du_s {
-  bool                                                   ext             = false;
   bool                                                   ie_exts_present = false;
   up_tnl_info_c                                          mbs_f1_u_infoat_du;
   mbs_multicast_f1_u_context_descriptor_s                mbs_multicast_f1_u_context_descriptor;
   mc_bearer_context_f1_u_tnl_infoat_du_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCBearerContextNGU-TNLInfoatNGRAN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-IES
@@ -6968,49 +5071,42 @@ struct mc_bearer_context_ngu_tnl_infoat_ngran_c {
   struct types_opts {
     enum options { locationindependent, locationdependent, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  mc_bearer_context_ngu_tnl_infoat_ngran_c() = default;
-  mc_bearer_context_ngu_tnl_infoat_ngran_c(const mc_bearer_context_ngu_tnl_infoat_ngran_c& other);
-  mc_bearer_context_ngu_tnl_infoat_ngran_c& operator=(const mc_bearer_context_ngu_tnl_infoat_ngran_c& other);
-  ~mc_bearer_context_ngu_tnl_infoat_ngran_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  mb_sn_gu_info_at_ngran_c& locationindependent()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  mb_sn_gu_info_at_ngran_c&                     locationindependent()
   {
-    assert_choice_type(types::locationindependent, type_, "MCBearerContextNGU-TNLInfoatNGRAN");
+    assert_choice_type(types::locationindependent, c.type, "MCBearerContextNGU-TNLInfoatNGRAN");
     return c.get<mb_sn_gu_info_at_ngran_c>();
   }
   location_dependent_mb_sn_gu_info_at_ngran_l& locationdependent()
   {
-    assert_choice_type(types::locationdependent, type_, "MCBearerContextNGU-TNLInfoatNGRAN");
+    assert_choice_type(types::locationdependent, c.type, "MCBearerContextNGU-TNLInfoatNGRAN");
     return c.get<location_dependent_mb_sn_gu_info_at_ngran_l>();
   }
   protocol_ie_single_container_s<mc_bearer_context_ngu_tnl_infoat_ngran_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "MCBearerContextNGU-TNLInfoatNGRAN");
+    assert_choice_type(types::choice_ext, c.type, "MCBearerContextNGU-TNLInfoatNGRAN");
     return c.get<protocol_ie_single_container_s<mc_bearer_context_ngu_tnl_infoat_ngran_ext_ies_o>>();
   }
   const mb_sn_gu_info_at_ngran_c& locationindependent() const
   {
-    assert_choice_type(types::locationindependent, type_, "MCBearerContextNGU-TNLInfoatNGRAN");
+    assert_choice_type(types::locationindependent, c.type, "MCBearerContextNGU-TNLInfoatNGRAN");
     return c.get<mb_sn_gu_info_at_ngran_c>();
   }
   const location_dependent_mb_sn_gu_info_at_ngran_l& locationdependent() const
   {
-    assert_choice_type(types::locationdependent, type_, "MCBearerContextNGU-TNLInfoatNGRAN");
+    assert_choice_type(types::locationdependent, c.type, "MCBearerContextNGU-TNLInfoatNGRAN");
     return c.get<location_dependent_mb_sn_gu_info_at_ngran_l>();
   }
   const protocol_ie_single_container_s<mc_bearer_context_ngu_tnl_infoat_ngran_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "MCBearerContextNGU-TNLInfoatNGRAN");
+    assert_choice_type(types::choice_ext, c.type, "MCBearerContextNGU-TNLInfoatNGRAN");
     return c.get<protocol_ie_single_container_s<mc_bearer_context_ngu_tnl_infoat_ngran_ext_ies_o>>();
   }
   mb_sn_gu_info_at_ngran_c&                                                         set_locationindependent();
@@ -7018,13 +5114,13 @@ struct mc_bearer_context_ngu_tnl_infoat_ngran_c {
   protocol_ie_single_container_s<mc_bearer_context_ngu_tnl_infoat_ngran_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<location_dependent_mb_sn_gu_info_at_ngran_l,
-                  mb_sn_gu_info_at_ngran_c,
-                  protocol_ie_single_container_s<mc_bearer_context_ngu_tnl_infoat_ngran_ext_ies_o>>
+  asn1::table::choice_storage<
+      mc_bearer_context_ngu_tnl_infoat_ngran_c,
+      types,
+      choice_buffer_t<location_dependent_mb_sn_gu_info_at_ngran_l,
+                      mb_sn_gu_info_at_ngran_c,
+                      protocol_ie_single_container_s<mc_bearer_context_ngu_tnl_infoat_ngran_ext_ies_o>>>
       c;
-
-  void destroy_();
 };
 
 // MCBearerContextNGU-TNLInfoatNGRANModifyResponse-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -7034,7 +5130,6 @@ using mc_bearer_context_ngu_tnl_infoat_ngran_modify_resp_ext_ies_container = pro
 
 // MCBearerContextNGU-TNLInfoatNGRANModifyResponse ::= SEQUENCE
 struct mc_bearer_context_ngu_tnl_infoat_ngran_modify_resp_s {
-  bool                                                                 ext                      = false;
   bool                                                                 mbs_area_session_present = false;
   bool                                                                 ie_exts_present          = false;
   mb_sn_gu_info_at_ngran_c                                             mbs_ngu_infoat_ngran;
@@ -7042,10 +5137,7 @@ struct mc_bearer_context_ngu_tnl_infoat_ngran_modify_resp_s {
   mc_bearer_context_ngu_tnl_infoat_ngran_modify_resp_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCBearerContextNGUTNLInfoat5GC-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -7055,7 +5147,6 @@ using mc_bearer_context_ngu_tnl_infoat5_gc_ext_ies_container = protocol_ext_cont
 
 // MCBearerContextNGUTNLInfoat5GC ::= SEQUENCE
 struct mc_bearer_context_ngu_tnl_infoat5_gc_s {
-  bool                                                   ext                         = false;
   bool                                                   mbs_area_session_id_present = false;
   bool                                                   ie_exts_present             = false;
   mb_sn_gu_info_at5_gc_c                                 mbs_ngu_info_at5_gc;
@@ -7063,46 +5154,39 @@ struct mc_bearer_context_ngu_tnl_infoat5_gc_s {
   mc_bearer_context_ngu_tnl_infoat5_gc_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCBearerContextNGUTnlInfoatNGRANRequest-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-using mc_bearer_context_ngu_tnl_infoat_ngra_nr_equest_ext_ies_o = protocol_ext_empty_o;
+using mc_bearer_context_ngu_tnl_infoat_ngran_request_ext_ies_o = protocol_ext_empty_o;
 
-using mc_bearer_context_ngu_tnl_infoat_ngra_nr_equest_ext_ies_container = protocol_ext_container_empty_l;
+using mc_bearer_context_ngu_tnl_infoat_ngran_request_ext_ies_container = protocol_ext_container_empty_l;
 
 // MCBearerContextNGUTnlInfoatNGRANRequest ::= SEQUENCE
-struct mc_bearer_context_ngu_tnl_infoat_ngra_nr_equest_s {
+struct mc_bearer_context_ngu_tnl_infoat_ngran_request_s {
   struct ng_ranngu_tnl_requested_opts {
     enum options { requested, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using ng_ranngu_tnl_requested_e_ = enumerated<ng_ranngu_tnl_requested_opts, true>;
 
   // member variables
-  bool                                                              ext                         = false;
-  bool                                                              mbs_area_session_id_present = false;
-  bool                                                              ie_exts_present             = false;
-  ng_ranngu_tnl_requested_e_                                        ng_ranngu_tnl_requested;
-  uint32_t                                                          mbs_area_session_id = 0;
-  mc_bearer_context_ngu_tnl_infoat_ngra_nr_equest_ext_ies_container ie_exts;
+  bool                                                             mbs_area_session_id_present = false;
+  bool                                                             ie_exts_present             = false;
+  ng_ranngu_tnl_requested_e_                                       ng_ranngu_tnl_requested;
+  uint32_t                                                         mbs_area_session_id = 0;
+  mc_bearer_context_ngu_tnl_infoat_ngran_request_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCBearerContextStatusChange ::= ENUMERATED
 struct mc_bearer_context_status_change_opts {
   enum options { suspend, resume, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using mc_bearer_context_status_change_e = enumerated<mc_bearer_context_status_change_opts, true>;
 
@@ -7113,7 +5197,6 @@ using mcmrb_setup_modify_cfg_item_ext_ies_container = protocol_ext_container_emp
 
 // MCMRBSetupModifyConfiguration-Item ::= SEQUENCE
 struct mcmrb_setup_modify_cfg_item_s {
-  bool                                          ext                        = false;
   bool                                          f1u_tnl_at_du_present      = false;
   bool                                          mbs_pdcp_cfg_present       = false;
   bool                                          mrb_qos_present            = false;
@@ -7128,10 +5211,7 @@ struct mcmrb_setup_modify_cfg_item_s {
   mcmrb_setup_modify_cfg_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCMRBSetupModifyConfiguration ::= SEQUENCE (SIZE (1..32)) OF MCMRBSetupModifyConfiguration-Item
@@ -7144,7 +5224,7 @@ using mcmrb_rem_cfg_l = bounded_array<uint16_t, 32>;
 struct mrb_progress_info_type_opts {
   enum options { oldest_available, last_delivered, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using mrb_progress_info_type_e = enumerated<mrb_progress_info_type_opts, true>;
 
@@ -7158,12 +5238,11 @@ struct mrb_forwarding_res_request_item_s {
   struct mrb_forwarding_address_request_opts {
     enum options { request, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using mrb_forwarding_address_request_e_ = enumerated<mrb_forwarding_address_request_opts, true>;
 
   // member variables
-  bool                                              ext                                    = false;
   bool                                              mrb_progress_request_type_present      = false;
   bool                                              mrb_forwarding_address_request_present = false;
   bool                                              ie_exts_present                        = false;
@@ -7173,10 +5252,7 @@ struct mrb_forwarding_res_request_item_s {
   mrb_forwarding_res_request_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MRBForwardingResourceRequestList ::= SEQUENCE (SIZE (1..64)) OF MRBForwardingResourceRequest-Item
@@ -7189,7 +5265,6 @@ using mc_forwarding_res_request_ext_ies_container = protocol_ext_container_empty
 
 // MCForwardingResourceRequest ::= SEQUENCE
 struct mc_forwarding_res_request_s {
-  bool                                        ext                         = false;
   bool                                        mbs_area_session_id_present = false;
   bool                                        ie_exts_present             = false;
   fixed_octstring<2, true>                    mc_forwarding_res_id;
@@ -7198,10 +5273,7 @@ struct mc_forwarding_res_request_s {
   mc_forwarding_res_request_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MRB-ProgressInformationSNs-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-IES
@@ -7211,52 +5283,44 @@ using mrb_progress_info_sn_s_ext_ies_o = protocol_ies_empty_o;
 struct mrb_progress_info_sn_s_c {
   struct types_opts {
     enum options { pdcp_sn12, pdcp_sn18, choice_ext, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  mrb_progress_info_sn_s_c() = default;
-  mrb_progress_info_sn_s_c(const mrb_progress_info_sn_s_c& other);
-  mrb_progress_info_sn_s_c& operator=(const mrb_progress_info_sn_s_c& other);
-  ~mrb_progress_info_sn_s_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  uint16_t& pdcp_sn12()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  uint16_t&                                     pdcp_sn12()
   {
-    assert_choice_type(types::pdcp_sn12, type_, "MRB-ProgressInformationSNs");
+    assert_choice_type(types::pdcp_sn12, c.type, "MRB-ProgressInformationSNs");
     return c.get<uint16_t>();
   }
   uint32_t& pdcp_sn18()
   {
-    assert_choice_type(types::pdcp_sn18, type_, "MRB-ProgressInformationSNs");
+    assert_choice_type(types::pdcp_sn18, c.type, "MRB-ProgressInformationSNs");
     return c.get<uint32_t>();
   }
   protocol_ie_single_container_s<mrb_progress_info_sn_s_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "MRB-ProgressInformationSNs");
+    assert_choice_type(types::choice_ext, c.type, "MRB-ProgressInformationSNs");
     return c.get<protocol_ie_single_container_s<mrb_progress_info_sn_s_ext_ies_o>>();
   }
   const uint16_t& pdcp_sn12() const
   {
-    assert_choice_type(types::pdcp_sn12, type_, "MRB-ProgressInformationSNs");
+    assert_choice_type(types::pdcp_sn12, c.type, "MRB-ProgressInformationSNs");
     return c.get<uint16_t>();
   }
   const uint32_t& pdcp_sn18() const
   {
-    assert_choice_type(types::pdcp_sn18, type_, "MRB-ProgressInformationSNs");
+    assert_choice_type(types::pdcp_sn18, c.type, "MRB-ProgressInformationSNs");
     return c.get<uint32_t>();
   }
   const protocol_ie_single_container_s<mrb_progress_info_sn_s_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "MRB-ProgressInformationSNs");
+    assert_choice_type(types::choice_ext, c.type, "MRB-ProgressInformationSNs");
     return c.get<protocol_ie_single_container_s<mrb_progress_info_sn_s_ext_ies_o>>();
   }
   uint16_t&                                                         set_pdcp_sn12();
@@ -7264,10 +5328,11 @@ struct mrb_progress_info_sn_s_c {
   protocol_ie_single_container_s<mrb_progress_info_sn_s_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                             type_;
-  choice_buffer_t<protocol_ie_single_container_s<mrb_progress_info_sn_s_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      mrb_progress_info_sn_s_c,
+      types,
+      choice_buffer_t<protocol_ie_single_container_s<mrb_progress_info_sn_s_ext_ies_o>, uint16_t, uint32_t>>
+      c;
 };
 
 // MRB-ProgressInformation-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -7277,17 +5342,13 @@ using mrb_progress_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // MRB-ProgressInformation ::= SEQUENCE
 struct mrb_progress_info_s {
-  bool                                ext             = false;
   bool                                ie_exts_present = false;
   mrb_progress_info_sn_s_c            mrb_progress_info_sn_s;
   mrb_progress_info_type_e            mrb_progress_info_type;
   mrb_progress_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MRBForwardingResourceIndication-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -7297,7 +5358,6 @@ using mrb_forwarding_res_ind_item_ext_ies_container = protocol_ext_container_emp
 
 // MRBForwardingResourceIndication-Item ::= SEQUENCE
 struct mrb_forwarding_res_ind_item_s {
-  bool                                          ext                            = false;
   bool                                          mrb_progress_info_present      = false;
   bool                                          mrb_forwarding_address_present = false;
   bool                                          ie_exts_present                = false;
@@ -7307,10 +5367,7 @@ struct mrb_forwarding_res_ind_item_s {
   mrb_forwarding_res_ind_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MRBForwardingResourceIndicationList ::= SEQUENCE (SIZE (1..64)) OF MRBForwardingResourceIndication-Item
@@ -7323,7 +5380,6 @@ using mc_forwarding_res_ind_ext_ies_container = protocol_ext_container_empty_l;
 
 // MCForwardingResourceIndication ::= SEQUENCE
 struct mc_forwarding_res_ind_s {
-  bool                                    ext                                 = false;
   bool                                    mbs_session_associated_info_present = false;
   bool                                    ie_exts_present                     = false;
   fixed_octstring<2, true>                mc_forwarding_res_id;
@@ -7332,10 +5388,7 @@ struct mc_forwarding_res_ind_s {
   mc_forwarding_res_ind_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCForwardingResourceRelease-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -7345,74 +5398,15 @@ using mc_forwarding_res_release_ext_ies_container = protocol_ext_container_empty
 
 // MCForwardingResourceRelease ::= SEQUENCE
 struct mc_forwarding_res_release_s {
-  bool                                        ext             = false;
   bool                                        ie_exts_present = false;
   fixed_octstring<2, true>                    mc_forwarding_res_id;
   mc_forwarding_res_release_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCBearerContextToModify-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct mc_bearer_context_to_modify_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options {
-        mc_forwarding_res_request,
-        mc_forwarding_res_ind,
-        mc_forwarding_res_release,
-        mbs_session_associated_info_non_support_to_support,
-        mc_bearer_context_inactivity_timer,
-        mc_bearer_context_status_change,
-        nulltype
-      } value;
-      typedef uint8_t number_type;
-
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    mc_forwarding_res_request_s&                          mc_forwarding_res_request();
-    mc_forwarding_res_ind_s&                              mc_forwarding_res_ind();
-    mc_forwarding_res_release_s&                          mc_forwarding_res_release();
-    mbs_session_associated_info_non_support_to_support_s& mbs_session_associated_info_non_support_to_support();
-    uint16_t&                                             mc_bearer_context_inactivity_timer();
-    mc_bearer_context_status_change_e&                    mc_bearer_context_status_change();
-    const mc_forwarding_res_request_s&                    mc_forwarding_res_request() const;
-    const mc_forwarding_res_ind_s&                        mc_forwarding_res_ind() const;
-    const mc_forwarding_res_release_s&                    mc_forwarding_res_release() const;
-    const mbs_session_associated_info_non_support_to_support_s&
-                                             mbs_session_associated_info_non_support_to_support() const;
-    const uint16_t&                          mc_bearer_context_inactivity_timer() const;
-    const mc_bearer_context_status_change_e& mc_bearer_context_status_change() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct mc_bearer_context_to_modify_ext_ies_container {
   bool                        mc_forwarding_res_request_present                          = false;
   bool                        mc_forwarding_res_ind_present                              = false;
@@ -7427,33 +5421,26 @@ struct mc_bearer_context_to_modify_ext_ies_container {
   uint16_t                                             mc_bearer_context_inactivity_timer;
   mc_bearer_context_status_change_e                    mc_bearer_context_status_change;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // MCBearerContextToModify ::= SEQUENCE
 struct mc_bearer_context_to_modify_s {
-  bool                                              ext                                                     = false;
-  bool                                              mc_bearer_context_ngu_tnl_infoat5_gc_present            = false;
-  bool                                              mc_bearer_context_ngu_tnl_infoat_ngra_nr_equest_present = false;
-  bool                                              mbs_multicast_f1_u_context_descriptor_present           = false;
-  bool                                              requested_action_present                                = false;
-  bool                                              ie_exts_present                                         = false;
-  mc_bearer_context_ngu_tnl_infoat5_gc_s            mc_bearer_context_ngu_tnl_infoat5_gc;
-  mc_bearer_context_ngu_tnl_infoat_ngra_nr_equest_s mc_bearer_context_ngu_tnl_infoat_ngra_nr_equest;
-  mbs_multicast_f1_u_context_descriptor_s           mbs_multicast_f1_u_context_descriptor;
-  requested_action4_avail_ngu_termination_e         requested_action;
-  mcmrb_setup_modify_cfg_l                          mc_mrb_to_setup_modify_list;
-  mcmrb_rem_cfg_l                                   mc_mrb_to_rem_list;
-  mc_bearer_context_to_modify_ext_ies_container     ie_exts;
+  bool                                             mc_bearer_context_ngu_tnl_infoat5_gc_present           = false;
+  bool                                             mc_bearer_context_ngu_tnl_infoat_ngran_request_present = false;
+  bool                                             mbs_multicast_f1_u_context_descriptor_present          = false;
+  bool                                             requested_action_present                               = false;
+  bool                                             ie_exts_present                                        = false;
+  mc_bearer_context_ngu_tnl_infoat5_gc_s           mc_bearer_context_ngu_tnl_infoat5_gc;
+  mc_bearer_context_ngu_tnl_infoat_ngran_request_s mc_bearer_context_ngu_tnl_infoat_ngran_request;
+  mbs_multicast_f1_u_context_descriptor_s          mbs_multicast_f1_u_context_descriptor;
+  requested_action4_avail_ngu_termination_e        requested_action;
+  mcmrb_setup_modify_cfg_l                         mc_mrb_to_setup_modify_list;
+  mcmrb_rem_cfg_l                                  mc_mrb_to_rem_list;
+  mc_bearer_context_to_modify_ext_ies_container    ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCMRBModifyConfirmList-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -7463,16 +5450,12 @@ using mcmrb_modify_confirm_list_item_ext_ies_container = protocol_ext_container_
 
 // MCMRBModifyConfirmList-Item ::= SEQUENCE
 struct mcmrb_modify_confirm_list_item_s {
-  bool                                             ext             = false;
   bool                                             ie_exts_present = false;
   uint16_t                                         mrb_id          = 1;
   mcmrb_modify_confirm_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCMRBModifyConfirmList ::= SEQUENCE (SIZE (1..32)) OF MCMRBModifyConfirmList-Item
@@ -7485,7 +5468,6 @@ using mc_bearer_context_to_modify_confirm_ext_ies_container = protocol_ext_conta
 
 // MCBearerContextToModifyConfirm ::= SEQUENCE
 struct mc_bearer_context_to_modify_confirm_s {
-  bool                                                  ext                                           = false;
   bool                                                  mbs_multicast_f1_u_context_descriptor_present = false;
   bool                                                  ie_exts_present                               = false;
   mbs_multicast_f1_u_context_descriptor_s               mbs_multicast_f1_u_context_descriptor;
@@ -7493,10 +5475,7 @@ struct mc_bearer_context_to_modify_confirm_s {
   mc_bearer_context_to_modify_confirm_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCMRBModifyRequiredConfiguration-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -7506,7 +5485,6 @@ using mcmrb_modify_required_cfg_item_ext_ies_container = protocol_ext_container_
 
 // MCMRBModifyRequiredConfiguration-Item ::= SEQUENCE
 struct mcmrb_modify_required_cfg_item_s {
-  bool                                             ext                    = false;
   bool                                             mbs_pdcp_count_present = false;
   bool                                             ie_exts_present        = false;
   uint16_t                                         mrb_id                 = 1;
@@ -7514,10 +5492,7 @@ struct mcmrb_modify_required_cfg_item_s {
   mcmrb_modify_required_cfg_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCMRBModifyRequiredConfiguration ::= SEQUENCE (SIZE (1..32)) OF MCMRBModifyRequiredConfiguration-Item
@@ -7530,64 +5505,33 @@ using mc_forwarding_res_release_ind_ext_ies_container = protocol_ext_container_e
 
 // MCForwardingResourceReleaseIndication ::= SEQUENCE
 struct mc_forwarding_res_release_ind_s {
-  bool                                            ext             = false;
   bool                                            ie_exts_present = false;
   fixed_octstring<2, true>                        mc_forwarding_res_id;
   mc_forwarding_res_release_ind_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCBearerContextToModifyRequired-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct mc_bearer_context_to_modify_required_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { mc_forwarding_res_release_ind, nulltype } value;
+struct mc_bearer_context_to_modify_required_ext_ies_container {
+  bool                            mc_forwarding_res_release_ind_present = false;
+  mc_forwarding_res_release_ind_s mc_forwarding_res_release_ind;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::mc_forwarding_res_release_ind; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    mc_forwarding_res_release_ind_s&       mc_forwarding_res_release_ind() { return c; }
-    const mc_forwarding_res_release_ind_s& mc_forwarding_res_release_ind() const { return c; }
-
-  private:
-    mc_forwarding_res_release_ind_s c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // MCBearerContextToModifyRequired ::= SEQUENCE
 struct mc_bearer_context_to_modify_required_s {
-  bool                                    ext                                           = false;
-  bool                                    mbs_multicast_f1_u_context_descriptor_present = false;
-  mbs_multicast_f1_u_context_descriptor_s mbs_multicast_f1_u_context_descriptor;
-  mcmrb_rem_cfg_l                         mc_mrb_to_rem_required_list;
-  mcmrb_modify_required_cfg_l             mc_mrb_to_modify_required_list;
-  protocol_ext_container_l<mc_bearer_context_to_modify_required_ext_ies_o> ie_exts;
+  bool                                                   mbs_multicast_f1_u_context_descriptor_present = false;
+  bool                                                   ie_exts_present                               = false;
+  mbs_multicast_f1_u_context_descriptor_s                mbs_multicast_f1_u_context_descriptor;
+  mcmrb_rem_cfg_l                                        mc_mrb_to_rem_required_list;
+  mcmrb_modify_required_cfg_l                            mc_mrb_to_modify_required_list;
+  mc_bearer_context_to_modify_required_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCMRBSetupModifyResponseList-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -7597,7 +5541,6 @@ using mcmrb_setup_modify_resp_list_item_ext_ies_container = protocol_ext_contain
 
 // MCMRBSetupModifyResponseList-Item ::= SEQUENCE
 struct mcmrb_setup_modify_resp_list_item_s {
-  bool                                                ext                                          = false;
   bool                                                mc_bearer_context_f1_u_tnl_infoat_cu_present = false;
   bool                                                mbs_pdcp_count_present                       = false;
   bool                                                ie_exts_present                              = false;
@@ -7609,10 +5552,7 @@ struct mcmrb_setup_modify_resp_list_item_s {
   mcmrb_setup_modify_resp_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCMRBSetupModifyResponseList ::= SEQUENCE (SIZE (1..32)) OF MCMRBSetupModifyResponseList-Item
@@ -7625,17 +5565,13 @@ using mcmrb_failed_list_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // MCMRBFailedList-Item ::= SEQUENCE
 struct mcmrb_failed_list_item_s {
-  bool                                     ext             = false;
   bool                                     ie_exts_present = false;
   uint16_t                                 mrb_id          = 1;
   cause_c                                  cause;
   mcmrb_failed_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCMRBFailedList ::= SEQUENCE (SIZE (1..32)) OF MCMRBFailedList-Item
@@ -7648,7 +5584,6 @@ using mcmrb_setup_cfg_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // MCMRBSetupConfiguration-Item ::= SEQUENCE
 struct mcmrb_setup_cfg_item_s {
-  bool                                   ext                               = false;
   bool                                   qos_flow_level_qos_params_present = false;
   bool                                   ie_exts_present                   = false;
   uint16_t                               mrb_id                            = 1;
@@ -7658,10 +5593,7 @@ struct mcmrb_setup_cfg_item_s {
   mcmrb_setup_cfg_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCMRBSetupConfiguration ::= SEQUENCE (SIZE (1..32)) OF MCMRBSetupConfiguration-Item
@@ -7674,7 +5606,6 @@ using mrb_forwarding_res_resp_item_ext_ies_container = protocol_ext_container_em
 
 // MRBForwardingResourceResponse-Item ::= SEQUENCE
 struct mrb_forwarding_res_resp_item_s {
-  bool                                           ext                            = false;
   bool                                           mrb_progress_info_present      = false;
   bool                                           mrb_forwarding_address_present = false;
   bool                                           ie_exts_present                = false;
@@ -7684,10 +5615,7 @@ struct mrb_forwarding_res_resp_item_s {
   mrb_forwarding_res_resp_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MRBForwardingResourceResponseList ::= SEQUENCE (SIZE (1..64)) OF MRBForwardingResourceResponse-Item
@@ -7700,120 +5628,40 @@ using mc_forwarding_res_resp_ext_ies_container = protocol_ext_container_empty_l;
 
 // MCForwardingResourceResponse ::= SEQUENCE
 struct mc_forwarding_res_resp_s {
-  bool                                     ext             = false;
   bool                                     ie_exts_present = false;
   fixed_octstring<2, true>                 mc_forwarding_res_id;
   mrb_forwarding_res_resp_list_l           mrb_forwarding_res_resp_list;
   mc_forwarding_res_resp_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCBearerContextToModifyResponse-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct mc_bearer_context_to_modify_resp_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { mc_forwarding_res_resp, nulltype } value;
+struct mc_bearer_context_to_modify_resp_ext_ies_container {
+  bool                     mc_forwarding_res_resp_present = false;
+  mc_forwarding_res_resp_s mc_forwarding_res_resp;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::mc_forwarding_res_resp; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    mc_forwarding_res_resp_s&       mc_forwarding_res_resp() { return c; }
-    const mc_forwarding_res_resp_s& mc_forwarding_res_resp() const { return c; }
-
-  private:
-    mc_forwarding_res_resp_s c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // MCBearerContextToModifyResponse ::= SEQUENCE
 struct mc_bearer_context_to_modify_resp_s {
-  bool ext                                                        = false;
   bool mc_bearer_context_ngu_tnl_infoat_ngran_modify_resp_present = false;
   bool mbs_multicast_f1_u_context_descriptor_present              = false;
+  bool ie_exts_present                                            = false;
   mc_bearer_context_ngu_tnl_infoat_ngran_modify_resp_s mc_bearer_context_ngu_tnl_infoat_ngran_modify_resp;
   mbs_multicast_f1_u_context_descriptor_s              mbs_multicast_f1_u_context_descriptor;
   mcmrb_setup_modify_resp_list_l                       mc_mrb_modify_setup_resp_list;
   mcmrb_failed_list_l                                  mc_mrb_failed_list;
   mcmrb_setup_cfg_l                                    available_mcmrb_cfg;
-  protocol_ext_container_l<mc_bearer_context_to_modify_resp_ext_ies_o> ie_exts;
+  mc_bearer_context_to_modify_resp_ext_ies_container   ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCBearerContextToSetup-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct mc_bearer_context_to_setup_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options {
-        mbs_session_associated_info_non_support_to_support,
-        mbs_area_session_id,
-        mc_bearer_context_inactivity_timer,
-        mc_bearer_context_status_change,
-        nulltype
-      } value;
-      typedef uint8_t number_type;
-
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    mbs_session_associated_info_non_support_to_support_s& mbs_session_associated_info_non_support_to_support();
-    uint32_t&                                             mbs_area_session_id();
-    uint16_t&                                             mc_bearer_context_inactivity_timer();
-    mc_bearer_context_status_change_e&                    mc_bearer_context_status_change();
-    const mbs_session_associated_info_non_support_to_support_s&
-                                             mbs_session_associated_info_non_support_to_support() const;
-    const uint32_t&                          mbs_area_session_id() const;
-    const uint16_t&                          mc_bearer_context_inactivity_timer() const;
-    const mc_bearer_context_status_change_e& mc_bearer_context_status_change() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct mc_bearer_context_to_setup_ext_ies_container {
   bool mbs_session_associated_info_non_support_to_support_present = false;
   bool mbs_area_session_id_present                                = false;
@@ -7824,15 +5672,11 @@ struct mc_bearer_context_to_setup_ext_ies_container {
   uint16_t                                             mc_bearer_context_inactivity_timer;
   mc_bearer_context_status_change_e                    mc_bearer_context_status_change;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // MCBearerContextToSetup ::= SEQUENCE
 struct mc_bearer_context_to_setup_s {
-  bool                                         ext                      = false;
   bool                                         requested_action_present = false;
   bool                                         ie_exts_present          = false;
   snssai_s                                     snssai;
@@ -7841,10 +5685,7 @@ struct mc_bearer_context_to_setup_s {
   mc_bearer_context_to_setup_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCMRBSetupResponseList-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -7854,7 +5695,6 @@ using mcmrb_setup_resp_list_item_ext_ies_container = protocol_ext_container_empt
 
 // MCMRBSetupResponseList-Item ::= SEQUENCE
 struct mcmrb_setup_resp_list_item_s {
-  bool                                         ext                    = false;
   bool                                         mbs_pdcp_count_present = false;
   bool                                         ie_exts_present        = false;
   uint16_t                                     mrb_id                 = 1;
@@ -7864,10 +5704,7 @@ struct mcmrb_setup_resp_list_item_s {
   mcmrb_setup_resp_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MCMRBSetupResponseList ::= SEQUENCE (SIZE (1..32)) OF MCMRBSetupResponseList-Item
@@ -7880,7 +5717,6 @@ using mc_bearer_context_to_setup_resp_ext_ies_container = protocol_ext_container
 
 // MCBearerContextToSetupResponse ::= SEQUENCE
 struct mc_bearer_context_to_setup_resp_s {
-  bool                                              ext                                            = false;
   bool                                              mc_bearer_context_ngu_tnl_infoat_ngran_present = false;
   bool                                              ie_exts_present                                = false;
   mc_bearer_context_ngu_tnl_infoat_ngran_c          mc_bearer_context_ngu_tnl_infoat_ngran;
@@ -7890,17 +5726,14 @@ struct mc_bearer_context_to_setup_resp_s {
   mc_bearer_context_to_setup_resp_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MDT-Activation ::= ENUMERATED
 struct mdt_activation_opts {
   enum options { immediate_mdt_only, immediate_mdt_and_trace, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using mdt_activation_e = enumerated<mdt_activation_opts, true>;
 
@@ -7912,49 +5745,42 @@ struct mdt_mode_c {
   struct types_opts {
     enum options { immediate_mdt, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  mdt_mode_c() = default;
-  mdt_mode_c(const mdt_mode_c& other);
-  mdt_mode_c& operator=(const mdt_mode_c& other);
-  ~mdt_mode_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  immediate_mdt_s& immediate_mdt()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  immediate_mdt_s&                              immediate_mdt()
   {
-    assert_choice_type(types::immediate_mdt, type_, "MDTMode");
+    assert_choice_type(types::immediate_mdt, c.type, "MDTMode");
     return c.get<immediate_mdt_s>();
   }
   protocol_ie_single_container_s<mdt_mode_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "MDTMode");
+    assert_choice_type(types::choice_ext, c.type, "MDTMode");
     return c.get<protocol_ie_single_container_s<mdt_mode_ext_ies_o>>();
   }
   const immediate_mdt_s& immediate_mdt() const
   {
-    assert_choice_type(types::immediate_mdt, type_, "MDTMode");
+    assert_choice_type(types::immediate_mdt, c.type, "MDTMode");
     return c.get<immediate_mdt_s>();
   }
   const protocol_ie_single_container_s<mdt_mode_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "MDTMode");
+    assert_choice_type(types::choice_ext, c.type, "MDTMode");
     return c.get<protocol_ie_single_container_s<mdt_mode_ext_ies_o>>();
   }
   immediate_mdt_s&                                    set_immediate_mdt();
   protocol_ie_single_container_s<mdt_mode_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                                type_;
-  choice_buffer_t<immediate_mdt_s, protocol_ie_single_container_s<mdt_mode_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<mdt_mode_c,
+                              types,
+                              choice_buffer_t<immediate_mdt_s, protocol_ie_single_container_s<mdt_mode_ext_ies_o>>>
+      c;
 };
 
 // MDT-Configuration-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -7964,17 +5790,13 @@ using mdt_cfg_ext_ies_container = protocol_ext_container_empty_l;
 
 // MDT-Configuration ::= SEQUENCE
 struct mdt_cfg_s {
-  bool                      ext             = false;
   bool                      ie_exts_present = false;
   mdt_activation_e          mdt_activation;
   mdt_mode_c                mdt_mode;
   mdt_cfg_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MDTPLMNList ::= SEQUENCE (SIZE (1..16)) OF OCTET STRING (SIZE (3))
@@ -7987,7 +5809,7 @@ using mdt_plmn_mod_list_l = bounded_array<fixed_octstring<3, true>, 16>;
 struct mdt_polluted_meas_ind_opts {
   enum options { id_c, no_id_c, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using mdt_polluted_meas_ind_e = enumerated<mdt_polluted_meas_ind_opts, true>;
 
@@ -7998,7 +5820,6 @@ using mrdc_usage_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // MRDC-Usage-Information ::= SEQUENCE
 struct mrdc_usage_info_s {
-  bool                                ext                                       = false;
   bool                                data_usage_per_pdu_session_report_present = false;
   bool                                ie_exts_present                           = false;
   data_usage_per_pdu_session_report_s data_usage_per_pdu_session_report;
@@ -8006,10 +5827,7 @@ struct mrdc_usage_info_s {
   mrdc_usage_info_ext_ies_container   ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MT-SDT-Information-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -8023,17 +5841,14 @@ struct mt_sdt_info_s {
   uint32_t                      mt_sdt_data_size = 1;
   mt_sdt_info_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MT-SDT-Information-Request ::= ENUMERATED
 struct mt_sdt_info_request_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using mt_sdt_info_request_e = enumerated<mt_sdt_info_request_opts, true>;
 
@@ -8048,10 +5863,7 @@ struct ng_ran_qos_support_item_s {
   non_dyn_5qi_descriptor_s                  non_dyn_5qi_descriptor;
   ng_ran_qos_support_item_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // NG-RAN-QoS-Support-List ::= SEQUENCE (SIZE (1..256)) OF NG-RAN-QoS-Support-Item
@@ -8068,10 +5880,7 @@ struct npn_context_info_sn_pn_s {
   fixed_bitstring<44, false, true>         nid;
   npn_context_info_sn_pn_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // NPNContextInfo-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-IES
@@ -8082,49 +5891,43 @@ struct npn_context_info_c {
   struct types_opts {
     enum options { sn_pn, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  npn_context_info_c() = default;
-  npn_context_info_c(const npn_context_info_c& other);
-  npn_context_info_c& operator=(const npn_context_info_c& other);
-  ~npn_context_info_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  npn_context_info_sn_pn_s& sn_pn()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  npn_context_info_sn_pn_s&                     sn_pn()
   {
-    assert_choice_type(types::sn_pn, type_, "NPNContextInfo");
+    assert_choice_type(types::sn_pn, c.type, "NPNContextInfo");
     return c.get<npn_context_info_sn_pn_s>();
   }
   protocol_ie_single_container_s<npn_context_info_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "NPNContextInfo");
+    assert_choice_type(types::choice_ext, c.type, "NPNContextInfo");
     return c.get<protocol_ie_single_container_s<npn_context_info_ext_ies_o>>();
   }
   const npn_context_info_sn_pn_s& sn_pn() const
   {
-    assert_choice_type(types::sn_pn, type_, "NPNContextInfo");
+    assert_choice_type(types::sn_pn, c.type, "NPNContextInfo");
     return c.get<npn_context_info_sn_pn_s>();
   }
   const protocol_ie_single_container_s<npn_context_info_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "NPNContextInfo");
+    assert_choice_type(types::choice_ext, c.type, "NPNContextInfo");
     return c.get<protocol_ie_single_container_s<npn_context_info_ext_ies_o>>();
   }
   npn_context_info_sn_pn_s&                                   set_sn_pn();
   protocol_ie_single_container_s<npn_context_info_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                                                 type_;
-  choice_buffer_t<npn_context_info_sn_pn_s, protocol_ie_single_container_s<npn_context_info_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      npn_context_info_c,
+      types,
+      choice_buffer_t<npn_context_info_sn_pn_s, protocol_ie_single_container_s<npn_context_info_ext_ies_o>>>
+      c;
 };
 
 // NPNSupportInfo-SNPN-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -8138,10 +5941,7 @@ struct npn_support_info_sn_pn_s {
   fixed_bitstring<44, false, true>         nid;
   npn_support_info_sn_pn_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // NPNSupportInfo-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-IES
@@ -8152,49 +5952,43 @@ struct npn_support_info_c {
   struct types_opts {
     enum options { sn_pn, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  npn_support_info_c() = default;
-  npn_support_info_c(const npn_support_info_c& other);
-  npn_support_info_c& operator=(const npn_support_info_c& other);
-  ~npn_support_info_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  npn_support_info_sn_pn_s& sn_pn()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  npn_support_info_sn_pn_s&                     sn_pn()
   {
-    assert_choice_type(types::sn_pn, type_, "NPNSupportInfo");
+    assert_choice_type(types::sn_pn, c.type, "NPNSupportInfo");
     return c.get<npn_support_info_sn_pn_s>();
   }
   protocol_ie_single_container_s<npn_support_info_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "NPNSupportInfo");
+    assert_choice_type(types::choice_ext, c.type, "NPNSupportInfo");
     return c.get<protocol_ie_single_container_s<npn_support_info_ext_ies_o>>();
   }
   const npn_support_info_sn_pn_s& sn_pn() const
   {
-    assert_choice_type(types::sn_pn, type_, "NPNSupportInfo");
+    assert_choice_type(types::sn_pn, c.type, "NPNSupportInfo");
     return c.get<npn_support_info_sn_pn_s>();
   }
   const protocol_ie_single_container_s<npn_support_info_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "NPNSupportInfo");
+    assert_choice_type(types::choice_ext, c.type, "NPNSupportInfo");
     return c.get<protocol_ie_single_container_s<npn_support_info_ext_ies_o>>();
   }
   npn_support_info_sn_pn_s&                                   set_sn_pn();
   protocol_ie_single_container_s<npn_support_info_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                                                 type_;
-  choice_buffer_t<npn_support_info_sn_pn_s, protocol_ie_single_container_s<npn_support_info_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      npn_support_info_c,
+      types,
+      choice_buffer_t<npn_support_info_sn_pn_s, protocol_ie_single_container_s<npn_support_info_ext_ies_o>>>
+      c;
 };
 
 // NR-CGI-Support-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -8208,10 +6002,7 @@ struct nr_cgi_support_item_s {
   nr_cgi_s                              nr_cgi;
   nr_cgi_support_item_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // NR-CGI-Support-List ::= SEQUENCE (SIZE (1..512)) OF NR-CGI-Support-Item
@@ -8221,7 +6012,7 @@ using nr_cgi_support_list_l = dyn_array<nr_cgi_support_item_s>;
 struct new_ul_tnl_info_required_opts {
   enum options { required, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using new_ul_tnl_info_required_e = enumerated<new_ul_tnl_info_required_opts, true>;
 
@@ -8232,17 +6023,13 @@ using pdu_session_res_confirm_modified_item_ext_ies_container = protocol_ext_con
 
 // PDU-Session-Resource-Confirm-Modified-Item ::= SEQUENCE
 struct pdu_session_res_confirm_modified_item_s {
-  bool                                                    ext             = false;
   bool                                                    ie_exts_present = false;
   uint16_t                                                pdu_session_id  = 0;
   drb_confirm_modified_list_ng_ran_l                      drb_confirm_modified_list_ng_ran;
   pdu_session_res_confirm_modified_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDU-Session-Resource-Confirm-Modified-List ::= SEQUENCE (SIZE (1..256)) OF PDU-Session-Resource-Confirm-Modified-Item
@@ -8255,17 +6042,13 @@ using pdu_session_res_data_usage_item_ext_ies_container = protocol_ext_container
 
 // PDU-Session-Resource-Data-Usage-Item ::= SEQUENCE
 struct pdu_session_res_data_usage_item_s {
-  bool                                              ext             = false;
   bool                                              ie_exts_present = false;
   uint16_t                                          pdu_session_id  = 0;
   mrdc_usage_info_s                                 mrdc_usage_info;
   pdu_session_res_data_usage_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDU-Session-Resource-Data-Usage-List ::= SEQUENCE (SIZE (1..256)) OF PDU-Session-Resource-Data-Usage-Item
@@ -8278,17 +6061,13 @@ using pdu_session_res_failed_item_ext_ies_container = protocol_ext_container_emp
 
 // PDU-Session-Resource-Failed-Item ::= SEQUENCE
 struct pdu_session_res_failed_item_s {
-  bool                                          ext             = false;
   bool                                          ie_exts_present = false;
   uint16_t                                      pdu_session_id  = 0;
   cause_c                                       cause;
   pdu_session_res_failed_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDU-Session-Resource-Failed-List ::= SEQUENCE (SIZE (1..256)) OF PDU-Session-Resource-Failed-Item
@@ -8301,17 +6080,13 @@ using pdu_session_res_failed_mod_item_ext_ies_container = protocol_ext_container
 
 // PDU-Session-Resource-Failed-Mod-Item ::= SEQUENCE
 struct pdu_session_res_failed_mod_item_s {
-  bool                                              ext             = false;
   bool                                              ie_exts_present = false;
   uint16_t                                          pdu_session_id  = 0;
   cause_c                                           cause;
   pdu_session_res_failed_mod_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDU-Session-Resource-Failed-Mod-List ::= SEQUENCE (SIZE (1..256)) OF PDU-Session-Resource-Failed-Mod-Item
@@ -8324,127 +6099,69 @@ using pdu_session_res_failed_to_modify_item_ext_ies_container = protocol_ext_con
 
 // PDU-Session-Resource-Failed-To-Modify-Item ::= SEQUENCE
 struct pdu_session_res_failed_to_modify_item_s {
-  bool                                                    ext             = false;
   bool                                                    ie_exts_present = false;
   uint16_t                                                pdu_session_id  = 0;
   cause_c                                                 cause;
   pdu_session_res_failed_to_modify_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDU-Session-Resource-Failed-To-Modify-List ::= SEQUENCE (SIZE (1..256)) OF PDU-Session-Resource-Failed-To-Modify-Item
 using pdu_session_res_failed_to_modify_list_l = dyn_array<pdu_session_res_failed_to_modify_item_s>;
 
 // PDU-Session-Resource-Modified-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct pdu_session_res_modified_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { redundant_n_g_dl_up_tnl_info, nulltype } value;
+struct pdu_session_res_modified_item_ext_ies_container {
+  bool          redundant_n_g_dl_up_tnl_info_present = false;
+  up_tnl_info_c redundant_n_g_dl_up_tnl_info;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::redundant_n_g_dl_up_tnl_info; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    up_tnl_info_c&       redundant_n_g_dl_up_tnl_info() { return c; }
-    const up_tnl_info_c& redundant_n_g_dl_up_tnl_info() const { return c; }
-
-  private:
-    up_tnl_info_c c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // PDU-Session-Resource-Modified-Item ::= SEQUENCE
 struct pdu_session_res_modified_item_s {
-  bool                               ext                                           = false;
-  bool                               ng_dl_up_tnl_info_present                     = false;
-  bool                               security_result_present                       = false;
-  bool                               pdu_session_data_forwarding_info_resp_present = false;
-  uint16_t                           pdu_session_id                                = 0;
-  up_tnl_info_c                      ng_dl_up_tnl_info;
-  security_result_s                  security_result;
-  data_forwarding_info_s             pdu_session_data_forwarding_info_resp;
-  drb_setup_list_ng_ran_l            drb_setup_list_ng_ran;
-  drb_failed_list_ng_ran_l           drb_failed_list_ng_ran;
-  drb_modified_list_ng_ran_l         drb_modified_list_ng_ran;
-  drb_failed_to_modify_list_ng_ran_l drb_failed_to_modify_list_ng_ran;
-  protocol_ext_container_l<pdu_session_res_modified_item_ext_ies_o> ie_exts;
+  bool                                            ng_dl_up_tnl_info_present                     = false;
+  bool                                            security_result_present                       = false;
+  bool                                            pdu_session_data_forwarding_info_resp_present = false;
+  bool                                            ie_exts_present                               = false;
+  uint16_t                                        pdu_session_id                                = 0;
+  up_tnl_info_c                                   ng_dl_up_tnl_info;
+  security_result_s                               security_result;
+  data_forwarding_info_s                          pdu_session_data_forwarding_info_resp;
+  drb_setup_list_ng_ran_l                         drb_setup_list_ng_ran;
+  drb_failed_list_ng_ran_l                        drb_failed_list_ng_ran;
+  drb_modified_list_ng_ran_l                      drb_modified_list_ng_ran;
+  drb_failed_to_modify_list_ng_ran_l              drb_failed_to_modify_list_ng_ran;
+  pdu_session_res_modified_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDU-Session-Resource-Modified-List ::= SEQUENCE (SIZE (1..256)) OF PDU-Session-Resource-Modified-Item
 using pdu_session_res_modified_list_l = dyn_array<pdu_session_res_modified_item_s>;
 
 // PDU-Session-Resource-Required-To-Modify-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct pdu_session_res_required_to_modify_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { redundant_n_g_dl_up_tnl_info, nulltype } value;
+struct pdu_session_res_required_to_modify_item_ext_ies_container {
+  bool          redundant_n_g_dl_up_tnl_info_present = false;
+  up_tnl_info_c redundant_n_g_dl_up_tnl_info;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::redundant_n_g_dl_up_tnl_info; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    up_tnl_info_c&       redundant_n_g_dl_up_tnl_info() { return c; }
-    const up_tnl_info_c& redundant_n_g_dl_up_tnl_info() const { return c; }
-
-  private:
-    up_tnl_info_c c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // PDU-Session-Resource-Required-To-Modify-Item ::= SEQUENCE
 struct pdu_session_res_required_to_modify_item_s {
-  bool                                                                        ext                       = false;
-  bool                                                                        ng_dl_up_tnl_info_present = false;
-  uint16_t                                                                    pdu_session_id            = 0;
-  up_tnl_info_c                                                               ng_dl_up_tnl_info;
-  drb_required_to_modify_list_ng_ran_l                                        drb_required_to_modify_list_ng_ran;
-  drb_required_to_rem_list_ng_ran_l                                           drb_required_to_rem_list_ng_ran;
-  protocol_ext_container_l<pdu_session_res_required_to_modify_item_ext_ies_o> ie_exts;
+  bool                                                      ng_dl_up_tnl_info_present = false;
+  bool                                                      ie_exts_present           = false;
+  uint16_t                                                  pdu_session_id            = 0;
+  up_tnl_info_c                                             ng_dl_up_tnl_info;
+  drb_required_to_modify_list_ng_ran_l                      drb_required_to_modify_list_ng_ran;
+  drb_required_to_rem_list_ng_ran_l                         drb_required_to_rem_list_ng_ran;
+  pdu_session_res_required_to_modify_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDU-Session-Resource-Required-To-Modify-List ::= SEQUENCE (SIZE (1..256)) OF
@@ -8454,107 +6171,38 @@ using pdu_session_res_required_to_modify_list_l = dyn_array<pdu_session_res_requ
 // RSN ::= ENUMERATED
 struct r_sn_opts {
   enum options { v1, v2, /*...*/ nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using r_sn_e = enumerated<r_sn_opts, true>;
 
 // RedundantPDUSessionInformation-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct redundant_pdu_session_info_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { pdu_session_pair_id, nulltype } value;
-      typedef uint8_t number_type;
+struct redundant_pdu_session_info_ext_ies_container {
+  bool     pdu_session_pair_id_present = false;
+  uint16_t pdu_session_pair_id;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::pdu_session_pair_id; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint16_t&       pdu_session_pair_id() { return c; }
-    const uint16_t& pdu_session_pair_id() const { return c; }
-
-  private:
-    uint16_t c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // RedundantPDUSessionInformation ::= SEQUENCE
 struct redundant_pdu_session_info_s {
-  bool                                                           ext = false;
-  r_sn_e                                                         rsn;
-  protocol_ext_container_l<redundant_pdu_session_info_ext_ies_o> ie_exts;
+  bool                                         ie_exts_present = false;
+  r_sn_e                                       rsn;
+  redundant_pdu_session_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDU-Session-Resource-Setup-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct pdu_session_res_setup_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { redundant_n_g_dl_up_tnl_info, redundant_pdu_session_info_used, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    up_tnl_info_c&                      redundant_n_g_dl_up_tnl_info();
-    redundant_pdu_session_info_s&       redundant_pdu_session_info_used();
-    const up_tnl_info_c&                redundant_n_g_dl_up_tnl_info() const;
-    const redundant_pdu_session_info_s& redundant_pdu_session_info_used() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct pdu_session_res_setup_item_ext_ies_container {
   bool                         redundant_n_g_dl_up_tnl_info_present    = false;
   bool                         redundant_pdu_session_info_used_present = false;
   up_tnl_info_c                redundant_n_g_dl_up_tnl_info;
   redundant_pdu_session_info_s redundant_pdu_session_info_used;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // PDU-Session-Resource-Setup-Item ::= SEQUENCE
@@ -8562,12 +6210,11 @@ struct pdu_session_res_setup_item_s {
   struct ng_dl_up_unchanged_opts {
     enum options { true_value, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using ng_dl_up_unchanged_e_ = enumerated<ng_dl_up_unchanged_opts, true>;
 
   // member variables
-  bool                                         ext                                           = false;
   bool                                         security_result_present                       = false;
   bool                                         pdu_session_data_forwarding_info_resp_present = false;
   bool                                         ng_dl_up_unchanged_present                    = false;
@@ -8582,65 +6229,35 @@ struct pdu_session_res_setup_item_s {
   pdu_session_res_setup_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDU-Session-Resource-Setup-List ::= SEQUENCE (SIZE (1..256)) OF PDU-Session-Resource-Setup-Item
 using pdu_session_res_setup_list_l = dyn_array<pdu_session_res_setup_item_s>;
 
 // PDU-Session-Resource-Setup-Mod-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct pdu_session_res_setup_mod_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { redundant_n_g_dl_up_tnl_info, nulltype } value;
+struct pdu_session_res_setup_mod_item_ext_ies_container {
+  bool          redundant_n_g_dl_up_tnl_info_present = false;
+  up_tnl_info_c redundant_n_g_dl_up_tnl_info;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::redundant_n_g_dl_up_tnl_info; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    up_tnl_info_c&       redundant_n_g_dl_up_tnl_info() { return c; }
-    const up_tnl_info_c& redundant_n_g_dl_up_tnl_info() const { return c; }
-
-  private:
-    up_tnl_info_c c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // PDU-Session-Resource-Setup-Mod-Item ::= SEQUENCE
 struct pdu_session_res_setup_mod_item_s {
-  bool                         ext                                           = false;
-  bool                         security_result_present                       = false;
-  bool                         pdu_session_data_forwarding_info_resp_present = false;
-  uint16_t                     pdu_session_id                                = 0;
-  security_result_s            security_result;
-  up_tnl_info_c                ng_dl_up_tnl_info;
-  data_forwarding_info_s       pdu_session_data_forwarding_info_resp;
-  drb_setup_mod_list_ng_ran_l  drb_setup_mod_list_ng_ran;
-  drb_failed_mod_list_ng_ran_l drb_failed_mod_list_ng_ran;
-  protocol_ext_container_l<pdu_session_res_setup_mod_item_ext_ies_o> ie_exts;
+  bool                                             security_result_present                       = false;
+  bool                                             pdu_session_data_forwarding_info_resp_present = false;
+  bool                                             ie_exts_present                               = false;
+  uint16_t                                         pdu_session_id                                = 0;
+  security_result_s                                security_result;
+  up_tnl_info_c                                    ng_dl_up_tnl_info;
+  data_forwarding_info_s                           pdu_session_data_forwarding_info_resp;
+  drb_setup_mod_list_ng_ran_l                      drb_setup_mod_list_ng_ran;
+  drb_failed_mod_list_ng_ran_l                     drb_failed_mod_list_ng_ran;
+  pdu_session_res_setup_mod_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDU-Session-Resource-Setup-Mod-List ::= SEQUENCE (SIZE (1..256)) OF PDU-Session-Resource-Setup-Mod-Item
@@ -8650,7 +6267,7 @@ using pdu_session_res_setup_mod_list_l = dyn_array<pdu_session_res_setup_mod_ite
 struct user_plane_fail_type_opts {
   enum options { gtp_u_error_ind_rx, up_path_fail, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using user_plane_fail_type_e = enumerated<user_plane_fail_type_opts, true>;
 
@@ -8661,7 +6278,6 @@ using user_plane_fail_ind_ext_ies_container = protocol_ext_container_empty_l;
 
 // UserPlaneFailureIndication ::= SEQUENCE
 struct user_plane_fail_ind_s {
-  bool                                  ext             = false;
   bool                                  ie_exts_present = false;
   user_plane_fail_type_e                user_plane_fail_type;
   up_tnl_info_c                         ng_dl_up_tnl_info;
@@ -8669,74 +6285,10 @@ struct user_plane_fail_ind_s {
   user_plane_fail_ind_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDU-Session-Resource-To-Modify-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct pdu_session_res_to_modify_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options {
-        snssai,
-        common_network_instance,
-        redundant_n_g_ul_up_tnl_info,
-        redundant_common_network_instance,
-        data_forwardingto_e_utran_info_list,
-        security_ind_modify,
-        secondary_pdu_session_data_forwarding_info,
-        user_plane_fail_ind,
-        special_trigger_purpose,
-        nulltype
-      } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    snssai_s&                                    snssai();
-    unbounded_octstring<true>&                   common_network_instance();
-    up_tnl_info_c&                               redundant_n_g_ul_up_tnl_info();
-    unbounded_octstring<true>&                   redundant_common_network_instance();
-    data_forwardingto_e_utran_info_list_l&       data_forwardingto_e_utran_info_list();
-    security_ind_s&                              security_ind_modify();
-    data_forwarding_info_s&                      secondary_pdu_session_data_forwarding_info();
-    user_plane_fail_ind_s&                       user_plane_fail_ind();
-    special_trigger_purpose_e&                   special_trigger_purpose();
-    const snssai_s&                              snssai() const;
-    const unbounded_octstring<true>&             common_network_instance() const;
-    const up_tnl_info_c&                         redundant_n_g_ul_up_tnl_info() const;
-    const unbounded_octstring<true>&             redundant_common_network_instance() const;
-    const data_forwardingto_e_utran_info_list_l& data_forwardingto_e_utran_info_list() const;
-    const security_ind_s&                        security_ind_modify() const;
-    const data_forwarding_info_s&                secondary_pdu_session_data_forwarding_info() const;
-    const user_plane_fail_ind_s&                 user_plane_fail_ind() const;
-    const special_trigger_purpose_e&             special_trigger_purpose() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct pdu_session_res_to_modify_item_ext_ies_container {
   bool                                  snssai_present                                     = false;
   bool                                  common_network_instance_present                    = false;
@@ -8757,15 +6309,11 @@ struct pdu_session_res_to_modify_item_ext_ies_container {
   user_plane_fail_ind_s                 user_plane_fail_ind;
   special_trigger_purpose_e             special_trigger_purpose;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // PDU-Session-Resource-To-Modify-Item ::= SEQUENCE
 struct pdu_session_res_to_modify_item_s {
-  bool                                             ext                                              = false;
   bool                                             security_ind_present                             = false;
   bool                                             pdu_session_res_dl_ambr_present                  = false;
   bool                                             ng_ul_up_tnl_info_present                        = false;
@@ -8788,10 +6336,7 @@ struct pdu_session_res_to_modify_item_s {
   pdu_session_res_to_modify_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDU-Session-Resource-To-Modify-List ::= SEQUENCE (SIZE (1..256)) OF PDU-Session-Resource-To-Modify-Item
@@ -8801,71 +6346,28 @@ using pdu_session_res_to_modify_list_l = dyn_array<pdu_session_res_to_modify_ite
 struct user_plane_error_ind_opts {
   enum options { gtp_u_error_ind_rx, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using user_plane_error_ind_e = enumerated<user_plane_error_ind_opts, true>;
 
 // PDU-Session-Resource-To-Remove-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct pdu_session_res_to_rem_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { cause, user_plane_error_ind, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    cause_c&                      cause();
-    user_plane_error_ind_e&       user_plane_error_ind();
-    const cause_c&                cause() const;
-    const user_plane_error_ind_e& user_plane_error_ind() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct pdu_session_res_to_rem_item_ext_ies_container {
   bool                   cause_present                = false;
   bool                   user_plane_error_ind_present = false;
   cause_c                cause;
   user_plane_error_ind_e user_plane_error_ind;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // PDU-Session-Resource-To-Remove-Item ::= SEQUENCE
 struct pdu_session_res_to_rem_item_s {
-  bool                                          ext             = false;
   bool                                          ie_exts_present = false;
   uint16_t                                      pdu_session_id  = 0;
   pdu_session_res_to_rem_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDU-Session-Resource-To-Remove-List ::= SEQUENCE (SIZE (1..256)) OF PDU-Session-Resource-To-Remove-Item
@@ -8875,60 +6377,11 @@ using pdu_session_res_to_rem_list_l = dyn_array<pdu_session_res_to_rem_item_s>;
 struct pdu_session_type_opts {
   enum options { ipv4, ipv6, ipv4v6, ethernet, unstructured, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using pdu_session_type_e = enumerated<pdu_session_type_opts, true>;
 
 // PDU-Session-Resource-To-Setup-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct pdu_session_res_to_setup_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options {
-        common_network_instance,
-        redundant_n_g_ul_up_tnl_info,
-        redundant_common_network_instance,
-        redundant_pdu_session_info,
-        special_trigger_purpose,
-        nulltype
-      } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    unbounded_octstring<true>&          common_network_instance();
-    up_tnl_info_c&                      redundant_n_g_ul_up_tnl_info();
-    unbounded_octstring<true>&          redundant_common_network_instance();
-    redundant_pdu_session_info_s&       redundant_pdu_session_info();
-    special_trigger_purpose_e&          special_trigger_purpose();
-    const unbounded_octstring<true>&    common_network_instance() const;
-    const up_tnl_info_c&                redundant_n_g_ul_up_tnl_info() const;
-    const unbounded_octstring<true>&    redundant_common_network_instance() const;
-    const redundant_pdu_session_info_s& redundant_pdu_session_info() const;
-    const special_trigger_purpose_e&    special_trigger_purpose() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct pdu_session_res_to_setup_item_ext_ies_container {
   bool                         common_network_instance_present           = false;
   bool                         redundant_n_g_ul_up_tnl_info_present      = false;
@@ -8941,15 +6394,11 @@ struct pdu_session_res_to_setup_item_ext_ies_container {
   redundant_pdu_session_info_s redundant_pdu_session_info;
   special_trigger_purpose_e    special_trigger_purpose;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // PDU-Session-Resource-To-Setup-Item ::= SEQUENCE
 struct pdu_session_res_to_setup_item_s {
-  bool                                            ext                                              = false;
   bool                                            pdu_session_res_dl_ambr_present                  = false;
   bool                                            pdu_session_data_forwarding_info_request_present = false;
   bool                                            pdu_session_inactivity_timer_present             = false;
@@ -8970,67 +6419,13 @@ struct pdu_session_res_to_setup_item_s {
   pdu_session_res_to_setup_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDU-Session-Resource-To-Setup-List ::= SEQUENCE (SIZE (1..256)) OF PDU-Session-Resource-To-Setup-Item
 using pdu_session_res_to_setup_list_l = dyn_array<pdu_session_res_to_setup_item_s>;
 
 // PDU-Session-Resource-To-Setup-Mod-Item-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct pdu_session_res_to_setup_mod_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options {
-        network_instance,
-        common_network_instance,
-        redundant_n_g_ul_up_tnl_info,
-        redundant_common_network_instance,
-        special_trigger_purpose,
-        nulltype
-      } value;
-      typedef uint8_t number_type;
-
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint16_t&                        network_instance();
-    unbounded_octstring<true>&       common_network_instance();
-    up_tnl_info_c&                   redundant_n_g_ul_up_tnl_info();
-    unbounded_octstring<true>&       redundant_common_network_instance();
-    special_trigger_purpose_e&       special_trigger_purpose();
-    const uint16_t&                  network_instance() const;
-    const unbounded_octstring<true>& common_network_instance() const;
-    const up_tnl_info_c&             redundant_n_g_ul_up_tnl_info() const;
-    const unbounded_octstring<true>& redundant_common_network_instance() const;
-    const special_trigger_purpose_e& special_trigger_purpose() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct pdu_session_res_to_setup_mod_item_ext_ies_container {
   bool                      network_instance_present                  = false;
   bool                      common_network_instance_present           = false;
@@ -9043,15 +6438,11 @@ struct pdu_session_res_to_setup_mod_item_ext_ies_container {
   unbounded_octstring<true> redundant_common_network_instance;
   special_trigger_purpose_e special_trigger_purpose;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // PDU-Session-Resource-To-Setup-Mod-Item ::= SEQUENCE
 struct pdu_session_res_to_setup_mod_item_s {
-  bool                                                ext                                              = false;
   bool                                                pdu_session_res_ambr_present                     = false;
   bool                                                pdu_session_data_forwarding_info_request_present = false;
   bool                                                pdu_session_inactivity_timer_present             = false;
@@ -9068,10 +6459,7 @@ struct pdu_session_res_to_setup_mod_item_s {
   pdu_session_res_to_setup_mod_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDU-Session-Resource-To-Setup-Mod-List ::= SEQUENCE (SIZE (1..256)) OF PDU-Session-Resource-To-Setup-Mod-Item
@@ -9084,17 +6472,13 @@ using pdu_session_to_notify_item_ext_ies_container = protocol_ext_container_empt
 
 // PDU-Session-To-Notify-Item ::= SEQUENCE
 struct pdu_session_to_notify_item_s {
-  bool                                         ext             = false;
   bool                                         ie_exts_present = false;
   uint16_t                                     pdu_session_id  = 0;
   qos_flow_list_l                              qos_flow_list;
   pdu_session_to_notify_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PDU-Session-To-Notify-List ::= SEQUENCE (SIZE (1..256)) OF PDU-Session-To-Notify-Item
@@ -9104,7 +6488,7 @@ using pdu_session_to_notify_list_l = dyn_array<pdu_session_to_notify_item_s>;
 struct privacy_ind_opts {
   enum options { immediate_mdt, logged_mdt, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using privacy_ind_e = enumerated<privacy_ind_opts, true>;
 
@@ -9115,24 +6499,20 @@ using qos_params_support_list_item_ext_ies_container = protocol_ext_container_em
 
 // QoS-Parameters-Support-List ::= SEQUENCE
 struct qos_params_support_list_s {
-  bool                                           ext             = false;
   bool                                           ie_exts_present = false;
   eutran_qos_support_list_l                      eutran_qos_support_list;
   ng_ran_qos_support_list_l                      ng_ran_qos_support_list;
   qos_params_support_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // RegistrationRequest ::= ENUMERATED
 struct regist_request_opts {
   enum options { start, stop, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using regist_request_e = enumerated<regist_request_opts, true>;
 
@@ -9158,10 +6538,9 @@ struct report_periodicity_opts {
     // ...
     nulltype
   } value;
-  typedef uint32_t number_type;
 
-  const char* to_string() const;
-  uint32_t    to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint32_t                            to_number() const;
 };
 using report_periodicity_e = enumerated<report_periodicity_opts, true>;
 
@@ -9172,7 +6551,7 @@ using retainability_meass_info_l = dyn_array<drb_remd_item_s>;
 struct scg_activation_status_opts {
   enum options { scg_activ, scg_deactiv, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using scg_activation_status_e = enumerated<scg_activation_status_opts, true>;
 
@@ -9180,7 +6559,7 @@ using scg_activation_status_e = enumerated<scg_activation_status_opts, true>;
 struct sdt_data_size_thres_crossed_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using sdt_data_size_thres_crossed_e = enumerated<sdt_data_size_thres_crossed_opts, true>;
 
@@ -9188,7 +6567,7 @@ using sdt_data_size_thres_crossed_e = enumerated<sdt_data_size_thres_crossed_opt
 struct sdt_continue_rohc_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using sdt_continue_rohc_e = enumerated<sdt_continue_rohc_opts, true>;
 
@@ -9199,7 +6578,6 @@ using security_algorithm_ext_ies_container = protocol_ext_container_empty_l;
 
 // SecurityAlgorithm ::= SEQUENCE
 struct security_algorithm_s {
-  bool                                 ext                                    = false;
   bool                                 integrity_protection_algorithm_present = false;
   bool                                 ie_exts_present                        = false;
   ciphering_algorithm_e                ciphering_algorithm;
@@ -9207,10 +6585,7 @@ struct security_algorithm_s {
   security_algorithm_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // UPSecuritykey-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -9220,17 +6595,13 @@ using up_securitykey_ext_ies_container = protocol_ext_container_empty_l;
 
 // UPSecuritykey ::= SEQUENCE
 struct up_securitykey_s {
-  bool                             ext             = false;
   bool                             ie_exts_present = false;
   unbounded_octstring<true>        encryption_key;
   unbounded_octstring<true>        integrity_protection_key;
   up_securitykey_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SecurityInformation-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -9240,17 +6611,13 @@ using security_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // SecurityInformation ::= SEQUENCE
 struct security_info_s {
-  bool                            ext             = false;
   bool                            ie_exts_present = false;
   security_algorithm_s            security_algorithm;
   up_securitykey_s                up_securitykey;
   security_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Slice-Support-List ::= SEQUENCE (SIZE (1..1024)) OF Slice-Support-Item
@@ -9263,28 +6630,23 @@ using tnl_available_capacity_ind_ext_ies_container = protocol_ext_container_empt
 
 // TNL-AvailableCapacityIndicator ::= SEQUENCE
 struct tnl_available_capacity_ind_s {
-  bool                                         ext                       = false;
   bool                                         ie_exts_present           = false;
   uint32_t                                     dl_tnl_offered_capacity   = 0;
-  uint8_t                                      dl_tnl_available_capacity = 0;
+  uint16_t                                     dl_tnl_available_capacity = 0;
   uint32_t                                     ul_tnl_offered_capacity   = 0;
-  uint8_t                                      ul_tnl_available_capacity = 0;
+  uint16_t                                     ul_tnl_available_capacity = 0;
   tnl_available_capacity_ind_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TimeToWait ::= ENUMERATED
 struct time_to_wait_opts {
   enum options { v1s, v2s, v5s, v10s, v20s, v60s, /*...*/ nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using time_to_wait_e = enumerated<time_to_wait_opts, true>;
 
@@ -9301,62 +6663,22 @@ struct trace_depth_opts {
     nulltype
   } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using trace_depth_e = enumerated<trace_depth_opts, true>;
 
 // TraceActivation-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
-struct trace_activation_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { mdt_cfg, trace_collection_entity_uri, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    mdt_cfg_s&                                                   mdt_cfg();
-    visible_string<0, MAX_ASN_STRING_LENGTH, false, true>&       trace_collection_entity_uri();
-    const mdt_cfg_s&                                             mdt_cfg() const;
-    const visible_string<0, MAX_ASN_STRING_LENGTH, false, true>& trace_collection_entity_uri() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct trace_activation_ext_ies_container {
   bool                                                  mdt_cfg_present                     = false;
   bool                                                  trace_collection_entity_uri_present = false;
   mdt_cfg_s                                             mdt_cfg;
   visible_string<0, MAX_ASN_STRING_LENGTH, false, true> trace_collection_entity_uri;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // TraceActivation ::= SEQUENCE
 struct trace_activation_s {
-  bool                                  ext             = false;
   bool                                  ie_exts_present = false;
   fixed_octstring<8, true>              trace_id;
   fixed_bitstring<8, false, true>       interfaces_to_trace;
@@ -9365,10 +6687,7 @@ struct trace_activation_s {
   trace_activation_ext_ies_container    ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Transport-UP-Layer-Addresses-Info-To-Add-ItemExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -9378,17 +6697,13 @@ using transport_up_layer_addresses_info_to_add_item_ext_ies_container = protocol
 
 // Transport-UP-Layer-Addresses-Info-To-Add-Item ::= SEQUENCE
 struct transport_up_layer_addresses_info_to_add_item_s {
-  bool                                                            ext             = false;
   bool                                                            ie_exts_present = false;
   bounded_bitstring<1, 160, true, true>                           ip_sec_transport_layer_address;
   gtp_tlas_l                                                      gtp_transport_layer_addresses_to_add;
   transport_up_layer_addresses_info_to_add_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Transport-UP-Layer-Addresses-Info-To-Add-List ::= SEQUENCE (SIZE (1..16)) OF
@@ -9402,17 +6717,13 @@ using transport_up_layer_addresses_info_to_rem_item_ext_ies_container = protocol
 
 // Transport-UP-Layer-Addresses-Info-To-Remove-Item ::= SEQUENCE
 struct transport_up_layer_addresses_info_to_rem_item_s {
-  bool                                                            ext             = false;
   bool                                                            ie_exts_present = false;
   bounded_bitstring<1, 160, true, true>                           ip_sec_transport_layer_address;
   gtp_tlas_l                                                      gtp_transport_layer_addresses_to_rem;
   transport_up_layer_addresses_info_to_rem_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Transport-UP-Layer-Addresses-Info-To-Remove-List ::= SEQUENCE (SIZE (1..16)) OF
@@ -9426,17 +6737,13 @@ using transport_layer_address_info_ext_ies_container = protocol_ext_container_em
 
 // Transport-Layer-Address-Info ::= SEQUENCE
 struct transport_layer_address_info_s {
-  bool                                            ext             = false;
   bool                                            ie_exts_present = false;
   transport_up_layer_addresses_info_to_add_list_l transport_up_layer_addresses_info_to_add_list;
   transport_up_layer_addresses_info_to_rem_list_l transport_up_layer_addresses_info_to_rem_list;
   transport_layer_address_info_ext_ies_container  ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // UE-associatedLogicalE1-ConnectionItemExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -9446,7 +6753,6 @@ using ue_associated_lc_e1_conn_item_ext_ies_container = protocol_ext_container_e
 
 // UE-associatedLogicalE1-ConnectionItem ::= SEQUENCE
 struct ue_associated_lc_e1_conn_item_s {
-  bool                                            ext                          = false;
   bool                                            gnb_cu_cp_ue_e1ap_id_present = false;
   bool                                            gnb_cu_up_ue_e1ap_id_present = false;
   bool                                            ie_exts_present              = false;
@@ -9455,10 +6761,7 @@ struct ue_associated_lc_e1_conn_item_s {
   ue_associated_lc_e1_conn_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // UESliceMaximumBitRateItem-ExtIEs ::= OBJECT SET OF E1AP-PROTOCOL-EXTENSION
@@ -9468,17 +6771,13 @@ using ue_slice_max_bit_rate_item_ext_ies_container = protocol_ext_container_empt
 
 // UESliceMaximumBitRateItem ::= SEQUENCE
 struct ue_slice_max_bit_rate_item_s {
-  bool                                         ext             = false;
   bool                                         ie_exts_present = false;
   snssai_s                                     snssai;
   uint64_t                                     ue_slice_max_bit_rate_dl = 0;
   ue_slice_max_bit_rate_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // UESliceMaximumBitRateList ::= SEQUENCE (SIZE (1..8)) OF UESliceMaximumBitRateItem
@@ -9491,45 +6790,205 @@ using ul_up_tnl_address_to_upd_item_ext_ies_container = protocol_ext_container_e
 
 // ULUPTNLAddressToUpdateItem ::= SEQUENCE
 struct ul_up_tnl_address_to_upd_item_s {
-  bool                                            ext             = false;
   bool                                            ie_exts_present = false;
   bounded_bitstring<1, 160, true, true>           old_tnl_adress;
   bounded_bitstring<1, 160, true, true>           new_tnl_adress;
   ul_up_tnl_address_to_upd_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 } // namespace e1ap
 } // namespace asn1
 
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::pdcp_cfg_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::non_dyn_5qi_descriptor_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::dyn_5qi_descriptor_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::qos_flow_level_qos_params_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::tsc_assist_info_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::qos_flow_qos_param_item_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::bcmrb_modify_cfg_item_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::qos_flow_item_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::up_params_item_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::drb_modified_item_ng_ran_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::data_forwarding_info_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::drb_setup_item_eutran_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::drb_setup_mod_item_eutran_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::drb_to_modify_item_ng_ran_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::drb_to_setup_item_eutran_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::drb_to_setup_item_ng_ran_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::drb_to_setup_mod_item_eutran_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::drb_to_setup_mod_item_ng_ran_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::mc_bearer_context_to_modify_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::mc_bearer_context_to_setup_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::pdu_session_res_setup_item_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::pdu_session_res_to_modify_item_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::pdu_session_res_to_rem_item_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::pdu_session_res_to_setup_item_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::pdu_session_res_to_setup_mod_item_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::e1ap::trace_activation_ext_ies_o>;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::drb_activity_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::pdu_session_res_activity_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::alt_qos_para_set_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::location_dependent_mbsf1_u_info_at_cu_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::location_dependent_mbsf1_u_info_at_du_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::location_dependent_mb_sn_gu_info_at5_gc_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::location_dependent_mb_sn_gu_info_at_ngran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::mb_sn_gu_info_at_ngran_request_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::qos_flow_qos_param_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::f1_u_tnl_info_to_add_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::bcmrb_setup_cfg_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::f1_u_tnl_info_to_add_or_modify_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::f1_u_tnl_info_to_release_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::bcmrb_modify_cfg_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::qos_flow_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::qos_flow_failed_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::f1_u_tnl_info_added_or_modified_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::bcmrb_setup_modify_resp_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::bcmrb_failed_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::f1_u_tnl_info_added_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::bcmrb_setup_resp_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::cell_group_info_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::crit_diagnostics_ie_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_confirm_modified_list_eutran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_confirm_modified_list_ng_ran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_failed_list_eutran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_failed_list_ng_ran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_failed_mod_list_eutran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_failed_mod_list_ng_ran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_failed_to_modify_list_eutran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_failed_to_modify_list_ng_ran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_meas_results_info_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::up_params_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_modified_list_eutran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_modified_list_ng_ran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_remd_item_s::qos_flow_remd_list_l_::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::gnb_cu_up_cell_group_related_cfg_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_required_to_modify_list_eutran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_required_to_modify_list_ng_ran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_required_to_rem_list_eutran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_required_to_rem_list_ng_ran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::data_forwardingto_ng_ran_qos_flow_info_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::drb_setup_list_eutran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::drb_setup_list_ng_ran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_setup_mod_list_eutran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_setup_mod_list_ng_ran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_to_modify_list_eutran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_to_modify_list_ng_ran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_to_rem_list_eutran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_to_rem_list_ng_ran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::qos_flow_map_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_to_setup_list_eutran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_to_setup_list_ng_ran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_to_setup_mod_list_eutran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drb_to_setup_mod_list_ng_ran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::drb_usage_report_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drbs_subject_to_counter_check_list_eutran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drbs_subject_to_counter_check_list_ng_ran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::drbs_subject_to_early_forwarding_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::data_usage_report_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::data_usage_per_pdu_session_report_s::pdu_session_timed_report_list_l_::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::data_usage_per_qos_flow_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::qos_flows_to_be_forwarded_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::data_forwardingto_e_utran_info_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::ecgi_support_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::eutran_qos_support_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::extended_nr_cgi_support_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::extended_slice_support_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::mbs_support_info_to_add_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::mbs_support_info_to_rem_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::gtp_tlas_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::mbs_service_area_cell_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::mbs_service_area_tai_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::mbs_service_area_info_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::mbs_session_associated_info_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::mcmrb_setup_modify_cfg_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::mrb_forwarding_res_request_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::mrb_forwarding_res_ind_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::mcmrb_modify_confirm_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::mcmrb_modify_required_cfg_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::mcmrb_setup_modify_resp_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::mcmrb_failed_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::mcmrb_setup_cfg_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::mrb_forwarding_res_resp_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::mcmrb_setup_resp_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::ng_ran_qos_support_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::e1ap::nr_cgi_support_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::pdu_session_res_confirm_modified_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::pdu_session_res_data_usage_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::pdu_session_res_failed_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::pdu_session_res_failed_mod_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::pdu_session_res_failed_to_modify_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::pdu_session_res_modified_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::pdu_session_res_required_to_modify_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::pdu_session_res_setup_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::pdu_session_res_setup_mod_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::pdu_session_res_to_modify_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::pdu_session_res_to_rem_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::pdu_session_res_to_setup_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::pdu_session_res_to_setup_mod_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::pdu_session_to_notify_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::retainability_meass_info_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::transport_up_layer_addresses_info_to_add_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::transport_up_layer_addresses_info_to_rem_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::e1ap::ue_slice_max_bit_rate_list_l::value_type>::ops;

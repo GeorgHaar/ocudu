@@ -71,7 +71,8 @@ struct f1_setup_request_message {
   std::string                       gnb_du_name;
   uint8_t                           rrc_version;
   std::vector<f1_cell_setup_params> served_cells;
-  unsigned                          max_setup_retries = 5;
+  /// Time to wait for the CU-CP response before the procedure fails.
+  std::chrono::milliseconds response_timeout{3000};
 };
 
 /// Outcome of the F1 Setup procedure.
@@ -89,6 +90,8 @@ struct f1_setup_failure {
   result_code result;
   /// Cause provided by CU-CP in case of F1 Setup Failure.
   std::string f1_setup_failure_cause;
+  /// Time to wait before the F1 Setup is retried, if the CU-CP commanded one.
+  std::optional<std::chrono::seconds> time_to_wait;
 };
 using f1_setup_result = expected<f1_setup_success, f1_setup_failure>;
 

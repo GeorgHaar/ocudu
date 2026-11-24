@@ -9,6 +9,7 @@
 #include "ocudu/adt/format.h"
 #include "ocudu/adt/scope_exit.h"
 #include "ocudu/instrumentation/traces/du_traces.h"
+#include "ocudu/phy/upper/channel_modulation/modulation_mapper.h"
 #include "ocudu/ran/sch/sch_segmentation.h"
 #include "ocudu/support/rtsan.h"
 #include "ocudu/support/tracing/event_tracing.h"

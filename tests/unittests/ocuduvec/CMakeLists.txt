@@ -24,6 +24,7 @@ target_link_libraries(ocuduvec_binary_test ocuduvec ocudulog gtest gtest_main)
 add_test(ocuduvec_binary_test ocuduvec_binary_test)
 
 add_executable(ocuduvec_convert_test ocuduvec_convert_test.cpp)
+target_include_directories(ocuduvec_convert_test PRIVATE ${CMAKE_SOURCE_DIR}/tests/unittests)
 target_link_libraries(ocuduvec_convert_test ocuduvec ocudulog gtest gtest_main)
 add_test(ocuduvec_convert_test ocuduvec_convert_test)
 

@@ -143,7 +143,7 @@ void ue_repository::add_ue(const ue_configuration& ue_cfg, const ue_creation_con
       st.conres_st = ue_conres_state::pending_conres_ce;
       break;
     case ue_creation_mode::two_step_success_rar:
-      // 2-step RACH successRAR: contention already resolved (TS38.321, 6.2.3a); RRC Setup still pending.
+      // 2-step RACH successRAR: contention already resolved (TS 38.321, 6.2.3a); RRC Setup still pending.
       st.config_st = ue_config_state::pending_initial_conf;
       st.conres_st = ue_conres_state::conres_completed;
       break;
@@ -170,11 +170,12 @@ void ue_repository::add_ue(const ue_configuration& ue_cfg, const ue_creation_con
                              creation_ctx.ul_ccch_slot_rx,
                              logger);
   ue_ta_report_trackers.emplace(ue_index);
+  ue_koffset_trackers.emplace(ue_index);
   // TA delays are counted in scheduler slots, which the UL slots must match.
   const subcarrier_spacing ul_scs = pcell_cmn.params.ul_cfg_common.init_ul_bwp.generic_params.scs;
   ocudu_sanity_check(ul_scs == pcell_cmn.scs_common(), "The UL SCS must match the common SCS");
-  auto ue_ta_mgr =
-      ta_mgr_sys.add_ue(ue_cfg.pcell_cfg().tag_id(), ul_scs, scs, ue_lc_mng.view(), pcell_cmn.ntn_cs_koffset);
+  auto ue_ta_mgr = ta_mgr_sys.add_ue(
+      ue_cfg.pcell_cfg().tag_id(), ul_scs, scs, ue_lc_mng.view(), pcell_cmn.ntn_ul_alloc_delay_slots());
 
   // Setup UE cells.
   ue_cell_lookups.emplace(ue_index);
@@ -182,11 +183,12 @@ void ue_repository::add_ue(const ue_configuration& ue_cfg, const ue_creation_con
   for (unsigned i = 0, sz = ue_cfg.nof_cells(); i != sz; ++i) {
     const auto&           cell_cfg   = ue_cfg.ue_cell_cfg(static_cast<serv_cell_index_t>(i));
     const du_cell_index_t cell_index = cell_cfg.cell_cfg_common.cell_index;
-    auto&                 ue_cc =
-        cell_ues[cell_index]->add_ue(ue_cfg,
-                                     static_cast<serv_cell_index_t>(i),
-                                     &ue_fsms[ue_index],
-                                     ue_shared_context{ue_drx_controllers[ue_index], ue_ta_report_trackers[ue_index]});
+    auto&                 ue_cc      = cell_ues[cell_index]->add_ue(ue_cfg,
+                                               static_cast<serv_cell_index_t>(i),
+                                               &ue_fsms[ue_index],
+                                               ue_shared_context{ue_drx_controllers[ue_index],
+                                                                 ue_ta_report_trackers[ue_index],
+                                                                 ue_koffset_trackers[ue_index]});
     cell_lookup.du_cells.emplace(cell_index, &ue_cc);
     cell_lookup.ue_cells.push_back(&ue_cc);
   }
@@ -197,6 +199,7 @@ void ue_repository::add_ue(const ue_configuration& ue_cfg, const ue_creation_con
               std::move(ue_lc_mng),
               ue_drx_controllers[ue_index],
               ue_ta_report_trackers[ue_index],
+              ue_koffset_trackers[ue_index],
               std::move(ue_ta_mgr),
               cell_lookup);
 
@@ -232,6 +235,7 @@ void ue_repository::reconfigure_ue(const ue_configuration& new_cfg, sched_ue_con
   // before it no longer describes the UE. Discarding it falls back to the cell estimate until the UE reports again.
   if (cause == sched_ue_config_request::causes::rrc_reconf_after_reest) {
     ue_ta_report_trackers[new_cfg.ue_index].reset();
+    ue_koffset_trackers[new_cfg.ue_index].reset();
   }
 
   // Update UE cells.
@@ -252,11 +256,12 @@ void ue_repository::reconfigure_ue(const ue_configuration& new_cfg, sched_ue_con
     const du_cell_index_t cell_index = ue_cc_cfg.cell_cfg_common.cell_index;
     if (not prev_cell_lookup.du_cells.contains(cell_index)) {
       // New cell being instantiated.
-      auto& ue_cc = cell_ues[cell_index]->add_ue(
-          new_cfg,
-          static_cast<serv_cell_index_t>(i),
-          i == 0 ? &ue_fsms[new_cfg.ue_index] : nullptr,
-          ue_shared_context{ue_drx_controllers[new_cfg.ue_index], ue_ta_report_trackers[new_cfg.ue_index]});
+      auto& ue_cc = cell_ues[cell_index]->add_ue(new_cfg,
+                                                 static_cast<serv_cell_index_t>(i),
+                                                 i == 0 ? &ue_fsms[new_cfg.ue_index] : nullptr,
+                                                 ue_shared_context{ue_drx_controllers[new_cfg.ue_index],
+                                                                   ue_ta_report_trackers[new_cfg.ue_index],
+                                                                   ue_koffset_trackers[new_cfg.ue_index]});
       new_lookup.du_cells.emplace(cell_index, &ue_cc);
       new_lookup.ue_cells.push_back(&ue_cc);
     } else {
@@ -306,7 +311,7 @@ void ue_repository::schedule_ue_rem(ue_config_delete_event ev)
     // grid ready to be sent to the PHY. Removing the UE earlier would mean that its PUCCH resources would become
     // available to a newly created UE and there could be a PUCCH collision.
     slot_point rem_slot =
-        last_sl_tx + get_max_slot_ul_alloc_delay(u.get_pcell().cfg().cell_cfg_common.ntn_cs_koffset) + 1;
+        last_sl_tx + get_max_slot_ul_alloc_delay(u.get_pcell().cfg().cell_cfg_common.ntn_ul_alloc_delay_slots()) + 1;
     ues_to_rem.push(std::make_pair(rem_slot, std::move(ev)));
   }
 }
@@ -353,6 +358,7 @@ void ue_repository::rem_ue(const ue& u)
   // Remove UE components.
   ue_drx_controllers.erase(ue_idx);
   ue_ta_report_trackers.erase(ue_idx);
+  ue_koffset_trackers.erase(ue_idx);
   ue_fsms.erase(ue_idx);
 
   // Remove UE from RNTI->UE lookup.
@@ -436,6 +442,14 @@ bool ue_repository::update_ue_fsm(du_ue_index_t ue_index, ue_fsm_config_event ev
       u.deactivate();
       return true;
     case events::crnti_ce_received:
+      if (con_st == ue_conres_state::pending_cfra) {
+        // The Msg3 of the CFRA failed and the UE fell back to contention-based RA with a C-RNTI CE (TS 38.321, 5.1.5).
+        con_st = ue_conres_state::conres_completed;
+        logger.debug("ue={} rnti={}: C-RNTI CE received while CFRA pending, contention resolution completed",
+                     ue_index,
+                     ue_cc.rnti());
+        break;
+      }
       if (con_st != ue_conres_state::pending_conres_crnti_ce) {
         // C-RNTI CE not relevant for contention resolution in this context.
         return false;

@@ -25,7 +25,7 @@ ran_slice_instance::ran_slice_instance(ran_slice_id_t                 id_,
   cfg(cfg_),
   min_k2(get_min_k2(cell_cfg->params.ul_cfg_common.init_ul_bwp.pusch_cfg_common->pusch_td_alloc_list)),
   pdsch_rb_count_per_slot(get_allocator_ring_size_gt_min(SCHEDULER_MAX_K0 + 1)),
-  pusch_rb_count_per_slot(get_allocator_ring_size_gt_min(SCHEDULER_MAX_K2 + cell_cfg->ntn_cs_koffset)),
+  pusch_rb_count_per_slot(get_allocator_ring_size_gt_min(SCHEDULER_MAX_K2 + cell_cfg->ntn_ul_alloc_delay_slots())),
   slice_ues(id, cell_cfg->cell_index, ues_)
 {
   std::fill(pdsch_rb_count_per_slot.begin(), pdsch_rb_count_per_slot.end(), 0);
@@ -50,11 +50,11 @@ void ran_slice_instance::slot_indication(slot_point slot_tx)
 
   // Reset last alloc slot if the difference becomes too large, to avoid ambiguity.
   if (last_pdsch_alloc_slot.valid() and
-      slot_tx > last_pdsch_alloc_slot + MAX_SLOTS_SINCE_LAST_PXSCH + cell_cfg->ntn_cs_koffset) {
+      slot_tx > last_pdsch_alloc_slot + MAX_SLOTS_SINCE_LAST_PXSCH + cell_cfg->ntn_ul_alloc_delay_slots()) {
     last_pdsch_alloc_slot.clear();
   }
   if (last_pusch_alloc_slot.valid() and
-      slot_tx > last_pusch_alloc_slot + MAX_SLOTS_SINCE_LAST_PXSCH + cell_cfg->ntn_cs_koffset) {
+      slot_tx > last_pusch_alloc_slot + MAX_SLOTS_SINCE_LAST_PXSCH + cell_cfg->ntn_ul_alloc_delay_slots()) {
     last_pusch_alloc_slot.clear();
   }
 }

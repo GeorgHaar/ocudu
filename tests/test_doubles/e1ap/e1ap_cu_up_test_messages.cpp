@@ -60,8 +60,6 @@ e1ap_message ocudu::ocuup::generate_bearer_context_setup_request(unsigned cu_cp_
   auto& ng_ran_bearer_context_setup_req =
       bearer_context_setup_req->sys_bearer_context_setup_request.ng_ran_bearer_context_setup_request();
 
-  ng_ran_bearer_context_setup_req.resize(1);
-
   asn1::e1ap::pdu_session_res_to_setup_item_s pdu_session_res_to_setup_item;
   pdu_session_res_to_setup_item.pdu_session_id   = 1;
   pdu_session_res_to_setup_item.pdu_session_type = asn1::e1ap::pdu_session_type_e::ipv4;
@@ -103,18 +101,18 @@ e1ap_message ocudu::ocuup::generate_bearer_context_setup_request(unsigned cu_cp_
   auto& qos_characteristics   = qo_s_flow_qos_param_item.qos_flow_level_qos_params.qos_characteristics.non_dyn_5qi();
   qos_characteristics.five_qi = 9;
 
-  qo_s_flow_qos_param_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.prio_level = 15;
-  qo_s_flow_qos_param_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.pre_emption_cap =
+  qo_s_flow_qos_param_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.prio_level = 15;
+  qo_s_flow_qos_param_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.pre_emption_cap =
       asn1::e1ap::pre_emption_cap_e::shall_not_trigger_pre_emption;
 
-  qo_s_flow_qos_param_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.pre_emption_vulnerability =
+  qo_s_flow_qos_param_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.pre_emption_vulnerability =
       asn1::e1ap::pre_emption_vulnerability_e::pre_emptable;
 
   drb_to_setup_item_ng_ran.qos_flow_info_to_be_setup.push_back(qo_s_flow_qos_param_item);
 
   pdu_session_res_to_setup_item.drb_to_setup_list_ng_ran.push_back(drb_to_setup_item_ng_ran);
 
-  ng_ran_bearer_context_setup_req[0].value().pdu_session_res_to_setup_list().push_back(pdu_session_res_to_setup_item);
+  ng_ran_bearer_context_setup_req.pdu_session_res_to_setup_list.push_back(pdu_session_res_to_setup_item);
 
   return bearer_context_setup_request;
 }

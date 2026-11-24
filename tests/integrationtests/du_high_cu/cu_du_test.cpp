@@ -86,6 +86,8 @@ protected:
     du_cfg.ran.cells       = {config_helpers::make_default_du_cell_config()};
     du_cfg.ran.sched_cfg   = config_helpers::make_default_scheduler_expert_config();
     du_cfg.ran.gnb_du_name = "test_du";
+    // Real-time timers expire before the CU-CP responds when the test runs under valgrind.
+    du_cfg.f1ap.f1_setup_response_timeout = std::chrono::seconds{60};
 
     du_high_dependencies du_dependencies;
     du_dependencies.exec_mapper             = workers.exec_mapper.get();
@@ -94,6 +96,8 @@ protected:
     du_dependencies.f1u_gw                  = &f1u_gw;
     du_dependencies.phy_adapter             = &phy;
     du_dependencies.timer_ctrl              = timer_ctrl.get();
+    du_dependencies.mac_p                   = &mac_pcap;
+    du_dependencies.rlc_p                   = &rlc_pcap;
     du_dependencies.phy_cell_op_controllers = {&phy_cell_op_ctrl};
 
     // create DU object
@@ -120,6 +124,8 @@ public:
   gtpu_teid_pool_impl f1u_teid_allocator{MAX_NOF_DU_UES * MAX_NOF_DRBS, GTPU_DEFAULT_TEID_RELEASE_LINGER_TIME, timers};
   f1u_test_local_gateway f1u_gw{};
 
+  null_mac_pcap                       mac_pcap;
+  null_rlc_pcap                       rlc_pcap;
   std::unique_ptr<ocucp::mock_amf>    amf{ocucp::create_mock_amf()};
   std::unique_ptr<ocucp::cu_cp>       cu_cp_obj;
   dummy_phy_cell_operation_controller phy_cell_op_ctrl;

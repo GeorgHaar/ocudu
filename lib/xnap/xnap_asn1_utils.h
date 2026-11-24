@@ -21,7 +21,7 @@ namespace ocudu::ocucp::asn1_utils {
 const char* get_cause_str(const asn1::xnap::cause_c& cause);
 
 /// Extracts message type.
-const char* get_message_type_str(const asn1::xnap::xn_ap_pdu_c& pdu);
+const char* get_message_type_str(const asn1::xnap::xnap_pdu_c& pdu);
 
 // Extracts LOCAL/PEER XNAP UE ID from XNAP PDU.
 std::optional<local_xnap_ue_id_t> get_local_xnap_ue_id(const asn1::xnap::successful_outcome_s& success_outcome);

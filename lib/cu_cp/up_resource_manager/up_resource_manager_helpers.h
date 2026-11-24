@@ -11,6 +11,9 @@
 
 namespace ocudu::ocucp {
 
+/// Returns the DRB limit imposed by the CU configuration and decoded UE capabilities.
+uint8_t get_max_nof_drbs(const up_resource_manager_cfg& cfg, const rrc_ue_capabilities_t& capabilities);
+
 /// \brief Perform sanity check on incoming resource setup/modification/release requests.
 bool is_valid(const slotted_id_vector<pdu_session_id_t, cu_cp_pdu_session_res_setup_item>& setup_items,
               const up_context&                                                            context,
@@ -42,11 +45,13 @@ up_config_update
 calculate_update(const slotted_id_vector<pdu_session_id_t, cu_cp_pdu_session_res_setup_item>& setup_items,
                  const up_context&                                                            context,
                  const up_resource_manager_cfg&                                               cfg,
+                 const rrc_ue_capabilities_t&                                                 capabilities,
                  const ocudulog::basic_logger&                                                logger,
                  const up_old_drb_association&                                                old_drb_association = {});
 up_config_update calculate_update(const ngap_pdu_session_resource_modify_request& pdu,
                                   const up_context&                               context,
                                   const up_resource_manager_cfg&                  cfg,
+                                  const rrc_ue_capabilities_t&                    capabilities,
                                   const ocudulog::basic_logger&                   logger);
 up_config_update calculate_update(const ngap_pdu_session_resource_release_command& pdu,
                                   const up_context&                                context,

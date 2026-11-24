@@ -62,10 +62,12 @@ public:
     f1_params.nof_cyc_shifts                  = pucch_nof_cyclic_shifts::twelve;
     f1_params.occ_supported                   = true;
     cell_cfg_req.ran.init_bwp.pucch.resources = pucch_basic_params;
+    cell_cfg_req.rrm                          = make_cell_rrm_config(cell_cfg_req.ran);
     this->add_cell(cell_cfg_req);
 
     // Create PUCCH builder that will be used to add UEs.
-    pucch_cfg_builder.add_cell(to_du_cell_index(0), cell_cfg().params);
+    cell_rrm = cell_cfg_req.rrm;
+    pucch_cfg_builder.add_cell(to_du_cell_index(0), cell_cfg().params, cell_rrm);
 
     // Add UEs.
     for (unsigned i = 0, sz = test_params.nof_ues; i != sz; ++i) {
@@ -97,12 +99,12 @@ public:
   {
     auto ue_cfg = sched_config_helper::create_default_sched_ue_creation_request(cell_cfg(to_du_cell_index(0)).params,
                                                                                 {LCID_MIN_DRB});
-    ue_cfg.ue_index = to_du_ue_index((unsigned)rnti - 0x4601);
-    ue_cfg.crnti    = rnti;
-    report_fatal_error_if_not(pucch_cfg_builder.alloc_resources(ue_cfg.cfg.cells.value()[0]),
-                              "Failed to allocate PUCCH resources");
+    ue_cfg.ue_index       = to_du_ue_index((unsigned)rnti - 0x4601);
+    ue_cfg.crnti          = rnti;
+    ue_cell_config& pcell = *ue_cfg.cfg.cells.value()[0].ded;
+    report_fatal_error_if_not(pucch_cfg_builder.alloc_resources(pcell), "Failed to allocate PUCCH resources");
     csi_period = std::get<csi_report_config::periodic_or_semi_persistent_report_on_pucch>(
-                     ue_cfg.cfg.cells.value()[0].serv_cell_cfg.csi_meas_cfg->csi_report_cfg_list[0].report_cfg_type)
+                     pcell.serv_cell_cfg.csi_meas_cfg->csi_report_cfg_list[0].report_cfg_type)
                      .report_slot_period;
     scheduler_test_simulator::add_ue(ue_cfg, true);
   }
@@ -155,6 +157,7 @@ public:
 
   multi_ue_test_params       test_params;
   cell_config_builder_params params;
+  cell_rrm_config            cell_rrm;
   pucch_resource_manager     pucch_cfg_builder{64};
   unsigned                   bsr_offset = 0;
   csi_report_periodicity     csi_period = csi_report_periodicity::slots320;

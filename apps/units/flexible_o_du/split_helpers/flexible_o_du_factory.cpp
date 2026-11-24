@@ -26,6 +26,7 @@
 #include "ocudu/fapi_adaptor/phy/p7/phy_fapi_p7_sector_fastpath_adaptor.h"
 #include "ocudu/fapi_adaptor/phy/phy_fapi_fastpath_adaptor.h"
 #include "ocudu/fapi_adaptor/phy/phy_fapi_sector_fastpath_adaptor.h"
+#include "ocudu/ntn/ntn_cell_params.h"
 #include "ocudu/ntn/ntn_configuration_manager.h"
 #include <algorithm>
 
@@ -47,17 +48,6 @@ static fapi::carrier_config generate_carrier_config_tlv(const odu::du_cell_confi
   fapi_config.num_rx_ant = du_cell.ran.ul_carrier.nof_ant;
 
   return fapi_config;
-}
-
-/// Returns the NTN k_mac of the cell in slots, or zero if not configured.
-static unsigned get_ntn_k_mac_slots(const odu::du_cell_config& cell)
-{
-  const auto& ntn_params = cell.ran.ntn_params;
-  if (!ntn_params.has_value() || !ntn_params->ntn_cfg.k_mac.has_value()) {
-    return 0;
-  }
-  return static_cast<unsigned>(ntn_params->ntn_cfg.k_mac->count()) *
-         get_nof_slots_per_subframe(cell.ran.dl_cfg_common.init_dl_bwp.generic_params.scs);
 }
 
 static o_du_low_unit_config generate_o_du_low_config(const du_low_unit_config&            du_low_unit_cfg,
@@ -89,7 +79,8 @@ static o_du_low_unit_config generate_o_du_low_config(const du_low_unit_config&  
         // applied (rx_gain_dB is 0).
         .dbfs_to_dbm_conversion_factor = du_low_unit_cfg.power_calibration.dbfs_to_dbm_conversion_factor - rx_gain_dB,
         .db_to_dbfs_conversion_factor  = du_low_unit_cfg.power_calibration.db_to_dbfs_conversion_factor,
-        .ntn_k_mac_slots               = get_ntn_k_mac_slots(cell)};
+        .ntn_k_mac_slots =
+            get_ntn_k_mac_slots(cell.ran.ntn_params, cell.ran.dl_cfg_common.init_dl_bwp.generic_params.scs)};
 
     odu_low_cfg.fapi_cfg.sectors.push_back({.p5_config = p5_cfg, .p7_config = p7_cfg});
 
@@ -121,12 +112,15 @@ static o_du_low_unit_config generate_o_du_low_config(const du_low_unit_config&  
   return odu_low_cfg;
 }
 
-static flexible_o_du_ru_config
-generate_o_du_ru_config(span<const odu::du_cell_config> cells, unsigned max_processing_delay, unsigned prach_nof_ports)
+static flexible_o_du_ru_config generate_o_du_ru_config(span<const odu::du_cell_config> cells,
+                                                       unsigned                        max_processing_delay,
+                                                       unsigned                        prach_nof_ports,
+                                                       const std::string&              ru_dft_processor_type)
 {
   flexible_o_du_ru_config out_cfg;
   out_cfg.prach_nof_ports      = prach_nof_ports;
   out_cfg.max_processing_delay = max_processing_delay;
+  out_cfg.dft_processor_type   = ru_dft_processor_type;
 
   for (const auto& cell : cells) {
     auto&                    out_cell   = out_cfg.cells.emplace_back();
@@ -276,8 +270,10 @@ o_du_unit flexible_o_du_factory::create_flexible_o_du(const o_du_unit_dependenci
   auto odu_instance = make_o_du(std::move(odu_dependencies));
   report_error_if_not(odu_instance, "Invalid Distributed Unit");
 
-  flexible_o_du_ru_config ru_config = generate_o_du_ru_config(
-      du_cells, du_lo.expert_phy_cfg.max_processing_delay_slots, du_hi.cells_cfg.front().cell.prach_cfg.ports.size());
+  flexible_o_du_ru_config       ru_config = generate_o_du_ru_config(du_cells,
+                                                              du_lo.expert_phy_cfg.max_processing_delay_slots,
+                                                              du_hi.cells_cfg.front().cell.prach_cfg.ports.size(),
+                                                              du_lo.expert_phy_cfg.dft_processor_type);
   flexible_o_du_ru_dependencies ru_dependencies{*dependencies.workers,
                                                 du_impl->get_upper_ru_ul_adapter(),
                                                 du_impl->get_upper_ru_timing_adapter(),

@@ -5,7 +5,7 @@
 
 #include "ngap_test_messages.h"
 #include "lib/ngap/ngap_asn1_converters.h"
-#include "ocudu/asn1/asn1_utils.h"
+#include "ocudu/asn1/asn1_dispatch.h"
 #include "ocudu/asn1/ngap/common.h"
 #include "ocudu/asn1/ngap/ngap_ies.h"
 #include "ocudu/asn1/ngap/ngap_pdu_contents.h"
@@ -56,7 +56,10 @@ bool ocudu::ocucp::is_pdu_type(const ngap_message&                              
   return pdu.pdu.successful_outcome().value.type().value == type;
 }
 
-ngap_message ocudu::ocucp::generate_ng_setup_response(plmn_identity plmn)
+ngap_message ocudu::ocucp::generate_ng_setup_response(plmn_identity plmn,
+                                                      uint8_t       amf_pointer,
+                                                      uint16_t      relative_amf_capacity,
+                                                      uint16_t      amf_set_id)
 {
   ngap_message ng_setup_response = {};
 
@@ -69,11 +72,11 @@ ngap_message ocudu::ocucp::generate_ng_setup_response(plmn_identity plmn)
   served_guami_item_s served_guami_item;
   served_guami_item.guami.plmn_id = plmn.to_bytes();
   served_guami_item.guami.amf_region_id.from_number(2);
-  served_guami_item.guami.amf_set_id.from_number(1);
-  served_guami_item.guami.amf_pointer.from_number(0);
+  served_guami_item.guami.amf_set_id.from_number(amf_set_id);
+  served_guami_item.guami.amf_pointer.from_number(amf_pointer);
   setup_res->served_guami_list.push_back(served_guami_item);
 
-  setup_res->relative_amf_capacity = 255;
+  setup_res->relative_amf_capacity = relative_amf_capacity;
 
   plmn_support_item_s plmn_support_item = {};
   plmn_support_item.plmn_id             = plmn.to_bytes();
@@ -85,6 +88,76 @@ ngap_message ocudu::ocucp::generate_ng_setup_response(plmn_identity plmn)
   setup_res->plmn_support_list.push_back(plmn_support_item);
 
   return ng_setup_response;
+}
+
+ngap_message ocudu::ocucp::generate_amf_configuration_update()
+{
+  ngap_message msg;
+  msg.pdu.set_init_msg().load_info_obj(ASN1_NGAP_ID_AMF_CFG_UPD);
+  return msg;
+}
+
+ngap_message ocudu::ocucp::generate_amf_status_indication(const guami_t&                    guami,
+                                                          const std::optional<std::string>& backup_amf_name)
+{
+  ngap_message msg;
+  msg.pdu.set_init_msg().load_info_obj(ASN1_NGAP_ID_AMF_STATUS_IND);
+
+  unavailable_guami_item_s item;
+  item.guami.plmn_id = guami.plmn.to_bytes();
+  item.guami.amf_region_id.from_number(guami.amf_region_id);
+  item.guami.amf_set_id.from_number(guami.amf_set_id);
+  item.guami.amf_pointer.from_number(guami.amf_pointer);
+  if (backup_amf_name.has_value()) {
+    item.backup_amf_name_present = true;
+    item.backup_amf_name.from_string(*backup_amf_name);
+  }
+
+  msg.pdu.init_msg().value.amf_status_ind()->unavailable_guami_list.push_back(item);
+  return msg;
+}
+
+ngap_message
+ocudu::ocucp::generate_overload_start(std::optional<asn1::ngap::overload_action_opts::options> overload_action,
+                                      std::optional<uint8_t>                                   traffic_load_reduction)
+{
+  ngap_message msg;
+  msg.pdu.set_init_msg().load_info_obj(ASN1_NGAP_ID_OVERLOAD_START);
+  auto& overload_start = msg.pdu.init_msg().value.overload_start();
+  if (overload_action.has_value()) {
+    overload_start->amf_overload_resp_present                     = true;
+    overload_start->amf_overload_resp.set_overload_action().value = *overload_action;
+  }
+  if (traffic_load_reduction.has_value()) {
+    overload_start->amf_traffic_load_reduction_ind_present = true;
+    overload_start->amf_traffic_load_reduction_ind         = *traffic_load_reduction;
+  }
+  return msg;
+}
+
+ngap_message ocudu::ocucp::generate_overload_stop()
+{
+  ngap_message msg;
+  msg.pdu.set_init_msg().load_info_obj(ASN1_NGAP_ID_OVERLOAD_STOP);
+  return msg;
+}
+
+ngap_message ocudu::ocucp::generate_reroute_nas_request(ran_ue_id_t         ran_ue_id,
+                                                        const ngap_message& initial_ue_message,
+                                                        uint16_t            amf_set_id)
+{
+  ngap_message msg;
+  msg.pdu.set_init_msg().load_info_obj(ASN1_NGAP_ID_REROUTE_NAS_REQUEST);
+  auto& reroute           = msg.pdu.init_msg().value.reroute_nas_request();
+  reroute->ran_ue_ngap_id = to_underlying(ran_ue_id);
+  reroute->amf_set_id.from_number(amf_set_id);
+
+  byte_buffer   packed{byte_buffer::fallback_allocation_tag{}};
+  asn1::bit_ref bref(packed);
+  report_fatal_error_if_not(asn1::pack(bref, initial_ue_message.pdu) == asn1::OCUDUASN_SUCCESS,
+                            "Failed to pack the InitialUEMessage");
+  reroute->ngap_msg = std::move(packed);
+  return msg;
 }
 
 ngap_message ocudu::ocucp::generate_ng_setup_failure()
@@ -1041,7 +1114,7 @@ ngap_message ocudu::ocucp::generate_valid_handover_request(amf_ue_id_t amf_ue_id
     // so set it explicitly rather than inheriting whatever the transfer above happens to carry.
     asn1::ngap::pdu_session_res_setup_request_transfer_s transfer;
     asn1::cbit_ref transfer_bref({setup_item.ho_request_transfer.begin(), setup_item.ho_request_transfer.end()});
-    report_error_if_not(transfer.unpack(transfer_bref) == asn1::OCUDUASN_SUCCESS,
+    report_error_if_not(asn1::unpack(transfer, transfer_bref) == asn1::OCUDUASN_SUCCESS,
                         "Failed to unpack Handover Request Transfer");
     transfer->data_forwarding_not_possible_present = params.data_forwarding_not_possible;
     transfer->data_forwarding_not_possible =
@@ -1089,7 +1162,7 @@ ngap_message ocudu::ocucp::generate_valid_handover_request(amf_ue_id_t amf_ue_id
   transparent_container.pdu_session_res_info_list.push_back(session_item);
   // Fill NR CGI.
   auto& cgi = transparent_container.target_cell_id.set_nr_cgi();
-  cgi.plmn_id.from_string("00f110");
+  cgi.plmn_id.from_string(params.invalid_target_cell_plmn_id ? "ffffff" : "00f110");
   nr_cell_identity nci = nr_cell_identity::create(gnb_id_t{411, 22}, 0).value();
   cgi.nr_cell_id.from_number(nci.value());
   // Fill UE history info.
@@ -1104,7 +1177,7 @@ ngap_message ocudu::ocucp::generate_valid_handover_request(amf_ue_id_t amf_ue_id
 
   byte_buffer   pdu{};
   asn1::bit_ref bref{pdu};
-  if (transparent_container.pack(bref) == asn1::OCUDUASN_ERROR_ENCODE_FAIL) {
+  if (asn1::pack(bref, transparent_container) == asn1::OCUDUASN_ERROR_ENCODE_FAIL) {
     ocudulog::fetch_basic_logger("NGAP").error("Failed to pack source to target container.");
   }
   ho_request->source_to_target_transparent_container = pdu.copy();

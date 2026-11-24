@@ -5,6 +5,7 @@
 
 #include "pdcp_entity_rx.h"
 #include "ocudu/instrumentation/traces/up_traces.h"
+#include "ocudu/ran/pdcp/pdcp_pdu_size.h"
 #include "ocudu/rohc/rohc_decompressor.h"
 #include "ocudu/rohc/rohc_factory.h"
 #include "ocudu/security/security_engine_factory.h"
@@ -18,7 +19,7 @@ pdcp_entity_rx::pdcp_entity_rx(uint32_t                        ue_index,
                                pdcp_rx_config                  cfg_,
                                pdcp_rx_upper_data_notifier&    upper_dn_,
                                pdcp_rx_upper_control_notifier& upper_cn_,
-                               timer_factory                   ue_ul_timer_factory_,
+                               timer_factory                   ue_ctrl_timer_factory_,
                                task_executor&                  ue_ul_executor_,
                                task_executor&                  crypto_executor_,
                                uint32_t                        max_nof_crypto_workers_,
@@ -31,7 +32,7 @@ pdcp_entity_rx::pdcp_entity_rx(uint32_t                        ue_index,
   rx_window(logger, pdcp_window_size(pdcp_sn_size_to_uint(cfg.sn_size))),
   upper_dn(upper_dn_),
   upper_cn(upper_cn_),
-  ue_ul_timer_factory(ue_ul_timer_factory_),
+  ue_ctrl_timer_factory(ue_ctrl_timer_factory_),
   ue_ul_executor(ue_ul_executor_),
   crypto_executor(crypto_executor_),
   max_nof_crypto_workers(max_nof_crypto_workers_),
@@ -39,7 +40,7 @@ pdcp_entity_rx::pdcp_entity_rx(uint32_t                        ue_index,
   metrics_agg(metrics_agg_)
 {
   if (metrics_agg.get_metrics_period().count()) {
-    metrics_timer = ue_ul_timer_factory.create_timer();
+    metrics_timer = ue_ctrl_timer_factory.create_timer();
     metrics_timer.set(std::chrono::milliseconds(metrics_agg.get_metrics_period().count()), [this]() {
       if (stopped) {
         return;
@@ -82,7 +83,7 @@ pdcp_entity_rx::pdcp_entity_rx(uint32_t                        ue_index,
 
   // t-Reordering timer
   if (cfg.t_reordering != pdcp_t_reordering::ms0 && cfg.t_reordering != pdcp_t_reordering::infinity) {
-    reordering_timer = ue_ul_timer_factory.create_timer();
+    reordering_timer = ue_ctrl_timer_factory.create_timer();
     if (static_cast<uint32_t>(cfg.t_reordering) > 0) {
       reordering_timer.set(std::chrono::milliseconds{static_cast<unsigned>(cfg.t_reordering)},
                            reordering_callback{this});
@@ -236,7 +237,7 @@ void pdcp_entity_rx::handle_pdu(byte_buffer_chain buf)
   }
   // Drop PDUs that cannot carry an SDU within the maximum PDCP SDU size (TS 38.323 Sec. 4.3.1). Control PDUs are
   // bounded by the same limit. The security engines size their buffers for PDUs within this limit.
-  const size_t max_pdu_len = hdr_len_bytes + pdcp_sdu_max_size + security::sec_mac_len;
+  const size_t max_pdu_len = hdr_len_bytes + PDCP_SDU_MAX_SIZE + security::sec_mac_len;
   if (OCUDU_UNLIKELY(buf.length() > max_pdu_len)) {
     metrics.add_dropped_pdus(1);
     logger.log_warning("Dropping PDU. Cause: PDU too large. pdu_len={} max_pdu_len={}", buf.length(), max_pdu_len);
@@ -345,7 +346,13 @@ void pdcp_entity_rx::handle_data_pdu(byte_buffer pdu, std::chrono::steady_clock:
   if ((int64_t)hdr.sn < (int64_t)SN(st.rx_deliv) - (int64_t)window_size) {
     rcvd_hfn = HFN(st.rx_deliv) + 1;
   } else if (hdr.sn >= SN(st.rx_deliv) + window_size) {
-    rcvd_hfn = HFN(st.rx_deliv) - 1;
+    uint32_t hfn = HFN(st.rx_deliv);
+    if (hfn == 0) {
+      metrics.add_dropped_pdus(1);
+      logger.log_warning("Discarding PDU. No previous hyperframe. sn={} rx_deliv={}", hdr.sn, st.rx_deliv);
+      return;
+    }
+    rcvd_hfn = hfn - 1;
   } else {
     rcvd_hfn = HFN(st.rx_deliv);
   }
@@ -640,7 +647,7 @@ byte_buffer pdcp_entity_rx::compile_status_report()
   enc.pack(st.rx_deliv, 32);
 
   // Set bitmap boundaries, ensure to not exceed max control PDU size (9000 Bytes)
-  constexpr uint32_t max_bits     = (pdcp_control_pdu_max_size - 5) * 8;
+  constexpr uint32_t max_bits     = (PDCP_CONTROL_PDU_MAX_SIZE - 5) * 8;
   uint32_t           bitmap_begin = st.rx_deliv + 1; // Bitmap starts from FMC+1
   uint32_t           bitmap_end   = st.rx_next;
   if (bitmap_begin < bitmap_end && bitmap_end - bitmap_begin > max_bits) {

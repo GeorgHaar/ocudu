@@ -181,7 +181,6 @@ public:
       rnti_t              crnti,
       plmn_identity       plmn       = plmn_identity::test_value(),
       byte_buffer rrc_setup_complete = test_helpers::pack_ul_dcch_msg(test_helpers::create_rrc_setup_complete()));
-
   /// Runs the NAS Authentication for a given UE.
   [[nodiscard]] bool authenticate_ue(unsigned du_idx, gnb_du_ue_f1ap_id_t du_ue_id, amf_ue_id_t amf_ue_id);
 
@@ -191,7 +190,8 @@ public:
       gnb_du_ue_f1ap_id_t                                        du_ue_id,
       std::optional<cu_cp_core_network_assist_info_for_inactive> cn_assist_info_for_inactive = std::nullopt,
       bool                                                       rrc_inactive_supported      = true,
-      std::optional<location_report_request>                     location_reporting_request  = std::nullopt);
+      std::optional<location_report_request>                     location_reporting_request  = std::nullopt,
+      std::optional<byte_buffer>                                 nr_capabilities             = std::nullopt);
 
   /// Get a Location Report, if one is awaited for.
   std::optional<ngap_message>
@@ -342,6 +342,12 @@ public:
 
   const ue_context* find_ue_context(unsigned du_idx, gnb_du_ue_f1ap_id_t du_ue_id) const;
 
+  /// Stores the F1AP IDs of the new UE-associated logical F1-connection of a UE, e.g. after an RRC Resume.
+  void update_ue_f1ap_ids(unsigned            du_idx,
+                          gnb_du_ue_f1ap_id_t old_du_ue_id,
+                          gnb_du_ue_f1ap_id_t new_du_ue_id,
+                          gnb_cu_ue_f1ap_id_t new_cu_ue_id);
+
   /// Get CU-CP configuration used to instantiate CU-CP.
   const cu_cp_configuration& get_cu_cp_cfg() const { return cu_cp_cfg; }
 
@@ -403,6 +409,9 @@ public:
 
 private:
   class worker_manager;
+
+  /// Generates the NG Setup Response of an AMF, which supports every PLMN that the CU-CP configures for the AMF.
+  ngap_message generate_amf_ng_setup_response(unsigned amf_idx) const;
 
   cu_cp_test_env_params params;
   cu_cp_configuration   cu_cp_cfg;

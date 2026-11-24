@@ -214,6 +214,10 @@ bool e2sm_kpm_du_meas_provider_impl::is_metric_supported(const asn1::e2sm::meas_
                                                          const e2sm_kpm_metric_level_enum level,
                                                          const bool&                      cell_scope)
 {
+  if (meas_type.type() != meas_type_c::types::meas_name) {
+    logger.debug("Only measurement names are supported.");
+    return false;
+  }
   if (!label.no_label_present) {
     logger.debug("Currently only NO_LABEL metric supported.");
     return false;

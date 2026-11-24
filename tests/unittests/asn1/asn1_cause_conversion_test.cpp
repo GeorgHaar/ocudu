@@ -98,6 +98,16 @@ TEST_F(asn1_cause_conversion_test, when_ngap_cause_received_then_conversion_to_c
   ASSERT_EQ(std::get<ngap_cause_misc_t>(ngap_cause), ngap_cause_misc_t::unknown_plmn_or_sn_pn);
 }
 
+TEST_F(asn1_cause_conversion_test, when_ngap_cause_with_choice_extension_received_then_cause_is_unspecified)
+{
+  asn1::ngap::cause_c asn1_cause;
+  asn1_cause.set_choice_exts();
+
+  ngap_cause_t ngap_cause = asn1_to_cause(asn1_cause);
+  ASSERT_TRUE(std::holds_alternative<ngap_cause_misc_t>(ngap_cause));
+  ASSERT_EQ(std::get<ngap_cause_misc_t>(ngap_cause), ngap_cause_misc_t::unspecified);
+}
+
 // test conversion to ngap asn1
 TEST_F(asn1_cause_conversion_test, when_common_cause_received_then_conversion_to_ngap_cause_successful)
 {
@@ -217,6 +227,16 @@ TEST_F(asn1_cause_conversion_test, when_f1ap_cause_received_then_conversion_to_c
   cause                 = asn1_to_cause(f1ap_cause);
   ASSERT_TRUE(std::holds_alternative<cause_misc_t>(cause));
   ASSERT_EQ(std::get<cause_misc_t>(cause), cause_misc_t::unspecified);
+}
+
+TEST_F(asn1_cause_conversion_test, when_f1ap_cause_with_choice_extension_received_then_cause_is_unspecified)
+{
+  asn1::f1ap::cause_c asn1_cause;
+  asn1_cause.set_choice_ext();
+
+  f1ap_cause_t f1ap_cause = asn1_to_cause(asn1_cause);
+  ASSERT_TRUE(std::holds_alternative<cause_misc_t>(f1ap_cause));
+  ASSERT_EQ(std::get<cause_misc_t>(f1ap_cause), cause_misc_t::unspecified);
 }
 
 // test conversion to f1ap asn1
@@ -342,6 +362,16 @@ TEST_F(asn1_cause_conversion_test, when_e1ap_cause_received_then_conversion_to_c
   cause                 = asn1_to_cause(e1ap_cause);
   ASSERT_TRUE(std::holds_alternative<cause_misc_t>(cause));
   ASSERT_EQ(std::get<cause_misc_t>(cause), cause_misc_t::unspecified);
+}
+
+TEST_F(asn1_cause_conversion_test, when_e1ap_cause_with_choice_extension_received_then_cause_is_unspecified)
+{
+  asn1::e1ap::cause_c asn1_cause;
+  asn1_cause.set_choice_ext();
+
+  e1ap_cause_t e1ap_cause = asn1_to_cause(asn1_cause);
+  ASSERT_TRUE(std::holds_alternative<cause_misc_t>(e1ap_cause));
+  ASSERT_EQ(std::get<cause_misc_t>(e1ap_cause), cause_misc_t::unspecified);
 }
 
 // test conversion to e1ap asn1

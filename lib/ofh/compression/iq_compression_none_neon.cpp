@@ -15,9 +15,6 @@ void iq_compression_none_neon::compress(span<uint8_t>                buffer,
                                         span<const cbf16_t>          iq_data,
                                         const ru_compression_params& params)
 {
-  // Number of quantized samples per resource block.
-  static constexpr size_t NOF_SAMPLES_PER_PRB = 2 * NOF_SUBCARRIERS_PER_RB;
-
   // Use generic implementation if NEON utils don't support requested bit width.
   if (!neon::iq_width_packing_supported(params.data_width)) {
     iq_compression_none_impl::compress(buffer, iq_data, params);
@@ -32,63 +29,14 @@ void iq_compression_none_neon::compress(span<uint8_t>                buffer,
 
   ocudu_assert(buffer.size() >= prb_size * nof_prbs, "Output buffer doesn't have enough space to decompress PRBs");
 
-  // Quantizer object.
-  quantizer q(params.data_width);
+  span<const bf16_t> float_samples(reinterpret_cast<const bf16_t*>(iq_data.data()), iq_data.size() * 2U);
+  log_quantized_input_rms(float_samples, params.data_width);
 
-  // Auxiliary arrays used for float to fixed point conversion of the input data.
-  std::array<int16_t, NOF_SAMPLES_PER_PRB * MAX_NOF_PRBS> input_quantized;
+  // Scaling applied to the input floats before the conversion to fixed point, including the quantizer gain.
+  const float full_scale = static_cast<float>((1 << (params.data_width - 1)) - 1);
+  const float scale      = full_scale * scaling_table.get_compression_iq_scaling(params.data_width);
 
-  span<const bf16_t> float_samples_span(reinterpret_cast<const bf16_t*>(iq_data.data()), iq_data.size() * 2U);
-  span<int16_t>      input_quantized_span(input_quantized.data(), float_samples_span.size());
-
-  q.to_fixed_point(
-      input_quantized_span, float_samples_span, scaling_table.get_compression_iq_scaling(params.data_width));
-  log_post_quantization_rms(input_quantized_span);
-
-  unsigned sample_idx = 0;
-  unsigned rb         = 0;
-  // One NEON register can store 8 16-bit samples. A PRB comprises 24 16-bit IQ samples, thus we need three NEON
-  // registers to process one PRB.
-  //
-  // The loop below processes four resource blocks at a time.
-  for (size_t rb_index_end = (nof_prbs / 4) * 4; rb != rb_index_end; rb += 4) {
-    // Load samples.
-    int16x8x3_t vec_s16x3_0 = vld1q_s16_x3(&input_quantized[sample_idx]);
-    int16x8x3_t vec_s16x3_1 = vld1q_s16_x3(&input_quantized[sample_idx + NOF_SAMPLES_PER_PRB]);
-    int16x8x3_t vec_s16x3_2 = vld1q_s16_x3(&input_quantized[sample_idx + NOF_SAMPLES_PER_PRB * 2]);
-    int16x8x3_t vec_s16x3_3 = vld1q_s16_x3(&input_quantized[sample_idx + NOF_SAMPLES_PER_PRB * 3]);
-
-    // Pack samples of the PRB using utility function.
-    neon::pack_prb_big_endian({&buffer[rb * prb_size], prb_size}, vec_s16x3_0, params.data_width);
-    neon::pack_prb_big_endian({&buffer[(rb + 1) * prb_size], prb_size}, vec_s16x3_1, params.data_width);
-    neon::pack_prb_big_endian({&buffer[(rb + 2) * prb_size], prb_size}, vec_s16x3_2, params.data_width);
-    neon::pack_prb_big_endian({&buffer[(rb + 3) * prb_size], prb_size}, vec_s16x3_3, params.data_width);
-
-    sample_idx += (4 * NOF_SAMPLES_PER_PRB);
-  }
-
-  // The loop below processes two resource blocks at a time.
-  for (size_t rb_index_end = (nof_prbs / 2) * 2; rb != rb_index_end; rb += 2) {
-    // Load samples.
-    int16x8x3_t vec_s16x3_0 = vld1q_s16_x3(&input_quantized[sample_idx]);
-    int16x8x3_t vec_s16x3_1 = vld1q_s16_x3(&input_quantized[sample_idx + NOF_SAMPLES_PER_PRB]);
-    // Pack samples of the PRB using utility function.
-    neon::pack_prb_big_endian({&buffer[rb * prb_size], prb_size}, vec_s16x3_0, params.data_width);
-    neon::pack_prb_big_endian({&buffer[(rb + 1) * prb_size], prb_size}, vec_s16x3_1, params.data_width);
-    sample_idx += (2 * NOF_SAMPLES_PER_PRB);
-  }
-
-  // Process the last resource block.
-  if (rb != nof_prbs) {
-    // Load samples.
-    int16x8x3_t vec_s16x3 = vld1q_s16_x3(&input_quantized[sample_idx]);
-
-    // Pack samples of the PRB using utility function.
-    neon::pack_prb_big_endian({&buffer[rb * prb_size], prb_size}, vec_s16x3, params.data_width);
-
-    sample_idx += NOF_SAMPLES_PER_PRB;
-    ++rb;
-  }
+  neon::compress_prbs<false>(buffer.data(), float_samples.data(), nof_prbs, params.data_width, scale, 0);
 }
 
 bool iq_compression_none_neon::decompress(span<cbf16_t>                iq_data,
@@ -110,24 +58,10 @@ bool iq_compression_none_neon::decompress(span<cbf16_t>                iq_data,
                "Input does not contain enough bytes to decompress {} PRBs",
                nof_prbs);
 
-  quantizer q_out(params.data_width);
+  // Scaling of the decompressed samples, including the quantizer gain.
+  float scale =
+      quantizer(params.data_width).to_float(1) * scaling_table.get_decompression_iq_scaling(params.data_width);
 
-  std::array<int16_t, MAX_NOF_SUBCARRIERS * 2> unpacked_iq_data;
-
-  unsigned idx = 0;
-  for (unsigned rb = 0; rb != nof_prbs; ++rb) {
-    span<const uint8_t> comp_prb_buffer(&compressed_data[rb * comp_prb_size], comp_prb_size);
-
-    // Unpack resource block.
-    span<int16_t> unpacked_prb_span(&unpacked_iq_data[idx], NOF_SUBCARRIERS_PER_RB * 2);
-    neon::unpack_prb_big_endian(unpacked_prb_span, comp_prb_buffer, params.data_width);
-
-    idx += (NOF_SUBCARRIERS_PER_RB * 2);
-  }
-
-  span<int16_t> unpacked_iq_int16_span(unpacked_iq_data.data(), iq_data.size() * 2);
-  // Convert to complex brain float samples.
-  q_out.to_brain_float(iq_data, unpacked_iq_int16_span, scaling_table.get_decompression_iq_scaling(params.data_width));
-
+  neon::decompress_prbs<false>(iq_data.data(), compressed_data.data(), nof_prbs, params.data_width, scale);
   return true;
 }

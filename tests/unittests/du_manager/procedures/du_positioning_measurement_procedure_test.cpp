@@ -50,6 +50,14 @@ protected:
     ocudulog::fetch_basic_logger("DU-MNG").set_level(ocudulog::basic_levels::debug);
     ocudulog::init();
 
+    // Start the cells, so that they accept positioning measurements.
+    mac.mac_cell.wait_start.ready_ev.set();
+    for (unsigned i = 0, e = cell_mng.nof_cells(); i != e; ++i) {
+      async_task<bool>         t = cell_mng.start(to_du_cell_index(i));
+      lazy_task_launcher<bool> launcher{t};
+      report_fatal_error_if_not(t.ready() and t.get(), "Failed to start cell={}", i);
+    }
+
     // The TRP IDs start from 1, as in du_positioning_manager_impl.
     du_trp_info trp;
     trp.trp_id = trp_id_t::min;
@@ -64,7 +72,7 @@ protected:
     du_positioning_meas_request req;
     req.trp_meas_req_list.push_back(du_trp_meas_request{.trp_id = trp_id_t::min});
     req.pos_meas_quants.push_back(positioning_meas_quantity{.meas_type = pos_meas_type::ul_rtoa});
-    srs_carrier carrier;
+    srs_carrier carrier{};
     carrier.srs_cfg        = make_test_srs_config();
     carrier.ul_bwp_cfg.scs = subcarrier_spacing::kHz15;
     req.srs_carriers.push_back(carrier);
@@ -131,8 +139,8 @@ protected:
 
 } // namespace
 
-/// The MAC answers with an empty response when the measurement times out, or when it already runs another
-/// measurement. The procedure must report a failure instead of reading a result that the MAC did not produce.
+/// The MAC answers with an empty response when the measurement times out, or when it discards the request. The
+/// procedure must report a failure instead of reading a result that the MAC did not produce.
 TEST_F(du_positioning_measurement_procedure_test, when_mac_reports_no_measurement_then_the_response_is_empty)
 {
   // The MAC test double returns an empty response by default.
@@ -146,8 +154,22 @@ TEST_F(du_positioning_measurement_procedure_test, when_request_is_sent_then_the_
   run_procedure(make_request());
 
   ASSERT_TRUE(mac.last_positioning_meas_request.has_value());
-  // Two periods of 80 slots at 15 kHz.
-  ASSERT_EQ(mac.last_positioning_meas_request->timeout, std::chrono::milliseconds{160});
+  // Two periods of 80 slots at 15 kHz, and the margin for the start of the measurement and the PHY report.
+  ASSERT_EQ(mac.last_positioning_meas_request->timeout, std::chrono::milliseconds{180});
+}
+
+/// A measurement that misses an SRS occasion completes on the next one, after the start of the measurement and the PHY
+/// report, which the margin covers also for a short SRS period.
+TEST_F(du_positioning_measurement_procedure_test, when_the_srs_period_is_short_then_the_mac_timeout_keeps_the_margin)
+{
+  du_positioning_meas_request req                                            = make_request();
+  req.srs_carriers[0].srs_cfg.srs_res_list[0].periodicity_and_offset->period = srs_periodicity::sl10;
+
+  run_procedure(req);
+
+  ASSERT_TRUE(mac.last_positioning_meas_request.has_value());
+  // Two periods of 10 slots at 15 kHz, and the margin.
+  ASSERT_EQ(mac.last_positioning_meas_request->timeout, std::chrono::milliseconds{40});
 }
 
 /// The gNB-CU expects the result within the Response Time, as per TS 38.473 section 8.13.2.2, so a shorter Response
@@ -187,8 +209,8 @@ TEST_F(du_positioning_measurement_procedure_test, when_response_time_is_longer_t
   run_procedure(req);
 
   ASSERT_TRUE(mac.last_positioning_meas_request.has_value());
-  // Two periods of 80 slots at 15 kHz.
-  ASSERT_EQ(mac.last_positioning_meas_request->timeout, std::chrono::milliseconds{160});
+  // Two periods of 80 slots at 15 kHz, and the margin.
+  ASSERT_EQ(mac.last_positioning_meas_request->timeout, std::chrono::milliseconds{180});
 }
 
 TEST_F(du_positioning_measurement_procedure_test, when_the_cell_has_an_antenna_orientation_then_the_aoa_carries_it)
@@ -288,4 +310,53 @@ TEST(du_positioning_aoa_test, linear_array_slant_wraps_around_a_full_turn)
   ASSERT_EQ(zoa.lcs_to_gcs_translation->alpha, 100);
   ASSERT_EQ(zoa.lcs_to_gcs_translation->beta, 200);
   ASSERT_EQ(zoa.lcs_to_gcs_translation->gamma, 0);
+}
+
+TEST_F(du_positioning_measurement_procedure_test, when_a_trp_is_unknown_and_has_no_nr_cgi_then_the_mac_is_not_called)
+{
+  du_positioning_meas_request req = make_request();
+  req.trp_meas_req_list.push_back(du_trp_meas_request{.trp_id = uint_to_trp_id(2)});
+
+  du_positioning_meas_response resp = run_procedure(req);
+
+  ASSERT_TRUE(resp.pos_meas_list.empty());
+  ASSERT_FALSE(mac.last_positioning_meas_request.has_value());
+}
+
+TEST_F(du_positioning_measurement_procedure_test, when_no_cell_has_the_nr_cgi_of_a_trp_then_the_mac_is_not_called)
+{
+  du_positioning_meas_request req = make_request();
+  nr_cell_global_id_t         cgi = cell_mng.get_cell_cfg(to_du_cell_index(0)).nr_cgi;
+  cgi.nci                         = nr_cell_identity::create(cgi.nci.value() + 1).value();
+  req.trp_meas_req_list.push_back(du_trp_meas_request{.trp_id = uint_to_trp_id(2), .cgi = cgi});
+
+  du_positioning_meas_response resp = run_procedure(req);
+
+  ASSERT_TRUE(resp.pos_meas_list.empty());
+  ASSERT_FALSE(mac.last_positioning_meas_request.has_value());
+}
+
+TEST_F(du_positioning_measurement_procedure_test, when_two_trps_have_the_same_cell_then_the_mac_is_not_called)
+{
+  du_positioning_meas_request req = make_request();
+  req.trp_meas_req_list.push_back(
+      du_trp_meas_request{.trp_id = uint_to_trp_id(2), .cgi = cell_mng.get_cell_cfg(to_du_cell_index(0)).nr_cgi});
+
+  du_positioning_meas_response resp = run_procedure(req);
+
+  ASSERT_TRUE(resp.pos_meas_list.empty());
+  ASSERT_FALSE(mac.last_positioning_meas_request.has_value());
+}
+
+TEST_F(du_positioning_measurement_procedure_test, when_the_cell_of_a_trp_is_inactive_then_the_mac_is_not_called)
+{
+  mac.mac_cell.wait_stop.ready_ev.set();
+  async_task<void>         stop_task = cell_mng.stop(to_du_cell_index(0));
+  lazy_task_launcher<void> stop_launcher{stop_task};
+  ASSERT_FALSE(cell_mng.is_cell_active(to_du_cell_index(0)));
+
+  du_positioning_meas_response resp = run_procedure(make_request());
+
+  ASSERT_TRUE(resp.pos_meas_list.empty());
+  ASSERT_FALSE(mac.last_positioning_meas_request.has_value());
 }

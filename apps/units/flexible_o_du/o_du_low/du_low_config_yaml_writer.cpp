@@ -28,6 +28,8 @@ static void fill_du_low_log_section(YAML::Node node, const du_low_unit_logger_co
       fmt::format("{}", config.phy_rx_symbol_printer.triggers.pusch_threshold_sinr_dB);
   node["phy_rx_symbols_pusch_threshold_iter"] =
       fmt::format("{}", config.phy_rx_symbol_printer.triggers.pusch_threshold_iter);
+  node["phy_rx_symbols_srs_threshold_rsrp_dB"] =
+      fmt::format("{}", config.phy_rx_symbol_printer.triggers.srs_threshold_rsrp_dB);
 }
 
 static void fill_du_low_tracer_layers_section(YAML::Node node, const du_low_unit_tracer_config& config)
@@ -83,6 +85,7 @@ static void fill_du_low_expert_section(YAML::Node node, const du_low_unit_expert
   node["allow_request_on_empty_uplink_slot"]       = config.allow_request_on_empty_uplink_slot;
   node["enable_phy_tap"]                           = config.enable_phy_tap;
   node["phy_tap_arguments"]                        = config.phy_tap_arguments;
+  node["dft_factory"]                              = config.dft_processor_type;
 }
 
 static void fill_du_low_bbdev_pdsch_enc_section(YAML::Node node, const hwacc_pdsch_appconfig& config)

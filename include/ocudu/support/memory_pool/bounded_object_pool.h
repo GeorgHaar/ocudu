@@ -166,7 +166,10 @@ public:
       // Find the first free object.
       while (true) {
         // Convert the busy bitmap into an available bitmap, but circularly rotated by the bit_shift amount.
-        uint64_t available_rotated = ~((busy_bitmap >> bit_shift) | (busy_bitmap << (64 - bit_shift)));
+        // Note: Shifting a 64-bit value by 64 bits is undefined behavior, so the zero shift is handled separately.
+        uint64_t busy_rotated =
+            bit_shift == 0 ? busy_bitmap : (busy_bitmap >> bit_shift) | (busy_bitmap << (64 - bit_shift));
+        uint64_t available_rotated = ~busy_rotated;
 
         // Find the first bit set to one in the available bitmap.
         uint64_t obj_idx = find_first_lsb_one(available_rotated);

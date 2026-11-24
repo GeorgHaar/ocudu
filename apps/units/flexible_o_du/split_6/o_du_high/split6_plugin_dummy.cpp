@@ -112,7 +112,7 @@ split6_plugin_dummy::create_fapi_adaptor(const fapi_adaptor::split6_o_du_low_fap
   return std::make_unique<fapi_adaptor_dummy>();
 }
 
-#ifndef OCUDU_HAS_ENTERPRISE
+#ifndef OCUDU_HAS_SPLIT6_PHY_PLUGIN
 std::unique_ptr<split6_plugin> ocudu::create_split6_plugin(std::string_view app_name)
 {
   return std::make_unique<split6_plugin_dummy>();

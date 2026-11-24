@@ -13,22 +13,17 @@
 
 namespace ocudu {
 
-/// Maximum number of ports for DM-RS type 1.
-static constexpr unsigned DMRS_MAX_PORTS_TYPE1 = 8;
+/// Maximum number of DM-RS ports that share a CDM group, as per TS38.211 Tables 7.4.1.1.2-1 and 7.4.1.1.2-2.
+static constexpr unsigned DMRS_MAX_PORTS_PER_CDM_GROUP = 4;
 
-/// Maximum number of ports for DM-RS type 2.
-static constexpr unsigned DMRS_MAX_PORTS_TYPE2 = 12;
-
-/// Returns the maximum number of ports supported by the given DM-RS type.
-constexpr unsigned dmrs_max_ports_type(dmrs_config_type type)
+/// \brief Determines whether a DM-RS port requires double-symbol DM-RS.
+///
+/// The DM-RS ports in the upper half of TS38.211 Tables 7.4.1.1.2-1 and 7.4.1.1.2-2 use a time-domain orthogonal cover
+/// code, which is only available with double-symbol DM-RS.
+constexpr bool is_dmrs_port_double_symbol(dmrs_config_type type, unsigned dmrs_port)
 {
-  ocudu_assert(type != dmrs_config_type::not_set, "Invalid DM-RS type.");
-  return (type == dmrs_config_type::type1) ? DMRS_MAX_PORTS_TYPE1 : DMRS_MAX_PORTS_TYPE2;
+  return dmrs_port >= dmrs_max_ports_type(type) / 2;
 }
-
-/// Defines the maximum number of ports the DM-RS can be mapped to.
-constexpr unsigned DMRS_MAX_NPORTS =
-    std::max(dmrs_max_ports_type(dmrs_config_type::type1), dmrs_max_ports_type(dmrs_config_type::type2));
 
 /// \brief Gets a DM-RS position mask within a resource block.
 ///

@@ -11,6 +11,7 @@
 #include "lib/scheduler/pucch_scheduling/pucch_allocator_impl.h"
 #include "lib/scheduler/slicing/ran_slice_instance.h"
 #include "lib/scheduler/srs/srs_allocator_impl.h"
+#include "lib/scheduler/support/dmrs_helpers.h"
 #include "lib/scheduler/uci_scheduling/uci_allocator_impl.h"
 #include "lib/scheduler/ue_context/ue.h"
 #include "lib/scheduler/ue_context/ue_cell_repository.h"
@@ -21,9 +22,15 @@
 #include "tests/test_doubles/scheduler/scheduler_result_finder.h"
 #include "tests/test_doubles/scheduler/scheduler_test_message_validators.h"
 #include "ocudu/adt/unique_function.h"
+#include "ocudu/ran/csi_rs/csi_rs_pattern.h"
+#include "ocudu/ran/csi_rs/frequency_allocation_type.h"
+#include "ocudu/ran/dmrs/dmrs.h"
 #include "ocudu/ran/du_types.h"
 #include "ocudu/ran/duplex_mode.h"
 #include "ocudu/ran/pdcch/search_space.h"
+#include "ocudu/ran/pdsch/pdsch_mcs.h"
+#include "ocudu/ran/sch/sch_segmentation.h"
+#include "ocudu/ran/sch/tbs_calculator.h"
 #include "ocudu/scheduler/config/logical_channel_config_factory.h"
 #include "ocudu/scheduler/config/scheduler_expert_config_factory.h"
 #include "ocudu/scheduler/support/rb_helper.h"
@@ -37,6 +44,10 @@ struct test_params {
       ss2_dci_fmt = search_space_configuration::ue_specific_dci_format::f0_1_and_1_1;
   /// Cell-specific K-offset of the cell, which turns it into an NTN one when set.
   std::chrono::milliseconds ntn_cs_koffset{0};
+  /// k_mac of the cell, which turns it into an NTN one when set.
+  std::chrono::milliseconds ntn_k_mac{0};
+  /// Number of DL antenna ports of the cell.
+  unsigned nof_dl_ports = 1;
 };
 
 class ue_grid_allocator_test : public ::testing::TestWithParam<duplex_mode>
@@ -47,9 +58,14 @@ class ue_grid_allocator_test : public ::testing::TestWithParam<duplex_mode>
     sched_cell_configuration_request_message req;
     req = sched_config_helper::make_default_sched_cell_configuration_request(builder_params);
     req.ran.init_bwp.pdcch_cfg->search_spaces[0].set_non_ss0_monitored_dci_formats(params.ss2_dci_fmt);
-    if (params.ntn_cs_koffset.count() > 0) {
+    if (params.ntn_cs_koffset.count() > 0 or params.ntn_k_mac.count() > 0) {
       req.ran.ntn_params.emplace();
-      req.ran.ntn_params->ntn_cfg.cell_specific_koffset = params.ntn_cs_koffset;
+      if (params.ntn_cs_koffset.count() > 0) {
+        req.ran.ntn_params->ntn_cfg.cell_specific_koffset = params.ntn_cs_koffset;
+      }
+      if (params.ntn_k_mac.count() > 0) {
+        req.ran.ntn_params->ntn_cfg.k_mac = params.ntn_k_mac;
+      }
       // A HARQ process of the cell is allowed to operate in UL HARQ mode B.
       req.ran.ntn_params->ul_harq_mode_b = true;
     }
@@ -59,7 +75,11 @@ class ue_grid_allocator_test : public ::testing::TestWithParam<duplex_mode>
 protected:
   ue_grid_allocator_test(const test_params& params) :
     sched_cfg(params.sched_cfg),
-    cfg_builder_params(cell_config_builder_profiles::create(GetParam())),
+    cfg_builder_params([&params]() {
+      cell_config_builder_params builder_params = cell_config_builder_profiles::create(GetParam());
+      builder_params.dl_carrier.nof_ant         = params.nof_dl_ports;
+      return builder_params;
+    }()),
     cell_cfg(*[this, &params]() {
       const auto* cfg = cfg_mng.add_cell(make_cell_config_request(cfg_builder_params, params));
       ocudu_assert(cfg != nullptr, "Cell configuration failed");
@@ -81,8 +101,9 @@ protected:
 
   slot_point get_next_ul_slot(const slot_point starting_slot) const
   {
-    // The cell-specific K-offset delays every UL transmission the DCI grants, as per TS 38.213, Section 17.
-    slot_point next_slot = starting_slot + cfg_builder_params.min_k2 + cell_cfg.ntn_cs_koffset;
+    // The cell-specific K-offset delays every UL transmission the DCI grants, as per TS 38.213, Section 4.2, and the
+    // transmission reaches the gNB k_mac slots later still.
+    slot_point next_slot = starting_slot + cell_cfg.ul_delay(cfg_builder_params.min_k2 + cell_cfg.ntn_cs_koffset);
     while (not cell_cfg.is_fully_ul_enabled(next_slot)) {
       ++next_slot;
     }
@@ -119,7 +140,7 @@ protected:
     alloc.post_process_results();
 
     // Log scheduler results.
-    res_logger.on_scheduler_result(res_grid[0].result);
+    res_logger.on_scheduler_result(res_grid[0].result_reader());
   }
 
   bool run_until(const std::function<void()>& to_run, unique_function<bool()> until, unsigned max_slot_count = 1000)
@@ -146,7 +167,7 @@ protected:
       ue_creation_req.cfg.lc_config_list->push_back(config_helpers::create_default_logical_channel_config(lcid));
     }
     // Set same dedicated PDCCH config.
-    (*ue_creation_req.cfg.cells)[0].serv_cell_cfg.init_dl_bwp.pdcch_cfg =
+    (*ue_creation_req.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdcch_cfg =
         cell_cfg.bwp_res[to_bwp_id(0)].dl().ded_pdcchs[0];
 
     return add_ue(ue_creation_req);
@@ -175,30 +196,32 @@ protected:
                                bool                    interleaving_enabled,
                                std::optional<unsigned> max_nof_rbs = std::nullopt)
   {
-    const auto& init_dl_bwp = cell_cfg.params.dl_cfg_common.init_dl_bwp;
-    auto        result =
-        alloc.allocate_dl_grant(ue_newtx_dl_grant_request{user, current_slot, pending_bytes, interleaving_enabled});
+    auto result = alloc.allocate_dl_grant(ue_newtx_dl_grant_request{
+        user, current_slot, pending_bytes, interleaving_enabled, user.select_dl_transport_block().restrictions});
     if (not result.has_value()) {
       return;
     }
     auto& builder = result.value();
 
-    vrb_interval vrbs = builder.recommended_vrbs(used_dl_vrbs);
-
-    // Compute the corresponding CRBs.
-    // Note: VRB-to-PRB interleaving is not supported in this test.
-    std::pair<crb_interval, crb_interval> crbs = {
-        prb_to_crb(init_dl_bwp.generic_params.crbs, vrbs.convert_to<prb_interval>()), {}};
-
-    builder.set_pdsch_params(vrbs, crbs, interleaving_enabled);
-    used_dl_vrbs.fill(vrbs.start(), vrbs.stop());
+    const vrb_alloc vrbs = builder.recommended_vrbs(used_dl_vrbs, MAX_NOF_PRBS, MAX_NOF_PRBS, interleaving_enabled);
+    builder.set_pdsch_params(vrbs, interleaving_enabled);
+    mark_used_dl_vrbs(vrbs);
   }
 
   void allocate_dl_retx_grant(const slice_ue& user, dl_harq_process_handle h_dl)
   {
     auto result = alloc.allocate_dl_grant(ue_retx_dl_grant_request{user, current_slot, h_dl, used_dl_vrbs});
     if (result.has_value()) {
-      used_dl_vrbs.fill(result.value().vrbs.start(), result.value().vrbs.stop());
+      mark_used_dl_vrbs(result.value().vrbs);
+    }
+  }
+
+  void mark_used_dl_vrbs(const vrb_alloc& vrbs)
+  {
+    if (vrbs.is_type0()) {
+      used_dl_vrbs |= vrbs.type0();
+    } else {
+      used_dl_vrbs |= vrbs.type1();
     }
   }
 
@@ -215,8 +238,12 @@ protected:
                                        std::optional<unsigned> max_nof_rbs = std::nullopt)
   {
     const auto& init_ul_bwp = cell_cfg.params.ul_cfg_common.init_ul_bwp;
-    auto        result      = alloc.allocate_ul_grant(ue_newtx_ul_grant_request{
-        user, pusch_slot, pending_bytes, ofdm_symbol_range{0, NOF_OFDM_SYM_PER_SLOT_NORMAL_CP}});
+    auto        result      = alloc.allocate_ul_grant(
+        ue_newtx_ul_grant_request{.user            = user,
+                                              .pusch_slot      = pusch_slot,
+                                              .pending_bytes   = pending_bytes,
+                                              .allowed_symbols = ofdm_symbol_range{0, NOF_OFDM_SYM_PER_SLOT_NORMAL_CP},
+                                              .restrictions    = user.select_ul_grant().restrictions});
     if (not result.has_value()) {
       return result.error();
     }
@@ -283,7 +310,7 @@ TEST_P(ue_grid_allocator_css_test,
 
   sched_ue_creation_request_message ue_creation_req =
       sched_config_helper::create_default_sched_ue_creation_request(cell_cfg.params);
-  ue_creation_req.cfg.cells->front().serv_cell_cfg.init_dl_bwp.pdcch_cfg =
+  ue_creation_req.cfg.cells->front().ded->serv_cell_cfg.init_dl_bwp.pdcch_cfg =
       cell_cfg.bwp_res[to_bwp_id(0)].dl().ded_pdcchs[0];
   ue_creation_req.ue_index = to_du_ue_index(0);
   ue_creation_req.crnti    = to_rnti(0x4601);
@@ -295,10 +322,12 @@ TEST_P(ue_grid_allocator_css_test,
       cs1_crbs.start(),
       cs1_crbs.start() + cell_cfg.params.dl_cfg_common.init_dl_bwp.pdcch_common.coreset0->coreset0_crbs().length()};
 
-  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule, false); },
-                        [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
-  const auto& prb_alloc = res_grid[0].result.dl.ue_grants.back().pdsch_cfg.rbs.type1().convert_to<prb_interval>();
-  const auto  crb_alloc = prb_to_crb(cs1_crbs, prb_alloc);
+  ASSERT_TRUE(
+      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule, false); },
+                [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result_reader().dl().ue_grants()) != nullptr; }));
+  const auto& prb_alloc =
+      res_grid[0].result_reader().dl().ue_grants().back().pdsch_cfg.rbs.type1().convert_to<prb_interval>();
+  const auto crb_alloc = prb_to_crb(cs1_crbs, prb_alloc);
   ASSERT_TRUE(crb_lims.contains(crb_alloc));
 }
 
@@ -319,16 +348,17 @@ TEST_P(ue_grid_allocator_default_cfg_test, when_using_non_fallback_dci_format_us
   sched_ue_creation_request_message ue_creation_req =
       sched_config_helper::create_default_sched_ue_creation_request(cell_cfg.params);
   // Change PDSCH MCS table to be used when using non-fallback DCI format.
-  (*ue_creation_req.cfg.cells)[0].serv_cell_cfg.init_dl_bwp.pdsch_cfg->mcs_table = ocudu::pdsch_mcs_table::qam256;
-  ue_creation_req.ue_index                                                       = to_du_ue_index(0);
-  ue_creation_req.crnti                                                          = to_rnti(0x4601);
+  (*ue_creation_req.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdsch_cfg->mcs_table = ocudu::pdsch_mcs_table::qam256;
+  ue_creation_req.ue_index                                                            = to_du_ue_index(0);
+  ue_creation_req.crnti                                                               = to_rnti(0x4601);
 
   const ue& u = add_ue(ue_creation_req);
 
   // SearchSpace#2 uses non-fallback DCI format hence the MCS table set in dedicated PDSCH configuration must be used.
-  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule, false); },
-                        [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
-  ASSERT_EQ(res_grid[0].result.dl.ue_grants.back().pdsch_cfg.mcs_table, ocudu::pdsch_mcs_table::qam256);
+  ASSERT_TRUE(
+      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule, false); },
+                [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result_reader().dl().ue_grants()) != nullptr; }));
+  ASSERT_EQ(res_grid[0].result_reader().dl().ue_grants().back().pdsch_cfg.mcs_table, ocudu::pdsch_mcs_table::qam256);
 }
 
 TEST_P(ue_grid_allocator_default_cfg_test, allocates_pdsch_restricted_to_recommended_max_nof_rbs)
@@ -343,10 +373,10 @@ TEST_P(ue_grid_allocator_default_cfg_test, allocates_pdsch_restricted_to_recomme
   const unsigned            max_nof_rbs_to_schedule = 10U;
 
   ASSERT_TRUE(
-      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u1.ue_index], sched_bytes, max_nof_rbs_to_schedule); },
-                [&]() { return find_ue_pdsch(u1.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
+      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u1.ue_index], sched_bytes, false, max_nof_rbs_to_schedule); },
+                [&]() { return find_ue_pdsch(u1.crnti, res_grid[0].result_reader().dl().ue_grants()) != nullptr; }));
   // Successfully allocates PDSCH corresponding to the grant.
-  ASSERT_GE(find_ue_pdsch(u1.crnti, res_grid[0].result.dl.ue_grants)->pdsch_cfg.rbs.type1().length(),
+  ASSERT_GE(find_ue_pdsch(u1.crnti, res_grid[0].result_reader().dl().ue_grants())->pdsch_cfg.rbs.type1().length(),
             max_nof_rbs_to_schedule);
 }
 
@@ -365,9 +395,10 @@ TEST_P(ue_grid_allocator_default_cfg_test, allocates_pusch_restricted_to_recomme
       [&]() {
         allocate_ul_newtx_grant(slice_ues[u1.ue_index], recommended_nof_bytes_to_schedule, max_nof_rbs_to_schedule);
       },
-      [&]() { return find_ue_pusch(u1.crnti, res_grid[0].result.ul) != nullptr; }));
+      [&]() { return find_ue_pusch(u1.crnti, res_grid[0].result_reader().ul().puschs()) != nullptr; }));
   // Successfully allocates PUSCH corresponding to the grant.
-  ASSERT_EQ(find_ue_pusch(u1.crnti, res_grid[0].result.ul)->pusch_cfg.rbs.type1().length(), max_nof_rbs_to_schedule);
+  ASSERT_EQ(find_ue_pusch(u1.crnti, res_grid[0].result_reader().ul().puschs())->pusch_cfg.rbs.type1().length(),
+            max_nof_rbs_to_schedule);
 }
 
 // TS 38.321 clause 5.3.2.2: the UE considers a TB a new transmission only if the NDI "has been toggled compared to
@@ -384,10 +415,11 @@ TEST_P(ue_grid_allocator_default_cfg_test,
 
   // A newTx that is sent: its NDI is the one the UE received for this HARQ process. ACK it to free the process.
   ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], newtx_bytes, false); },
-                        [&]() { return find_ue_dl_pdcch(u.crnti, res_grid[0].result.dl) != nullptr; }));
-  const dci_1_1_configuration& sent_dci  = find_ue_dl_pdcch(u.crnti, res_grid[0].result.dl)->dci.as_c_rnti_f1_1();
-  const unsigned               sent_h_id = sent_dci.harq_process_number;
-  const bool                   sent_ndi  = sent_dci.tb1_new_data_indicator;
+                        [&]() { return find_ue_dl_pdcch(u.crnti, res_grid[0].result_reader().dl()) != nullptr; }));
+  const dci_1_1_configuration& sent_dci =
+      find_ue_dl_pdcch(u.crnti, res_grid[0].result_reader().dl())->dci.as_c_rnti_f1_1();
+  const unsigned sent_h_id = sent_dci.harq_process_number;
+  const bool     sent_ndi  = sent_dci.tb1_new_data_indicator;
   ASSERT_TRUE(ue_cc.harqs.dl_harq(to_harq_id(sent_h_id))->dl_ack_info(mac_harq_ack_report_status::ack, std::nullopt));
 
   // A newTx that stage 2 cancels for lack of RBs: its PDCCH and PDSCH are removed and nothing is sent.
@@ -397,17 +429,18 @@ TEST_P(ue_grid_allocator_default_cfg_test,
         auto grant =
             alloc.allocate_dl_grant(ue_newtx_dl_grant_request{slice_ues[u.ue_index], current_slot, newtx_bytes, false});
         if (grant.has_value()) {
-          grant.value().set_pdsch_params({}, {}, false);
+          grant.value().set_pdsch_params(vrb_interval{}, false);
           cancelled = true;
         }
       },
       [&]() { return cancelled; }));
-  ASSERT_EQ(find_ue_dl_pdcch(u.crnti, res_grid[0].result.dl), nullptr);
+  ASSERT_EQ(find_ue_dl_pdcch(u.crnti, res_grid[0].result_reader().dl()), nullptr);
 
   // The next newTx reuses the HARQ process and must toggle the NDI relative to the DCI the UE actually received.
   ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], newtx_bytes, false); },
-                        [&]() { return find_ue_dl_pdcch(u.crnti, res_grid[0].result.dl) != nullptr; }));
-  const dci_1_1_configuration& next_dci = find_ue_dl_pdcch(u.crnti, res_grid[0].result.dl)->dci.as_c_rnti_f1_1();
+                        [&]() { return find_ue_dl_pdcch(u.crnti, res_grid[0].result_reader().dl()) != nullptr; }));
+  const dci_1_1_configuration& next_dci =
+      find_ue_dl_pdcch(u.crnti, res_grid[0].result_reader().dl())->dci.as_c_rnti_f1_1();
   ASSERT_EQ(next_dci.harq_process_number, sent_h_id)
       << "Expected the newTx to reuse the HARQ process of the cancelled grant";
   ASSERT_NE(next_dci.tb1_new_data_indicator, sent_ndi)
@@ -426,33 +459,36 @@ TEST_P(ue_grid_allocator_default_cfg_test,
 
   // A newTx that is sent: its NDI is the one the UE received for this HARQ process. Report CRC OK to free the process.
   ASSERT_TRUE(run_until([&]() { allocate_ul_newtx_grant(slice_ues[u.ue_index], newtx_bytes); },
-                        [&]() { return find_ue_ul_pdcch(u.crnti, res_grid[0].result.dl) != nullptr; }));
-  const dci_0_1_configuration& sent_dci  = find_ue_ul_pdcch(u.crnti, res_grid[0].result.dl)->dci.as_c_rnti_f0_1();
-  const unsigned               sent_h_id = sent_dci.harq_process_number;
-  const bool                   sent_ndi  = sent_dci.new_data_indicator;
+                        [&]() { return find_ue_ul_pdcch(u.crnti, res_grid[0].result_reader().dl()) != nullptr; }));
+  const dci_0_1_configuration& sent_dci =
+      find_ue_ul_pdcch(u.crnti, res_grid[0].result_reader().dl())->dci.as_c_rnti_f0_1();
+  const unsigned sent_h_id = sent_dci.harq_process_number;
+  const bool     sent_ndi  = sent_dci.new_data_indicator;
   ASSERT_TRUE(ue_cc.harqs.ul_harq(to_harq_id(sent_h_id))->ul_crc_info(true).has_value());
 
   // A newTx that stage 2 cancels for lack of RBs: its PDCCH and PUSCH are removed and nothing is sent.
   bool cancelled = false;
   ASSERT_TRUE(run_until(
       [&]() {
-        auto grant =
-            alloc.allocate_ul_grant(ue_newtx_ul_grant_request{slice_ues[u.ue_index],
-                                                              get_next_ul_slot(current_slot),
-                                                              newtx_bytes,
-                                                              ofdm_symbol_range{0, NOF_OFDM_SYM_PER_SLOT_NORMAL_CP}});
+        auto grant = alloc.allocate_ul_grant(
+            ue_newtx_ul_grant_request{.user            = slice_ues[u.ue_index],
+                                      .pusch_slot      = get_next_ul_slot(current_slot),
+                                      .pending_bytes   = newtx_bytes,
+                                      .allowed_symbols = ofdm_symbol_range{0, NOF_OFDM_SYM_PER_SLOT_NORMAL_CP},
+                                      .restrictions    = slice_ues[u.ue_index].select_ul_grant().restrictions});
         if (grant.has_value()) {
           grant.value().set_pusch_params({});
           cancelled = true;
         }
       },
       [&]() { return cancelled; }));
-  ASSERT_EQ(find_ue_ul_pdcch(u.crnti, res_grid[0].result.dl), nullptr);
+  ASSERT_EQ(find_ue_ul_pdcch(u.crnti, res_grid[0].result_reader().dl()), nullptr);
 
   // The next newTx reuses the HARQ process and must toggle the NDI relative to the DCI the UE actually received.
   ASSERT_TRUE(run_until([&]() { allocate_ul_newtx_grant(slice_ues[u.ue_index], newtx_bytes); },
-                        [&]() { return find_ue_ul_pdcch(u.crnti, res_grid[0].result.dl) != nullptr; }));
-  const dci_0_1_configuration& next_dci = find_ue_ul_pdcch(u.crnti, res_grid[0].result.dl)->dci.as_c_rnti_f0_1();
+                        [&]() { return find_ue_ul_pdcch(u.crnti, res_grid[0].result_reader().dl()) != nullptr; }));
+  const dci_0_1_configuration& next_dci =
+      find_ue_ul_pdcch(u.crnti, res_grid[0].result_reader().dl())->dci.as_c_rnti_f0_1();
   ASSERT_EQ(next_dci.harq_process_number, sent_h_id)
       << "Expected the newTx to reuse the HARQ process of the cancelled grant";
   ASSERT_NE(next_dci.new_data_indicator, sent_ndi)
@@ -472,10 +508,12 @@ TEST_P(ue_grid_allocator_default_cfg_test, does_not_allocate_pusch_with_all_rema
   const crb_interval cell_crbs = {cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.crbs.start(),
                                   cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.crbs.stop()};
 
-  ASSERT_TRUE(run_until([&]() { allocate_ul_newtx_grant(slice_ues[u1.ue_index], u1.pending_ul_newtx_bytes()); },
-                        [&]() { return find_ue_pusch(u1.crnti, res_grid[0].result.ul) != nullptr; }));
+  ASSERT_TRUE(
+      run_until([&]() { allocate_ul_newtx_grant(slice_ues[u1.ue_index], u1.pending_ul_newtx_bytes()); },
+                [&]() { return find_ue_pusch(u1.crnti, res_grid[0].result_reader().ul().puschs()) != nullptr; }));
   // Successfully allocates PUSCH corresponding to the grant.
-  ASSERT_LT(find_ue_pusch(u1.crnti, res_grid[0].result.ul)->pusch_cfg.rbs.type1().length(), cell_crbs.length());
+  ASSERT_LT(find_ue_pusch(u1.crnti, res_grid[0].result_reader().ul().puschs())->pusch_cfg.rbs.type1().length(),
+            cell_crbs.length());
 }
 
 TEST_P(ue_grid_allocator_default_cfg_test, no_two_pdschs_are_allocated_in_same_slot_for_a_ue)
@@ -492,10 +530,10 @@ TEST_P(ue_grid_allocator_default_cfg_test, no_two_pdschs_are_allocated_in_same_s
         allocate_dl_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule, false);
         allocate_dl_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule, false);
       },
-      [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
+      [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result_reader().dl().ue_grants()) != nullptr; }));
 
   // Only one PDSCH per slot per UE.
-  ASSERT_EQ(res_grid[0].result.dl.ue_grants.size(), 1);
+  ASSERT_EQ(res_grid[0].result_reader().dl().ue_grants().size(), 1);
 }
 
 TEST_P(ue_grid_allocator_default_cfg_test, no_two_puschs_are_allocated_in_same_slot_for_a_ue)
@@ -512,10 +550,10 @@ TEST_P(ue_grid_allocator_default_cfg_test, no_two_puschs_are_allocated_in_same_s
         allocate_ul_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule);
         allocate_ul_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule);
       },
-      [&]() { return find_ue_pusch(u.crnti, res_grid[0].result.ul) != nullptr; }));
+      [&]() { return find_ue_pusch(u.crnti, res_grid[0].result_reader().ul().puschs()) != nullptr; }));
 
   // Only one PUSCH per slot per UE.
-  ASSERT_EQ(res_grid[0].result.ul.puschs.size(), 1);
+  ASSERT_EQ(res_grid[0].result_reader().ul().puschs().size(), 1);
 }
 
 TEST_P(ue_grid_allocator_default_cfg_test, consecutive_puschs_for_a_ue_are_allocated_in_increasing_order_of_time)
@@ -534,7 +572,7 @@ TEST_P(ue_grid_allocator_default_cfg_test, consecutive_puschs_for_a_ue_are_alloc
         pusch_slot = get_next_ul_slot(current_slot);
         allocate_ul_newtx_grant(pusch_slot, slice_ues[u.ue_index], nof_bytes_to_schedule);
       },
-      [&]() { return find_ue_pusch(u.crnti, res_grid[0].result.ul) != nullptr; }));
+      [&]() { return find_ue_pusch(u.crnti, res_grid[0].result_reader().ul().puschs()) != nullptr; }));
 
   // Second PUSCH grant for the UE trying to allocate PUSCH in a slot previous to grant1.
   alloc_status result = alloc_status::invalid_params;
@@ -554,13 +592,15 @@ TEST_P(ue_grid_allocator_default_cfg_test, consecutive_pdschs_for_a_ue_are_alloc
   const ue& u = add_ue(ue_creation_req);
 
   // First PDSCH grant for the UE.
-  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule, false); },
-                        [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
+  ASSERT_TRUE(
+      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule, false); },
+                [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result_reader().dl().ue_grants()) != nullptr; }));
   slot_point last_pdsch_slot = current_slot;
 
   // Second PDSCH grant in the same slot for the UE.
-  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule, false); },
-                        [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
+  ASSERT_TRUE(
+      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule, false); },
+                [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result_reader().dl().ue_grants()) != nullptr; }));
   ASSERT_GE(current_slot, last_pdsch_slot);
 }
 
@@ -575,14 +615,18 @@ TEST_P(ue_grid_allocator_default_cfg_test,
   const ue& u = add_ue(ue_creation_req);
 
   // First PDSCH grant for the UE.
-  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule, false); },
-                        [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
-  slot_point last_pdsch_ack_slot = current_slot + find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants)->context.k1;
+  ASSERT_TRUE(
+      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule, false); },
+                [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result_reader().dl().ue_grants()) != nullptr; }));
+  slot_point last_pdsch_ack_slot =
+      current_slot + find_ue_pdsch(u.crnti, res_grid[0].result_reader().dl().ue_grants())->context.k1;
 
   // Second PDSCH grant in the same slot for the UE.
-  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule, false); },
-                        [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
-  ASSERT_GE(current_slot + find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants)->context.k1, last_pdsch_ack_slot);
+  ASSERT_TRUE(
+      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule, false); },
+                [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result_reader().dl().ue_grants()) != nullptr; }));
+  ASSERT_GE(current_slot + find_ue_pdsch(u.crnti, res_grid[0].result_reader().dl().ue_grants())->context.k1,
+            last_pdsch_ack_slot);
 }
 
 TEST_P(ue_grid_allocator_default_cfg_test,
@@ -602,8 +646,9 @@ TEST_P(ue_grid_allocator_default_cfg_test,
   }
 
   // First PDSCH grant for the UE.
-  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule, false); },
-                        [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
+  ASSERT_TRUE(
+      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule, false); },
+                [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result_reader().dl().ue_grants()) != nullptr; }));
 
   // Ensure next PDSCH to be allocated slot is after wrap around of 1024 SFNs (large gap to last allocated PDSCH slot)
   // and current slot value is less than last allocated PDSCH slot. e.g. next PDSCH to be allocated slot=SFN 2, slot 2
@@ -614,9 +659,10 @@ TEST_P(ue_grid_allocator_default_cfg_test,
   }
 
   // Next PDSCH grant to be allocated.
-  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule, false); },
-                        [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants) != nullptr; },
-                        nof_slot_until_pdsch_is_allocated_threshold));
+  ASSERT_TRUE(
+      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule, false); },
+                [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result_reader().dl().ue_grants()) != nullptr; },
+                nof_slot_until_pdsch_is_allocated_threshold));
 }
 
 TEST_P(ue_grid_allocator_default_cfg_test, successfully_allocates_pdsch_with_gbr_lc_prioritized_over_non_gbr_lc)
@@ -669,10 +715,11 @@ TEST_P(ue_grid_allocator_default_cfg_test, successfully_allocates_pdsch_with_gbr
 
   static const units::bytes sched_bytes{2000U};
 
-  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u1.ue_index], sched_bytes, false); },
-                        [&]() { return find_ue_pdsch(u1.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
+  ASSERT_TRUE(
+      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u1.ue_index], sched_bytes, false); },
+                [&]() { return find_ue_pdsch(u1.crnti, res_grid[0].result_reader().dl().ue_grants()) != nullptr; }));
 
-  const auto* ue_pdsch = find_ue_pdsch(u1.crnti, res_grid[0].result.dl.ue_grants);
+  const auto* ue_pdsch = find_ue_pdsch(u1.crnti, res_grid[0].result_reader().dl().ue_grants());
   ASSERT_TRUE(not ue_pdsch->tb_list.empty());
   ASSERT_TRUE(not ue_pdsch->tb_list.back().lc_chs_to_sched.empty());
   // TB info contains GBR LC channel first and then non-GBR LC channel.
@@ -696,8 +743,9 @@ TEST_P(ue_grid_allocator_default_cfg_test,
   }
 
   // First PUSCH grant for the UE.
-  ASSERT_TRUE(run_until([&]() { allocate_ul_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule); },
-                        [&]() { return find_ue_pusch(u.crnti, res_grid[0].result.ul.puschs) != nullptr; }));
+  ASSERT_TRUE(
+      run_until([&]() { allocate_ul_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule); },
+                [&]() { return find_ue_pusch(u.crnti, res_grid[0].result_reader().ul().puschs()) != nullptr; }));
 
   // Ensure next PUSCH to be allocated slot is after wrap around of 1024 SFNs (large gap to last allocated PUSCH slot)
   // and current slot value is less than last allocated PUSCH slot. e.g. next PUSCH to be allocated slot=SFN 2, slot 2
@@ -709,7 +757,7 @@ TEST_P(ue_grid_allocator_default_cfg_test,
 
   // Second PUSCH grant for the UE.
   ASSERT_TRUE(run_until([&]() { allocate_ul_newtx_grant(slice_ues[u.ue_index], nof_bytes_to_schedule); },
-                        [&]() { return find_ue_pusch(u.crnti, res_grid[0].result.ul.puschs) != nullptr; },
+                        [&]() { return find_ue_pusch(u.crnti, res_grid[0].result_reader().ul().puschs()) != nullptr; },
                         nof_slot_until_pusch_is_allocated_threshold));
 }
 
@@ -741,10 +789,10 @@ TEST_P(ue_grid_allocator_expert_cfg_pxsch_nof_rbs_limits_tester,
   const unsigned            max_nof_rbs_to_schedule = 10U;
 
   ASSERT_TRUE(
-      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u1.ue_index], sched_bytes, max_nof_rbs_to_schedule); },
-                [&]() { return find_ue_pdsch(u1.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
+      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u1.ue_index], sched_bytes, false, max_nof_rbs_to_schedule); },
+                [&]() { return find_ue_pdsch(u1.crnti, res_grid[0].result_reader().dl().ue_grants()) != nullptr; }));
   // Successfully allocates PDSCH.
-  ASSERT_EQ(find_ue_pdsch(u1.crnti, res_grid[0].result.dl.ue_grants)->pdsch_cfg.rbs.type1().length(),
+  ASSERT_EQ(find_ue_pdsch(u1.crnti, res_grid[0].result_reader().dl().ue_grants())->pdsch_cfg.rbs.type1().length(),
             std::max(expert_cfg.pdsch_nof_rbs.start(), max_nof_rbs_to_schedule));
 }
 
@@ -762,10 +810,10 @@ TEST_P(ue_grid_allocator_expert_cfg_pxsch_nof_rbs_limits_tester,
   const unsigned            max_nof_rbs_to_schedule = 273U;
 
   ASSERT_TRUE(
-      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u1.ue_index], sched_bytes, max_nof_rbs_to_schedule); },
-                [&]() { return find_ue_pdsch(u1.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
+      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u1.ue_index], sched_bytes, false, max_nof_rbs_to_schedule); },
+                [&]() { return find_ue_pdsch(u1.crnti, res_grid[0].result_reader().dl().ue_grants()) != nullptr; }));
   // Successfully allocates PDSCH.
-  ASSERT_EQ(find_ue_pdsch(u1.crnti, res_grid[0].result.dl.ue_grants)->pdsch_cfg.rbs.type1().length(),
+  ASSERT_EQ(find_ue_pdsch(u1.crnti, res_grid[0].result_reader().dl().ue_grants())->pdsch_cfg.rbs.type1().length(),
             std::min(expert_cfg.pdsch_nof_rbs.stop(), max_nof_rbs_to_schedule));
 }
 
@@ -786,9 +834,9 @@ TEST_P(ue_grid_allocator_expert_cfg_pxsch_nof_rbs_limits_tester,
       [&]() {
         allocate_ul_newtx_grant(slice_ues[u1.ue_index], recommended_nof_bytes_to_schedule, max_nof_rbs_to_schedule);
       },
-      [&]() { return find_ue_pusch(u1.crnti, res_grid[0].result.ul) != nullptr; }));
+      [&]() { return find_ue_pusch(u1.crnti, res_grid[0].result_reader().ul().puschs()) != nullptr; }));
   // Successfully allocates PUSCH.
-  ASSERT_EQ(find_ue_pusch(u1.crnti, res_grid[0].result.ul)->pusch_cfg.rbs.type1().length(),
+  ASSERT_EQ(find_ue_pusch(u1.crnti, res_grid[0].result_reader().ul().puschs())->pusch_cfg.rbs.type1().length(),
             std::max(expert_cfg.pdsch_nof_rbs.start(), max_nof_rbs_to_schedule));
 }
 
@@ -809,9 +857,9 @@ TEST_P(ue_grid_allocator_expert_cfg_pxsch_nof_rbs_limits_tester,
       [&]() {
         allocate_ul_newtx_grant(slice_ues[u1.ue_index], recommended_nof_bytes_to_schedule, max_nof_rbs_to_schedule);
       },
-      [&]() { return find_ue_pusch(u1.crnti, res_grid[0].result.ul) != nullptr; }));
+      [&]() { return find_ue_pusch(u1.crnti, res_grid[0].result_reader().ul().puschs()) != nullptr; }));
   // Successfully allocates PUSCH.
-  ASSERT_EQ(find_ue_pusch(u1.crnti, res_grid[0].result.ul)->pusch_cfg.rbs.type1().length(),
+  ASSERT_EQ(find_ue_pusch(u1.crnti, res_grid[0].result_reader().ul().puschs())->pusch_cfg.rbs.type1().length(),
             std::min(expert_cfg.pdsch_nof_rbs.stop(), max_nof_rbs_to_schedule));
 }
 
@@ -852,10 +900,11 @@ TEST_P(ue_grid_allocator_expert_cfg_pxsch_crb_limits_tester, allocates_pdsch_wit
   const unsigned            max_nof_rbs_to_schedule = 273U;
 
   ASSERT_TRUE(
-      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u1.ue_index], sched_bytes, max_nof_rbs_to_schedule); },
-                [&]() { return find_ue_pdsch(u1.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
+      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u1.ue_index], sched_bytes, false, max_nof_rbs_to_schedule); },
+                [&]() { return find_ue_pdsch(u1.crnti, res_grid[0].result_reader().dl().ue_grants()) != nullptr; }));
   // Successfully allocates PDSCH within RB limits.
-  ASSERT_EQ(find_ue_pdsch(u1.crnti, res_grid[0].result.dl.ue_grants)->pdsch_cfg.rbs.type1(), pdsch_vrb_limits);
+  ASSERT_EQ(find_ue_pdsch(u1.crnti, res_grid[0].result_reader().dl().ue_grants())->pdsch_cfg.rbs.type1(),
+            pdsch_vrb_limits);
 }
 
 TEST_P(ue_grid_allocator_expert_cfg_pxsch_crb_limits_tester, allocates_pusch_within_expert_cfg_pusch_rb_limits)
@@ -874,9 +923,10 @@ TEST_P(ue_grid_allocator_expert_cfg_pxsch_crb_limits_tester, allocates_pusch_wit
       [&]() {
         allocate_ul_newtx_grant(slice_ues[u1.ue_index], recommended_nof_bytes_to_schedule, max_nof_rbs_to_schedule);
       },
-      [&]() { return find_ue_pusch(u1.crnti, res_grid[0].result.ul) != nullptr; }));
+      [&]() { return find_ue_pusch(u1.crnti, res_grid[0].result_reader().ul().puschs()) != nullptr; }));
   // Successfully allocates PUSCH within RB limits.
-  ASSERT_EQ(find_ue_pusch(u1.crnti, res_grid[0].result.ul)->pusch_cfg.rbs.type1(), pusch_vrb_limits);
+  ASSERT_EQ(find_ue_pusch(u1.crnti, res_grid[0].result_reader().ul().puschs())->pusch_cfg.rbs.type1(),
+            pusch_vrb_limits);
 }
 
 class ue_grid_allocator_pdsch_repetition_test : public ue_grid_allocator_test
@@ -905,9 +955,9 @@ protected:
     req.ue_index = to_du_ue_index(0);
     req.crnti    = to_rnti(0x4601);
     req.cfg.lc_config_list->push_back(config_helpers::create_default_logical_channel_config(drb_lcid));
-    (*req.cfg.cells)[0].serv_cell_cfg.init_dl_bwp.pdcch_cfg = cell_cfg.bwp_res[to_bwp_id(0)].dl().ded_pdcchs[0];
+    (*req.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdcch_cfg = cell_cfg.bwp_res[to_bwp_id(0)].dl().ded_pdcchs[0];
 
-    auto&       pdsch_cfg   = (*req.cfg.cells)[0].serv_cell_cfg.init_dl_bwp.pdsch_cfg.value();
+    auto&       pdsch_cfg   = (*req.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdsch_cfg.value();
     const auto& common_list = cell_cfg.params.dl_cfg_common.init_dl_bwp.pdsch_common.pdsch_td_alloc_list;
     for (const auto& common_alloc : common_list) {
       pdsch_cfg.pdsch_td_alloc_list.push_back(common_alloc);
@@ -931,7 +981,7 @@ protected:
   // Time-domain resource of the DL DCI (format 1_1) scheduled for the UE in the current slot, if any.
   std::optional<unsigned> current_dl_dci_time_resource(rnti_t rnti) const
   {
-    const pdcch_dl_information* pdcch = find_ue_dl_pdcch(rnti, res_grid[0].result.dl);
+    const pdcch_dl_information* pdcch = find_ue_dl_pdcch(rnti, res_grid[0].result_reader().dl());
     if (pdcch == nullptr or pdcch->dci.type() != dci_dl_rnti_config_type::c_rnti_f1_1) {
       return std::nullopt;
     }
@@ -950,7 +1000,7 @@ TEST_P(ue_grid_allocator_pdsch_repetition_test, retx_reuses_original_repetition_
   const ue& u     = add_repetition_ue();
   ue_cell&  ue_cc = ues[u.ue_index].get_pcell();
 
-  auto ue_dl_grant = [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants); };
+  auto ue_dl_grant = [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result_reader().dl().ue_grants()); };
 
   // Low CQI: the newTx must be scheduled as a repetition bundle.
   set_reported_cqi(ue_cc, 3);
@@ -1006,7 +1056,7 @@ TEST_P(ue_grid_allocator_pdsch_repetition_test,
   auto result = alloc.allocate_dl_grant(
       ue_newtx_dl_grant_request{slice_ues[u.ue_index], current_slot, units::bytes{1000}, false});
   ASSERT_TRUE(result.has_value());
-  result.value().set_pdsch_params({}, {}, false);
+  result.value().set_pdsch_params(vrb_interval{}, false);
 
   ASSERT_FALSE(ue_cc.harqs.last_pdsch_slot().valid());
 
@@ -1015,15 +1065,410 @@ TEST_P(ue_grid_allocator_pdsch_repetition_test,
   auto retry = alloc.allocate_dl_grant(
       ue_newtx_dl_grant_request{slice_ues[u.ue_index], current_slot, units::bytes{1000}, false});
   ASSERT_TRUE(retry.has_value());
-  retry.value().set_pdsch_params({}, {}, false);
+  retry.value().set_pdsch_params(vrb_interval{}, false);
 }
 
 INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
                          ue_grid_allocator_pdsch_repetition_test,
                          testing::Values(duplex_mode::FDD));
 
+class ue_grid_allocator_dl_mimo_test : public ue_grid_allocator_test
+{
+protected:
+  ue_grid_allocator_dl_mimo_test() :
+    ue_grid_allocator_test(
+        test_params{.sched_cfg = config_helpers::make_default_scheduler_expert_config(), .nof_dl_ports = 4})
+  {
+  }
+
+  void report_ri(const ue& u, unsigned ri)
+  {
+    csi_report_data csi{};
+    csi.first_tb_wideband_cqi = cqi_value{15};
+    csi.ri                    = csi_report_data::ri_type{static_cast<uint8_t>(ri)};
+    csi.valid                 = true;
+    ues[u.ue_index].get_pcell().handle_csi_report(csi);
+  }
+
+  void allocate_dl_newtx_grant_on_ports(const slice_ue& user, const dmrs_port_mask& dmrs_ports, unsigned nof_cdm_groups)
+  {
+    auto result = alloc.allocate_dl_grant(ue_newtx_dl_grant_request{user, current_slot, units::bytes{1000U}, false});
+    if (not result.has_value()) {
+      return;
+    }
+    auto& builder = result.value();
+    builder.set_dmrs_ports(dmrs_ports, nof_cdm_groups);
+    const vrb_alloc vrbs = builder.recommended_vrbs(used_dl_vrbs, MAX_NOF_PRBS, MAX_NOF_PRBS, false);
+    builder.set_pdsch_params(vrbs, false);
+    mark_used_dl_vrbs(vrbs);
+  }
+
+  const dl_msg_alloc* find_pdsch(rnti_t rnti) const
+  {
+    return find_ue_pdsch(rnti, res_grid[0].result_reader().dl().ue_grants());
+  }
+
+  /// NACKs the DL HARQ process of the UE that waits for an ACK, and allocates its reTx. Returns true if the reTx is
+  /// allocated.
+  bool nack_and_allocate_dl_retx(const ue& u)
+  {
+    ue_cell&                              ue_cc = ues[u.ue_index].get_pcell();
+    std::optional<dl_harq_process_handle> h_dl  = ue_cc.harqs.find_dl_harq_waiting_ack();
+    if (not h_dl.has_value() or not h_dl->dl_ack_info(mac_harq_ack_report_status::nack, std::nullopt)) {
+      return false;
+    }
+    return run_until(
+        [&]() {
+          std::optional<dl_harq_process_handle> h_retx = ue_cc.harqs.find_pending_dl_retx();
+          if (h_retx.has_value()) {
+            allocate_dl_retx_grant(slice_ues[u.ue_index], *h_retx);
+          }
+        },
+        [&]() {
+          const dl_msg_alloc* grant = find_pdsch(u.crnti);
+          return grant != nullptr and grant->context.nof_retxs > 0;
+        });
+  }
+
+  unsigned dci_antenna_ports(rnti_t rnti) const
+  {
+    return find_ue_dl_pdcch(rnti, res_grid[0].result_reader().dl())->dci.as_c_rnti_f1_1().antenna_ports;
+  }
+
+  /// Returns the TBS that the UE derives from the parameters of a PDSCH, as per TS 38.214, Section 5.1.3.2.
+  static units::bytes ue_derived_tbs(const pdsch_information& pdsch)
+  {
+    // The UE of the test has no xOverhead configured, and DCI format 1_1 has no TB scaling field.
+    return tbs_calculator_calculate(
+        tbs_calculator_configuration{.nof_symb_sh  = pdsch.symbols.length(),
+                                     .nof_dmrs_prb = calculate_nof_dmrs_per_rb(pdsch.dmrs),
+                                     .nof_oh_prb   = 0,
+                                     .mcs_descr  = pdsch_mcs_get_config(pdsch.mcs_table, pdsch.codewords[0].mcs_index),
+                                     .nof_layers = pdsch.nof_layers,
+                                     .tb_scaling_field = 0,
+                                     .n_prb            = pdsch.rbs.type1().length()});
+  }
+};
+
+TEST_P(ue_grid_allocator_dl_mimo_test, single_user_pdsch_uses_the_dmrs_ports_of_its_layers)
+{
+  // TS 38.212 Table 7.3.1.2.2-1, values 0, 2, 9 and 10.
+  static constexpr std::array<unsigned, 4> expected_cdm_groups   = {1, 1, 2, 2};
+  static constexpr std::array<unsigned, 4> expected_antenna_port = {0, 2, 9, 10};
+
+  for (unsigned nof_layers = 1; nof_layers <= 4; ++nof_layers) {
+    const ue& u = add_ue(to_du_ue_index(nof_layers - 1), {});
+    report_ri(u, nof_layers);
+
+    ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], units::bytes{1000U}, false); },
+                          [&]() { return find_pdsch(u.crnti) != nullptr; }));
+    const pdsch_information& pdsch = find_pdsch(u.crnti)->pdsch_cfg;
+    dmrs_port_mask           expected_ports(DMRS_MAX_NPORTS);
+    expected_ports.fill(0, nof_layers);
+    ASSERT_EQ(pdsch.nof_layers, nof_layers);
+    ASSERT_EQ(pdsch.dmrs.dmrs_ports, expected_ports);
+    ASSERT_EQ(pdsch.dmrs.num_dmrs_cdm_grps_no_data, expected_cdm_groups[nof_layers - 1]);
+    ASSERT_EQ(dci_antenna_ports(u.crnti), expected_antenna_port[nof_layers - 1]);
+    ASSERT_EQ(pdsch.codewords[0].tb_size_bytes, ue_derived_tbs(pdsch));
+  }
+}
+
+// With maxLength=2, the scheduler still transmits a single-symbol DM-RS, which DCI f1_1 signals with the rows of
+// TS 38.212 Table 7.3.1.2.2-2 that have one front-load symbol.
+TEST_P(ue_grid_allocator_dl_mimo_test, single_user_pdsch_with_dmrs_max_length_2_uses_single_symbol_dmrs)
+{
+  // TS 38.212 Table 7.3.1.2.2-2, values 0, 2, 9 and 10.
+  static constexpr std::array<unsigned, 4> expected_cdm_groups   = {1, 1, 2, 2};
+  static constexpr std::array<unsigned, 4> expected_antenna_port = {0, 2, 9, 10};
+
+  for (unsigned nof_layers = 1; nof_layers <= 4; ++nof_layers) {
+    sched_ue_creation_request_message ue_creation_req =
+        sched_config_helper::create_default_sched_ue_creation_request(cell_cfg.params);
+    ue_creation_req.ue_index = to_du_ue_index(nof_layers - 1);
+    ue_creation_req.crnti    = to_rnti(0x4601 + nof_layers - 1);
+
+    bwp_downlink_dedicated& dl_bwp = (*ue_creation_req.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp;
+    dl_bwp.pdcch_cfg               = cell_cfg.bwp_res[to_bwp_id(0)].dl().ded_pdcchs[0];
+    dl_bwp.pdsch_cfg->pdsch_mapping_type_a_dmrs->max_length = dmrs_max_length::len2;
+
+    const ue& u = add_ue(ue_creation_req);
+    report_ri(u, nof_layers);
+
+    ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], units::bytes{1000U}, false); },
+                          [&]() { return find_pdsch(u.crnti) != nullptr; }));
+    const pdsch_information& pdsch = find_pdsch(u.crnti)->pdsch_cfg;
+    ASSERT_EQ(pdsch.nof_layers, nof_layers);
+    ASSERT_EQ(pdsch.dmrs.dmrs_ports, get_su_pdsch_dmrs_ports(nof_layers));
+    ASSERT_EQ(pdsch.dmrs.num_dmrs_cdm_grps_no_data, expected_cdm_groups[nof_layers - 1]);
+    ASSERT_EQ(dci_antenna_ports(u.crnti), expected_antenna_port[nof_layers - 1]);
+    ASSERT_EQ(pdsch.codewords[0].tb_size_bytes, ue_derived_tbs(pdsch));
+  }
+}
+
+TEST_P(ue_grid_allocator_dl_mimo_test, pdsch_and_dci_use_the_dmrs_ports_of_the_grant)
+{
+  const ue& u = add_ue(to_du_ue_index(0), {});
+
+  // The UE is paired with a UE on antenna ports 1000 and 1001, which leaves no data in CDM groups 0 and 1.
+  dmrs_port_mask dmrs_ports(DMRS_MAX_NPORTS);
+  dmrs_ports.set(2);
+  dmrs_ports.set(3);
+  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant_on_ports(slice_ues[u.ue_index], dmrs_ports, 2); },
+                        [&]() { return find_pdsch(u.crnti) != nullptr; }));
+  const dl_msg_alloc& grant = *find_pdsch(u.crnti);
+  ASSERT_EQ(grant.pdsch_cfg.nof_layers, 2);
+  ASSERT_EQ(grant.pdsch_cfg.dmrs.dmrs_ports, dmrs_ports);
+  ASSERT_EQ(grant.pdsch_cfg.dmrs.num_dmrs_cdm_grps_no_data, 2);
+  // TS 38.212 Table 7.3.1.2.2-1, value 8.
+  ASSERT_EQ(dci_antenna_ports(u.crnti), 8);
+  ASSERT_GT(grant.pdsch_cfg.codewords[0].tb_size_bytes.value(), 0);
+}
+
+// The UE derives the TBS of a reTx from the DM-RS overhead signalled in its DCI, hence the reTx keeps the CDM groups
+// without data of the original transmission.
+TEST_P(ue_grid_allocator_dl_mimo_test, retx_keeps_the_cdm_groups_without_data_of_the_original_transmission)
+{
+  const ue& u = add_ue(to_du_ue_index(0), {});
+
+  // The UE is paired with a UE on antenna ports 1002 and 1003, which leaves no data in CDM groups 0 and 1.
+  dmrs_port_mask dmrs_ports(DMRS_MAX_NPORTS);
+  dmrs_ports.fill(0, 2);
+  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant_on_ports(slice_ues[u.ue_index], dmrs_ports, 2); },
+                        [&]() { return find_pdsch(u.crnti) != nullptr; }));
+  ASSERT_TRUE(nack_and_allocate_dl_retx(u));
+
+  const dl_msg_alloc& retx = *find_pdsch(u.crnti);
+  ASSERT_EQ(retx.pdsch_cfg.dmrs.dmrs_ports, dmrs_ports);
+  ASSERT_EQ(retx.pdsch_cfg.dmrs.num_dmrs_cdm_grps_no_data, 2);
+  // TS 38.212 Table 7.3.1.2.2-1, value 7.
+  ASSERT_EQ(dci_antenna_ports(u.crnti), 7);
+  ASSERT_EQ(retx.pdsch_cfg.codewords[0].tb_size_bytes, ue_derived_tbs(retx.pdsch_cfg));
+
+  // With the CDM groups without data of a single-user transmission, the UE would derive another TBS.
+  pdsch_information su_pdsch              = retx.pdsch_cfg;
+  su_pdsch.dmrs.num_dmrs_cdm_grps_no_data = 1;
+  ASSERT_NE(retx.pdsch_cfg.codewords[0].tb_size_bytes, ue_derived_tbs(su_pdsch));
+}
+
+TEST_P(ue_grid_allocator_dl_mimo_test, retx_keeps_the_dmrs_ports_of_the_original_transmission)
+{
+  const ue& u = add_ue(to_du_ue_index(0), {});
+
+  // The UE is paired with a UE on antenna ports 1000 and 1001, which are not the default ports of its two layers.
+  dmrs_port_mask dmrs_ports(DMRS_MAX_NPORTS);
+  dmrs_ports.set(2);
+  dmrs_ports.set(3);
+  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant_on_ports(slice_ues[u.ue_index], dmrs_ports, 2); },
+                        [&]() { return find_pdsch(u.crnti) != nullptr; }));
+  ASSERT_TRUE(nack_and_allocate_dl_retx(u));
+
+  const dl_msg_alloc& retx = *find_pdsch(u.crnti);
+  ASSERT_EQ(retx.pdsch_cfg.dmrs.dmrs_ports, dmrs_ports);
+  ASSERT_EQ(retx.pdsch_cfg.dmrs.num_dmrs_cdm_grps_no_data, 2);
+  // TS 38.212 Table 7.3.1.2.2-1, value 8.
+  ASSERT_EQ(dci_antenna_ports(u.crnti), 8);
+  ASSERT_EQ(retx.pdsch_cfg.codewords[0].tb_size_bytes, ue_derived_tbs(retx.pdsch_cfg));
+}
+
+INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
+                         ue_grid_allocator_dl_mimo_test,
+                         testing::Values(duplex_mode::FDD, duplex_mode::TDD));
+
 // An NTN cell with a UE whose HARQ processes split between DL HARQ feedback enabled and disabled, so that the
 // allocator has to pick a process by the feedback the logical channels of the grant need.
+class ue_grid_allocator_ra_type0_test : public ue_grid_allocator_default_cfg_test
+{
+protected:
+  const crb_interval     bwp_crbs = cell_cfg.params.dl_cfg_common.init_dl_bwp.generic_params.crbs;
+  const nominal_rbg_size P        = get_nominal_rbg_size(bwp_crbs.length(), rbg_size::config1);
+
+  const ue& add_ue_with_res_alloc(pdsch_config::resource_allocation res_alloc,
+                                  unsigned                          max_pdsch_nof_rbs = MAX_NOF_PRBS)
+  {
+    sched_ue_creation_request_message req =
+        sched_config_helper::create_default_sched_ue_creation_request(cell_cfg.params);
+    req.ue_index            = to_du_ue_index(0);
+    req.crnti               = to_rnti(0x4601);
+    pdsch_config& pdsch_cfg = (*req.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdsch_cfg.value();
+    pdsch_cfg.res_alloc     = res_alloc;
+    pdsch_cfg.rbg_sz        = rbg_size::config1;
+    req.cfg.res_alloc_cfg.emplace().pdsch_grant_size_limits = {0, max_pdsch_nof_rbs};
+    return add_ue(req);
+  }
+
+  // Marks the first VRB of every even RBG as used, so that only the odd RBGs are free.
+  vrb_bitmap block_even_rbgs()
+  {
+    vrb_bitmap blocked(bwp_crbs.length());
+    for (unsigned rbg_idx = 0, nof_rbgs = get_nof_rbgs(bwp_crbs, P); rbg_idx < nof_rbgs; rbg_idx += 2) {
+      rbg_bitmap rbg(nof_rbgs);
+      rbg.set(rbg_idx);
+      blocked.set(convert_rbgs_to_vrbs(rbg, bwp_crbs, P).find_lowest());
+    }
+    used_dl_vrbs |= blocked;
+    return blocked;
+  }
+
+  const dl_msg_alloc* ue_pdsch(rnti_t rnti) const
+  {
+    return find_ue_pdsch(rnti, res_grid[0].result_reader().dl().ue_grants());
+  }
+
+  const dci_1_1_configuration& ue_dci(rnti_t rnti) const
+  {
+    return find_ue_dl_pdcch(rnti, res_grid[0].result_reader().dl())->dci.as_c_rnti_f1_1();
+  }
+};
+
+TEST_P(ue_grid_allocator_ra_type0_test,
+       when_free_rbgs_fit_more_vrbs_than_any_free_interval_then_dynamic_switch_selects_type0)
+{
+  const ue&  u = add_ue_with_res_alloc(pdsch_config::resource_allocation::dynamic_switch);
+  vrb_bitmap blocked;
+  ASSERT_TRUE(run_until(
+      [&]() {
+        blocked = block_even_rbgs();
+        allocate_dl_newtx_grant(slice_ues[u.ue_index], units::bytes{100000}, false);
+      },
+      [&]() { return ue_pdsch(u.crnti) != nullptr; }));
+
+  const vrb_alloc& rbs = ue_pdsch(u.crnti)->pdsch_cfg.rbs;
+  ASSERT_TRUE(rbs.is_type0());
+  // The largest free VRB interval spans the end of an even RBG and a full odd RBG.
+  ASSERT_GT(rbs.nof_vrbs(), 2 * to_underlying(P) - 1);
+  vrb_bitmap overlap = rbs.type0();
+  overlap &= blocked;
+  ASSERT_TRUE(overlap.none());
+  const rbg_bitmap rbgs = convert_vrbs_to_rbgs(rbs.type0(), bwp_crbs, P);
+  ASSERT_EQ(convert_rbgs_to_vrbs(rbgs, bwp_crbs, P), rbs.type0()) << "Type 0 grants must span whole RBGs";
+
+  const dci_1_1_configuration& dci = ue_dci(u.crnti);
+  ASSERT_EQ(dci.dynamic_pdsch_res_allocation_type, dynamic_resource_allocation::type_0);
+  ASSERT_EQ(dci.frequency_resource, rbgs.to_uint64());
+}
+
+TEST_P(ue_grid_allocator_ra_type0_test, when_a_free_interval_fits_the_grant_then_dynamic_switch_selects_type1)
+{
+  const ue& u = add_ue_with_res_alloc(pdsch_config::resource_allocation::dynamic_switch);
+  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], units::bytes{20}, false); },
+                        [&]() { return ue_pdsch(u.crnti) != nullptr; }));
+
+  const vrb_alloc& rbs = ue_pdsch(u.crnti)->pdsch_cfg.rbs;
+  ASSERT_TRUE(rbs.is_type1());
+  const dci_1_1_configuration& dci = ue_dci(u.crnti);
+  ASSERT_EQ(dci.dynamic_pdsch_res_allocation_type, dynamic_resource_allocation::type_1);
+  ASSERT_EQ(dci.frequency_resource,
+            ra_frequency_type1_get_riv(
+                ra_frequency_type1_configuration{bwp_crbs.length(), rbs.type1().start(), rbs.type1().length()}));
+}
+
+TEST_P(ue_grid_allocator_ra_type0_test, when_only_type0_is_configured_then_small_grants_use_whole_rbgs)
+{
+  const ue& u = add_ue_with_res_alloc(pdsch_config::resource_allocation::resource_allocation_type_0);
+  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], units::bytes{20}, false); },
+                        [&]() { return ue_pdsch(u.crnti) != nullptr; }));
+
+  const vrb_alloc& rbs = ue_pdsch(u.crnti)->pdsch_cfg.rbs;
+  ASSERT_TRUE(rbs.is_type0());
+  const rbg_bitmap rbgs = convert_vrbs_to_rbgs(rbs.type0(), bwp_crbs, P);
+  ASSERT_EQ(convert_rbgs_to_vrbs(rbgs, bwp_crbs, P), rbs.type0()) << "Type 0 grants must span whole RBGs";
+  const dci_1_1_configuration& dci = ue_dci(u.crnti);
+  ASSERT_FALSE(dci.dynamic_pdsch_res_allocation_type.has_value());
+  ASSERT_EQ(dci.frequency_resource, rbgs.to_uint64());
+}
+
+TEST_P(ue_grid_allocator_ra_type0_test, when_type0_newtx_is_retransmitted_then_retx_keeps_nof_vrbs_and_can_use_type1)
+{
+  const ue& u     = add_ue_with_res_alloc(pdsch_config::resource_allocation::dynamic_switch);
+  ue_cell&  ue_cc = ues[u.ue_index].get_pcell();
+  ASSERT_TRUE(run_until(
+      [&]() {
+        block_even_rbgs();
+        allocate_dl_newtx_grant(slice_ues[u.ue_index], units::bytes{100000}, false);
+      },
+      [&]() { return ue_pdsch(u.crnti) != nullptr; }));
+  const dl_msg_alloc& newtx = *ue_pdsch(u.crnti);
+  ASSERT_TRUE(newtx.pdsch_cfg.rbs.is_type0());
+  const unsigned nof_vrbs = newtx.pdsch_cfg.rbs.nof_vrbs();
+
+  std::optional<dl_harq_process_handle> h_dl = ue_cc.harqs.dl_harq(newtx.pdsch_cfg.harq_id);
+  ASSERT_TRUE(h_dl.has_value());
+  ASSERT_TRUE(h_dl->dl_ack_info(mac_harq_ack_report_status::nack, std::nullopt));
+
+  // Without fragmentation, the reTx fits in a contiguous VRB interval.
+  ASSERT_TRUE(run_until(
+      [&]() {
+        std::optional<dl_harq_process_handle> h_retx = ue_cc.harqs.find_pending_dl_retx();
+        if (h_retx.has_value()) {
+          allocate_dl_retx_grant(slice_ues[u.ue_index], *h_retx);
+        }
+      },
+      [&]() {
+        const dl_msg_alloc* grant = ue_pdsch(u.crnti);
+        return grant != nullptr and grant->context.nof_retxs > 0;
+      }));
+  const vrb_alloc& retx_rbs = ue_pdsch(u.crnti)->pdsch_cfg.rbs;
+  ASSERT_TRUE(retx_rbs.is_type1());
+  ASSERT_EQ(retx_rbs.nof_vrbs(), nof_vrbs);
+  ASSERT_EQ(ue_dci(u.crnti).dynamic_pdsch_res_allocation_type, dynamic_resource_allocation::type_1);
+}
+
+TEST_P(ue_grid_allocator_ra_type0_test, when_type0_only_grant_budget_is_below_rbg_size_then_a_whole_rbg_is_allocated)
+{
+  const ue& u = add_ue_with_res_alloc(pdsch_config::resource_allocation::resource_allocation_type_0);
+
+  ASSERT_TRUE(run_until(
+      [&]() {
+        auto result = alloc.allocate_dl_grant(
+            ue_newtx_dl_grant_request{slice_ues[u.ue_index], current_slot, units::bytes{100000}, false});
+        if (not result.has_value()) {
+          return;
+        }
+        // The grant budget is below the RBG size, but the slice still has RBs left for a whole RBG.
+        const vrb_alloc vrbs = result.value().recommended_vrbs(used_dl_vrbs, 1, MAX_NOF_PRBS, false);
+        result.value().set_pdsch_params(vrbs, false);
+      },
+      [&]() { return ue_pdsch(u.crnti) != nullptr; }));
+
+  const vrb_alloc& rbs = ue_pdsch(u.crnti)->pdsch_cfg.rbs;
+  ASSERT_TRUE(rbs.is_type0());
+  const rbg_bitmap rbgs = convert_vrbs_to_rbgs(rbs.type0(), bwp_crbs, P);
+  ASSERT_EQ(rbgs.count(), 1);
+  ASSERT_EQ(convert_rbgs_to_vrbs(rbgs, bwp_crbs, P), rbs.type0());
+}
+
+TEST_P(ue_grid_allocator_ra_type0_test, when_ue_rb_limit_is_not_a_multiple_of_rbg_size_then_type0_grant_and_retx_fit_it)
+{
+  const unsigned max_ue_rbs = 2 * to_underlying(P) + 1;
+  const ue&      u = add_ue_with_res_alloc(pdsch_config::resource_allocation::resource_allocation_type_0, max_ue_rbs);
+  ue_cell&       ue_cc = ues[u.ue_index].get_pcell();
+  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], units::bytes{100000}, false); },
+                        [&]() { return ue_pdsch(u.crnti) != nullptr; }));
+  const dl_msg_alloc& newtx = *ue_pdsch(u.crnti);
+  ASSERT_TRUE(newtx.pdsch_cfg.rbs.is_type0());
+  ASSERT_LE(newtx.pdsch_cfg.rbs.nof_vrbs(), max_ue_rbs);
+
+  std::optional<dl_harq_process_handle> h_dl = ue_cc.harqs.dl_harq(newtx.pdsch_cfg.harq_id);
+  ASSERT_TRUE(h_dl.has_value());
+  ASSERT_TRUE(h_dl->dl_ack_info(mac_harq_ack_report_status::nack, std::nullopt));
+
+  ASSERT_TRUE(run_until(
+      [&]() {
+        std::optional<dl_harq_process_handle> h_retx = ue_cc.harqs.find_pending_dl_retx();
+        if (h_retx.has_value()) {
+          allocate_dl_retx_grant(slice_ues[u.ue_index], *h_retx);
+        }
+      },
+      [&]() {
+        const dl_msg_alloc* grant = ue_pdsch(u.crnti);
+        return grant != nullptr and grant->context.nof_retxs > 0;
+      }));
+}
+
+INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
+                         ue_grid_allocator_ra_type0_test,
+                         testing::Values(duplex_mode::FDD, duplex_mode::TDD));
+
 class ue_grid_allocator_dl_harq_feedback_test : public ue_grid_allocator_test
 {
 protected:
@@ -1044,11 +1489,11 @@ protected:
   {
     sched_ue_creation_request_message req =
         sched_config_helper::create_default_sched_ue_creation_request(cell_cfg.params);
-    req.ue_index                                            = to_du_ue_index(0);
-    req.crnti                                               = to_rnti(0x4601);
-    (*req.cfg.cells)[0].serv_cell_cfg.init_dl_bwp.pdcch_cfg = cell_cfg.bwp_res[to_bwp_id(0)].dl().ded_pdcchs[0];
+    req.ue_index                                                 = to_du_ue_index(0);
+    req.crnti                                                    = to_rnti(0x4601);
+    (*req.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdcch_cfg = cell_cfg.bwp_res[to_bwp_id(0)].dl().ded_pdcchs[0];
 
-    auto& pdsch_cell_cfg         = (*req.cfg.cells)[0].serv_cell_cfg.pdsch_serv_cell_cfg.value();
+    auto& pdsch_cell_cfg         = (*req.cfg.cells)[0].ded->serv_cell_cfg.pdsch_serv_cell_cfg.value();
     pdsch_cell_cfg.nof_harq_proc = pdsch_serving_cell_config::nof_harq_proc_for_pdsch::n2;
     // Process 0 carries the feedback and process 1 has it disabled.
     pdsch_cell_cfg.dl_harq_feedback_disabled.set(1);
@@ -1076,7 +1521,8 @@ protected:
   {
     unsigned nof_bits = 0;
     for (unsigned sl = 0; sl != res_grid.max_ul_slot_alloc_delay + 1; ++sl) {
-      const pucch_info* pucch = find_ue_pucch_with_harq_ack(rnti, res_grid[sl].result.ul.pucchs.unsorted());
+      const pucch_info* pucch =
+          find_ue_pucch_with_harq_ack(rnti, res_grid[sl].result_reader().ul().pucchs().unsorted());
       if (pucch != nullptr) {
         nof_bits += pucch->uci_bits.harq_ack_nof_bits;
       }
@@ -1093,7 +1539,7 @@ TEST_P(ue_grid_allocator_dl_harq_feedback_test, retx_is_scheduled_when_every_har
   ue_cell&  ue_cc = ues[u.ue_index].get_pcell();
 
   auto allocate_newtx = [&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], units::bytes{200}, false); };
-  auto ue_dl_grant    = [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants); };
+  auto ue_dl_grant    = [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result_reader().dl().ue_grants()); };
 
   // The channel with the feedback disabled takes the process that carries none.
   push_dl_bs(u.ue_index, drb_lcid, 1000);
@@ -1131,8 +1577,9 @@ TEST_P(ue_grid_allocator_dl_harq_feedback_test, retx_of_a_feedback_enabled_proce
 
   // The channel carrying the feedback takes the process that carries it too.
   push_dl_bs(u.ue_index, srb_lcid, 200);
-  ASSERT_TRUE(run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], units::bytes{200}, false); },
-                        [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants) != nullptr; }));
+  ASSERT_TRUE(
+      run_until([&]() { allocate_dl_newtx_grant(slice_ues[u.ue_index], units::bytes{200}, false); },
+                [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result_reader().dl().ue_grants()) != nullptr; }));
   std::optional<dl_harq_process_handle> h_dl = ue_cc.harqs.dl_harq(to_harq_id(0));
   ASSERT_TRUE(h_dl.has_value());
   ASSERT_EQ(h_dl->mode(), harq_utils::harq_mode_t::normal);
@@ -1141,7 +1588,7 @@ TEST_P(ue_grid_allocator_dl_harq_feedback_test, retx_of_a_feedback_enabled_proce
   // process that carries no feedback.
   push_dl_bs(u.ue_index, srb_lcid, 0);
   push_dl_bs(u.ue_index, drb_lcid, 100000);
-  ASSERT_FALSE(slice_ues[u.ue_index].select_normal_dl_harq_mode());
+  ASSERT_EQ(slice_ues[u.ue_index].select_dl_transport_block().restrictions.harq_feedback, dl_harq_feedback::disabled);
 
   ASSERT_TRUE(h_dl->dl_ack_info(mac_harq_ack_report_status::nack, std::nullopt));
 
@@ -1156,7 +1603,7 @@ TEST_P(ue_grid_allocator_dl_harq_feedback_test, retx_of_a_feedback_enabled_proce
         }
       },
       [&]() {
-        const dl_msg_alloc* grant = find_ue_pdsch(u.crnti, res_grid[0].result.dl.ue_grants);
+        const dl_msg_alloc* grant = find_ue_pdsch(u.crnti, res_grid[0].result_reader().dl().ue_grants());
         return grant != nullptr and grant->context.nof_retxs > 0;
       }));
   ASSERT_GT(booked_harq_ack_bits(u.crnti), nof_bits_before)
@@ -1191,12 +1638,12 @@ protected:
   {
     sched_ue_creation_request_message req =
         sched_config_helper::create_default_sched_ue_creation_request(cell_cfg.params);
-    req.ue_index                                            = to_du_ue_index(0);
-    req.crnti                                               = to_rnti(0x4601);
-    (*req.cfg.cells)[0].serv_cell_cfg.init_dl_bwp.pdcch_cfg = cell_cfg.bwp_res[to_bwp_id(0)].dl().ded_pdcchs[0];
+    req.ue_index                                                 = to_du_ue_index(0);
+    req.crnti                                                    = to_rnti(0x4601);
+    (*req.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdcch_cfg = cell_cfg.bwp_res[to_bwp_id(0)].dl().ded_pdcchs[0];
 
     // A bit set to one identifies a process in mode A, so only process 0 operates in that mode.
-    auto& ul_harq_mode = (*req.cfg.cells)[0].serv_cell_cfg.ul_config->pusch_serv_cell_cfg->ul_harq_mode;
+    auto& ul_harq_mode = (*req.cfg.cells)[0].ded->serv_cell_cfg.ul_config->pusch_serv_cell_cfg->ul_harq_mode;
     ul_harq_mode       = harq_ul_mode_mask(ul_harq_mode.size());
     ul_harq_mode.set(0);
 
@@ -1283,7 +1730,7 @@ TEST_P(ue_grid_allocator_ul_harq_mode_test, retx_is_scheduled_when_its_mode_has_
   push_ul_bsr(u.ue_index, mode_a_lcg, 1000);
   ASSERT_TRUE(run_until([&]() { allocate_ul_newtx_grant(slice_ues[u.ue_index], units::bytes{200}); },
                         [&]() { return ue_cc.harqs.nof_empty_ul_harqs(harq_utils::harq_mode_t::normal) == 0; }));
-  ASSERT_TRUE(slice_ues[u.ue_index].select_normal_ul_harq_mode());
+  ASSERT_EQ(slice_ues[u.ue_index].select_ul_grant().restrictions.harq_mode, ul_harq_mode::mode_a);
 
   std::optional<ul_harq_process_handle> h_ul = ue_cc.harqs.find_ul_harq_waiting_ack();
   ASSERT_TRUE(h_ul.has_value());
@@ -1298,7 +1745,7 @@ TEST_P(ue_grid_allocator_ul_harq_mode_test, retx_is_scheduled_when_its_mode_has_
         }
       },
       [&]() {
-        const ul_sched_info* grant = find_ue_pusch(u.crnti, res_grid[0].result.ul);
+        const ul_sched_info* grant = find_ue_pusch(u.crnti, res_grid[0].result_reader().ul().puschs());
         return grant != nullptr and grant->context.nof_retxs > 0;
       }))
       << "reTx was refused for the lack of a free UL HARQ process";
@@ -1316,16 +1763,23 @@ protected:
 
   /// \param pusch_crb_limits CRB window the UE PUSCH is confined to.
   /// \param force_rep         Request repetitions regardless of the estimated SINR.
-  explicit ue_grid_allocator_pusch_repetition_test(crb_interval pusch_crb_limits, bool force_rep = false) :
-    ue_grid_allocator_test(test_params{[pusch_crb_limits, force_rep]() {
-      auto cfg                        = config_helpers::make_default_scheduler_expert_config();
-      cfg.ue.pusch_sinr_rep_threshold = 10.0F;
-      // Disable UL OLLA so the effective SNR equals the value set on the channel state manager.
-      cfg.ue.olla_ul_snr_inc  = 0;
-      cfg.ue.pusch_crb_limits = pusch_crb_limits;
-      cfg.ue.pusch_force_rep  = force_rep;
-      return cfg;
-    }()})
+  static test_params make_test_params(crb_interval pusch_crb_limits, bool force_rep, std::chrono::milliseconds k_mac)
+  {
+    test_params params;
+    params.sched_cfg                             = config_helpers::make_default_scheduler_expert_config();
+    params.sched_cfg.ue.pusch_sinr_rep_threshold = 10.0F;
+    // Disable UL OLLA so the effective SNR equals the value set on the channel state manager.
+    params.sched_cfg.ue.olla_ul_snr_inc  = 0;
+    params.sched_cfg.ue.pusch_crb_limits = pusch_crb_limits;
+    params.sched_cfg.ue.pusch_force_rep  = force_rep;
+    params.ntn_k_mac                     = k_mac;
+    return params;
+  }
+
+  explicit ue_grid_allocator_pusch_repetition_test(crb_interval              pusch_crb_limits,
+                                                   bool                      force_rep = false,
+                                                   std::chrono::milliseconds ntn_k_mac = std::chrono::milliseconds{0}) :
+    ue_grid_allocator_test(make_test_params(pusch_crb_limits, force_rep, ntn_k_mac))
   {
   }
 
@@ -1341,9 +1795,9 @@ protected:
     req.crnti            = to_rnti(0x4601);
     req.cfg.meas_gap_cfg = meas_gap;
     req.cfg.lc_config_list->push_back(config_helpers::create_default_logical_channel_config(drb_lcid));
-    (*req.cfg.cells)[0].serv_cell_cfg.init_dl_bwp.pdcch_cfg = cell_cfg.bwp_res[to_bwp_id(0)].dl().ded_pdcchs[0];
+    (*req.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdcch_cfg = cell_cfg.bwp_res[to_bwp_id(0)].dl().ded_pdcchs[0];
 
-    auto&       pusch_cfg   = (*req.cfg.cells)[0].serv_cell_cfg.ul_config->init_ul_bwp.pusch_cfg.value();
+    auto&       pusch_cfg   = (*req.cfg.cells)[0].ded->serv_cell_cfg.ul_config->init_ul_bwp.pusch_cfg.value();
     const auto& common_list = cell_cfg.params.ul_cfg_common.init_ul_bwp.pusch_cfg_common->pusch_td_alloc_list;
     for (const auto& common_alloc : common_list) {
       pusch_cfg.pusch_td_alloc_list.push_back(common_alloc);
@@ -1384,7 +1838,7 @@ protected:
   // Time-domain resource of the UL DCI (format 0_1) scheduled for the UE in the current slot, if any.
   std::optional<unsigned> current_ul_dci_time_resource(rnti_t rnti) const
   {
-    const pdcch_ul_information* pdcch = find_ue_ul_pdcch(rnti, res_grid[0].result.dl);
+    const pdcch_ul_information* pdcch = find_ue_ul_pdcch(rnti, res_grid[0].result_reader().dl());
     if (pdcch == nullptr or pdcch->dci.type() != dci_ul_rnti_config_type::c_rnti_f0_1) {
       return std::nullopt;
     }
@@ -1425,7 +1879,7 @@ TEST_P(ue_grid_allocator_pusch_repetition_test, retx_reuses_original_repetition_
   const ue& u     = add_repetition_ue();
   ue_cell&  ue_cc = ues[u.ue_index].get_pcell();
 
-  auto ue_ul_grant = [&]() { return find_ue_pusch(u.crnti, res_grid[0].result.ul); };
+  auto ue_ul_grant = [&]() { return find_ue_pusch(u.crnti, res_grid[0].result_reader().ul().puschs()); };
 
   // The PUSCH repetition row's k2 is never 0, so the PDCCH (written to slot 0) and the base occasion's PUSCH
   // (written k2 ahead) are never both visible at res_grid[0] as run_until() advances one slot at a time. Capture the
@@ -1499,32 +1953,33 @@ TEST_P(ue_grid_allocator_pusch_repetition_test, uci_colliding_with_repetition_oc
       pucch_alloc.alloc_ded_harq_ack(res_grid, ue_cell_cfg, 0, rep_k2 + target_occasion_offset, 0);
   ASSERT_TRUE(pucch_res_ind.has_value());
   const slot_point occasion_slot = current_slot + rep_k2 + target_occasion_offset;
-  ASSERT_FALSE(res_grid[occasion_slot].result.ul.pucchs.empty());
+  ASSERT_FALSE(res_grid[occasion_slot].result_reader().ul().pucchs().empty());
 
   set_pusch_snr(ue_cc, 0.0F);
   const slot_point pusch_slot = current_slot + rep_k2;
   ASSERT_EQ(allocate_ul_newtx_grant(pusch_slot, slice_ues[u.ue_index], units::bytes{1000}), alloc_status::success);
 
   // The PUCCH must be gone: the UE does not transmit it, the UCI rides on the occasion instead.
-  ASSERT_TRUE(res_grid[occasion_slot].result.ul.pucchs.empty())
+  ASSERT_TRUE(res_grid[occasion_slot].result_reader().ul().pucchs().empty())
       << "The PUCCH was left in place even though its UCI moved to the repetition occasion";
 
   // The colliding occasion must have been written, and must carry the HARQ-ACK bits taken off the PUCCH.
-  const ul_sched_info* occ = find_ue_pusch(u.crnti, res_grid[occasion_slot].result.ul);
+  const ul_sched_info* occ = find_ue_pusch(u.crnti, res_grid[occasion_slot].result_reader().ul().puschs());
   ASSERT_NE(occ, nullptr) << "The repetition occasion colliding with the PUCCH was dropped instead of carrying the UCI";
   ASSERT_TRUE(occ->uci.has_value()) << "The occasion overlapping the PUCCH carries no UCI";
   ASSERT_TRUE(occ->uci->harq.has_value());
   ASSERT_GT(occ->uci->harq->harq_ack_nof_bits, 0);
 
   // The base occasion and every other occasion must be present and carry UL-SCH only.
-  const ul_sched_info* base_occ = find_ue_pusch(u.crnti, res_grid[pusch_slot].result.ul);
+  const ul_sched_info* base_occ = find_ue_pusch(u.crnti, res_grid[pusch_slot].result_reader().ul().puschs());
   ASSERT_NE(base_occ, nullptr);
   ASSERT_FALSE(base_occ->uci.has_value());
   for (unsigned offset = 1; offset != nof_reps; ++offset) {
     if (offset == target_occasion_offset) {
       continue;
     }
-    const ul_sched_info* other_occ = find_ue_pusch(u.crnti, res_grid[pusch_slot + offset].result.ul);
+    const ul_sched_info* other_occ =
+        find_ue_pusch(u.crnti, res_grid[pusch_slot + offset].result_reader().ul().puschs());
     ASSERT_NE(other_occ, nullptr);
     ASSERT_FALSE(other_occ->uci.has_value()) << "UCI was multiplexed onto more than one repetition occasion";
   }
@@ -1556,7 +2011,7 @@ TEST_P(ue_grid_allocator_pusch_repetition_test, harq_ack_booked_on_a_repetition_
 
   // Find the UL grant's PDCCH and check the DAI it carries.
   const pdcch_ul_information* ul_pdcch = nullptr;
-  for (const pdcch_ul_information& pdcch : res_grid[0].result.dl.ul_pdcchs) {
+  for (const pdcch_ul_information& pdcch : res_grid[0].result_reader().dl().ul_pdcchs()) {
     if (pdcch.ctx.rnti == u.crnti) {
       ul_pdcch = &pdcch;
       break;
@@ -1593,7 +2048,7 @@ TEST_P(ue_grid_allocator_pusch_repetition_test, bundle_avoids_rbs_busy_in_an_occ
   const slot_point pusch_slot = current_slot + rep_k2;
   ASSERT_EQ(allocate_ul_newtx_grant(pusch_slot, slice_ues[u.ue_index], units::bytes{1000}), alloc_status::success);
 
-  const ul_sched_info* base_occ = find_ue_pusch(u.crnti, res_grid[pusch_slot].result.ul);
+  const ul_sched_info* base_occ = find_ue_pusch(u.crnti, res_grid[pusch_slot].result_reader().ul().puschs());
   ASSERT_NE(base_occ, nullptr);
   // The RBs picked must not touch the busy ones. Checking the base grant is what matters: the occasions repeat its
   // RBs verbatim (asserted below).
@@ -1607,7 +2062,7 @@ TEST_P(ue_grid_allocator_pusch_repetition_test, bundle_avoids_rbs_busy_in_an_occ
 
   // Every occasion must be present, and must reuse the base grant's RBs.
   for (unsigned offset = 1; offset != nof_reps; ++offset) {
-    const ul_sched_info* occ = find_ue_pusch(u.crnti, res_grid[pusch_slot + offset].result.ul);
+    const ul_sched_info* occ = find_ue_pusch(u.crnti, res_grid[pusch_slot + offset].result_reader().ul().puschs());
     ASSERT_NE(occ, nullptr) << "Occasion at offset " << offset
                             << " was dropped: the bundle was sized against the base slot only";
     ASSERT_EQ(occ->pusch_cfg.rbs.type1(), base_occ->pusch_cfg.rbs.type1())
@@ -1651,9 +2106,9 @@ TEST_P(ue_grid_allocator_pusch_repetition_test, bundle_whose_occasion_falls_in_a
       << "a bundle was scheduled over a slot the UE spends in a measurement gap";
 
   // A single transmission occupies its own slot alone, so no occasion reaches the grid.
-  ASSERT_NE(find_ue_pusch(u.crnti, res_grid[pusch_slot].result.ul), nullptr);
+  ASSERT_NE(find_ue_pusch(u.crnti, res_grid[pusch_slot].result_reader().ul().puschs()), nullptr);
   for (unsigned offset = 1; offset != nof_reps; ++offset) {
-    ASSERT_EQ(find_ue_pusch(u.crnti, res_grid[pusch_slot + offset].result.ul), nullptr)
+    ASSERT_EQ(find_ue_pusch(u.crnti, res_grid[pusch_slot + offset].result_reader().ul().puschs()), nullptr)
         << "Occasion at offset " << offset << " was scheduled for a grant downgraded to a single transmission";
   }
 }
@@ -1665,9 +2120,9 @@ TEST_P(ue_grid_allocator_pusch_repetition_test, bundle_whose_occasion_falls_on_a
 {
   OCUDU_TEST_REQUIREMENTS("MVP-FUNC-SVCS-16-8-d");
 
-  // Reach a known, ready slot first: every occasion's slot is then known in advance.
   slot_indication();
 
+  // Hold the slot of occasion 3 for a Configured Grant of this UE.
   constexpr unsigned target_occasion_offset = 3;
   const uint8_t      common_k2 = cell_cfg.params.ul_cfg_common.init_ul_bwp.pusch_cfg_common->pusch_td_alloc_list[0].k2;
   const slot_point   cg_slot   = current_slot + common_k2 + target_occasion_offset;
@@ -1676,6 +2131,7 @@ TEST_P(ue_grid_allocator_pusch_repetition_test, bundle_whose_occasion_falls_on_a
   ue_cell&         ue_cc      = ues[u.ue_index].get_pcell();
   const slot_point pusch_slot = current_slot + rep_k2;
   ASSERT_EQ(pusch_slot + target_occasion_offset, cg_slot);
+
   ASSERT_FALSE(ue_cc.get_conf_grant_state_manager().is_cg_slot(pusch_slot))
       << "the base slot itself is a CG slot, the test proves nothing";
   ASSERT_TRUE(ue_cc.get_conf_grant_state_manager().is_cg_slot(cg_slot));
@@ -1689,9 +2145,66 @@ TEST_P(ue_grid_allocator_pusch_repetition_test, bundle_whose_occasion_falls_on_a
       << "a bundle was scheduled over a slot the UE holds for a Configured Grant";
 
   // A single transmission occupies its own slot alone, so no occasion reaches the grid.
-  ASSERT_NE(find_ue_pusch(u.crnti, res_grid[pusch_slot].result.ul), nullptr);
+  ASSERT_NE(find_ue_pusch(u.crnti, res_grid[pusch_slot].result_reader().ul().puschs()), nullptr);
   for (unsigned offset = 1; offset != nof_reps; ++offset) {
-    ASSERT_EQ(find_ue_pusch(u.crnti, res_grid[pusch_slot + offset].result.ul), nullptr)
+    ASSERT_EQ(find_ue_pusch(u.crnti, res_grid[pusch_slot + offset].result_reader().ul().puschs()), nullptr)
+        << "Occasion at offset " << offset << " was scheduled for a grant downgraded to a single transmission";
+  }
+}
+
+/// The repetition fixture in an NTN cell whose uplink reaches the gNB k_mac slots after the UE transmits it.
+class ue_grid_allocator_pusch_repetition_ntn_kmac_test : public ue_grid_allocator_pusch_repetition_test
+{
+protected:
+  /// k_mac of the cell. At the 15kHz of this suite, one slot per subframe.
+  static constexpr std::chrono::milliseconds ntn_k_mac{19};
+
+  ue_grid_allocator_pusch_repetition_ntn_kmac_test() :
+    ue_grid_allocator_pusch_repetition_test(crb_interval{10, 40}, /*force_rep=*/false, ntn_k_mac)
+  {
+  }
+};
+
+// The UE holds its Configured Grant occasions in its own uplink slot numbering, while the grid this scheduler fills is
+// on the gNB downlink clock: the occasion that collides with the UE's CG PUSCH is the one whose uplink slot the UE
+// holds, k_mac before the grid slot the bundle would occupy.
+TEST_P(ue_grid_allocator_pusch_repetition_ntn_kmac_test, bundle_whose_occasion_falls_on_a_cg_uplink_slot_gives_way)
+{
+  slot_indication();
+
+  // The repetition row of the UE carries the k2 of the first common resource, and the bundle it starts reaches the gNB
+  // k_mac slots later. The slot has to be known before the UE exists, because the CG occasion is registered with it.
+  constexpr unsigned target_occasion_offset = 3;
+  const uint8_t      common_k2 = cell_cfg.params.ul_cfg_common.init_ul_bwp.pusch_cfg_common->pusch_td_alloc_list[0].k2;
+  const slot_point   occasion_slot =
+      current_slot + cell_cfg.ul_delay(common_k2 + cell_cfg.ntn_cs_koffset) + target_occasion_offset;
+
+  // Hold the uplink slot the UE transmits that occasion in for a Configured Grant of this UE.
+  const ue& u     = add_cg_repetition_ue(cell_cfg.dl_to_ue_ul_slot(occasion_slot));
+  ue_cell&  ue_cc = ues[u.ue_index].get_pcell();
+
+  const slot_point pusch_slot = current_slot + cell_cfg.ul_delay(rep_k2 + cell_cfg.ntn_cs_koffset);
+  ASSERT_EQ(pusch_slot + target_occasion_offset, occasion_slot);
+  ASSERT_EQ(cell_cfg.ntn_k_mac_slots,
+            static_cast<unsigned>(ntn_k_mac.count()) * get_nof_slots_per_subframe(cell_cfg.scs_common()));
+  ASSERT_TRUE(ue_cc.get_conf_grant_state_manager().is_cg_slot(cell_cfg.dl_to_ue_ul_slot(occasion_slot)));
+  ASSERT_FALSE(ue_cc.get_conf_grant_state_manager().is_cg_slot(occasion_slot))
+      << "the grid slot of the occasion is a CG slot too, so the test cannot tell the two clocks apart";
+  ASSERT_FALSE(ue_cc.get_conf_grant_state_manager().is_cg_slot(cell_cfg.dl_to_ue_ul_slot(pusch_slot)))
+      << "the base slot itself is a CG slot, the test proves nothing";
+
+  set_pusch_snr(ue_cc, 0.0F);
+  ASSERT_EQ(allocate_ul_newtx_grant(pusch_slot, slice_ues[u.ue_index], units::bytes{1000}), alloc_status::success);
+
+  const std::optional<unsigned> time_resource = current_ul_dci_time_resource(u.crnti);
+  ASSERT_TRUE(time_resource.has_value());
+  ASSERT_NE(time_resource.value(), rep_time_resource)
+      << "a bundle was scheduled over an uplink slot the UE holds for a Configured Grant";
+
+  // A single transmission occupies its own slot alone, so no occasion reaches the grid.
+  ASSERT_NE(find_ue_pusch(u.crnti, res_grid[pusch_slot].result_reader().ul().puschs()), nullptr);
+  for (unsigned offset = 1; offset != nof_reps; ++offset) {
+    ASSERT_EQ(find_ue_pusch(u.crnti, res_grid[pusch_slot + offset].result_reader().ul().puschs()), nullptr)
         << "Occasion at offset " << offset << " was scheduled for a grant downgraded to a single transmission";
   }
 }
@@ -1713,7 +2226,8 @@ TEST_P(ue_grid_allocator_pusch_repetition_test, retx_bundle_avoids_rbs_busy_in_a
   set_pusch_snr(ue_cc, 0.0F);
   ASSERT_EQ(allocate_ul_newtx_grant(current_slot + rep_k2, slice_ues[u.ue_index], units::bytes{1000}, nof_grant_rbs),
             alloc_status::success);
-  const ul_sched_info* newtx_grant = find_ue_pusch(u.crnti, res_grid[current_slot + rep_k2].result.ul);
+  const ul_sched_info* newtx_grant =
+      find_ue_pusch(u.crnti, res_grid[current_slot + rep_k2].result_reader().ul().puschs());
   ASSERT_NE(newtx_grant, nullptr);
   ASSERT_EQ(newtx_grant->pusch_cfg.rbs.type1().length(), nof_grant_rbs);
 
@@ -1741,7 +2255,7 @@ TEST_P(ue_grid_allocator_pusch_repetition_test, retx_bundle_avoids_rbs_busy_in_a
 
   allocate_ul_retx_grant(slice_ues[u.ue_index], *h_retx);
 
-  const ul_sched_info* retx_grant = find_ue_pusch(u.crnti, res_grid[pusch_slot].result.ul);
+  const ul_sched_info* retx_grant = find_ue_pusch(u.crnti, res_grid[pusch_slot].result_reader().ul().puschs());
   ASSERT_NE(retx_grant, nullptr) << "the reTx bundle was not scheduled at all";
   ASSERT_EQ(retx_grant->context.nof_retxs, 1);
   ASSERT_EQ(retx_grant->pusch_cfg.rbs.type1().length(), nof_grant_rbs);
@@ -1753,7 +2267,7 @@ TEST_P(ue_grid_allocator_pusch_repetition_test, retx_bundle_avoids_rbs_busy_in_a
 
   // Every occasion must be present, and must reuse the reTx grant's RBs.
   for (unsigned offset = 1; offset != nof_reps; ++offset) {
-    const ul_sched_info* occ = find_ue_pusch(u.crnti, res_grid[pusch_slot + offset].result.ul);
+    const ul_sched_info* occ = find_ue_pusch(u.crnti, res_grid[pusch_slot + offset].result_reader().ul().puschs());
     ASSERT_NE(occ, nullptr) << "Occasion at offset " << offset
                             << " was dropped: the reTx bundle was sized against the base slot only";
     ASSERT_EQ(occ->pusch_cfg.rbs.type1(), retx_grant->pusch_cfg.rbs.type1())
@@ -1799,9 +2313,9 @@ TEST_P(ue_grid_allocator_pusch_repetition_test, bundle_whose_slots_need_differen
       << "A bundle was scheduled over slots that cannot share one UL DAI";
 
   // A single transmission occupies its own slot alone, so no occasion reaches the grid.
-  ASSERT_NE(find_ue_pusch(u.crnti, res_grid[pusch_slot].result.ul), nullptr);
+  ASSERT_NE(find_ue_pusch(u.crnti, res_grid[pusch_slot].result_reader().ul().puschs()), nullptr);
   for (unsigned offset = 1; offset != nof_reps; ++offset) {
-    ASSERT_EQ(find_ue_pusch(u.crnti, res_grid[pusch_slot + offset].result.ul), nullptr)
+    ASSERT_EQ(find_ue_pusch(u.crnti, res_grid[pusch_slot + offset].result_reader().ul().puschs()), nullptr)
         << "Occasion at offset " << offset << " was scheduled for a grant downgraded to a single transmission";
   }
 }
@@ -1838,13 +2352,13 @@ TEST_P(ue_grid_allocator_pusch_repetition_test, bundle_whose_slots_agree_on_the_
   ASSERT_EQ(time_resource.value(), rep_time_resource)
       << "The bundle was given up even though its slots agree on the UL DAI";
   for (unsigned offset = 1; offset != nof_reps; ++offset) {
-    ASSERT_NE(find_ue_pusch(u.crnti, res_grid[pusch_slot + offset].result.ul), nullptr)
+    ASSERT_NE(find_ue_pusch(u.crnti, res_grid[pusch_slot + offset].result_reader().ul().puschs()), nullptr)
         << "Occasion at offset " << offset << " is missing from the bundle";
   }
 
   // The DAI describes one slot's codebook, which both slots share -- not their sum.
   const pdcch_ul_information* ul_pdcch = nullptr;
-  for (const pdcch_ul_information& pdcch : res_grid[0].result.dl.ul_pdcchs) {
+  for (const pdcch_ul_information& pdcch : res_grid[0].result_reader().dl().ul_pdcchs()) {
     if (pdcch.ctx.rnti == u.crnti) {
       ul_pdcch = &pdcch;
       break;
@@ -1884,19 +2398,19 @@ TEST_P(ue_grid_allocator_pusch_repetition_wideband_test, pucch_in_an_occasion_sl
       pucch_alloc.alloc_ded_harq_ack(res_grid, ue_cell_cfg, 0, rep_k2 + target_occasion_offset, 0);
   ASSERT_TRUE(pucch_res_ind.has_value());
   const slot_point occasion_slot = current_slot + rep_k2 + target_occasion_offset;
-  ASSERT_FALSE(res_grid[occasion_slot].result.ul.pucchs.empty());
+  ASSERT_FALSE(res_grid[occasion_slot].result_reader().ul().pucchs().empty());
 
   set_pusch_snr(ue_cc, 0.0F);
   const slot_point pusch_slot = current_slot + rep_k2;
   ASSERT_EQ(allocate_ul_newtx_grant(pusch_slot, slice_ues[u.ue_index], units::bytes{1000}), alloc_status::success);
 
   // The base grant must be wide enough to overlap the PUCCH, or this degenerates into the narrowband test.
-  const ul_sched_info* base_occ = find_ue_pusch(u.crnti, res_grid[pusch_slot].result.ul);
+  const ul_sched_info* base_occ = find_ue_pusch(u.crnti, res_grid[pusch_slot].result_reader().ul().puschs());
   ASSERT_NE(base_occ, nullptr);
   ASSERT_GT(base_occ->pusch_cfg.rbs.type1().length(), 40U) << "PUSCH is too narrow to exercise the RB overlap";
 
-  ASSERT_TRUE(res_grid[occasion_slot].result.ul.pucchs.empty());
-  const ul_sched_info* occ = find_ue_pusch(u.crnti, res_grid[occasion_slot].result.ul);
+  ASSERT_TRUE(res_grid[occasion_slot].result_reader().ul().pucchs().empty());
+  const ul_sched_info* occ = find_ue_pusch(u.crnti, res_grid[occasion_slot].result_reader().ul().puschs());
   ASSERT_NE(occ, nullptr) << "The occasion overlapping the UE's own PUCCH in RBs was dropped";
   ASSERT_TRUE(occ->uci.has_value());
   ASSERT_TRUE(occ->uci->harq.has_value());
@@ -1909,6 +2423,10 @@ INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
 
 INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
                          ue_grid_allocator_pusch_repetition_test,
+                         testing::Values(duplex_mode::FDD));
+
+INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
+                         ue_grid_allocator_pusch_repetition_ntn_kmac_test,
                          testing::Values(duplex_mode::FDD));
 
 INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
@@ -1925,4 +2443,317 @@ INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
 
 INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
                          ue_grid_allocator_expert_cfg_pxsch_crb_limits_tester,
+                         testing::Values(duplex_mode::FDD, duplex_mode::TDD));
+
+/// \brief Allocation of PDSCHs in slots with CSI-RS.
+///
+/// The PDSCH is rate-matched around the CSI-RS of its slot, while the TBS does not account for them (TS 38.214, Section
+/// 5.1.3.2). The UE may skip decoding a transport block in an initial transmission whose effective code rate exceeds
+/// 0.95 (TS 38.214, Section 5.1.3.1). The UEs are scheduled with the highest MCS of their MCS table.
+class ue_grid_allocator_csi_rs_test : public ue_grid_allocator_test
+{
+protected:
+  /// Maximum effective channel code rate of an initial transmission, as per TS 38.214, Section 5.1.3.1.
+  static constexpr double max_effective_code_rate = 0.95;
+
+  ue_grid_allocator_csi_rs_test(pdsch_mcs_table mcs_table_, sch_mcs_index max_mcs) :
+    ue_grid_allocator_test(test_params{[max_mcs]() {
+      scheduler_expert_config cfg = config_helpers::make_default_scheduler_expert_config();
+      cfg.ue.dl_mcs               = {max_mcs, max_mcs};
+      return cfg;
+    }()}),
+    mcs_table(mcs_table_)
+  {
+  }
+
+  const ue& add_ue(pdsch_config::resource_allocation res_alloc)
+  {
+    sched_ue_creation_request_message req =
+        sched_config_helper::create_default_sched_ue_creation_request(cell_cfg.params);
+    req.ue_index                                                 = to_du_ue_index(0);
+    req.crnti                                                    = to_rnti(0x4601);
+    (*req.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdcch_cfg = cell_cfg.bwp_res[to_bwp_id(0)].dl().ded_pdcchs[0];
+    pdsch_config& pdsch_cfg = (*req.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdsch_cfg.value();
+    pdsch_cfg.mcs_table     = mcs_table;
+    pdsch_cfg.res_alloc     = res_alloc;
+    pdsch_cfg.rbg_sz        = rbg_size::config1;
+    return ue_grid_allocator_test::add_ue(req);
+  }
+
+  /// \brief CSI-RS of a CSI measurement slot of a cell with eight antenna ports.
+  ///
+  /// An eight-port NZP-CSI-RS and a ZP-CSI-RS with the same resource mapping in another OFDM symbol, as the cell
+  /// configuration helpers generate them (TS 38.211, Table 7.4.1.5.3-1, row 6): eight resource elements per PRB each.
+  std::vector<csi_rs_info> make_eight_port_csi_rs() const
+  {
+    csi_rs_info csi_rs{};
+    csi_rs.bwp_cfg     = &cell_cfg.params.dl_cfg_common.init_dl_bwp.generic_params;
+    csi_rs.crbs        = csi_rs.bwp_cfg->crbs;
+    csi_rs.type        = csi_rs_type::CSI_RS_NZP;
+    csi_rs.row         = 6;
+    csi_rs.freq_domain = csi_rs::freq_allocation_mask_type(6);
+    csi_rs.freq_domain.fill(0, 4);
+    csi_rs.symbol0      = 4;
+    csi_rs.symbol1      = 2;
+    csi_rs.cdm_type     = csi_rs_cdm_type::fd_CDM2;
+    csi_rs.freq_density = csi_rs_freq_density_type::one;
+
+    csi_rs_info zp_csi_rs = csi_rs;
+    zp_csi_rs.type        = csi_rs_type::CSI_RS_ZP;
+    zp_csi_rs.symbol0     = 8;
+    return {csi_rs, zp_csi_rs};
+  }
+
+  /// Single-port NZP-CSI-RS (TS 38.211, Table 7.4.1.5.3-1, row 2): one resource element per PRB.
+  std::vector<csi_rs_info> make_single_port_csi_rs() const
+  {
+    csi_rs_info csi_rs{};
+    csi_rs.bwp_cfg     = &cell_cfg.params.dl_cfg_common.init_dl_bwp.generic_params;
+    csi_rs.crbs        = csi_rs.bwp_cfg->crbs;
+    csi_rs.type        = csi_rs_type::CSI_RS_NZP;
+    csi_rs.row         = 2;
+    csi_rs.freq_domain = csi_rs::freq_allocation_mask_type(12);
+    csi_rs.freq_domain.set(0);
+    csi_rs.symbol0      = 4;
+    csi_rs.symbol1      = 2;
+    csi_rs.cdm_type     = csi_rs_cdm_type::no_CDM;
+    csi_rs.freq_density = csi_rs_freq_density_type::one;
+    return {csi_rs};
+  }
+
+  /// \brief Checks the PDSCH resource elements per PRB, from which the expected MCSs are derived.
+  ///
+  /// Twelve OFDM symbols with three DM-RS symbols of type 1 and one CDM group without data: 144 - 18 = 126 resource
+  /// elements per PRB.
+  static void check_nof_re_per_prb(const pdsch_information& pdsch)
+  {
+    ASSERT_EQ(pdsch.symbols.length(), 12);
+    ASSERT_EQ(pdsch.dmrs.dmrs_symb_pos.count(), 3);
+    ASSERT_EQ(pdsch.dmrs.config_type, dmrs_config_type::type1);
+    ASSERT_EQ(pdsch.dmrs.num_dmrs_cdm_grps_no_data, 1);
+  }
+
+  /// \brief Schedules a newTx PDSCH for the UE in the next DL slot, in which the given CSI-RS are transmitted.
+  ///
+  /// \param[in] u                 UE.
+  /// \param[in] csi_rs_list       CSI-RS transmitted in the slot of the PDSCH.
+  /// \param[in] use_odd_rbgs_only Set to true to mark a VRB of every even RBG as used, so that a resource allocation
+  ///                              type 0 grant is not contiguous.
+  /// \return The PDSCH grant of the UE, if it was scheduled.
+  const dl_msg_alloc*
+  allocate_pdsch_with_csi_rs(const ue& u, span<const csi_rs_info> csi_rs_list, bool use_odd_rbgs_only = false)
+  {
+    const crb_interval     bwp_crbs = cell_cfg.params.dl_cfg_common.init_dl_bwp.generic_params.crbs;
+    const nominal_rbg_size P        = get_nominal_rbg_size(bwp_crbs.length(), rbg_size::config1);
+    const bool             found    = run_until(
+        [&]() {
+          if (not cell_cfg.is_dl_enabled(current_slot)) {
+            return;
+          }
+          auto csi_rs_pdus = res_grid[0].result_builder().dl().csi_rs();
+          for (const csi_rs_info& csi_rs : csi_rs_list) {
+            report_fatal_error_if_not(csi_rs_pdus.emplace_back(csi_rs) != nullptr,
+                                      "The CSI-RS list of the slot is full");
+          }
+          for (unsigned rbg_idx = 0, nof_rbgs = get_nof_rbgs(bwp_crbs, P); use_odd_rbgs_only and rbg_idx < nof_rbgs;
+               rbg_idx += 2) {
+            rbg_bitmap rbg(nof_rbgs);
+            rbg.set(rbg_idx);
+            used_dl_vrbs.set(convert_rbgs_to_vrbs(rbg, bwp_crbs, P).find_lowest());
+          }
+          allocate_dl_newtx_grant(slice_ues[u.ue_index], units::bytes{100000}, false);
+        },
+        [&]() { return find_ue_pdsch(u.crnti, res_grid[0].result_reader().dl().ue_grants()) != nullptr; });
+    return found ? find_ue_pdsch(u.crnti, res_grid[0].result_reader().dl().ue_grants()) : nullptr;
+  }
+
+  /// \brief Effective channel code rate of a PDSCH, as per TS 38.214, Section 5.1.3.1.
+  ///
+  /// The number of physical channel bits is derived from the resource elements to which the PHY maps the PDSCH: all the
+  /// resource elements of its PRBs and OFDM symbols, except the DM-RS ones (CDM groups without data included) and the
+  /// ones of every CSI-RS of the slot, all ports included. The test does not use VRB-to-PRB interleaving.
+  static double get_effective_code_rate(const pdsch_information& pdsch, span<const csi_rs_info> csi_rs_list)
+  {
+    // Mark the resource elements of the slot occupied by CSI-RS.
+    std::array<bounded_bitset<MAX_NOF_PRBS * NOF_SUBCARRIERS_PER_RB>, NOF_OFDM_SYM_PER_SLOT_NORMAL_CP> csi_rs_grid;
+    for (auto& symbol_res : csi_rs_grid) {
+      symbol_res.resize(MAX_NOF_PRBS * NOF_SUBCARRIERS_PER_RB);
+    }
+    for (const csi_rs_info& csi_rs : csi_rs_list) {
+      csi_rs_pattern_configuration pattern_cfg{.start_rb                 = csi_rs.crbs.start(),
+                                               .nof_rb                   = csi_rs.crbs.length(),
+                                               .csi_rs_mapping_table_row = csi_rs.row,
+                                               .freq_allocation_ref_idx  = {},
+                                               .symbol_l0                = csi_rs.symbol0,
+                                               .symbol_l1                = csi_rs.symbol1,
+                                               .cdm                      = csi_rs.cdm_type,
+                                               .freq_density             = csi_rs.freq_density};
+      csi_rs::convert_freq_domain(pattern_cfg.freq_allocation_ref_idx, csi_rs.freq_domain, csi_rs.row);
+      const csi_rs_pattern pattern = get_csi_rs_pattern(pattern_cfg);
+      for (const csi_rs_pattern_port& port : pattern.prb_patterns) {
+        for (unsigned symbol = 0; symbol != NOF_OFDM_SYM_PER_SLOT_NORMAL_CP; ++symbol) {
+          if (not port.symbol_mask.test(symbol)) {
+            continue;
+          }
+          for (unsigned crb = pattern.rb_begin; crb < pattern.rb_end; crb += pattern.rb_stride) {
+            port.re_mask.for_each(0, NOF_SUBCARRIERS_PER_RB, [&](size_t re) {
+              csi_rs_grid[symbol].set(crb * NOF_SUBCARRIERS_PER_RB + re);
+            });
+          }
+        }
+      }
+    }
+
+    // CRBs of the PDSCH.
+    const crb_interval bwp_crbs = pdsch.bwp_cfg->crbs;
+    prb_bitmap         prbs(bwp_crbs.length());
+    if (pdsch.rbs.is_type0()) {
+      prbs = pdsch.rbs.type0().convert_to<prb_bitmap>();
+    } else {
+      prbs |= pdsch.rbs.type1().convert_to<prb_interval>();
+    }
+    const crb_bitmap crbs = prb_to_crb(bwp_crbs, prbs);
+
+    // Count the resource elements of the PDSCH.
+    const unsigned nof_dmrs_re_per_rb =
+        pdsch.dmrs.num_dmrs_cdm_grps_no_data * get_nof_re_per_prb(pdsch.dmrs.config_type);
+    unsigned nof_re = 0;
+    for (unsigned symbol = pdsch.symbols.start(); symbol != pdsch.symbols.stop(); ++symbol) {
+      const bool is_dmrs_symbol = pdsch.dmrs.dmrs_symb_pos.test(symbol);
+      crbs.for_each(0, crbs.size(), [&](size_t crb) {
+        const unsigned nof_csi_rs_re =
+            csi_rs_grid[symbol].slice(crb * NOF_SUBCARRIERS_PER_RB, (crb + 1) * NOF_SUBCARRIERS_PER_RB).count();
+        // The PHY does not accept CSI-RS in OFDM symbols with DM-RS.
+        EXPECT_FALSE(is_dmrs_symbol and nof_csi_rs_re != 0);
+        nof_re += NOF_SUBCARRIERS_PER_RB - (is_dmrs_symbol ? nof_dmrs_re_per_rb : nof_csi_rs_re);
+      });
+    }
+
+    // Information bits, CRC included, over physical channel bits.
+    const pdsch_codeword& cw     = pdsch.codewords.front();
+    const sch_information sch    = get_sch_segmentation_info(units::bytes{cw.tb_size_bytes}.to_bits(),
+                                                          cw.mcs_descr.get_normalised_target_code_rate());
+    const unsigned nof_info_bits = (sch.nof_bits_per_cb.value() - sch.nof_filler_bits_per_cb.value()) * sch.nof_cb;
+    const unsigned nof_ch_bits   = nof_re * pdsch.nof_layers * get_bits_per_symbol(cw.mcs_descr.modulation);
+    return static_cast<double>(nof_info_bits) / nof_ch_bits;
+  }
+
+  const pdsch_mcs_table mcs_table;
+};
+
+class ue_grid_allocator_csi_rs_qam64_test : public ue_grid_allocator_csi_rs_test
+{
+protected:
+  /// TS 38.214, Table 5.1.3.1-1, MCS 28: 64QAM with a target code rate of 948/1024.
+  ue_grid_allocator_csi_rs_qam64_test() : ue_grid_allocator_csi_rs_test(pdsch_mcs_table::qam64, sch_mcs_index{28}) {}
+};
+
+TEST_P(ue_grid_allocator_csi_rs_qam64_test, pdsch_rate_matched_around_csi_rs_does_not_exceed_max_effective_code_rate)
+{
+  const ue&                      u           = add_ue(pdsch_config::resource_allocation::resource_allocation_type_1);
+  const std::vector<csi_rs_info> csi_rs_list = make_eight_port_csi_rs();
+
+  const dl_msg_alloc* grant = allocate_pdsch_with_csi_rs(u, csi_rs_list);
+  ASSERT_NE(grant, nullptr);
+  ASSERT_LE(get_effective_code_rate(grant->pdsch_cfg, csi_rs_list), max_effective_code_rate);
+}
+
+TEST_P(ue_grid_allocator_csi_rs_qam64_test,
+       non_contiguous_pdsch_rate_matched_around_csi_rs_does_not_exceed_max_effective_code_rate)
+{
+  const ue&                      u           = add_ue(pdsch_config::resource_allocation::resource_allocation_type_0);
+  const std::vector<csi_rs_info> csi_rs_list = make_eight_port_csi_rs();
+
+  const dl_msg_alloc* grant = allocate_pdsch_with_csi_rs(u, csi_rs_list, true);
+  ASSERT_NE(grant, nullptr);
+  ASSERT_TRUE(grant->pdsch_cfg.rbs.is_type0());
+  ASSERT_LE(get_effective_code_rate(grant->pdsch_cfg, csi_rs_list), max_effective_code_rate);
+}
+
+class ue_grid_allocator_csi_rs_qam256_test : public ue_grid_allocator_csi_rs_test
+{
+protected:
+  /// TS 38.214, Table 5.1.3.1-2, MCS 27: 256QAM with a target code rate of 948/1024.
+  ue_grid_allocator_csi_rs_qam256_test() : ue_grid_allocator_csi_rs_test(pdsch_mcs_table::qam256, sch_mcs_index{27}) {}
+};
+
+TEST_P(ue_grid_allocator_csi_rs_qam256_test, pdsch_rate_matched_around_csi_rs_does_not_exceed_max_effective_code_rate)
+{
+  const ue&                      u           = add_ue(pdsch_config::resource_allocation::resource_allocation_type_1);
+  const std::vector<csi_rs_info> csi_rs_list = make_eight_port_csi_rs();
+
+  const dl_msg_alloc* grant = allocate_pdsch_with_csi_rs(u, csi_rs_list);
+  ASSERT_NE(grant, nullptr);
+  ASSERT_LE(get_effective_code_rate(grant->pdsch_cfg, csi_rs_list), max_effective_code_rate);
+}
+
+class ue_grid_allocator_csi_rs_qam256_mcs20_test : public ue_grid_allocator_csi_rs_test
+{
+protected:
+  /// TS 38.214, Table 5.1.3.1-2, MCS 20: 256QAM with a spectral efficiency of 5.3320.
+  ue_grid_allocator_csi_rs_qam256_mcs20_test() :
+    ue_grid_allocator_csi_rs_test(pdsch_mcs_table::qam256, sch_mcs_index{20})
+  {
+  }
+};
+
+TEST_P(ue_grid_allocator_csi_rs_qam256_mcs20_test, mcs_is_lowered_according_to_the_csi_rs_overhead)
+{
+  const ue& u = add_ue(pdsch_config::resource_allocation::resource_allocation_type_1);
+
+  const dl_msg_alloc* grant = allocate_pdsch_with_csi_rs(u, make_eight_port_csi_rs());
+  ASSERT_NE(grant, nullptr);
+  check_nof_re_per_prb(grant->pdsch_cfg);
+  // 16 of the 126 resource elements per PRB are occupied by CSI-RS. MCS 17 (4.5234) is the highest MCS with a spectral
+  // efficiency not above 5.3320 * 110 / 126 = 4.6549.
+  ASSERT_EQ(grant->pdsch_cfg.codewords.front().mcs_index.value(), 17);
+}
+
+TEST_P(ue_grid_allocator_csi_rs_qam256_mcs20_test, mcs_is_lowered_with_any_csi_rs_overhead)
+{
+  const ue& u = add_ue(pdsch_config::resource_allocation::resource_allocation_type_1);
+
+  const dl_msg_alloc* grant = allocate_pdsch_with_csi_rs(u, make_single_port_csi_rs());
+  ASSERT_NE(grant, nullptr);
+  check_nof_re_per_prb(grant->pdsch_cfg);
+  // One of the 126 resource elements per PRB is occupied by CSI-RS. MCS 19 (5.1152) is the highest MCS with a spectral
+  // efficiency not above 5.3320 * 125 / 126 = 5.2897.
+  ASSERT_EQ(grant->pdsch_cfg.codewords.front().mcs_index.value(), 19);
+}
+
+class ue_grid_allocator_csi_rs_qam64_mcs17_test : public ue_grid_allocator_csi_rs_test
+{
+protected:
+  /// TS 38.214, Table 5.1.3.1-1, MCS 17: 64QAM with a spectral efficiency of 2.5664, below that of MCS 16.
+  ue_grid_allocator_csi_rs_qam64_mcs17_test() : ue_grid_allocator_csi_rs_test(pdsch_mcs_table::qam64, sch_mcs_index{17})
+  {
+  }
+};
+
+TEST_P(ue_grid_allocator_csi_rs_qam64_mcs17_test, mcs_with_a_higher_spectral_efficiency_is_skipped)
+{
+  const ue& u = add_ue(pdsch_config::resource_allocation::resource_allocation_type_1);
+
+  const dl_msg_alloc* grant = allocate_pdsch_with_csi_rs(u, make_single_port_csi_rs());
+  ASSERT_NE(grant, nullptr);
+  check_nof_re_per_prb(grant->pdsch_cfg);
+  // MCS 16 (16QAM, 2.5703) carries more bits per resource element than MCS 17 (64QAM, 2.5664). MCS 15 (2.3516) is the
+  // highest MCS with a spectral efficiency not above 2.5664 * 125 / 126 = 2.5460.
+  ASSERT_EQ(grant->pdsch_cfg.codewords.front().mcs_index.value(), 15);
+}
+
+INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
+                         ue_grid_allocator_csi_rs_qam256_mcs20_test,
+                         testing::Values(duplex_mode::FDD, duplex_mode::TDD));
+
+INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
+                         ue_grid_allocator_csi_rs_qam64_mcs17_test,
+                         testing::Values(duplex_mode::FDD, duplex_mode::TDD));
+
+INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
+                         ue_grid_allocator_csi_rs_qam64_test,
+                         testing::Values(duplex_mode::FDD, duplex_mode::TDD));
+
+INSTANTIATE_TEST_SUITE_P(ue_grid_allocator_test,
+                         ue_grid_allocator_csi_rs_qam256_test,
                          testing::Values(duplex_mode::FDD, duplex_mode::TDD));

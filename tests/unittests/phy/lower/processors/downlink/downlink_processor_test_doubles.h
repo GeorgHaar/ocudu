@@ -67,8 +67,9 @@ public:
   {
     // Generate random data for populating the buffers.
     std::uniform_real_distribution<float> sample_dist(-1, 1);
+    static constexpr unsigned             cf_to_ci16_scaling = std::numeric_limits<int16_t>::max();
     std::generate(random_data.begin(), random_data.end(), [this, &sample_dist]() {
-      return to_ci16(cf_t(sample_dist(rgen) * INT16_MAX, sample_dist(rgen) * INT16_MAX));
+      return to_ci16(cf_t(sample_dist(rgen) * cf_to_ci16_scaling, sample_dist(rgen) * cf_to_ci16_scaling));
     });
 
     // Calculate symbol sizes in a subframe.
@@ -145,7 +146,7 @@ public:
       std::generate(buffer_view.begin(), buffer_view.end(), [this]() {
         unsigned index    = random_data_index;
         random_data_index = (random_data_index + 1) % random_data.size();
-        return to_ci16(cf_t(random_data[index].real() * INT16_MAX, random_data[index].imag() * INT16_MAX));
+        return random_data[index];
       });
     }
 
@@ -188,7 +189,7 @@ private:
   baseband_gateway_buffer_pool buffer_pool;
 
   unsigned              random_data_index;
-  std::vector<cf_t>     random_data;
+  std::vector<ci16_t>   random_data;
   std::vector<entry_t>  entries;
   std::vector<unsigned> frame_slots_to_process;
 };

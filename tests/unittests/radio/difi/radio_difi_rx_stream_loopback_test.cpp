@@ -71,8 +71,8 @@ private:
 // ---- Test fixture -----------------------------------------------------------
 
 // ctest runs the DIFI test binaries in parallel, so no two of them may share a UDP port. This binary uses 15001 to
-// 15005, 15010 to 15017 and 15030. The transmit stream test uses 14991, 15006 to 15009 and 15040 to 15042. The socket
-// test uses 19981 upwards.
+// 15005, 15010 to 15017, 15030 and 15060 to 15067. The transmit stream test uses 14991, 15006 to 15009 and 15040 to
+// 15045. The socket test uses 19981 upwards, and the validator test 15050 to 15055.
 
 /// Pairs a tx stream (sending to 127.0.0.1:15001) with an rx stream (bound on
 /// 127.0.0.1:15001).  Port 15001 is chosen to avoid conflicts.
@@ -87,7 +87,7 @@ protected:
   {
     radio_difi_rx_stream::stream_description rx_desc;
     rx_desc.ip             = "127.0.0.1";
-    rx_desc.port           = TEST_PORT;
+    rx_desc.channels       = {{TEST_PORT, STREAM_ID}};
     rx_desc.stream_id      = STREAM_ID;
     rx_desc.bit_depth      = 16;
     rx_desc.sample_rate_Hz = SAMPLE_RATE;
@@ -97,7 +97,7 @@ protected:
 
     radio_difi_tx_stream::stream_description tx_desc;
     tx_desc.ip             = "127.0.0.1";
-    tx_desc.port           = TEST_PORT;
+    tx_desc.channels       = {{TEST_PORT, STREAM_ID}};
     tx_desc.stream_id      = STREAM_ID;
     tx_desc.bit_depth      = 16;
     tx_desc.sample_rate_Hz = SAMPLE_RATE;
@@ -275,7 +275,7 @@ TEST(RxStream8Bit, Receive8BitSamples)
 
   radio_difi_rx_stream::stream_description rx_desc;
   rx_desc.ip             = "127.0.0.1";
-  rx_desc.port           = PORT_8BIT;
+  rx_desc.channels       = {{PORT_8BIT, STREAM_8}};
   rx_desc.stream_id      = STREAM_8;
   rx_desc.bit_depth      = 8;
   rx_desc.sample_rate_Hz = SRATE;
@@ -285,7 +285,7 @@ TEST(RxStream8Bit, Receive8BitSamples)
 
   radio_difi_tx_stream::stream_description tx_desc;
   tx_desc.ip             = "127.0.0.1";
-  tx_desc.port           = PORT_8BIT;
+  tx_desc.channels       = {{PORT_8BIT, STREAM_8}};
   tx_desc.stream_id      = STREAM_8;
   tx_desc.bit_depth      = 8;
   tx_desc.sample_rate_Hz = SRATE;
@@ -347,7 +347,7 @@ TEST(RxStreamEvents, OverflowFiredOnTimestampGap)
 
   radio_difi_rx_stream::stream_description rx_desc;
   rx_desc.ip             = "127.0.0.1";
-  rx_desc.port           = PORT;
+  rx_desc.channels       = {{PORT, STREAM}};
   rx_desc.stream_id      = STREAM;
   rx_desc.bit_depth      = 16;
   rx_desc.sample_rate_Hz = SRATE;
@@ -358,7 +358,7 @@ TEST(RxStreamEvents, OverflowFiredOnTimestampGap)
   null_notifier_rx                         tx_notifier;
   radio_difi_tx_stream::stream_description tx_desc;
   tx_desc.ip             = "127.0.0.1";
-  tx_desc.port           = PORT;
+  tx_desc.channels       = {{PORT, STREAM}};
   tx_desc.stream_id      = STREAM;
   tx_desc.bit_depth      = 16;
   tx_desc.sample_rate_Hz = SRATE;
@@ -429,7 +429,7 @@ protected:
 
     radio_difi_rx_stream::stream_description rx_desc;
     rx_desc.ip             = "127.0.0.1";
-    rx_desc.port           = port;
+    rx_desc.channels       = {{port, STREAM_ID}};
     rx_desc.stream_id      = STREAM_ID;
     rx_desc.bit_depth      = 16;
     rx_desc.sample_rate_Hz = srate_Hz;
@@ -439,7 +439,7 @@ protected:
 
     radio_difi_tx_stream::stream_description tx_desc;
     tx_desc.ip             = "127.0.0.1";
-    tx_desc.port           = port;
+    tx_desc.channels       = {{port, STREAM_ID}};
     tx_desc.stream_id      = STREAM_ID;
     tx_desc.bit_depth      = 16;
     tx_desc.sample_rate_Hz = srate_Hz;
@@ -662,7 +662,7 @@ TEST_F(RxReassembly, QueuedSamplesAreConsumedWithoutWaitingWhenBehind)
   ASSERT_NO_FATAL_FAILURE(open(15014, SLOW_SRATE));
 
   // One datagram anchors the timeline.
-  constexpr unsigned NOF_ANCHOR_SAMPLES = radio_difi_tx_stream::MAX_PKT_SAMPLES;
+  constexpr unsigned NOF_ANCHOR_SAMPLES = DIFI_DEFAULT_PKT_SAMPLES;
   // Three slots follow. Everything is queued before the first receive() call, and the kernel caps SO_RCVBUF at
   // net.core.rmem_max, which defaults to 208 kB. Queueing past that drops datagrams silently, and the stream then
   // waits out its budget for samples that never arrive.
@@ -753,7 +753,7 @@ run_round_trip_16bit(difi_iq_byte_order tx_order, difi_iq_byte_order rx_order, u
 
   radio_difi_rx_stream::stream_description rx_desc;
   rx_desc.ip             = "127.0.0.1";
-  rx_desc.port           = port;
+  rx_desc.channels       = {{port, STREAM}};
   rx_desc.stream_id      = STREAM;
   rx_desc.bit_depth      = 16;
   rx_desc.iq_byte_order  = rx_order;
@@ -764,7 +764,7 @@ run_round_trip_16bit(difi_iq_byte_order tx_order, difi_iq_byte_order rx_order, u
 
   radio_difi_tx_stream::stream_description tx_desc;
   tx_desc.ip             = "127.0.0.1";
-  tx_desc.port           = port;
+  tx_desc.channels       = {{port, STREAM}};
   tx_desc.stream_id      = STREAM;
   tx_desc.bit_depth      = 16;
   tx_desc.iq_byte_order  = tx_order;
@@ -849,7 +849,7 @@ TEST(FidelityRoundTrip, RoundTrip8Bit)
 
   radio_difi_rx_stream::stream_description rx_desc;
   rx_desc.ip             = "127.0.0.1";
-  rx_desc.port           = PORT;
+  rx_desc.channels       = {{PORT, STREAM}};
   rx_desc.stream_id      = STREAM;
   rx_desc.bit_depth      = 8;
   rx_desc.sample_rate_Hz = SRATE;
@@ -859,7 +859,7 @@ TEST(FidelityRoundTrip, RoundTrip8Bit)
 
   radio_difi_tx_stream::stream_description tx_desc;
   tx_desc.ip             = "127.0.0.1";
-  tx_desc.port           = PORT;
+  tx_desc.channels       = {{PORT, STREAM}};
   tx_desc.stream_id      = STREAM;
   tx_desc.bit_depth      = 8;
   tx_desc.sample_rate_Hz = SRATE;
@@ -878,7 +878,7 @@ TEST(FidelityRoundTrip, RoundTrip8Bit)
   std::uniform_int_distribution<int> dist(-128, 127);
   std::vector<ci16_t>                sent(N_SAMPLES);
   for (auto& s : sent) {
-    s = ci16_t(static_cast<int16_t>(dist(rng) << 8), static_cast<int16_t>(dist(rng) << 8));
+    s = ci16_t(static_cast<int16_t>(dist(rng) * 256), static_cast<int16_t>(dist(rng) * 256));
   }
 
   simple_buffer_reader_rx               buf(sent);
@@ -907,9 +907,11 @@ TEST(FidelityRoundTrip, RoundTrip8Bit)
 /// indeterminate value into the logger level.
 TEST(RxStreamConfig, DescriptionScalarDefaultsAreDeterministic)
 {
-  const radio_difi_rx_stream::stream_description desc;
+  const radio_difi_rx_stream::stream_description  desc;
+  const radio_difi_rx_stream::channel_description channel;
 
-  EXPECT_EQ(desc.port, 0U);
+  EXPECT_EQ(channel.port, 0U);
+  EXPECT_EQ(channel.difi_stream_id, 0U);
   EXPECT_EQ(desc.stream_id, 0U);
   EXPECT_EQ(desc.bit_depth, 16U);
   EXPECT_EQ(desc.sample_rate_Hz, 0.0);
@@ -927,7 +929,7 @@ TEST(RxStreamConfig, PortInUseFailsConstruction)
 
   radio_difi_rx_stream::stream_description desc;
   desc.ip             = "127.0.0.1";
-  desc.port           = PORT;
+  desc.channels       = {{PORT, 0}};
   desc.sample_rate_Hz = 1920000.0;
   desc.stream_id_str  = "test:inuse:rx";
 
@@ -951,7 +953,7 @@ TEST(RxStreamStart, DatagramsQueuedBeforeStartAreDiscarded)
 
   radio_difi_rx_stream::stream_description rx_desc;
   rx_desc.ip             = "127.0.0.1";
-  rx_desc.port           = PORT;
+  rx_desc.channels       = {{PORT, STREAM_ID}};
   rx_desc.stream_id      = STREAM_ID;
   rx_desc.sample_rate_Hz = SRATE;
   rx_desc.stream_id_str  = "test:prestart:rx";
@@ -960,7 +962,7 @@ TEST(RxStreamStart, DatagramsQueuedBeforeStartAreDiscarded)
 
   radio_difi_tx_stream::stream_description tx_desc;
   tx_desc.ip             = "127.0.0.1";
-  tx_desc.port           = PORT;
+  tx_desc.channels       = {{PORT, STREAM_ID}};
   tx_desc.stream_id      = STREAM_ID;
   tx_desc.sample_rate_Hz = SRATE;
   tx_desc.stream_id_str  = "test:prestart:tx";
@@ -989,4 +991,269 @@ TEST(RxStreamStart, DatagramsQueuedBeforeStartAreDiscarded)
 
   tx_stream.stop();
   rx_stream.stop();
+}
+
+// ---- Multiple channels ------------------------------------------------------
+//
+// Every channel of a stream is a DIFI stream on its own port. One receive() call fills all of them, on the timeline
+// the first packet of any channel maps for the whole stream.
+
+/// In-memory buffer reader holding one vector of samples per channel.
+class multi_channel_buffer_reader_rx : public baseband_gateway_buffer_reader
+{
+public:
+  explicit multi_channel_buffer_reader_rx(std::vector<std::vector<ci16_t>> channels_) : channels(std::move(channels_))
+  {
+  }
+
+  unsigned           get_nof_channels() const override { return channels.size(); }
+  unsigned           get_nof_samples() const override { return channels.front().size(); }
+  span<const ci16_t> get_channel_buffer(unsigned channel_idx) const override { return channels[channel_idx]; }
+
+private:
+  std::vector<std::vector<ci16_t>> channels;
+};
+
+/// In-memory buffer writer holding one vector of samples per channel.
+class multi_channel_buffer_writer : public baseband_gateway_buffer_writer
+{
+public:
+  multi_channel_buffer_writer(unsigned nof_channels, unsigned nof_samples) :
+    channels(nof_channels, std::vector<ci16_t>(nof_samples, ci16_t(0, 0)))
+  {
+  }
+
+  unsigned     get_nof_channels() const override { return channels.size(); }
+  unsigned     get_nof_samples() const override { return channels.front().size(); }
+  span<ci16_t> get_channel_buffer(unsigned channel_idx) override { return channels[channel_idx]; }
+
+  const std::vector<ci16_t>& data(unsigned channel_idx) const { return channels[channel_idx]; }
+
+private:
+  std::vector<std::vector<ci16_t>> channels;
+};
+
+class RxStreamMultiChannel : public ::testing::Test
+{
+protected:
+  static constexpr unsigned NOF_CHANNELS = 2;
+  static constexpr double   SAMPLE_RATE  = 1920000.0;
+  static constexpr unsigned NOF_SAMPLES  = 8;
+
+  /// Creates a receive stream with one channel per entry of \p ports, each expecting the matching identifier.
+  void create_rx(const std::array<uint16_t, NOF_CHANNELS>& ports, const std::array<uint32_t, NOF_CHANNELS>& ids)
+  {
+    radio_difi_rx_stream::stream_description desc;
+    desc.ip = "127.0.0.1";
+    for (unsigned channel_id = 0; channel_id != NOF_CHANNELS; ++channel_id) {
+      desc.channels.push_back({ports[channel_id], ids[channel_id]});
+    }
+    desc.stream_id      = 0;
+    desc.bit_depth      = 16;
+    desc.sample_rate_Hz = SAMPLE_RATE;
+    desc.stream_id_str  = "test:multi:rx";
+    rx                  = std::make_unique<radio_difi_rx_stream>(desc, notifier);
+    ASSERT_TRUE(rx->is_successful());
+  }
+
+  /// Creates a started transmit stream with one channel per element of \p ports and \p ids.
+  std::unique_ptr<radio_difi_tx_stream>
+  create_tx(span<const uint16_t> ports, span<const uint32_t> ids, int64_t epoch_offset_ticks = 0)
+  {
+    radio_difi_tx_stream::stream_description desc;
+    desc.ip = "127.0.0.1";
+    for (unsigned channel_id = 0, nof_channels = ports.size(); channel_id != nof_channels; ++channel_id) {
+      desc.channels.push_back({ports[channel_id], ids[channel_id]});
+    }
+    desc.stream_id      = 0;
+    desc.bit_depth      = 16;
+    desc.sample_rate_Hz = SAMPLE_RATE;
+    desc.center_freq_Hz = 0.0;
+    desc.stream_id_str  = "test:multi:tx";
+    auto tx             = std::make_unique<radio_difi_tx_stream>(desc, tx_notifier);
+    // Started before the receiver binds, so its context packets are dropped instead of read as a buffer.
+    tx->start(0, epoch_offset_ticks);
+    return tx;
+  }
+
+  /// Sample carried by every sample of channel \p channel_id, so a crossed channel shows in the payload.
+  static ci16_t channel_sample(unsigned channel_id)
+  {
+    const auto value = static_cast<int16_t>(channel_id + 1);
+    return {value, static_cast<int16_t>(-value)};
+  }
+
+  /// Transmits NOF_SAMPLES of channel_sample(c) on every channel c of \p tx, stamped with \p ts.
+  static void transmit(radio_difi_tx_stream& tx, unsigned nof_channels, unsigned first_channel = 0, uint64_t ts = 0)
+  {
+    std::vector<std::vector<ci16_t>> samples;
+    for (unsigned channel_id = 0; channel_id != nof_channels; ++channel_id) {
+      samples.emplace_back(NOF_SAMPLES, channel_sample(first_channel + channel_id));
+    }
+    multi_channel_buffer_reader_rx        buf(samples);
+    baseband_gateway_transmitter_metadata meta{};
+    meta.is_empty = false;
+    meta.ts       = ts;
+    tx.transmit(buf, meta);
+  }
+
+  void TearDown() override
+  {
+    if (rx) {
+      rx->stop();
+    }
+  }
+
+  capturing_notifier_rx                 notifier;
+  null_notifier_rx                      tx_notifier;
+  std::unique_ptr<radio_difi_rx_stream> rx;
+};
+
+TEST_F(RxStreamMultiChannel, EachChannelFillsItsOwnBuffer)
+{
+  static constexpr std::array<uint16_t, NOF_CHANNELS> PORTS = {15060, 15061};
+  static constexpr std::array<uint32_t, NOF_CHANNELS> IDS   = {4, 5};
+
+  ASSERT_NO_FATAL_FAILURE(create_rx(PORTS, IDS));
+  auto tx = create_tx(PORTS, IDS);
+  rx->start(0);
+
+  transmit(*tx, NOF_CHANNELS);
+
+  multi_channel_buffer_writer buf(NOF_CHANNELS, NOF_SAMPLES);
+  EXPECT_EQ(rx->receive(buf).ts, 0U);
+  for (unsigned channel_id = 0; channel_id != NOF_CHANNELS; ++channel_id) {
+    for (unsigned i = 0; i != NOF_SAMPLES; ++i) {
+      ASSERT_EQ(buf.data(channel_id)[i], channel_sample(channel_id)) << "Channel " << channel_id << " sample " << i;
+    }
+  }
+  EXPECT_TRUE(notifier.events.empty());
+  tx->stop();
+}
+
+TEST_F(RxStreamMultiChannel, SilentChannelIsZeroFilledWithoutStallingTheOthers)
+{
+  static constexpr std::array<uint16_t, NOF_CHANNELS> PORTS       = {15062, 15063};
+  static constexpr std::array<uint32_t, NOF_CHANNELS> IDS         = {6, 7};
+  static constexpr unsigned                           NOF_BUFFERS = 3;
+
+  ASSERT_NO_FATAL_FAILURE(create_rx(PORTS, IDS));
+  // Only the first port has a transmitter.
+  auto tx = create_tx(span<const uint16_t>(PORTS).first(1), span<const uint32_t>(IDS).first(1));
+  rx->start(0);
+
+  for (unsigned buffer_id = 0; buffer_id != NOF_BUFFERS; ++buffer_id) {
+    const uint64_t ts = buffer_id * NOF_SAMPLES;
+    transmit(*tx, 1, 0, ts);
+
+    multi_channel_buffer_writer buf(NOF_CHANNELS, NOF_SAMPLES);
+    EXPECT_EQ(rx->receive(buf).ts, ts);
+    for (unsigned i = 0; i != NOF_SAMPLES; ++i) {
+      ASSERT_EQ(buf.data(0)[i], channel_sample(0)) << "Buffer " << buffer_id << " sample " << i;
+      ASSERT_EQ(buf.data(1)[i], ci16_t(0, 0)) << "Buffer " << buffer_id << " sample " << i;
+    }
+  }
+  EXPECT_EQ(rx->get_sample_count(), NOF_BUFFERS * NOF_SAMPLES);
+  tx->stop();
+}
+
+// The first packet of any channel maps the wire timeline for the whole stream. A channel stamped against another
+// clock is not given a mapping of its own: its samples stay where its timestamps put them, here an hour away.
+TEST_F(RxStreamMultiChannel, ChannelOnAnotherClockIsNotRealigned)
+{
+  static constexpr std::array<uint16_t, NOF_CHANNELS> PORTS            = {15064, 15065};
+  static constexpr std::array<uint32_t, NOF_CHANNELS> IDS              = {8, 9};
+  static constexpr unsigned                           SECONDS_PER_HOUR = 3600;
+  static constexpr int64_t ONE_HOUR_TICKS = static_cast<int64_t>(SAMPLE_RATE) * SECONDS_PER_HOUR;
+
+  static constexpr std::chrono::milliseconds FIRST_PACKET_HEAD_START{1};
+
+  ASSERT_NO_FATAL_FAILURE(create_rx(PORTS, IDS));
+  auto tx_on_our_clock     = create_tx(span<const uint16_t>(PORTS).first(1), span<const uint32_t>(IDS).first(1));
+  auto tx_on_another_clock = create_tx(
+      span<const uint16_t>(PORTS).last(1), span<const uint32_t>(IDS).last(1), /*epoch_offset_ticks=*/ONE_HOUR_TICKS);
+  rx->start(0);
+
+  transmit(*tx_on_our_clock, 1, 0);
+  // Give the first channel's packet a head start, so it is the one that maps the timeline.
+  std::this_thread::sleep_for(FIRST_PACKET_HEAD_START);
+  transmit(*tx_on_another_clock, 1, 1);
+
+  multi_channel_buffer_writer buf(NOF_CHANNELS, NOF_SAMPLES);
+  rx->receive(buf);
+  for (unsigned i = 0; i != NOF_SAMPLES; ++i) {
+    ASSERT_EQ(buf.data(0)[i], channel_sample(0)) << "Sample " << i;
+    ASSERT_EQ(buf.data(1)[i], ci16_t(0, 0)) << "Sample " << i;
+  }
+
+  // The far-future packet shows as a gap on its own channel.
+  ASSERT_EQ(notifier.events.size(), 1U);
+  EXPECT_EQ(notifier.events[0].type, radio_event_type::OVERFLOW);
+  EXPECT_EQ(notifier.events[0].stream_id, 0U);
+  EXPECT_EQ(notifier.events[0].channel_id, 1U);
+
+  tx_on_our_clock->stop();
+  tx_on_another_clock->stop();
+}
+
+// ---- Receive lag ------------------------------------------------------------
+//
+// The receive timeline trails the transmitter's first packet by the configured lag, so the first buffer after that
+// packet is handed over no earlier than the lag.
+
+/// Returns how long the first receive() call takes once a transmitter on \p port has sent, with \p rx_lag.
+static std::chrono::steady_clock::duration first_buffer_delay(uint16_t port, std::chrono::microseconds rx_lag)
+{
+  static constexpr uint32_t STREAM      = 3;
+  static constexpr double   SAMPLE_RATE = 1920000.0;
+  static constexpr unsigned NOF_SAMPLES = 4;
+
+  null_notifier_rx                         notifier;
+  radio_difi_rx_stream::stream_description rx_desc;
+  rx_desc.ip             = "127.0.0.1";
+  rx_desc.channels       = {{port, STREAM}};
+  rx_desc.stream_id      = STREAM;
+  rx_desc.bit_depth      = 16;
+  rx_desc.sample_rate_Hz = SAMPLE_RATE;
+  rx_desc.stream_id_str  = "test:lag:rx";
+  rx_desc.rx_lag         = rx_lag;
+  radio_difi_rx_stream rx(rx_desc, notifier);
+
+  radio_difi_tx_stream::stream_description tx_desc;
+  tx_desc.ip             = "127.0.0.1";
+  tx_desc.channels       = {{port, STREAM}};
+  tx_desc.stream_id      = STREAM;
+  tx_desc.bit_depth      = 16;
+  tx_desc.sample_rate_Hz = SAMPLE_RATE;
+  tx_desc.stream_id_str  = "test:lag:tx";
+  radio_difi_tx_stream tx(tx_desc, notifier);
+  // The context packet start() sends is discarded by the receiver start().
+  tx.start(0);
+  rx.start(0);
+
+  const std::vector<ci16_t>             samples(NOF_SAMPLES, ci16_t(1, 2));
+  simple_buffer_reader_rx               reader(samples);
+  baseband_gateway_transmitter_metadata meta{};
+  meta.is_empty = false;
+  meta.ts       = 0;
+  tx.transmit(reader, meta);
+
+  simple_buffer_writer buf(NOF_SAMPLES);
+  const auto           start = std::chrono::steady_clock::now();
+  rx.receive(buf);
+  const auto delay = std::chrono::steady_clock::now() - start;
+
+  tx.stop();
+  rx.stop();
+  return delay;
+}
+
+TEST(RxStreamLag, FirstBufferWaitsForTheConfiguredLag)
+{
+  // Far apart, so that a slow run under a memory checker cannot make the short lag look like the long one.
+  static constexpr std::chrono::milliseconds LONG_LAG{200};
+  static constexpr std::chrono::milliseconds SHORT_LAG{1};
+
+  EXPECT_GE(first_buffer_delay(15066, LONG_LAG), LONG_LAG);
+  EXPECT_LT(first_buffer_delay(15067, SHORT_LAG), LONG_LAG / 2);
 }

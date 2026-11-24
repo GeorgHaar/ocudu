@@ -7,7 +7,7 @@
 #include "../nrppa_asn1_converters.h"
 #include "../nrppa_helper.h"
 #include "ocudu/adt/format.h"
-#include "ocudu/asn1/asn1_utils.h"
+#include "ocudu/asn1/asn1_dispatch.h"
 #include "ocudu/asn1/nrppa/common.h"
 #include "ocudu/asn1/nrppa/nrppa.h"
 #include "ocudu/asn1/nrppa/nrppa_pdu_contents.h"
@@ -109,7 +109,7 @@ asn1::nrppa::nr_ppa_pdu_c positioning_information_exchange_procedure::create_pos
   const positioning_information_response_t& pos_info_resp = procedure_outcome.value();
 
   if (pos_info_resp.srs_cfg.has_value()) {
-    asn1_pos_info_resp->srs_configuration_present = true;
+    asn1_pos_info_resp->srs_cfg_present = true;
     for (const auto& srs_carrier_item : pos_info_resp.srs_cfg->srs_carrier_list) {
       asn1::nrppa::srs_carrier_list_item_s asn1_srs_carrier_item;
       // Fill point A.
@@ -394,7 +394,7 @@ asn1::nrppa::nr_ppa_pdu_c positioning_information_exchange_procedure::create_pos
         asn1_srs_carrier_item.pci_nr         = srs_carrier_item.pci_nr.value();
       }
 
-      asn1_pos_info_resp->srs_configuration.srs_carrier_list.push_back(asn1_srs_carrier_item);
+      asn1_pos_info_resp->srs_cfg.srs_carrier_list.push_back(asn1_srs_carrier_item);
     }
   }
 

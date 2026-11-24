@@ -48,7 +48,7 @@ static up_old_drb_association build_old_drb_association(
     }
     for (const auto& drb_item : pdu_session.data_forwarding_info_from_source->drbs_to_qos_flows_map_list) {
       for (const auto& assoc_flow : drb_item.associated_qos_flow_list) {
-        old_drb_association[pdu_session.pdu_session_id][assoc_flow.qos_flow_id] = drb_item.drb_id;
+        old_drb_association[pdu_session.pdu_session_id][assoc_flow.qos_flow_id] = {drb_item.drb_id};
       }
     }
   }
@@ -101,8 +101,18 @@ void inter_cu_handover_target_routine::operator()(
     // Calculate next user-plane configuration based on incoming setup message.
     up_old_drb_association old_drb_association = build_old_drb_association(request.pdu_session_res_setup_list);
     merge_old_drb_association_from_as_config(old_drb_association, request.rrc_handover_preparation_information, logger);
-    next_config =
-        ue->get_up_resource_manager().calculate_update(request.pdu_session_res_setup_list, old_drb_association);
+    std::optional<rrc_ue_capabilities_t> capabilities =
+        decode_handover_capabilities(request.rrc_handover_preparation_information);
+    if (not capabilities.has_value()) {
+      logger.warning("ue={}: \"{}\" failed. Cause: Invalid forwarded UE capabilities", request.ue_index, name());
+      CORO_EARLY_RETURN(generate_handover_resource_allocation_response(false));
+    }
+    next_config = ue->get_up_resource_manager().calculate_update(
+        request.pdu_session_res_setup_list, *capabilities, old_drb_association);
+    if (next_config.pdu_sessions_to_setup_list.empty()) {
+      logger.warning("ue={}: \"{}\" failed. Cause: No PDU sessions admitted", request.ue_index, name());
+      CORO_EARLY_RETURN(generate_handover_resource_allocation_response(false));
+    }
   }
 
   // Prepare E1AP Bearer Context Setup Request and call E1AP notifier.

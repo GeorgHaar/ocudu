@@ -11,6 +11,7 @@ add_executable(sched_ue_context_test
         ue_repository_test.cpp
         logical_channel_system_test.cpp
         ta_management_system_test.cpp
+        ue_koffset_tracker_test.cpp
         pucch_power_control_test.cpp
         pusch_power_control_test.cpp)
 target_link_libraries(sched_ue_context_test

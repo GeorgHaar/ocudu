@@ -52,8 +52,8 @@ public:
   void rem_ue(du_ue_index_t ue_index);
 
   /// Called to save DL and UL newTx grants allocated to UEs in the given slot.
-  void save_dl_newtx_grants(span<const dl_msg_alloc> dl_grants);
-  void save_ul_newtx_grants(span<const ul_sched_info> ul_grants);
+  void save_dl_newtx_grants(pdu_span<dl_msg_alloc> dl_grants);
+  void save_ul_newtx_grants(pdu_span<ul_sched_info> ul_grants);
 
   ue_history operator[](du_ue_index_t ue_index) const { return {*this, ue_row_ids[ue_index]}; }
 
@@ -124,9 +124,9 @@ public:
                                 slot_point               pusch_slot,
                                 span<ue_newtx_candidate> ue_candidates) override;
 
-  void save_dl_newtx_grants(span<const dl_msg_alloc> dl_grants) override;
+  void save_dl_newtx_grants(pdu_span<dl_msg_alloc> dl_grants) override;
 
-  void save_ul_newtx_grants(span<const ul_sched_info> ul_grants) override;
+  void save_ul_newtx_grants(pdu_span<ul_sched_info> ul_grants) override;
 
 private:
   // Value used to flag that the UE cannot be allocated in a given slot.

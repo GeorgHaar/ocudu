@@ -649,8 +649,9 @@ create_ul_processor_factory(const upper_phy_factory_configuration& config,
       create_low_papr_sequence_generator_sw_factory();
   report_fatal_error_if_not(sequence_factory, "Invalid sequence factory.");
 
-  std::shared_ptr<dft_processor_factory> dft_factory = create_dft_processor_factory();
-  report_fatal_error_if_not(dft_factory, "Invalid DFT factory.");
+  report_fatal_error_if_not(!config.dft_processor_type.empty(), "Upper PHY DFT processor type is not set.");
+  std::shared_ptr<dft_processor_factory> dft_factory = create_dft_processor_factory(config.dft_processor_type);
+  report_fatal_error_if_not(dft_factory, "Invalid upper PHY DFT factory of type '{}'.", config.dft_processor_type);
 
   std::shared_ptr<time_alignment_estimator_factory> ta_est_factory =
       create_time_alignment_estimator_dft_factory(dft_factory);

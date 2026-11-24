@@ -124,12 +124,10 @@ void srs_resource_manager_periodic::add_cell(du_cell_index_t cell_idx, const ran
         // For partially-UL slots, we need to check if the SRS can be placed in the UL symbols of the slot.
         const auto&    tdd_cfg    = cell_ctx.tdd_ul_dl_cfg_common.value();
         const unsigned slot_index = offset % (NOF_SUBFRAMES_PER_FRAME * get_nof_slots_per_subframe(tdd_cfg.ref_scs));
-        // As per Section 6.4.1.4.1, TS 38.211, the SRS resources can only be placed in the last 6 symbols of the
-        // slot.
-        static constexpr unsigned max_srs_symbols = 6U;
-        const unsigned            nof_ul_symbols_for_srs =
-            std::min(get_active_tdd_ul_symbols(tdd_cfg, slot_index, cyclic_prefix::NORMAL).length(), max_srs_symbols);
-        if (res.symbols.start() < NOF_OFDM_SYM_PER_SLOT_NORMAL_CP - nof_ul_symbols_for_srs) {
+        const ofdm_symbol_range srs_symbols =
+            get_srs_symbols_in_partial_ul_slot(get_active_tdd_ul_symbols(tdd_cfg, slot_index, cyclic_prefix::NORMAL),
+                                               cell_ctx.cell_cfg.init_bwp.srs_cfg.nof_symbols);
+        if (not srs_symbols.contains(res.symbols)) {
           continue;
         }
       }
@@ -273,17 +271,16 @@ srs_resource_manager_periodic::cell_context::find_optimal_ue_srs_resource()
   return optimal_res_it;
 }
 
-void srs_resource_manager_periodic::dealloc_resources(ue_cell_config& ue_cell_cfg)
+void srs_resource_manager_periodic::dealloc_resources(const ue_cell_config& ue_cell_cfg)
 {
-  auto& cell_cfg_ded = ue_cell_cfg.serv_cell_cfg;
+  const auto& cell_cfg_ded = ue_cell_cfg.serv_cell_cfg;
   // This is the cell index inside the DU.
   auto& ue_du_cell = cells[cell_cfg_ded.cell_index];
 
   ocudu_assert(ue_du_cell.cell_cfg.init_bwp.srs_cfg.srs_type_enabled != srs_type::aperiodic,
                "This function is not compatible with aperiodic SRS");
 
-  if (ue_du_cell.cell_cfg.init_bwp.srs_cfg.srs_type_enabled != srs_type::periodic or
-      not cell_cfg_ded.ul_config->init_ul_bwp.srs_cfg.has_value()) {
+  if (ue_du_cell.cell_cfg.init_bwp.srs_cfg.srs_type_enabled != srs_type::periodic) {
     return;
   }
 
@@ -299,8 +296,4 @@ void srs_resource_manager_periodic::dealloc_resources(ue_cell_config& ue_cell_cf
                  "The slot resource counter is expected to be non-zero");
     --ue_du_cell.slot_resource_cnt[offset_to_deallocate];
   }
-
-  // Reset the SRS configuration in this UE. This makes sure the DU will exit this function immediately when it gets
-  // called again for the same UE (upon destructor's call).
-  cell_cfg_ded.ul_config->init_ul_bwp.srs_cfg.reset();
 }

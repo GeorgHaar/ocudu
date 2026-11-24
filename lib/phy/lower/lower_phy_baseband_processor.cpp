@@ -59,10 +59,14 @@ void lower_phy_baseband_processor::start(baseband_gateway_timestamp init_time, b
                             "Failed to execute initial downlink task.");
 }
 
-void lower_phy_baseband_processor::stop()
+void lower_phy_baseband_processor::request_stop()
 {
   rx_state.request_stop();
   tx_state.request_stop();
+}
+
+void lower_phy_baseband_processor::wait_stop()
+{
   rx_state.wait_stop();
   tx_state.wait_stop();
 }
@@ -177,7 +181,10 @@ void lower_phy_baseband_processor::ul_process()
 
     ru_tracer << trace_event("uplink_baseband", ul_tp);
   });
-  report_fatal_error_if_not(success, "Failed to execute uplink processing task.");
+
+  if (!success) {
+    logger.warning("Failed to execute uplink processing task. Dropping baseband buffer processing...");
+  }
 
   // Enqueue next iteration if it is running.
   report_fatal_error_if_not(rx_executor.defer([this]() { ul_process(); }), "Failed to execute receive task.");

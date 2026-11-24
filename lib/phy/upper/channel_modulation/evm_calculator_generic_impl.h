@@ -30,7 +30,7 @@ private:
   /// Maximum processing block size in number of symbols.
   static constexpr unsigned MAX_NOF_SYMBOLS = 4096;
   /// Maximum processing block size in number of bits.
-  static constexpr unsigned MAX_NOF_BITS = MAX_NOF_SYMBOLS * 8;
+  static constexpr unsigned MAX_NOF_BITS = MAX_NOF_SYMBOLS * MODULATION_MAX_BITS_PER_SYMBOL;
   /// Internal modulator.
   std::unique_ptr<modulation_mapper> modulator;
   /// Data after hard-decision.

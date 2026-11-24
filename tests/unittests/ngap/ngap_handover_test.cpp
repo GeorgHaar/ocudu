@@ -38,3 +38,32 @@ TEST_F(ngap_test, when_ue_missing_then_handover_preparation_procedure_fails)
   // Make sure no NGAP pdu was sent
   ASSERT_TRUE(n2_gw.last_ngap_msgs.empty());
 }
+
+/// Handover Request with a valid target cell ID in the transparent container requests a UE for the target cell.
+TEST_F(ngap_test, when_handover_request_received_then_ue_index_allocation_is_requested_for_target_cell)
+{
+  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-MOB-4");
+
+  ngap->handle_message(generate_valid_handover_request(amf_ue_id_t(1)));
+
+  ASSERT_TRUE(cu_cp_notifier.last_ue_index_allocation_cgi.has_value());
+  ASSERT_EQ(cu_cp_notifier.last_ue_index_allocation_cgi->plmn_id, plmn_identity::test_value());
+}
+
+/// Handover Request with an invalid PLMN in the target cell ID of the transparent container is rejected with a Handover
+/// Failure before a UE is requested.
+TEST_F(ngap_test, when_handover_request_with_invalid_target_cell_plmn_received_then_handover_failure_is_sent)
+{
+  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-MOB-4");
+
+  handover_request_params params;
+  params.invalid_target_cell_plmn_id = true;
+  ngap->handle_message(generate_valid_handover_request(amf_ue_id_t(1), params));
+
+  ASSERT_FALSE(cu_cp_notifier.last_ue_index_allocation_cgi.has_value());
+  ASSERT_FALSE(n2_gw.last_ngap_msgs.empty());
+  const auto& pdu = n2_gw.last_ngap_msgs.back().pdu;
+  ASSERT_EQ(pdu.type(), asn1::ngap::ngap_pdu_c::types_opts::unsuccessful_outcome);
+  ASSERT_EQ(pdu.unsuccessful_outcome().value.type(),
+            asn1::ngap::ngap_elem_procs_o::unsuccessful_outcome_c::types_opts::ho_fail);
+}

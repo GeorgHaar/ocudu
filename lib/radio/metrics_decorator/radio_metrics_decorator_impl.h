@@ -99,7 +99,10 @@ public:
                           ocudulog::basic_levels                 rf_log_level);
 
   // See the radio_session interface for documentation.
-  radio_management_plane& get_management_plane() override { return radio_session_base->get_management_plane(); }
+  radio_capabilities_registry& get_capabilities_registry() override
+  {
+    return radio_session_base->get_capabilities_registry();
+  }
 
   // See the radio_session interface for documentation.
   baseband_gateway& get_baseband_gateway(unsigned stream_id) override;

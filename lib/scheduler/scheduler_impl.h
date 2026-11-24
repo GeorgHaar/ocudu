@@ -33,7 +33,7 @@ public:
   void handle_pws_si_update_request(const pws_si_scheduling_update_request& req) override;
 
   // scheduler_slot_handler interface methods.
-  const sched_result& slot_indication(slot_point_extended sl_tx, du_cell_index_t cell_index) noexcept override;
+  sched_slot_result_reader slot_indication(slot_point_extended sl_tx, du_cell_index_t cell_index) noexcept override;
   void handle_error_indication(slot_point sl_tx, du_cell_index_t cell_index, error_outcome event) override;
 
   // DU manager events.
@@ -54,6 +54,7 @@ public:
   void handle_ul_bsr_indication(const ul_bsr_indication_message& bsr) override;
   void handle_ul_phr_indication(const ul_phr_indication_message& phr_ind) override;
   void handle_ul_ta_report_indication(const ul_ta_report_indication_message& ta_report_ind) override;
+  void handle_cg_confirmation_message(const cg_confirmation_indication_message& cg_conf_ind) override;
   void handle_crnti_ce_received(du_ue_index_t ue_index) override;
 
   // PHY events.

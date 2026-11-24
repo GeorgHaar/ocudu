@@ -11,6 +11,7 @@
 #include "ocudu/phy/support/rb_allocation.h"
 #include "ocudu/phy/support/re_pattern.h"
 #include "ocudu/phy/support/resource_grid_writer.h"
+#include "ocudu/phy/upper/dmrs_mapping.h"
 #include "ocudu/ran/dmrs/dmrs.h"
 #include "ocudu/ran/pdsch/pdsch_context.h"
 #include "ocudu/ran/precoding_beamforming_configuration.h"
@@ -123,6 +124,10 @@ public:
     bool n_scid;
     /// Number of DMRS CDM groups without data.
     unsigned nof_cdm_groups_without_data;
+    /// \brief DM-RS ports used by the transmission, as per TS38.212 Tables 7.3.1.2.2-1 to 7.3.1.2.2-4.
+    ///
+    /// The number of selected ports must be equal to the number of layers of the precoding configuration.
+    dmrs_port_mask dmrs_ports;
     /// Frequency domain allocation.
     rb_allocation freq_alloc;
     /// Time domain allocation start symbol index (0...12).

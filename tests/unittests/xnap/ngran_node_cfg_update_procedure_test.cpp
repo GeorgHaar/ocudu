@@ -46,7 +46,7 @@ TEST_F(ngran_node_cfg_update_procedure_test, when_a_new_cell_is_served_then_it_i
 
   const xnap_message cfg_update = run_cfg_update();
 
-  ASSERT_EQ(cfg_update.pdu.type(), asn1::xnap::xn_ap_pdu_c::types_opts::init_msg);
+  ASSERT_EQ(cfg_update.pdu.type(), asn1::xnap::xnap_pdu_c::types_opts::init_msg);
   ASSERT_EQ(cfg_update.pdu.init_msg().value.type(),
             asn1::xnap::xnap_elem_procs_o::init_msg_c::types_opts::ngran_node_cfg_upd);
 
@@ -134,7 +134,7 @@ TEST_F(ngran_node_cfg_update_procedure_test, when_the_peer_reports_its_cells_the
   xnap->handle_message(generate_asn1_ngran_node_cfg_update(update));
 
   const xnap_message ack = get_last_message();
-  ASSERT_EQ(ack.pdu.type(), asn1::xnap::xn_ap_pdu_c::types_opts::successful_outcome);
+  ASSERT_EQ(ack.pdu.type(), asn1::xnap::xnap_pdu_c::types_opts::successful_outcome);
   ASSERT_EQ(ack.pdu.successful_outcome().value.type(),
             asn1::xnap::xnap_elem_procs_o::successful_outcome_c::types_opts::ngran_node_cfg_upd_ack);
 }
@@ -144,7 +144,30 @@ TEST_F(ngran_node_cfg_update_procedure_test, when_no_xn_setup_was_run_then_a_rep
   xnap->handle_message(generate_asn1_ngran_node_cfg_update(xnap_served_cells_update{}));
 
   const xnap_message fail = get_last_message();
-  ASSERT_EQ(fail.pdu.type(), asn1::xnap::xn_ap_pdu_c::types_opts::unsuccessful_outcome);
+  ASSERT_EQ(fail.pdu.type(), asn1::xnap::xnap_pdu_c::types_opts::unsuccessful_outcome);
+  ASSERT_EQ(fail.pdu.unsuccessful_outcome().value.type(),
+            asn1::xnap::xnap_elem_procs_o::unsuccessful_outcome_c::types_opts::ngran_node_cfg_upd_fail);
+}
+
+/// An invalid NR CGI in the Served Cells To Update NR IE is rejected with a failure and leaves the stored cells
+/// unchanged.
+TEST_F(ngran_node_cfg_update_procedure_test, when_reported_update_has_invalid_cgi_then_it_is_rejected)
+{
+  ASSERT_TRUE(run_xn_setup(xnap_peer_cfg));
+
+  xnap_served_cells_update update;
+  update.cells_to_add.push_back(generate_served_cell_info(
+      5, nr_cell_global_id_t{local_plmn, nr_cell_identity::create(gnb_id_t{412, 22}, 1).value()}));
+  xnap_message msg = generate_asn1_ngran_node_cfg_update(update);
+  msg.pdu.init_msg()
+      .value.ngran_node_cfg_upd()
+      ->cfg_upd_init_node_choice.gnb()
+      .served_cells_to_upd_nr.served_cells_to_add_nr[0]
+      .served_cell_info_nr.cell_id.plmn_id.from_number(0xffffff);
+  xnap->handle_message(msg);
+
+  const xnap_message fail = get_last_message();
+  ASSERT_EQ(fail.pdu.type(), asn1::xnap::xnap_pdu_c::types_opts::unsuccessful_outcome);
   ASSERT_EQ(fail.pdu.unsuccessful_outcome().value.type(),
             asn1::xnap::xnap_elem_procs_o::unsuccessful_outcome_c::types_opts::ngran_node_cfg_upd_fail);
 }
@@ -184,4 +207,30 @@ TEST(ngran_node_cfg_update_asn1_helpers_test, reported_cells_are_applied_to_the_
 
   ASSERT_EQ(peer_cells.size(), 1);
   EXPECT_EQ(peer_cells[0].nr_cgi, cgi2);
+}
+
+/// A served-cell update with a valid addition followed by an invalid one is rejected as a whole, leaving the cells
+/// stored for the peer unchanged.
+TEST(ngran_node_cfg_update_asn1_helpers_test, invalid_cgi_leaves_the_stored_cells_unchanged)
+{
+  const nr_cell_global_id_t cgi1{plmn_identity::test_value(), nr_cell_identity::create(gnb_id_t{412, 22}, 1).value()};
+  const nr_cell_global_id_t cgi2{plmn_identity::test_value(), nr_cell_identity::create(gnb_id_t{412, 22}, 2).value()};
+  const nr_cell_global_id_t cgi3{plmn_identity::test_value(), nr_cell_identity::create(gnb_id_t{412, 22}, 3).value()};
+
+  std::vector<cu_cp_served_cell_info> peer_cells;
+  peer_cells.push_back(generate_served_cell_info(1, cgi1));
+
+  xnap_served_cells_update update;
+  update.cells_to_add.push_back(generate_served_cell_info(2, cgi2));
+  update.cells_to_add.push_back(generate_served_cell_info(3, cgi3));
+
+  xnap_message cfg_update = generate_asn1_ngran_node_cfg_update(update);
+  auto&        cells_to_upd =
+      cfg_update.pdu.init_msg().value.ngran_node_cfg_upd()->cfg_upd_init_node_choice.gnb().served_cells_to_upd_nr;
+  ASSERT_EQ(cells_to_upd.served_cells_to_add_nr.size(), 2);
+  cells_to_upd.served_cells_to_add_nr[1].served_cell_info_nr.cell_id.plmn_id.from_number(0xffffff);
+
+  EXPECT_FALSE(update_peer_served_cells(peer_cells, cells_to_upd));
+  ASSERT_EQ(peer_cells.size(), 1);
+  EXPECT_EQ(peer_cells[0].nr_cgi, cgi1);
 }

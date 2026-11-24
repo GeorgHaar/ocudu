@@ -6,9 +6,11 @@
 #pragma once
 
 #include "amf_connection_manager.h"
+#include "cu_cp_ue_admission_controller.h"
 #include "cu_up_connection_manager.h"
 #include "du_connection_manager.h"
 #include "xnc_connection_manager.h"
+#include <set>
 
 namespace ocudu::ocucp {
 
@@ -61,8 +63,27 @@ public:
   /// Determines whether the CU-CP should accept new UE connections.
   bool request_ue_setup() const override;
 
-  /// Determines whether the CU-CP should accept a new UE connection based on its PLMN.
-  bool is_supported_plmn(const plmn_identity& plmn) const;
+  /// \brief Decides which connected AMFs reject a new UE with the given establishment cause because of an overload.
+  /// \return The AMFs that reject the UE, or std::nullopt if every connected AMF rejects the UE.
+  std::optional<std::vector<cu_cp_amf_index_t>> admit_ue_setup(establishment_cause_t establishment_cause);
+
+  /// \brief Determines whether the CU-CP should accept the resume of an RRC_INACTIVE UE.
+  ///
+  /// The CU-CP rejects the UE if the overload of the AMF of the UE rejects the resume cause or the Allowed NSSAI.
+  bool request_ue_resume(cu_cp_amf_index_t amf_index, resume_cause_t resume_cause, span<const s_nssai_t> allowed_nssai);
+
+  /// \brief Selects the AMF for a UE that accesses the CU-CP.
+  /// \return The index of the AMF, or std::nullopt if no connected AMF supports the selected PLMN of the UE.
+  std::optional<cu_cp_amf_index_t> select_amf(const amf_selection_request& request);
+
+  /// \brief Finds the connected AMF that serves a GUAMI, or a connected AMF of its AMF Set.
+  /// \return The index of the AMF, or std::nullopt if no AMF of the AMF Set is connected.
+  std::optional<cu_cp_amf_index_t> select_amf_for_guami(const guami_t& guami);
+
+  /// \brief Selects a connected AMF of an AMF Set that supports a PLMN, other than the AMF that asks for it.
+  /// \return The index of the AMF, or std::nullopt if no other AMF of the AMF Set supports the PLMN.
+  std::optional<cu_cp_amf_index_t>
+  select_amf_for_amf_set(const plmn_identity& plmn, uint16_t amf_set_id, cu_cp_amf_index_t requesting_amf_index);
 
   /// Gets the F1C handler.
   cu_cp_f1c_handler& get_f1c_handler() { return du_mng; }
@@ -84,6 +105,9 @@ private:
 
   std::mutex mutex;
   bool       running = true;
+
+  /// NAS Node Selection Function of the CU-CP.
+  amf_selector amf_sel;
 };
 
 } // namespace ocudu::ocucp

@@ -17,8 +17,10 @@
 #include "tests/unittests/ngap/ngap_test_messages.h"
 #include "tests/unittests/xnap/xnap_test_messages.h"
 #include "ocudu/adt/format.h"
+#include "ocudu/asn1/f1ap/f1ap_pdu_contents.h"
 #include "ocudu/asn1/ngap/ngap_ies.h"
 #include "ocudu/asn1/ngap/ngap_pdu_contents.h"
+#include "ocudu/asn1/rrc_nr/dl_ccch_msg.h"
 #include "ocudu/asn1/xnap/xnap_pdu_contents.h"
 #include "ocudu/cu_cp/cu_cp_configuration.h"
 #include "ocudu/e1ap/common/e1ap_message.h"
@@ -69,7 +71,7 @@ public:
 
   void connect_ue_with_rrc_inactive_support(
       std::optional<cu_cp_core_network_assist_info_for_inactive> cn_assist_info_for_inactive =
-          cu_cp_core_network_assist_info_for_inactive{.ue_id_idx_value = 0x64c0})
+          cu_cp_core_network_assist_info_for_inactive{.ue_id_idx_value = 0xc0})
   {
     // Connect UE 0x4601 with RRC inactive support.
     report_fatal_error_if_not(attach_ue(du_idx,
@@ -228,6 +230,25 @@ public:
     return true;
   }
 
+  /// Stores the F1AP IDs of the new F1-connection that the CU-CP uses for the resumed UE (TS 38.401 section 8.6.2).
+  void store_resumed_ue_f1ap_ids(const f1ap_message& msg)
+  {
+    const auto& value = msg.pdu.init_msg().value;
+    if (value.type().value == asn1::f1ap::f1ap_elem_procs_o::init_msg_c::types_opts::ue_context_setup_request) {
+      update_ue_f1ap_ids(du_idx,
+                         ue_ctx->du_ue_id.value(),
+                         int_to_gnb_du_ue_f1ap_id(value.ue_context_setup_request()->gnb_du_ue_f1ap_id),
+                         int_to_gnb_cu_ue_f1ap_id(value.ue_context_setup_request()->gnb_cu_ue_f1ap_id));
+    } else {
+      report_fatal_error_if_not(test_helpers::is_valid_ue_context_release_command(msg),
+                                "Expected UE Context Setup Request or UE Context Release Command");
+      update_ue_f1ap_ids(du_idx,
+                         ue_ctx->du_ue_id.value(),
+                         int_to_gnb_du_ue_f1ap_id(value.ue_context_release_cmd()->gnb_du_ue_f1ap_id),
+                         int_to_gnb_cu_ue_f1ap_id(value.ue_context_release_cmd()->gnb_cu_ue_f1ap_id));
+    }
+  }
+
   [[nodiscard]] bool send_f1ap_ue_context_release_complete(gnb_du_ue_f1ap_id_t f1ap_du_ue_id = gnb_du_ue_f1ap_id_t::min)
   {
     report_fatal_error_if_not(not this->get_cu_up(cu_up_idx).try_pop_rx_pdu(e1ap_pdu),
@@ -256,6 +277,7 @@ public:
                               "Failed to receive UE Context Setup Request");
     report_fatal_error_if_not(test_helpers::is_valid_ue_context_setup_request(f1ap_pdu, true),
                               "Invalid UE Context Setup Request");
+    store_resumed_ue_f1ap_ids(f1ap_pdu);
 
     return true;
   }
@@ -276,6 +298,7 @@ public:
                               "Failed to receive UE Context Release Command");
     report_fatal_error_if_not(test_helpers::is_valid_ue_context_release_command(f1ap_pdu),
                               "Invalid UE Context Release Command");
+    store_resumed_ue_f1ap_ids(f1ap_pdu);
 
     return true;
   }
@@ -441,6 +464,7 @@ public:
                               "Failed to receive UE Context Setup Request");
     report_fatal_error_if_not(test_helpers::is_valid_ue_context_setup_request(f1ap_pdu, true),
                               "Invalid UE Context Setup Request");
+    store_resumed_ue_f1ap_ids(f1ap_pdu);
 
     // Inject UE Context Setup Response and wait for Bearer Context Modification Request.
     get_du(du_idx).push_ul_pdu(test_helpers::generate_ue_context_setup_response(
@@ -526,10 +550,11 @@ public:
 
   [[nodiscard]] bool send_f1ap_ue_context_release_complete_and_await_ngap_ue_context_release_complete()
   {
-    // Inject F1AP UE Context Release Complete and wait for N1AP UE Context Release Command.
-    if (!send_f1ap_ue_context_release_complete()) {
-      return false;
-    }
+    // Inject F1AP UE Context Release Complete for the last UE Context Release Command and wait for NGAP UE Context
+    // Release Complete.
+    report_fatal_error_if_not(test_helpers::is_valid_ue_context_release_command(f1ap_pdu),
+                              "The last F1AP DL message is not a UE Context Release Command");
+    get_du(du_idx).push_ul_pdu(test_helpers::generate_ue_context_release_complete(f1ap_pdu));
     report_fatal_error_if_not(this->wait_for_ngap_tx_pdu(ngap_pdu), "Failed to receive UE Context Release Complete");
     report_fatal_error_if_not(test_helpers::is_valid_ue_context_release_complete(ngap_pdu),
                               "Invalid UE Context Release Complete");
@@ -550,6 +575,18 @@ public:
     report_fatal_error_if_not(this->wait_for_f1ap_tx_pdu(du_idx_, f1ap_pdu), "Failed to receive F1AP Paging");
     report_fatal_error_if_not(test_helpers::is_valid_paging(f1ap_pdu), "Invalid F1AP Paging");
     return true;
+  }
+
+  /// Get the cells in the Paging Cell List of the last F1AP Paging.
+  std::vector<nr_cell_global_id_t> get_paged_cells() const
+  {
+    std::vector<nr_cell_global_id_t> cells;
+    for (const auto& item : f1ap_pdu.pdu.init_msg().value.paging()->paging_cell_list) {
+      const asn1::f1ap::nr_cgi_s& nr_cgi = item.value().paging_cell_item().nr_cgi;
+      cells.emplace_back(plmn_identity::from_bytes(nr_cgi.plmn_id.to_bytes()).value(),
+                         nr_cell_identity::create(nr_cgi.nr_cell_id.to_number()).value());
+    }
+    return cells;
   }
 
   [[nodiscard]] bool timeout_ran_paging_and_await_ngap_ue_context_release_request()
@@ -627,6 +664,10 @@ public:
   unsigned du_idx    = 0;
   unsigned cu_up_idx = 0;
 
+  /// NR CGI of the cell that the DU at du_idx serves.
+  const nr_cell_global_id_t du_cell_cgi{test_helpers::served_cell_item_info{}.plmn_id,
+                                        test_helpers::served_cell_item_info{}.nci};
+
   gnb_du_ue_f1ap_id_t    du_ue_id      = gnb_du_ue_f1ap_id_t::min;
   rnti_t                 crnti         = to_rnti(0x4601);
   amf_ue_id_t            amf_ue_id     = amf_ue_id_t::min;
@@ -694,6 +735,78 @@ TEST_F(cu_cp_rrc_inactive_test, when_ue_level_inactivity_message_received_then_u
   auto report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
   ASSERT_EQ(report.dus[0].rrc_metrics.mean_nof_inactive_rrc_connections, 1);
   ASSERT_EQ(report.dus[0].rrc_metrics.max_nof_inactive_rrc_connections, 1);
+}
+
+TEST_F(cu_cp_rrc_inactive_test, when_amf_rejects_the_resume_cause_then_resume_is_rejected_and_ue_stays_inactive)
+{
+  // Connect UE with RRC Inactive support and set it to RRC inactive.
+  connect_ue_with_rrc_inactive_support();
+  ASSERT_TRUE(send_ue_level_bearer_context_inactivity_notification_and_await_bearer_context_modification_request());
+  ASSERT_TRUE(send_bearer_context_modification_response_and_await_ue_context_release_command());
+  ASSERT_TRUE(send_f1ap_ue_context_release_complete());
+
+  // The AMF rejects non-emergency mobile originated data (TS 38.413 section 8.7.7). The UE resumes with cause mo-Data.
+  get_amf().push_tx_pdu(generate_overload_start(asn1::ngap::overload_action_opts::reject_non_emergency_mo_dt));
+  get_du(du_idx).push_ul_pdu(test_helpers::generate_init_ul_rrc_message_transfer(
+      du_ue_id_2,
+      crnti_2,
+      plmn_identity::test_value(),
+      {},
+      test_helpers::pack_ul_ccch_msg(test_helpers::create_rrc_resume_request(0x4d8000))));
+  ASSERT_TRUE(wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu)) << "No response was sent to the UE";
+  ASSERT_TRUE(test_helpers::is_valid_ue_context_release_command(f1ap_pdu)) << "The resume was not rejected";
+  const auto& release_cmd = f1ap_pdu.pdu.init_msg().value.ue_context_release_cmd();
+  ASSERT_EQ(release_cmd->srb_id, 0);
+  asn1::rrc_nr::dl_ccch_msg_s ccch;
+  asn1::cbit_ref              bref{release_cmd->rrc_container};
+  ASSERT_EQ(asn1::unpack(ccch, bref), asn1::OCUDUASN_SUCCESS);
+  ASSERT_EQ(ccch.msg.c1().type().value, asn1::rrc_nr::dl_ccch_msg_type_c::c1_c_::types_opts::rrc_reject);
+  ASSERT_TRUE(ccch.msg.c1().rrc_reject().crit_exts.rrc_reject().wait_time_present);
+  get_du(du_idx).push_ul_pdu(test_helpers::generate_ue_context_release_complete(f1ap_pdu));
+  ASSERT_FALSE(get_amf().try_pop_rx_pdu(ngap_pdu)) << "The context of the UE was released towards the AMF";
+
+  // After the overload, the UE resumes with the same I-RNTI. The ResumeMAC-I check passes only if the CU-CP kept the
+  // keys of the suspended UE.
+  get_amf().push_tx_pdu(generate_overload_stop());
+  get_du(du_idx).push_ul_pdu(test_helpers::generate_init_ul_rrc_message_transfer(
+      int_to_gnb_du_ue_f1ap_id(2),
+      to_rnti(0x4603),
+      plmn_identity::test_value(),
+      {},
+      test_helpers::pack_ul_ccch_msg(test_helpers::create_rrc_resume_request(0x4d8000))));
+  ASSERT_TRUE(wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu)) << "The UE was not resumed";
+  ASSERT_TRUE(test_helpers::is_valid_ue_context_setup_request(f1ap_pdu, true)) << "The UE was not resumed";
+}
+
+TEST_F(cu_cp_rrc_inactive_test, when_the_allowed_slice_of_the_ue_is_overloaded_then_resume_is_rejected)
+{
+  // Connect UE with RRC Inactive support and set it to RRC inactive.
+  connect_ue_with_rrc_inactive_support();
+  ASSERT_TRUE(send_ue_level_bearer_context_inactivity_notification_and_await_bearer_context_modification_request());
+  ASSERT_TRUE(send_bearer_context_modification_response_and_await_ue_context_release_command());
+  ASSERT_TRUE(send_f1ap_ue_context_release_complete());
+
+  // The AMF overloads the slice that the Initial Context Setup Request allowed for the UE (TS 23.501 section 5.19.5.2).
+  ngap_message                            overload_start = generate_overload_start();
+  asn1::ngap::overload_start_nssai_item_s item;
+  asn1::ngap::slice_overload_item_s       slice;
+  slice.s_nssai.sst.from_number(1);
+  slice.s_nssai.sd_present = true;
+  slice.s_nssai.sd.from_string("db2700");
+  item.slice_overload_list.push_back(slice);
+  overload_start.pdu.init_msg().value.overload_start()->overload_start_nssai_list_present = true;
+  overload_start.pdu.init_msg().value.overload_start()->overload_start_nssai_list.push_back(item);
+  get_amf().push_tx_pdu(overload_start);
+
+  get_du(du_idx).push_ul_pdu(test_helpers::generate_init_ul_rrc_message_transfer(
+      du_ue_id_2,
+      crnti_2,
+      plmn_identity::test_value(),
+      {},
+      test_helpers::pack_ul_ccch_msg(test_helpers::create_rrc_resume_request(0x4d8000))));
+  ASSERT_TRUE(wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu)) << "No response was sent to the UE";
+  ASSERT_TRUE(test_helpers::is_valid_ue_context_release_command(f1ap_pdu)) << "The resume was not rejected";
+  ASSERT_EQ(f1ap_pdu.pdu.init_msg().value.ue_context_release_cmd()->srb_id, 0);
 }
 
 TEST_F(cu_cp_rrc_inactive_test, when_duplicate_ue_level_inactivity_message_is_received_then_it_is_ignored)
@@ -850,6 +963,24 @@ TEST_F(cu_cp_rrc_inactive_test, when_rrc_resume_request_is_received_then_existin
   ASSERT_EQ(report.dus[0].rrc_metrics.successful_rrc_connection_resumes.get_count(resume_cause_t::mo_data), 1);
 }
 
+TEST_F(cu_cp_rrc_inactive_test, when_rrc_resume_complete_carries_nas_then_nas_is_sent_to_the_amf)
+{
+  // Connect UE with RRC Inactive support.
+  connect_ue_with_rrc_inactive_support();
+
+  // Inject Inactivity Notification and handle it.
+  ASSERT_TRUE(trigger_rrc_inactive(du_ue_id));
+
+  // Resume the UE. The RRC Resume Complete contains the NAS PDU 7e0045010bf2 (Deregistration Request).
+  ASSERT_TRUE(resume_ue(
+      du_ue_id_2, crnti_2, 0x4d8000, "1111010001000010", make_byte_buffer("000020c033f00228085f90001cddc4c6").value()));
+
+  ASSERT_TRUE(this->wait_for_ngap_tx_pdu(ngap_pdu)) << "The NAS message was not sent to the AMF";
+  ASSERT_TRUE(test_helpers::is_valid_ul_nas_transport_message(ngap_pdu));
+  ASSERT_EQ(ngap_pdu.pdu.init_msg().value.ul_nas_transport()->nas_pdu, make_byte_buffer("7e0045010bf2").value())
+      << "The AMF did not get the NAS message of the RRC Resume Complete";
+}
+
 TEST_F(cu_cp_rrc_inactive_test, when_ue_becomes_inactive_after_resume_then_resume_is_successful_again)
 {
   // Connect UE with RRC Inactive support.
@@ -909,6 +1040,170 @@ TEST_F(cu_cp_rrc_inactive_test, when_ue_becomes_inactive_after_resume_then_resum
   ASSERT_EQ(report.dus[0].rrc_metrics.successful_rrc_connection_resumes.get_count(resume_cause_t::mo_data), 2);
 }
 
+TEST_F(cu_cp_rrc_inactive_test,
+       when_rrc_resume_request_is_received_before_f1ap_ue_context_release_complete_then_resume_is_successful)
+{
+  // Connect UE with RRC Inactive support.
+  connect_ue_with_rrc_inactive_support();
+
+  // Inject Inactivity Notification and await Bearer Context Modification Request.
+  ASSERT_TRUE(send_ue_level_bearer_context_inactivity_notification_and_await_bearer_context_modification_request());
+
+  // Send Bearer Context Modification Response and await UE Context Release Command.
+  ASSERT_TRUE(send_bearer_context_modification_response_and_await_ue_context_release_command());
+
+  // The UE sends the RRC Resume Request before the DU confirms the release of the old F1-connection.
+  get_du(du_idx).push_ul_pdu(test_helpers::generate_init_ul_rrc_message_transfer(
+      du_ue_id_2,
+      crnti_2,
+      plmn_identity::test_value(),
+      {},
+      test_helpers::pack_ul_ccch_msg(test_helpers::create_rrc_resume_request(0x4d8000))));
+
+  // The DU confirms the release of the old F1-connection.
+  ASSERT_TRUE(send_f1ap_ue_context_release_complete(du_ue_id));
+
+  // The CU-CP continues the resume of the UE through a new F1-connection with a new gNB-CU UE F1AP ID (TS 38.401
+  // section 8.6.2).
+  gnb_cu_ue_f1ap_id_t old_cu_ue_id = ue_ctx->cu_ue_id.value();
+  ASSERT_TRUE(this->wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu));
+  ASSERT_TRUE(test_helpers::is_valid_ue_context_setup_request(f1ap_pdu, true));
+  store_resumed_ue_f1ap_ids(f1ap_pdu);
+  ASSERT_NE(ue_ctx->cu_ue_id.value(), old_cu_ue_id);
+  ASSERT_EQ(ue_ctx->du_ue_id.value(), du_ue_id_2);
+  ASSERT_TRUE(send_ue_context_setup_response_and_await_bearer_context_modification_request());
+  ASSERT_TRUE(send_bearer_context_modification_response_and_await_dl_rrc_message_transfer());
+  ASSERT_TRUE(send_rrc_resume_complete());
+
+  // The CU-CP keeps the UE, so it sends no UE Context Release Request to the AMF.
+  ASSERT_FALSE(this->get_amf().try_pop_rx_pdu(ngap_pdu));
+
+  // The CU-CP releases the new F1-connection when the UE becomes inactive again.
+  ASSERT_TRUE(trigger_rrc_inactive(du_ue_id_2));
+
+  auto report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
+  ASSERT_EQ(report.dus[0].rrc_metrics.successful_rrc_connection_resumes.get_count(resume_cause_t::mo_data), 1);
+}
+
+TEST_F(cu_cp_rrc_inactive_test, when_rrc_resume_request_is_received_through_another_du_then_rrc_setup_is_sent)
+{
+  // Set up a second DU with another cell.
+  std::optional<unsigned> ret = connect_new_du();
+  ASSERT_TRUE(ret.has_value());
+  unsigned                            du_idx_2 = ret.value();
+  test_helpers::served_cell_item_info cell_2   = {.nci = nr_cell_identity::create(gnb_id_t{411, 22}, 1).value(),
+                                                  .pci = 2};
+  ASSERT_TRUE(this->run_f1_setup(du_idx_2, int_to_gnb_du_id(0x22), {cell_2}));
+
+  // Connect UE with RRC Inactive support and move it to RRC_INACTIVE.
+  connect_ue_with_rrc_inactive_support();
+  ASSERT_TRUE(trigger_rrc_inactive(du_ue_id));
+
+  // The UE sends an RRC Resume Request through the cell of the second DU.
+  f1ap_message init_ul_rrc_msg = test_helpers::generate_init_ul_rrc_message_transfer(
+      du_ue_id_2,
+      crnti_2,
+      plmn_identity::test_value(),
+      {},
+      test_helpers::pack_ul_ccch_msg(test_helpers::create_rrc_resume_request(0x4d8000)));
+  init_ul_rrc_msg.pdu.init_msg().value.init_ul_rrc_msg_transfer()->nr_cgi.nr_cell_id.from_number(cell_2.nci.value());
+  get_du(du_idx_2).push_ul_pdu(init_ul_rrc_msg);
+
+  // The CU-CP falls back to RRC Setup through the second DU.
+  ASSERT_TRUE(this->wait_for_f1ap_tx_pdu(du_idx_2, f1ap_pdu));
+  ASSERT_TRUE(test_helpers::is_valid_dl_rrc_message_transfer_with_msg4(f1ap_pdu));
+
+  // The CU-CP keeps the suspended UE and the new UE.
+  auto report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
+  ASSERT_EQ(report.ues.size(), 2);
+}
+
+TEST_F(cu_cp_rrc_inactive_test, when_rrc_resume_request_is_received_then_ue_uses_a_new_gnb_cu_ue_f1ap_id)
+{
+  // Connect UE with RRC Inactive support and move it to RRC_INACTIVE.
+  connect_ue_with_rrc_inactive_support();
+  ASSERT_TRUE(trigger_rrc_inactive(du_ue_id));
+  gnb_cu_ue_f1ap_id_t old_cu_ue_id = ue_ctx->cu_ue_id.value();
+
+  // The resume uses a new F1-connection with a new gNB-CU UE F1AP ID (TS 38.401 section 8.6.2).
+  ASSERT_TRUE(send_init_ul_rrc_message_transfer_and_await_ue_context_setup_request());
+  ASSERT_NE(ue_ctx->cu_ue_id.value(), old_cu_ue_id);
+
+  // The CU-CP completes the resume through the new F1-connection.
+  ASSERT_TRUE(send_ue_context_setup_response_and_await_bearer_context_modification_request());
+  ASSERT_TRUE(send_bearer_context_modification_response_and_await_dl_rrc_message_transfer());
+  ASSERT_EQ(int_to_gnb_cu_ue_f1ap_id(f1ap_pdu.pdu.init_msg().value.dl_rrc_msg_transfer()->gnb_cu_ue_f1ap_id),
+            ue_ctx->cu_ue_id.value());
+  ASSERT_TRUE(send_rrc_resume_complete());
+
+  auto report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
+  ASSERT_EQ(report.dus[0].rrc_metrics.successful_rrc_connection_resumes.get_count(resume_cause_t::mo_data), 1);
+}
+
+TEST_F(cu_cp_rrc_inactive_test,
+       when_du_connection_is_lost_before_f1ap_ue_context_release_complete_of_resumed_ue_then_ue_is_reset_once)
+{
+  // Connect UE with RRC Inactive support.
+  connect_ue_with_rrc_inactive_support();
+
+  // Inject Inactivity Notification and await the UE Context Release Command.
+  ASSERT_TRUE(send_ue_level_bearer_context_inactivity_notification_and_await_bearer_context_modification_request());
+  ASSERT_TRUE(send_bearer_context_modification_response_and_await_ue_context_release_command());
+
+  // The UE sends the RRC Resume Request before the DU confirms the release of the old F1-connection.
+  get_du(du_idx).push_ul_pdu(test_helpers::generate_init_ul_rrc_message_transfer(
+      du_ue_id_2,
+      crnti_2,
+      plmn_identity::test_value(),
+      {},
+      test_helpers::pack_ul_ccch_msg(test_helpers::create_rrc_resume_request(0x4d8000))));
+
+  // Wait until the CU-CP has created the new F1-connection. The CU-CP worker runs its tasks in order.
+  ASSERT_TRUE(wait_ready_on_cu_cp_worker(std::chrono::milliseconds{1000}, []() { return true; }));
+
+  // The DU connection is lost while the old and the new F1-connection of the UE exist.
+  ASSERT_TRUE(drop_du_connection(du_idx));
+
+  // The CU-CP resets the UE once at the AMF.
+  bool ng_reset_received = false;
+  while (not ng_reset_received and this->wait_for_ngap_tx_pdu(ngap_pdu, std::chrono::milliseconds{1000})) {
+    ng_reset_received = test_helpers::is_valid_ng_reset(ngap_pdu);
+  }
+  ASSERT_TRUE(ng_reset_received);
+  ASSERT_EQ(ngap_pdu.pdu.init_msg().value.ng_reset()->reset_type.part_of_ng_interface().size(), 1);
+}
+
+TEST_F(cu_cp_rrc_inactive_test, when_bearer_context_modification_for_suspend_fails_then_ue_release_is_requested)
+{
+  // Connect UE with RRC Inactive support.
+  connect_ue_with_rrc_inactive_support();
+
+  // Inject Inactivity Notification and await Bearer Context Modification Request.
+  ASSERT_TRUE(send_ue_level_bearer_context_inactivity_notification_and_await_bearer_context_modification_request());
+
+  // Send Bearer Context Modification Failure and await NGAP UE Context Release Request.
+  ASSERT_TRUE(send_bearer_context_modification_failure_and_await_ngap_ue_context_release_request());
+}
+
+TEST_F(cu_cp_rrc_inactive_test, when_f1ap_ue_context_release_for_suspend_fails_then_ue_release_is_requested)
+{
+  // Connect UE with RRC Inactive support.
+  connect_ue_with_rrc_inactive_support();
+
+  // Inject Inactivity Notification and await Bearer Context Modification Request.
+  ASSERT_TRUE(send_ue_level_bearer_context_inactivity_notification_and_await_bearer_context_modification_request());
+
+  // Send Bearer Context Modification Response and await UE Context Release Command.
+  ASSERT_TRUE(send_bearer_context_modification_response_and_await_ue_context_release_command());
+
+  // Send F1AP UE Context Release Complete with a gNB-DU UE F1AP ID that does not match the command.
+  ASSERT_TRUE(send_f1ap_ue_context_release_complete(du_ue_id_2));
+
+  // Await NGAP UE Context Release Request.
+  ASSERT_TRUE(this->wait_for_ngap_tx_pdu(ngap_pdu));
+  ASSERT_TRUE(test_helpers::is_valid_ue_context_release_request(ngap_pdu));
+}
+
 TEST_F(cu_cp_rrc_inactive_test, when_rrc_resume_request_for_unknown_ue_is_received_then_fallback_succeeds)
 {
   // Connect UE with RRC Inactive support.
@@ -934,6 +1229,34 @@ TEST_F(cu_cp_rrc_inactive_test, when_rrc_resume_request_for_unknown_ue_is_receiv
             1);
   ASSERT_EQ(
       report.dus[0].rrc_metrics.successful_rrc_connection_resumes_with_fallback.get_count(resume_cause_t::mo_data), 1);
+}
+
+TEST_F(cu_cp_rrc_inactive_test, when_rrc_resume_request1_for_unknown_ue_is_received_then_resume_attempt_is_counted)
+{
+  // Connect UE with RRC Inactive support.
+  connect_ue_with_rrc_inactive_support();
+
+  // Check metrics for RRC inactive transition.
+  auto report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
+  ASSERT_EQ(report.dus[0].rrc_metrics.mean_nof_inactive_rrc_connections, 0);
+  ASSERT_EQ(report.dus[0].rrc_metrics.max_nof_inactive_rrc_connections, 0);
+
+  // Send an Initial UL RRC Message containing an RRCResumeRequest1 with a Full-I-RNTI (TS 38.331) that does not match
+  // any local UE. Because rrc_ue_impl does not handle RRCResumeRequest1, only the resume attempt is counted. This test
+  // does not assert the complete CU-CP path.
+  f1ap_message init_ul_rrc_msg = test_helpers::generate_init_ul_rrc_message_transfer(
+      du_ue_id_2,
+      crnti_2,
+      plmn_identity::test_value(),
+      {},
+      test_helpers::pack_ul_ccch1_msg(test_helpers::create_rrc_resume_request1(0x1122334455ULL)));
+  test_logger.info("c-rnti={} du_ue={}: Injecting Initial UL RRC message", crnti_2, fmt::underlying(du_ue_id_2));
+  get_du(du_idx).push_ul_pdu(init_ul_rrc_msg);
+  ASSERT_TRUE(this->wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu));
+
+  // Check metrics for RRC resume.
+  report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
+  ASSERT_EQ(report.dus[0].rrc_metrics.attempted_rrc_connection_resumes.get_count(resume_cause_t::mo_data), 1);
 }
 
 TEST_F(cu_cp_rrc_inactive_test, when_rrc_resume_request_with_invalid_resume_mac_is_received_then_release_is_sent)
@@ -1215,6 +1538,37 @@ TEST_F(cu_cp_rrc_inactive_test, when_dl_data_notification_for_inactive_ue_is_rec
   // Inject E1AP DL Data Notification and await F1AP Paging.
   ASSERT_TRUE(
       send_e1ap_dl_data_notification_and_await_f1ap_paging(du_idx, ue_ctx->cu_cp_e1ap_id.value(), cu_up_e1ap_id));
+
+  // The RNA holds the one cell of the DU, so the F1AP Paging pages this cell.
+  EXPECT_EQ(get_paged_cells(), std::vector<nr_cell_global_id_t>{du_cell_cgi});
+}
+
+TEST_F(cu_cp_rrc_inactive_test, when_dl_data_notification_for_inactive_ue_is_received_then_only_rna_cells_are_paged)
+{
+  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-BAS-16-1-a");
+
+  // Connect a second DU. Its cell is in the same tracking area, but not in the RNA of the UE.
+  const test_helpers::served_cell_item_info cell_du2{.nci = nr_cell_identity::create(gnb_id_t{411, 22}, 1U).value(),
+                                                     .pci = 1};
+  std::optional<unsigned>                   ret = connect_new_du();
+  ASSERT_TRUE(ret.has_value());
+  unsigned du_idx2 = ret.value();
+  ASSERT_TRUE(this->run_f1_setup(du_idx2, int_to_gnb_du_id(0x12), {cell_du2}));
+
+  // Connect UE with RRC Inactive support on the first DU.
+  connect_ue_with_rrc_inactive_support();
+
+  // Inject Inactivity Notification and handle it. The RNA holds the cells of the first DU.
+  ASSERT_TRUE(trigger_rrc_inactive(du_ue_id));
+
+  // Inject E1AP DL Data Notification and await F1AP Paging at the first DU.
+  ASSERT_TRUE(
+      send_e1ap_dl_data_notification_and_await_f1ap_paging(du_idx, ue_ctx->cu_cp_e1ap_id.value(), cu_up_e1ap_id));
+  EXPECT_EQ(get_paged_cells(), std::vector<nr_cell_global_id_t>{du_cell_cgi});
+
+  // The second DU serves no cell of the RNA, so it gets no F1AP Paging.
+  ASSERT_FALSE(this->wait_for_f1ap_tx_pdu(du_idx2, f1ap_pdu, std::chrono::milliseconds{100}))
+      << "Received F1AP Paging at the DU outside the RNA";
 }
 
 TEST_F(
@@ -1332,7 +1686,7 @@ TEST_F(cu_cp_rrc_inactive_test, when_ue_resumes_during_location_measurements_the
   ASSERT_TRUE(req->cu_to_du_rrc_info.ie_exts.location_meas_info_present);
   byte_buffer   expected_info;
   asn1::bit_ref bref{expected_info};
-  ASSERT_EQ(test_helpers::create_nr_prs_location_meas_info().pack(bref), asn1::OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::pack(bref, test_helpers::create_nr_prs_location_meas_info()), asn1::OCUDUASN_SUCCESS);
   EXPECT_EQ(req->cu_to_du_rrc_info.ie_exts.location_meas_info, expected_info);
 }
 

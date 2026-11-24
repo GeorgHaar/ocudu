@@ -16,7 +16,8 @@
 using namespace ocudu;
 using namespace odu;
 
-dummy_ue_resource_configurator_factory::dummy_ue_resource_configurator_factory()
+dummy_ue_resource_configurator_factory::dummy_ue_resource_configurator_factory() :
+  cell_rrm(make_cell_rrm_config(config_helpers::make_default_ran_cell_config()))
 {
   next_context_update_result.srbs.emplace(srb_id_t::srb1);
   auto& new_srb   = next_context_update_result.srbs[srb_id_t::srb1];
@@ -159,6 +160,6 @@ du_manager_test_bench::du_manager_test_bench(span<const du_cell_config> cells) :
 
   // Add cells to cell manager.
   for (const auto& cell : du_cells) {
-    cell_mng.add_cell(cell);
+    cell_mng.add_cell(cell, make_cell_rrm_config(cell.ran));
   }
 }

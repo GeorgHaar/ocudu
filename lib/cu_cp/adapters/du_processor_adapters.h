@@ -48,6 +48,12 @@ public:
     cu_cp_handler->handle_du_cells_removed(cells);
   }
 
+  bool on_ue_resume_admission_request(cu_cp_ue_index_t ue_index, resume_cause_t resume_cause) override
+  {
+    ocudu_assert(cu_cp_handler != nullptr, "CU-CP handler must not be nullptr");
+    return cu_cp_handler->handle_ue_resume_admission_request(ue_index, resume_cause);
+  }
+
   void on_rrc_ue_created(cu_cp_ue_index_t ue_index, rrc_ue_interface& rrc_ue) override
   {
     ocudu_assert(cu_cp_handler != nullptr, "CU-CP handler must not be nullptr");
@@ -64,6 +70,18 @@ public:
   {
     ocudu_assert(ue_removal_handler != nullptr, "CU-CP UE Removal handler must not be nullptr");
     return ue_removal_handler->handle_ue_removal_request(ue_index);
+  }
+
+  void on_e_cid_measurement_report(const e_cid_measurement_report_t& report) override
+  {
+    ocudu_assert(cu_cp_handler != nullptr, "CU-CP handler must not be nullptr");
+    cu_cp_handler->handle_e_cid_measurement_report(report);
+  }
+
+  void on_e_cid_measurement_failure_indication(const e_cid_measurement_failure_indication_t& ind) override
+  {
+    ocudu_assert(cu_cp_handler != nullptr, "CU-CP handler must not be nullptr");
+    cu_cp_handler->handle_e_cid_measurement_failure_indication(ind);
   }
 
   async_task<void> on_ue_release_required(const cu_cp_ue_context_release_request& request) override

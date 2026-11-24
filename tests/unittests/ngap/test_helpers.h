@@ -46,7 +46,7 @@ public:
         // Verify correct packing of outbound PDU.
         byte_buffer   pack_buffer;
         asn1::bit_ref bref(pack_buffer);
-        if (msg.pdu.pack(bref) != asn1::OCUDUASN_SUCCESS) {
+        if (asn1::pack(bref, msg.pdu) != asn1::OCUDUASN_SUCCESS) {
           parent.logger.error("Failed to pack message");
           ++parent.nof_unpackable_ngap_msgs;
           return false;
@@ -152,6 +152,17 @@ public:
 
   void connect_ngap(ngap_ue_context_removal_handler& ngap_handler_) { ngap_handler = &ngap_handler_; }
 
+  cu_cp_ue_index_t on_ue_association_transfer_required(ran_ue_id_t ran_ue_id) override
+  {
+    return cu_cp_ue_index_t::invalid;
+  }
+
+  bool on_reroute_nas_request(const ngap_reroute_nas_request& request) override
+  {
+    ++nof_reroute_nas_requests;
+    return false;
+  }
+
   ngap_cu_cp_ue_notifier* on_new_ngap_ue(cu_cp_ue_index_t ue_index) override
   {
     last_ue = ue_index;
@@ -172,9 +183,7 @@ public:
     return ue_mng.find_ue_task_scheduler(ue_index)->schedule_async_task(std::move(task));
   }
 
-  bool on_handover_request_received(cu_cp_ue_index_t                  ue_index,
-                                    const plmn_identity&              selected_plmn,
-                                    const security::security_context& sec_ctxt) override
+  bool on_handover_request_received(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt) override
   {
     ocudu_assert(ue_mng.find_ue(ue_index) != nullptr, "UE must be present");
     logger.info("Received a handover request");
@@ -410,8 +419,9 @@ public:
     });
   }
 
-  cu_cp_ue_index_t request_new_ue_index_allocation(nr_cell_global_id_t /*cgi*/, const plmn_identity& /*plmn*/) override
+  cu_cp_ue_index_t request_new_ue_index_allocation(nr_cell_global_id_t cgi, const plmn_identity& /*plmn*/) override
   {
+    last_ue_index_allocation_cgi = cgi;
     return cu_cp_ue_index_t::invalid;
   }
 
@@ -450,11 +460,13 @@ public:
   std::optional<ngap_pdu_session_resource_release_response> release_command_outcome;
   ngap_pdu_session_resource_release_command                 last_release_command;
   std::optional<cu_cp_ue_index_t>                           last_created_ue_index;
+  std::optional<nr_cell_global_id_t>                        last_ue_index_allocation_cgi;
   cu_cp_paging_message                                      last_paging_msg;
   std::optional<cu_cp_ue_index_t>                           last_location_reporting_ctrl_ue_index;
   std::optional<location_report_request>                    last_location_reporting_ctrl;
   std::optional<ngap_write_replace_warning_request>         last_write_replace_warning_request;
   ngap_write_replace_warning_response                       write_replace_warning_response;
+  unsigned                                                  nof_reroute_nas_requests = 0;
 
 private:
   ue_manager&             ue_mng;

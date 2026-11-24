@@ -52,6 +52,13 @@ expected<uint8_t> ocudu::ocucp::get_transaction_id(const asn1::rrc_nr::ul_dcch_m
   return make_unexpected(default_error_t{});
 }
 
+bool ocudu::ocucp::is_ul_dcch_c1_msg(const asn1::rrc_nr::ul_dcch_msg_s&                           msg,
+                                     asn1::rrc_nr::ul_dcch_msg_type_c::c1_c_::types_opts::options type)
+{
+  using namespace asn1::rrc_nr;
+  return msg.msg.type().value == ul_dcch_msg_type_c::types_opts::c1 and msg.msg.c1().type().value == type;
+}
+
 void ocudu::ocucp::fill_asn1_rrc_smc_msg(asn1::rrc_nr::security_mode_cmd_s&   rrc_smc,
                                          const security::integrity_algorithm& int_algo,
                                          const security::ciphering_algorithm& ciph_algo,
@@ -218,7 +225,7 @@ void ocudu::ocucp::fill_asn1_rrc_reconfiguration_msg(asn1::rrc_nr::rrc_recfg_s& 
 
     // Unpack measurement gap config PDU.
     asn1::cbit_ref bref(rrc_reconf.meas_gap_cfg);
-    if (asn1_reconfig_ies.meas_cfg.meas_gap_cfg.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+    if (asn1::unpack(asn1_reconfig_ies.meas_cfg.meas_gap_cfg, bref) != asn1::OCUDUASN_SUCCESS) {
       report_fatal_error("Couldn't unpack MeasGapConfig RRC container");
     }
   }
@@ -333,7 +340,7 @@ void ocudu::ocucp::fill_asn1_rrc_resume_msg(asn1::rrc_nr::rrc_resume_s&        a
       asn1::rrc_nr::meas_gap_cfg_s asn1_meas_gap_cfg;
       asn1::cbit_ref               bref(rrc_resume.meas_gap_cfg);
 
-      if (asn1_resume_ies.meas_cfg.meas_gap_cfg.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+      if (asn1::unpack(asn1_resume_ies.meas_cfg.meas_gap_cfg, bref) != asn1::OCUDUASN_SUCCESS) {
         report_fatal_error("Couldn't unpack MeasGapConfig RRC container");
       }
     }

@@ -122,6 +122,11 @@ TEST_P(PdschProcessorFixture, UnitTest)
   unsigned nof_codewords    = (nof_layers > 4) ? 2 : 1;
   unsigned nof_symbols_slot = get_nsymb_per_slot(cp);
 
+  // Select the DM-RS ports of either the first or the second CDM group.
+  unsigned       first_dmrs_port = 2 * dist_bool(rgen);
+  dmrs_port_mask dmrs_ports(DMRS_MAX_NPORTS);
+  dmrs_ports.fill(first_dmrs_port, first_dmrs_port + nof_layers);
+
   // Prepare PDSCH PDU.
   pdsch_processor::pdu_t pdu;
   pdu.slot         = {0, 0};
@@ -146,7 +151,8 @@ TEST_P(PdschProcessorFixture, UnitTest)
   pdu.dmrs                        = dmrs_type_value;
   pdu.scrambling_id               = dist_u16(rgen);
   pdu.n_scid                      = static_cast<bool>(dist_bool(rgen));
-  pdu.nof_cdm_groups_without_data = 1;
+  pdu.nof_cdm_groups_without_data = 2;
+  pdu.dmrs_ports                  = dmrs_ports;
   pdu.freq_alloc                 = rb_allocation::make_custom({1, 2, 3, 4}, vrb_to_prb::create_non_interleaved_other());
   pdu.start_symbol_index         = dist_start_symb(rgen);
   pdu.nof_symbols                = get_nsymb_per_slot(cp) - pdu.start_symbol_index;
@@ -279,6 +285,7 @@ TEST_P(PdschProcessorFixture, UnitTest)
     ASSERT_NEAR(entry.config.amplitude, convert_dB_to_amplitude(-pdu.ratio_pdsch_dmrs_to_sss_dB), amplitude_max_error);
     ASSERT_EQ(entry.config.symbols_mask, pdu.dmrs_symbol_mask);
     ASSERT_EQ(entry.config.rb_mask, rb_mask);
+    ASSERT_EQ(entry.config.dmrs_ports, pdu.dmrs_ports);
     ASSERT_EQ(entry.config.precoding_and_beamforming, pdu.precoding_and_beamforming);
     ASSERT_EQ(entry.grid, &rg_dummy.get_writer());
   }

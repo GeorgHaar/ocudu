@@ -12,6 +12,7 @@
 #pragma once
 
 #include "ocudu/adt/span.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 
 namespace ocudu {
 
@@ -28,7 +29,7 @@ bool is_valid_dl_msg_alloc(const dl_msg_alloc& grant, const std::optional<corese
 bool is_valid_ul_sched_info(const ul_sched_info& grant);
 
 /// \brief Determine if the UE PDSCH grants for a given slot are valid.
-bool is_valid_dl_msg_alloc_list(span<const dl_msg_alloc> grants, const std::optional<coreset_configuration>& coreset0);
+bool is_valid_dl_msg_alloc_list(pdu_span<dl_msg_alloc> grants, const std::optional<coreset_configuration>& coreset0);
 
 } // namespace test_helper
 } // namespace ocudu

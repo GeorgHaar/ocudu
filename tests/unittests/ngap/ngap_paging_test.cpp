@@ -279,3 +279,29 @@ TEST_F(
   // Check that Error Indication has been sent to AMF.
   ASSERT_TRUE(was_error_indication_sent());
 }
+
+/// Test handling of a paging message with a non-NR recommended cell.
+TEST_F(ngap_paging_test,
+       when_paging_message_with_non_nr_recommended_cell_received_cell_is_ignored_and_message_is_forwarded)
+{
+  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-BAS-16-1-a");
+
+  // Inject paging message.
+  ngap_message paging_msg = generate_valid_paging_message();
+  // Replace the recommended cell by an E-UTRA cell.
+  auto& eutra_cgi = paging_msg.pdu.init_msg()
+                        .value.paging()
+                        ->assist_data_for_paging.assist_data_for_recommended_cells.recommended_cells_for_paging
+                        .recommended_cell_list[0]
+                        .ngran_cgi.set_eutra_cgi();
+  eutra_cgi.plmn_id.from_string("00f110");
+  eutra_cgi.eutra_cell_id.from_number(0x1234);
+
+  ngap->handle_message(paging_msg);
+
+  // Check that the paging message has been forwarded without the E-UTRA cell.
+  ASSERT_TRUE(cu_cp_notifier.last_paging_msg.assist_data_for_paging.has_value());
+  ASSERT_TRUE(cu_cp_notifier.last_paging_msg.assist_data_for_paging->assist_data_for_recommended_cells.has_value());
+  ASSERT_TRUE(cu_cp_notifier.last_paging_msg.assist_data_for_paging->assist_data_for_recommended_cells
+                  ->recommended_cells_for_paging.recommended_cell_list.empty());
+}

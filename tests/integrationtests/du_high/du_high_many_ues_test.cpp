@@ -5,6 +5,7 @@
 
 #include "tests/integrationtests/du_high/test_utils/du_high_env_simulator.h"
 #include "tests/test_doubles/f1ap/f1ap_test_message_validators.h"
+#include "tests/test_doubles/f1ap/f1ap_test_messages.h"
 #include "tests/test_doubles/scheduler/cell_config_builder_profiles.h"
 #include "tests/unittests/f1ap/du/f1ap_du_test_helpers.h"
 #include "ocudu/support/async/async_then.h"
@@ -201,4 +202,33 @@ TEST_F(du_high_few_ues_test, when_du_runs_out_of_resources_then_ues_start_being_
   this->run_until_all_pending_tasks_completion();
   ASSERT_EQ(this->ues.count(to_rnti(next_rnti - 1)), 1) << "UE did not get accepted even if DU now has resources";
   ASSERT_EQ(this->ues.size(), nof_ues);
+}
+
+TEST_F(du_high_few_ues_test, when_positioning_info_is_requested_for_ue_without_pcell_resources_then_failure_is_sent)
+{
+  const unsigned ue_count_limit = 15;
+  for (unsigned i = 0; i != ue_count_limit; ++i) {
+    rnti_t rnti             = to_rnti(next_rnti++);
+    auto   ue_creation_task = launch_ue_creation_task(rnti, to_du_cell_index(0), true);
+    auto   rrc_setup_task   = launch_rrc_setup_task(rnti, false);
+    this->schedule_task(async_then(std::move(ue_creation_task), std::move(rrc_setup_task)));
+  }
+  this->run_until_all_pending_tasks_completion();
+
+  // The DU is out of resources, so a new UE gets no PCell resources. Its context lives until the RRC Reject is sent.
+  rnti_t rejected_rnti = to_rnti(next_rnti++);
+  this->schedule_task(launch_ue_creation_task(rejected_rnti, to_du_cell_index(0), true));
+  this->run_until_all_pending_tasks_completion();
+  const ue_sim_context& rejected_ue = this->ues.at(rejected_rnti);
+  ASSERT_TRUE(rejected_ue.du_ue_id.has_value());
+
+  cu_notifier.f1ap_ul_msgs.clear();
+  f1ap_message req =
+      test_helpers::generate_positioning_information_request(*rejected_ue.du_ue_id, *rejected_ue.cu_ue_id);
+  this->du_hi->get_f1ap_pdu_handler().handle_message(req);
+  ASSERT_TRUE(this->run_until([this]() { return not cu_notifier.f1ap_ul_msgs.empty(); }));
+  const f1ap_message& resp = cu_notifier.f1ap_ul_msgs.rbegin()->second;
+  ASSERT_EQ(resp.pdu.type().value, asn1::f1ap::f1ap_pdu_c::types_opts::unsuccessful_outcome);
+  ASSERT_EQ(resp.pdu.unsuccessful_outcome().value.type().value,
+            asn1::f1ap::f1ap_elem_procs_o::unsuccessful_outcome_c::types_opts::positioning_info_fail);
 }

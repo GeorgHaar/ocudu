@@ -42,7 +42,7 @@ protected:
   std::optional<unsigned> alloc_common_harq_ack(const ue& ue)
   {
     return t_bench.pucch_alloc.alloc_common_harq_ack(
-        t_bench.res_grid, ue.crnti, t_bench.k0, default_k1, t_bench.dci_info);
+        t_bench.res_grid, ue.crnti, t_bench.k0, default_k1, t_bench.dci_info, ue.get_pcell().ntn_koffset());
   }
 
   std::optional<unsigned> alloc_ded_harq_ack(const ue&               ue,

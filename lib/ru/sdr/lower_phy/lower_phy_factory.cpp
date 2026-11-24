@@ -20,8 +20,10 @@ static std::shared_ptr<lower_phy_factory> create_lower_phy_factory(const lower_p
   unsigned nof_tx_ports = get_total_nof_ports(config.tx_ant_topology);
 
   // Create DFT factory.
-  std::shared_ptr<dft_processor_factory> dft_factory = create_dft_processor_factory();
-  report_fatal_error_if_not(dft_factory, "Failed to create DFT factory.");
+  report_fatal_error_if_not(!config.dft_processor_type.empty(), "Lower PHY DFT processor type is not set.");
+  std::shared_ptr<dft_processor_factory> dft_factory = create_dft_processor_factory(config.dft_processor_type);
+  report_fatal_error_if_not(
+      dft_factory, "Failed to create lower PHY DFT factory of type '{}'.", config.dft_processor_type);
 
   // Create OFDM modulator factory.
   ofdm_factory_generic_configuration      ofdm_common_config = {.dft_factory = dft_factory};

@@ -103,6 +103,8 @@ private:
 
   // Called when bitmap of used VRBs needs to be recalculated.
   void update_used_dl_vrbs(const dl_ran_slice_candidate& slice);
+  // Marks the VRBs of a PDSCH grant as used. A type 0 bitmap must have the size of used_dl_vrbs.
+  void mark_used_dl_vrbs(const vrb_alloc& vrbs);
   void update_used_ul_vrbs(const ul_ran_slice_candidate& slice);
 
   const scheduler_ue_expert_config& expert_cfg;
@@ -138,6 +140,10 @@ private:
 
   slot_point pdsch_slot;
   slot_point pusch_slot;
+  /// k2 of the UL slice candidate \c used_ul_vrbs was computed for.
+  unsigned pusch_k2 = 0;
+  /// Koffset in slots of the UL slice candidate \c used_ul_vrbs was computed for.
+  unsigned   pusch_ntn_koffset = 0;
   vrb_bitmap used_dl_vrbs;
   bool       enable_pdsch_interleaving = false;
   vrb_bitmap used_ul_vrbs;

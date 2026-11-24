@@ -7,7 +7,7 @@
 #include "../../f1ap_asn1_utils.h"
 #include "asn1_helpers.h"
 #include "ocudu/adt/format.h"
-#include "ocudu/asn1/asn1_utils.h"
+#include "ocudu/asn1/asn1_dispatch.h"
 #include "ocudu/asn1/f1ap/common.h"
 #include "ocudu/asn1/f1ap/f1ap_ies.h"
 #include "ocudu/asn1/f1ap/f1ap_pdu_contents.h"
@@ -109,8 +109,12 @@ f1ap_positioning_information_exchange_procedure::create_positioning_information_
 
     res = make_unexpected(fill_positioning_information_failure(fail));
   } else {
-    logger.warning("{}: Procedure failed. Cause: Timeout reached for PositioningInformationResponse reception",
-                   logger_prefix);
+    if (transaction_sink.cancelled()) {
+      logger.info("{}: Procedure cancelled", logger_prefix);
+    } else {
+      logger.warning("{}: Procedure failed. Cause: Timeout reached for PositioningInformationResponse reception",
+                     logger_prefix);
+    }
 
     res = make_unexpected(positioning_information_failure_t{f1ap_to_nrppa_cause(cause_misc_t::unspecified)});
   }
@@ -231,17 +235,14 @@ static void fill_asn1_positioning_information_request(asn1::f1ap::positioning_in
       }
       // Fill spatial relation per SRS res list.
       for (const auto& spatial_relation_per_srs_res : srs_res_set_item.spatial_relation_per_srs_res_list) {
-        asn1::protocol_ext_field_s<asn1::f1ap::srs_res_set_item_ext_ies_o> asn1_ie_exts_item;
-        asn1::f1ap::spatial_relation_per_srs_res_s&                        asn1_spatial_relation_per_srs_res =
-            asn1_ie_exts_item->srs_spatial_relation_per_srs_res();
+        asn1_srs_res_set_item.ie_exts_present                                  = true;
+        asn1_srs_res_set_item.ie_exts.srs_spatial_relation_per_srs_res_present = true;
         for (const auto& ref_sig : spatial_relation_per_srs_res.reference_signals) {
           asn1::f1ap::spatial_relation_per_srs_res_item_s asn1_spatial_relation_per_srs_res_item;
           asn1_spatial_relation_per_srs_res_item.ref_sig = ref_sig_to_asn1(ref_sig);
-          asn1_spatial_relation_per_srs_res.spatial_relation_per_srs_res_list.push_back(
+          asn1_srs_res_set_item.ie_exts.srs_spatial_relation_per_srs_res.spatial_relation_per_srs_res_list.push_back(
               asn1_spatial_relation_per_srs_res_item);
         }
-
-        asn1_srs_res_set_item.ie_exts.push_back(asn1_ie_exts_item);
       }
 
       asn1_request->requested_srs_tx_characteristics.srs_res_set_list.push_back(asn1_srs_res_set_item);
@@ -329,10 +330,10 @@ fill_positioning_information_response(const asn1::f1ap::positioning_info_resp_s&
   positioning_information_response_t resp;
 
   // Fill SRS configuration.
-  if (asn1_resp->srs_configuration_present) {
+  if (asn1_resp->srs_cfg_present) {
     srs_configuration_t srs_cfg;
     // Fill SRS carrier list.
-    for (const auto& asn1_srs_carrier_list_item : asn1_resp->srs_configuration.srs_carrier_list) {
+    for (const auto& asn1_srs_carrier_list_item : asn1_resp->srs_cfg.srs_carrier_list) {
       srs_carrier_list_item_t srs_carrier_list_item;
 
       // Fill point A.

@@ -100,8 +100,11 @@ expected<trp_information_response_t, trp_information_failure_t>
 f1ap_trp_information_exchange_procedure::handle_procedure_outcome()
 {
   if (transaction.aborted()) {
-    // Timeout or cancellation case.
-    logger.warning("\"{}\" failed. Cause: Timeout or cancellation", name());
+    if (transaction.failure_cause() == protocol_transaction_failure::timeout) {
+      logger.warning("\"{}\" failed. Cause: Timeout", name());
+    } else {
+      logger.info("\"{}\" cancelled", name());
+    }
     return make_unexpected(create_trp_info_failure(f1ap_cause_radio_network_t::unspecified));
   }
 
@@ -304,11 +307,8 @@ trp_information_response_t create_trp_info_response(const asn1::f1ap::trp_info_r
             prs_angle_item.nr_prs_azimuth_fine   = asn1_prs_angle.nr_prs_azimuth_fine;
             prs_angle_item.nr_prs_elevation      = asn1_prs_angle.nr_prs_elevation;
             prs_angle_item.nr_prs_elevation_fine = asn1_prs_angle.nr_prs_elevation_fine;
-            for (const auto& asn1_prs_angle_ext_ies : asn1_prs_angle.ie_exts) {
-              if (asn1_prs_angle_ext_ies->type() ==
-                  asn1::f1ap::prs_angle_item_item_ext_ies_o::ext_c::types_opts::options::prs_res_id) {
-                prs_angle_item.prs_res_id = asn1_prs_angle_ext_ies->prs_res_id();
-              }
+            if (asn1_prs_angle.ie_exts_present and asn1_prs_angle.ie_exts.prs_res_id_present) {
+              prs_angle_item.prs_res_id = asn1_prs_angle.ie_exts.prs_res_id;
             }
             nr_prs_beam_info_item.prs_angle.push_back(prs_angle_item);
           }
@@ -427,7 +427,7 @@ trp_information_response_t create_trp_info_response(const asn1::f1ap::trp_info_r
           } else {
             trp_beam_ant_explicit_info_t                    trp_beam_ant_explicit_info;
             const asn1::f1ap::trp_beam_ant_explicit_info_s& asn1_trp_beam_ant_explicit_info =
-                asn1_trp_beam_ant_info.choice_trp_beam_ant_info_item.explicit_type();
+                asn1_trp_beam_ant_info.choice_trp_beam_ant_info_item.explicit_value();
 
             // Fill TRP beam ant angles.
             for (const auto& asn1_trp_beam_ant_angles_list_item : asn1_trp_beam_ant_explicit_info.trp_beam_ant_angles) {

@@ -260,7 +260,13 @@ int main(int argc, char** argv)
             "Usage: {} [-R repetitions] [-T threads] [-C <scs>] [-D <dft_type>] [-r <rates>] [-t <topologies>] [-h]\n",
             argv[0]);
         fmt::print("  -C <scs>         : subcarrier spacing (15, 30, 60, 120, 240), default 30\n");
-        fmt::print("  -D <dft_type>    : DFT library (fftw_slow, fftz, generic), default auto\n");
+        fmt::print("  -D <dft_type>    : DFT library (auto, hwy, hwy:<arch>, fftw, fftw_fast, fftw_slow, fftz,\n"
+                   "                     generic), default auto.\n"
+                   "                     Highway architectures that this CPU supports: {}\n",
+                   [] {
+                     std::string architectures = get_dft_processor_hwy_architectures();
+                     return architectures.empty() ? std::string("none") : architectures;
+                   }());
         fmt::print("  -r <rates>       : sampling rates in MHz, comma-separated (default 122.88,245.76,491.52)\n");
         fmt::print("  -t <topologies>  : antenna topologies, comma-separated (default "
                    "one_port,two_port,four_ports,eight_ports)\n");
@@ -276,22 +282,8 @@ int main(int argc, char** argv)
   report_fatal_error_if_not(worker_pool, "Failed to create worker pool.");
   std::unique_ptr<task_executor> executor = make_task_worker_pool_executor_ptr(*worker_pool);
 
-  // Select the DFT factory. Pick the selected one by "dft_type", if none is specified ("auto"), use the factory picked
-  // by default.
-  std::shared_ptr<dft_processor_factory> dft_factory;
-  if (dft_type == "fftw") {
-    dft_factory = create_dft_processor_factory_fftw_fast();
-  } else if (dft_type == "fftw_slow") {
-    dft_factory = create_dft_processor_factory_fftw_slow();
-  } else if (dft_type == "fftz") {
-    dft_factory = create_dft_processor_factory_fftz();
-  } else if (dft_type == "generic") {
-    dft_factory = create_dft_processor_factory_generic();
-  } else if (dft_type == "auto") {
-    dft_factory = create_dft_processor_factory();
-  } else {
-    report_fatal_error("Unkown DFT factory type: {}", dft_type);
-  }
+  // Select the DFT factory.
+  std::shared_ptr<dft_processor_factory> dft_factory = create_dft_processor_factory(dft_type);
   report_fatal_error_if_not(dft_factory, "Failed to create DFT factory ({})", dft_type);
 
   ofdm_factory_generic_configuration      ofdm_cfg         = {.dft_factory = dft_factory};

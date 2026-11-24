@@ -74,20 +74,20 @@ private:
 
   /// Assemble struct that is going to be passed down to PHY with the DL scheduling result.
   /// \remark FAPI will use this struct to generate a DL_TTI.Request.
-  void assemble_dl_sched_request(mac_dl_sched_result&   mac_res,
-                                 slot_point             sl_tx,
-                                 du_cell_index_t        cell_index,
-                                 const dl_sched_result& dl_res);
+  void assemble_dl_sched_request(mac_dl_sched_result&        mac_res,
+                                 slot_point                  sl_tx,
+                                 du_cell_index_t             cell_index,
+                                 sched_slot_dl_result_reader dl_res);
 
   /// Assemble struct with the MAC PDUs of a given slot and cell that is going be passed to the PHY.
   /// \remark FAPI will use this struct to generate a Tx_Data.Request.
-  void assemble_dl_data_request(mac_dl_data_result&    mac_data,
-                                slot_point_extended    sl_tx,
-                                du_cell_index_t        cell_index,
-                                const dl_sched_result& dl_res);
+  void assemble_dl_data_request(mac_dl_data_result&         mac_data,
+                                slot_point_extended         sl_tx,
+                                du_cell_index_t             cell_index,
+                                sched_slot_dl_result_reader dl_res);
 
   /// Update DL buffer states of the allocated DL bearers.
-  void update_logical_channel_dl_buffer_states(const dl_sched_result& dl_res);
+  void update_logical_channel_dl_buffer_states(sched_slot_dl_result_reader dl_res);
 
   // Dependencies.
   ocudulog::basic_logger&         logger;

@@ -111,18 +111,18 @@ void configured_grant_scheduler_base::reserve_cg_resources(cell_slot_resource_al
     return;
   }
 
-  // For PUSCH repetition Type A (i.e. with no pusch-RepTypeIndicator configured), the TDRA table is selected as for
-  // DCI format 0_0 in a UE-specific search space (TS 38.214, Section 6.1.2.3 and Table 6.1.2.1.1-1), i.e. the cell's
-  // common pusch-TimeDomainAllocationList.
-  // NOTE: [Implementation-defined] the UE's dedicated list holds the Rel-16 pusch-TimeDomainAllocationListDCI-0-1,
-  // which replaces the common list for DCI format 0_1 only; hence it does not apply here. This is the same list
-  // build_cg_pusch_cfg_params() builds the PUSCH parameters from and the config validator bounds-checks the TD
-  // allocation against, see validate_cg_cfg().
-  const auto& pusch_td_list = ue_cc.active_bwp().ul.td_mapper().pusch_td_resources(dci_ul_format::f0_0);
+  const span<const pusch_time_domain_resource_allocation> pusch_td_list = get_cg_pusch_td_list(ue_cc.cfg());
 
   const auto& cg_params = ue_cc.get_conf_grant_state_manager().get_grant_params();
   if (not cg_params.has_value()) {
     // The UE has no active CG, so it has no resources to reserve in this slot.
+    return;
+  }
+
+  // Nothing to reserve for an occasion that precedes the UE's first transmission: it belongs to the recurrence the
+  // activation established, but the UE has no grant for it yet.
+  // NOTE: this applies to Type 2 schedule, in which the first transmission is k2 slots from the DCI that activates it.
+  if (ue_cc.get_conf_grant_state_manager().is_before_first_tx(slot_alloc.slot)) {
     return;
   }
 
@@ -143,26 +143,11 @@ void configured_grant_scheduler_base::allocate_slot_cg_opportunities(cell_slot_r
   }
 }
 
-bool configured_grant_scheduler_base::validate_cg_opportunity(const cell_slot_resource_allocator& slot_alloc,
-                                                              rnti_t                              rnti) const
+bool configured_grant_scheduler_base::validate_cg_opportunity(cell_slot_resource_allocator& slot_alloc,
+                                                              const ue_cell&                ue_cc) const
 {
-  // Fetch UE and its cell context.
-  const auto* u = ues.find_by_rnti(rnti);
-  if (u == nullptr) {
-    logger.error("rnti={}: resources reserved for CG opportunity, but corresponding UE not found", rnti);
-    return false;
-  }
-
-  ocudu_assert(
-      u->ue_cfg_dedicated()->get_cs_rnti().has_value(), "Missing CS-RNTI for UE={} with Configured Grant", rnti);
-
-  const auto* ue_cc = u->find_cell(cell_cfg.cell_index);
-  if (ue_cc == nullptr) {
-    logger.error("rnti={}: resources reserved for CG opportunity, but corresponding UE not found", rnti);
-    return false;
-  }
   // Skip if UL is not enabled in this slot (e.g., TDD DL slot, or the slot falls in the UL measurement gap window).
-  if (not ue_cc->is_ul_enabled(slot_alloc.slot)) {
+  if (not ue_cc.is_ul_enabled(slot_alloc.slot)) {
     return false;
   }
 
@@ -170,16 +155,17 @@ bool configured_grant_scheduler_base::validate_cg_opportunity(const cell_slot_re
   // PUCCH and does not transmit the PUSCH in the overlapping slots. The UCI cannot be moved onto the CG PUSCH either,
   // as Section 9.2.5 scopes UCI multiplexing on PUSCH to PUCCHs "over a single slot without repetitions". So the CG
   // occasion must be skipped in any slot of an in-flight repetition burst, or the UE would drop it.
-  if (uci_alloc.has_pucch_repetition(rnti, slot_alloc.slot)) {
+  if (uci_alloc.has_pucch_repetition(ue_cc.rnti(), slot_alloc.slot)) {
     logger.debug("rnti={}: CG PUSCH skipped at slot={}: the slot is part of a PUCCH repetition burst of the UE",
-                 rnti,
+                 ue_cc.rnti(),
                  slot_alloc.slot);
     return false;
   }
 
   // Check that the PUSCH result list has capacity.
-  if (slot_alloc.result.ul.puschs.full()) {
-    logger.warning("rnti={}: CG PUSCH cannot be allocated at slot={}: PUSCH list is full", rnti, slot_alloc.slot);
+  if (slot_alloc.result_builder().ul().puschs().full()) {
+    logger.warning(
+        "rnti={}: CG PUSCH cannot be allocated at slot={}: PUSCH list is full", ue_cc.rnti(), slot_alloc.slot);
     return false;
   }
 
@@ -188,13 +174,35 @@ bool configured_grant_scheduler_base::validate_cg_opportunity(const cell_slot_re
 
 bool configured_grant_scheduler_base::allocate_cg_opportunity(cell_slot_resource_allocator& slot_alloc, rnti_t rnti)
 {
-  if (not validate_cg_opportunity(slot_alloc, rnti)) {
+  // Fetch UE and its cell context.
+  auto* u = ues.find_by_rnti(rnti);
+  if (u == nullptr) {
+    logger.error("rnti={}: resources reserved for CG opportunity, but corresponding UE not found", rnti);
     return false;
   }
 
-  // NOTE: the existence of u and ue_cc has been validated above.
-  auto*                        u      = ues.find_by_rnti(rnti);
-  auto*                        ue_cc  = u->find_cell(cell_cfg.cell_index);
+  ocudu_assert(
+      u->ue_cfg_dedicated()->get_cs_rnti().has_value(), "Missing CS-RNTI for UE={} with Configured Grant", rnti);
+
+  auto* ue_cc = u->find_cell(cell_cfg.cell_index);
+  if (ue_cc == nullptr) {
+    logger.error("rnti={}: resources reserved for CG opportunity, but corresponding UE not found", rnti);
+    return false;
+  }
+
+  // Skip the occasions that precede the UE's first transmission; its activation has been triggered, but this slot is
+  // too early for its first allocation (i.e., Type 2).
+  if (ue_cc->get_conf_grant_state_manager().is_before_first_tx(slot_alloc.slot)) {
+    return false;
+  }
+  // This occasion is at or after the first transmission, so the gate has served its purpose. Reset it here to ensure it
+  // is not left set under certain conditions (e.g., all of them fall in the UE's measurement gaps).
+  ue_cc->get_conf_grant_state_manager().clear_first_tx_slot();
+
+  if (not validate_cg_opportunity(slot_alloc, *ue_cc)) {
+    return false;
+  }
+
   const ue_cell_configuration& ue_cfg = ue_cc->cfg();
 
   const slot_point pusch_slot = slot_alloc.slot;
@@ -221,8 +229,10 @@ bool configured_grant_scheduler_base::allocate_cg_opportunity(cell_slot_resource
                cg_cfg.nof_harq_processes);
 
   static constexpr unsigned nof_harq_retx = 0;
-  const harq_id_t           h_id =
-      get_cg_harq_id(pusch_slot, pusch_params.symbols.start(), cg_periodicity, cg_cfg.nof_harq_processes);
+  // TS 38.321 Section 5.4.1 derives the HARQ process from CURRENT_symbol, counted in the UE uplink frame; pusch_slot
+  // is the gNB grid slot, k_mac ahead of it. Undo k_mac so both ends pick the same process for the occasion.
+  const harq_id_t h_id = get_cg_harq_id(
+      cell_cfg.dl_to_ue_ul_slot(pusch_slot), pusch_params.symbols.start(), cg_periodicity, cg_cfg.nof_harq_processes);
   const unsigned cg_harq_timeout = cg_configuration::configured_grant_timer * static_cast<unsigned>(cg_periodicity);
   auto           h_ul =
       ue_cc->harqs.alloc_ul_harq(pusch_slot, pusch_slot, nof_harq_retx, cg_harq_alloc_params{h_id, cg_harq_timeout});
@@ -233,7 +243,12 @@ bool configured_grant_scheduler_base::allocate_cg_opportunity(cell_slot_resource
   // after the UE was added; hence, no collision check nor grid fill is needed here.
 
   // Fill UL scheduling result.
-  ul_sched_info& sched_info = slot_alloc.result.ul.puschs.emplace_back();
+  ul_sched_info* pusch_pdu = slot_alloc.result_builder().ul().puschs().emplace_back();
+  if (pusch_pdu == nullptr) {
+    logger.warning("rnti={}: CG PUSCH cannot be allocated at slot={}: PUSCH list is full", rnti, slot_alloc.slot);
+    return false;
+  }
+  ul_sched_info& sched_info = *pusch_pdu;
 
   // Configured Grant repetitions are not currently supported.
   constexpr unsigned rep_idx = 0U;

@@ -176,9 +176,12 @@ make_custom_sched_cell_configuration_request(const test_bench_params& params)
   }
   req.ran.init_bwp.pucch.resources = params.pucch_ded_params;
   req.ran.init_bwp.pucch.sr_period = params.sr_period;
-  if (params.ntn_cs_koffset.count() != 0) {
+  if (params.ntn_cs_koffset.count() != 0 or params.ntn_k_mac.count() != 0) {
     req.ran.ntn_params.emplace();
     req.ran.ntn_params->ntn_cfg.cell_specific_koffset = params.ntn_cs_koffset;
+    if (params.ntn_k_mac.count() != 0) {
+      req.ran.ntn_params->ntn_cfg.k_mac = params.ntn_k_mac;
+    }
   }
   if (params.csi_period.has_value()) {
     req.ran.init_bwp.csi.value().csi_rs_period          = params.csi_period.value();
@@ -186,6 +189,7 @@ make_custom_sched_cell_configuration_request(const test_bench_params& params)
   } else {
     req.ran.init_bwp.csi = std::nullopt;
   }
+  req.rrm = make_cell_rrm_config(req.ran);
 
   return req;
 }
@@ -220,7 +224,8 @@ test_bench::test_bench(const test_bench_params& params_) :
   sl_tx{to_numerology_value(cell_cfg.params.dl_cfg_common.init_dl_bwp.generic_params.scs), 0}
 {
   ues.register_cell(cell_ues);
-  pucch_builder.add_cell(to_du_cell_index(0), cell_cfg.params);
+  cell_rrm = make_cell_rrm_config(cell_cfg.params);
+  pucch_builder.add_cell(to_du_cell_index(0), cell_cfg.params, cell_rrm);
 
   // Add main UE.
   add_ue();
@@ -253,19 +258,19 @@ void test_bench::add_ue()
     ue_req.crnti = to_rnti(static_cast<std::underlying_type_t<rnti_t>>(ue_ded_cfgs.back()->crnti) + 1);
   }
 
-  const bool success = pucch_builder.alloc_resources(ue_req.cfg.cells->back());
+  ue_cell_config& ue_cell = *ue_req.cfg.cells->back().ded;
+  const bool      success = pucch_builder.alloc_resources(ue_cell);
   ocudu_assert(success, "UE PUCCH configuration couldn't be built");
   if (params.ue_caps.has_value()) {
-    pucch_builder.update_resources(ue_req.cfg.cells->back(), *params.ue_caps);
+    pucch_builder.update_resources(ue_cell, *params.ue_caps);
   }
 
   // TODO: rewrite this test, we should never modify the UE cell config like this in unittests.
-  ue_req.cfg.cells->back().init_bwp().ul.pucch.sr_offset                                         = params.sr_offset;
-  ue_req.cfg.cells->back().serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg->sr_res_list[0].offset = params.sr_offset;
+  ue_cell.rrm.pucch.sr_offset = params.sr_offset;
   if (params.csi_period.has_value()) {
-    ue_req.cfg.cells->back().init_bwp().ul.periodic_csi_report.value().offset = params.csi_offset;
+    ue_cell.rrm.csi.periodic_report.value().offset = params.csi_offset;
     auto& csi_report = std::get<csi_report_config::periodic_or_semi_persistent_report_on_pucch>(
-        ue_req.cfg.cells->back().serv_cell_cfg.csi_meas_cfg.value().csi_report_cfg_list[0].report_cfg_type);
+        ue_cell.serv_cell_cfg.csi_meas_cfg.value().csi_report_cfg_list[0].report_cfg_type);
     csi_report.report_slot_offset = params.csi_offset;
   }
 

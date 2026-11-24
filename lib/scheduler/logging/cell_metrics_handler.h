@@ -9,6 +9,7 @@
 #include "ocudu/adt/flat_map.h"
 #include "ocudu/adt/slotted_vector.h"
 #include "ocudu/ran/slot_point_extended.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/scheduler/scheduler_configurator.h"
 #include "ocudu/scheduler/scheduler_dl_buffer_state_indication_handler.h"
 #include "ocudu/scheduler/scheduler_feedback_handler.h"
@@ -275,7 +276,7 @@ public:
 
   /// \brief Handle results stored in the scheduler result and push new entry.
   void push_result(slot_point_extended       sl_tx,
-                   const sched_result&       slot_result,
+                   sched_slot_result_reader  slot_result,
                    std::chrono::microseconds slot_decision_latency);
 
   /// \brief Checks whether the metrics reporting is active.
@@ -289,7 +290,7 @@ private:
   void handle_csi_report(ue_metric_context& u, const csi_report_data& csi);
   void report_metrics();
   void handle_slot_result(slot_point_extended       sl_tx,
-                          const sched_result&       slot_result,
+                          sched_slot_result_reader  slot_result,
                           std::chrono::microseconds slot_decision_latency);
 
   std::vector<scheduler_cell_event> pending_events;

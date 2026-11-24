@@ -41,7 +41,7 @@ TEST_F(cell_meas_manager_test, when_valid_cell_config_is_used_validation_succeed
 TEST_F(cell_meas_manager_test, when_empty_config_is_used_validation_succeeds)
 {
   cell_meas_manager_config cfg = {};
-  ASSERT_TRUE(is_valid_configuration(cfg));
+  ASSERT_TRUE(is_valid_configuration(cfg, cu_cp_logger));
 }
 
 TEST_F(cell_meas_manager_test, when_periodic_report_cfg_id_is_unknown_validation_fails)
@@ -55,7 +55,7 @@ TEST_F(cell_meas_manager_test, when_periodic_report_cfg_id_is_unknown_validation
   cfg.cells.emplace(cell_cfg.serving_cell_cfg.nci, cell_cfg);
 
   // Note: cfg.report_config_ids does not contain report_cfg_id 1.
-  ASSERT_FALSE(is_valid_configuration(cfg));
+  ASSERT_FALSE(is_valid_configuration(cfg, cu_cp_logger));
 }
 
 TEST_F(cell_meas_manager_test, when_neighbor_report_cfg_id_is_unknown_validation_fails)
@@ -77,7 +77,7 @@ TEST_F(cell_meas_manager_test, when_neighbor_report_cfg_id_is_unknown_validation
   cfg.cells.emplace(nci1, cell_cfg);
 
   // Note: cfg.report_config_ids does not contain report_cfg_id 2.
-  ASSERT_FALSE(is_valid_configuration(cfg));
+  ASSERT_FALSE(is_valid_configuration(cfg, cu_cp_logger));
 }
 
 TEST_F(cell_meas_manager_test, when_empty_config_is_used_then_no_neighbor_cells_are_available)
@@ -798,9 +798,9 @@ TEST_F(cell_meas_manager_test, when_reused_meas_object_drops_a_cell_then_the_cel
   new_obj.meas_obj_id = uint_to_meas_obj_id(1);
   new_obj.meas_obj_nr.emplace();
   new_cfg.meas_obj_to_add_mod_list.push_back(new_obj);
-  add_old_meas_config_to_rem_list(old_cfg, new_cfg);
+  add_old_meas_config_to_rem_list(new_cfg, old_cfg);
 
-  prune_redundant_rem_list_entries(old_cfg, new_cfg);
+  prune_redundant_rem_list_entries(new_cfg, old_cfg);
 
   ASSERT_TRUE(new_cfg.meas_obj_to_rem_list.empty());
   const auto& cells_to_rem = new_cfg.meas_obj_to_add_mod_list.at(0).meas_obj_nr.value().cells_to_rem_list;
@@ -830,9 +830,9 @@ TEST_F(cell_meas_manager_test, when_new_meas_config_is_smaller_then_the_dropped_
   new_cfg.meas_obj_to_add_mod_list.push_back(meas_obj);
   new_cfg.report_cfg_to_add_mod_list.push_back({uint_to_report_cfg_id(1), {}});
   new_cfg.meas_id_to_add_mod_list.push_back({uint_to_meas_id(1), uint_to_meas_obj_id(1), uint_to_report_cfg_id(1)});
-  add_old_meas_config_to_rem_list(old_cfg, new_cfg);
+  add_old_meas_config_to_rem_list(new_cfg, old_cfg);
 
-  prune_redundant_rem_list_entries(old_cfg, new_cfg);
+  prune_redundant_rem_list_entries(new_cfg, old_cfg);
 
   // The ids that are gone must still be removed, the reused ones must not.
   ASSERT_EQ(new_cfg.meas_obj_to_rem_list, std::vector<meas_obj_id_t>{uint_to_meas_obj_id(2)});

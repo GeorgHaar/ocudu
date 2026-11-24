@@ -36,9 +36,6 @@ public:
                                                   unsigned                     ntn_koffset) override;
 
 private:
-  static constexpr size_t RES_MANAGER_RING_BUFFER_SIZE = get_allocator_ring_size_gt_min(
-      SCHEDULER_MAX_K0 + srs_constants::MAX_SRS_SLOT_OFFSET + NTN_CELL_SPECIFIC_KOFFSET_MAX);
-
   // Checks if the SRS resource with cell ID \ref cell_res_id is currently used at slot \ref srs_slot. If not, it sets
   // the SRS resource as used (which means it can be allocated for the UE for which this function was called).
   // It returns "true" if the UE is allocated the SRS resource with cell ID \ref cell_res_id; "false" otherwise.

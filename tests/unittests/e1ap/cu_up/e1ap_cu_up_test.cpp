@@ -435,6 +435,150 @@ TEST_F(e1ap_cu_up_test, when_valid_part_of_e1_reset_received_then_reset_ack_sent
             e1ap_gw.last_tx_e1ap_pdu.pdu.successful_outcome().value.type());
 }
 
+TEST_F(e1ap_cu_up_test, when_part_of_e1_reset_received_then_reset_ack_lists_the_reset_ues)
+{
+  run_e1_setup_procedure();
+  this->setup_bearer(9);
+
+  // Receive E1 Reset message for the UE and for an unknown UE.
+  e1ap_message e1_reset = generate_e1_reset({{gnb_cu_cp_ue_e1ap_id_t{9}, gnb_cu_up_ue_e1ap_id_t{0}},
+                                             {gnb_cu_cp_ue_e1ap_id_t{100}, gnb_cu_up_ue_e1ap_id_t{100}}});
+  e1ap->handle_message(e1_reset);
+
+  // Check the E1 Reset ACK lists both UE associations in the received order.
+  ASSERT_EQ(asn1::e1ap::e1ap_pdu_c::types_opts::options::successful_outcome, e1ap_gw.last_tx_e1ap_pdu.pdu.type());
+  ASSERT_EQ(asn1::e1ap::e1ap_elem_procs_o::successful_outcome_c::types_opts::options::reset_ack,
+            e1ap_gw.last_tx_e1ap_pdu.pdu.successful_outcome().value.type());
+  const asn1::e1ap::reset_ack_s& reset_ack = e1ap_gw.last_tx_e1ap_pdu.pdu.successful_outcome().value.reset_ack();
+  ASSERT_TRUE(reset_ack->ue_associated_lc_e1_conn_list_res_ack_present);
+  ASSERT_EQ(reset_ack->ue_associated_lc_e1_conn_list_res_ack.size(), 2U);
+  const asn1::e1ap::ue_associated_lc_e1_conn_item_s& first_item =
+      reset_ack->ue_associated_lc_e1_conn_list_res_ack[0]->ue_associated_lc_e1_conn_item();
+  ASSERT_TRUE(first_item.gnb_cu_cp_ue_e1ap_id_present);
+  ASSERT_TRUE(first_item.gnb_cu_up_ue_e1ap_id_present);
+  ASSERT_EQ(first_item.gnb_cu_cp_ue_e1ap_id, 9U);
+  ASSERT_EQ(first_item.gnb_cu_up_ue_e1ap_id, 0U);
+  const asn1::e1ap::ue_associated_lc_e1_conn_item_s& second_item =
+      reset_ack->ue_associated_lc_e1_conn_list_res_ack[1]->ue_associated_lc_e1_conn_item();
+  ASSERT_EQ(second_item.gnb_cu_cp_ue_e1ap_id, 100U);
+  ASSERT_EQ(second_item.gnb_cu_up_ue_e1ap_id, 100U);
+}
+
+TEST_F(e1ap_cu_up_test, when_part_of_e1_reset_received_then_no_ue_associated_message_is_sent_for_the_reset_ue)
+{
+  run_e1_setup_procedure();
+  this->setup_bearer(9);
+
+  e1ap_message e1_reset = generate_e1_reset({{gnb_cu_cp_ue_e1ap_id_t{9}, gnb_cu_up_ue_e1ap_id_t{0}}});
+  e1ap->handle_message(e1_reset);
+
+  // The DL data notification of the reset UE is dropped, so the last PDU is still the E1 Reset ACK.
+  e1ap->handle_dl_data_notification_required(cu_up_ue_index_t{0});
+  ASSERT_EQ(asn1::e1ap::e1ap_pdu_c::types_opts::options::successful_outcome, e1ap_gw.last_tx_e1ap_pdu.pdu.type());
+  ASSERT_EQ(asn1::e1ap::e1ap_elem_procs_o::successful_outcome_c::types_opts::options::reset_ack,
+            e1ap_gw.last_tx_e1ap_pdu.pdu.successful_outcome().value.type());
+}
+
+TEST_F(e1ap_cu_up_test, when_part_of_e1_reset_identifies_ue_only_by_cu_cp_id_then_no_ue_associated_message_is_sent)
+{
+  run_e1_setup_procedure();
+  this->setup_bearer(9);
+
+  e1ap_message e1_reset = generate_e1_reset({{gnb_cu_cp_ue_e1ap_id_t{9}, gnb_cu_up_ue_e1ap_id_t::invalid}});
+  e1ap->handle_message(e1_reset);
+
+  // The DL data notification of the reset UE is dropped, so the last PDU is still the E1 Reset ACK.
+  e1ap->handle_dl_data_notification_required(cu_up_ue_index_t{0});
+  ASSERT_EQ(asn1::e1ap::e1ap_pdu_c::types_opts::options::successful_outcome, e1ap_gw.last_tx_e1ap_pdu.pdu.type());
+  ASSERT_EQ(asn1::e1ap::e1ap_elem_procs_o::successful_outcome_c::types_opts::options::reset_ack,
+            e1ap_gw.last_tx_e1ap_pdu.pdu.successful_outcome().value.type());
+}
+
+TEST_F(e1ap_cu_up_test, when_full_e1_reset_received_then_no_ue_associated_message_is_sent_for_the_reset_ue)
+{
+  run_e1_setup_procedure();
+  this->setup_bearer(9);
+
+  e1ap_message e1_reset = generate_e1_reset({});
+  e1ap->handle_message(e1_reset);
+
+  // The DL data notification of the reset UE is dropped, so the last PDU is still the E1 Reset ACK.
+  e1ap->handle_dl_data_notification_required(cu_up_ue_index_t{0});
+  ASSERT_EQ(asn1::e1ap::e1ap_pdu_c::types_opts::options::successful_outcome, e1ap_gw.last_tx_e1ap_pdu.pdu.type());
+  ASSERT_EQ(asn1::e1ap::e1ap_elem_procs_o::successful_outcome_c::types_opts::options::reset_ack,
+            e1ap_gw.last_tx_e1ap_pdu.pdu.successful_outcome().value.type());
+}
+
+TEST_F(e1ap_cu_up_test, when_ue_index_is_reused_after_e1_reset_then_new_bearer_context_ids_are_used)
+{
+  run_e1_setup_procedure();
+  this->setup_bearer(9);
+
+  e1ap_message e1_reset = generate_e1_reset({{gnb_cu_cp_ue_e1ap_id_t{9}, gnb_cu_up_ue_e1ap_id_t{0}}});
+  e1ap->handle_message(e1_reset);
+
+  // Set up a new bearer context. The CU-UP reuses the UE index of the reset UE.
+  this->setup_bearer(10);
+
+  e1ap->handle_dl_data_notification_required(cu_up_ue_index_t{0});
+  ASSERT_EQ(asn1::e1ap::e1ap_pdu_c::types_opts::options::init_msg, e1ap_gw.last_tx_e1ap_pdu.pdu.type());
+  ASSERT_EQ(asn1::e1ap::e1ap_elem_procs_o::init_msg_c::types_opts::options::dl_data_notif,
+            e1ap_gw.last_tx_e1ap_pdu.pdu.init_msg().value.type());
+  ASSERT_EQ(e1ap_gw.last_tx_e1ap_pdu.pdu.init_msg().value.dl_data_notif()->gnb_cu_cp_ue_e1ap_id, 10U);
+}
+
+TEST_F(e1ap_cu_up_test, when_e1_connection_is_lost_then_no_ue_associated_message_is_sent)
+{
+  run_e1_setup_procedure();
+  this->setup_bearer(9);
+  e1ap_message last_pdu_before_loss = e1ap_gw.last_tx_e1ap_pdu;
+
+  // Drop the E1 TNL association.
+  e1ap_gw.drop_connection();
+  cu_up_worker.run_pending_tasks();
+
+  // The DL data notification of the UE is dropped, so the last PDU is unchanged.
+  e1ap->handle_dl_data_notification_required(cu_up_ue_index_t{0});
+  ASSERT_EQ(e1ap_gw.last_tx_e1ap_pdu.pdu.type(), last_pdu_before_loss.pdu.type());
+  ASSERT_EQ(asn1::e1ap::e1ap_elem_procs_o::successful_outcome_c::types_opts::options::bearer_context_setup_resp,
+            e1ap_gw.last_tx_e1ap_pdu.pdu.successful_outcome().value.type());
+}
+
+TEST_F(e1ap_cu_up_test, when_ue_index_is_reused_after_e1_reconnection_then_new_bearer_context_ids_are_used)
+{
+  run_e1_setup_procedure();
+  this->setup_bearer(9);
+
+  // Drop the E1 TNL association and connect again.
+  e1ap_gw.drop_connection();
+  cu_up_worker.run_pending_tasks();
+  run_e1_setup_procedure();
+
+  // Set up a new bearer context. The CU-UP reuses the UE index of the UE of the dropped association.
+  this->setup_bearer(10);
+
+  e1ap->handle_dl_data_notification_required(cu_up_ue_index_t{0});
+  ASSERT_EQ(asn1::e1ap::e1ap_pdu_c::types_opts::options::init_msg, e1ap_gw.last_tx_e1ap_pdu.pdu.type());
+  ASSERT_EQ(asn1::e1ap::e1ap_elem_procs_o::init_msg_c::types_opts::options::dl_data_notif,
+            e1ap_gw.last_tx_e1ap_pdu.pdu.init_msg().value.type());
+  ASSERT_EQ(e1ap_gw.last_tx_e1ap_pdu.pdu.init_msg().value.dl_data_notif()->gnb_cu_cp_ue_e1ap_id, 10U);
+}
+
+TEST_F(e1ap_cu_up_test,
+       when_bearer_context_release_procedure_cannot_be_scheduled_then_bearer_context_release_complete_is_sent)
+{
+  run_e1_setup_procedure();
+  this->setup_bearer(9);
+
+  cu_up_notifier.ue_task_scheduling_fails = true;
+  e1ap_message bearer_context_release_cmd = generate_bearer_context_release_command(9, 0);
+  e1ap->handle_message(bearer_context_release_cmd);
+
+  ASSERT_EQ(asn1::e1ap::e1ap_pdu_c::types_opts::options::successful_outcome, e1ap_gw.last_tx_e1ap_pdu.pdu.type());
+  ASSERT_EQ(asn1::e1ap::e1ap_elem_procs_o::successful_outcome_c::types_opts::options::bearer_context_release_complete,
+            e1ap_gw.last_tx_e1ap_pdu.pdu.successful_outcome().value.type());
+}
+
 TEST_F(e1ap_cu_up_test, when_bearer_context_valid_and_resume_requested_dl_status_notification_sent)
 {
   run_e1_setup_procedure();

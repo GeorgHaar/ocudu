@@ -10,6 +10,7 @@
 #include "ue_drx_controller.h"
 #include "ocudu/ran/sch/tbs_calculator.h"
 #include "ocudu/scheduler/scheduler_feedback_handler.h"
+#include <cmath>
 
 using namespace ocudu;
 
@@ -66,22 +67,20 @@ void ue_cell::handle_reconfiguration_request(const ue_cell_configuration& ue_cel
   // Cancel HARQ retxs, given that the UE may have changed some critical params (e.g. MCS tables)
   harqs.cancel_retxs();
 
-  // Reconfigure HARQ entity and increase nof HARQ processes if needed.
-  unsigned new_dl_harqs = ue_cell_cfg.pdsch_serving_cell_cfg() != nullptr
-                              ? static_cast<unsigned>(ue_cell_cfg.pdsch_serving_cell_cfg()->nof_harq_proc)
-                              : harqs.nof_dl_harqs();
-  unsigned new_ul_harqs = ue_cell_cfg.pusch_serving_cell_cfg() != nullptr
-                              ? static_cast<unsigned>(ue_cell_cfg.pusch_serving_cell_cfg()->nof_harq_proc)
-                              : harqs.nof_ul_harqs();
-
-  const auto*    ul_ded = ue_cell_cfg.init_bwp().ul.ded();
-  const unsigned nof_cg_reserved_harq =
-      (ul_ded != nullptr and ul_ded->cg_cfg.has_value()) ? ul_ded->cg_cfg->nof_harq_processes : 0U;
-  harqs.reconfigure(new_dl_harqs,
-                    new_ul_harqs,
-                    ue_cell_cfg.pdsch_serving_cell_cfg()->dl_harq_feedback_disabled,
-                    ue_cell_cfg.pusch_serving_cell_cfg()->ul_harq_mode,
-                    nof_cg_reserved_harq);
+  // Reconfigure HARQ entity and increase nof HARQ processes if needed. A UE without dedicated configuration keeps its
+  // HARQ processes.
+  const pdsch_serving_cell_config* pdsch_serv_cell = ue_cell_cfg.pdsch_serving_cell_cfg();
+  const pusch_serving_cell_config* pusch_serv_cell = ue_cell_cfg.pusch_serving_cell_cfg();
+  if (pdsch_serv_cell != nullptr and pusch_serv_cell != nullptr) {
+    const auto*    ul_ded = ue_cell_cfg.init_bwp().ul.ded();
+    const unsigned nof_cg_reserved_harq =
+        (ul_ded != nullptr and ul_ded->cg_cfg.has_value()) ? ul_ded->cg_cfg->nof_harq_processes : 0U;
+    harqs.reconfigure(static_cast<unsigned>(pdsch_serv_cell->nof_harq_proc),
+                      static_cast<unsigned>(pusch_serv_cell->nof_harq_proc),
+                      pdsch_serv_cell->dl_harq_feedback_disabled,
+                      pusch_serv_cell->ul_harq_mode,
+                      nof_cg_reserved_harq);
+  }
 
   get_pusch_power_controller().reconfigure(ue_cell_cfg);
 }
@@ -104,6 +103,31 @@ std::optional<dl_harq_process_handle> ue_cell::handle_dl_ack_info(slot_point    
     return h_dl;
   }
 
+  // Only an ACK confirms the UE decoded a Differential Koffset MAC CE. Only an NTN cell signals one, and only the
+  // transport block it went out on settles it, so the scan runs for the few reports in between.
+  if (cell_cfg.ntn_cs_koffset != 0 and shared_ctx.koffset_tracker.has_pending_ce() and
+      carries_differential_koffset_ce(*h_dl)) {
+    if (ack_value == mac_harq_ack_report_status::ack) {
+      shared_ctx.koffset_tracker.handle_ce_acked();
+    } else if (not h_dl->has_pending_retx()) {
+      // No further transmission can carry the value to the UE.
+      logger.info("ue={} rnti={}: Giving up the Differential Koffset in flight. Cause: no transmission of it is left",
+                  ue_index,
+                  rnti());
+      shared_ctx.koffset_tracker.handle_ce_dropped();
+    } else if (ack_value == mac_harq_ack_report_status::nack) {
+      shared_ctx.koffset_tracker.handle_ce_nacked();
+    } else {
+      // TODO: nothing was detected where the HARQ-ACK was expected, so whether the UE decoded the MAC CE is unknown.
+      // A UE that decoded it answers the retransmission at the Koffset it now applies, which is not the one this
+      // scheduler allocates the PUCCH at, so the retransmission settles nothing either. Handle this case.
+      logger.info("ue={} rnti={}: The Differential Koffset in flight stays unsettled. Cause: no HARQ-ACK was "
+                  "detected where the MAC CE expected one",
+                  ue_index,
+                  rnti());
+    }
+  }
+
   // In case of NACK/DTX, extend DRX window, if needed. As per TS 38.321, Section 5.7, the drx-HARQ-RTT-TimerDL starts
   // after the end of the transmission carrying the DL HARQ feedback, which, for a PUCCH with repetitions, is the last
   // repetition of the burst.
@@ -123,8 +147,8 @@ std::optional<dl_harq_process_handle> ue_cell::handle_dl_ack_info(slot_point    
   return h_dl;
 }
 
-expected<std::pair<units::bytes, bool>, ue_cell::crc_not_concluded>
-ue_cell::handle_crc_pdu(slot_point pusch_slot, const ul_crc_pdu_indication& crc_pdu)
+expected<ue_cell::crc_outcome, ue_cell::crc_not_concluded> ue_cell::handle_crc_pdu(slot_point pusch_slot,
+                                                                                   const ul_crc_pdu_indication& crc_pdu)
 {
   // Find UL HARQ with matching PUSCH slot.
   std::optional<ul_harq_process_handle> h_ul = harqs.find_ul_harq_waiting_ack(pusch_slot);
@@ -167,17 +191,17 @@ ue_cell::handle_crc_pdu(slot_point pusch_slot, const ul_crc_pdu_indication& crc_
 
   // HARQ with matching ID and UCI slot was found.
 
-  // With CG, if a CRC KO is found with SINR below threshold, we assume it's a DTX (PUSCH wasn't transmitted).
-  bool pusch_transmitted = true;
-
-  if (h_ul->is_cg() and not combined_crc_success and crc_pdu.ul_sinr_dB.has_value() and
-      crc_pdu.ul_sinr_dB.value() < expert_cfg.cg_pusch_sinr_threshold_dB) {
-    pusch_transmitted = false;
-    return std::make_pair(units::bytes(0U), pusch_transmitted);
+  // With CG, a CRC KO is assumed to be a DTX (PUSCH wasn't transmitted) when the SINR measurement is below
+  // cg_pusch_sinr_threshold_dB, or it is non-finite. A CRC KO carrying no SINR at all is instead taken as a KO.
+  const bool is_cg = h_ul->is_cg();
+  if (is_cg and not combined_crc_success and crc_pdu.ul_sinr_dB.has_value() and
+      (not std::isfinite(crc_pdu.ul_sinr_dB.value()) or
+       crc_pdu.ul_sinr_dB.value() < expert_cfg.cg_pusch_sinr_threshold_dB)) {
+    return crc_outcome{.tbs = units::bytes(0U), .pusch_transmitted = false, .is_cg = is_cg};
   }
 
   // With CG, MCS is fixed, thus we don't want to update OLLA or channel state.
-  if (not h_ul->is_cg()) {
+  if (not is_cg) {
     // Update link adaptation controller.
     components.ue_mcs_calculator->handle_ul_crc_info(combined_crc_success,
                                                      h_ul->get_grant_params().mcs,
@@ -191,7 +215,7 @@ ue_cell::handle_crc_pdu(slot_point pusch_slot, const ul_crc_pdu_indication& crc_
     }
   }
 
-  return std::make_pair(tbs_ret.value(), pusch_transmitted);
+  return crc_outcome{.tbs = tbs_ret.value(), .pusch_transmitted = true, .is_cg = is_cg};
 }
 
 void ue_cell::handle_srs_channel_matrix(const srs_channel_matrix& channel_matrix)
@@ -412,9 +436,9 @@ aggregation_level ue_cell::get_aggregation_level(float cqi, const search_space_i
     }
   }
 
-  if (not ss_info.cfg->is_common_search_space() and cfg().csi_meas_cfg() != nullptr) {
-    // NOTE: It is assumed there is atleast one CSI report configured for UE.
-    cqi_table = cfg().csi_meas_cfg()->csi_report_cfg_list.back().cqi_table.value();
+  // The UE reports the CQI with the table that matches the MCS table of its PDSCH.
+  if (not ss_info.cfg->is_common_search_space() and cfg().has_csi_cfg() and ss_info.bwp->dl.pdsch().ded() != nullptr) {
+    cqi_table = get_cqi_table(ss_info.bwp->dl.pdsch().ded()->mcs_table);
   }
 
   // Apply the configured offset to the CQI and make sure it is in the allowed range.
@@ -474,7 +498,7 @@ double ue_cell::get_estimated_dl_rate(const pdsch_config_params& pdsch_cfg, sch_
                                                             .nof_dmrs_prb     = dmrs_prbs,
                                                             .nof_oh_prb       = pdsch_cfg.nof_oh_prb,
                                                             .mcs_descr        = mcs_info,
-                                                            .nof_layers       = pdsch_cfg.nof_layers,
+                                                            .nof_layers       = pdsch_cfg.nof_layers(),
                                                             .tb_scaling_field = pdsch_cfg.tb_scaling_field,
                                                             .n_prb            = nof_prbs});
 

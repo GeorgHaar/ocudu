@@ -25,12 +25,16 @@ f1ap_du_ue_context_modification_procedure::f1ap_du_ue_context_modification_proce
 {
 }
 
+/// Applies a UE context modification or reports a failure when the request is invalid.
 void f1ap_du_ue_context_modification_procedure::operator()(coro_context<async_task<void>>& ctx)
 {
   CORO_BEGIN(ctx);
 
   // Modify UE configuration in DU.
-  create_du_request(req);
+  if (not create_du_request(req)) {
+    send_ue_context_modification_failure(asn1::f1ap::cause_radio_network_opts::cell_not_available);
+    CORO_EARLY_RETURN();
+  }
   CORO_AWAIT_VALUE(du_response, ue.du_handler.request_ue_context_update(du_request));
 
   // Set that the UE has a pending RRC configuration.
@@ -65,7 +69,8 @@ void f1ap_du_ue_context_modification_procedure::operator()(coro_context<async_ta
   CORO_RETURN();
 }
 
-void f1ap_du_ue_context_modification_procedure::create_du_request(const asn1::f1ap::ue_context_mod_request_s& msg)
+/// Builds the DU request and returns false if the SpCell identity is invalid.
+bool f1ap_du_ue_context_modification_procedure::create_du_request(const asn1::f1ap::ue_context_mod_request_s& msg)
 {
   // Construct DU request.
   du_request.ue_index = ue.context.ue_index;
@@ -76,6 +81,10 @@ void f1ap_du_ue_context_modification_procedure::create_du_request(const asn1::f1
     // TS 38.331"
     auto plmn = plmn_identity::from_bytes(msg->sp_cell_id.plmn_id.to_bytes());
     auto nci  = nr_cell_identity::create(msg->sp_cell_id.nr_cell_id.to_number());
+    if (not plmn.has_value() or not nci.has_value()) {
+      logger.warning("{}: Invalid SpCell ID in UE Context Modification Request", f1ap_log_prefix{ue.context, name()});
+      return false;
+    }
     du_request.spcell_id.emplace(plmn.value(), nci.value());
   }
 
@@ -84,6 +93,11 @@ void f1ap_du_ue_context_modification_procedure::create_du_request(const asn1::f1
   // message, the gNB-DU shall generate a CellGroupConfig IE using full configuration and include it in the UE CONTEXT
   // MODIFICATION RESPONSE.
   du_request.full_config_required = msg->full_cfg_present;
+
+  // [TS 38.473, section 8.3.4.2] If the gNB-DU Configuration Query IE is contained in the UE CONTEXT MODIFICATION
+  // REQUEST message, gNB-DU shall include the DU To CU RRC Information IE in the UE CONTEXT MODIFICATION RESPONSE
+  // message.
+  du_request.gnb_du_cfg_query = msg->gnb_du_cfg_query_present;
 
   // >> Pass SRBs to setup/modify.
   for (const auto& srb : msg->srbs_to_be_setup_mod_list) {
@@ -146,10 +160,12 @@ void f1ap_du_ue_context_modification_procedure::create_du_request(const asn1::f1
     // List IE in the UE CONTEXT MODIFICATION RESPONSE message.
     auto& list = du_request.serving_cell_mo_list.emplace();
     for (const auto& item : msg->serving_cell_mo_list) {
-      list.emplace_back(f1ap_serving_cell_mo_list_item{item->serving_cell_mo_list_item().serving_cell_mo,
-                                                       item->serving_cell_mo_list_item().ssb_freq});
+      list.emplace_back(
+          f1ap_serving_cell_mo_list_item{static_cast<uint8_t>(item->serving_cell_mo_list_item().serving_cell_mo),
+                                         item->serving_cell_mo_list_item().ssb_freq});
     }
   }
+  return true;
 }
 
 void f1ap_du_ue_context_modification_procedure::send_ue_context_modification_response()
@@ -218,7 +234,9 @@ void f1ap_du_ue_context_modification_procedure::send_ue_context_modification_res
   ue.f1ap_msg_notifier.on_new_message(f1ap_msg);
 }
 
-void f1ap_du_ue_context_modification_procedure::send_ue_context_modification_failure()
+/// Sends a modification failure with the supplied radio-network cause.
+void f1ap_du_ue_context_modification_procedure::send_ue_context_modification_failure(
+    asn1::f1ap::cause_radio_network_opts::options cause)
 {
   f1ap_message f1ap_msg;
   f1ap_msg.pdu.set_unsuccessful_outcome().load_info_obj(ASN1_F1AP_ID_UE_CONTEXT_MOD);
@@ -226,7 +244,7 @@ void f1ap_du_ue_context_modification_procedure::send_ue_context_modification_fai
 
   resp->gnb_du_ue_f1ap_id               = to_underlying(ue.context.gnb_du_ue_f1ap_id);
   resp->gnb_cu_ue_f1ap_id               = to_underlying(ue.context.gnb_cu_ue_f1ap_id);
-  resp->cause.set_radio_network().value = asn1::f1ap::cause_radio_network_opts::unspecified;
+  resp->cause.set_radio_network().value = cause;
 
   ue.f1ap_msg_notifier.on_new_message(f1ap_msg);
 }

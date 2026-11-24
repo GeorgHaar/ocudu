@@ -2,7 +2,9 @@
 // SPDX-FileCopyrightText: Copyright (C) 2026 OCUDU contributors
 // SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 
+#include "radio_difi_stream_config.h"
 #include "radio_factory_difi_impl.h"
+#include "ocudu/radio/capabilities/radio_tx_gain_control.h"
 #include "ocudu/radio/radio_constants.h"
 #include "ocudu/radio/radio_factory.h"
 #include "ocudu/support/executors/task_worker.h"
@@ -213,6 +215,120 @@ const std::vector<test_case_t> radio_difi_validator_test_data = {
        return config;
      },
      ""},
+    // Two transmit channels: the first takes the stream port, the second names its own.
+    {[] {
+       radio_configuration::radio config = radio_base_config;
+       config.tx_streams.front().channels.push_back({base_lo_frequency, 20.0, "port=4993"});
+       return config;
+     },
+     ""},
+    // Every channel may name its own port, the first one included.
+    {[] {
+       radio_configuration::radio config               = radio_base_config;
+       config.tx_streams.front().channels.front().args = "port=5001";
+       config.tx_streams.front().channels.push_back({base_lo_frequency, 20.0, "port=5003,"});
+       return config;
+     },
+     ""},
+    // A transmit stream without channels.
+    {[] {
+       radio_configuration::radio config = radio_base_config;
+       config.tx_streams.front().channels.clear();
+       return config;
+     },
+     "Every DIFI transmit stream needs at least one channel.\n"},
+    // A second transmit channel without a port.
+    {[] {
+       radio_configuration::radio config = radio_base_config;
+       config.tx_streams.front().channels.push_back(base_channel);
+       return config;
+     },
+     "Channel 1 of DIFI stream 0 has no port, expected port=<number> in its arguments.\n"},
+    // Two transmit channels on one port.
+    {[] {
+       radio_configuration::radio config = radio_base_config;
+       config.tx_streams.front().channels.push_back({base_lo_frequency, 20.0, "port=4991"});
+       return config;
+     },
+     "DIFI transmit port 4991 is used by more than one channel.\n"},
+    // Two streams on one port.
+    {[] {
+       radio_configuration::radio config = radio_base_config;
+       config.tx_streams.push_back(base_tx_stream);
+       config.rx_streams.push_back({{base_channel}, "ip=0.0.0.0,port=4994"});
+       return config;
+     },
+     "DIFI transmit port 4991 is used by more than one channel.\n"},
+    // A channel takes a port only; the address is shared by the whole radio.
+    {[] {
+       radio_configuration::radio config = radio_base_config;
+       config.tx_streams.front().channels.push_back({base_lo_frequency, 20.0, "ip=127.0.0.2,port=4993"});
+       return config;
+     },
+     "Unknown channel argument key 'ip'.\n"},
+    // A malformed channel argument.
+    {[] {
+       radio_configuration::radio config = radio_base_config;
+       config.tx_streams.front().channels.push_back({base_lo_frequency, 20.0, "4993"});
+       return config;
+     },
+     "Channel argument '4993' is malformed, expected key=value.\n"},
+    // A larger transmit packet size.
+    {[] {
+       radio_configuration::radio config = radio_base_config;
+       config.args                       = "tx_port=4991,pkt_samples=7680";
+       return config;
+     },
+     ""},
+    // The largest transmit packet that fits a UDP datagram.
+    {[] {
+       radio_configuration::radio config = radio_base_config;
+       config.args                       = "pkt_samples=16369";
+       return config;
+     },
+     ""},
+    // A longer receive lag.
+    {[] {
+       radio_configuration::radio config = radio_base_config;
+       config.args                       = "rx_port=4992,rx_lag_us=5000";
+       return config;
+     },
+     ""},
+    // Two receive channels, each on its own port.
+    {[] {
+       radio_configuration::radio config = radio_base_config;
+       config.rx_streams.front().channels.push_back({base_lo_frequency, 20.0, "port=4994"});
+       return config;
+     },
+     ""},
+    // A receive stream without channels.
+    {[] {
+       radio_configuration::radio config = radio_base_config;
+       config.rx_streams.front().channels.clear();
+       return config;
+     },
+     "Every DIFI receive stream needs at least one channel.\n"},
+    // A second receive channel without a port.
+    {[] {
+       radio_configuration::radio config = radio_base_config;
+       config.rx_streams.front().channels.push_back(base_channel);
+       return config;
+     },
+     "Channel 1 of DIFI stream 0 has no port, expected port=<number> in its arguments.\n"},
+    // Two receive channels on one port.
+    {[] {
+       radio_configuration::radio config = radio_base_config;
+       config.rx_streams.front().channels.push_back({base_lo_frequency, 20.0, "port=4992"});
+       return config;
+     },
+     "DIFI receive port 4992 is used by more than one channel.\n"},
+    // A channel port out of range.
+    {[] {
+       radio_configuration::radio config = radio_base_config;
+       config.tx_streams.front().channels.push_back({base_lo_frequency, 20.0, "port=0"});
+       return config;
+     },
+     "Stream port 0 is out of valid range [1, 65535].\n"},
 };
 
 class RadioDifiValidatorFixture : public ::testing::TestWithParam<test_case_t>
@@ -267,6 +383,74 @@ TEST_P(RadioDifiValidatorFixture, RadioDifiValidatorTest)
     std::unique_ptr<radio_session> radio = factory->create(config, *async_task_executor, notifier);
     ASSERT_NE(radio, nullptr);
   }
+}
+
+// Transmit gain takes the flat port index of radio_tx_gain_control, numbered by stream and then by channel.
+TEST(RadioDifiSessionTest, TxGainUsesFlatPortIndex)
+{
+  // ctest runs the DIFI test binaries in parallel, so this test keeps to its own ports, 15050 upwards.
+  static constexpr unsigned BASE_PORT    = 15050;
+  static constexpr unsigned NOF_STREAMS  = 2;
+  static constexpr unsigned NOF_CHANNELS = 2;
+
+  radio_configuration::radio config = radio_base_config;
+  config.tx_streams.clear();
+  config.rx_streams.clear();
+  unsigned port = BASE_PORT;
+  for (unsigned stream_id = 0; stream_id != NOF_STREAMS; ++stream_id) {
+    radio_configuration::stream& tx_stream = config.tx_streams.emplace_back();
+    tx_stream.args                         = "ip=127.0.0.1";
+    for (unsigned channel_id = 0; channel_id != NOF_CHANNELS; ++channel_id) {
+      tx_stream.channels.push_back({base_lo_frequency, 20.0, fmt::format("port={}", port++)});
+    }
+    config.rx_streams.push_back({{base_channel}, fmt::format("ip=127.0.0.1,port={}", port++)});
+  }
+
+  task_worker                    async_task_worker("async_thread", 2 * RADIO_MAX_NOF_PORTS);
+  std::unique_ptr<task_executor> async_task_executor = make_task_executor_ptr(async_task_worker);
+  radio_notifier_spy             notifier;
+  radio_factory_difi_impl        factory;
+
+  ASSERT_TRUE(factory.get_configuration_validator().is_configuration_valid(config));
+  std::unique_ptr<radio_session> radio = factory.create(config, *async_task_executor, notifier);
+  ASSERT_NE(radio, nullptr);
+  radio_tx_gain_control* tx_gain = radio->get_capabilities_registry().get<radio_tx_gain_control>();
+  ASSERT_NE(tx_gain, nullptr);
+
+  // Port 2 is the first channel of stream 1, which an index by stream would reject.
+  for (unsigned port_id = 0; port_id != NOF_STREAMS * NOF_CHANNELS; ++port_id) {
+    EXPECT_TRUE(tx_gain->set_tx_gain(port_id, 10.0)) << "Port " << port_id;
+  }
+  // Past the last port.
+  EXPECT_FALSE(tx_gain->set_tx_gain(NOF_STREAMS * NOF_CHANNELS, 10.0));
+}
+
+// The packet size takes any integer from one sample to the largest packet that fits a UDP datagram, and defaults to
+// the size that divides every slot.
+TEST(RadioDifiDeviceArgsTest, PacketSize)
+{
+  EXPECT_EQ(parse_difi_pkt_samples(""), DIFI_DEFAULT_PKT_SAMPLES);
+  EXPECT_EQ(parse_difi_pkt_samples("tx_port=4991, pkt_samples = 7680 "), 7680U);
+  EXPECT_EQ(parse_difi_pkt_samples("pkt_samples=1"), 1U);
+  EXPECT_EQ(parse_difi_pkt_samples(fmt::format("pkt_samples={}", DIFI_MAX_PKT_SAMPLES)), DIFI_MAX_PKT_SAMPLES);
+  EXPECT_FALSE(parse_difi_pkt_samples(fmt::format("pkt_samples={}", DIFI_MAX_PKT_SAMPLES + 1)).has_value());
+  EXPECT_FALSE(parse_difi_pkt_samples("pkt_samples=0").has_value());
+  EXPECT_FALSE(parse_difi_pkt_samples("pkt_samples=lots").has_value());
+  EXPECT_FALSE(parse_difi_pkt_samples("pkt_samples=-1").has_value());
+}
+
+// The receive lag takes any whole number of microseconds up to its limit, and defaults to 2 ms.
+TEST(RadioDifiDeviceArgsTest, ReceiveLag)
+{
+  static constexpr std::chrono::microseconds CONFIGURED_LAG{5000};
+
+  EXPECT_EQ(parse_difi_rx_lag(""), DIFI_DEFAULT_RX_LAG);
+  EXPECT_EQ(parse_difi_rx_lag(fmt::format("rx_port=4992, rx_lag_us = {}", CONFIGURED_LAG.count())), CONFIGURED_LAG);
+  EXPECT_EQ(parse_difi_rx_lag("rx_lag_us=0"), std::chrono::microseconds(0));
+  EXPECT_EQ(parse_difi_rx_lag(fmt::format("rx_lag_us={}", DIFI_MAX_RX_LAG.count())), DIFI_MAX_RX_LAG);
+  EXPECT_FALSE(parse_difi_rx_lag(fmt::format("rx_lag_us={}", DIFI_MAX_RX_LAG.count() + 1)).has_value());
+  EXPECT_FALSE(parse_difi_rx_lag("rx_lag_us=-1").has_value());
+  EXPECT_FALSE(parse_difi_rx_lag("rx_lag_us=2ms").has_value());
 }
 
 INSTANTIATE_TEST_SUITE_P(RadioDifiValidatorTest,

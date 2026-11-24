@@ -22,7 +22,7 @@ void ocudu::ocucp::merge_old_drb_association_from_as_config(up_old_drb_associati
 
   asn1::rrc_nr::ho_prep_info_s ho_prep_info;
   asn1::cbit_ref bref({rrc_handover_preparation_information.begin(), rrc_handover_preparation_information.end()});
-  if (ho_prep_info.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(ho_prep_info, bref) != asn1::OCUDUASN_SUCCESS) {
     logger.warning("Couldn't unpack HandoverPreparationInformation");
     return;
   }
@@ -41,7 +41,7 @@ void ocudu::ocucp::merge_old_drb_association_from_as_config(up_old_drb_associati
 
   asn1::rrc_nr::rrc_recfg_s source_recfg;
   asn1::cbit_ref            recfg_bref({ies.source_cfg.rrc_recfg.begin(), ies.source_cfg.rrc_recfg.end()});
-  if (source_recfg.unpack(recfg_bref) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(source_recfg, recfg_bref) != asn1::OCUDUASN_SUCCESS) {
     logger.warning("Couldn't unpack RRCReconfiguration in AS-Config");
     return;
   }
@@ -57,17 +57,73 @@ void ocudu::ocucp::merge_old_drb_association_from_as_config(up_old_drb_associati
   }
 
   for (const auto& drb : recfg_ies.radio_bearer_cfg.drb_to_add_mod_list) {
-    if (!drb.cn_assoc_present ||
-        drb.cn_assoc.type() != asn1::rrc_nr::drb_to_add_mod_s::cn_assoc_c_::types_opts::sdap_cfg) {
+    const drb_id_t drb_id = uint_to_drb_id(drb.drb_id);
+    if (drb.cn_assoc_present and
+        drb.cn_assoc.type() == asn1::rrc_nr::drb_to_add_mod_s::cn_assoc_c_::types_opts::sdap_cfg) {
+      const auto& sdap_cfg = drb.cn_assoc.sdap_cfg();
+      auto&       flows    = old_drb_association[uint_to_pdu_session_id(sdap_cfg.pdu_session)];
+      for (uint8_t qfi : sdap_cfg.mapped_qos_flows_to_add) {
+        flows[uint_to_qos_flow_id(qfi)] = {drb_id};
+      }
+    }
+    if (not drb.pdcp_cfg_present or not drb.pdcp_cfg.drb_present) {
       continue;
     }
-    const auto&      sdap_cfg = drb.cn_assoc.sdap_cfg();
-    pdu_session_id_t psi      = uint_to_pdu_session_id(sdap_cfg.pdu_session);
-    drb_id_t         drb_id   = uint_to_drb_id(drb.drb_id);
-    for (uint8_t qfi : sdap_cfg.mapped_qos_flows_to_add) {
-      old_drb_association[psi][uint_to_qos_flow_id(qfi)] = drb_id;
+    // The flow mapping may already have arrived through the native handover IE.
+    for (auto& session : old_drb_association) {
+      for (auto& flow : session.second) {
+        auto& source = flow.second;
+        if (source.drb_id != drb_id) {
+          continue;
+        }
+        if (drb.pdcp_cfg.drb.pdcp_sn_size_dl_present) {
+          source.pdcp_sn_size_dl =
+              drb.pdcp_cfg.drb.pdcp_sn_size_dl.to_number() == 12 ? pdcp_sn_size::size12bits : pdcp_sn_size::size18bits;
+        }
+        if (drb.pdcp_cfg.drb.pdcp_sn_size_ul_present) {
+          source.pdcp_sn_size_ul =
+              drb.pdcp_cfg.drb.pdcp_sn_size_ul.to_number() == 12 ? pdcp_sn_size::size12bits : pdcp_sn_size::size18bits;
+        }
+      }
     }
   }
+}
+
+static std::optional<asn1::rrc_nr::ho_prep_info_s> unpack_handover_preparation(const byte_buffer& container)
+{
+  asn1::rrc_nr::ho_prep_info_s info;
+  asn1::cbit_ref               reader{container};
+  if (asn1::unpack(info, reader) != asn1::OCUDUASN_SUCCESS or
+      info.crit_exts.type() != asn1::rrc_nr::ho_prep_info_s::crit_exts_c_::types::c1 or
+      info.crit_exts.c1().type() != asn1::rrc_nr::ho_prep_info_s::crit_exts_c_::c1_c_::types::ho_prep_info) {
+    return std::nullopt;
+  }
+  return info;
+}
+
+std::optional<rrc_ue_capabilities_t> ocudu::ocucp::decode_handover_capabilities(const byte_buffer& container)
+{
+  if (container.empty()) {
+    return rrc_ue_capabilities_t{};
+  }
+  auto info = unpack_handover_preparation(container);
+  if (not info.has_value()) {
+    return std::nullopt;
+  }
+  bool invalid_nr_container = false;
+  for (const auto& rat : info->crit_exts.c1().ho_prep_info().ue_cap_rat_list) {
+    if (rat.rat_type == asn1::rrc_nr::rat_type_opts::nr) {
+      auto capabilities = decode_ue_nr_capabilities(rat.ue_cap_rat_container);
+      if (capabilities.has_value()) {
+        return capabilities;
+      }
+      invalid_nr_container = true;
+    }
+  }
+  if (invalid_nr_container) {
+    return std::nullopt;
+  }
+  return rrc_ue_capabilities_t{};
 }
 
 bool ocudu::ocucp::handle_context_setup_response(

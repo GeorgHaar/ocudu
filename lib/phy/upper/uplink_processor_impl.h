@@ -192,9 +192,6 @@ public:
   void stop() override;
 
 private:
-  /// Creates a static resource grid reference counter that outlives the repository.
-  static std::atomic<unsigned>& get_grid_ref_counter();
-
   // See uplink_slot_processor interface for documentation.
   void handle_rx_symbol(unsigned end_symbol_index, bool is_valid) override;
 

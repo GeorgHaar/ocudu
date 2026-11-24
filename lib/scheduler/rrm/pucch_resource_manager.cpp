@@ -5,10 +5,10 @@
 
 #include "ocudu/scheduler/rrm/pucch_resource_manager.h"
 #include "ocudu/adt/format.h"
-#include "ocudu/ran/csi_report/csi_report_config_helpers.h"
 #include "ocudu/ran/csi_report/csi_report_on_pucch_helpers.h"
 #include "ocudu/ran/csi_rs/csi_meas_config.h"
 #include "ocudu/ran/pucch/pucch_configuration.h"
+#include "ocudu/ran/pucch/pucch_uci_bits.h"
 #include "ocudu/ran/resource_allocation/ofdm_symbol_range.h"
 #include "ocudu/ran/tdd/tdd_ul_dl_config.h"
 #include "ocudu/scheduler/config/cell_bwp_res_config.h"
@@ -18,13 +18,37 @@
 #include "ocudu/scheduler/config/sched_cell_config_helpers.h"
 #include "ocudu/scheduler/config/serving_cell_config.h"
 #include "ocudu/scheduler/config/serving_cell_config_builder.h"
-#include "ocudu/scheduler/config/serving_cell_config_factory.h"
 #include "ocudu/scheduler/config/ue_bwp_config.h"
+#include "ocudu/scheduler/rrm/du_srs_resource.h"
+#include <algorithm>
 #include <limits>
 #include <numeric>
 #include <utility>
 
 using namespace ocudu;
+
+/// Lists the slot offsets where a periodic PUCCH with the given symbols fits the UL symbols and does not overlap the
+/// SRS.
+static std::vector<unsigned>
+get_periodic_pucch_slot_offsets(const ran_cell_config& cell_cfg, unsigned period_slots, ofdm_symbol_range pucch_syms)
+{
+  const cyclic_prefix   cp      = cell_cfg.ul_cfg_common.init_ul_bwp.generic_params.cp;
+  std::vector<unsigned> offsets = get_ul_slot_offsets(cell_cfg.tdd_cfg, period_slots, pucch_syms, cp);
+  if (not cell_cfg.tdd_cfg.has_value() or cell_cfg.init_bwp.srs_cfg.srs_type_enabled == srs_type::disabled) {
+    return offsets;
+  }
+
+  // In a partially-UL slot, the SRS can use more symbols than the SRS max_nof_symbols. The PUCCH symbol budget leaves
+  // only the last max_nof_symbols symbols free.
+  const tdd_ul_dl_config_common& tdd_cfg      = *cell_cfg.tdd_cfg;
+  const auto                     overlaps_srs = [&](unsigned offset) {
+    return is_tdd_partial_ul_slot(tdd_cfg, offset) and
+           pucch_syms.overlaps(get_srs_symbols_in_partial_ul_slot(get_active_tdd_ul_symbols(tdd_cfg, offset, cp),
+                                                                  cell_cfg.init_bwp.srs_cfg.nof_symbols));
+  };
+  offsets.erase(std::remove_if(offsets.begin(), offsets.end(), overlaps_srs), offsets.end());
+  return offsets;
+}
 
 pucch_resource_manager::pucch_resource_manager(unsigned max_pucch_grants_per_slot_) :
   // Leave 1 PUCCH grant for HARQ ACKs.
@@ -33,72 +57,45 @@ pucch_resource_manager::pucch_resource_manager(unsigned max_pucch_grants_per_slo
   ocudu_assert(max_pucch_grants_per_slot_ > 0, "At least one PUCCH grant per slot is required");
 }
 
-void pucch_resource_manager::add_cell(du_cell_index_t cell_idx, const ran_cell_config& cell_cfg)
+void pucch_resource_manager::add_cell(du_cell_index_t        cell_idx,
+                                      const ran_cell_config& cell_cfg,
+                                      const cell_rrm_config& rrm_cfg)
 {
   ocudu_assert(not cells.contains(cell_idx), "Cell index={} already configured", cell_idx);
 
   cell_resource_context cell_ctx;
 
-  cell_ctx.cell_params  = cell_cfg;
-  cell_ctx.cell_bwp_cfg = make_cell_bwp_res_config(cell_cfg);
-  // TODO: remove these after we get rid of \c serving_cell_config.
-  if (cell_ctx.cell_params.init_bwp.csi.has_value() and
-      not cell_ctx.cell_params.init_bwp.csi->enable_aperiodic_report) {
-    cell_ctx.default_csi_report_cfg =
-        config_helpers::make_default_ue_cell_config(cell_cfg).serv_cell_cfg.csi_meas_cfg.value().csi_report_cfg_list[0];
+  cell_ctx.cell_params = cell_cfg;
+  cell_ctx.pucch_res   = &rrm_cfg.pucch;
+  {
+    // TODO: The CSI report is the only part of the cell BWP resources that the manager reads.
+    const cell_bwp_res_config cell_bwp_cfg = make_cell_bwp_res_config(cell_cfg, rrm_cfg);
+    if (cell_bwp_cfg.dl.csi.has_value() and cell_bwp_cfg.dl.csi->pucch_report() != nullptr) {
+      cell_ctx.csi_report = *cell_bwp_cfg.dl.csi->pucch_report();
+    }
   }
 
   // Compute SR period and SR configuration list.
   // TODO: Handle more than one SR period.
   cell_ctx.sr_period_slots = sr_periodicity_to_slot(cell_cfg.init_bwp.pucch.sr_period);
-  for (unsigned res = 0; res < cell_ctx.cell_params.init_bwp.pucch.resources.nof_cell_sr_resources; ++res) {
-    for (unsigned offset = 0; offset != cell_ctx.sr_period_slots; ++offset) {
-      if (cell_cfg.tdd_cfg.has_value()) {
-        const tdd_ul_dl_config_common& tdd_cfg = *cell_cfg.tdd_cfg;
-        const unsigned slot_index = offset % (NOF_SUBFRAMES_PER_FRAME * get_nof_slots_per_subframe(tdd_cfg.ref_scs));
-        if (not has_active_tdd_ul_symbols(tdd_cfg, slot_index)) {
-          // UL disabled for this slot.
-          continue;
-        }
-
-        const pucch_resource& sr_res = cell_ctx.cell_bwp_cfg.ul.pucch.get_ded(
-            cell_ctx.cell_params.init_bwp.pucch.resources.sr_res_id(pucch_sr_resource_id(res)));
-        const auto slot_ul_syms = get_active_tdd_ul_symbols(
-            tdd_cfg, slot_index, cell_ctx.cell_params.ul_cfg_common.init_ul_bwp.generic_params.cp);
-        if (not slot_ul_syms.contains(sr_res.syms)) {
-          // The UL symbols in this slot do not contain the symbols for the resource.
-          continue;
-        }
-      }
+  for (unsigned res = 0; res != cell_ctx.pucch_res->res.sr.size(); ++res) {
+    const pucch_resource& sr_res =
+        cell_ctx.pucch_res->res.get(cell_ctx.pucch_res->res.get_sr(pucch_sr_resource_id(res)).res_id);
+    for (unsigned offset : get_periodic_pucch_slot_offsets(cell_cfg, cell_ctx.sr_period_slots, sr_res.syms)) {
       cell_ctx.free_sr_configs.emplace_back(periodic_pucch_config{res, offset});
     }
   }
 
   // Compute CSI period and CSI configuration list (if periodic CSI reporting is configured).
   // TODO: Handle more than one CSI report period.
-  if (cell_ctx.default_csi_report_cfg.has_value()) {
+  if (cell_ctx.pucch_csi_report() != nullptr) {
     cell_ctx.csi_period_slots = to_underlying(cell_ctx.cell_params.init_bwp.csi->csi_rs_period);
     // Compute the LCM of SR and CSI periods, as they might not be multiples of each other.
     cell_ctx.lcm_csi_sr_period = std::lcm(cell_ctx.sr_period_slots, cell_ctx.csi_period_slots);
-    for (unsigned res = 0; res < cell_ctx.cell_params.init_bwp.pucch.resources.nof_cell_csi_resources; ++res) {
-      for (unsigned offset = 0; offset != cell_ctx.csi_period_slots; ++offset) {
-        if (cell_cfg.tdd_cfg.has_value()) {
-          const tdd_ul_dl_config_common& tdd_cfg = *cell_cfg.tdd_cfg;
-          const unsigned slot_index = offset % (NOF_SUBFRAMES_PER_FRAME * get_nof_slots_per_subframe(tdd_cfg.ref_scs));
-          if (not has_active_tdd_ul_symbols(tdd_cfg, slot_index)) {
-            // UL disabled for this slot.
-            continue;
-          }
-
-          const pucch_resource& csi_res = cell_ctx.cell_bwp_cfg.ul.pucch.get_ded(
-              cell_ctx.cell_params.init_bwp.pucch.resources.csi_res_id(pucch_csi_resource_id(res)));
-          const auto slot_ul_syms = get_active_tdd_ul_symbols(
-              tdd_cfg, slot_index, cell_ctx.cell_params.ul_cfg_common.init_ul_bwp.generic_params.cp);
-          if (not slot_ul_syms.contains(csi_res.syms)) {
-            // The UL symbols in this slot do not contain the symbols for the resource.
-            continue;
-          }
-        }
+    for (unsigned res = 0; res != cell_ctx.pucch_res->res.csi.size(); ++res) {
+      const pucch_resource& csi_res =
+          cell_ctx.pucch_res->res.get(cell_ctx.pucch_res->res.get_csi(pucch_csi_resource_id(res)).res_id);
+      for (unsigned offset : get_periodic_pucch_slot_offsets(cell_cfg, cell_ctx.csi_period_slots, csi_res.syms)) {
         cell_ctx.free_csi_configs.emplace_back(periodic_pucch_config{res, offset});
       }
     }
@@ -126,9 +123,15 @@ bool pucch_resource_manager::alloc_resources(ue_cell_config& cell_cfg)
   auto& free_csi_configs = cell_ctx.free_csi_configs;
 
   // Verify where there are SR and CSI resources to allocate a new UE.
-  if (free_sr_configs.empty() or (cell_ctx.default_csi_report_cfg.has_value() and free_csi_configs.empty())) {
-    disable_pucch_cfg(serv_cell_cfg, cell_ctx);
+  const csi_report_configuration* csi_report = cell_ctx.pucch_csi_report();
+  if (free_sr_configs.empty() or (csi_report != nullptr and free_csi_configs.empty())) {
     return false;
+  }
+
+  // Size of the periodic CSI report of the UE.
+  std::optional<unsigned> csi_report_nof_bits;
+  if (csi_report != nullptr) {
+    csi_report_nof_bits = get_csi_report_pucch_size(*csi_report).part1_size.value();
   }
 
   std::optional<periodic_pucch_config> sr_cfg;
@@ -139,18 +142,14 @@ bool pucch_resource_manager::alloc_resources(ue_cell_config& cell_cfg)
       continue;
     }
 
-    if (not cell_ctx.default_csi_report_cfg.has_value()) {
+    if (not csi_report_nof_bits.has_value()) {
       // No CSI report to allocate. Allocation successful.
       sr_cfg = *sr_cfg_it;
       free_sr_configs.erase(sr_cfg_it);
       break;
     }
 
-    serv_cell_cfg.csi_meas_cfg->csi_report_cfg_list = {*cell_ctx.default_csi_report_cfg};
-    const auto csi_report_cfg                       = create_csi_report_configuration(*serv_cell_cfg.csi_meas_cfg);
-    const auto csi_report_size                      = get_csi_report_pucch_size(csi_report_cfg);
-    auto       optimal_res_it =
-        get_compatible_csi_cfg(cell_ctx, *sr_cfg_it, free_csi_configs, csi_report_size.part1_size.value());
+    auto optimal_res_it = get_compatible_csi_cfg(cell_ctx, *sr_cfg_it, free_csi_configs, *csi_report_nof_bits);
 
     if (optimal_res_it != free_csi_configs.end()) {
       // Allocation successful. Remove SR and CSI resources assigned to this UE from the lists of free resources.
@@ -164,7 +163,6 @@ bool pucch_resource_manager::alloc_resources(ue_cell_config& cell_cfg)
 
   if (not sr_cfg.has_value()) {
     // No suitable configuration found. Allocation failed.
-    disable_pucch_cfg(serv_cell_cfg, cell_ctx);
     return false;
   }
 
@@ -176,26 +174,22 @@ bool pucch_resource_manager::alloc_resources(ue_cell_config& cell_cfg)
     ++cell_ctx.periodic_pucchs_per_slot[offset];
   }
 
-  // Update the BWP configuration for this UE with the allocated SR and CSI resources.
-  auto& ul_bwp                = cell_cfg.init_bwp().ul;
-  ul_bwp.pucch.res_set_cfg_id = pucch_resource_set_config_id(
-      cell_ctx.ue_idx % cell_ctx.cell_params.init_bwp.pucch.resources.nof_cell_res_set_configs);
-  ul_bwp.pucch.sr_res_id = pucch_sr_resource_id(sr_cfg->res);
-  ul_bwp.pucch.sr_offset = sr_cfg->offset;
+  // Record the allocated SR and CSI resources.
+  ue_pucch_rrm_config& pucch_rrm = cell_cfg.rrm.pucch;
+  pucch_rrm.res_set_cfg_id       = pucch_resource_set_config_id(cell_ctx.ue_idx % cell_ctx.pucch_res->res.harq.size());
+  pucch_rrm.sr_res_id            = pucch_sr_resource_id(sr_cfg->res);
+  pucch_rrm.sr_offset            = sr_cfg->offset;
+  auto& csi_rrm                  = cell_cfg.rrm.csi;
   if (csi_cfg.has_value()) {
-    ul_bwp.periodic_csi_report.emplace(ue_periodic_csi_config{
-        .pucch_res_id = pucch_csi_resource_id(csi_cfg->res),
-        .offset       = csi_cfg->offset,
-    });
+    csi_rrm.periodic_report.emplace(
+        ue_periodic_csi_rrm_config{.res_id = pucch_csi_resource_id(csi_cfg->res), .offset = csi_cfg->offset});
   } else {
-    ul_bwp.periodic_csi_report.reset();
+    csi_rrm.periodic_report.reset();
   }
 
-  // Fill the serving cell config with the PUCCH-related configuration.
-  serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg =
-      config_helpers::build_pucch_config(cell_ctx.cell_params, cell_ctx.cell_bwp_cfg.ul, cell_cfg.init_bwp());
+  // Fill the serving cell config with the CSI-related configuration.
   serv_cell_cfg.csi_meas_cfg =
-      config_helpers::build_csi_meas_config(cell_ctx.cell_params, cell_ctx.cell_bwp_cfg.ul, cell_cfg.init_bwp());
+      config_helpers::build_csi_meas_config(cell_ctx.cell_params, cell_ctx.pucch_res->res, cell_cfg.rrm);
 
   // Disable PUCCH repetition until \c update_resources is called with the UE's reported capabilities.
   apply_rep_factor_capabilities(cell_cfg, std::nullopt);
@@ -204,32 +198,26 @@ bool pucch_resource_manager::alloc_resources(ue_cell_config& cell_cfg)
   return true;
 }
 
-void pucch_resource_manager::dealloc_resources(ue_cell_config& cell_cfg)
+void pucch_resource_manager::dealloc_resources(const ue_cell_config& cell_cfg)
 {
-  auto&       serv_cell_cfg = cell_cfg.serv_cell_cfg;
-  const auto& ul_bwp        = cell_cfg.init_bwp().ul;
-  auto&       cell_ctx      = cells[serv_cell_cfg.cell_index];
-
-  if (not serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg.has_value()) {
-    return;
-  }
+  const auto& pucch_rrm = cell_cfg.rrm.pucch;
+  const auto& csi_rrm   = cell_cfg.rrm.csi;
+  auto&       cell_ctx  = cells[cell_cfg.serv_cell_cfg.cell_index];
 
   // Return SR resource/offset to the free list.
-  cell_ctx.free_sr_configs.emplace_back(periodic_pucch_config{ul_bwp.pucch.sr_res_id.value(), ul_bwp.pucch.sr_offset});
+  cell_ctx.free_sr_configs.emplace_back(periodic_pucch_config{pucch_rrm.sr_res_id.value(), pucch_rrm.sr_offset});
 
-  ocudu_assert(cell_ctx.default_csi_report_cfg.has_value() == ul_bwp.periodic_csi_report.has_value(),
+  ocudu_assert((cell_ctx.pucch_csi_report() != nullptr) == csi_rrm.periodic_report.has_value(),
                "Periodic CSI report configuration presence mismatch between cell and UE");
   // Return CSI resource/offset to the free list if periodic CSI is configured for this cell.
-  if (cell_ctx.default_csi_report_cfg.has_value()) {
+  if (cell_ctx.pucch_csi_report() != nullptr) {
     cell_ctx.free_csi_configs.emplace_back(
-        periodic_pucch_config{ul_bwp.periodic_csi_report->pucch_res_id.value(), ul_bwp.periodic_csi_report->offset});
+        periodic_pucch_config{csi_rrm.periodic_report->res_id.value(), csi_rrm.periodic_report->offset});
   }
 
   // Remove the SR and CSI offsets from the PUCCH grants-per-slot counter.
   for (auto offset : compute_periodic_uci_slot_offsets(
-           cell_ctx,
-           ul_bwp.pucch.sr_offset,
-           ul_bwp.periodic_csi_report.has_value() ? ul_bwp.periodic_csi_report->offset : 0)) {
+           cell_ctx, pucch_rrm.sr_offset, csi_rrm.periodic_report.has_value() ? csi_rrm.periodic_report->offset : 0)) {
     ocudu_assert(offset < cell_ctx.periodic_pucchs_per_slot.size(),
                  "Index exceeds the size of the PUCCH grants vector");
     ocudu_assert(cell_ctx.periodic_pucchs_per_slot[offset] != 0,
@@ -237,10 +225,6 @@ void pucch_resource_manager::dealloc_resources(ue_cell_config& cell_cfg)
                  offset);
     --cell_ctx.periodic_pucchs_per_slot[offset];
   }
-
-  // Disable the PUCCH configuration in this UE. This makes sure the DU will exit this function immediately when it
-  // gets called again for the same UE (upon destructor's call).
-  disable_pucch_cfg(serv_cell_cfg, cell_ctx);
 }
 
 void pucch_resource_manager::update_resources(ue_cell_config& cell_cfg, const ue_capability_summary& ue_caps)
@@ -251,12 +235,7 @@ void pucch_resource_manager::update_resources(ue_cell_config& cell_cfg, const ue
 void pucch_resource_manager::apply_rep_factor_capabilities(ue_cell_config&                             cell_cfg,
                                                            const std::optional<ue_capability_summary>& ue_caps)
 {
-  serving_cell_config& serv_cell_cfg = cell_cfg.serv_cell_cfg;
-  if (not serv_cell_cfg.ul_config.has_value() or not serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg.has_value()) {
-    return;
-  }
-
-  const cell_resource_context& cell_ctx = cells[serv_cell_cfg.cell_index];
+  const cell_resource_context& cell_ctx = cells[cell_cfg.serv_cell_cfg.cell_index];
 
   bool f1_3_4_supported      = false;
   bool f0_2_supported        = false;
@@ -272,20 +251,9 @@ void pucch_resource_manager::apply_rep_factor_capabilities(ue_cell_config&      
     dynamic_rep_supported = ue_caps->slot_based_dyn_pucch_rep_r17_supported;
   }
 
-  for (pucch_resource& res : serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg->pucch_res_list) {
-    const bool format_supported = (res.format() == pucch_format::FORMAT_0 or res.format() == pucch_format::FORMAT_2)
-                                      ? f0_2_supported
-                                      : f1_3_4_supported;
-    if (dynamic_rep_supported and format_supported) {
-      res.rep_factor = cell_ctx.cell_bwp_cfg.ul.pucch.get_ded(res.res_id).rep_factor;
-    } else {
-      res.rep_factor = pucch_repetition_factor::n1;
-    }
-  }
-
-  // Also record the UE's dynamic PUCCH repetition support directly on the UE's scheduler-facing PUCCH config.
-  cell_cfg.init_bwp().ul.pucch.rep_f1_3_4_enabled = dynamic_rep_supported and f1_3_4_supported;
-  cell_cfg.init_bwp().ul.pucch.rep_f0_2_enabled   = dynamic_rep_supported and f0_2_supported;
+  // Enable the repetition for the formats that the UE supports.
+  cell_cfg.rrm.pucch.rep_f1_3_4_enabled = dynamic_rep_supported and f1_3_4_supported;
+  cell_cfg.rrm.pucch.rep_f0_2_enabled   = dynamic_rep_supported and f0_2_supported;
 }
 
 std::vector<pucch_resource_manager::periodic_pucch_config>::const_iterator
@@ -294,8 +262,8 @@ pucch_resource_manager::get_compatible_csi_cfg(const cell_resource_context&     
                                                const std::vector<periodic_pucch_config>& free_csi_list,
                                                unsigned                                  csi_report_size) const
 {
-  const pucch_resource& sr_res = cell_ctx.cell_bwp_cfg.ul.pucch.get_ded(
-      cell_ctx.cell_params.init_bwp.pucch.resources.sr_res_id(pucch_sr_resource_id(sr_cfg.res)));
+  const pucch_resource& sr_res =
+      cell_ctx.pucch_res->res.get(cell_ctx.pucch_res->res.get_sr(pucch_sr_resource_id(sr_cfg.res)).res_id);
   const unsigned max_pucch_payload = cell_ctx.cell_params.init_bwp.pucch.resources.max_payload_234();
   const auto     is_compatible     = [&](const periodic_pucch_config& csi_cfg) {
     // Ensure the max PUCCH grants limit is not exceeded.
@@ -303,20 +271,21 @@ pucch_resource_manager::get_compatible_csi_cfg(const cell_resource_context&     
       return false;
     }
 
+    if (not csi_helper::are_sr_and_csi_pucchs_scheduled_together(
+            cell_ctx.sr_period_slots, sr_cfg.offset, cell_ctx.csi_period_slots, csi_cfg.offset)) {
+      return csi_report_size <= max_pucch_payload;
+    }
+
     // Ensure the CSI and SR resources collide in OFDM symbols, so they are multiplexed.
-    const pucch_resource& csi_res = cell_ctx.cell_bwp_cfg.ul.pucch.get_ded(
-        cell_ctx.cell_params.init_bwp.pucch.resources.csi_res_id(pucch_csi_resource_id(csi_cfg.res)));
+    const pucch_resource& csi_res =
+        cell_ctx.pucch_res->res.get(cell_ctx.pucch_res->res.get_csi(pucch_csi_resource_id(csi_cfg.res)).res_id);
     if (not csi_res.syms.overlaps(sr_res.syms)) {
       return false;
     }
 
-    // Ensure the SR and CSI reports can be sent together in the same PUCCH if their offsets collide.
-    const unsigned nof_sr_bits        = csi_helper::are_sr_and_csi_pucchs_scheduled_together(
-                                     cell_ctx.sr_period_slots, sr_cfg.offset, cell_ctx.csi_period_slots, csi_cfg.offset)
-                                                    ? 1
-                                                    : 0;
-    const unsigned candidate_uci_bits = nof_sr_bits + csi_report_size;
-    return candidate_uci_bits <= max_pucch_payload;
+    // Ensure the SR and CSI reports can be sent together in the same PUCCH.
+    static constexpr unsigned sr_payload_bits = to_underlying(sr_nof_bits::one);
+    return sr_payload_bits + csi_report_size <= max_pucch_payload;
   };
 
   // [Implementation-defined] CSI resource and report periods are the same.
@@ -385,19 +354,10 @@ std::set<unsigned> pucch_resource_manager::compute_periodic_uci_slot_offsets(con
     slot_offsets.emplace(off);
   }
 
-  if (cell_ctx.default_csi_report_cfg.has_value()) {
+  if (cell_ctx.pucch_csi_report() != nullptr) {
     for (unsigned off = csi_offset; off < cell_ctx.lcm_csi_sr_period; off += cell_ctx.csi_period_slots) {
       slot_offsets.emplace(off);
     }
   }
   return slot_offsets;
-}
-
-void pucch_resource_manager::disable_pucch_cfg(serving_cell_config&         serv_cell_cfg,
-                                               const cell_resource_context& cell_ctx)
-{
-  serv_cell_cfg.ul_config->init_ul_bwp.pucch_cfg.reset();
-  if (cell_ctx.default_csi_report_cfg.has_value()) {
-    serv_cell_cfg.csi_meas_cfg.value().csi_report_cfg_list.clear();
-  }
 }

@@ -100,23 +100,18 @@ public:
     if (!enabled()) {
       return;
     }
+    push_entry(std::chrono::system_clock::now(), fmtstr, std::forward<Args>(args)...);
+  }
 
-    // Populate the store with all incoming arguments.
-    auto* store = backend.alloc_arg_store();
-    if (!store) {
+  /// Builds a log entry stamped with \p tp instead of the current time and passes it to the backend. When the channel
+  /// is disabled the log entry will be discarded.
+  template <typename... Args>
+  void log_at(std::chrono::system_clock::time_point tp, const char* fmtstr, Args&&... args)
+  {
+    if (!enabled()) {
       return;
     }
-    (void)std::initializer_list<int>{(push_back(store, std::forward<Args>(args)), 0)...};
-
-    // Send the log entry to the backend.
-    log_formatter&    formatter = log_sink.get_formatter();
-    detail::log_entry entry     = {
-        &log_sink,
-        [&formatter](detail::log_entry_metadata&& metadata, fmt::memory_buffer& buffer) {
-          formatter.format(std::move(metadata), buffer);
-        },
-        {std::chrono::system_clock::now(), {ctx_value64, should_print_context}, fmtstr, store, log_name, log_tag}};
-    backend.push(std::move(entry));
+    push_entry(tp, fmtstr, std::forward<Args>(args)...);
   }
 
   /// Builds the provided log entry and passes it to the backend. When the
@@ -425,6 +420,26 @@ public:
   }
 
 private:
+  template <typename... Args>
+  void push_entry(std::chrono::system_clock::time_point tp, const char* fmtstr, Args&&... args)
+  {
+    // Populate the store with all incoming arguments.
+    auto* store = backend.alloc_arg_store();
+    if (!store) {
+      return;
+    }
+    (void)std::initializer_list<int>{(push_back(store, std::forward<Args>(args)), 0)...};
+
+    // Send the log entry to the backend.
+    log_formatter&    formatter = log_sink.get_formatter();
+    detail::log_entry entry     = {&log_sink,
+                                   [&formatter](detail::log_entry_metadata&& metadata, fmt::memory_buffer& buffer) {
+                                 formatter.format(std::move(metadata), buffer);
+                               },
+                                   {tp, {ctx_value64, should_print_context}, fmtstr, store, log_name, log_tag}};
+    backend.push(std::move(entry));
+  }
+
   const std::string     log_id;
   sink&                 log_sink;
   detail::log_backend&  backend;

@@ -67,6 +67,20 @@ constexpr member<T, M> field(const char* name, M T::* ptr)
   return member<T, M>{name, ptr, nullptr, true};
 }
 
+/// \brief A field that \p Derived inherits from a base, for a type that is reflected as its own wire type even
+/// though it derives from another one (e.g. \c dci_0_1_cs_rnti_configuration from \c dci_0_1_configuration).
+///
+/// Naming an inherited member as \c &Derived::m yields a pointer of type <tt>M Base::*</tt>, so plain \c field()
+/// would deduce \c member<Base, M> and the harness -- which sweeps a \c Derived instance -- would not be able to
+/// bind it. Deduction never applies the base-to-derived pointer-to-member conversion on its own, so \p Derived is
+/// named explicitly here and the conversion happens on the call below.
+template <typename Derived, typename Base, typename M>
+constexpr member<Derived, M> inherited_field(const char* name, M Base::* ptr)
+{
+  static_assert(std::is_base_of_v<Base, Derived>, "inherited_field requires Derived to derive from Base");
+  return field<Derived, M>(name, ptr);
+}
+
 /// \brief A field that is compared on every roundtrip check but never given its own sweep axis.
 ///
 /// For a field whose valid values depend on another field's, which a one-field-at-a-time sweep cannot express. Pair

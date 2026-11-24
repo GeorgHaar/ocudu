@@ -20,6 +20,7 @@
 #include "ocudu/ran/harq_id.h"
 #include "ocudu/ran/prach/prach_time_mapping.h"
 #include "ocudu/scheduler/config/cg_builder_params.h"
+#include <algorithm>
 #include <functional>
 #include <gtest/gtest.h>
 
@@ -45,16 +46,21 @@ public:
     builder_params = cell_config_builder_profiles::create(duplx_mode);
   }
 
+  /// Runs slots until a common PUCCH with HARQ bits is scheduled for \c rnti_to_find. The returned pointer stays
+  /// valid until the next slot runs.
   const pucch_info* run_until_common_pucch_with_harq(rnti_t rnti_to_find)
   {
     const pucch_info* first_conres_msg4_pucch = nullptr;
     run_slot_until([this, &first_conres_msg4_pucch, rnti_to_find]() {
-      span<const pucch_info> pucchs = this->last_sched_result()->ul.pucchs.unsorted();
-      return std::any_of(
-          pucchs.begin(), pucchs.end(), [&first_conres_msg4_pucch, rnti_to_find](const pucch_info& pucch) mutable {
-            first_conres_msg4_pucch = &pucch;
-            return pucch.crnti == rnti_to_find and is_f1_pucch_with_harq_bits(pucch, true, false);
-          });
+      span<const pucch_info> pucchs = this->last_sched_result()->ul.pucchs;
+      auto                   it = std::find_if(pucchs.begin(), pucchs.end(), [rnti_to_find](const pucch_info& pucch) {
+        return pucch.crnti == rnti_to_find and is_f1_pucch_with_harq_bits(pucch, true, false);
+      });
+      if (it == pucchs.end()) {
+        return false;
+      }
+      first_conres_msg4_pucch = &*it;
+      return true;
     });
     return first_conres_msg4_pucch;
   }
@@ -135,9 +141,10 @@ public:
     // Create cell config with space for two PDCCHs in the SearchSpace#1.
     add_cell(sched_config_helper::make_default_sched_cell_configuration_request(builder_params));
 
-    ocudu_assert(not this->cell_cfg(to_du_cell_index(0)).nzp_csi_rs_list.empty(),
+    const auto& csi_cfg = this->cell_cfg(to_du_cell_index(0)).bwp_res[to_bwp_id(0)].dl().csi;
+    ocudu_assert(csi_cfg.has_value() and not csi_cfg->nzp_csi_rs_list.empty(),
                  "This test assumes a setup with NZP CSI-RS enabled");
-    ocudu_assert(not this->cell_cfg(to_du_cell_index(0)).zp_csi_rs_list.empty(),
+    ocudu_assert(csi_cfg.has_value() and not csi_cfg->zp_csi_rs_list.empty(),
                  "This test assumes a setup with ZP CSI-RS enabled");
 
     // Create a UE with a DRB active.
@@ -170,6 +177,49 @@ TEST_F(scheduler_conres_without_pdu_test, when_conres_ce_is_enqueued_and_no_msg4
   ASSERT_EQ(find_ue_dl_pdcch(rnti)->dci.type(), dci_dl_rnti_config_type::tc_rnti_f1_0);
   ASSERT_TRUE(this->last_sched_result()->dl.csi_rs.empty());
 }
+
+/// \brief Test to verify that the UE leaves fallback mode and is scheduled with dedicated resources regardless of the
+/// order in which the ConRes CE ACK and the UE config applied events are processed.
+class scheduler_fallback_exit_test : public base_single_ue_scheduler_conres_test, public ::testing::TestWithParam<bool>
+{
+protected:
+  bool config_applied_before_conres_ack() const { return GetParam(); }
+};
+
+TEST_P(scheduler_fallback_exit_test, when_ue_exits_fallback_then_it_is_scheduled_with_dedicated_resources)
+{
+  static constexpr unsigned msg4_size = 128;
+  this->push_dl_buffer_state(dl_buffer_state_indication_message{this->ue_index, LCID_SRB1, msg4_size});
+
+  ASSERT_TRUE(run_until_conres_msg4_scheduled(rnti, lcid_dl_sch_t::UE_CON_RES_ID)) << "ConRes not scheduled";
+  if (get_msg4_msg_lc_info(rnti, LCID_SRB1) == nullptr) {
+    // The ConRes CE was scheduled alone, so the Msg4 needs its own PDSCH, which requires the ConRes CE ACK.
+    ASSERT_TRUE(run_until_pucch_scheduled_and_received(rnti, ue_index, /* ACK */ true));
+    ASSERT_TRUE(run_until_conres_msg4_scheduled(rnti, LCID_SRB1)) << "Msg4 not scheduled";
+  }
+
+  if (config_applied_before_conres_ack()) {
+    this->sched->handle_ue_config_applied(ue_index);
+  }
+  ASSERT_TRUE(run_until_pucch_scheduled_and_received(rnti, ue_index, /* ACK */ true));
+  if (not config_applied_before_conres_ack()) {
+    this->sched->handle_ue_config_applied(ue_index);
+  }
+
+  // Outside fallback mode, SRB1 data is scheduled with a UE-dedicated DCI format.
+  this->push_dl_buffer_state(dl_buffer_state_indication_message{this->ue_index, LCID_SRB1, msg4_size});
+  ASSERT_TRUE(this->run_slot_until([this]() {
+    const pdcch_dl_information* dl_pdcch = find_ue_dl_pdcch(rnti);
+    return dl_pdcch != nullptr and dl_pdcch->dci.type() == dci_dl_rnti_config_type::c_rnti_f1_1;
+  })) << "UE not scheduled with dedicated resources after leaving fallback";
+}
+
+INSTANTIATE_TEST_SUITE_P(scheduler_fallback_exit_test,
+                         scheduler_fallback_exit_test,
+                         ::testing::Values(false, true),
+                         [](const ::testing::TestParamInfo<bool>& param_info) {
+                           return param_info.param ? "config_applied_first" : "conres_ack_first";
+                         });
 
 // ------------------------------------------------------------------------------------------------------------------ //
 
@@ -298,7 +348,7 @@ TEST_P(scheduler_con_res_msg4_test, while_ue_is_in_fallback_then_common_pucch_is
     // - 1 PUCCH F1 ded. with 1 HARQ-ACK bit and NO SR and 1 PUCCH F1 ded. with 1 HARQ-ACK bit and SR.
     // - 1 PUCCH F2 ded. with 1 HARQ-ACK bit and CSI, with optional SR.
 
-    const auto& pucchs     = this->last_sched_result()->ul.pucchs.unsorted();
+    const auto& pucchs     = this->last_sched_result()->ul.pucchs;
     unsigned    nof_pucchs = pucchs.size();
 
     if (nof_pucchs == 1) {
@@ -413,13 +463,15 @@ INSTANTIATE_TEST_SUITE_P(scheduler_con_res_msg4_test_with_different_srb,
 
 struct conres_expiry_params {
   subcarrier_spacing max_scs        = subcarrier_spacing::kHz15;
-  unsigned           ntn_cs_koffset = 0;
+  unsigned           ntn_cs_koffset = 0; // in ms (slots at 15 kHz)
+  unsigned           ntn_k_mac      = 0; // in ms (slots at 15 kHz)
 };
 
 /// Formatter for test params.
 void PrintTo(const conres_expiry_params& value, ::std::ostream* os)
 {
-  *os << fmt::format("SCS={}, Cell-Specific-K-Offset={}", to_string(value.max_scs), value.ntn_cs_koffset);
+  *os << fmt::format(
+      "SCS={}, Cell-Specific-K-Offset={}, K-mac={}", to_string(value.max_scs), value.ntn_cs_koffset, value.ntn_k_mac);
 }
 
 class scheduler_conres_expiry_test : public scheduler_test_simulator,
@@ -435,12 +487,18 @@ protected:
 
     // Create cell.
     auto cell_cfg_req = sched_config_helper::make_default_sched_cell_configuration_request(builder_params);
-    if (ntn_cs_koffset != std::chrono::milliseconds{0}) {
+    if (ntn_cs_koffset != std::chrono::milliseconds{0} || GetParam().ntn_k_mac != 0) {
       cell_cfg_req.ran.ntn_params.emplace();
-      cell_cfg_req.ran.ntn_params->ntn_cfg.cell_specific_koffset = ntn_cs_koffset;
+      if (ntn_cs_koffset != std::chrono::milliseconds{0}) {
+        cell_cfg_req.ran.ntn_params->ntn_cfg.cell_specific_koffset = ntn_cs_koffset;
+      }
+      if (GetParam().ntn_k_mac != 0) {
+        cell_cfg_req.ran.ntn_params->ntn_cfg.k_mac = std::chrono::milliseconds{GetParam().ntn_k_mac};
+      }
     }
     add_cell(cell_cfg_req);
-    nof_rtt_slots    = ntn_cs_koffset.count() * next_slot.nof_slots_per_subframe();
+    // No PRACH slot for this UE, so the window is anchored on the Msg3 reception slot, already on the gNB DL clock,
+    // and is the plain timer. With a PRACH slot it would move with the K-offset and k_mac.
     conres_win_slots = cell_cfg(cell_index).params.ul_cfg_common.init_ul_bwp.rach_cfg_common->ra_con_res_timer.count() *
                        next_slot.nof_slots_per_subframe();
   }
@@ -454,14 +512,13 @@ protected:
     ul_ccch_slot_rx           = next_slot.without_hyper_sfn() - ue_creation_delay_slots;
     ue_cfg.ul_ccch_slot_rx    = ul_ccch_slot_rx;
     scheduler_test_simulator::add_ue(ue_cfg, false);
-    conres_expiry_slot = ul_ccch_slot_rx + conres_win_slots + nof_rtt_slots;
+    conres_expiry_slot = ul_ccch_slot_rx + conres_win_slots;
   }
 
   cell_config_builder_params builder_params{cell_config_builder_profiles::create(duplex_mode::TDD)};
   const du_cell_index_t      cell_index = to_du_cell_index(0);
   const du_ue_index_t        ue_index   = to_du_ue_index(0);
   const rnti_t               rnti       = to_rnti(0x4601);
-  unsigned                   nof_rtt_slots;
   unsigned                   conres_win_slots;
   slot_point                 ul_ccch_slot_rx;
   slot_point                 conres_expiry_slot;
@@ -471,7 +528,7 @@ TEST_P(scheduler_conres_expiry_test, when_conres_ce_arrives_after_conres_timer_e
 {
   // Create UE with a delay large enough that the ConRes timer is already expired at creation time. The
   // auto-injected ConRes CE should be immediately discarded by the scheduler.
-  create_ue(conres_win_slots + nof_rtt_slots + test_rng::uniform_int<unsigned>(0, 10));
+  create_ue(conres_win_slots + test_rng::uniform_int<unsigned>(0, 10));
 
   // Ensure the ConRes CE is not scheduled.
   ASSERT_FALSE(this->run_slot_until(
@@ -481,7 +538,7 @@ TEST_P(scheduler_conres_expiry_test, when_conres_ce_arrives_after_conres_timer_e
 TEST_P(scheduler_conres_expiry_test, when_conres_retx_goes_after_conres_timer_expiry_it_is_not_scheduled)
 {
   // Create UE with a delay close to the ConRes window so the first newTx is scheduled near expiry.
-  create_ue(conres_win_slots + nof_rtt_slots - 10);
+  create_ue(conres_win_slots - 10);
   auto pdsch_is_sched = [this]() { return find_ue_pdsch(rnti, *this->last_sched_result(cell_index)) != nullptr; };
 
   // Get closer to the conRes expiry slot (0 iterations with the chosen delay).
@@ -514,12 +571,12 @@ TEST_P(scheduler_conres_expiry_test, when_conres_retx_goes_after_conres_timer_ex
   ASSERT_FALSE(this->run_slot_until(pdsch_is_sched, 100));
 }
 
-TEST_P(scheduler_conres_expiry_test, when_ntn_cell_conres_timer_extended_with_rtt)
+TEST_P(scheduler_conres_expiry_test, when_conres_ce_arrives_within_conres_timer_then_pdsch_is_scheduled)
 {
   OCUDU_TEST_REQUIREMENTS("DU-NTN-TIM-1");
 
-  // Create UE with a delay equal to conres_win_slots when NTN RTT extension is enabled.
-  create_ue(nof_rtt_slots > 0 ? conres_win_slots : 0);
+  // Create the UE with no delay, so the ConRes window is wide open in both terrestrial and NTN cells.
+  create_ue();
   static constexpr unsigned msg4_size = 128;
   auto pdsch_is_sched = [this]() { return find_ue_pdsch(rnti, *this->last_sched_result(cell_index)) != nullptr; };
 
@@ -531,9 +588,16 @@ TEST_P(scheduler_conres_expiry_test, when_ntn_cell_conres_timer_extended_with_rt
 
 INSTANTIATE_TEST_SUITE_P(scheduler_conres_expiry_test,
                          scheduler_conres_expiry_test,
-                         ::testing::Values(conres_expiry_params{subcarrier_spacing::kHz30, 0},
-                                           conres_expiry_params{subcarrier_spacing::kHz30, 240},
-                                           conres_expiry_params{subcarrier_spacing::kHz30, 480}));
+                         ::testing::Values(
+                             // Non-NTN baseline.
+                             conres_expiry_params{subcarrier_spacing::kHz30, 0, 0},
+                             // NTN with koffset only.
+                             conres_expiry_params{subcarrier_spacing::kHz30, 240, 0},
+                             conres_expiry_params{subcarrier_spacing::kHz30, 480, 0},
+                             // NTN with k_mac only (DL/UL timing offset at gNB, koffset absent).
+                             conres_expiry_params{subcarrier_spacing::kHz30, 0, 10},
+                             // NTN with both koffset and k_mac.
+                             conres_expiry_params{subcarrier_spacing::kHz30, 240, 10}));
 
 /// Fallback DL scheduling in an NTN cell, with HARQ-ACKs k1 + Koffset slots after the PDSCH, as per TS 38.213,
 /// Section 9.
@@ -586,7 +650,7 @@ TEST_F(scheduler_ntn_fallback_test, pdsch_is_not_held_back_by_the_koffset_of_the
        count != max_nof_slots and (pdsch_slots.size() != nof_pdschs or last_result_slot() < harq_ack_slots.back());
        ++count) {
     run_slot();
-    const auto pucchs = last_sched_result()->ul.pucchs.unsorted();
+    const auto& pucchs = last_sched_result()->ul.pucchs;
     if (std::any_of(pucchs.begin(), pucchs.end(), [this](const pucch_info& pucch) {
           return pucch.crnti == rnti and pucch.uci_bits.harq_ack_nof_bits > 0;
         })) {
@@ -666,13 +730,13 @@ protected:
     auto ue_req     = sched_config_helper::create_default_sched_ue_creation_request(cell_req.ran);
     ue_req.ue_index = ue_index;
     ue_req.crnti    = rnti;
-    auto& cg_cfg    = ue_req.cfg.cells->front().serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg;
+    auto& cg_cfg    = ue_req.cfg.cells->front().ded->serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg;
     ocudu_assert(cg_cfg.has_value(), "The UE was not given the CG of the cell");
     cg_cfg->rrc_configured_ul_grant_cfg->time_domain_offset = cg_offset;
 
     // An RRC Reconfiguration adds the CG.
     auto ue_req_no_cg = ue_req;
-    ue_req_no_cg.cfg.cells->front().serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
+    ue_req_no_cg.cfg.cells->front().ded->serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
     add_ue(ue_req_no_cg, /*wait_notification=*/true);
 
     // Left unconfirmed, so the UE stays in fallback.
@@ -690,7 +754,7 @@ protected:
   bool has_harq_ack() const
   {
     const auto& ul       = last_sched_result()->ul;
-    const auto  pucchs   = ul.pucchs.unsorted();
+    const auto& pucchs   = ul.pucchs;
     const bool  on_pucch = std::any_of(pucchs.begin(), pucchs.end(), [this](const pucch_info& pucch) {
       return pucch.crnti == rnti and pucch.uci_bits.harq_ack_nof_bits > 0;
     });
@@ -756,7 +820,7 @@ protected:
 
     // An RRC Reconfiguration disables the DL HARQ feedback, which the UE reports it supports. Left unconfirmed, so the
     // UE stays in fallback.
-    auto& pdsch_serv_cell = ue_cfg.cfg.cells->front().serv_cell_cfg.pdsch_serv_cell_cfg;
+    auto& pdsch_serv_cell = ue_cfg.cfg.cells->front().ded->serv_cell_cfg.pdsch_serv_cell_cfg;
     ocudu_assert(pdsch_serv_cell.has_value(), "The UE was not given a PDSCH serving cell config");
     pdsch_serv_cell->dl_harq_feedback_disabled.fill(true);
     pdsch_serv_cell->dl_harq_feedback_disabled.fill(0, nof_feedback_enabled_harqs, false);
@@ -818,7 +882,7 @@ protected:
     auto cell_cfg_req = sched_config_helper::make_default_sched_cell_configuration_request(builder_params);
     add_cell(cell_cfg_req);
 
-    // Create a UE without serv cell config.
+    // Create a UE without dedicated config.
     auto ue_cfg     = sched_config_helper::create_empty_spcell_cfg_sched_ue_creation_request(cell_cfg_req.ran);
     ue_cfg.ue_index = ue_index;
     ue_cfg.crnti    = rnti;
@@ -833,7 +897,7 @@ protected:
   const unsigned        msg4_size  = 128;
 };
 
-TEST_F(scheduler_ue_no_config_test, when_ue_has_no_serv_cell_cfg_then_msg4_and_conres_are_still_scheduled)
+TEST_F(scheduler_ue_no_config_test, when_ue_has_no_dedicated_cfg_then_msg4_and_conres_are_still_scheduled)
 {
   this->push_dl_buffer_state(dl_buffer_state_indication_message{this->ue_index, LCID_SRB0, msg4_size});
 
@@ -861,6 +925,48 @@ TEST_F(scheduler_ue_no_config_test, when_ue_has_no_serv_cell_cfg_then_msg4_and_c
   ASSERT_TRUE(this->run_slot_until([this]() { return find_ue_dl_pdcch(rnti) != nullptr; }));
   const dl_msg_alloc* msg4_retx_alloc = find_ue_pdsch(rnti, *this->last_sched_result());
   ASSERT_FALSE(msg4_retx_alloc->pdsch_cfg.codewords[0].new_data);
+}
+
+/// UE without dedicated configuration in an NTN cell. In an NTN cell, a reconfiguration of the HARQ processes reads
+/// the HARQ modes of the dedicated configuration.
+class scheduler_ue_no_config_ntn_test : public scheduler_test_simulator, public ::testing::Test
+{
+protected:
+  scheduler_ue_no_config_ntn_test() : scheduler_test_simulator(scheduler_test_sim_config{.ntn_cs_koffset = koffset})
+  {
+    auto cell_cfg_req = sched_config_helper::make_default_sched_cell_configuration_request();
+    cell_cfg_req.ran.ntn_params.emplace();
+    cell_cfg_req.ran.ntn_params->ntn_cfg.cell_specific_koffset = koffset;
+    add_cell(cell_cfg_req);
+
+    auto ue_cfg     = sched_config_helper::create_empty_spcell_cfg_sched_ue_creation_request(cell_cfg_req.ran);
+    ue_cfg.ue_index = ue_index;
+    ue_cfg.crnti    = rnti;
+    ue_cfg.starts_in_fallback = true;
+    ue_cfg.ul_ccch_slot_rx    = next_slot.without_hyper_sfn();
+    add_ue(ue_cfg, /*wait_notification=*/true);
+  }
+
+  static constexpr std::chrono::milliseconds koffset{20};
+  const du_ue_index_t                        ue_index = to_du_ue_index(0);
+  const rnti_t                               rnti     = to_rnti(0x4601);
+};
+
+TEST_F(scheduler_ue_no_config_ntn_test, when_ue_has_no_dedicated_cfg_then_a_reconfiguration_without_cells_is_applied)
+{
+  ASSERT_EQ(notif.last_ue_index_cfg, ue_index) << "UE not created";
+
+  // A RIC request changes the RRM policy of a UE without a change to its cells.
+  sched_ue_reconfiguration_message reconf;
+  reconf.ue_index  = ue_index;
+  reconf.crnti     = rnti;
+  reconf.cfg.cause = sched_ue_config_request::causes::not_rrc_proc;
+  reconf.cfg.res_alloc_cfg.emplace();
+  notif.last_ue_index_cfg.reset();
+  sched->handle_ue_reconfiguration_request(reconf);
+
+  ASSERT_TRUE(run_slot_until([this]() { return notif.last_ue_index_cfg == ue_index; }))
+      << "Reconfiguration not applied";
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
@@ -931,7 +1037,7 @@ TEST_F(cfra_scheduler_test, no_pucch_in_msg3_slot_while_cfra_pending)
     const auto& puschs = last_sched_result()->ul.puschs;
     for (const auto& pusch : puschs) {
       if (pusch.pusch_cfg.rnti == cfra_tc_rnti) {
-        EXPECT_EQ(find_ue_pucch(cfra_tc_rnti, last_sched_result()->ul.pucchs.unsorted()), nullptr)
+        EXPECT_EQ(find_ue_pucch(cfra_tc_rnti, last_sched_result()->ul.pucchs), nullptr)
             << "PUCCH scheduled for CFRA UE in the same slot as Msg3 PUSCH";
         msg3_found = true;
         return true;
@@ -1048,14 +1154,14 @@ TEST_P(cfra_csi_collision_test, msg3_pusch_never_shares_slot_with_csi_pucch)
   for (unsigned i = 0; i != 40; ++i) {
     run_slot();
     const auto& res = *last_sched_result();
-    if (find_ue_pucch_with_csi(cfra_tc_rnti, res.ul.pucchs.unsorted()) != nullptr) {
+    if (find_ue_pucch_with_csi(cfra_tc_rnti, res.ul.pucchs) != nullptr) {
       csi_pucch_seen = true;
     }
     if (find_ue_pusch(cfra_tc_rnti, res.ul.puschs) != nullptr) {
       // While pending CFRA the only PUSCH for this RNTI is Msg3 (initial or retx). No PUCCH for the UE may
       // share its slot (a coincident CSI would otherwise be multiplexed onto the UCI-free Msg3 grant).
       msg3_seen = true;
-      EXPECT_EQ(find_ue_pucch(cfra_tc_rnti, res.ul.pucchs.unsorted()), nullptr)
+      EXPECT_EQ(find_ue_pucch(cfra_tc_rnti, res.ul.pucchs), nullptr)
           << "PUCCH coincides with Msg3 PUSCH (rach_lead=" << GetParam() << ")";
     }
   }
@@ -1095,7 +1201,7 @@ TEST_P(cfra_csi_collision_test, msg3_retx_never_shares_slot_with_pucch)
   ASSERT_TRUE(run_slot_until([this, &retx_found]() {
     const ul_sched_info* pusch = find_ue_pusch(cfra_tc_rnti, last_sched_result()->ul.puschs);
     if (pusch != nullptr and pusch->context.nof_retxs > 0) {
-      EXPECT_EQ(find_ue_pucch(cfra_tc_rnti, last_sched_result()->ul.pucchs.unsorted()), nullptr)
+      EXPECT_EQ(find_ue_pucch(cfra_tc_rnti, last_sched_result()->ul.pucchs), nullptr)
           << "PUCCH coincides with Msg3 retx (rach_lead=" << GetParam() << ")";
       retx_found = true;
       return true;
@@ -1165,7 +1271,7 @@ public:
     for (unsigned i = 0; i != 40; ++i) {
       run_slot();
       const auto& res            = *last_sched_result();
-      const bool  cfra_has_pucch = find_ue_pucch(cfra_tc_rnti, res.ul.pucchs.unsorted()) != nullptr;
+      const bool  cfra_has_pucch = find_ue_pucch(cfra_tc_rnti, res.ul.pucchs) != nullptr;
       if (find_ue_pusch(cfra_tc_rnti, res.ul.puschs) != nullptr) {
         cfra_msg3_seen = true;
         EXPECT_FALSE(cfra_has_pucch) << "CFRA Msg3 shares a slot with the CFRA UE's PUCCH (rach_lead=" << rach_lead

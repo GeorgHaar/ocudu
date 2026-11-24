@@ -9,9 +9,11 @@
 #include "ocudu/ran/csi_rs/csi_resource_config.h"
 #include "ocudu/ran/csi_rs/csi_rs_constants.h"
 #include "ocudu/ran/du_types.h"
+#include "ocudu/ran/pdsch/pdsch_mcs.h"
 #include "ocudu/ran/pucch/pucch_mapping.h"
 #include "ocudu/ran/pusch/pusch_configuration.h"
 #include "ocudu/ran/pusch/pusch_constants.h"
+#include "ocudu/support/error_handling.h"
 #include <variant>
 #include <vector>
 
@@ -50,6 +52,23 @@ enum class csi_report_periodicity : unsigned {
 /// \remark Value \c table4 is for Rel.16 or above only.
 enum class cqi_table_t { table1, table2, table3, table4 };
 
+/// Gets the CQI table that a UE uses for the CQI reports, given the MCS table of its PDSCH. See TS 38.214, Table
+/// 5.2.2.1-[1-4].
+inline cqi_table_t get_cqi_table(pdsch_mcs_table mcs_table)
+{
+  switch (mcs_table) {
+    case pdsch_mcs_table::qam64:
+      return cqi_table_t::table1;
+    case pdsch_mcs_table::qam256:
+      return cqi_table_t::table2;
+    case pdsch_mcs_table::qam64LowSe:
+      return cqi_table_t::table3;
+    default:
+      break;
+  }
+  report_fatal_error("Invalid MCS table={}", to_string(mcs_table));
+}
+
 /// CSI-ReportConfig is used to configure a periodic or semi-persistent report sent on PUCCH on the cell in which the
 /// CSI-ReportConfig is included, or to configure a semi-persistent or aperiodic report sent on PUSCH triggered by DCI
 /// received on the cell in which the CSI-ReportConfig is included.
@@ -62,9 +81,8 @@ struct csi_report_config {
   /// \remark See TS 38.331, \c pucch-Resource under \c CSI-ReportConfig.
   struct pucch_csi_resource {
     bwp_id_t ul_bwp;
-    /// Defines the PUCCH resource ID used for this config report. Ref to \ref ocudu::pucch_res_id_t for the
-    /// documentation.
-    pucch_res_id_t pucch_res_id = pucch_res_id_t::make_ded(0, 0);
+    /// \c PUCCH-ResourceId of the resource in the UE's \c PUCCH-Config used for this config report.
+    unsigned pucch_res_id = 0;
 
     bool operator==(const pucch_csi_resource& rhs) const
     {

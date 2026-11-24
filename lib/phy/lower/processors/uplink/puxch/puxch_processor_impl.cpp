@@ -52,6 +52,7 @@ bool puxch_processor_impl::process_symbol(const baseband_gateway_buffer_ptr_view
 
     // Configure the demodulator with a new slot.
     current_demodulator = demodulator.start(request.resource, rg_context);
+
     if (!current_demodulator) {
       notifier->on_puxch_request_discarded(rg_context, puxch_request_discard_reason::demodulator_busy);
       return false;

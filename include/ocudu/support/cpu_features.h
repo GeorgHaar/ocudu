@@ -34,6 +34,8 @@ enum class cpu_feature {
   avx512cd,
   /// CPU supports AVX512_VBMI instruction set.
   avx512vbmi,
+  /// CPU supports AVX512_BF16 instruction set.
+  avx512bf16,
   /// CPU supports carry-less multiplication instruction PCLMUL.
   pclmul,
   /// CPU supports SSE 4.1.
@@ -71,6 +73,8 @@ constexpr const char* to_string(cpu_feature feature)
       return "avx512cd";
     case cpu_feature::avx512vbmi:
       return "avx512vbmi";
+    case cpu_feature::avx512bf16:
+      return "avx512bf16";
     case cpu_feature::pclmul:
       return "pclmul";
     case cpu_feature::sse4_1:
@@ -117,6 +121,8 @@ inline bool cpu_supports_feature(cpu_feature feature)
       return __builtin_cpu_supports("avx512cd");
     case cpu_feature::avx512vbmi:
       return __builtin_cpu_supports("avx512vbmi");
+    case cpu_feature::avx512bf16:
+      return __builtin_cpu_supports("avx512bf16");
     case cpu_feature::pclmul:
       return __builtin_cpu_supports("pclmul");
     case cpu_feature::sse4_1:
@@ -167,6 +173,9 @@ constexpr auto cpu_features_included = to_array<cpu_feature>({
 #ifdef __AVX512VBMI__
     cpu_feature::avx512vbmi,
 #endif // __AVX512VBMI__
+#ifdef __AVX512BF16__
+    cpu_feature::avx512bf16,
+#endif // __AVX512BF16__
 #ifdef __FMA__
     cpu_feature::fma,
 #endif // __FMA__

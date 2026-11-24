@@ -51,18 +51,28 @@ public:
     return cu_cp_handler->handle_new_ngap_ue(ue_index);
   }
 
+  cu_cp_ue_index_t on_ue_association_transfer_required(ran_ue_id_t ran_ue_id) override
+  {
+    ocudu_assert(cu_cp_handler != nullptr, "CU-CP NGAP handler must not be nullptr");
+    return cu_cp_handler->handle_ue_association_transfer(ran_ue_id, amf_index);
+  }
+
+  bool on_reroute_nas_request(const ngap_reroute_nas_request& request) override
+  {
+    ocudu_assert(cu_cp_handler != nullptr, "CU-CP NGAP handler must not be nullptr");
+    return cu_cp_handler->handle_reroute_nas_request(request, amf_index);
+  }
+
   bool schedule_async_task(cu_cp_ue_index_t ue_index, async_task<void> task) override
   {
     ocudu_assert(cu_cp_handler != nullptr, "CU-CP NGAP handler must not be nullptr");
     return cu_cp_handler->schedule_ue_task(ue_index, std::move(task));
   }
 
-  bool on_handover_request_received(cu_cp_ue_index_t                  ue_index,
-                                    const plmn_identity&              selected_plmn,
-                                    const security::security_context& sec_ctxt) override
+  bool on_handover_request_received(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt) override
   {
     ocudu_assert(cu_cp_handler != nullptr, "CU-CP NGAP handler must not be nullptr");
-    return cu_cp_handler->handle_handover_request(ue_index, selected_plmn, sec_ctxt);
+    return cu_cp_handler->handle_handover_request(ue_index, sec_ctxt);
   }
 
   async_task<expected<ngap_init_context_setup_response, ngap_init_context_setup_failure>>
@@ -128,7 +138,7 @@ public:
   cu_cp_ue_index_t request_new_ue_index_allocation(nr_cell_global_id_t cgi, const plmn_identity& plmn) override
   {
     ocudu_assert(cu_cp_handler != nullptr, "CU-CP NGAP handler must not be nullptr");
-    return cu_cp_handler->handle_ue_index_allocation_request(cgi, plmn);
+    return cu_cp_handler->handle_ue_index_allocation_request_for_amf(cgi, plmn, amf_index);
   }
 
   void on_dl_ue_associated_nrppa_transport_pdu(cu_cp_ue_index_t ue_index, const byte_buffer& nrppa_pdu) override

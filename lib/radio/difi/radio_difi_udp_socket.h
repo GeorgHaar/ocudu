@@ -11,6 +11,7 @@
 #include <chrono>
 #include <cstdint>
 #include <netinet/in.h>
+#include <optional>
 #include <string>
 #include <sys/types.h>
 
@@ -65,10 +66,22 @@ public:
   /// the queue is empty.
   expected<span<uint8_t>, difi_recv_error> try_recv(span<uint8_t> buf);
 
+  /// \brief Same as try_recv(), and also reports when the kernel received the datagram.
+  ///
+  /// \p arrival is left empty if the kernel attached no receive timestamp or nothing was received.
+  expected<span<uint8_t>, difi_recv_error> try_recv(std::optional<std::chrono::system_clock::time_point>& arrival,
+                                                    span<uint8_t>                                         buf);
+
   /// \brief Waits for a readable datagram or \p timeout, zero polling without blocking.
   ///
   /// Lets the caller pace itself against wall-clock time rather than the fixed socket timeout.
   bool wait_readable(std::chrono::microseconds timeout);
+
+  /// \brief Waits until any of \p sockets has a readable datagram, or \p timeout elapses.
+  ///
+  /// Closed sockets are skipped.
+  /// \return True if at least one socket is readable.
+  static bool wait_any_readable(span<radio_difi_udp_socket* const> sockets, std::chrono::microseconds timeout);
 
 private:
   /// Logger, owned by the stream that created this socket.

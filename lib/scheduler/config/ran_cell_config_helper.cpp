@@ -370,11 +370,11 @@ static unsigned compute_default_msg1_frequency_start(const ran_cell_config& cfg)
       config_helpers::get_dedicated_pucch_rb_start(cfg.init_bwp.pucch.resources, pucch_res_common, bwp_size);
 
   // If the dedicated PUCCH resources do not fit in the BWP, only account for the common ones.
-  std::vector<pucch_resource> ded_res;
+  cell_pucch_resources ded_res;
   if (config_helpers::pucch_parameters_validator(cfg.init_bwp.pucch.resources, bwp_size, ded_rb_start).has_value()) {
     ded_res = config_helpers::generate_cell_pucch_res_list(cfg.init_bwp.pucch.resources, bwp_size, ded_rb_start);
   }
-  const crb_bitmap pucch_prbs     = compute_pucch_crbs(crb_interval{0, bwp_size}, pucch_res_common, ded_res);
+  const crb_bitmap pucch_prbs     = compute_pucch_crbs(crb_interval{0, bwp_size}, pucch_res_common, ded_res.resources);
   const int        last_pucch_prb = pucch_prbs.find_highest(0, bwp_size / 2, true);
 
   // Guardband between the PUCCH and the short PRACH formats.
@@ -469,29 +469,44 @@ uint8_t config_helpers::compute_max_nof_candidates(aggregation_level aggr_lvl, c
   return max_nof_candidates > PDCCH_MAX_NOF_CANDIDATES_SS ? PDCCH_MAX_NOF_CANDIDATES_SS : max_nof_candidates;
 }
 
+unsigned config_helpers::compute_last_non_srs_symbol(const ran_cell_config& cell_cfg)
+{
+  // The cell's SRS resources are whole blocks of srs_cfg.nof_symbols anchored at the last symbol of the slot, so the
+  // region actually occupied is the largest multiple of that length that fits in the configured budget: what is left of
+  // max_nof_symbols below it is too short for another resource and stays free.
+  const srs_builder_params& srs_cfg         = cell_cfg.init_bwp.srs_cfg;
+  const unsigned            srs_res_syms    = static_cast<unsigned>(srs_cfg.nof_symbols);
+  const unsigned            nof_srs_symbols = srs_cfg.srs_type_enabled != srs_type::disabled
+                                                  ? (srs_cfg.max_nof_symbols.value() / srs_res_syms) * srs_res_syms
+                                                  : 0U;
+
+  return NOF_OFDM_SYM_PER_SLOT_NORMAL_CP - nof_srs_symbols;
+}
+
+bool config_helpers::is_cg_pusch_td_res_usable(const pusch_time_domain_resource_allocation& td,
+                                               unsigned                                     last_non_srs_symbol)
+{
+  // The CG scheduler emits a single PUSCH per occasion, so a row asking for slot repetitions cannot be used.
+  return td.symbols.stop() <= last_non_srs_symbol and td.nof_repetitions.value_or(1) == 1;
+}
+
 std::optional<unsigned> config_helpers::find_cg_pusch_td_res_idx(const ran_cell_config& cell_cfg)
 {
   ocudu_assert(cell_cfg.init_bwp.cg_cfg.has_value(), "This function cannot be called if CG is not set");
   ocudu_assert(cell_cfg.ul_cfg_common.init_ul_bwp.pusch_cfg_common.has_value(),
                "PUSCH Config Common must be configured.");
 
-  // Symbols left free by the SRS, which sits at the end of the slot.
-  //
-  // The cell's SRS resources are whole blocks of srs_cfg.nof_symbols anchored at the last symbol of the slot (see
-  // generate_cell_srs_list()), so the region actually occupied is the largest multiple of that length that fits in the
-  // configured budget: what is left of max_nof_symbols below it is too short for another resource and stays free.
-  // Sizing the CG PUSCH against the whole budget instead would give up those symbols for nothing.
-  const srs_builder_params& srs_cfg             = cell_cfg.init_bwp.srs_cfg;
-  const unsigned            srs_res_syms        = static_cast<unsigned>(srs_cfg.nof_symbols);
-  const unsigned            nof_srs_symbols     = srs_cfg.srs_type_enabled != srs_type::disabled
-                                                      ? (srs_cfg.max_nof_symbols.value() / srs_res_syms) * srs_res_syms
-                                                      : 0U;
-  const unsigned            last_non_srs_symbol = NOF_OFDM_SYM_PER_SLOT_NORMAL_CP - nof_srs_symbols;
+  // The list is sorted by increasing k2 first, then by decreasing \c symbols.stop(), so the first qualifying entry is
+  // the one with both the lowest k2 and the most symbols among those that avoid the SRS.
 
-  // PUSCH time-domain resources are sorted by increasing k2 first, then by decreasing symbols .stop().
+  // Symbols left free by the SRS, which sits at the end of the slot.
+  const unsigned last_non_srs_symbol = compute_last_non_srs_symbol(cell_cfg);
+
+  // PUSCH time-domain resources are sorted by increasing k2 first, then by decreasing \c symbols.stop(), so the first
+  // qualifying entry is the one with both the lowest k2 and the most symbols among those that avoid the SRS.
   const auto& td_res = cell_cfg.ul_cfg_common.init_ul_bwp.pusch_cfg_common.value().pusch_td_alloc_list;
   for (unsigned n = 0, sz = td_res.size(); n != sz; ++n) {
-    if (td_res[n].symbols.stop() <= last_non_srs_symbol) {
+    if (is_cg_pusch_td_res_usable(td_res[n], last_non_srs_symbol)) {
       return n;
     }
   }
@@ -560,16 +575,10 @@ unsigned config_helpers::compute_nof_cg_prbs_per_ue(const ran_cell_config& cell_
   const pusch_time_domain_resource_allocation& pusch_td_cfg = pusch_td_list[cg_td_res_idx];
 
   static constexpr unsigned nof_layers             = 1;
-  static constexpr bool     are_both_cws_enabled   = false;
-  const dmrs_information    dmrs                   = make_dmrs_info_dedicated(pusch_td_cfg,
-                                                         cell_cfg.pci,
-                                                         cell_cfg.dmrs_typeA_pos,
-                                                         cg_cfg.cg_dmrs_cfg,
-                                                         nof_layers,
-                                                         cell_cfg.ul_carrier.nof_ant,
-                                                         are_both_cws_enabled);
-  const unsigned            nof_dmrs_prb           = calculate_nof_dmrs_per_rb(dmrs);
   constexpr bool            use_transform_precoder = false;
+  const dmrs_information    dmrs                   = make_dmrs_info_dedicated(
+      pusch_td_cfg, cell_cfg.pci, cell_cfg.dmrs_typeA_pos, cg_cfg.cg_dmrs_cfg, nof_layers, use_transform_precoder);
+  const unsigned nof_dmrs_prb = calculate_nof_dmrs_per_rb(dmrs);
   // TODO: Import p_pi2bpsk_present from PUSCH Config once it will have been added there.
   constexpr bool            tp_pi2bpsk_present = false;
   const sch_mcs_description mcs_info =

@@ -6,6 +6,7 @@
 #pragma once
 
 #include "ocudu/scheduler/result/pusch_info.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/scheduler/scheduler_configurator.h"
 #include "ocudu/scheduler/scheduler_feedback_handler.h"
 #include "ocudu/scheduler/scheduler_rach_handler.h"
@@ -63,7 +64,19 @@ uci_indication::uci_pdu create_uci_indication_pdu(rnti_t rnti, du_ue_index_t ue_
 ul_crc_pdu_indication create_crc_pdu_indication(const ul_sched_info& ul_grant);
 
 /// Create a CRC indication for multiple UL grants.
-ul_crc_indication create_crc_indication(slot_point sl_rx, span<const ul_sched_info> puschs, bool ack);
+template <typename PuschList>
+ul_crc_indication create_crc_indication(slot_point sl_rx, const PuschList& puschs, bool ack)
+{
+  ul_crc_indication crc_ind;
+  crc_ind.cell_index = to_du_cell_index(0);
+  crc_ind.sl_rx      = sl_rx;
+  for (const ul_sched_info& ul : puschs) {
+    ul_crc_pdu_indication pdu = create_crc_pdu_indication(ul);
+    pdu.tb_crc_success        = ack;
+    crc_ind.crcs.push_back(pdu);
+  }
+  return crc_ind;
+}
 
 } // namespace test_helper
 

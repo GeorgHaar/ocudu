@@ -42,6 +42,11 @@ add_executable(serving_cell_config_converter_test ../du_manager/serving_cell_con
 target_link_libraries(serving_cell_config_converter_test ocudu_du_manager ocudu_support asn1_utils rrc_nr_asn1 ocudulog gtest ocudu_gtest_main)
 gtest_discover_tests(serving_cell_config_converter_test)
 
+add_executable(cell_group_config_release_test cell_group_config_release_test.cpp)
+target_include_directories(cell_group_config_release_test PRIVATE ${CMAKE_SOURCE_DIR})
+target_link_libraries(cell_group_config_release_test ocudu_du_manager ocudu_support asn1_utils rrc_nr_asn1 ocudulog gtest ocudu_gtest_main)
+gtest_discover_tests(cell_group_config_release_test)
+
 add_executable(mac_cell_group_config_converter_test ../du_manager/mac_cell_group_config_converter_test.cpp)
 target_link_libraries(mac_cell_group_config_converter_test ocudu_du_manager ocudu_support asn1_utils rrc_nr_asn1 ocudulog gtest ocudu_gtest_main)
 gtest_discover_tests(mac_cell_group_config_converter_test)
@@ -75,10 +80,12 @@ add_executable(du_ran_resource_manager_test
         du_ran_resource_manager_test.cpp
         du_drx_resource_manager_test.cpp
         du_tar_config_test.cpp
+        du_ue_koffset_config_test.cpp
         du_csi_codebook_config_test.cpp
         decode_ue_nr_cap_container_test.cpp
         du_meas_config_manager_test.cpp
-        du_pxsch_repetition_resource_manager_test.cpp)
+        du_pxsch_repetition_resource_manager_test.cpp
+        du_pdsch_res_alloc_resource_manager_test.cpp)
 target_include_directories(du_ran_resource_manager_test PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(du_ran_resource_manager_test du_manager_test_helpers sched_test_doubles gtest ocudu_gtest_main)
 gtest_discover_tests(du_ran_resource_manager_test)

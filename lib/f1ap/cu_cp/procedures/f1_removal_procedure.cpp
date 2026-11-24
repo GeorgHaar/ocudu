@@ -33,11 +33,15 @@ void f1_removal_procedure::operator()(coro_context<async_task<void>>& ctx)
 
   // If there are still active UEs, reset their context in other layers.
   if (ue_list.size() > 0) {
-    CORO_AWAIT(handle_ue_transaction_info_loss());
+    ue_reset_task = handle_ue_transaction_info_loss();
   }
 
-  // Send F1 Removal Response
+  // Send F1 Removal Response before the removal of the resources, as per TS 38.473 section 8.2.8.2.
   send_f1_removal_response();
+
+  if (not ue_reset_task.empty()) {
+    CORO_AWAIT(ue_reset_task);
+  }
 
   CORO_RETURN();
 }
@@ -47,21 +51,27 @@ async_task<void> f1_removal_procedure::handle_ue_transaction_info_loss()
   ue_transaction_info_loss_event ev;
 
   // Add DU UEs to the list of UEs with transaction information lost.
+  std::vector<gnb_cu_ue_f1ap_id_t> cu_ue_ids;
+  cu_ue_ids.reserve(ue_list.size());
   ev.ues_lost.reserve(ue_list.size());
   for (auto& ue : ue_list) {
-    ev.ues_lost.push_back(ue.second.ue_ids.ue_index);
+    cu_ue_ids.push_back(ue.first);
+    // Add each UE once. A UE context that an RRC Resume replaced has the UE index of the current UE context.
+    if (not ue_list.is_replaced(ue.first)) {
+      ev.ues_lost.push_back(ue.second.ue_ids.ue_index);
+    }
   }
 
   // After receiving an F1 Removal Request, no more F1AP Rx PDUs are expected. Cancel running UE F1AP transactions and
   // mark each UE so that subsequent UE Context Release Procedures skip the F1 round trip (the DU will drop the context
   // locally as part of F1 removal).
   // Note: size of ue_list may change during this operation (e.g. if a concurrent UE context release was being
-  // processed and got cancelled). Therefore, we leverage the list ev.ues_lost for the iteration.
-  for (cu_cp_ue_index_t ue_idx : ev.ues_lost) {
-    auto* u = ue_list.find(ue_idx);
+  // processed and got cancelled). Therefore, we leverage the list cu_ue_ids for the iteration.
+  for (gnb_cu_ue_f1ap_id_t cu_ue_id : cu_ue_ids) {
+    auto* u = ue_list.find(cu_ue_id);
     if (u != nullptr) {
       u->f1_removal_in_progress = true;
-      ue_list.cancel_ue_transactions(ue_idx);
+      ue_list.cancel_ue_transactions(cu_ue_id);
     }
   }
   ev.ues_lost.erase(std::remove_if(ev.ues_lost.begin(),

@@ -66,13 +66,12 @@ public:
 
   bool is_ue_allocated_paging_grant(five_g_s_tmsi s_tmsi)
   {
-    return std::any_of(res_grid[0].result.dl.paging_grants.begin(),
-                       res_grid[0].result.dl.paging_grants.end(),
-                       [&s_tmsi](const auto& grant) {
-                         return std::any_of(grant.paging_ue_list.begin(),
-                                            grant.paging_ue_list.end(),
-                                            [&s_tmsi](const auto& ue) { return ue.paging_identity == s_tmsi; });
-                       });
+    const auto pg_grants = res_grid[0].result_reader().dl().paging_grants();
+    return std::any_of(pg_grants.begin(), pg_grants.end(), [&s_tmsi](const auto& grant) {
+      return std::any_of(grant.paging_ue_list.begin(), grant.paging_ue_list.end(), [&s_tmsi](const auto& ue) {
+        return ue.paging_identity == s_tmsi;
+      });
+    });
   }
 
   static five_g_s_tmsi generate_five_g_s_tmsi()

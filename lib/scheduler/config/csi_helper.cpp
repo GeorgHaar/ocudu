@@ -8,7 +8,6 @@
 #include "ocudu/ran/csi_rs/csi_meas_config.h"
 #include "ocudu/ran/precoding/precoding_codebook_type2_helpers.h"
 #include "ocudu/ran/slot_point.h"
-#include "ocudu/scheduler/config/pucch_resource_builder_params.h"
 #include "ocudu/support/enum_utils.h"
 #include "ocudu/support/math/math_utils.h"
 
@@ -327,9 +326,8 @@ ocudu::csi_helper::make_periodic_zp_csi_rs_resource_set(const csi_meas_config_bu
   return zp_set;
 }
 
-/// \brief Converts a CSI resource periodicity to a suitable CSI report periodicity. Report peridiocity should be
-/// larger than the resource periodicity.
-static csi_report_periodicity convert_csi_resource_period_to_report_period(csi_resource_periodicity res_period)
+csi_report_periodicity
+ocudu::csi_helper::convert_csi_resource_period_to_report_period(csi_resource_periodicity res_period)
 {
   switch (res_period) {
     case csi_resource_periodicity::slots4:
@@ -371,13 +369,9 @@ static nzp_csi_rs_resource make_common_nzp_csi_rs_resource(const csi_meas_config
   res.res_mapping.freq_density  = csi_rs_freq_density_type::three;
   res.res_mapping.freq_band_rbs = get_csi_freq_occupation_rbs(params.nof_rbs, params.nof_rbs);
 
-  res.pwr_ctrl_offset       = params.csi_params.pwr_ctrl_offset;
-  res.pwr_ctrl_offset_ss_db = 0;
-  res.scrambling_id         = params.pci;
-
-  res.csi_res_period = params.csi_params.csi_rs_period;
-
-  res.qcl_info_periodic_csi_rs = static_cast<tci_state_id_t>(0);
+  res.pwr_ctrl_offset = params.csi_params.pwr_ctrl_offset;
+  res.scrambling_id   = params.pci;
+  res.csi_res_period  = params.csi_params.csi_rs_period;
 
   return res;
 }
@@ -559,7 +553,7 @@ static unsigned get_subcarrier_location_from_fd_alloc_bit_location(int     fd_al
   }
 }
 
-static std::vector<csi_im_resource> make_csi_im_resources(const csi_meas_config_builder_params& params)
+std::vector<csi_im_resource> ocudu::csi_helper::make_csi_im_resource_list(const csi_meas_config_builder_params& params)
 {
   if (params.nof_ports > 8) {
     report_error("Unsupported number of antenna ports={}", params.nof_ports);
@@ -571,14 +565,12 @@ static std::vector<csi_im_resource> make_csi_im_resources(const csi_meas_config_
   for (unsigned i = 0; i < zp_list.size(); ++i) {
     const zp_csi_rs_resource& zp = zp_list[i];
     res[i].res_id                = static_cast<csi_im_res_id_t>(i);
-    res[i].csi_im_res_element_pattern.emplace();
-    res[i].csi_im_res_element_pattern->pattern_type = csi_im_resource::csi_im_resource_element_pattern_type::pattern1;
-    res[i].csi_im_res_element_pattern->subcarrier_location = get_subcarrier_location_from_fd_alloc_bit_location(
+    res[i].subcarrier_location   = get_subcarrier_location_from_fd_alloc_bit_location(
         zp.res_mapping.fd_alloc.find_lowest(), zp.res_mapping.fd_alloc.size());
-    res[i].csi_im_res_element_pattern->symbol_location = zp.res_mapping.first_ofdm_symbol_in_td;
-    res[i].freq_band_rbs                               = zp.res_mapping.freq_band_rbs;
-    res[i].csi_res_period                              = *zp.period;
-    res[i].csi_res_offset                              = *zp.offset;
+    res[i].symbol_location = zp.res_mapping.first_ofdm_symbol_in_td;
+    res[i].freq_band_rbs   = zp.res_mapping.freq_band_rbs;
+    res[i].csi_res_period  = zp.period;
+    res[i].csi_res_offset  = zp.offset;
   }
   return res;
 }
@@ -626,7 +618,7 @@ codebook_config::type2 csi_helper::make_type2_codebook_config(const csi_meas_con
 
   const du_type2_codebook_params& type2_params = params.csi_params.type2_codebook.value();
 
-  // As per TS38.214 Section 5.2.2.2.3, the Type-II codebook is only defined for four or more CSI-RS ports.
+  // As per TS 38.214 Section 5.2.2.2.3, the Type-II codebook is only defined for four or more CSI-RS ports.
   ocudu_assert(params.nof_ports >= 4, "The Type-II codebook requires at least four ports, given {}", params.nof_ports);
 
   // The Type-II PMI is reported in CSI Part 2, which is only multiplexed in PUSCH.
@@ -635,7 +627,7 @@ codebook_config::type2 csi_helper::make_type2_codebook_config(const csi_meas_con
 
   typeii sub_type{};
   if (params.nof_ports == 4) {
-    // As per TS38.214 Section 5.2.2.2.3, four CSI-RS ports only support two beams.
+    // As per TS 38.214 Section 5.2.2.2.3, four CSI-RS ports only support two beams.
     ocudu_assert(type2_params.nof_beams == 2,
                  "Four antenna ports only support two Type-II beams, given {}",
                  type2_params.nof_beams);
@@ -652,7 +644,7 @@ codebook_config::type2 csi_helper::make_type2_codebook_config(const csi_meas_con
   // Enable all beam combinations.
   sub_type.n1_n2_codebook_subset_restriction_value.fill(0, sub_type.n1_n2_codebook_subset_restriction_value.size());
 
-  // Limit the number of DL layers that can be requested by the UE via the Rank Indicator (RI). As per TS38.214
+  // Limit the number of DL layers that can be requested by the UE via the Rank Indicator (RI). As per TS 38.214
   // Section 5.2.2.2.3, the Type-II codebook supports at most two layers.
   sub_type.typeii_ri_restriction.resize(max_nof_typeII_layers);
   sub_type.typeii_ri_restriction.fill(0, std::min<unsigned>(params.max_nof_layers, max_nof_typeII_layers));
@@ -735,19 +727,11 @@ make_csi_report_configs(const csi_meas_config_builder_params&                   
     csi_report_config::periodic_or_semi_persistent_report_on_pucch report_cfg_type{};
     report_cfg_type.report_type =
         csi_report_config::periodic_or_semi_persistent_report_on_pucch::report_type_t::periodic;
-    report_cfg_type.report_slot_period = convert_csi_resource_period_to_report_period(params.csi_params.csi_rs_period);
+    report_cfg_type.report_slot_period =
+        csi_helper::convert_csi_resource_period_to_report_period(params.csi_params.csi_rs_period);
     report_cfg_type.report_slot_offset = *params.csi_params.csi_report_slot_offset;
-    pucch_resource_builder_params pucch_builder_params{};
-    const unsigned                cell_res_id =
-        ((pucch_builder_params.res_set_size.value() + pucch_builder_params.res_set_size.value()) *
-         pucch_builder_params.nof_cell_res_set_configs) +
-        pucch_builder_params.nof_cell_sr_resources;
-
-    static constexpr unsigned nof_ue_sr_resources = 1U;
-    const unsigned            ue_res_id =
-        pucch_builder_params.res_set_size.value() + nof_ue_sr_resources + pucch_builder_params.res_set_size.value();
-    report_cfg_type.pucch_csi_res_list = {csi_report_config::pucch_csi_resource{
-        .ul_bwp = to_bwp_id(0), .pucch_res_id = pucch_res_id_t::make_ded(cell_res_id, ue_res_id)}};
+    // The PUCCH resource ID depends on the UE's PUCCH-Config and is set when building the UE configuration.
+    report_cfg_type.pucch_csi_res_list = {csi_report_config::pucch_csi_resource{.ul_bwp = to_bwp_id(0)}};
     reps[0].report_cfg_type            = report_cfg_type;
   }
   if (params.csi_params.enable_aperiodic_report) {
@@ -780,25 +764,18 @@ make_csi_report_configs(const csi_meas_config_builder_params&                   
   reps[0].subband_size                          = csi_report_config::subband_size_t::value1;
 
   // Set CQI table of CSI-ReportConfig according to the MCS table used for PDSCH.
-  cqi_table_t cqi_table = cqi_table_t::table1;
-  switch (params.mcs_table) {
-    case pdsch_mcs_table::qam64:
-      cqi_table = cqi_table_t::table1;
-      break;
-    case pdsch_mcs_table::qam256:
-      cqi_table = cqi_table_t::table2;
-      break;
-    case pdsch_mcs_table::qam64LowSe:
-      cqi_table = cqi_table_t::table3;
-      break;
-    default:
-      report_error("Invalid MCS table={}\n", static_cast<unsigned>(params.mcs_table));
-  }
+  const cqi_table_t cqi_table = get_cqi_table(params.mcs_table);
   for (auto& csi_report_cfg : reps) {
     csi_report_cfg.cqi_table = cqi_table;
   }
 
   return reps;
+}
+
+unsigned ocudu::csi_helper::get_csi_report_trigger_size(const du_csi_params& csi_params)
+{
+  // [Implementation-defined] There is only one aperiodic trigger state.
+  return csi_params.enable_aperiodic_report ? 1 : 0;
 }
 
 csi_meas_config
@@ -814,7 +791,7 @@ ocudu::csi_helper::make_csi_meas_config(const csi_meas_config_builder_params&   
   csi_meas.nzp_csi_rs_res_set_list = make_nzp_csi_rs_resource_sets(params);
 
   // csi-IM-Resources.
-  csi_meas.csi_im_res_list = make_csi_im_resources(params);
+  csi_meas.csi_im_res_list = make_csi_im_resource_list(params);
 
   // csi-IM-ResourceSets.
   csi_meas.csi_im_res_set_list = make_csi_im_resource_sets(params);
@@ -836,7 +813,7 @@ ocudu::csi_helper::make_csi_meas_config(const csi_meas_config_builder_params&   
     report_cfg_info.csi_im_resources_for_interference = 1;
     ts.associated_report_cfg_info_list.push_back(report_cfg_info);
     csi_meas.aperiodic_trigger_state_list.push_back(ts);
-    csi_meas.report_trigger_size = 1;
+    csi_meas.report_trigger_size = get_csi_report_trigger_size(params.csi_params);
   }
 
   return csi_meas;

@@ -137,6 +137,21 @@ TEST_F(ngap_ue_context_management_procedure_test, when_valid_initial_context_set
   ASSERT_TRUE(was_ue_added());
 }
 
+TEST_F(ngap_ue_context_management_procedure_test,
+       when_initial_context_setup_request_is_received_then_allowed_nssai_is_stored)
+{
+  cu_cp_ue_index_t ue_index = this->start_procedure();
+  auto&            ue       = test_ues.at(ue_index);
+
+  ngap->handle_message(
+      generate_valid_initial_context_setup_request_message(ue.amf_ue_id.value(), ue.ran_ue_id.value()));
+
+  std::vector<s_nssai_t> allowed_nssai = ngap->get_allowed_nssai(ue_index);
+  ASSERT_EQ(allowed_nssai.size(), 1);
+  ASSERT_EQ(allowed_nssai[0].sst.value(), 1);
+  ASSERT_EQ(allowed_nssai[0].sd.value(), 0xdb2700);
+}
+
 /// Test Initial Context Setup Request with PDUSessionResourceSetupListCxtReq.
 TEST_F(ngap_ue_context_management_procedure_test,
        when_initial_context_setup_request_with_pdu_session_received_then_response_send)
@@ -205,6 +220,59 @@ TEST_F(ngap_ue_context_management_procedure_test, when_invalid_initial_context_s
 
   // Check that AMF notifier was called with right type.
   ASSERT_TRUE(was_initial_context_setup_failure_sent());
+}
+
+/// Test Initial Context Setup Request with an invalid PLMN in the TAI list for RRC inactive.
+TEST_F(ngap_ue_context_management_procedure_test,
+       when_initial_context_setup_request_with_invalid_plmn_in_tai_list_for_inactive_received_then_failure_sent)
+{
+  // Test preamble
+  cu_cp_ue_index_t ue_index = this->start_procedure();
+
+  auto& ue = test_ues.at(ue_index);
+
+  // Inject Initial Context Setup Request.
+  ngap_message init_context_setup_request = generate_valid_initial_context_setup_request_message(
+      ue.amf_ue_id.value(),
+      ue.ran_ue_id.value(),
+      cu_cp_core_network_assist_info_for_inactive{.ue_id_idx_value       = 0x64c0,
+                                                  .tai_list_for_inactive = {tai_t{plmn_identity::test_value(), 7}}});
+  init_context_setup_request.pdu.init_msg()
+      .value.init_context_setup_request()
+      ->core_network_assist_info_for_inactive.tai_list_for_inactive[0]
+      .tai.plmn_id.from_string("ffffff");
+  ngap->handle_message(init_context_setup_request);
+
+  // Check that an Initial Context Setup Failure with cause "semantic error" was sent (TS 38.413 section 10.4).
+  ASSERT_TRUE(was_initial_context_setup_failure_sent());
+  const auto& cause = n2_gw.last_ngap_msgs.back().pdu.unsuccessful_outcome().value.init_context_setup_fail()->cause;
+  ASSERT_EQ(cause.type(), asn1::ngap::cause_c::types_opts::protocol);
+  ASSERT_EQ(cause.protocol(), asn1::ngap::cause_protocol_opts::semantic_error);
+}
+
+/// Test that the PDU sessions of a rejected Initial Context Setup Request are counted as failed.
+TEST_F(ngap_ue_context_management_procedure_test,
+       when_initial_context_setup_request_with_pdu_session_is_rejected_then_pdu_session_counted_as_failed)
+{
+  // Test preamble
+  cu_cp_ue_index_t ue_index = this->start_procedure();
+
+  auto& ue = test_ues.at(ue_index);
+
+  // Inject Initial Context Setup Request with an invalid PLMN in the GUAMI.
+  ngap_message init_context_setup_request =
+      generate_valid_initial_context_setup_request_message_with_pdu_session(ue.amf_ue_id.value(), ue.ran_ue_id.value());
+  init_context_setup_request.pdu.init_msg().value.init_context_setup_request()->guami.plmn_id.from_string("ffffff");
+  ngap->handle_message(init_context_setup_request);
+
+  ASSERT_TRUE(was_initial_context_setup_failure_sent());
+
+  // Check that the requested PDU session is counted as failed with cause "semantic error".
+  const ngap_info&             metrics_report = ngap->get_metrics_handler().handle_ngap_metrics_report_request();
+  const pdu_session_metrics_t& pdu_session_metrics =
+      metrics_report.metrics.pdu_session_metrics.at(s_nssai_t{slice_service_type{1}});
+  ASSERT_EQ(pdu_session_metrics.nof_pdu_sessions_requested_to_setup, 1);
+  ASSERT_EQ(pdu_session_metrics.nof_pdu_sessions_failed_to_setup.get_count(cause_protocol_t::semantic_error), 1);
 }
 
 /// Test invalid Initial Context Setup Request with PDUSessionResourceSetupListCxtReq.
@@ -347,6 +415,26 @@ TEST_F(
   // Inject UE Context Release Command.
   ngap_message ue_context_release_cmd =
       generate_valid_ue_context_release_command_with_ue_ngap_id_pair(amf_ue_id_t(1), ue.ran_ue_id.value());
+  ngap->handle_message(ue_context_release_cmd);
+
+  ASSERT_TRUE(was_ue_context_release_complete_sent());
+  ASSERT_TRUE(was_ue_removed());
+}
+
+/// Test UE context release with a Cause that holds a choice extension.
+TEST_F(ngap_ue_context_management_procedure_test,
+       when_ue_context_release_command_with_cause_choice_extension_received_then_ue_is_released)
+{
+  // Test preamble.
+  cu_cp_ue_index_t ue_index = create_ue();
+  auto&            ue       = test_ues.at(ue_index);
+
+  ASSERT_TRUE(was_ue_added());
+
+  // Inject UE Context Release Command with a Cause choice extension.
+  ngap_message ue_context_release_cmd =
+      generate_valid_ue_context_release_command_with_ue_ngap_id_pair(amf_ue_id_t(1), ue.ran_ue_id.value());
+  ue_context_release_cmd.pdu.init_msg().value.ue_context_release_cmd()->cause.set_choice_exts();
   ngap->handle_message(ue_context_release_cmd);
 
   ASSERT_TRUE(was_ue_context_release_complete_sent());
@@ -650,7 +738,7 @@ TEST_F(ngap_ue_context_management_procedure_test,
       ue.amf_ue_id.value(),
       ue.ran_ue_id.value(),
       aggregate_maximum_bit_rate_t{.dl = 100000, .ul = 100000},
-      cu_cp_core_network_assist_info_for_inactive{.ue_id_idx_value = 0x64c0},
+      cu_cp_core_network_assist_info_for_inactive{.ue_id_idx_value = 0xc0},
       guami_t{.plmn = plmn_identity::test_value(), .amf_set_id = 1, .amf_pointer = 1, .amf_region_id = 1});
   ngap->handle_message(ue_context_mod_request);
 
@@ -707,7 +795,7 @@ TEST_F(ngap_ue_context_management_procedure_test,
       unknown_amf_ue_id,
       unknown_ran_ue_id,
       aggregate_maximum_bit_rate_t{.dl = 100000, .ul = 100000},
-      cu_cp_core_network_assist_info_for_inactive{.ue_id_idx_value = 0x64c0},
+      cu_cp_core_network_assist_info_for_inactive{.ue_id_idx_value = 0xc0},
       guami_t{.plmn = plmn_identity::test_value(), .amf_set_id = 1, .amf_pointer = 1, .amf_region_id = 1});
   ngap->handle_message(ue_context_mod_request);
 

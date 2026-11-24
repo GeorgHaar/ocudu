@@ -13,6 +13,7 @@
 #include "ue_fsm_states.h"
 #include "ue_ta_report_tracker.h"
 #include "ocudu/adt/ring_buffer.h"
+#include "ocudu/ran/slot_point.h"
 
 namespace ocudu {
 
@@ -124,6 +125,9 @@ private:
 
   /// Trackers of the uplink timing advance reported by each UE.
   slotted_id_table<du_ue_index_t, ue_ta_report_tracker, MAX_NOF_DU_UES, false> ue_ta_report_trackers;
+
+  /// Trackers of the Differential Koffset each UE applies.
+  slotted_id_table<du_ue_index_t, ue_koffset_tracker, MAX_NOF_DU_UES, false> ue_koffset_trackers;
 
   /// UE Timing Advance Manager.
   ta_management_system ta_mgr_sys;

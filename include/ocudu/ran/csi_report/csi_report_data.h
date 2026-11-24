@@ -52,7 +52,7 @@ struct csi_report_data {
   /// Subband differential CQI for the second TB.
   std::optional<subband_diff_cqi_list> second_tb_subband_diff_cqi;
   /// Flag indicating if the CSI was detected correctly.
-  bool valid;
+  bool valid = false;
 };
 
 } // namespace ocudu

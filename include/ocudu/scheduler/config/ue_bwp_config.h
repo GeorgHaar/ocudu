@@ -10,6 +10,7 @@
 #include "ocudu/ran/rnti.h"
 #include "ocudu/ran/srs/srs_configuration.h"
 #include "ocudu/scheduler/config/pucch_resource_builder_params.h"
+#include "ocudu/scheduler/rrm/cell_pucch_resources.h"
 #include <optional>
 
 namespace ocudu {
@@ -32,6 +33,9 @@ struct ue_pucch_config {
   }
 };
 
+/// PMI codebook of the CSI reports of a UE.
+enum class csi_codebook_type : uint8_t { type1, type2 };
+
 /// \brief UE-specific information related to periodic CSI reporting configuration.
 struct ue_periodic_csi_config {
   pucch_csi_resource_id pucch_res_id;
@@ -40,6 +44,19 @@ struct ue_periodic_csi_config {
   bool operator==(const ue_periodic_csi_config& other) const
   {
     return pucch_res_id == other.pucch_res_id and offset == other.offset;
+  }
+};
+
+/// UE-specific information related to the CSI reports.
+struct ue_csi_config {
+  /// Present only if periodic CSI reporting is enabled in the cell.
+  std::optional<ue_periodic_csi_config> periodic_report;
+  /// Codebook of the CSI reports. The cell must offer the Type-II codebook to set \c csi_codebook_type::type2.
+  csi_codebook_type codebook = csi_codebook_type::type1;
+
+  bool operator==(const ue_csi_config& other) const
+  {
+    return periodic_report == other.periodic_report and codebook == other.codebook;
   }
 };
 
@@ -71,17 +88,15 @@ struct ue_srs_config {
 ///
 /// \remark Only meaningful when associated to its \ref cell_uplink_bwp_config.
 struct ue_uplink_bwp_config {
-  ue_pucch_config pucch;
-  // Only present if periodic CSI reporting is enabled in the cell.
-  std::optional<ue_periodic_csi_config> periodic_csi_report;
-  ue_pusch_config                       pusch;
-  std::optional<ue_cg_config>           cg;
-  ue_srs_config                         srs;
+  ue_pucch_config             pucch;
+  ue_csi_config               csi;
+  ue_pusch_config             pusch;
+  std::optional<ue_cg_config> cg;
+  ue_srs_config               srs;
 
   bool operator==(const ue_uplink_bwp_config& other) const
   {
-    return pucch == other.pucch and periodic_csi_report == other.periodic_csi_report and pusch == other.pusch and
-           srs == other.srs and cg == other.cg;
+    return pucch == other.pucch and csi == other.csi and pusch == other.pusch and srs == other.srs and cg == other.cg;
   }
 };
 

@@ -10,7 +10,6 @@
 #include "ocudu/cu_cp/cu_cp_configuration.h"
 #include "ocudu/ngap/ngap.h"
 #include "ocudu/ngap/ngap_ran_ue_id_allocator.h"
-#include "ocudu/ran/plmn_identity.h"
 
 namespace ocudu::ocucp {
 
@@ -53,15 +52,6 @@ public:
   /// \return A pointer to the interface of the added NGAP object if it was successfully created, a nullptr otherwise.
   ngap_interface* add_ngap(cu_cp_amf_index_t amf_index);
 
-  /// \brief Updates the PLMN lookup table with the PLMNs supported by the connected NGAP.
-  /// \param[in] amf_index The AMF index to identify the NGAP.
-  void update_plmn_lookup(cu_cp_amf_index_t amf_index);
-
-  /// \brief Checks whether an AMF with the specified PLMN is served by any of the connected NGAPs.
-  /// \param[in] plmn The PLMN to identify the NGAP.
-  /// \return The interface of the NGAP for the given PLMN if it is found, nullptr if no NGAP for the PLMN is found.
-  ngap_interface* find_ngap(const plmn_identity& plmn);
-
   /// \brief Checks whether an AMF with the specified AMF index is in the connected NGAPs.
   /// \param[in] amf_index The AMF index to identify the NGAP.
   /// \return The interface of the NGAP for the given AMF index if it is found, nullptr not.
@@ -88,6 +78,10 @@ public:
   /// \brief Get all served GUAMIs across all connected NGAPs.
   std::vector<guami_t> get_served_guamis() const;
 
+  /// \brief Finds the AMF that serves a GUAMI.
+  /// \return The index of the AMF, or std::nullopt if no AMF serves the GUAMI.
+  std::optional<cu_cp_amf_index_t> find_amf_index(const guami_t& guami) const;
+
 private:
   struct ngap_context {
     // CU-CP handler of NGAP events.
@@ -112,8 +106,7 @@ private:
   /// RAN UE NGAP IDs in use by all NGAPs.
   ngap_ran_ue_id_allocator ran_ue_ids;
 
-  std::unordered_map<plmn_identity, cu_cp_amf_index_t> plmn_to_amf_index;
-  std::map<cu_cp_amf_index_t, ngap_context>            ngap_db;
+  std::map<cu_cp_amf_index_t, ngap_context> ngap_db;
 };
 
 } // namespace ocudu::ocucp

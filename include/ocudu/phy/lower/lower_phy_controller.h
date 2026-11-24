@@ -11,10 +11,12 @@ namespace ocudu {
 
 /// \brief Lower physical layer - control interface.
 ///
-/// Provides a start and stop methods.
+/// Provides methods for starting and stopping the lower physical layer. The stop can be split in two phases, \c
+/// request_stop() and \c wait_stop(), so the caller can unblock the baseband device in between.
 ///
-/// \remark The methods \c start() and \c stop() must be called in order and only once; other uses will result in
-/// undefined behavior.
+/// \remark The methods \c start(), \c request_stop() and \c wait_stop() must be called in this order and only once;
+/// other uses will result in undefined behavior. Calling \c stop() is equivalent to calling \c request_stop() and \c
+/// wait_stop().
 class lower_phy_controller
 {
 public:
@@ -30,10 +32,23 @@ public:
   /// \param[in] sfn0_ref_time System Frame Number (SFN) zero reference time.
   virtual void start(baseband_gateway_timestamp init_time, baseband_gateway_timestamp sfn0_ref_time = 0) = 0;
 
-  /// \brief Stops the lower physical layer operation.
+  /// \brief Requests the lower physical layer to stop.
   ///
-  /// Waits for all asynchronous processes to be over before returning.
-  virtual void stop() = 0;
+  /// This call does not block, it signals the lower physical layer that a stop is requested.
+  virtual void request_stop() = 0;
+
+  /// \brief Waits for the lower physical layer to stop.
+  ///
+  /// This call is blocking, it waits for the stop request to be effective, i.e., waits for all asynchronous processes
+  /// to complete. It must be called after \c request_stop().
+  virtual void wait_stop() = 0;
+
+  /// Stops the lower physical layer operation. Combines \c request_stop() and \c wait_stop().
+  void stop()
+  {
+    request_stop();
+    wait_stop();
+  }
 };
 
 } // namespace ocudu

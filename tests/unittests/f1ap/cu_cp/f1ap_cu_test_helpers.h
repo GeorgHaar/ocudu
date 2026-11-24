@@ -9,6 +9,7 @@
 #include "tests/test_doubles/f1ap/f1c_test_local_gateway.h"
 #include "ocudu/f1ap/cu_cp/f1ap_configuration.h"
 #include "ocudu/f1ap/cu_cp/f1ap_cu.h"
+#include "ocudu/f1ap/cu_cp/gnb_cu_ue_f1ap_id_allocator.h"
 #include "ocudu/f1ap/f1ap_message_notifier.h"
 #include "ocudu/ran/cu_cp_types.h"
 #include "ocudu/support/async/fifo_async_task_scheduler.h"
@@ -173,6 +174,11 @@ public:
     if (msg.ue_index == cu_cp_ue_index_t::invalid) {
       response.ue_index = on_new_cu_cp_ue_required();
     }
+    if (next_resumed_ue_index.has_value()) {
+      // Simulate an RRC Resume of an existing UE.
+      response.ue_index = *next_resumed_ue_index;
+      next_resumed_ue_index.reset();
+    }
 
     // Return failure if no UE index is available.
     if (response.ue_index == cu_cp_ue_index_t::invalid) {
@@ -224,6 +230,19 @@ public:
     });
   }
 
+  void on_e_cid_measurement_report(const e_cid_measurement_report_t& report) override
+  {
+    last_e_cid_measurement_report = report;
+  }
+
+  void on_e_cid_measurement_failure_indication(const e_cid_measurement_failure_indication_t& ind) override
+  {
+    last_e_cid_measurement_failure_indication = ind;
+  }
+
+  std::optional<e_cid_measurement_report_t>             last_e_cid_measurement_report;
+  std::optional<e_cid_measurement_failure_indication_t> last_e_cid_measurement_failure_indication;
+
   void on_ref_time_info_report(const f1ap_time_ref_info& info) override { last_ref_time_info_report = info; }
 
   void set_ue_id(uint16_t ue_id_) { ue_id = ue_id_; }
@@ -241,6 +260,8 @@ public:
       std::make_unique<dummy_f1ap_ul_dcch_message_notifier>();
   std::unique_ptr<dummy_f1ap_ul_dcch_message_notifier> f1ap_srb2_notifier =
       std::make_unique<dummy_f1ap_ul_dcch_message_notifier>();
+  /// UE index that the next UE RRC context creation returns, to simulate an RRC Resume.
+  std::optional<cu_cp_ue_index_t> next_resumed_ue_index;
 
 private:
   const unsigned            max_nof_supported_ues;
@@ -288,6 +309,7 @@ protected:
 
   dummy_f1ap_pdu_notifier          f1ap_pdu_notifier;
   dummy_f1ap_du_processor_notifier du_processor_notifier{max_nof_ues};
+  gnb_cu_ue_f1ap_id_allocator      cu_ue_id_alloc;
   timer_manager                    timers;
   manual_task_worker               ctrl_worker{128};
   std::unique_ptr<f1ap_cu>         f1ap;

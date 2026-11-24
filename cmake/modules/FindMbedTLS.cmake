@@ -13,11 +13,17 @@
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(PC_MBEDTLS mbedtls)
 
+if(NOT "$ENV{MBEDTLS_DIR}" STREQUAL "")
+  set(_MBEDTLS_INCLUDE_HINTS "$ENV{MBEDTLS_DIR}/include")
+  set(_MBEDTLS_LIB_HINTS     "$ENV{MBEDTLS_DIR}/lib")
+endif()
+
 #find Mbedtls
 find_path(
     MBEDTLS_INCLUDE_DIRS
     NAMES mbedtls/md.h
-    HINTS $ENV{MBEDTLS_DIR}/include
+    HINTS ${MBEDTLS_DIR}/include
+          ${_MBEDTLS_INCLUDE_HINTS}
           ${PC_MBEDTLS_INCLUDEDIR}
           ${CMAKE_INSTALL_PREFIX}/include
     PATHS /usr/local/include
@@ -27,7 +33,8 @@ find_path(
 find_library(
     MBEDTLS_LIBRARIES
     NAMES mbedcrypto
-    HINTS $ENV{MBEDTLS_DIR}/lib
+    HINTS ${MBEDTLS_DIR}/lib
+          ${_MBEDTLS_LIB_HINTS}
           ${PC_MBEDTLS_LIBDIR}
           ${CMAKE_INSTALL_PREFIX}/lib
           ${CMAKE_INSTALL_PREFIX}/lib64
@@ -40,7 +47,8 @@ find_library(
 find_library(
     MBEDTLS_STATIC_LIBRARIES
     NAMES libmbedcrypto.a
-    HINTS $ENV{MBEDTLS_DIR}/lib
+    HINTS ${MBEDTLS_DIR}/lib
+          ${_MBEDTLS_LIB_HINTS}
           ${PC_MBEDTLS_LIBDIR}
           ${CMAKE_INSTALL_PREFIX}/lib
           ${CMAKE_INSTALL_PREFIX}/lib64
@@ -49,6 +57,9 @@ find_library(
           /usr/lib
           /usr/lib64
 )
+
+unset(_MBEDTLS_INCLUDE_HINTS)
+unset(_MBEDTLS_LIB_HINTS)
 
 message(STATUS "MBEDTLS LIBRARIES: " ${MBEDTLS_LIBRARIES})
 message(STATUS "MBEDTLS STATIC LIBRARIES: " ${MBEDTLS_STATIC_LIBRARIES})

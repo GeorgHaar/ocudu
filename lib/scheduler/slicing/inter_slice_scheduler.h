@@ -11,6 +11,11 @@
 
 namespace ocudu {
 
+/// \brief [Implementation-defined] Maximum number of distinct Koffsets a RAN slice generates UL candidates for.
+///
+/// UEs on other Koffsets are only scheduled in slots that a listed Koffset reaches.
+constexpr unsigned MAX_NOF_NTN_KOFFSETS_PER_SLICE = 4;
+
 struct cell_resource_allocator;
 
 /// Inter-slice Scheduler.
@@ -75,9 +80,18 @@ private:
     interval<unsigned> rb_lims;
     /// Slot at which PUSCH/PDSCH needs to be scheduled for this slice candidate.
     slot_point slot_tx;
+    /// k2 of the PUSCH TD resource this candidate was built from. Zero for downlink.
+    unsigned k2;
+    /// Koffset in slots of the UEs this candidate is for, as per TS 38.213, Section 4.2. Zero for downlink.
+    unsigned ntn_koffset;
 
-    slice_candidate_context(ran_slice_id_t id_, priority_type prio_, interval<unsigned> rb_lims_, slot_point slot_tx_) :
-      id(id_), prio(prio_), rb_lims(rb_lims_), slot_tx(slot_tx_)
+    slice_candidate_context(ran_slice_id_t     id_,
+                            priority_type      prio_,
+                            interval<unsigned> rb_lims_,
+                            slot_point         slot_tx_,
+                            unsigned           k2_          = 0,
+                            unsigned           ntn_koffset_ = 0) :
+      id(id_), prio(prio_), rb_lims(rb_lims_), slot_tx(slot_tx_), k2(k2_), ntn_koffset(ntn_koffset_)
     {
     }
 
@@ -122,6 +136,20 @@ private:
 
   // Fetch UE if it is in a state to be added/reconfigured.
   ue* fetch_ue_to_update(du_ue_index_t ue_idx) const;
+
+  /// \brief Adds the UL candidates of a slice for a PUSCH TD resource reached at the given Koffset.
+  /// \param[in,out] allocated_k2 Last k2 given a candidate at this Koffset. Set to \c td_res.k2 when one is added.
+  /// \param[in]     slice        Slice the candidates are for.
+  /// \param[in]     slot_tx      Slot of the PDCCH.
+  /// \param[in]     res_grid     Cell resource grid.
+  /// \param[in]     td_res       PUSCH TD resource the candidates are built from.
+  /// \param[in]     ntn_koffset  Koffset in slots of the UEs the candidates are for.
+  void add_ul_slice_candidates(std::optional<unsigned>&                     allocated_k2,
+                               const ran_slice_sched_context&               slice,
+                               slot_point                                   slot_tx,
+                               const cell_resource_allocator&               res_grid,
+                               const pusch_time_domain_resource_allocation& td_res,
+                               unsigned                                     ntn_koffset);
 
   void add_impl(ue& u);
 

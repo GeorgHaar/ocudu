@@ -11,7 +11,7 @@ namespace ocudu::ocucp {
 
 /// XNAP message definition which is transferred between CU-CPs.
 struct xnap_message {
-  asn1::xnap::xn_ap_pdu_c pdu;
+  asn1::xnap::xnap_pdu_c pdu;
 };
 
 } // namespace ocudu::ocucp

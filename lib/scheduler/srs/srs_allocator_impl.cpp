@@ -64,7 +64,9 @@ srs_allocator_impl::srs_allocator_impl(const cell_configuration&      cell_cfg_,
   srs_prohibit_time(prohibit_window.has_value()
                         ? std::optional<unsigned>(static_cast<unsigned>(prohibit_window.value()))
                         : std::nullopt),
-  srs_allocation_ring(RES_MANAGER_RING_BUFFER_SIZE, slot_srs_allocation(MAX_NOF_DU_UES))
+  srs_allocation_ring(
+      get_allocator_ring_size_gt_min(get_max_slot_ul_alloc_delay(cell_cfg_.ntn_ul_alloc_delay_slots()) + 1),
+      slot_srs_allocation(MAX_NOF_DU_UES))
 {
   for (auto& srs_slot_alloc : srs_allocation_ring) {
     srs_slot_alloc.reset();
@@ -136,7 +138,7 @@ aperiodic_srs_alloc_info srs_allocator_impl::allocate_aperiodic_srs(cell_resourc
   const auto& aperiodic_srs_set = std::get<srs_config::srs_resource_set::aperiodic_resource_type>(srs_set.res_type);
   // NOTE: the presence of the optional slot_offset must have been validated at the moment the cfg is created.
   const unsigned   sl_offset          = aperiodic_srs_set.slot_offset.value();
-  const slot_point candidate_srs_slot = pdcch_slot + sl_offset + ntn_koffset;
+  const slot_point candidate_srs_slot = pdcch_slot + cell_cfg.ul_delay(sl_offset + ntn_koffset);
   const unsigned   srs_slot_idx       = get_slot_idx(candidate_srs_slot);
   ocudu_assert(srs_slot_idx < srs_slots.size(), "SRS slot index");
 
@@ -150,8 +152,8 @@ aperiodic_srs_alloc_info srs_allocator_impl::allocate_aperiodic_srs(cell_resourc
     return {};
   }
 
-  auto& srs_slot_res_alloc = res_alloc[sl_offset + ntn_koffset];
-  if (srs_slot_res_alloc.result.ul.srss.full()) {
+  auto& srs_slot_res_alloc = res_alloc[cell_cfg.ul_delay(sl_offset + ntn_koffset)];
+  if (srs_slot_res_alloc.result_builder().ul().srss().full()) {
     return {};
   }
 
@@ -161,8 +163,9 @@ aperiodic_srs_alloc_info srs_allocator_impl::allocate_aperiodic_srs(cell_resourc
 
   // At this point, the SRS allocation has been successful, we proceed with adding the results (SRS PDU and marking the
   // resource grid).
-  srs_slot_res_alloc.result.ul.srss.emplace_back(
+  [[maybe_unused]] const srs_info* pdu = srs_slot_res_alloc.result_builder().ul().srss().emplace_back(
       create_srs_pdu(ue_cfg.crnti, ue_cfg.cell_cfg_common.params.ul_cfg_common.init_ul_bwp.generic_params, srs_res));
+  ocudu_assert(pdu != nullptr, "c-rnti={}: Failed to allocate SRS PDU", ue_cfg.crnti);
   srs_slot_res_alloc.ul_res_grid.fill(
       get_srs_res_grid_grant(ue_cfg.cell_cfg_common.params.ul_cfg_common.init_ul_bwp.generic_params, srs_res));
 

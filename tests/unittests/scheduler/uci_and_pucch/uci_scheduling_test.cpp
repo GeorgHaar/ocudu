@@ -25,23 +25,19 @@ public:
                               .sr_period        = sr_period,
                               .sr_offset        = sr_offset}}
   {
-    csi_offset = std::get<csi_report_config::periodic_or_semi_persistent_report_on_pucch>(
-                     t_bench.get_main_ue().get_pcell().cfg().csi_meas_cfg()->csi_report_cfg_list[0].report_cfg_type)
-                     .report_slot_offset;
-
-    csi_period = std::get<csi_report_config::periodic_or_semi_persistent_report_on_pucch>(
-                     t_bench.get_main_ue().get_pcell().cfg().csi_meas_cfg()->csi_report_cfg_list[0].report_cfg_type)
-                     .report_slot_period;
+    csi_offset = t_bench.get_main_ue().get_pcell().cfg().init_bwp().ul.ue_cfg()->csi.periodic_report->offset;
+    csi_period = t_bench.cell_cfg.params.init_bwp.csi->csi_rs_period;
 
     // Set the expected SR grant to the SR resource.
-    pucch_sr_only_test = test_helpers::make_pucch_info(t_bench.cell_cfg,
-                                                       t_bench.cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.dedicated[6],
-                                                       {.sr_bits = sr_nof_bits::one});
+    pucch_sr_only_test =
+        test_helpers::make_pucch_info(t_bench.cell_cfg,
+                                      t_bench.cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.dedicated.resources[6],
+                                      {.sr_bits = sr_nof_bits::one});
 
     // Set the expected HARQ CSI grant to the CSI resource.
     pucch_sr_csi_test =
         test_helpers::make_pucch_info(t_bench.cell_cfg,
-                                      t_bench.cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.dedicated[14],
+                                      t_bench.cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.dedicated.resources[14],
                                       {.sr_bits = sr_nof_bits::one, .csi_part1_nof_bits = default_csi_part1_bits});
   }
 
@@ -50,11 +46,11 @@ protected:
   sr_periodicity sr_period;
   unsigned       sr_offset;
   // Helper variables.
-  csi_report_periodicity csi_period;
-  unsigned               csi_offset;
-  unsigned               pucch_res_common{11};
-  unsigned               n_cces{0};
-  test_bench             t_bench;
+  csi_resource_periodicity csi_period;
+  unsigned                 csi_offset;
+  unsigned                 pucch_res_common{11};
+  unsigned                 n_cces{0};
+  test_bench               t_bench;
   // Expected PUCCH grants to be verified in the test.
   pucch_info pucch_sr_only_test;
   pucch_info pucch_sr_csi_test;
@@ -72,17 +68,17 @@ TEST_P(uci_sched_sr_test, test_different_periods)
   for (unsigned sl_cnt = starting_slot; sl_cnt < starting_slot + nof_slots_to_test; ++sl_cnt) {
     t_bench.uci_sched.run_slot(t_bench.res_grid);
     if ((t_bench.sl_tx - sr_offset).count() % sr_periodicity_to_slot(sr_period) == 0) {
-      ASSERT_EQ(1, t_bench.res_grid[0].result.ul.pucchs.size());
+      ASSERT_EQ(1, t_bench.res_grid[0].result_reader().ul().pucchs().size());
       // The scheduler allocates:
       // - SR only on slots that are for SR only.
       // - CSI + SR on slots that are for CSI + SR.
       if ((t_bench.sl_tx - csi_offset).count() % to_underlying(csi_period) == 0) {
         ASSERT_TRUE(find_pucch_pdu(
-            t_bench.res_grid[0].result.ul.pucchs.unsorted(),
+            t_bench.res_grid[0].result_reader().ul().pucchs().unsorted(),
             [&expected = pucch_sr_csi_test](const auto& pdu) { return pucch_info_match(expected, pdu); }));
       } else {
         ASSERT_TRUE(find_pucch_pdu(
-            t_bench.res_grid[0].result.ul.pucchs.unsorted(),
+            t_bench.res_grid[0].result_reader().ul().pucchs().unsorted(),
             [&expected = pucch_sr_only_test](const auto& pdu) { return pucch_info_match(expected, pdu); }));
       }
     }
@@ -105,6 +101,165 @@ INSTANTIATE_TEST_SUITE_P(test_sr_sched_different_periods_offsets,
                                          sr_periodicity::sl_160,
                                          sr_periodicity::sl_320,
                                          sr_periodicity::sl_640));
+
+/////////////  Test SR scheduling in an NTN cell   /////////////
+
+/// \brief Base fixture for the periodic SR occasion of an NTN cell. The UE derives the occasion from its SR
+/// configuration (TS 38.331, Information Element \e SchedulingRequestResourceConfig), so only k_mac separates the slot
+/// the UE transmits in from the slot the gNB receives in. CSI reporting is disabled, so every PUCCH in the grid belongs
+/// to an SR occasion.
+class uci_sched_ntn_test_base : public ::testing::Test
+{
+public:
+  static constexpr sr_periodicity sr_period = sr_periodicity::sl_40;
+  static constexpr unsigned       sr_offset = 7;
+
+  uci_sched_ntn_test_base(unsigned k_mac_ms, unsigned cs_koffset_ms) :
+    t_bench{test_bench_params{.sr_period      = sr_period,
+                              .sr_offset      = sr_offset,
+                              .csi_period     = std::nullopt,
+                              .ntn_cs_koffset = std::chrono::milliseconds{cs_koffset_ms},
+                              .ntn_k_mac      = std::chrono::milliseconds{k_mac_ms}}}
+  {
+  }
+
+protected:
+  /// Runs the scheduler over several SR periods and returns whether an SR occasion was seen, failing the test on any
+  /// PUCCH that falls outside \c expected_offset.
+  void run_and_check_sr_offset(unsigned expected_offset)
+  {
+    const unsigned period_slots      = sr_periodicity_to_slot(sr_period);
+    const unsigned nof_slots_to_test = std::max(period_slots * 4, t_bench.res_grid.ring_size() * 2);
+    bool           observed_sr       = false;
+
+    for (unsigned sl_cnt = 0; sl_cnt != nof_slots_to_test; ++sl_cnt) {
+      t_bench.uci_sched.run_slot(t_bench.res_grid);
+      const bool is_sr_slot = t_bench.sl_tx.count() % period_slots == expected_offset;
+      if (is_sr_slot) {
+        ASSERT_EQ(t_bench.res_grid[0].result_reader().ul().pucchs().size(), 1)
+            << fmt::format("No SR at slot {}, the expected occasion", t_bench.sl_tx);
+        observed_sr = true;
+      } else {
+        ASSERT_TRUE(t_bench.res_grid[0].result_reader().ul().pucchs().empty())
+            << fmt::format("SR at slot {}, away from the expected occasion", t_bench.sl_tx);
+      }
+      t_bench.slot_indication(++t_bench.sl_tx);
+    }
+    ASSERT_TRUE(observed_sr);
+  }
+
+  test_bench t_bench;
+};
+
+/// Fixture for an NTN cell whose k_mac is not a multiple of the SR periodicity, so an unshifted occasion cannot pass by
+/// coincidence.
+class uci_sched_ntn_kmac_test : public uci_sched_ntn_test_base
+{
+public:
+  static constexpr unsigned K_MAC_MS = 19;
+
+  uci_sched_ntn_kmac_test() : uci_sched_ntn_test_base(K_MAC_MS, /*cs_koffset_ms=*/0) {}
+};
+
+/// Verifies that k_mac shifts the SR occasion onto the slot the gNB receives it in.
+TEST_F(uci_sched_ntn_kmac_test, periodic_sr_is_shifted_by_k_mac)
+{
+  const unsigned k_mac_slots = t_bench.cell_cfg.ntn_k_mac_slots;
+  ASSERT_GT(k_mac_slots, 0U);
+  ASSERT_EQ(t_bench.cell_cfg.ntn_cs_koffset, 0U);
+
+  const unsigned period_slots = sr_periodicity_to_slot(sr_period);
+  ASSERT_NE(k_mac_slots % period_slots, 0U) << "k_mac must shift the occasion, or the test cannot tell the two apart";
+
+  run_and_check_sr_offset((sr_offset + k_mac_slots) % period_slots);
+}
+
+/// Fixture for an NTN cell carrying a cell-specific K-offset and no k_mac.
+class uci_sched_ntn_koffset_test : public uci_sched_ntn_test_base
+{
+public:
+  static constexpr unsigned KOFFSET_MS = 5;
+
+  uci_sched_ntn_koffset_test() : uci_sched_ntn_test_base(/*k_mac_ms=*/0, KOFFSET_MS) {}
+};
+
+/// \brief Verifies that the cell-specific K-offset leaves the SR occasion at its configured offset.
+///
+/// The occasion follows from an SFN and slot modulo condition on SR_PERIODICITY and SR_OFFSET (TS 38.213,
+/// Section 9.2.4), so there is no "slot n+k" relation for a K-offset to enter.
+TEST_F(uci_sched_ntn_koffset_test, periodic_sr_is_not_shifted_by_the_cell_specific_koffset)
+{
+  ASSERT_GT(t_bench.cell_cfg.ntn_cs_koffset, 0U);
+  ASSERT_EQ(t_bench.cell_cfg.ntn_k_mac_slots, 0U);
+
+  const unsigned period_slots = sr_periodicity_to_slot(sr_period);
+  ASSERT_NE(t_bench.cell_cfg.ntn_cs_koffset % period_slots, 0U)
+      << "the K-offset must be able to move the occasion, or the test cannot tell the two apart";
+
+  run_and_check_sr_offset(sr_offset % period_slots);
+}
+
+/// \brief Fixture for the periodic CSI report occasion of an NTN cell. The UE derives the occasion from its own
+/// report configuration (TS 38.214, Section 5.2.1.4), so, as for the periodic SR, only k_mac separates the slot the UE
+/// transmits in from the slot the gNB receives in. The k_mac is not a multiple of the CSI periodicity, so an unshifted
+/// occasion cannot pass by coincidence.
+class uci_sched_ntn_kmac_csi_test : public ::testing::Test
+{
+public:
+  static constexpr unsigned                 K_MAC_MS   = 19;
+  static constexpr sr_periodicity           sr_period  = sr_periodicity::sl_40;
+  static constexpr unsigned                 sr_offset  = 7;
+  static constexpr csi_resource_periodicity csi_period = csi_resource_periodicity::slots40;
+  static constexpr unsigned                 csi_offset = 11;
+
+  uci_sched_ntn_kmac_csi_test() :
+    t_bench{test_bench_params{.sr_period  = sr_period,
+                              .sr_offset  = sr_offset,
+                              .csi_period = csi_period,
+                              .csi_offset = csi_offset,
+                              .ntn_k_mac  = std::chrono::milliseconds{K_MAC_MS}}}
+  {
+  }
+
+protected:
+  test_bench t_bench;
+};
+
+/// Verifies that k_mac shifts the CSI report occasion onto the slot the gNB receives it in.
+TEST_F(uci_sched_ntn_kmac_csi_test, periodic_csi_report_is_shifted_by_k_mac)
+{
+  const unsigned k_mac_slots = t_bench.cell_cfg.ntn_k_mac_slots;
+  ASSERT_GT(k_mac_slots, 0U);
+  ASSERT_EQ(t_bench.cell_cfg.ntn_cs_koffset, 0U);
+
+  const unsigned csi_period_slots = to_underlying(csi_period);
+  const unsigned sr_period_slots  = sr_periodicity_to_slot(sr_period);
+  ASSERT_NE(k_mac_slots % csi_period_slots, 0U) << "k_mac must shift the occasion, or the test cannot tell the two "
+                                                   "apart";
+
+  // The SR occasion is shifted the same way, and has an offset of its own, so its slots are left out of the check.
+  const unsigned expected_csi_offset = (csi_offset + k_mac_slots) % csi_period_slots;
+  const unsigned expected_sr_offset  = (sr_offset + k_mac_slots) % sr_period_slots;
+  ASSERT_NE(expected_csi_offset, expected_sr_offset) << "the two occasions share a slot, so neither can be told apart";
+
+  const unsigned nof_slots_to_test = std::max(csi_period_slots * 4, t_bench.res_grid.ring_size() * 2);
+  bool           observed_csi      = false;
+  for (unsigned sl_cnt = 0; sl_cnt != nof_slots_to_test; ++sl_cnt) {
+    t_bench.uci_sched.run_slot(t_bench.res_grid);
+    const bool is_csi_slot = t_bench.sl_tx.count() % csi_period_slots == expected_csi_offset;
+    const bool is_sr_slot  = t_bench.sl_tx.count() % sr_period_slots == expected_sr_offset;
+    if (is_csi_slot) {
+      ASSERT_EQ(t_bench.res_grid[0].result_reader().ul().pucchs().size(), 1)
+          << fmt::format("No CSI report at slot {}, the expected occasion", t_bench.sl_tx);
+      observed_csi = true;
+    } else if (not is_sr_slot) {
+      ASSERT_TRUE(t_bench.res_grid[0].result_reader().ul().pucchs().empty())
+          << fmt::format("PUCCH at slot {}, away from the expected occasions", t_bench.sl_tx);
+    }
+    t_bench.slot_indication(++t_bench.sl_tx);
+  }
+  ASSERT_TRUE(observed_csi);
+}
 
 /////////////  Test SR scheduling with a UE measurement gap   /////////////
 
@@ -147,11 +302,11 @@ TEST_F(uci_sched_meas_gap_test, sr_opportunities_overlapping_the_ue_meas_gap_are
     if (t_bench.sl_tx.count() % sr_periodicity_to_slot(sr_period) == 0) {
       // SR occasion.
       if (is_ue_ul_disabled(t_bench.sl_tx)) {
-        ASSERT_EQ(0, t_bench.res_grid[0].result.ul.pucchs.size())
+        ASSERT_EQ(0, t_bench.res_grid[0].result_reader().ul().pucchs().size())
             << "no SR must be scheduled in slot " << t_bench.sl_tx.count() << ", inside the UE measurement gap";
         tested_inside_gap = true;
       } else {
-        ASSERT_EQ(1, t_bench.res_grid[0].result.ul.pucchs.size())
+        ASSERT_EQ(1, t_bench.res_grid[0].result_reader().ul().pucchs().size())
             << "the SR must be scheduled in slot " << t_bench.sl_tx.count() << ", outside the UE measurement gap";
         tested_outside_gap = true;
       }
@@ -175,15 +330,14 @@ public:
   {
     OCUDU_TEST_REQUIREMENTS("MVP-FUNC-MIMO-16-1");
 
-    sr_period = sr_periodicity_to_slot(
-        t_bench.get_main_ue().get_pcell().cfg().init_bwp().ul.ded()->pucch_cfg.value().sr_res_list[0].period);
+    sr_period = sr_periodicity_to_slot(t_bench.cell_rrm.pucch.sr_period);
 
-    sr_offset = t_bench.get_main_ue().get_pcell().cfg().init_bwp().ul.ded()->pucch_cfg.value().sr_res_list[0].offset;
+    sr_offset = t_bench.get_main_ue().get_pcell().cfg().init_bwp().ul.ue_cfg()->pucch.sr_offset;
 
     // In the slots with SR + CSI, the expected format is Format 2.
     pucch_csi_and_sr_test =
         test_helpers::make_pucch_info(t_bench.cell_cfg,
-                                      t_bench.cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.dedicated[14],
+                                      t_bench.cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.dedicated.resources[14],
                                       {.sr_bits = sr_nof_bits::one, .csi_part1_nof_bits = default_csi_part1_bits});
 
     pucch_csi_only_test                  = pucch_csi_and_sr_test;
@@ -216,17 +370,17 @@ TEST_P(uci_sched_csi_test, test_different_periods)
   for (unsigned sl_cnt = starting_slot; sl_cnt < starting_slot + nof_slots_to_test; ++sl_cnt) {
     t_bench.uci_sched.run_slot(t_bench.res_grid);
     if ((t_bench.sl_tx - csi_offset).count() % to_underlying(csi_period) == 0) {
-      ASSERT_EQ(1, t_bench.res_grid[0].result.ul.pucchs.size());
+      ASSERT_EQ(1, t_bench.res_grid[0].result_reader().ul().pucchs().size());
       // The scheduler allocates:
       // - CSI only on slots that are for CSI only.
       // - CSI + SR on slots that are for CSI + SR.
       if ((t_bench.sl_tx - sr_offset).count() % sr_period == 0) {
         ASSERT_TRUE(find_pucch_pdu(
-            t_bench.res_grid[0].result.ul.pucchs.unsorted(),
+            t_bench.res_grid[0].result_reader().ul().pucchs().unsorted(),
             [&expected = pucch_csi_and_sr_test](const auto& pdu) { return pucch_info_match(expected, pdu); }));
       } else {
         ASSERT_TRUE(find_pucch_pdu(
-            t_bench.res_grid[0].result.ul.pucchs.unsorted(),
+            t_bench.res_grid[0].result_reader().ul().pucchs().unsorted(),
             [&expected = pucch_csi_only_test](const auto& pdu) { return pucch_info_match(expected, pdu); }));
       }
     }
@@ -265,7 +419,7 @@ TEST_P(uci_sched_reconf_test, after_ue_reconf_uci_doesnt_stopped_being_scheduled
   for (unsigned sl_cnt = 0; sl_cnt < nof_slots_to_test; ++sl_cnt) {
     t_bench.uci_sched.run_slot(t_bench.res_grid);
     if ((t_bench.sl_tx - sr_offset).count() % sr_period_slots == 0) {
-      ASSERT_EQ(1, t_bench.res_grid[0].result.ul.pucchs.size());
+      ASSERT_EQ(1, t_bench.res_grid[0].result_reader().ul().pucchs().size());
     }
     // Update the slot indicator.
     t_bench.slot_indication(++t_bench.sl_tx);
@@ -279,7 +433,7 @@ TEST_P(uci_sched_reconf_test, after_ue_reconf_uci_doesnt_stopped_being_scheduled
   for (unsigned sl_cnt = 0; sl_cnt < nof_slots_to_test; ++sl_cnt) {
     t_bench.uci_sched.run_slot(t_bench.res_grid);
     if ((t_bench.sl_tx - sr_offset).count() % sr_period_slots == 0) {
-      ASSERT_EQ(1, t_bench.res_grid[0].result.ul.pucchs.size());
+      ASSERT_EQ(1, t_bench.res_grid[0].result_reader().ul().pucchs().size());
     }
     // Update the slot indicator.
     t_bench.slot_indication(++t_bench.sl_tx);

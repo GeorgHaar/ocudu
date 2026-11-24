@@ -104,7 +104,7 @@ ra_ue_repository::ra_ue_repository(const cell_configuration& cell_cfg,
            get_harq_retx_timeout_slots(cell_cfg),
            get_harq_retx_timeout_slots(cell_cfg),
            cell_harq_manager::DEFAULT_ACK_TIMEOUT_SLOTS,
-           cell_cfg.ntn_cs_koffset,
+           cell_cfg.ntn_ul_alloc_delay_slots(),
            cell_cfg.params.ntn_params.has_value() && cell_cfg.params.ntn_params->ul_harq_mode_b)
 {
   report_fatal_error_if_not(capacity > 0, "ra_ue_repository capacity must be greater than 0");

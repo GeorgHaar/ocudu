@@ -160,7 +160,7 @@ ue_config_update_event sched_config_manager::add_ue(const sched_ue_creation_requ
   }
 
   // Ensure configured cells exist.
-  const du_cell_index_t pcell_index = (*cfg_req.cfg.cells)[0].serv_cell_cfg.cell_index;
+  const du_cell_index_t pcell_index = (*cfg_req.cfg.cells)[0].cell_index;
   if (not contains(pcell_index)) {
     logger.warning("ue={} rnti={}: Discarding invalid UE creation request. Cause: PCell={} does not exist",
                    cfg_req.ue_index,
@@ -227,6 +227,19 @@ ue_config_update_event sched_config_manager::update_ue(const sched_ue_reconfigur
     logger.error("ue={} c-rnti={}: Discarding UE configuration. Cause: UE with provided C-RNTI does not exist.",
                  cfg_req.ue_index,
                  cfg_req.crnti);
+    return ue_config_update_event{cfg_req.ue_index, *this};
+  }
+
+  // Validate the UE reconfiguration before anything is applied. The checks are the same per-cell ones a UE creation
+  // goes through: a reconfiguration only carries a delta, but each cell entry it does carry is a complete
+  // ServingCellConfig, so they apply unchanged.
+  error_type<std::string> result =
+      config_validators::validate_sched_ue_reconfiguration_message(cfg_req, *added_cells[pcell_index]);
+  if (not result.has_value()) {
+    logger.error("ue={} c-rnti={}: Discarding invalid UE reconfiguration request. Cause: {}",
+                 cfg_req.ue_index,
+                 cfg_req.crnti,
+                 result.error());
     return ue_config_update_event{cfg_req.ue_index, *this};
   }
 

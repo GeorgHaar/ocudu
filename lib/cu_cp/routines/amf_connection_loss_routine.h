@@ -32,9 +32,12 @@ public:
   void operator()(coro_context<async_task<void>>& ctx);
 
 private:
-  const cu_cp_amf_index_t           amf_index;
-  const cu_cp_configuration&        cu_cp_cfg;
-  std::vector<plmn_identity>        plmns;
+  const cu_cp_amf_index_t    amf_index;
+  const cu_cp_configuration& cu_cp_cfg;
+  /// PLMNs that the CU-CP configures for the disconnected AMF.
+  std::vector<plmn_identity> plmns;
+  /// PLMNs that no connected AMF serves after the disconnection.
+  std::vector<plmn_identity>        lost_plmns;
   du_processor_repository&          du_db;
   logical_cell_manager&             logical_cells;
   cu_cp_ue_context_release_handler& ue_release_handler;

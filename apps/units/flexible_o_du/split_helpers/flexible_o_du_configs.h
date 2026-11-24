@@ -56,6 +56,7 @@ struct flexible_o_du_ru_config {
   unsigned                 max_processing_delay;
   unsigned                 prach_nof_ports;
   bool                     is_rt_mode_enabled;
+  std::string              dft_processor_type;
 };
 
 /// Radio Unit dependencies of the flexible O-RAN DU.

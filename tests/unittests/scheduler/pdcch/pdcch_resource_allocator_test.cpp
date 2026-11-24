@@ -5,20 +5,26 @@
 
 #include "../test_utils/config_generators.h"
 #include "lib/scheduler/pdcch_scheduling/pdcch_resource_allocator_impl.h"
+#include "lib/scheduler/pdcch_scheduling/pdcch_slot_resource_allocator.h"
 #include "lib/scheduler/support/pdcch/pdcch_mapping.h"
+#include "tests/test_doubles/scheduler/cell_config_builder_profiles.h"
 #include "tests/test_doubles/scheduler/scheduler_config_helper.h"
 #include "tests/test_doubles/utils/test_rng.h"
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/ran/pdcch/pdcch_candidates.h"
 #include "ocudu/scheduler/config/ran_cell_config_helper.h"
+#include "ocudu/scheduler/config/sched_pdcch_config.h"
 #include "ocudu/scheduler/config/scheduler_expert_config_factory.h"
 #include "ocudu/scheduler/config/scheduler_ue_config_validator.h"
 #include "ocudu/scheduler/config/serving_cell_config_factory.h"
 #include "ocudu/scheduler/scheduler_configurator.h"
 #include "fmt/std.h"
+#include <array>
 #include <gtest/gtest.h>
+#include <initializer_list>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 using namespace ocudu;
 
@@ -92,7 +98,7 @@ protected:
     ue_creation_req.ue_index                          = to_du_ue_index((unsigned)rnti - 0x4601);
     ue_creation_req.crnti                             = rnti;
     ue_creation_req.starts_in_fallback                = false;
-    (*ue_creation_req.cfg.cells)[0]                   = default_ue_cell_req;
+    (*ue_creation_req.cfg.cells)[0]                   = make_sched_ue_cell_config(default_ue_cell_req);
     return ue_creation_req;
   }
 
@@ -112,16 +118,16 @@ protected:
     ASSERT_EQ(pdcch_ctx.n_id_pdcch_dmrs,
               cs_cfg.get_pdcch_dmrs_scrambling_id().has_value() ? *cs_cfg.get_pdcch_dmrs_scrambling_id()
                                                                 : cell_cfg.params.pci)
-        << "Invalid N_{ID} (see TS38.211, 7.4.1.3.1)";
+        << "Invalid N_{ID} (see TS 38.211, 7.4.1.3.1)";
     ASSERT_EQ(pdcch_ctx.n_rnti_pdcch_data,
               cs_cfg.get_pdcch_dmrs_scrambling_id().has_value() and (not ss_cfg.is_common_search_space())
                   ? to_underlying(u.rnti)
                   : 0)
-        << "Invalid n_{RNTI} (see TS38.211, 7.3.2.3)";
+        << "Invalid n_{RNTI} (see TS 38.211, 7.3.2.3)";
     unsigned expected_n_id = cs_cfg.get_pdcch_dmrs_scrambling_id().has_value() and (not ss_cfg.is_common_search_space())
                                  ? *cs_cfg.get_pdcch_dmrs_scrambling_id()
                                  : cell_cfg.params.pci;
-    ASSERT_EQ(pdcch_ctx.n_id_pdcch_data, expected_n_id) << "Invalid n_{ID} (see TS38.211, 7.3.2.3)";
+    ASSERT_EQ(pdcch_ctx.n_id_pdcch_data, expected_n_id) << "Invalid n_{ID} (see TS 38.211, 7.3.2.3)";
 
     // The PDCCH is neither precoded nor beamformed.
     ASSERT_TRUE(std::holds_alternative<precoding_matrix_indicator>(pdcch_ctx.precoding_and_beamforming));
@@ -183,16 +189,16 @@ protected:
 
   bool collisions_found() const
   {
-    const auto& dl_pdcchs = res_grid[0].result.dl.dl_pdcchs;
-    const auto& ul_pdcchs = res_grid[0].result.dl.ul_pdcchs;
-    for (const auto* it = dl_pdcchs.begin(); it != dl_pdcchs.end(); ++it) {
-      for (const auto* it2 = it + 1; it2 != dl_pdcchs.end(); ++it2) {
-        if (pdcchs_collide(it->ctx, it2->ctx)) {
+    const auto dl_pdcchs = res_grid[0].result_reader().dl().dl_pdcchs();
+    const auto ul_pdcchs = res_grid[0].result_reader().dl().ul_pdcchs();
+    for (unsigned i = 0, e = dl_pdcchs.size(); i != e; ++i) {
+      for (unsigned j = i + 1; j != e; ++j) {
+        if (pdcchs_collide(dl_pdcchs[i].ctx, dl_pdcchs[j].ctx)) {
           return true;
         }
       }
       for (const auto& ul_pdcch : ul_pdcchs) {
-        if (pdcchs_collide(it->ctx, ul_pdcch.ctx)) {
+        if (pdcchs_collide(dl_pdcchs[i].ctx, ul_pdcch.ctx)) {
           return true;
         }
       }
@@ -290,10 +296,162 @@ void PrintTo(const test_scrambling_params& value, ::std::ostream* os)
 
 using namespace pdcch_test;
 
+class pdcch_backtracking_test : public base_pdcch_resource_allocator_tester, public ::testing::Test
+{
+protected:
+  struct request {
+    dci_context_information           ctx{};
+    std::vector<pdcch_candidate_type> candidates;
+
+    request(const bwp_configuration&       bwp,
+            const sched_coreset_config&    cs,
+            std::initializer_list<uint8_t> starts,
+            aggregation_level              level = aggregation_level::n2) :
+      candidates(starts)
+    {
+      ctx.bwp_cfg       = &bwp;
+      ctx.coreset_cfg   = &cs.cfg();
+      ctx.cces.aggr_lvl = level;
+    }
+  };
+
+  static sched_coreset_config make_coreset(const bwp_configuration& bwp, pci_t pci)
+  {
+    freq_resource_bitmap resources(pdcch_constants::MAX_NOF_FREQ_RESOURCES);
+    resources.fill(0, 16, true);
+    coreset_configuration cs{to_coreset_id(1),
+                             resources,
+                             1,
+                             std::nullopt,
+                             coreset_configuration::precoder_granularity_type::same_as_reg_bundle};
+
+    std::array<std::vector<crb_index_list>, NOF_AGGREGATION_LEVELS> candidate_crbs;
+    for (unsigned i = 0; i != NOF_AGGREGATION_LEVELS; ++i) {
+      const aggregation_level level = aggregation_index_to_level(i);
+      for (unsigned ncce = 0; ncce < cs.get_nof_cces(); ncce += to_nof_cces(level)) {
+        candidate_crbs[i].push_back(pdcch_helper::cce_to_prb_mapping(bwp, cs, pci, level, ncce));
+        for (uint16_t& prb : candidate_crbs[i].back()) {
+          prb = prb_to_crb(bwp.crbs, prb);
+        }
+      }
+    }
+    return sched_coreset_config{cs, candidate_crbs};
+  }
+
+  pdcch_backtracking_test() :
+    base_pdcch_resource_allocator_tester(to_rnti(0x4601),
+                                         sched_config_helper::make_default_sched_cell_configuration_request(
+                                             cell_config_builder_params{.dl_carrier{.carrier_bw = cell_bw::MHz20}}))
+  {
+    res_grid[0].dl_res_grid.fill({bwp.scs, {0, 1}, {96, 98}});
+    res_grid[0].dl_res_grid.fill({bwp.scs, {3, 4}, {2, 4}});
+  }
+
+  bool allocate(request& r, bool movable = true)
+  {
+    return allocator.alloc_pdcch(r.ctx, res_grid[0], cs, ss, r.candidates, movable);
+  }
+
+  cell_slot_resource_grid snapshot() { return res_grid[0].dl_res_grid; }
+
+  const bwp_configuration&          bwp = cell_cfg.params.dl_cfg_common.init_dl_bwp.generic_params;
+  const sched_coreset_config        cs  = make_coreset(bwp, cell_cfg.params.pci);
+  const search_space_configuration& ss  = cell_cfg.params.dl_cfg_common.init_dl_bwp.pdcch_common.search_spaces[0];
+  pdcch_slot_allocator              allocator;
+};
+
+TEST_F(pdcch_backtracking_test, moves_existing_grant_and_releases_old_position)
+{
+  request a(bwp, cs, {0, 2});
+  request b(bwp, cs, {0}, aggregation_level::n1);
+  auto    expected = snapshot();
+  ASSERT_TRUE(allocate(a));
+  ASSERT_EQ(a.ctx.cces.ncce, 0U);
+  ASSERT_TRUE(allocate(b));
+  EXPECT_EQ(a.ctx.cces.ncce, 2U);
+  EXPECT_EQ(b.ctx.cces.ncce, 0U);
+  EXPECT_FALSE(res_grid[0].dl_res_grid.collides(bwp.scs, {0, 1}, crb_interval{6, 12}));
+  expected.fill(bwp.scs, {0, 1}, cs.candidate_crbs(2, aggregation_level::n2));
+  expected.fill(bwp.scs, {0, 1}, cs.candidate_crbs(0, aggregation_level::n1));
+  EXPECT_EQ(snapshot(), expected);
+}
+
+TEST_F(pdcch_backtracking_test, failed_repacking_restores_entire_grid_and_context)
+{
+  request a(bwp, cs, {0, 2});
+  request b(bwp, cs, {4, 6});
+  request impossible(bwp, cs, {0}, aggregation_level::n8);
+  request later(bwp, cs, {2});
+  ASSERT_TRUE(allocate(a));
+  ASSERT_TRUE(allocate(b));
+  const auto before = snapshot();
+  ASSERT_FALSE(allocate(impossible));
+  EXPECT_EQ(snapshot(), before);
+  EXPECT_EQ(a.ctx.cces.ncce, 0U);
+  EXPECT_EQ(b.ctx.cces.ncce, 4U);
+  ASSERT_TRUE(allocate(later));
+}
+
+TEST_F(pdcch_backtracking_test, cancellation_after_repacking_releases_only_cancelled_grant)
+{
+  request a(bwp, cs, {0, 2});
+  request b(bwp, cs, {0}, aggregation_level::n1);
+  auto    expected = snapshot();
+  auto    dl       = res_grid[0].result_builder().dl().dl_pdcchs();
+  auto&   ca       = dl.emplace_back()->ctx;
+  ca               = a.ctx;
+  ASSERT_TRUE(allocator.alloc_pdcch(ca, res_grid[0], cs, ss, a.candidates, true));
+  auto& cb = dl.emplace_back()->ctx;
+  cb       = b.ctx;
+  ASSERT_TRUE(allocator.alloc_pdcch(cb, res_grid[0], cs, ss, b.candidates, true));
+  ASSERT_TRUE(allocator.cancel_last_pdcch(res_grid[0]));
+  ASSERT_EQ(dl.size(), 1U);
+  EXPECT_EQ(ca.cces.ncce, 2U);
+  EXPECT_FALSE(res_grid[0].dl_res_grid.collides(bwp.scs, {0, 1}, crb_interval{0, 12}));
+  expected.fill(bwp.scs, {0, 1}, cs.candidate_crbs(2, aggregation_level::n2));
+  EXPECT_EQ(snapshot(), expected);
+}
+
+TEST_F(pdcch_backtracking_test, immovable_grant_is_never_relocated)
+{
+  request a(bwp, cs, {0, 2});
+  request b(bwp, cs, {0}, aggregation_level::n1);
+  request later(bwp, cs, {2});
+  ASSERT_TRUE(allocate(a, false));
+  const auto before = snapshot();
+  ASSERT_FALSE(allocate(b));
+  EXPECT_EQ(a.ctx.cces.ncce, 0U);
+  EXPECT_EQ(snapshot(), before);
+  ASSERT_TRUE(allocate(later));
+}
+
+TEST_F(pdcch_backtracking_test, bounded_search_failure_preserves_existing_allocations)
+{
+  std::array<request, 4> accepted{request(bwp, cs, {0, 2, 4, 6, 8}),
+                                  request(bwp, cs, {0, 2, 4, 6}),
+                                  request(bwp, cs, {0, 2, 4, 6}),
+                                  request(bwp, cs, {0, 2, 4, 6})};
+  for (request& r : accepted) {
+    ASSERT_TRUE(allocate(r));
+  }
+  const auto before = snapshot();
+  // An unbounded search moves the first grant to CCE 8 after exploring permutations of CCEs 0..6.
+  request limited(bwp, cs, {0});
+  for (unsigned repeat = 0; repeat != 10; ++repeat) {
+    ASSERT_FALSE(allocate(limited));
+    EXPECT_EQ(snapshot(), before);
+    for (unsigned i = 0; i != accepted.size(); ++i) {
+      EXPECT_EQ(accepted[i].ctx.cces.ncce, 2U * i);
+    }
+  }
+  request later(bwp, cs, {8});
+  ASSERT_TRUE(allocate(later));
+}
+
 TEST_F(common_pdcch_allocator_tester, no_pdcch_allocation)
 {
-  ASSERT_TRUE(res_grid[0].result.dl.dl_pdcchs.empty());
-  ASSERT_TRUE(res_grid[0].result.dl.ul_pdcchs.empty());
+  ASSERT_TRUE(res_grid[0].result_reader().dl().dl_pdcchs().empty());
+  ASSERT_TRUE(res_grid[0].result_reader().dl().ul_pdcchs().empty());
 }
 
 TEST_F(common_pdcch_allocator_tester, single_pdcch_sib1_allocation)
@@ -309,18 +467,68 @@ TEST_F(common_pdcch_allocator_tester, single_pdcch_sib1_allocation)
   pdcch_dl_information* pdcch = pdcch_sch.alloc_dl_pdcch_common(
       res_grid[0], rnti_t::SI_RNTI, to_search_space_id(0), aggregation_level::n4, std::nullopt);
 
-  ASSERT_TRUE(res_grid[0].result.dl.ul_pdcchs.empty());
-  ASSERT_EQ(res_grid[0].result.dl.dl_pdcchs.size(), 1);
-  ASSERT_EQ(pdcch, &res_grid[0].result.dl.dl_pdcchs[0]) << "Returned PDCCH ptr does not match allocated ptr";
+  ASSERT_TRUE(res_grid[0].result_reader().dl().ul_pdcchs().empty());
+  ASSERT_EQ(res_grid[0].result_reader().dl().dl_pdcchs().size(), 1);
+  ASSERT_EQ(pdcch, &res_grid[0].result_reader().dl().dl_pdcchs()[0])
+      << "Returned PDCCH ptr does not match allocated ptr";
   ASSERT_EQ(rnti_t::SI_RNTI, pdcch->ctx.rnti);
   ASSERT_EQ(pdcch->ctx.bwp_cfg, &cell_cfg.init_bwp.dl.cfg());
   ASSERT_EQ(*pdcch->ctx.coreset_cfg, *cell_cfg.params.dl_cfg_common.init_dl_bwp.pdcch_common.coreset0);
-  ASSERT_EQ(pdcch->ctx.n_id_pdcch_dmrs, cell_cfg.params.pci) << "Invalid N_{ID} (see TS38.211, 7.4.1.3.1)";
-  ASSERT_EQ(pdcch->ctx.n_rnti_pdcch_data, 0) << "Invalid n_{RNTI} (see TS38.211, 7.3.2.3)";
-  ASSERT_EQ(pdcch->ctx.n_id_pdcch_data, cell_cfg.params.pci) << "Invalid n_{ID} (see TS38.211, 7.3.2.3)";
+  ASSERT_EQ(pdcch->ctx.n_id_pdcch_dmrs, cell_cfg.params.pci) << "Invalid N_{ID} (see TS 38.211, 7.4.1.3.1)";
+  ASSERT_EQ(pdcch->ctx.n_rnti_pdcch_data, 0) << "Invalid n_{RNTI} (see TS 38.211, 7.3.2.3)";
+  ASSERT_EQ(pdcch->ctx.n_id_pdcch_data, cell_cfg.params.pci) << "Invalid n_{ID} (see TS 38.211, 7.3.2.3)";
   ASSERT_EQ(pdcch->ctx.cces.aggr_lvl, aggregation_level::n4);
   ASSERT_EQ(pdcch->ctx.cces.ncce, 0);
   ASSERT_EQ(pdcch->ctx.starting_symbol, 0);
+}
+
+// For the SearchSpace#0 indexes with M = 1/2, the Type0-PDCCH occasions of an even and an odd SS/PBCH block share a
+// slot and the odd one is monitored from symbol N^CORESET_symb (TS 38.213 Table 13-11). The SIB1 DCI of each SS/PBCH
+// block must start on the first symbol of its own occasion, and the two DCIs do not collide.
+TEST(pdcch_resource_allocator_test, sib1_dci_starts_on_the_first_symbol_of_the_ssb_occasion)
+{
+  // CORESET#0 index 0, SearchSpace#0 index 5 (one of the rows with M = 1/2).
+  constexpr uint8_t          pdcch_config_sib1 = 5U;
+  cell_config_builder_params params =
+      cell_config_builder_profiles::create(duplex_mode::FDD, frequency_range::FR1, bs_channel_bandwidth::MHz20);
+  params.scs_common             = subcarrier_spacing::kHz30;
+  params.dl_carrier.arfcn_f_ref = 176300;
+  params.dl_carrier.band        = band_helper::get_band_from_dl_arfcn(params.dl_carrier.arfcn_f_ref);
+  params.cs0_index              = coreset0_index{static_cast<uint8_t>((pdcch_config_sib1 >> 4U) & 0b1111U)};
+  params.ss0_index              = pdcch_config_sib1 & 0b1111U;
+  sched_cell_configuration_request_message msg =
+      sched_config_helper::make_default_sched_cell_configuration_request(params);
+  // SS/PBCH blocks at positions 0 and 1 (most-significant-bit first), L_max = 8.
+  msg.ran.ssb_cfg.ssb_beams = ssb_beam_mapping(ssb_bitmap_t(0b11000000U, 8U));
+
+  test_helpers::test_sched_config_manager cfg_mng{config_helpers::make_default_scheduler_expert_config()};
+  const cell_configuration&               cfg = *cfg_mng.add_cell(msg);
+  cell_resource_allocator                 res_grid{cfg};
+  pdcch_resource_allocator_impl           pdcch_sch(cfg);
+
+  const search_space_configuration& ss0 = cfg.params.dl_cfg_common.init_dl_bwp.pdcch_common.search_spaces[0];
+  ASSERT_EQ(ss0.get_first_symbol_index(0), 0U);
+  // Otherwise the test would pass for the wrong reason, with both occasions starting at symbol 0.
+  ASSERT_GT(ss0.get_first_symbol_index(1), 0U) << "the chosen SearchSpace#0 index does not delay odd SS/PBCH blocks";
+
+  slot_point sl_tx{to_numerology_value(subcarrier_spacing::kHz30), 0};
+  res_grid.slot_indication(sl_tx);
+  pdcch_sch.slot_indication(sl_tx);
+  while (not pdcch_helper::is_pdcch_monitoring_active(sl_tx, ss0)) {
+    ++sl_tx;
+    res_grid.slot_indication(sl_tx);
+    pdcch_sch.slot_indication(sl_tx);
+  }
+
+  for (uint8_t ssb_idx : {0U, 1U}) {
+    const pdcch_dl_information* pdcch = pdcch_sch.alloc_dl_pdcch_common(
+        res_grid[0], rnti_t::SI_RNTI, to_search_space_id(0), aggregation_level::n4, std::nullopt, ssb_idx);
+    ASSERT_NE(pdcch, nullptr) << "SIB1 DCI for SS/PBCH block " << unsigned(ssb_idx) << " not allocated";
+    ASSERT_EQ(pdcch->ctx.starting_symbol, ss0.get_first_symbol_index(ssb_idx))
+        << "SIB1 DCI for SS/PBCH block " << unsigned(ssb_idx) << " is outside its monitoring occasion";
+    // Both DCIs take the same CCEs, on different symbols: only possible if the CORESET is reserved where it is used.
+    ASSERT_EQ(pdcch->ctx.cces.ncce, 0U);
+  }
 }
 
 TEST_F(common_pdcch_allocator_tester, single_pdcch_rar_allocation)
@@ -329,15 +537,16 @@ TEST_F(common_pdcch_allocator_tester, single_pdcch_rar_allocation)
   pdcch_dl_information* pdcch =
       pdcch_sch.alloc_dl_pdcch_common(res_grid[0], ra_rnti, to_search_space_id(1), aggregation_level::n4, std::nullopt);
 
-  ASSERT_TRUE(res_grid[0].result.dl.ul_pdcchs.empty());
-  ASSERT_EQ(res_grid[0].result.dl.dl_pdcchs.size(), 1);
-  ASSERT_EQ(pdcch, &res_grid[0].result.dl.dl_pdcchs[0]) << "Returned PDCCH ptr does not match allocated ptr";
+  ASSERT_TRUE(res_grid[0].result_reader().dl().ul_pdcchs().empty());
+  ASSERT_EQ(res_grid[0].result_reader().dl().dl_pdcchs().size(), 1);
+  ASSERT_EQ(pdcch, &res_grid[0].result_reader().dl().dl_pdcchs()[0])
+      << "Returned PDCCH ptr does not match allocated ptr";
   ASSERT_EQ(ra_rnti, pdcch->ctx.rnti);
   ASSERT_EQ(pdcch->ctx.bwp_cfg, &cell_cfg.init_bwp.dl.cfg());
   ASSERT_EQ(*pdcch->ctx.coreset_cfg, *cell_cfg.params.dl_cfg_common.init_dl_bwp.pdcch_common.coreset0);
-  ASSERT_EQ(pdcch->ctx.n_id_pdcch_dmrs, cell_cfg.params.pci) << "Invalid N_{ID} (see TS38.211, 7.4.1.3.1)";
-  ASSERT_EQ(pdcch->ctx.n_rnti_pdcch_data, 0) << "Invalid n_{RNTI} (see TS38.211, 7.3.2.3)";
-  ASSERT_EQ(pdcch->ctx.n_id_pdcch_data, cell_cfg.params.pci) << "Invalid n_{ID} (see TS38.211, 7.3.2.3)";
+  ASSERT_EQ(pdcch->ctx.n_id_pdcch_dmrs, cell_cfg.params.pci) << "Invalid N_{ID} (see TS 38.211, 7.4.1.3.1)";
+  ASSERT_EQ(pdcch->ctx.n_rnti_pdcch_data, 0) << "Invalid n_{RNTI} (see TS 38.211, 7.3.2.3)";
+  ASSERT_EQ(pdcch->ctx.n_id_pdcch_data, cell_cfg.params.pci) << "Invalid n_{ID} (see TS 38.211, 7.3.2.3)";
   ASSERT_EQ(pdcch->ctx.cces.aggr_lvl, aggregation_level::n4);
   ASSERT_EQ(pdcch->ctx.cces.ncce, 0);
   ASSERT_EQ(pdcch->ctx.starting_symbol, 0);
@@ -352,13 +561,13 @@ TEST_F(common_pdcch_allocator_tester, when_no_pdcch_space_for_rar_then_allocatio
   pdcch_dl_information* pdcch2 = pdcch_sch.alloc_dl_pdcch_common(
       res_grid[0], ra_rnti2, to_search_space_id(1), aggregation_level::n4, std::nullopt);
 
-  ASSERT_EQ(1, res_grid[0].result.dl.dl_pdcchs.size());
-  ASSERT_EQ(pdcch1, &res_grid[0].result.dl.dl_pdcchs[0]);
+  ASSERT_EQ(1, res_grid[0].result_reader().dl().dl_pdcchs().size());
+  ASSERT_EQ(pdcch1, &res_grid[0].result_reader().dl().dl_pdcchs()[0]);
   ASSERT_EQ(pdcch1->ctx.rnti, ra_rnti1);
   ASSERT_EQ(pdcch2, nullptr);
 
   // RAR PDCCH uses a common SearchSpace, so the failed attempt counts towards both the DL and common-DL counters.
-  const failed_alloc_attempts& failed = res_grid[0].result.failed_attempts;
+  const failed_alloc_attempts& failed = res_grid[0].result_reader().failed_attempts();
   ASSERT_EQ(failed.dl_pdcch, 1);
   ASSERT_EQ(failed.common_dl_pdcch, 1);
   ASSERT_EQ(failed.ul_pdcch, 0);
@@ -433,7 +642,7 @@ TEST_P(ue_pdcch_resource_allocator_scrambling_tester,
 
     // The failed DL allocation counts as common only when the SearchSpace is common.
     const bool                   is_common = u->pcell_cfg->search_space(params.ss_id).cfg->is_common_search_space();
-    const failed_alloc_attempts& failed    = res_grid[0].result.failed_attempts;
+    const failed_alloc_attempts& failed    = res_grid[0].result_reader().failed_attempts();
     ASSERT_EQ(failed.dl_pdcch, 1);
     ASSERT_EQ(failed.common_dl_pdcch, is_common ? 1U : 0U);
     ASSERT_EQ(failed.ul_pdcch, 0);
@@ -445,9 +654,10 @@ TEST_P(ue_pdcch_resource_allocator_scrambling_tester,
       pdcch_sch.alloc_dl_pdcch_ue(res_grid[0], rnti, *u->pcell_cfg, params.ss_id, aggregation_level::n4);
 
   ASSERT_NE(pdcch, nullptr);
-  ASSERT_TRUE(res_grid[0].result.dl.ul_pdcchs.empty());
-  ASSERT_EQ(res_grid[0].result.dl.dl_pdcchs.size(), 1);
-  ASSERT_EQ(pdcch, &res_grid[0].result.dl.dl_pdcchs[0]) << "Returned PDCCH ptr does not match allocated ptr";
+  ASSERT_TRUE(res_grid[0].result_reader().dl().ul_pdcchs().empty());
+  ASSERT_EQ(res_grid[0].result_reader().dl().dl_pdcchs().size(), 1);
+  ASSERT_EQ(pdcch, &res_grid[0].result_reader().dl().dl_pdcchs()[0])
+      << "Returned PDCCH ptr does not match allocated ptr";
   ASSERT_EQ(*pdcch->ctx.bwp_cfg, cell_cfg.params.dl_cfg_common.init_dl_bwp.generic_params);
   ASSERT_NO_FATAL_FAILURE(verify_pdcch_context(pdcch->ctx, *u, params.ss_id));
   ASSERT_EQ(pdcch->ctx.cces.aggr_lvl, aggregation_level::n4);
@@ -473,7 +683,7 @@ TEST_P(ue_pdcch_resource_allocator_scrambling_tester,
 
     // The failed UL allocation counts as common only when the SearchSpace is common.
     const bool                   is_common = u->pcell_cfg->search_space(params.ss_id).cfg->is_common_search_space();
-    const failed_alloc_attempts& failed    = res_grid[0].result.failed_attempts;
+    const failed_alloc_attempts& failed    = res_grid[0].result_reader().failed_attempts();
     ASSERT_EQ(failed.ul_pdcch, 1);
     ASSERT_EQ(failed.common_ul_pdcch, is_common ? 1U : 0U);
     ASSERT_EQ(failed.dl_pdcch, 0);
@@ -484,9 +694,10 @@ TEST_P(ue_pdcch_resource_allocator_scrambling_tester,
   pdcch_ul_information* pdcch =
       pdcch_sch.alloc_ul_pdcch_ue(res_grid[0], rnti, *u->pcell_cfg, params.ss_id, aggregation_level::n4);
 
-  ASSERT_TRUE(res_grid[0].result.dl.dl_pdcchs.empty());
-  ASSERT_EQ(res_grid[0].result.dl.ul_pdcchs.size(), 1);
-  ASSERT_EQ(pdcch, &res_grid[0].result.dl.ul_pdcchs[0]) << "Returned PDCCH ptr does not match allocated ptr";
+  ASSERT_TRUE(res_grid[0].result_reader().dl().dl_pdcchs().empty());
+  ASSERT_EQ(res_grid[0].result_reader().dl().ul_pdcchs().size(), 1);
+  ASSERT_EQ(pdcch, &res_grid[0].result_reader().dl().ul_pdcchs()[0])
+      << "Returned PDCCH ptr does not match allocated ptr";
   ASSERT_EQ(*pdcch->ctx.bwp_cfg, cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params);
   ASSERT_NO_FATAL_FAILURE(verify_pdcch_context(pdcch->ctx, *u, params.ss_id));
   ASSERT_EQ(pdcch->ctx.cces.aggr_lvl, aggregation_level::n4);
@@ -630,11 +841,11 @@ protected:
   {
     auto ue_creation_req = super_type::create_ue_cfg(rnti);
     (*ue_creation_req.cfg.cells)[0]
-        .serv_cell_cfg.init_dl_bwp.pdcch_cfg->search_spaces[0]
+        .ded->serv_cell_cfg.init_dl_bwp.pdcch_cfg->search_spaces[0]
         .set_non_ss0_monitored_dci_formats(search_space_configuration::ue_specific_dci_format::f0_1_and_1_1);
     cell_config_builder_params builder_params{};
     builder_params.dl_carrier.carrier_bw = params.cell_bw;
-    (*ue_creation_req.cfg.cells)[0].serv_cell_cfg.init_dl_bwp.pdcch_cfg->coresets[0] =
+    (*ue_creation_req.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdcch_cfg->coresets[0] =
         config_helpers::make_default_coreset_config(builder_params);
     return ue_creation_req;
   }
@@ -690,15 +901,15 @@ protected:
   const dci_context_information* find_pdcch_alloc(multi_alloc_test_params::alloc alloc) const
   {
     if (alloc.type == alloc_type::ul_crnti) {
-      const auto* it = std::find_if(res_grid[0].result.dl.ul_pdcchs.begin(),
-                                    res_grid[0].result.dl.ul_pdcchs.end(),
-                                    [&alloc](const auto& pdcch) { return pdcch.ctx.rnti == alloc.rnti; });
-      return it != res_grid[0].result.dl.ul_pdcchs.end() ? &it->ctx : nullptr;
+      const auto ul_pdcchs = res_grid[0].result_reader().dl().ul_pdcchs();
+      const auto ul_it     = std::find_if(
+          ul_pdcchs.begin(), ul_pdcchs.end(), [&alloc](const auto& pdcch) { return pdcch.ctx.rnti == alloc.rnti; });
+      return ul_it != ul_pdcchs.end() ? &ul_it->ctx : nullptr;
     }
-    const auto* it = std::find_if(res_grid[0].result.dl.dl_pdcchs.begin(),
-                                  res_grid[0].result.dl.dl_pdcchs.end(),
-                                  [&alloc](const auto& pdcch) { return pdcch.ctx.rnti == alloc.rnti; });
-    return it != res_grid[0].result.dl.dl_pdcchs.end() ? &it->ctx : nullptr;
+    const auto dl_pdcchs = res_grid[0].result_reader().dl().dl_pdcchs();
+    const auto dl_it     = std::find_if(
+        dl_pdcchs.begin(), dl_pdcchs.end(), [&alloc](const auto& pdcch) { return pdcch.ctx.rnti == alloc.rnti; });
+    return dl_it != dl_pdcchs.end() ? &dl_it->ctx : nullptr;
   }
 
   multi_alloc_test_params params;

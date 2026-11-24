@@ -33,7 +33,8 @@ f1ap_cause_t ocudu::asn1_to_cause(asn1::f1ap::cause_c asn1_cause)
       cause = static_cast<cause_misc_t>(asn1_cause.misc().value);
       break;
     default:
-      report_fatal_error("Cannot convert F1AP ASN.1 cause {} to common type", fmt::underlying(asn1_cause.type().value));
+      // The ASN.1 defines no Cause extension. Use the unspecified cause for an unknown extension.
+      cause = cause_misc_t::unspecified;
   }
 
   return cause;
@@ -214,7 +215,7 @@ static f1ap_drb_info drb_info_from_f1ap_asn1(const asn1::f1ap::qos_info_c& asn1_
   out.drb_qos.qos_desc                             = non_dyn_5qi_descriptor{};
   non_dyn_5qi_descriptor& nondyn_5qi               = out.drb_qos.qos_desc.get_nondyn_5qi();
   nondyn_5qi.five_qi                               = uint_to_five_qi(asn1_non_dyn_5qi.five_qi);
-  out.drb_qos.alloc_retention_prio.prio_level_arp  = asn1_drb_info.drb_qos.ngra_nalloc_retention_prio.prio_level;
+  out.drb_qos.alloc_retention_prio.prio_level_arp  = asn1_drb_info.drb_qos.ngran_alloc_retention_prio.prio_level;
   out.s_nssai.sst                                  = slice_service_type{(uint8_t)asn1_drb_info.snssai.sst.to_number()};
   if (asn1_drb_info.snssai.sd_present) {
     out.s_nssai.sd = slice_differentiator::create(asn1_drb_info.snssai.sd.to_number()).value();
@@ -330,12 +331,12 @@ qos_flow_level_qos_params_to_f1ap_asn1(const qos_flow_level_qos_parameters& qos_
   asn1_qos_params.qos_characteristics = qos_characteristics_to_f1ap_asn1(qos_params.qos_desc);
 
   // Fill alloc and retention prio.
-  asn1_qos_params.ngra_nalloc_retention_prio.prio_level = qos_params.alloc_retention_prio.prio_level_arp.value();
-  asn1_qos_params.ngra_nalloc_retention_prio.pre_emption_cap.value =
+  asn1_qos_params.ngran_alloc_retention_prio.prio_level = qos_params.alloc_retention_prio.prio_level_arp.value();
+  asn1_qos_params.ngran_alloc_retention_prio.pre_emption_cap.value =
       qos_params.alloc_retention_prio.may_trigger_preemption
           ? asn1::f1ap::pre_emption_cap_opts::may_trigger_pre_emption
           : asn1::f1ap::pre_emption_cap_opts::shall_not_trigger_pre_emption;
-  asn1_qos_params.ngra_nalloc_retention_prio.pre_emption_vulnerability.value =
+  asn1_qos_params.ngran_alloc_retention_prio.pre_emption_vulnerability.value =
       qos_params.alloc_retention_prio.is_preemptable ? asn1::f1ap::pre_emption_vulnerability_opts::pre_emptable
                                                      : asn1::f1ap::pre_emption_vulnerability_opts::not_pre_emptable;
 

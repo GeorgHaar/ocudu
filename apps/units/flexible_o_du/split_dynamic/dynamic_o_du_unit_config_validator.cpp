@@ -10,6 +10,7 @@
 #include "apps/units/flexible_o_du/split_8/helpers/ru_sdr_config_validator.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/ran/prach/prach_configuration.h"
+#include <algorithm>
 
 using namespace ocudu;
 
@@ -84,9 +85,36 @@ static std::vector<ru_sdr_cell_validation_config> get_ru_sdr_validation_dependen
         is_long_preamble(prach_info.format)
             ? get_prach_preamble_long_info(prach_info.format)
             : get_prach_preamble_short_info(prach_info.format, to_ra_subcarrier_spacing(in_cell.common_scs), false);
+    out_cell.nof_antennas_dl = in_cell.nof_antennas_dl;
+    out_cell.nof_antennas_ul = in_cell.nof_antennas_ul;
   }
 
   return out_cfg;
+}
+
+/// Validates the FAPI dummy configuration against the DU high test mode configuration.
+static bool validate_fapi_dummy_config(const du_high_unit_config& du_hi_cfg)
+{
+  if (!du_hi_cfg.is_testmode_enabled()) {
+    fmt::print("The FAPI dummy requires the test mode UE to be configured\n");
+    return false;
+  }
+
+  if (du_hi_cfg.test_mode_cfg.test_ue.auto_ack_indication_delay.has_value()) {
+    fmt::print("The FAPI dummy is not compatible with the test mode auto ACK indication delay\n");
+    return false;
+  }
+
+  // A single clock drives the slots of all the cells.
+  const subcarrier_spacing scs = du_hi_cfg.cells_cfg.front().cell.common_scs;
+  if (std::any_of(du_hi_cfg.cells_cfg.begin(), du_hi_cfg.cells_cfg.end(), [scs](const auto& cell) {
+        return cell.cell.common_scs != scs;
+      })) {
+    fmt::print("The FAPI dummy requires all the cells to have the same subcarrier spacing\n");
+    return false;
+  }
+
+  return true;
 }
 
 bool ocudu::validate_dynamic_o_du_unit_config(const dynamic_o_du_unit_config& config)
@@ -95,17 +123,22 @@ bool ocudu::validate_dynamic_o_du_unit_config(const dynamic_o_du_unit_config& co
     return false;
   }
 
-  auto du_low_dependencies = get_du_low_validation_dependencies(config.odu_high_cfg.du_high_cfg.config);
-  if (!validate_du_low_config(config.du_low_cfg, du_low_dependencies)) {
+  if (std::holds_alternative<fapi_dummy_unit_config>(config.odu_low_cfg)) {
+    return validate_fapi_dummy_config(config.odu_high_cfg.du_high_cfg.config);
+  }
+
+  const dynamic_o_du_low& odu_low = std::get<dynamic_o_du_low>(config.odu_low_cfg);
+  auto du_low_dependencies        = get_du_low_validation_dependencies(config.odu_high_cfg.du_high_cfg.config);
+  if (!validate_du_low_config(odu_low.du_low_cfg, du_low_dependencies)) {
     return false;
   }
 
-  if (auto* ru_ofh = std::get_if<ru_ofh_unit_parsed_config>(&config.ru_cfg)) {
+  if (auto* ru_ofh = std::get_if<ru_ofh_unit_parsed_config>(&odu_low.ru_cfg)) {
     auto ru_ofh_dependencies = get_ru_ofh_validation_dependencies(config.odu_high_cfg.du_high_cfg.config);
     return validate_ru_ofh_config(ru_ofh->config, ru_ofh_dependencies);
   }
 
-  if (auto* ru_sdr = std::get_if<ru_sdr_unit_config>(&config.ru_cfg)) {
+  if (auto* ru_sdr = std::get_if<ru_sdr_unit_config>(&odu_low.ru_cfg)) {
     auto ru_sdr_dependencies = get_ru_sdr_validation_dependencies(config.odu_high_cfg.du_high_cfg.config);
     return validate_ru_sdr_config(*ru_sdr, ru_sdr_dependencies);
   }

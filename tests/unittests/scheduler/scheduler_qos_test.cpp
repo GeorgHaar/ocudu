@@ -72,9 +72,11 @@ public:
     f1_params.nof_cyc_shifts                  = pucch_nof_cyclic_shifts::twelve;
     f1_params.occ_supported                   = true;
     cell_cfg_req.ran.init_bwp.pucch.resources = pucch_basic_params;
+    cell_cfg_req.rrm                          = make_cell_rrm_config(cell_cfg_req.ran);
     this->add_cell(cell_cfg_req);
 
-    pucch_cfg_builder.add_cell(to_du_cell_index(0), cell_cfg().params);
+    cell_rrm = cell_cfg_req.rrm;
+    pucch_cfg_builder.add_cell(to_du_cell_index(0), cell_cfg().params, cell_rrm);
   }
 
   void add_ue_with_drb_qos(logical_channel_config::qos_info drb_qos)
@@ -87,7 +89,7 @@ public:
     ue_cfg.crnti                                                = to_rnti(0x4601 + (unsigned)next_ue_idx);
     ue_cfg.cfg.lc_config_list.value()[2].rrm_policy.s_nssai.sst = slice_service_type{1};
     ue_cfg.cfg.lc_config_list.value()[2].qos                    = drb_qos;
-    report_fatal_error_if_not(pucch_cfg_builder.alloc_resources(ue_cfg.cfg.cells.value()[0]),
+    report_fatal_error_if_not(pucch_cfg_builder.alloc_resources(*ue_cfg.cfg.cells.value()[0].ded),
                               "Failed to allocate PUCCH resources");
     scheduler_test_simulator::add_ue(ue_cfg);
 
@@ -114,12 +116,12 @@ public:
     scheduler_test_simulator::run_slot();
 
     // Register DL sched bytes.
-    span<const dl_msg_alloc> ue_grants = this->last_sched_result()->dl.ue_grants;
+    const auto& ue_grants = this->last_sched_result()->dl.ue_grants;
     for (const dl_msg_alloc& grant : ue_grants) {
       ue_stats_map[grant.context.ue_index].dl_bytes_sum += grant.pdsch_cfg.codewords[0].tb_size_bytes.value();
     }
     // Register UL sched bytes.
-    span<const ul_sched_info> ul_grants = this->last_sched_result()->ul.puschs;
+    const auto& ul_grants = this->last_sched_result()->ul.puschs;
     for (const ul_sched_info& grant : ul_grants) {
       ue_stats_map[grant.context.ue_index].ul_bytes_sum += grant.pusch_cfg.tb_size_bytes.value();
     }
@@ -158,6 +160,7 @@ public:
 
   cell_config_builder_params params;
 
+  cell_rrm_config        cell_rrm;
   pucch_resource_manager pucch_cfg_builder{64};
 
   std::vector<ue_stats> ue_stats_map;

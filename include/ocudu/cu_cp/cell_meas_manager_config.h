@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "ocudu/ocudulog/logger.h"
 #include "ocudu/ran/meas_types.h"
 #include "ocudu/ran/nr_band.h"
 #include "ocudu/ran/nr_cell_identity.h"
@@ -64,7 +65,7 @@ struct cell_meas_config {
 };
 
 /// \brief Verifies required parameters are set. Returns true if config is valid, false otherwise.
-bool is_complete(const serving_cell_meas_config& cfg);
+[[nodiscard]] bool is_complete(const serving_cell_meas_config& cfg);
 
 /// Cell manager configuration.
 struct cell_meas_manager_config {
@@ -76,12 +77,19 @@ struct cell_meas_manager_config {
 
 /// \brief Validates configuration but doesn't verify if all provided cells have complete configuration (yet). Returns
 /// true if config is valid, false otherwise.
-bool is_valid_configuration(const cell_meas_manager_config&                             cfg,
-                            const std::unordered_map<ssb_frequency_t, rrc_meas_obj_nr>& ssb_freq_to_meas_object = {});
+/// \param[in] ssb_freq_to_meas_object Measurement objects already configured, indexed by SSB frequency.
+/// \param[in] cfg                     Configuration to validate.
+/// \param[in] logger                  Logger used to report the cause of an invalid configuration.
+[[nodiscard]] bool
+is_valid_configuration(const cell_meas_manager_config&                             cfg,
+                       ocudulog::basic_logger&                                     logger,
+                       const std::unordered_map<ssb_frequency_t, rrc_meas_obj_nr>& ssb_freq_to_meas_object = {});
 
 /// \brief Same as config validation but additionally verifies that the measurement related parameters are present for
 /// all cells.
-bool is_complete(const cell_meas_manager_config& cfg);
+/// \param[in] cfg    Configuration to validate.
+/// \param[in] logger Logger used to report the cause of an invalid or incomplete configuration.
+[[nodiscard]] bool is_complete(const cell_meas_manager_config& cfg, ocudulog::basic_logger& logger);
 
 } // namespace ocudu::ocucp
 

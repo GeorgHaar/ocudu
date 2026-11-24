@@ -7,7 +7,7 @@
 #include "converters/asn1_ntn_config_helpers.h"
 #include "ocudu/adt/byte_buffer.h"
 #include "ocudu/adt/format.h"
-#include "ocudu/asn1/asn1_utils.h"
+#include "ocudu/asn1/asn1_dispatch.h"
 #include "ocudu/asn1/rrc_nr/bcch_dl_sch_msg.h"
 #include "ocudu/asn1/rrc_nr/sys_info.h"
 #include "ocudu/du/du_high/du_manager/du_configurator.h"
@@ -26,16 +26,16 @@ void du_high_ntn_sib19_update_handler_impl::handle_sib19_msg_update(const ocudu_
   using namespace asn1::rrc_nr;
 
   // Pack SIB19 as BCCH-DL-SCH msg.
-  byte_buffer             buf;
-  asn1::bit_ref           bref{buf};
-  bcch_dl_sch_msg_s       msg;
-  sys_info_ies_s&         si_ies = msg.msg.set_c1().set_sys_info().crit_exts.set_sys_info();
-  sys_info_ies_s::item_c_ sib_item;
+  byte_buffer                                 buf;
+  asn1::bit_ref                               bref{buf};
+  bcch_dl_sch_msg_s                           msg;
+  sys_info_ies_s&                             si_ies = msg.msg.set_c1().set_sys_info().crit_exts.set_sys_info();
+  sys_info_ies_s::sib_type_and_info_l_item_c_ sib_item;
   sib_item.set_sib19_v1700() = make_asn1_rrc_cell_sib19(req.sib19);
 
   si_ies.sib_type_and_info.push_back(sib_item);
 
-  asn1::OCUDUASN_CODE ret = msg.pack(bref);
+  asn1::OCUDUASN_CODE ret = asn1::pack(bref, msg);
   ocudu_assert(ret == asn1::OCUDUASN_SUCCESS, "Failed to pack SIB19");
 
   std::vector<byte_buffer> msgs;

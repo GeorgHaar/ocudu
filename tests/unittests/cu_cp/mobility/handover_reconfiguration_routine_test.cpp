@@ -103,6 +103,15 @@ protected:
 
   bool check_transaction_id(unsigned transaction_id) { return cu_cp_handler.last_transaction_id == transaction_id; }
 
+  bool check_source_ue_release_timer_initialized() const
+  {
+    return cu_cp_handler.last_handover_ue_release_timer_ue_index == source_ue->get_ue_index();
+  }
+
+  const std::optional<cu_cp_ue_handover_context>& get_source_ho_context() { return source_ue->get_ho_context(); }
+
+  cu_cp_ue_index_t get_target_ue_index() const { return target_ue->get_ue_index(); }
+
   const f1ap_ue_context_modification_request& get_source_f1ap_ctxt_mod_request()
   {
     return source_f1ap_ue_ctxt_mng.get_ctxt_mod_request();
@@ -151,6 +160,8 @@ TEST_F(handover_reconfiguration_routine_test, when_reconfiguration_successful_th
   f1ap_ue_context_modification_request context_mod = get_source_f1ap_ctxt_mod_request();
   ASSERT_TRUE(context_mod.drbs_to_be_setup_mod_list.empty());
   ASSERT_TRUE(context_mod.drbs_to_be_released_list.empty());
+
+  ASSERT_TRUE(check_source_ue_release_timer_initialized());
 }
 
 TEST_F(handover_reconfiguration_routine_test, when_ue_context_mod_unsuccessful_then_return_false)
@@ -169,4 +180,59 @@ TEST_F(handover_reconfiguration_routine_test, when_ue_context_mod_unsuccessful_t
 
   // Reconfiguration complete was received.
   ASSERT_FALSE(get_result());
+}
+
+TEST_F(handover_reconfiguration_routine_test, when_ue_context_mod_unsuccessful_then_source_ue_release_timer_initialized)
+{
+  unsigned test_transaction_id = 35;
+
+  // Test Preamble.
+  create_ues(false, test_transaction_id);
+
+  set_sub_procedure_outcome(false);
+
+  start_procedure();
+
+  ASSERT_TRUE(procedure_ready());
+  ASSERT_FALSE(get_result());
+
+  // The source DU can stop the data transmission for the UE, so the CU-CP must release the source UE.
+  ASSERT_TRUE(check_source_ue_release_timer_initialized());
+}
+
+TEST_F(handover_reconfiguration_routine_test, when_reconfiguration_successful_then_source_ho_context_refers_to_target)
+{
+  unsigned test_transaction_id = 3;
+
+  // Test Preamble.
+  create_ues(true, test_transaction_id);
+
+  set_sub_procedure_outcome(true);
+
+  start_procedure();
+
+  ASSERT_TRUE(procedure_ready());
+  ASSERT_TRUE(get_result());
+
+  ASSERT_TRUE(get_source_ho_context().has_value());
+  ASSERT_EQ(get_source_ho_context()->target_ue_index, get_target_ue_index());
+  ASSERT_EQ(get_source_ho_context()->rrc_reconfig_transaction_id, test_transaction_id);
+}
+
+TEST_F(handover_reconfiguration_routine_test, when_ue_context_mod_unsuccessful_then_source_ho_context_is_cleared)
+{
+  unsigned test_transaction_id = 35;
+
+  // Test Preamble.
+  create_ues(false, test_transaction_id);
+
+  set_sub_procedure_outcome(false);
+
+  start_procedure();
+
+  ASSERT_TRUE(procedure_ready());
+  ASSERT_FALSE(get_result());
+
+  // The source DU did not send the RRC Reconfiguration, so the source UE has no handover to cancel.
+  ASSERT_FALSE(get_source_ho_context().has_value());
 }

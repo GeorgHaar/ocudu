@@ -37,21 +37,22 @@ using slot_event_buffer = type_list_buffer_stream<cell_creation_event,
                                                   csi_report_event,
                                                   ul_bsr_indication_message,
                                                   harq_ack_event,
-                                                  sel::crc_event,
+                                                  ul_crc_event,
                                                   dl_mac_ce_indication,
                                                   dl_buffer_state_indication_message,
                                                   ul_phr_indication_message,
+                                                  cg_confirmation_indication_message,
                                                   sel::srs_indication_event,
                                                   sel::slice_reconfiguration_event>;
 
-const char* to_string(sel::crc_event::crc_res_t r)
+const char* to_string(ul_crc_status r)
 {
   switch (r) {
-    case sel::crc_event::crc_res_t::ok:
+    case ul_crc_status::ok:
       return "ok";
-    case sel::crc_event::crc_res_t::ko:
+    case ul_crc_status::ko:
       return "ko";
-    case sel::crc_event::crc_res_t::dtx:
+    case ul_crc_status::dtx:
       return "dtx";
     default:
       return "unknown";
@@ -202,7 +203,7 @@ void format_debug_level(FormatContext& ctx, const Event& ev)
     if (ev.ack == mac_harq_ack_report_status::ack) {
       fmt::format_to(ctx.out(), " tbs={}", ev.tbs);
     }
-  } else if constexpr (std::is_same_v<Event, sel::crc_event>) {
+  } else if constexpr (std::is_same_v<Event, ul_crc_event>) {
     if (ev.ul_sinr_db.has_value()) {
       fmt::format_to(ctx.out(),
                      "\n- CRC: ue={} rnti={} rx_slot={} h_id={} crc={} sinr={:.3}dB",
@@ -233,6 +234,8 @@ void format_debug_level(FormatContext& ctx, const Event& ev)
         fmt::format_to(ctx.out(), " p_cmax={}dBm", cell_phr.p_cmax.value());
       }
     }
+  } else if constexpr (std::is_same_v<Event, cg_confirmation_indication_message>) {
+    fmt::format_to(ctx.out(), "\n- CG conf: ue={} rnti={}", fmt::underlying(ev.ue_index), ev.rnti);
   } else if constexpr (std::is_same_v<Event, sel::srs_indication_event>) {
     fmt::format_to(ctx.out(), "\n- SRS: ue={} rnti={}", ev.ue_index, ev.rnti);
     if (ev.tpmi_info.has_value()) {
@@ -344,9 +347,11 @@ void scheduler_event_logger::log_impl()
     return;
   }
   if (mode == mode_t::debug) {
-    logger.debug("Processed slot events pci={}:{:d}", pci, slot_buffer_writer->pop_event_list());
+    log_with_event_time(
+        logger.debug, event_time, "Processed slot events pci={}:{:d}", pci, slot_buffer_writer->pop_event_list());
   } else if (mode == mode_t::info) {
-    logger.info("Processed slot events pci={}:{}", pci, slot_buffer_writer->pop_event_list());
+    log_with_event_time(
+        logger.info, event_time, "Processed slot events pci={}:{}", pci, slot_buffer_writer->pop_event_list());
   }
 }
 
@@ -427,6 +432,13 @@ void scheduler_event_logger::enqueue_impl(const ul_bsr_indication_message& bsr)
   }
 }
 
+void scheduler_event_logger::enqueue_impl(const cg_confirmation_indication_message& cg_conf_ind)
+{
+  if (not slot_buffer_writer->push(cg_conf_ind)) {
+    logger.error("Scheduler event log entry exceeded segment size and was dropped");
+  }
+}
+
 void scheduler_event_logger::enqueue_impl(const harq_ack_event& harq_ev)
 {
   if (not slot_buffer_writer->push(harq_ev)) {
@@ -434,7 +446,7 @@ void scheduler_event_logger::enqueue_impl(const harq_ack_event& harq_ev)
   }
 }
 
-void scheduler_event_logger::enqueue_impl(const crc_event& crc_ev)
+void scheduler_event_logger::enqueue_impl(const ul_crc_event& crc_ev)
 {
   if (not slot_buffer_writer->push(crc_ev)) {
     logger.error("Scheduler event log entry exceeded segment size and was dropped");

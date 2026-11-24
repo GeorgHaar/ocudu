@@ -34,6 +34,7 @@ public:
      ue_logical_channel_repository dl_lch_repo,
      ue_drx_controller&            drx_ctrl,
      ue_ta_report_tracker&         ta_report_tracker_,
+     ue_koffset_tracker&           koffset_tracker_,
      ue_ta_manager                 ta_mgr_,
      const ue_cell_lookup&         ue_cells);
   ue(const ue&)            = delete;
@@ -103,6 +104,9 @@ public:
   /// \brief Retrieves the tracker of the uplink timing advance reported by the UE.
   ue_ta_report_tracker& ta_report_tracker() { return ta_report; }
 
+  /// Returns the tracker of the Differential Koffset the UE applies.
+  ue_koffset_tracker& koffset_tracker() { return koffset; }
+
   /// Retrieve UE logical channel manager.
   const ue_logical_channel_repository& logical_channels() const { return lc_ch_mgr; }
   ue_logical_channel_repository&       logical_channels() { return lc_ch_mgr; }
@@ -120,6 +124,8 @@ private:
   ue_drx_controller& drx;
   /// Tracker of the uplink timing advance reported by the UE.
   ue_ta_report_tracker& ta_report;
+  /// Tracker of the Differential Koffset the UE applies.
+  ue_koffset_tracker& koffset;
   /// Timing Advance manager of the UE.
   ue_ta_manager ta_mgr;
   /// Configured cells for the UE.

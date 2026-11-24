@@ -84,6 +84,7 @@ struct formatter<ocudu::ue_capability_summary> {
     helper.format_always(ctx, "short_drx_cycle_supported={}", params.short_drx_cycle_supported);
     helper.format_always(
         ctx, "pdsch_interleaving_vrb_to_prb_supported={}", params.pdsch_interleaving_vrb_to_prb_supported);
+    helper.format_always(ctx, "pdsch_dyn_switch_ra_type0_1_supported={}", params.pdsch_dyn_switch_ra_type0_1_supported);
     helper.format_always(ctx, "ntn_supported={}", params.ntn_supported);
     helper.format_always(ctx, "disabled_dl_harq_feedback_supported={}", params.disabled_dl_harq_feedback_supported);
     helper.format_always(ctx, "ul_harq_mode_b_supported={}", params.ul_harq_mode_b_supported);

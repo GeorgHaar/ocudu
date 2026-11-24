@@ -1008,12 +1008,8 @@ struct worker_manager {
 static void configure_ofh_sector(ofh::sector_configuration& sector_cfg)
 {
   // Default IQ data scaling to be applied prior to downlink data compression.
-  const float iq_scaling = 0.9f;
-  // Downlink processing time in microseconds.
-  const std::chrono::microseconds dl_processing_time = 400us;
-
+  const float iq_scaling                = 0.9f;
   sector_cfg.max_processing_delay_slots = processing_delay_slots;
-  sector_cfg.dl_processing_time         = dl_processing_time;
   sector_cfg.uses_dpdk                  = false;
   sector_cfg.are_metrics_enabled        = true;
   sector_cfg.sector_id                  = 0;
@@ -1253,8 +1249,8 @@ static bool check_ru_metrics(const ofh::metrics& metrics)
                  "late_cp_ul={}, dispatch_failures_cp_dl={}, dispatch_failures_up_dl={}, dispatch_failures_ul={}",
                  sector.sector_id,
                  sector.tx_metrics.eth_transmitter_metrics.total_nof_bytes,
-                 dl.nof_late_dl_grids,
-                 ul.nof_late_ul_requests,
+                 dl.dl_grid_arrival.nof_late_requests,
+                 ul.ul_request_arrival.nof_late_requests,
                  dl.nof_late_cp_dl,
                  dl.nof_late_up_dl,
                  ul.nof_late_cp_ul,
@@ -1367,7 +1363,7 @@ static bool check_message_counters(const sector_metrics&           metrics,
   unsigned nof_dl_slots = du_emulator.nof_dl_grids - du_emulator.nof_late_dl_grids;
   // A dispatch failure drops a whole UL request, like a late one.
   unsigned nof_ul_slots =
-      du_emulator.nof_ul_requests - ul.nof_late_ul_requests - ul.ul_cp_metrics.nof_dispatch_failures;
+      du_emulator.nof_ul_requests - ul.ul_request_arrival.nof_late_requests - ul.ul_cp_metrics.nof_dispatch_failures;
   unsigned nof_dl_uplane_packets_per_symbol =
       test::calculate_nof_dl_uplane_messages_per_symbol(test_params.mtu,
                                                         nof_prb,
@@ -1387,7 +1383,7 @@ static bool check_message_counters(const sector_metrics&           metrics,
                rx_symbol_notifier.nof_invalid_symbols);
 
   // The late grids detected by the DU emulator are the ones reported by the RU metrics.
-  log_counter_if_mismatch("late DL grids", du_emulator.nof_late_dl_grids, dl.nof_late_dl_grids);
+  log_counter_if_mismatch("late DL grids", du_emulator.nof_late_dl_grids, dl.dl_grid_arrival.nof_late_requests);
 
   // Every transmitted beam-port carries one C-Plane message and the U-Plane messages of every symbol in its DL eAxC.
   // Every UL slot carries one C-Plane message per UL eAxC.

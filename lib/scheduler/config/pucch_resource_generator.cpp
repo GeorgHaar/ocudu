@@ -11,6 +11,7 @@
 #include "ocudu/ran/pucch/pucch_mapping.h"
 #include "ocudu/scheduler/config/pucch_default_resource.h"
 #include "ocudu/scheduler/config/pucch_resource_builder_params.h"
+#include "ocudu/scheduler/config/ran_cell_config.h"
 #include "ocudu/support/math/math_utils.h"
 #include "ocudu/support/ocudu_assert.h"
 #include "fmt/ranges.h"
@@ -204,9 +205,8 @@ static bool validate_generated_list(const std::vector<pucch_resource>&   res_lis
 
   std::array<unsigned, 5> res_count_by_format{0, 0, 0, 0, 0};
   for (const auto& res : res_list) {
-    if (res.res_id.ded().cell_res_id >= res_list.size()) {
-      ocudu_assertion_failure("Invalid cell resource ID {} in the generated resource list",
-                              res.res_id.ded().cell_res_id);
+    if (not res.res_id.is_valid() or res.res_id.is_cmn() or res.res_id.ded_id() >= res_list.size()) {
+      ocudu_assertion_failure("Invalid resource ID {} in the generated resource list", res.res_id);
       return false;
     }
 
@@ -276,10 +276,8 @@ public:
   /// Get the PUCCH resource according to the current state.
   pucch_resource get(unsigned bwp_size_rbs) const
   {
+    // The resource ID is left invalid. It is set later.
     pucch_resource res{};
-    // Resource ID will be set later, assign an invalid value to avoid uninitialized variable warnings.
-    static constexpr unsigned invalid_res_id = std::numeric_limits<unsigned>::max();
-    res.res_id                               = pucch_res_id_t::make_ded(invalid_res_id, invalid_res_id);
     res.syms = {static_cast<uint8_t>(state.start_sym), static_cast<uint8_t>(state.start_sym + nof_syms)};
     const unsigned starting_prb =
         state.high_start_prb ? bwp_size_rbs - state.prb_high_off - nof_prbs : state.prb_low_off;
@@ -432,9 +430,9 @@ config_helpers::generate_cell_common_pucch_res_list(unsigned pucch_res_common, u
   return out;
 }
 
-std::vector<pucch_resource> config_helpers::generate_cell_pucch_res_list(const pucch_resource_builder_params& params,
-                                                                         unsigned bwp_size_rbs,
-                                                                         unsigned dedicated_pucch_rb_start)
+cell_pucch_resources config_helpers::generate_cell_pucch_res_list(const pucch_resource_builder_params& params,
+                                                                  unsigned                             bwp_size_rbs,
+                                                                  unsigned dedicated_pucch_rb_start)
 {
   auto outcome = pucch_parameters_validator(params, bwp_size_rbs, dedicated_pucch_rb_start);
   if (not outcome.has_value()) {
@@ -513,33 +511,43 @@ std::vector<pucch_resource> config_helpers::generate_cell_pucch_res_list(const p
     resources.emplace_back(res);
   }
 
+  // The list of resources has the following layout. The ID of a resource is its position in the list.
+  //   | Set 0 of each config | SR | Set 1 of each config | CSI | (SR_F2) | (CSI_F0) |
+  cell_pucch_resources cell_res;
+  const unsigned       nof_set_res = params.nof_cell_res_set_configs * params.res_set_size.value();
+  const unsigned       sr_start    = nof_set_res;
+  const unsigned       set1_start  = sr_start + params.nof_cell_sr_resources;
+  const unsigned       csi_start   = set1_start + nof_set_res;
+
+  const auto assign_id = [&resources](unsigned pos) {
+    resources[pos].res_id = pucch_res_id_t::make_ded(pos);
+    return resources[pos].res_id;
+  };
+
   for (unsigned res_set_cfg_id = 0; res_set_cfg_id != params.nof_cell_res_set_configs; ++res_set_cfg_id) {
+    cell_pucch_resources::harq_resource_set_config& sets = cell_res.harq.emplace_back();
     for (unsigned pri = 0; pri != params.res_set_size.value(); ++pri) {
-      pucch_res_id_t res_id         = params.harq_res_id<0>(pucch_resource_set_config_id(res_set_cfg_id), pri);
-      const unsigned cell_res_id    = res_id.ded().cell_res_id;
-      resources[cell_res_id].res_id = res_id;
+      const unsigned ded_id = res_set_cfg_id * params.res_set_size.value() + pri;
+      sets.set_0.push_back(assign_id(ded_id));
       if (params.harq_ack_rep.has_value()) {
-        resources[cell_res_id].rep_factor = params.harq_ack_rep->factors_per_res[pri];
+        resources[ded_id].rep_factor = params.harq_ack_rep->factors_per_res[pri];
       }
     }
     for (unsigned pri = 0; pri != params.res_set_size.value(); ++pri) {
-      pucch_res_id_t res_id         = params.harq_res_id<1>(pucch_resource_set_config_id(res_set_cfg_id), pri);
-      unsigned       cell_res_id    = res_id.ded().cell_res_id;
-      resources[cell_res_id].res_id = res_id;
+      const unsigned ded_id = set1_start + res_set_cfg_id * params.res_set_size.value() + pri;
+      sets.set_1.push_back(assign_id(ded_id));
       if (params.harq_ack_rep.has_value()) {
-        resources[cell_res_id].rep_factor = params.harq_ack_rep->factors_per_res[pri];
+        resources[ded_id].rep_factor = params.harq_ack_rep->factors_per_res[pri];
       }
     }
   }
   for (unsigned sr_res_id = 0; sr_res_id != params.nof_cell_sr_resources; ++sr_res_id) {
-    pucch_res_id_t res_id      = params.sr_res_id(pucch_sr_resource_id(sr_res_id));
-    unsigned       cell_res_id = res_id.ded().cell_res_id;
-    auto&          sr_res      = resources[cell_res_id];
-    sr_res.res_id              = res_id;
+    auto& sr = cell_res.sr.emplace_back(cell_pucch_resources::res_with_alt{.res_id = assign_id(sr_start + sr_res_id)});
     if (using_02) {
       // Add SR_F2 resource.
-      pucch_res_id_t res_id_sr_f2 = params.sr_f2_res_id(pucch_sr_resource_id(sr_res_id));
-      resources.emplace_back(pucch_resource{.res_id       = res_id_sr_f2,
+      const pucch_resource& sr_res = resources[sr_start + sr_res_id];
+      sr.alt_res_id                = pucch_res_id_t::make_ded(resources.size());
+      resources.emplace_back(pucch_resource{.res_id       = *sr.alt_res_id,
                                             .starting_prb = sr_res.starting_prb,
                                             // Must overlap in symbols with the SR resource.
                                             .syms           = sr_res.syms,
@@ -548,14 +556,13 @@ std::vector<pucch_resource> config_helpers::generate_cell_pucch_res_list(const p
     }
   }
   for (unsigned csi_res_id = 0; csi_res_id != params.nof_cell_csi_resources; ++csi_res_id) {
-    pucch_res_id_t res_id      = params.csi_res_id(pucch_csi_resource_id(csi_res_id));
-    unsigned       cell_res_id = res_id.ded().cell_res_id;
-    auto&          csi_res     = resources[cell_res_id];
-    csi_res.res_id             = res_id;
+    auto& csi =
+        cell_res.csi.emplace_back(cell_pucch_resources::res_with_alt{.res_id = assign_id(csi_start + csi_res_id)});
     if (using_02) {
       // Add CSI_F0 resource.
-      pucch_res_id_t res_id_csi_f0 = params.csi_f0_res_id(pucch_csi_resource_id(csi_res_id));
-      resources.emplace_back(pucch_resource{.res_id       = res_id_csi_f0,
+      const pucch_resource& csi_res = resources[csi_start + csi_res_id];
+      csi.alt_res_id                = pucch_res_id_t::make_ded(resources.size());
+      resources.emplace_back(pucch_resource{.res_id       = *csi.alt_res_id,
                                             .starting_prb = csi_res.starting_prb,
                                             // Must overlap in symbols with the CSI resource.
                                             .syms           = csi_res.syms,
@@ -568,5 +575,17 @@ std::vector<pucch_resource> config_helpers::generate_cell_pucch_res_list(const p
     return {};
   }
 
-  return resources;
+  cell_res.resources = std::move(resources);
+  return cell_res;
+}
+
+cell_pucch_resources config_helpers::generate_cell_pucch_res_list(const ran_cell_config& cell_cfg)
+{
+  const pucch_resource_builder_params& params = cell_cfg.init_bwp.pucch.resources;
+
+  const unsigned bwp_size_rbs     = cell_cfg.ul_cfg_common.init_ul_bwp.generic_params.crbs.length();
+  const unsigned pucch_res_common = cell_cfg.ul_cfg_common.init_ul_bwp.pucch_cfg_common.value().pucch_resource_common;
+
+  return generate_cell_pucch_res_list(
+      params, bwp_size_rbs, get_dedicated_pucch_rb_start(params, pucch_res_common, bwp_size_rbs));
 }

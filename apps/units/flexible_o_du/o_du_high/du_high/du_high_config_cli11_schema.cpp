@@ -448,6 +448,22 @@ static void configure_cli11_pdsch_args(CLI::App& app, du_high_unit_pdsch_config&
       ->capture_default_str()
       ->enum_values({0, 2, 4});
   add_option(app,
+             "--resource_allocation",
+             pdsch_params.res_alloc,
+             "PDSCH frequency domain resource allocation type for UE-dedicated search spaces")
+      ->default_str("type1")
+      ->transform(CLI::CheckedTransformer(
+          std::map<std::string, pdsch_config::resource_allocation>{
+              {"type0", pdsch_config::resource_allocation::resource_allocation_type_0},
+              {"type1", pdsch_config::resource_allocation::resource_allocation_type_1},
+              {"dynamic_switch", pdsch_config::resource_allocation::dynamic_switch}},
+          CLI::ignore_case));
+  add_option(app, "--rbg_size", pdsch_params.rbg_sz, "PDSCH RBG size configuration for resource allocation type 0")
+      ->default_str("config1")
+      ->transform(CLI::CheckedTransformer(
+          std::map<std::string, rbg_size>{{"config1", rbg_size::config1}, {"config2", rbg_size::config2}},
+          CLI::ignore_case));
+  add_option(app,
              "--max_rank",
              pdsch_params.max_rank,
              "Maximum number of PDSCH "
@@ -1618,6 +1634,8 @@ static void configure_cli11_cg_args(CLI::App& app, du_high_configured_grants& cg
       ->capture_default_str()
       ->enum_values({1U,  2U,   4U,   5U,   8U,   10U,  16U,  20U,   32U,   40U,   64U,
                      80U, 128U, 160U, 256U, 320U, 512U, 640U, 1024U, 1280U, 2560U, 5120U});
+  add_option(app, "--type2", cg_params.type2, "Set the Configured Grant as type 2. When false, type 1 is used.")
+      ->capture_default_str();
   add_option(app, "--mcs", cg_params.mcs, "MCS index for the CG PUSCH. Values: {0,...,27}")
       ->capture_default_str()
       ->range(0U, 27U);
@@ -1646,6 +1664,12 @@ static void configure_cli11_cg_args(CLI::App& app, du_high_configured_grants& cg
                  "this bitrate, but it affects the auto-computed grant size per period.")
           ->capture_default_str()
           ->check(CLI::PositiveNumber);
+  add_option(app,
+             "--sinr_threshold",
+             cg_params.sinr_threshold_dB,
+             "SINR threshold in dB required for the CG PUSCH to be detected as transmitted. Values: [-30.0, 30.0]")
+      ->capture_default_str()
+      ->check(CLI::Range(-30.0, 30.0));
   // If the user sets grant_size but not requested_bitrate, drop the default bitrate so that grant_size applies.
   app.parse_complete_callback([grant_size_opt, requested_bitrate_opt, &cg_params]() {
     if (grant_size_opt->count() != 0 and requested_bitrate_opt->count() == 0) {

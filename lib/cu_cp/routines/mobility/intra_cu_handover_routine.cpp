@@ -74,7 +74,15 @@ void intra_cu_handover_routine::operator()(coro_context<async_task<cu_cp_intra_c
     // Retrieve source UE context.
     source_ue          = ue_mng.find_du_ue(request.source_ue_index);
     source_rrc_context = source_ue->get_rrc_ue()->get_transfer_context();
-    next_config        = to_config_update(source_rrc_context.up_ctx);
+    if (not source_ue->get_up_resource_manager().validate_context(source_rrc_context.up_ctx,
+                                                                  source_ue->get_rrc_ue()->get_capabilities())) {
+      logger.warning(
+          "ue={}: \"{}\" failed. Cause: UP context is incompatible with UE capabilities or configured limits",
+          request.source_ue_index,
+          name());
+      CORO_EARLY_RETURN(response_msg);
+    }
+    next_config = to_config_update(source_rrc_context.up_ctx);
   }
 
   if (request.cho_preparation.has_value()) {
@@ -105,9 +113,10 @@ void intra_cu_handover_routine::operator()(coro_context<async_task<cu_cp_intra_c
       CORO_EARLY_RETURN(response_msg);
     }
     target_ue_context_setup_request.ue_index = target_ue_index;
-    if (!cu_cp_handler.handle_ue_plmn_selected(target_ue_context_setup_request.ue_index,
-                                               source_ue->get_ue_context().plmn)) {
-      logger.warning("ue={}: \"{}\" failed to set PLMN for target UE", request.source_ue_index, name());
+    if (!cu_cp_handler.handle_handover_target_ue_amf_binding(request.source_ue_index,
+                                                             target_ue_context_setup_request.ue_index)) {
+      logger.warning(
+          "ue={}: \"{}\" failed to bind target UE to the AMF of the source UE", request.source_ue_index, name());
       ue_mng.remove_ue(target_ue_context_setup_request.ue_index);
       CORO_EARLY_RETURN(response_msg);
     }

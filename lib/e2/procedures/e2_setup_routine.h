@@ -6,6 +6,7 @@
 #pragma once
 
 #include "ocudu/asn1/e2ap/e2ap.h"
+#include "ocudu/asn1/e2ap/e2ap_pdu_contents.h"
 #include "ocudu/e2/e2.h"
 #include "ocudu/e2/e2_node_component_config_provider.h"
 #include "ocudu/e2/e2ap_config.h"

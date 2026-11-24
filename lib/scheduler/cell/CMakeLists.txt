@@ -4,7 +4,6 @@
 # Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 add_library(sched_cell OBJECT
-        vrb_alloc.cpp
         resource_grid.cpp
         scheduler_prb.cpp
         cell_harq_manager.cpp)

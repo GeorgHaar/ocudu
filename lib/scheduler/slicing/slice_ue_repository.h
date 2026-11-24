@@ -43,29 +43,20 @@ public:
   /// Determines if LCG-ID is part of this slice.
   bool contains(lcg_id_t lcg_id) const { return u.logical_channels().get_slice_id(lcg_id) == slice_id; }
 
-  /// \brief Returns the UL HARQ mode a new grant must use for this slice, if the pending UL data restricts it.
+  /// \brief Selects the grant a new allocation for this slice is built on, and the bytes it can serve.
   ///
-  /// See \c allowedHARQ-mode, TS 38.331.
-  /// \return The mode the grant must use, or nullopt when no logical channel of this slice restricts it.
-  std::optional<ul_harq_mode> required_ul_harq_mode() const
-  {
-    return u.logical_channels().required_ul_harq_mode(slice_id);
-  }
+  /// See \c allowedHARQ-mode, TS 38.331, which the UE applies as per TS 38.321, Section 5.4.3.1.2.
+  /// \return The restrictions the grant satisfies and the pending bytes it can serve.
+  ue_logical_channel_repository::ul_grant_selection select_ul_grant() const;
 
-  /// Returns whether a new UL grant for this UE must use a HARQ process in normal mode, i.e. mode A.
-  bool select_normal_ul_harq_mode() const { return required_ul_harq_mode() == ul_harq_mode::mode_a; }
-
-  /// \brief Returns the DL HARQ feedback a new transport block must carry for this slice.
+  /// \brief Selects the transport block a new grant for this slice is built on, and the bytes it can take.
   ///
-  /// See \c downlinkHARQ-FeedbackDisabled, TS 38.331.
-  /// \return The feedback the block must carry, or nullopt when no logical channel of this slice restricts it.
-  std::optional<dl_harq_feedback> required_dl_harq_feedback() const
+  /// [Implementation-defined] TS 38.331 binds no logical channel to a DL HARQ feedback.
+  /// \return The restrictions the block carries and the pending bytes it can take.
+  ue_logical_channel_repository::dl_transport_block_selection select_dl_transport_block() const
   {
-    return u.logical_channels().required_dl_harq_feedback(slice_id);
+    return u.logical_channels().select_dl_transport_block(slice_id);
   }
-
-  /// Returns whether a new DL grant for this UE must use a HARQ process in normal mode, i.e. with feedback enabled.
-  bool select_normal_dl_harq_mode() const { return required_dl_harq_feedback() == dl_harq_feedback::enabled; }
 
   /// \brief Checks if there are DL pending bytes that are yet to be allocated in a DL HARQ.
   /// This method is faster than computing \c pending_dl_newtx_bytes() > 0.
@@ -124,6 +115,9 @@ public:
 
 private:
   friend class slice_ue_repository;
+
+  /// Returns the bytes a new transmission takes out of the pending bytes of a slice.
+  units::bytes get_newtx_bytes(units::bytes slice_pending_bytes) const;
 
   ue&                  u;
   ue_cell&             ue_cc;

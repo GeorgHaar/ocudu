@@ -12,12 +12,11 @@
 #include "ocudu/mac/mac_ue_control_information_handler.h"
 #include "ocudu/ran/du_types.h"
 #include "ocudu/ran/slot_point_extended.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/support/units.h"
 #include <optional>
 
 namespace ocudu {
-
-struct sched_result;
 
 /// \brief Interface used by MAC Cell Processor to interact with the MAC scheduler.
 class mac_scheduler_cell_info_handler : public mac_ue_control_information_handler,
@@ -40,7 +39,7 @@ public:
   /// \param slot_tx SFN + slot index of the Transmit slot to be processed.
   /// \param cell_idx DU-specific index of the cell for which the slot is being processed.
   /// \return Result of the scheduling operation. It contains both DL and UL scheduling information.
-  virtual const sched_result& slot_indication(slot_point_extended slot_tx, du_cell_index_t cell_idx) = 0;
+  virtual sched_slot_result_reader slot_indication(slot_point_extended slot_tx, du_cell_index_t cell_idx) = 0;
 
   /// \brief Processes an error indication for a specific cell in the MAC scheduler.
   /// \param slot_tx SFN + slot index of the Transmit slot to be processed.

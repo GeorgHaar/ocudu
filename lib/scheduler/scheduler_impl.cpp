@@ -185,6 +185,19 @@ void scheduler_impl::handle_ul_ta_report_indication(const ul_ta_report_indicatio
   cells[ta_report_ind.cell_index]->get_feedback_handler().handle_ul_ta_report_indication(ta_report_ind);
 }
 
+void scheduler_impl::handle_cg_confirmation_message(const cg_confirmation_indication_message& cg_conf_ind)
+{
+  ocudu_assert(cells.contains(cg_conf_ind.cell_index), "cell={} does not exist", cg_conf_ind.cell_index);
+
+  // Early return if UE has not been created in the scheduler.
+  if (cg_conf_ind.ue_index == INVALID_DU_UE_INDEX) {
+    logger.warning("ue={}: Discarding CG confirmation. Cause: UE Id is not valid", INVALID_DU_UE_INDEX);
+    return;
+  }
+
+  cells[cg_conf_ind.cell_index]->get_feedback_handler().handle_cg_confirmation_message(cg_conf_ind);
+}
+
 void scheduler_impl::handle_dl_buffer_state_indication(const dl_buffer_state_indication_message& bs)
 {
   const du_cell_index_t pcell_index = cfg_mng.get_pcell_index(bs.ue_index);
@@ -235,8 +248,8 @@ void scheduler_impl::handle_crnti_ce_received(du_ue_index_t ue_index)
   cells[pcell_idx]->get_feedback_handler().handle_crnti_ce_received(ue_index);
 }
 
-const sched_result& scheduler_impl::slot_indication(slot_point_extended sl_tx,
-                                                    du_cell_index_t     cell_index) noexcept OCUDU_RTSAN_NONBLOCKING
+sched_slot_result_reader scheduler_impl::slot_indication(slot_point_extended sl_tx,
+                                                         du_cell_index_t cell_index) noexcept OCUDU_RTSAN_NONBLOCKING
 {
   ocudu_assert(cells.contains(cell_index), "cell={} does not exist", cell_index);
   cell_scheduler& cell = *cells[cell_index];
@@ -246,11 +259,8 @@ const sched_result& scheduler_impl::slot_indication(slot_point_extended sl_tx,
     logger.set_context(sl_tx.sfn(), sl_tx.slot_index());
   }
 
-  // > Run scheduler for the given slot and cell.
-  cell.run_slot(sl_tx);
-
-  // Return result for the slot.
-  return cell.last_result();
+  // > Run scheduler for the given slot and cell and return the result for the slot.
+  return cell.run_slot(sl_tx);
 }
 
 void scheduler_impl::handle_error_indication(slot_point sl_tx, du_cell_index_t cell_index, error_outcome event)

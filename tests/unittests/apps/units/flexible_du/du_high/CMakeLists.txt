@@ -87,3 +87,12 @@ target_link_libraries(du_high_allowed_harq_mode_test
         ocudu_gtest_main
         gtest)
 add_test(du_high_allowed_harq_mode_test du_high_allowed_harq_mode_test)
+
+add_executable(du_high_pdsch_res_alloc_config_test du_high_pdsch_res_alloc_config_test.cpp)
+target_include_directories(du_high_pdsch_res_alloc_config_test PRIVATE ${CMAKE_SOURCE_DIR})
+target_link_libraries(du_high_pdsch_res_alloc_config_test
+        ocudu_du_high_unit_helpers
+        ocudu_du_config_validators
+        gtest
+        gtest_main)
+add_test(du_high_pdsch_res_alloc_config_test du_high_pdsch_res_alloc_config_test)

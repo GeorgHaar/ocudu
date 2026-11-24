@@ -15,6 +15,7 @@
 #include "ocudu/ran/srs/srs_bandwidth_configuration.h"
 #include "ocudu/scheduler/config/scheduler_expert_config_factory.h"
 #include "ocudu/scheduler/sched_consts.h"
+#include <algorithm>
 #include <gtest/gtest.h>
 
 using namespace ocudu;
@@ -51,7 +52,7 @@ create_sched_ue_creation_request_for_srs_cfg(const sched_ue_creation_request_mes
                                              const std::optional<tdd_ul_dl_config_common>& tdd_cfg)
 {
   sched_ue_creation_request_message ue_req = base_ue_req;
-  auto& ue_srs_cfg = ue_req.cfg.cells.value().front().serv_cell_cfg.ul_config.value().init_ul_bwp.srs_cfg.value();
+  auto& ue_srs_cfg = ue_req.cfg.cells.value().front().ded->serv_cell_cfg.ul_config.value().init_ul_bwp.srs_cfg.value();
 
   // Set SRS resource set periodic.
   ue_srs_cfg.srs_res_set_list.front().res_type.emplace<srs_config::srs_resource_set::periodic_resource_type>();
@@ -133,13 +134,29 @@ std::ostream& operator<<(std::ostream& os, const srs_test_params& params)
 
 using namespace srs_periodicity_test;
 
+static sched_cell_configuration_request_message
+make_srs_cell_request(test_helpers::test_sched_config_manager& cfg_mng, unsigned k_mac_ms, unsigned cs_koffset_ms)
+{
+  auto req = cfg_mng.get_default_cell_config_request();
+  if (k_mac_ms != 0 or cs_koffset_ms != 0) {
+    req.ran.ntn_params.emplace();
+    if (k_mac_ms != 0) {
+      req.ran.ntn_params->ntn_cfg.k_mac = std::chrono::milliseconds{k_mac_ms};
+    }
+    if (cs_koffset_ms != 0) {
+      req.ran.ntn_params->ntn_cfg.cell_specific_koffset = std::chrono::milliseconds{cs_koffset_ms};
+    }
+  }
+  return req;
+}
+
 class srs_sched_test_bench
 {
 public:
-  srs_sched_test_bench(const srs_test_params& params) :
+  srs_sched_test_bench(const srs_test_params& params, unsigned k_mac_ms = 0, unsigned cs_koffset_ms = 0) :
     expert_cfg{config_helpers::make_default_scheduler_expert_config()},
     cfg_mng{cell_config_builder_profiles::create(params.is_tdd ? duplex_mode::TDD : duplex_mode::FDD), expert_cfg},
-    cell_cfg(*cfg_mng.add_cell(cfg_mng.get_default_cell_config_request())),
+    cell_cfg(*cfg_mng.add_cell(make_srs_cell_request(cfg_mng, k_mac_ms, cs_koffset_ms))),
     cell_ues(cell_cfg, nullptr),
     ues(expert_cfg.ue),
     srs_sched(cell_cfg, cell_ues),
@@ -167,13 +184,15 @@ public:
   ocudulog::basic_logger& test_logger = ocudulog::fetch_basic_logger("TEST");
 
   // Class methods.
-  void add_ue(srs_periodicity srs_period)
+  void add_ue(srs_periodicity srs_period, du_ue_index_t ue_index = to_du_ue_index(0), rnti_t crnti = to_rnti(0x4601))
   {
     sched_ue_creation_request_message ue_req = create_sched_ue_creation_request_for_srs_cfg(
         cfg_mng.get_default_ue_config_request(),
         srs_period,
         cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.crbs.length(),
         cell_cfg.params.tdd_cfg);
+    ue_req.ue_index = ue_index;
+    ue_req.crnti    = crnti;
     ue_ded_cfgs.emplace_back(cfg_mng.add_ue(ue_req));
     report_error_if_not(ue_ded_cfgs.back() != nullptr, "Failed to create UE configuration");
     ues.add_ue(*ue_ded_cfgs.back(), {sched_config_helper::to_ue_creation_mode(ue_req), ue_req.ul_ccch_slot_rx});
@@ -276,6 +295,90 @@ protected:
   srs_scheduler_tester() : srs_sched_test_bench(GetParam()) {}
 };
 
+class srs_scheduler_ntn_kmac_test : public ::testing::Test, public srs_sched_test_bench
+{
+protected:
+  static constexpr unsigned K_MAC_MS = 19;
+  static constexpr auto     PERIOD   = srs_periodicity::sl20;
+
+  srs_scheduler_ntn_kmac_test() : srs_sched_test_bench({false, PERIOD}, K_MAC_MS) {}
+};
+
+TEST_F(srs_scheduler_ntn_kmac_test, periodic_srs_uses_dl_time_slot_and_removal_clears_shifted_wheel_entry)
+{
+  add_ue(PERIOD);
+
+  const unsigned period_slots         = static_cast<unsigned>(PERIOD);
+  const unsigned shifted_offset       = (get_offset() + cell_cfg.ntn_k_mac_slots) % period_slots;
+  bool           observed_shifted_srs = false;
+
+  for (unsigned sl_cnt = 0; sl_cnt != res_grid.ring_size() * 2; ++sl_cnt) {
+    srs_sched.run_slot(res_grid);
+    if (sl_cnt >= SCHEDULER_MAX_K2) {
+      if (current_sl_tx.count() % period_slots == shifted_offset) {
+        ASSERT_EQ(res_grid[0].result_reader().ul().srss().size(), 1);
+        observed_shifted_srs = true;
+      } else {
+        ASSERT_TRUE(res_grid[0].result_reader().ul().srss().empty());
+      }
+    }
+    slot_indication(++current_sl_tx);
+  }
+  ASSERT_TRUE(observed_shifted_srs);
+
+  srs_sched.rem_ue(ues[to_du_ue_index(0)].get_pcell().cfg());
+  const unsigned preallocated_slots = res_grid.max_ul_slot_alloc_delay;
+  for (unsigned sl_cnt = 0; sl_cnt != preallocated_slots + period_slots; ++sl_cnt) {
+    srs_sched.run_slot(res_grid);
+    if (sl_cnt >= preallocated_slots) {
+      ASSERT_TRUE(res_grid[0].result_reader().ul().srss().empty());
+    }
+    slot_indication(++current_sl_tx);
+  }
+}
+
+/// Fixture for a periodic SRS occasion in an NTN cell configured with a cell-specific K-offset and no k_mac. The UE
+/// derives the occasion from its SRS resource configuration (TS 38.214, Section 6.2.1), so the K-offset it applies to
+/// granted transmissions leaves it where it is.
+class srs_scheduler_ntn_koffset_test : public ::testing::Test, public srs_sched_test_bench
+{
+protected:
+  static constexpr unsigned KOFFSET_MS = 5;
+  static constexpr auto     PERIOD     = srs_periodicity::sl20;
+
+  srs_scheduler_ntn_koffset_test() : srs_sched_test_bench({false, PERIOD}, /*k_mac_ms=*/0, KOFFSET_MS) {}
+};
+
+/// Verifies that the cell-specific K-offset leaves the periodic SRS occasion at its configured offset.
+TEST_F(srs_scheduler_ntn_koffset_test, periodic_srs_is_not_shifted_by_the_cell_specific_koffset)
+{
+  add_ue(PERIOD);
+
+  ASSERT_GT(cell_cfg.ntn_cs_koffset, 0U);
+  ASSERT_EQ(cell_cfg.ntn_k_mac_slots, 0U);
+
+  const unsigned period_slots = static_cast<unsigned>(PERIOD);
+  ASSERT_NE(cell_cfg.ntn_cs_koffset % period_slots, 0U)
+      << "the K-offset must be able to move the occasion, or the test cannot tell the two apart";
+
+  const unsigned expected_offset       = get_offset() % period_slots;
+  bool           observed_periodic_srs = false;
+
+  for (unsigned sl_cnt = 0; sl_cnt != res_grid.ring_size() * 2; ++sl_cnt) {
+    srs_sched.run_slot(res_grid);
+    if (sl_cnt >= SCHEDULER_MAX_K2) {
+      if (current_sl_tx.count() % period_slots == expected_offset) {
+        ASSERT_EQ(res_grid[0].result_reader().ul().srss().size(), 1) << "SRS moved off its configured offset";
+        observed_periodic_srs = true;
+      } else {
+        ASSERT_TRUE(res_grid[0].result_reader().ul().srss().empty()) << "SRS was moved by the cell-specific K-offset";
+      }
+    }
+    slot_indication(++current_sl_tx);
+  }
+  ASSERT_TRUE(observed_periodic_srs);
+}
+
 TEST_P(srs_scheduler_tester, test_different_periods)
 {
   OCUDU_TEST_REQUIREMENTS("MVP-FUNC-PHY-16-3");
@@ -298,11 +401,11 @@ TEST_P(srs_scheduler_tester, test_different_periods)
     // already have been scheduled before the UE (and its SRS resource) existed.
     if (sl_cnt >= add_ue_slot + SCHEDULER_MAX_K2) {
       if (not ues.empty() and (current_sl_tx - get_offset()).count() % srs_period_uint == 0) {
-        ASSERT_EQ(1, res_grid[0].result.ul.srss.size());
-        expected<bool, std::string> pdu_test = test_srs_pdu(res_grid[0].result.ul.srss.front());
+        ASSERT_EQ(1, res_grid[0].result_reader().ul().srss().size());
+        expected<bool, std::string> pdu_test = test_srs_pdu(res_grid[0].result_reader().ul().srss().front());
         ASSERT_TRUE(pdu_test.has_value()) << pdu_test.error();
       } else {
-        ASSERT_TRUE(res_grid[0].result.ul.srss.empty());
+        ASSERT_TRUE(res_grid[0].result_reader().ul().srss().empty());
       }
     }
 
@@ -345,11 +448,11 @@ public:
     for (unsigned sl_cnt = 0; sl_cnt < max_slots; ++sl_cnt) {
       this->srs_sched.run_slot(this->res_grid);
 
-      if (not res_grid[0].result.ul.srss.empty()) {
-        EXPECT_EQ(res_grid[0].result.ul.srss.size(), 1);
-        EXPECT_TRUE(res_grid[0].result.ul.srss[0].normalized_channel_iq_matrix_requested);
-        if (res_grid[0].result.ul.srss[0].crnti == rnti) {
-          const auto* ret = res_grid[0].result.ul.srss.data();
+      if (not res_grid[0].result_reader().ul().srss().empty()) {
+        EXPECT_EQ(res_grid[0].result_reader().ul().srss().size(), 1);
+        EXPECT_TRUE(res_grid[0].result_reader().ul().srss()[0].normalized_channel_iq_matrix_requested);
+        if (res_grid[0].result_reader().ul().srss()[0].crnti == rnti) {
+          const auto* ret = res_grid[0].result_reader().ul().srss().data();
           slot_indication(++current_sl_tx);
           return ret;
         }
@@ -400,7 +503,8 @@ TEST_F(srs_positioning_scheduler_test, when_neighbor_cell_ue_positioning_is_requ
       srs_period,
       cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.crbs.length(),
       cell_cfg.params.tdd_cfg);
-  auto& ue_srs_cfg = dummy_ue_req.cfg.cells.value().front().serv_cell_cfg.ul_config.value().init_ul_bwp.srs_cfg.value();
+  auto& ue_srs_cfg =
+      dummy_ue_req.cfg.cells.value().front().ded->serv_cell_cfg.ul_config.value().init_ul_bwp.srs_cfg.value();
   this->srs_sched.handle_positioning_measurement_request(
       make_positioning_cell_request(pos_rnti, std::nullopt, to_du_cell_index(0), ue_srs_cfg));
 
@@ -426,4 +530,52 @@ TEST_F(srs_positioning_scheduler_test, when_neighbor_cell_ue_positioning_is_requ
     }
   }
   ASSERT_LT(count, max_pdu_count);
+}
+
+TEST_F(srs_positioning_scheduler_test,
+       when_positioning_of_one_ue_starts_or_stops_then_srs_pdus_of_other_ues_keep_their_flag)
+{
+  constexpr rnti_t rnti_a = to_rnti(0x4601);
+  constexpr rnti_t rnti_b = to_rnti(0x4602);
+  add_ue(srs_period, to_du_ue_index(0), rnti_a);
+  add_ue(srs_period, to_du_ue_index(1), rnti_b);
+  const auto& srs_cfg_a = ues[to_du_ue_index(0)].ue_cfg_dedicated()->pcell_cfg().init_bwp().ul.ded()->srs_cfg.value();
+  const auto& srs_cfg_b = ues[to_du_ue_index(1)].ue_cfg_dedicated()->pcell_cfg().init_bwp().ul.ded()->srs_cfg.value();
+
+  // Runs the scheduler and returns the positioning flags seen on the SRS PDUs of each UE.
+  auto run_slots = [this](unsigned nof_slots) {
+    std::vector<bool> flags_a;
+    std::vector<bool> flags_b;
+    for (unsigned i = 0; i != nof_slots; ++i) {
+      this->srs_sched.run_slot(this->res_grid);
+      for (const auto& pdu : res_grid[0].result_reader().ul().srss()) {
+        if (pdu.crnti == rnti_a) {
+          flags_a.push_back(pdu.positioning_report_requested);
+        } else if (pdu.crnti == rnti_b) {
+          flags_b.push_back(pdu.positioning_report_requested);
+        }
+      }
+      slot_indication(++current_sl_tx);
+    }
+    return std::make_pair(flags_a, flags_b);
+  };
+  const unsigned nof_slots = static_cast<unsigned>(srs_period) * 4;
+
+  // Measuring UE A does not flag the SRS of UE B.
+  srs_sched.handle_positioning_measurement_request(
+      make_positioning_cell_request(rnti_a, to_du_ue_index(0), to_du_cell_index(0), srs_cfg_a));
+  auto [flags_a, flags_b] = run_slots(nof_slots);
+  ASSERT_FALSE(flags_a.empty());
+  ASSERT_FALSE(flags_b.empty());
+  EXPECT_TRUE(std::all_of(flags_a.begin(), flags_a.end(), [](bool f) { return f; }));
+  EXPECT_TRUE(std::none_of(flags_b.begin(), flags_b.end(), [](bool f) { return f; }));
+
+  // Starting UE B and stopping UE A does not clear the flag of the SRS already scheduled for UE B.
+  srs_sched.handle_positioning_measurement_request(
+      make_positioning_cell_request(rnti_b, to_du_ue_index(1), to_du_cell_index(0), srs_cfg_b));
+  srs_sched.handle_positioning_measurement_stop(rnti_a);
+  std::tie(flags_a, flags_b) = run_slots(nof_slots);
+  ASSERT_FALSE(flags_b.empty());
+  EXPECT_TRUE(std::all_of(flags_b.begin(), flags_b.end(), [](bool f) { return f; }));
+  EXPECT_TRUE(std::none_of(flags_a.begin(), flags_a.end(), [](bool f) { return f; }));
 }

@@ -549,7 +549,7 @@ byte_buffer make_location_meas_info(std::initializer_list<prs_window> windows)
   }
   byte_buffer   buf;
   asn1::bit_ref bref{buf};
-  report_fatal_error_if_not(info.pack(bref) == asn1::OCUDUASN_SUCCESS, "Failed to pack LocationMeasurementInfo");
+  report_fatal_error_if_not(asn1::pack(bref, info) == asn1::OCUDUASN_SUCCESS, "Failed to pack LocationMeasurementInfo");
   return buf;
 }
 
@@ -691,7 +691,11 @@ protected:
   {
     ue_cfg.cell_group.cells.emplace(SERVING_PCELL_IDX, ue_cell_config{});
     ue_cfg.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg.cell_index = to_du_cell_index(0);
-    ue_caps.supported_meas_gaps                                            = supported_meas_gap_patterns::all();
+    ue_cfg.cell_group.cells.at(SERVING_PCELL_IDX).bwps.emplace_back();
+    // The SR of the UE is in the last slot of its period, so it does not collide with the gap.
+    ue_cfg.cell_group.cells.at(SERVING_PCELL_IDX).rrm.pucch.sr_offset =
+        sr_periodicity_to_slot(cell_cfgs[0].ran.init_bwp.pucch.sr_period) - 1;
+    ue_caps.supported_meas_gaps = supported_meas_gap_patterns::all();
   }
 
   // Applies a measConfig with an SSB whose SMTC lasts 1ms every 40ms, at offset 0, together with the given
@@ -711,7 +715,7 @@ protected:
 
     byte_buffer   buf;
     asn1::bit_ref bref{buf};
-    report_fatal_error_if_not(meas_cfg.pack(bref) == asn1::OCUDUASN_SUCCESS, "Failed to pack measConfig");
+    report_fatal_error_if_not(asn1::pack(bref, meas_cfg) == asn1::OCUDUASN_SUCCESS, "Failed to pack measConfig");
     return mng.update(ue_cfg, buf, location_meas_info, &ue_caps);
   }
 

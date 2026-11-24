@@ -211,3 +211,32 @@ TEST_F(ngap_location_reporting_test, when_location_report_ue_index_is_invalid_me
   // Verify no new message was sent to AMF.
   ASSERT_EQ(n2_gw.last_ngap_msgs.size(), n_msgs_before);
 }
+
+TEST_F(
+    ngap_location_reporting_test,
+    when_location_reporting_control_has_invalid_plmn_in_area_of_interest_message_is_dropped_and_error_indication_is_sent)
+{
+  // Test preamble.
+  cu_cp_ue_index_t ue_index = this->start_procedure();
+
+  auto& ue     = test_ues.at(ue_index);
+  ue.amf_ue_id = uint_to_amf_ue_id(
+      test_rng::uniform_int<uint64_t>(to_underlying(amf_ue_id_t::min), to_underlying(amf_ue_id_t::max)));
+
+  // Send location reporting control message with an invalid PLMN in the Area of Interest TAI list.
+  ngap_message location_reporting_control_msg =
+      generate_location_reporting_control_message_with_ue_presence(ue.amf_ue_id.value(), ue.ran_ue_id.value(), {1});
+  asn1::ngap::area_of_interest_tai_item_s tai_item;
+  tai_item.tai.plmn_id.from_string("ffffff");
+  tai_item.tai.tac.from_number(7);
+  location_reporting_control_msg.pdu.init_msg()
+      .value.location_report_ctrl()
+      ->location_report_request_type.area_of_interest_list[0]
+      .area_of_interest.area_of_interest_tai_list.push_back(tai_item);
+
+  ngap->handle_message(location_reporting_control_msg);
+
+  // Check that the message was not forwarded to the CU-CP and that an Error Indication was sent to the AMF.
+  ASSERT_FALSE(cu_cp_notifier.last_location_reporting_ctrl.has_value());
+  ASSERT_TRUE(was_error_indication_sent());
+}

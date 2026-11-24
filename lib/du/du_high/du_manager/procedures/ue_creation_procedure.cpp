@@ -8,6 +8,7 @@
 #include "../converters/rlc_config_helpers.h"
 #include "../converters/scheduler_configuration_helpers.h"
 #include "../metrics/du_procedure_metrics_collector.h"
+#include "../ran_resource_management/redcap_config_helpers.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/du/du_high/du_manager/du_manager_params.h"
 #include "ocudu/rlc/rlc_factory.h"
@@ -156,6 +157,11 @@ bool ue_creation_procedure::setup_du_ue_resources()
   // SRB0 is always created.
   ue_ctx->bearers.add_srb(srb_id_t::srb0);
 
+  if (req.is_redcap and not supports_redcap_admission(du_params.ran.cells[req.pcell_index])) {
+    proc_logger.log_proc_warning("RedCap access is disabled or unsupported by this cell; creating SRB0 for RRC Reject");
+    return true;
+  }
+
   if (ue_ctx->resources.resource_alloc_failed()) {
     // In special case, where the RAN resources were not allocated successfully for the UE (e.g. lack of PUCCH space),
     // only SRB0 is added, which will be used for RRC Reject.
@@ -241,9 +247,10 @@ async_task<mac_ue_create_response> ue_creation_procedure::create_mac_ue()
   }
 
   // Derive the number of DL HARQ processes configured for the UE on its PCell.
-  const auto& ue_pcell = ue_ctx->resources->cell_group.cells.at(SERVING_PCELL_IDX);
+  const auto& cells    = ue_ctx->resources->cell_group.cells;
   const auto& cell_ran = du_params.ran.cells[req.pcell_index].ran;
-  if (not ue_ctx->resources.resource_alloc_failed() and ue_pcell.serv_cell_cfg.pdsch_serv_cell_cfg.has_value()) {
+  if (cells.contains(SERVING_PCELL_IDX) and cells.at(SERVING_PCELL_IDX).serv_cell_cfg.pdsch_serv_cell_cfg.has_value()) {
+    const auto& ue_pcell = cells.at(SERVING_PCELL_IDX);
     // For NTN cells, pre-size the MAC DL HARQ buffer pool to the cell maximum. UE capabilities
     // are unknown at creation time, so nof_harq_proc is capped at 16; after capability exchange
     // the scheduler HARQ entity is extended up to max_harq_procs (e.g. 32). The MAC buffer must
@@ -286,11 +293,12 @@ f1ap_ue_creation_response ue_creation_procedure::create_f1ap_ue()
   if (ue_ctx->bearers.srbs().contains(srb_id_t::srb1)) {
     // If allocation of UE RAN resources was successful, the cellGroupConfig is not empty.
     // Pack SRB1 configuration that is going to be passed in the F1AP DU-to-CU-RRC-Container IE to the CU as per
-    // TS38.473, Section 8.4.1.2.
-    calculate_cell_group_config_diff(cell_group, {}, ue_ctx->resources.value());
+    // TS 38.473, Section 8.4.1.2.
+    calculate_cell_group_config_diff(
+        cell_group, {}, ue_ctx->resources.value(), du_res_alloc.get_cell_rrm_config(ue_ctx->pcell_index));
 
     asn1::bit_ref       bref{f1ap_msg.du_cu_rrc_container};
-    asn1::OCUDUASN_CODE result = cell_group.pack(bref);
+    asn1::OCUDUASN_CODE result = asn1::pack(bref, cell_group);
     ocudu_assert(result == asn1::OCUDUASN_SUCCESS, "Failed to generate CellConfigGroup");
   }
 

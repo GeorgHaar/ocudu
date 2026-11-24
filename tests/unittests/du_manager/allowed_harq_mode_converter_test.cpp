@@ -37,7 +37,7 @@ ul_specific_params generate_ul_specific_params(std::optional<ul_harq_mode> allow
   const du_ue_resource_config dest = make_ue_resource_config(allowed_harq_mode);
 
   cell_group_cfg_s cell_group;
-  calculate_cell_group_config_diff(cell_group, src, dest);
+  calculate_cell_group_config_diff(cell_group, src, dest, {});
 
   report_error_if_not(cell_group.rlc_bearer_to_add_mod_list.size() == 1, "Expected a single bearer");
   return cell_group.rlc_bearer_to_add_mod_list[0].mac_lc_ch_cfg.ul_specific_params;
@@ -51,15 +51,12 @@ TEST(allowed_harq_mode_converter_test, an_unset_mode_is_not_packed)
   const ul_specific_params ul_params = generate_ul_specific_params(std::nullopt);
 
   EXPECT_FALSE(ul_params.allowed_harq_mode_r17_present);
-  EXPECT_FALSE(ul_params.ext) << "the extension group carries nothing";
 }
 
-/// TS 38.331 places allowedHARQ-mode in an extension group, which has to be marked present for it to be packed.
+/// TS 38.331 places allowedHARQ-mode in an extension group.
 TEST(allowed_harq_mode_converter_test, mode_a_is_packed_in_the_extension_group)
 {
   const ul_specific_params ul_params = generate_ul_specific_params(ul_harq_mode::mode_a);
-
-  ASSERT_TRUE(ul_params.ext);
   ASSERT_TRUE(ul_params.allowed_harq_mode_r17_present);
   EXPECT_EQ(ul_params.allowed_harq_mode_r17.value, ul_specific_params::allowed_harq_mode_r17_opts::harq_mode_a);
 }
@@ -67,8 +64,6 @@ TEST(allowed_harq_mode_converter_test, mode_a_is_packed_in_the_extension_group)
 TEST(allowed_harq_mode_converter_test, mode_b_is_packed_in_the_extension_group)
 {
   const ul_specific_params ul_params = generate_ul_specific_params(ul_harq_mode::mode_b);
-
-  ASSERT_TRUE(ul_params.ext);
   ASSERT_TRUE(ul_params.allowed_harq_mode_r17_present);
   EXPECT_EQ(ul_params.allowed_harq_mode_r17.value, ul_specific_params::allowed_harq_mode_r17_opts::harq_mode_b);
 }
@@ -80,15 +75,15 @@ TEST(allowed_harq_mode_converter_test, a_packed_mode_survives_an_encode_decode_r
   const du_ue_resource_config dest = make_ue_resource_config(ul_harq_mode::mode_b);
 
   cell_group_cfg_s cell_group;
-  calculate_cell_group_config_diff(cell_group, src, dest);
+  calculate_cell_group_config_diff(cell_group, src, dest, {});
 
   byte_buffer   packed;
   asn1::bit_ref bref{packed};
-  ASSERT_EQ(cell_group.pack(bref), asn1::OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::pack(bref, cell_group), asn1::OCUDUASN_SUCCESS);
 
   cell_group_cfg_s decoded;
   asn1::cbit_ref   dec_bref{packed};
-  ASSERT_EQ(decoded.unpack(dec_bref), asn1::OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::unpack(decoded, dec_bref), asn1::OCUDUASN_SUCCESS);
 
   ASSERT_EQ(decoded.rlc_bearer_to_add_mod_list.size(), 1);
   const ul_specific_params& ul_params = decoded.rlc_bearer_to_add_mod_list[0].mac_lc_ch_cfg.ul_specific_params;

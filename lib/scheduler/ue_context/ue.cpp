@@ -12,6 +12,7 @@ ue::ue(const ue_configuration&       cfg,
        ue_logical_channel_repository lch_repo,
        ue_drx_controller&            drx_ctrl,
        ue_ta_report_tracker&         ta_report_tracker_,
+       ue_koffset_tracker&           koffset_tracker_,
        ue_ta_manager                 ta_mgr_,
        const ue_cell_lookup&         ue_cells_) :
   ue_index(cfg.ue_index),
@@ -22,6 +23,7 @@ ue::ue(const ue_configuration&       cfg,
   lc_ch_mgr(std::move(lch_repo)),
   drx(drx_ctrl),
   ta_report(ta_report_tracker_),
+  koffset(koffset_tracker_),
   ta_mgr(std::move(ta_mgr_)),
   cells(ue_cells_)
 {
@@ -31,6 +33,18 @@ void ue::slot_indication(slot_point sl_tx)
 {
   last_sl_tx = sl_tx;
   drx.slot_indication(sl_tx);
+  // Only an NTN cell signals a Differential Koffset, so elsewhere the tracker holds nothing to update.
+  if (cell_cfg_common.ntn_cs_koffset != 0 and koffset.is_active()) {
+    // A HARQ process discarded on timeout reports nothing, so a value no process holds any more is given up here
+    // rather than on a feedback that never comes. An acknowledged value outlives its process, which is freed at once.
+    if (koffset.has_unacknowledged_ce() and not get_pcell().holds_differential_koffset_ce()) {
+      koffset.handle_ce_dropped();
+    }
+
+    // Uplink the UE was already granted. A larger Differential Koffset moves its uplink earlier, so the UE is not
+    // scheduled again until these transmissions are behind it.
+    koffset.slot_indication(sl_tx, get_pcell().harqs.last_ul_slot());
+  }
 }
 
 void ue::deactivate()

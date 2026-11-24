@@ -18,6 +18,8 @@
 #include "ocudu/scheduler/result/sched_result.h"
 #include "ocudu/scheduler/result/srs_info.h"
 #include "ocudu/support/ocudu_assert.h"
+#include <algorithm>
+#include <optional>
 #include <vector>
 
 namespace ocudu {
@@ -26,50 +28,25 @@ namespace ocudu {
 struct sched_result_grid_config {
   /// Number of slots held by the grid.
   unsigned nof_slots = 1;
-  /// \brief [Implementation-defined] Number of slots that can hold PDUs at the same time.
+  /// \brief Number of slots that can hold PDUs at the same time, which sizes the pool of every pooled PDU list.
   ///
-  /// Sizes the pool of every pooled PDU list. A slot holds PDUs from the moment it is scheduled until it leaves the
-  /// grid history, which spans fewer slots than the grid holds.
-  unsigned nof_live_slots = 32;
+  /// If not set, or larger than \c nof_slots, every slot of the grid is assumed to hold PDUs at the same time.
+  std::optional<unsigned> nof_live_slots;
 };
 
 namespace sched_result_context {
 
 /// Broadcast allocations of a slot.
-struct broadcast_slot {
-  static_vector<ssb_information, MAX_SSB_PER_SLOT>     ssb_info;
-  static_vector<sib_information, MAX_SI_PDUS_PER_SLOT> sibs;
-};
+using broadcast_slot = dl_broadcast_allocation;
 
 /// Downlink storage of a slot in the scheduler result grid.
-struct dl_slot {
-  unsigned                                                      nof_dl_symbols = 0;
-  pdcch_dl_info_list                                            dl_pdcchs;
-  pdcch_ul_info_list                                            ul_pdcchs;
-  broadcast_slot                                                bc;
-  pooled_pdu_list<rar_information>                              rar_grants;
-  static_vector<dl_paging_allocation, MAX_PAGING_PDUS_PER_SLOT> paging_grants;
-  static_vector<dl_msg_alloc, MAX_UE_PDUS_PER_SLOT>             ue_grants;
-  static_vector<csi_rs_info, MAX_CSI_RS_PDUS_PER_SLOT>          csi_rs;
-  static_vector<prs_info, MAX_PRS_PDUS_PER_SLOT>                prs;
-};
+using dl_slot = dl_sched_result;
 
 /// Uplink storage of a slot in the scheduler result grid.
-struct ul_slot {
-  unsigned                                                         nof_ul_symbols = 0;
-  static_vector<ul_sched_info, MAX_PUSCH_PDUS_PER_SLOT>            puschs;
-  static_vector<prach_occasion_info, MAX_PRACH_OCCASIONS_PER_SLOT> prachs;
-  stable_id_map<pucch_info>                                        pucchs;
-  static_vector<srs_info, MAX_SRS_PDUS_PER_SLOT>                   srss;
-};
+using ul_slot = ul_sched_result;
 
 /// Storage of a slot in the scheduler result grid.
-struct slot {
-  bool                  success = false;
-  failed_alloc_attempts failed_attempts;
-  dl_slot               dl;
-  ul_slot               ul;
-};
+using slot = sched_result;
 
 /// Pools backing the pooled PDU lists of a cell.
 class pdu_pool_set
@@ -79,7 +56,15 @@ class pdu_pool_set
   struct pdu_tag {};
 
 public:
-  explicit pdu_pool_set(const sched_result_grid_config& cfg) : rar_pool(MAX_RAR_PDUS_PER_SLOT * cfg.nof_live_slots) {}
+  explicit pdu_pool_set(const sched_result_grid_config& cfg) :
+    dl_pdcch_pool(MAX_DL_PDCCH_PDUS_PER_SLOT * nof_pool_slots(cfg)),
+    ul_pdcch_pool(MAX_UL_PDCCH_PDUS_PER_SLOT * nof_pool_slots(cfg)),
+    rar_pool(MAX_RAR_PDUS_PER_SLOT * nof_pool_slots(cfg)),
+    ue_grant_pool(MAX_UE_PDUS_PER_SLOT * nof_pool_slots(cfg)),
+    csi_rs_pool(MAX_CSI_RS_PDUS_PER_SLOT * nof_pool_slots(cfg)),
+    pusch_pool(MAX_PUSCH_PDUS_PER_SLOT * nof_pool_slots(cfg))
+  {
+  }
 
   /// Fetches the pool that holds the PDUs of a given type.
   template <typename T>
@@ -89,9 +74,31 @@ public:
   }
 
 private:
-  free_list_object_pool<rar_information>& pool_of(pdu_tag<rar_information> /* unused */) { return rar_pool; }
+  /// Number of slots for which each pool must be able to hold PDUs simultaneously.
+  static unsigned nof_pool_slots(const sched_result_grid_config& cfg)
+  {
+    return std::min(cfg.nof_slots, cfg.nof_live_slots.value_or(cfg.nof_slots));
+  }
 
-  free_list_object_pool<rar_information> rar_pool;
+  free_list_object_pool<pdcch_dl_information>& pool_of(pdu_tag<pdcch_dl_information> /* unused */)
+  {
+    return dl_pdcch_pool;
+  }
+  free_list_object_pool<pdcch_ul_information>& pool_of(pdu_tag<pdcch_ul_information> /* unused */)
+  {
+    return ul_pdcch_pool;
+  }
+  free_list_object_pool<rar_information>& pool_of(pdu_tag<rar_information> /* unused */) { return rar_pool; }
+  free_list_object_pool<dl_msg_alloc>&    pool_of(pdu_tag<dl_msg_alloc> /* unused */) { return ue_grant_pool; }
+  free_list_object_pool<csi_rs_info>&     pool_of(pdu_tag<csi_rs_info> /* unused */) { return csi_rs_pool; }
+  free_list_object_pool<ul_sched_info>&   pool_of(pdu_tag<ul_sched_info> /* unused */) { return pusch_pool; }
+
+  free_list_object_pool<pdcch_dl_information> dl_pdcch_pool;
+  free_list_object_pool<pdcch_ul_information> ul_pdcch_pool;
+  free_list_object_pool<rar_information>      rar_pool;
+  free_list_object_pool<dl_msg_alloc>         ue_grant_pool;
+  free_list_object_pool<csi_rs_info>          csi_rs_pool;
+  free_list_object_pool<ul_sched_info>        pusch_pool;
 };
 
 /// \brief Every PDU list a slot holds, in the order the slot declares them.
@@ -275,12 +282,24 @@ public:
   {
     for (auto& sl : slots) {
       sl.ul.pucchs.reserve(MAX_PUCCH_PDUS_PER_SLOT);
+      sl.dl.dl_pdcchs.reserve(MAX_DL_PDCCH_PDUS_PER_SLOT);
+      sl.dl.ul_pdcchs.reserve(MAX_UL_PDCCH_PDUS_PER_SLOT);
       sl.dl.rar_grants.reserve(MAX_RAR_PDUS_PER_SLOT);
+      sl.dl.ue_grants.reserve(MAX_UE_PDUS_PER_SLOT);
+      sl.dl.csi_rs.reserve(MAX_CSI_RS_PDUS_PER_SLOT);
+      sl.ul.puschs.reserve(MAX_PUSCH_PDUS_PER_SLOT);
     }
   }
 
   /// Number of slots held by the grid.
   [[nodiscard]] size_t nof_slots() const { return slots.size(); }
+
+  /// Fetches the storage of a slot.
+  sched_result_context::slot& slot_storage(unsigned slot_idx)
+  {
+    ocudu_assert(slot_idx < slots.size(), "Slot index out of bounds");
+    return slots[slot_idx];
+  }
 
   /// Fetches the builder of the result of a slot.
   sched_slot_result_builder get_builder(unsigned slot_idx)
@@ -296,10 +315,20 @@ public:
     return sched_slot_result_reader{slots[slot_idx]};
   }
 
-  /// \brief Discards the result of a slot and sets the symbols active in its new slot.
+  /// Discards the result of a slot and sets the symbols active in its new slot.
+  void reset_slot(unsigned slot_idx, unsigned nof_dl_symbols, unsigned nof_ul_symbols)
+  {
+    reset_slot(slot_idx);
+
+    sched_result_context::slot& sl = slots[slot_idx];
+    sl.dl.nof_dl_symbols           = nof_dl_symbols;
+    sl.ul.nof_ul_symbols           = nof_ul_symbols;
+  }
+
+  /// \brief Discards the result of a slot, leaving the symbols active in the slot untouched.
   ///
   /// The capacity of every PDU list is preserved, and the PDUs of the pooled lists return to their pool.
-  void reset_slot(unsigned slot_idx, unsigned nof_dl_symbols, unsigned nof_ul_symbols)
+  void reset_slot(unsigned slot_idx)
   {
     ocudu_assert(slot_idx < slots.size(), "Slot index out of bounds");
     sched_result_context::slot& sl = slots[slot_idx];
@@ -316,13 +345,11 @@ public:
     sl.dl.ue_grants.clear();
     sl.dl.csi_rs.clear();
     sl.dl.prs.clear();
-    sl.dl.nof_dl_symbols = nof_dl_symbols;
 
     sl.ul.puschs.clear();
     sl.ul.prachs.clear();
     sl.ul.pucchs.clear();
     sl.ul.srss.clear();
-    sl.ul.nof_ul_symbols = nof_ul_symbols;
   }
 
 private:

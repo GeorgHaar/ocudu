@@ -9,6 +9,7 @@
 #include "ocudu/ngap/ngap_handover.h"
 #include "ocudu/ngap/ngap_init_context_setup.h"
 #include "ocudu/ngap/ngap_metrics.h"
+#include "ocudu/ngap/ngap_nas.h"
 #include "ocudu/ngap/ngap_pdu_session.h"
 #include "ocudu/ngap/ngap_rrc_inactive_transition.h"
 #include "ocudu/ngap/ngap_setup.h"
@@ -154,6 +155,19 @@ public:
   /// \returns Pointer to the NGAP UE notifier.
   virtual ngap_cu_cp_ue_notifier* on_new_ngap_ue(cu_cp_ue_index_t ue_index) = 0;
 
+  /// \brief Requests the transfer of a UE association that another NGAP instance of the CU-CP holds to this NGAP.
+  ///
+  /// A new AMF that takes over a UE uses the RAN UE NGAP ID that the CU-CP allocated over the NG interface instance
+  /// of the old AMF (TS 38.413 sections 8.3.1.2 and 8.6.2.2).
+  /// \param[in] ran_ue_id The RAN UE NGAP ID that the AMF sent.
+  /// \returns The index of the UE, or cu_cp_ue_index_t::invalid if no other NGAP instance holds the UE association.
+  virtual cu_cp_ue_index_t on_ue_association_transfer_required(ran_ue_id_t ran_ue_id) = 0;
+
+  /// \brief Notifies the CU-CP that the source AMF requests to reroute the INITIAL UE MESSAGE of a UE to a target AMF.
+  /// \param[in] request The REROUTE NAS REQUEST of the source AMF.
+  /// \returns True if the NGAP of the target AMF sent the rerouted INITIAL UE MESSAGE.
+  virtual bool on_reroute_nas_request(const ngap_reroute_nas_request& request) = 0;
+
   /// \brief Request scheduling a task for a UE.
   /// \param[in] ue_index The index of the UE.
   /// \param[in] task The task to schedule.
@@ -162,12 +176,9 @@ public:
 
   /// \brief Notify the CU-CP about a handover request received.
   /// \param[in] ue_index Index of the UE.
-  /// \param[in] selected_plmn The selected PLMN identity of the UE.
   /// \param[in] sec_ctxt The received security context.
   /// \return True if the handover request handling is successful, false otherwise.
-  virtual bool on_handover_request_received(cu_cp_ue_index_t                  ue_index,
-                                            const plmn_identity&              selected_plmn,
-                                            const security::security_context& sec_ctxt) = 0;
+  virtual bool on_handover_request_received(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt) = 0;
 
   /// \brief Notify about the reception of a new Initial Context Setup Request.
   /// \param[in] request The received Initial Context Setup Request.
@@ -269,6 +280,11 @@ public:
   /// \brief Initiates Uplink NAS transport procedure as per TS 38.413 section 8.6.3.
   /// \param[in] msg The ul nas transfer message to transmit.
   virtual void handle_ul_nas_transport_message(const cu_cp_ul_nas_transport& msg) = 0;
+
+  /// \brief Sends the rerouted INITIAL UE MESSAGE of a UE to the target AMF (TS 38.413 section 8.6.5).
+  /// \param[in] request The REROUTE NAS REQUEST of the source AMF.
+  /// \returns True if the rerouted INITIAL UE MESSAGE was sent.
+  virtual bool handle_rerouted_initial_ue_message(const ngap_reroute_nas_request& request) = 0;
 };
 
 /// Handle NGAP Location Reporting procedures as defined in TS 38.413 section 8.12.
@@ -365,6 +381,17 @@ public:
 
   /// Returns the GUAMI of the AMF that serves the UE, if the AMF has signalled it.
   virtual std::optional<guami_t> get_serving_guami(cu_cp_ue_index_t ue_index) = 0;
+
+  /// Returns the Allowed NSSAI of the UE, if the AMF has signalled it.
+  virtual std::vector<s_nssai_t> get_allowed_nssai(cu_cp_ue_index_t ue_index) = 0;
+
+  /// \brief Removes a UE association without signalling, because a new AMF serves the UE.
+  ///
+  /// The NGAP removes the UE association only if it sent the INITIAL UE MESSAGE of the UE, the UE got no INITIAL
+  /// CONTEXT SETUP REQUEST yet, no release of the UE is ongoing, and the UE task queue has space.
+  /// \param[in] ran_ue_id The RAN UE NGAP ID of the UE association.
+  /// \returns The index of the UE, or cu_cp_ue_index_t::invalid if this NGAP keeps the UE association.
+  virtual cu_cp_ue_index_t remove_ue_association(ran_ue_id_t ran_ue_id) = 0;
 };
 
 /// Interface to map between ue_index and amf_ue_id.

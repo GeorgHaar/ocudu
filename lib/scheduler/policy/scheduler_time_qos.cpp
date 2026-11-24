@@ -42,7 +42,7 @@ void ue_history_repository::rem_ue(du_ue_index_t ue_index)
   ue_row_ids[ue_index] = soa::row_id{std::numeric_limits<uint32_t>::max()};
 }
 
-void ue_history_repository::save_dl_newtx_grants(span<const dl_msg_alloc> dl_grants)
+void ue_history_repository::save_dl_newtx_grants(pdu_span<dl_msg_alloc> dl_grants)
 {
   if (dl_grants.empty()) {
     // Ignore slots with no grants in the statistics, as they don't add any differentiation between UEs.
@@ -64,7 +64,7 @@ void ue_history_repository::save_dl_newtx_grants(span<const dl_msg_alloc> dl_gra
   }
 }
 
-void ue_history_repository::save_ul_newtx_grants(span<const ul_sched_info> ul_grants)
+void ue_history_repository::save_ul_newtx_grants(pdu_span<ul_sched_info> ul_grants)
 {
   if (ul_grants.empty()) {
     // Ignore slots with no grants in the statistics, as they don't add any differentiation between UEs.
@@ -94,19 +94,21 @@ rate_estimator::rate_estimator(const cell_configuration& cell_cfg) :
                  .tb_scaling_field = 1,
                  .n_prb            = cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.crbs.length()}
 {
-  const unsigned nof_dl_ports  = cell_cfg.params.dl_carrier.nof_ant;
   const unsigned max_dl_layers = cell_cfg.params.init_bwp.pdsch.max_nof_layers;
   dl_dmrs_rbs_per_nof_layers.resize(max_dl_layers);
   for (unsigned nof_layers = 1; nof_layers <= max_dl_layers; ++nof_layers) {
     const pdsch_time_domain_resource_allocation pdsch_td_cfg{
         0, sch_mapping_type::typeA, {0, NOF_OFDM_SYM_PER_SLOT_NORMAL_CP}};
     const dmrs_downlink_config dmrs_cfg{};
-    auto                       dmrs = make_dmrs_info_dedicated(
-        pdsch_td_cfg, cell_cfg.params.pci, cell_cfg.params.dmrs_typeA_pos, dmrs_cfg, nof_layers, nof_dl_ports, false);
+    const dmrs_information     dmrs = make_dmrs_info_dedicated(pdsch_td_cfg,
+                                                           cell_cfg.params.pci,
+                                                           cell_cfg.params.dmrs_typeA_pos,
+                                                           dmrs_cfg,
+                                                           get_su_pdsch_dmrs_ports(nof_layers));
+
     dl_dmrs_rbs_per_nof_layers[nof_layers - 1] = calculate_nof_dmrs_per_rb(dmrs);
   }
 
-  const unsigned nof_ul_ports  = cell_cfg.params.ul_carrier.nof_ant;
   const unsigned max_ul_layers = cell_cfg.params.init_bwp.pusch.max_nof_layers;
   ul_dmrs_rbs_per_nof_layers.resize(max_ul_layers);
   for (unsigned nof_layers = 1; nof_layers <= max_ul_layers; ++nof_layers) {
@@ -114,7 +116,7 @@ rate_estimator::rate_estimator(const cell_configuration& cell_cfg) :
         2, sch_mapping_type::typeA, {0, NOF_OFDM_SYM_PER_SLOT_NORMAL_CP}};
     const dmrs_uplink_config dmrs_cfg{};
     auto                     dmrs = make_dmrs_info_dedicated(
-        pusch_td_cfg, cell_cfg.params.pci, cell_cfg.params.dmrs_typeA_pos, dmrs_cfg, nof_layers, nof_ul_ports, false);
+        pusch_td_cfg, cell_cfg.params.pci, cell_cfg.params.dmrs_typeA_pos, dmrs_cfg, nof_layers, false);
     ul_dmrs_rbs_per_nof_layers[nof_layers - 1] = calculate_nof_dmrs_per_rb(dmrs);
   }
 }
@@ -205,13 +207,13 @@ void scheduler_time_qos::compute_ue_ul_priorities(slot_point               pdcch
   }
 }
 
-void scheduler_time_qos::save_dl_newtx_grants(span<const dl_msg_alloc> dl_grants)
+void scheduler_time_qos::save_dl_newtx_grants(pdu_span<dl_msg_alloc> dl_grants)
 {
   // Save result of DL grants in UE history.
   ue_history_db.save_dl_newtx_grants(dl_grants);
 }
 
-void scheduler_time_qos::save_ul_newtx_grants(span<const ul_sched_info> ul_grants)
+void scheduler_time_qos::save_ul_newtx_grants(pdu_span<ul_sched_info> ul_grants)
 {
   // Save result of UL grants in UE history.
   ue_history_db.save_ul_newtx_grants(ul_grants);

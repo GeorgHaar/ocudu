@@ -22,7 +22,7 @@ byte_buffer pack_into_pdu(const T& msg, const char* context_name)
   context_name = context_name == nullptr ? __FUNCTION__ : context_name;
   byte_buffer   pdu{};
   asn1::bit_ref bref{pdu};
-  if (msg.pack(bref) == asn1::OCUDUASN_ERROR_ENCODE_FAIL) {
+  if (asn1::pack(bref, msg) == asn1::OCUDUASN_ERROR_ENCODE_FAIL) {
     ocudulog::fetch_basic_logger("RRC").error("Failed to pack message in {}. Discarding it.", context_name);
   }
   return pdu;
@@ -39,6 +39,10 @@ expected<uint8_t> get_transaction_id(const asn1::rrc_nr::rrc_setup_complete_s& m
 
 /// Extracts transaction id of UL-DCCH message.
 expected<uint8_t> get_transaction_id(const asn1::rrc_nr::ul_dcch_msg_s& msg);
+
+/// Checks whether the UL-DCCH message is the c1 message of the given type.
+bool is_ul_dcch_c1_msg(const asn1::rrc_nr::ul_dcch_msg_s&                           msg,
+                       asn1::rrc_nr::ul_dcch_msg_type_c::c1_c_::types_opts::options type);
 
 /// \brief Fills ASN.1 RRC Security Mode Command struct.
 /// \param[out] rrc_smc The RRC security mode command ASN.1 struct to fill.

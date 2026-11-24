@@ -130,11 +130,11 @@ struct pusch_config {
   enum class transform_precoder : unsigned { enabled, disabled, not_set };
 
   /// \brief HARQ process number for DCI Format 0_1.
-  /// \remark See TS38.212, Section 7.3.1.1.2 Format 0_1.
+  /// \remark See TS 38.212, Section 7.3.1.1.2 Format 0_1.
   enum class harq_process_num_dci_0_1_size { n4 = 4, n5 = 5 };
 
   /// \brief HARQ process number for DCI Format 0_2.
-  /// \remark See TS38.212, Section 7.3.1.1.3 Format 0_2.
+  /// \remark See TS 38.212, Section 7.3.1.1.3 Format 0_2.
   enum class harq_process_num_dci_0_2_size { n0 = 0, n1 = 1, n2 = 2, n3 = 3, n4 = 4, n5 = 5 };
 
   /// Identifier used to initalite data scrambling (c_init) for PUSCH. If the field is absent, the UE applies the
@@ -187,5 +187,19 @@ struct pusch_config {
   }
   bool operator!=(const pusch_config& rhs) const { return !(rhs == *this); }
 };
+
+/// \brief Determines the use of transform precoding for a PUSCH scheduled by DCI Format 0_1, as per TS 38.214,
+/// Section 6.1.3.
+/// \param[in] pusch_cfg Dedicated \e pusch-Config of the BWP, or \c nullptr if not configured.
+/// \param[in] msg3_transform_precoder Value of \e msg3-transformPrecoder, applied when \e transformPrecoder is not set
+/// in \e pusch-Config.
+/// \return True if transform precoding is enabled.
+inline bool use_pusch_transform_precoding(const pusch_config* pusch_cfg, bool msg3_transform_precoder)
+{
+  if (pusch_cfg == nullptr or pusch_cfg->trans_precoder == pusch_config::transform_precoder::not_set) {
+    return msg3_transform_precoder;
+  }
+  return pusch_cfg->trans_precoder == pusch_config::transform_precoder::enabled;
+}
 
 } // namespace ocudu

@@ -28,7 +28,7 @@ using namespace schedtrace::roundtrip_test;
 using namespace test_helper;
 
 /// Builds a finished buffer with the given decision as root.
-static std::vector<uint8_t> decision_to_bytes(const sched_result& result)
+static std::vector<uint8_t> decision_to_bytes(sched_slot_result_reader result)
 {
   flatbuffers::FlatBufferBuilder fbb;
   fbb.Finish(convert_decision_to_fb(fbb, result));
@@ -37,27 +37,29 @@ static std::vector<uint8_t> decision_to_bytes(const sched_result& result)
 
 /// Converts \p input to a flatbuffer, back to sched_result, then to a flatbuffer again, and checks both buffers are
 /// equal. The builder output is deterministic, so byte equality means field equality.
-static void check_decision_roundtrip(const sched_result& input)
+static void check_decision_roundtrip(sched_slot_result_reader input)
 {
   const std::vector<uint8_t> bytes1 = decision_to_bytes(input);
 
-  sched_result intermediate;
-  convert_fb_to_decision(
-      intermediate, *flatbuffers::GetRoot<fbs::SlotDecision>(bytes1.data()), make_test_schedtrace_cell_cfg());
+  sched_result_grid intermediate_grid{sched_result_grid_config{1}};
+  convert_fb_to_decision(intermediate_grid.get_builder(0),
+                         *flatbuffers::GetRoot<fbs::SlotDecision>(bytes1.data()),
+                         make_test_schedtrace_cell_cfg());
+  const auto intermediate = intermediate_grid.get_reader(0);
   // Check the lists first: byte equality catches a list decoded into the wrong member too, but only as an opaque
   // buffer diff.
-  ASSERT_EQ(intermediate.ul.puschs.size(), input.ul.puschs.size());
-  ASSERT_EQ(intermediate.ul.pucchs.size(), input.ul.pucchs.size());
-  ASSERT_EQ(intermediate.ul.prachs.size(), input.ul.prachs.size());
-  ASSERT_EQ(intermediate.ul.srss.size(), input.ul.srss.size());
-  ASSERT_EQ(intermediate.dl.dl_pdcchs.size(), input.dl.dl_pdcchs.size());
-  ASSERT_EQ(intermediate.dl.ul_pdcchs.size(), input.dl.ul_pdcchs.size());
-  ASSERT_EQ(intermediate.dl.bc.sibs.size(), input.dl.bc.sibs.size());
-  ASSERT_EQ(intermediate.dl.bc.ssb_info.size(), input.dl.bc.ssb_info.size());
-  ASSERT_EQ(intermediate.dl.rar_grants.size(), input.dl.rar_grants.size());
-  ASSERT_EQ(intermediate.dl.paging_grants.size(), input.dl.paging_grants.size());
-  ASSERT_EQ(intermediate.dl.ue_grants.size(), input.dl.ue_grants.size());
-  ASSERT_EQ(intermediate.dl.csi_rs.size(), input.dl.csi_rs.size());
+  ASSERT_EQ(intermediate.ul().puschs().size(), input.ul().puschs().size());
+  ASSERT_EQ(intermediate.ul().pucchs().size(), input.ul().pucchs().size());
+  ASSERT_EQ(intermediate.ul().prachs().size(), input.ul().prachs().size());
+  ASSERT_EQ(intermediate.ul().srss().size(), input.ul().srss().size());
+  ASSERT_EQ(intermediate.dl().dl_pdcchs().size(), input.dl().dl_pdcchs().size());
+  ASSERT_EQ(intermediate.dl().ul_pdcchs().size(), input.dl().ul_pdcchs().size());
+  ASSERT_EQ(intermediate.dl().sibs().size(), input.dl().sibs().size());
+  ASSERT_EQ(intermediate.dl().ssb_info().size(), input.dl().ssb_info().size());
+  ASSERT_EQ(intermediate.dl().rar_grants().size(), input.dl().rar_grants().size());
+  ASSERT_EQ(intermediate.dl().paging_grants().size(), input.dl().paging_grants().size());
+  ASSERT_EQ(intermediate.dl().ue_grants().size(), input.dl().ue_grants().size());
+  ASSERT_EQ(intermediate.dl().csi_rs().size(), input.dl().csi_rs().size());
 
   ASSERT_EQ(bytes1, decision_to_bytes(intermediate));
 }
@@ -73,27 +75,31 @@ TEST(event_converter_test, empty_sched_result_roundtrip)
 
 TEST(event_converter_test, all_lists_roundtrip)
 {
-  check_decision_roundtrip(make_full_sched_result());
+  full_sched_result full;
+  check_decision_roundtrip(full.result());
 }
 
 // make_full_sched_result is where all_lists_roundtrip -- and the schedlog log comparison in trace_to_log_test -- get
 // their coverage, so a list quietly dropped from it must fail here rather than silently shrink both tests.
 TEST(event_converter_test, full_sched_result_populates_every_serialized_list)
 {
-  const sched_result result = make_full_sched_result();
+  full_sched_result full;
+  const auto        result = full.result();
+  const auto        dl     = result.dl();
+  const auto        ul     = result.ul();
 
-  EXPECT_FALSE(result.ul.puschs.empty());
-  EXPECT_FALSE(result.ul.pucchs.empty());
-  EXPECT_FALSE(result.ul.prachs.empty());
-  EXPECT_FALSE(result.ul.srss.empty());
-  EXPECT_FALSE(result.dl.dl_pdcchs.empty());
-  EXPECT_FALSE(result.dl.ul_pdcchs.empty());
-  EXPECT_FALSE(result.dl.bc.sibs.empty());
-  EXPECT_FALSE(result.dl.bc.ssb_info.empty());
-  EXPECT_FALSE(result.dl.rar_grants.empty());
-  EXPECT_FALSE(result.dl.paging_grants.empty());
-  EXPECT_FALSE(result.dl.ue_grants.empty());
-  EXPECT_FALSE(result.dl.csi_rs.empty());
+  EXPECT_FALSE(ul.puschs().empty());
+  EXPECT_FALSE(ul.pucchs().empty());
+  EXPECT_FALSE(ul.prachs().empty());
+  EXPECT_FALSE(ul.srss().empty());
+  EXPECT_FALSE(dl.dl_pdcchs().empty());
+  EXPECT_FALSE(dl.ul_pdcchs().empty());
+  EXPECT_FALSE(dl.sibs().empty());
+  EXPECT_FALSE(dl.ssb_info().empty());
+  EXPECT_FALSE(dl.rar_grants().empty());
+  EXPECT_FALSE(dl.paging_grants().empty());
+  EXPECT_FALSE(dl.ue_grants().empty());
+  EXPECT_FALSE(dl.csi_rs().empty());
 }
 
 TEST(event_converter_test, intervals_are_encoded_as_start_and_length)
@@ -145,9 +151,9 @@ TEST(event_converter_test, cell_cfg_pucch_resources_gathering)
   for (unsigned i = 0; i != expected.common.size(); ++i) {
     EXPECT_EQ(schedtrace_cfg.init_ul_bwp.pucch_resources[i].starting_prb, expected.common[i].starting_prb);
   }
-  for (unsigned i = 0; i != expected.dedicated.size(); ++i) {
+  for (unsigned i = 0; i != expected.dedicated.resources.size(); ++i) {
     const pucch_resource& ded = schedtrace_cfg.init_ul_bwp.pucch_resources[expected.common.size() + i];
-    EXPECT_EQ(ded.starting_prb, expected.dedicated[i].starting_prb);
+    EXPECT_EQ(ded.starting_prb, expected.dedicated.resources[i].starting_prb);
     // Dedicated resources reached the wire with their symbols intact, not default-constructed.
     EXPECT_FALSE(ded.syms.empty());
   }

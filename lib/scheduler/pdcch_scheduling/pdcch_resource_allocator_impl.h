@@ -29,7 +29,8 @@ public:
                                               rnti_t                         rnti,
                                               search_space_id                ss_id,
                                               aggregation_level              aggr_lvl,
-                                              std::optional<beam_identifier> beam) override;
+                                              std::optional<beam_identifier> beam,
+                                              unsigned                       ssb_idx = 0) override;
 
   pdcch_ul_information* alloc_ul_pdcch_common(cell_slot_resource_allocator&  slot_alloc,
                                               rnti_t                         rnti,
@@ -64,17 +65,26 @@ private:
 
   pdcch_slot_allocator& get_pdcch_slot_alloc(slot_point sl);
 
+  /// \param rnti RNTI used to scramble the DCI CRC.
+  /// \param scrambling_rnti RNTI seeding the PDCCH payload scrambling. It is the UE's C-RNTI for a UE-specific
+  /// SearchSpace, which is not necessarily \c rnti (TS 38.211, Section 7.3.2.3); it is unused in a common SearchSpace.
   pdcch_dl_information* alloc_dl_pdcch_helper(cell_slot_resource_allocator&     slot_alloc,
                                               rnti_t                            rnti,
+                                              rnti_t                            scrambling_rnti,
                                               const bwp_configuration&          bwp_cfg,
                                               const sched_coreset_config&       cs_cfg,
                                               const search_space_configuration& ss_cfg,
                                               aggregation_level                 aggr_lvl,
                                               span<const pdcch_candidate_type>  candidates,
-                                              std::optional<beam_identifier>    beam);
+                                              std::optional<beam_identifier>    beam,
+                                              unsigned                          ssb_idx = 0);
 
+  /// \param rnti RNTI used to scramble the DCI CRC.
+  /// \param scrambling_rnti RNTI seeding the PDCCH payload scrambling. It is the UE's C-RNTI for a UE-specific
+  /// SearchSpace, which is not necessarily \c rnti (TS 38.211, Section 7.3.2.3); it is unused in a common SearchSpace.
   pdcch_ul_information* alloc_ul_pdcch_helper(cell_slot_resource_allocator&     slot_alloc,
                                               rnti_t                            rnti,
+                                              rnti_t                            scrambling_rnti,
                                               const bwp_configuration&          bwp_cfg,
                                               const sched_coreset_config&       cs_cfg,
                                               const search_space_configuration& ss_cfg,

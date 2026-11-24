@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
+#include "lib/scheduler/support/pdcch_aggregation_level_calculator.h"
 #include "lib/scheduler/ue_context/ue_cell_repository.h"
 #include "lib/scheduler/ue_context/ue_repository.h"
 #include "tests/ocudu_test_requirements.h"
@@ -66,7 +67,7 @@ TEST_F(ue_configuration_test, configuration_valid_on_creation)
   ASSERT_TRUE(ue_cfg.find_coreset(to_coreset_id(2)) == nullptr);
   ASSERT_EQ(2, fmt::underlying(ue_cfg.search_space(to_search_space_id(2)).cfg->get_id()));
   ASSERT_TRUE(*ue_cfg.search_space(to_search_space_id(2)).cfg ==
-              (*ue_create_msg.cfg.cells)[0].serv_cell_cfg.init_dl_bwp.pdcch_cfg->search_spaces[0]);
+              (*ue_create_msg.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdcch_cfg->search_spaces[0]);
   ASSERT_TRUE(ue_cfg.find_search_space(to_search_space_id(3)) == nullptr);
 }
 
@@ -81,8 +82,8 @@ TEST_F(ue_configuration_test, configuration_valid_on_reconfiguration)
   recfg_req.crnti    = ue_create_msg.crnti;
   recfg_req.cfg.cells.emplace();
   recfg_req.cfg.cells.value().push_back(ue_create_msg.cfg.cells->at(0));
-  recfg_req.cfg.cells.value()[0].bwps             = ue_create_msg.cfg.cells->at(0).bwps;
-  serving_cell_config& ue_cell_reconf             = recfg_req.cfg.cells.value()[0].serv_cell_cfg;
+  recfg_req.cfg.cells.value()[0].ded->bwps        = ue_create_msg.cfg.cells->at(0).ded->bwps;
+  serving_cell_config& ue_cell_reconf             = recfg_req.cfg.cells.value()[0].ded->serv_cell_cfg;
   ue_cell_reconf.init_dl_bwp.pdsch_cfg->mcs_table = pdsch_mcs_table::qam64;
   ue_cfg.reconfigure(cfg_pool.reconf_ue(recfg_req).cells[to_du_cell_index(0)]);
 
@@ -111,8 +112,8 @@ TEST_F(ue_configuration_test, when_td_alloc_list_r16_is_configured_then_dci_tdra
   recfg_req.crnti    = ue_create_msg.crnti;
   recfg_req.cfg.cells.emplace();
   recfg_req.cfg.cells.value().push_back(ue_create_msg.cfg.cells->at(0));
-  recfg_req.cfg.cells.value()[0].bwps = ue_create_msg.cfg.cells->at(0).bwps;
-  serving_cell_config& serv_cell      = recfg_req.cfg.cells.value()[0].serv_cell_cfg;
+  recfg_req.cfg.cells.value()[0].ded->bwps = ue_create_msg.cfg.cells->at(0).ded->bwps;
+  serving_cell_config& serv_cell           = recfg_req.cfg.cells.value()[0].ded->serv_cell_cfg;
 
   auto&                        pdsch_cfg = serv_cell.init_dl_bwp.pdsch_cfg.value();
   const dl_time_domain_mapper& dl_mapper = ue_cfg.search_space(to_search_space_id(2)).bwp->dl.td_mapper();
@@ -149,7 +150,7 @@ TEST_F(ue_configuration_test, when_td_alloc_list_r16_is_configured_then_dci_tdra
 
 TEST_F(ue_configuration_test, when_resource_allocation_type_0_is_configured_then_dci_frequency_field_size_is_nof_rbgs)
 {
-  serving_cell_config& serv_cell                        = ue_create_msg.cfg.cells->at(0).serv_cell_cfg;
+  serving_cell_config& serv_cell                        = ue_create_msg.cfg.cells->at(0).ded->serv_cell_cfg;
   serv_cell.init_dl_bwp.pdsch_cfg->res_alloc            = pdsch_config::resource_allocation::resource_allocation_type_0;
   serv_cell.init_dl_bwp.pdsch_cfg->rbg_sz               = rbg_size::config1;
   serv_cell.ul_config->init_ul_bwp.pusch_cfg->res_alloc = pusch_config::resource_allocation::resource_allocation_type_0;
@@ -300,6 +301,30 @@ TEST_F(ue_ul_meas_gap_test, when_the_cell_does_not_track_the_timing_advance_then
   ASSERT_FALSE(ue_cfg.is_ul_enabled(slot_at_gap_phase(14), report));
 }
 
+TEST_F(ue_ul_meas_gap_test, when_the_cell_configures_k_mac_then_the_window_follows_the_gnb_clock)
+{
+  OCUDU_TEST_REQUIREMENTS("DU-NTN-MOB-1");
+
+  // The slot tested is the one the grant occupies on the gNB downlink clock, which the UE transmission reaches k_mac
+  // slots after the UE sends it, while the gap stays anchored to the UE downlink timing. A T_TA of 14 slots on its own
+  // blocks the phases 13..21, and a k_mac of 20 slots carries that window to the phases 33..41. The cell configures no
+  // Koffset, which the UE applies itself and which therefore leaves the window where it is.
+  //
+  // k_mac displaces the window modulo the gap period, so a larger value does not make the test stricter: the two
+  // windows only stay apart for a k_mac of 9..71 slots, and a multiple of the 80 slot period puts the window back
+  // where a cell without k_mac has it.
+  msg.ran.ntn_params.emplace();
+  msg.ran.ntn_params->ntn_cfg.k_mac = std::chrono::milliseconds{20};
+  ue_cell_configuration ue_cfg      = make_ue_cfg(std::chrono::microseconds{14600});
+  ASSERT_EQ(ue_cfg.cell_cfg_common.ntn_k_mac_slots, 20U) << "the phases below assume a k_mac of 20 slots";
+
+  ASSERT_TRUE(ue_cfg.is_ul_enabled(slot_at_gap_phase(14), no_report))
+      << "the window must not stay where T_TA alone puts it";
+  ASSERT_FALSE(ue_cfg.is_ul_enabled(slot_at_gap_phase(34), no_report));
+  ASSERT_TRUE(ue_cfg.is_ul_enabled(slot_at_gap_phase(0), no_report))
+      << "the window must not travel towards the gNB clock instead";
+}
+
 TEST_F(ue_configuration_test, search_spaces_pdcch_candidate_lists_does_not_surpass_limit)
 {
   cell_config_builder_params params{};
@@ -348,4 +373,26 @@ TEST_F(ue_configuration_test, search_spaces_pdcch_candidate_lists_does_not_surpa
     // given numerology as per TS 38.213 Table 10.1-2.
     ASSERT_LE(pdcch_candidates_count, max_candidates);
   }
+}
+
+TEST_F(ue_configuration_test, when_ue_pdsch_does_not_use_qam256_then_aggregation_level_follows_the_cqi_table_1)
+{
+  // The cell MCS table is qam256, which maps to the CQI table 2.
+  (*ue_create_msg.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdsch_cfg->mcs_table = pdsch_mcs_table::qam64;
+
+  const cell_configuration& cell_cfg = add_cell();
+  cell_ues.emplace(cell_cfg, nullptr);
+  ue_db.register_cell(*cell_ues);
+  ue_cell& ue_cc = add_ue(ue_create_msg).get_pcell();
+
+  const search_space_info& ss       = ue_cc.cfg().search_space(to_search_space_id(2));
+  const unsigned           dci_size = ss.dci_sz.format1_1_ue_size->total.value();
+  const float              cqi      = 3;
+  const aggregation_level  al_table1 =
+      map_cqi_to_aggregation_level(cqi, cqi_table_t::table1, ss.cfg->get_nof_candidates(), dci_size);
+  const aggregation_level al_table2 =
+      map_cqi_to_aggregation_level(cqi, cqi_table_t::table2, ss.cfg->get_nof_candidates(), dci_size);
+  ASSERT_NE(al_table1, al_table2) << "This test cannot tell the CQI tables apart";
+
+  ASSERT_EQ(ue_cc.get_aggregation_level(cqi, ss, true), al_table1);
 }

@@ -81,11 +81,16 @@ void pdu_session_resource_modification_routine::operator()(
 
   {
     // Calculate next user-plane configuration based on incoming modify message.
-    next_config = up_resource_mng.calculate_update(modify_request);
+    next_config = up_resource_mng.calculate_update(modify_request, rrc_ue->get_capabilities());
     // TODO:
     // - check if next_config can be applied - check if too many DRB IDs are stale to add new PDU sessions,
     // - check if the KgNB refresh could make enough stale DRB IDs available again
     // - if yes, perform intra-cell HO before continuing the procedure, else return early.
+  }
+
+  if (next_config.pdu_sessions_to_modify_list.empty()) {
+    logger.info("ue={}: \"{}\" No PDU sessions to modify", modify_request.ue_index, name());
+    CORO_EARLY_RETURN(generate_pdu_session_resource_modify_response(false));
   }
 
   {

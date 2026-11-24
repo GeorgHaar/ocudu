@@ -86,7 +86,7 @@ void scheduler_test_simulator::add_ue(const sched_ue_creation_request_message& u
 {
   static const size_t ADD_TIMEOUT = 100;
   sched->handle_ue_creation_request(ue_request);
-  if (not ue_request.ul_ccch_slot_rx.has_value() and ue_request.starts_in_fallback) {
+  if (not ue_request.ul_ccch_slot_rx.has_value() and ue_request.starts_in_fallback and not ue_request.cfra_enabled) {
     sched->handle_crnti_ce_received(ue_request.ue_index);
   }
   rnti_to_ue_index.insert(std::make_pair(ue_request.crnti, ue_request.ue_index));
@@ -125,13 +125,16 @@ void scheduler_test_simulator::run_slot(std::optional<du_cell_index_t> cell_idx)
 
   auto advance_slot = [this](du_cell_index_t cidx) {
     // Run scheduler for the cell.
-    sim_cells[cidx]->last_res = &sched->slot_indication(next_slot, cidx);
+    const auto res = sched->slot_indication(next_slot, cidx);
 
     // Ensure the scheduler result is consistent with the cell configuration and there are no collisions.
-    test_scheduler_result_consistency(cell_cfg(cidx), next_slot.without_hyper_sfn(), *last_sched_result(cidx));
+    test_scheduler_result_consistency(cell_cfg(cidx), next_slot.without_hyper_sfn(), res);
 
     // Verify HARQ NDI and TBS consistency across retransmissions.
-    sim_cells[cidx]->harq_tracker.on_new_result(next_slot.without_hyper_sfn(), *last_sched_result(cidx));
+    sim_cells[cidx]->harq_tracker.on_new_result(next_slot.without_hyper_sfn(), res);
+
+    // The result lives in the slot of the scheduler grid, so it is copied out before the slot is reused.
+    sim_cells[cidx]->store_result(res);
 
     // In case auto-feedback is enabled, handle it.
     handle_auto_feedback(cidx);

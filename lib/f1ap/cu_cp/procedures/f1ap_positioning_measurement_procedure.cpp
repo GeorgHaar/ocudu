@@ -8,7 +8,7 @@
 #include "f1ap_asn1_utils.h"
 #include "ocudu/adt/expected.h"
 #include "ocudu/adt/format.h"
-#include "ocudu/asn1/asn1_utils.h"
+#include "ocudu/asn1/asn1_dispatch.h"
 #include "ocudu/asn1/f1ap/common.h"
 #include "ocudu/asn1/f1ap/f1ap_ies.h"
 #include "ocudu/asn1/f1ap/f1ap_pdu_contents.h"
@@ -99,8 +99,11 @@ expected<measurement_response_t, measurement_failure_t>
 f1ap_positioning_measurement_procedure::handle_procedure_outcome()
 {
   if (transaction.aborted()) {
-    // Timeout or cancellation case.
-    logger.warning("\"{}\" failed. Cause: Timeout or cancellation", name());
+    if (transaction.failure_cause() == protocol_transaction_failure::timeout) {
+      logger.warning("\"{}\" failed. Cause: Timeout", name());
+    } else {
+      logger.info("\"{}\" cancelled", name());
+    }
     return make_unexpected(create_positioning_measurement_failure(f1ap_cause_radio_network_t::unspecified));
   }
 
@@ -550,12 +553,9 @@ create_positioning_measurement_response(const asn1::f1ap::positioning_meas_resp_
       // Fill TRP ID.
       trp_meas_resp_item.trp_id = uint_to_trp_id(asn1_trp_meas_resp_item.trp_id);
 
-      for (const auto& asn1_ie_exts_container : asn1_trp_meas_resp_item.ie_exts) {
-        // Fill CGI NR.
-        if (asn1_ie_exts_container->type() ==
-            asn1::f1ap::pos_meas_result_list_item_ext_ies_o::ext_c::types_opts::options::nr_cgi) {
-          trp_meas_resp_item.cgi_nr = cgi_from_asn1(asn1_ie_exts_container->nr_cgi()).value();
-        }
+      // Fill CGI NR.
+      if (asn1_trp_meas_resp_item.ie_exts_present and asn1_trp_meas_resp_item.ie_exts.nr_cgi_present) {
+        trp_meas_resp_item.cgi_nr = cgi_from_asn1(asn1_trp_meas_resp_item.ie_exts.nr_cgi).value();
       }
 
       resp.trp_meas_resp_list.push_back(trp_meas_resp_item);
@@ -980,8 +980,8 @@ static void fill_asn1_positioning_measurement_request(asn1::f1ap::positioning_me
 
   // Fill SRS configuration.
   if (request.srs_config.has_value()) {
-    asn1_request->srs_configuration_present = true;
-    asn1_request->srs_configuration         = srs_configuration_to_asn1(request.srs_config.value());
+    asn1_request->srs_cfg_present = true;
+    asn1_request->srs_cfg         = srs_configuration_to_asn1(request.srs_config.value());
   }
 
   // Fill measurement beam info request.

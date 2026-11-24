@@ -124,7 +124,7 @@ make_cell_bwp_pools(const sched_cell_configuration_request_message& req)
 {
   std::vector<std::unique_ptr<bwp_config_pool>> bwps;
   // Note: Create a pool for a single BWP for now.
-  bwps.push_back(std::make_unique<bwp_config_pool>(req.ran, to_bwp_id(0), make_cell_bwp_res_config(req.ran)));
+  bwps.push_back(std::make_unique<bwp_config_pool>(req.ran, to_bwp_id(0), make_cell_bwp_res_config(req.ran, req.rrm)));
   return bwps;
 }
 
@@ -147,41 +147,60 @@ ue_cell_res_config& du_cell_config_pool::acquire_ue_cell_cfg()
   return ue_cell_cfg_pool.emplace_back();
 }
 
-ue_cell_config_ptr du_cell_config_pool::update_ue(const ue_cell_config& ue_cell)
+/// Builds the BWP configuration of a UE from its BWP parameters and the resources that the RRM allocates to it.
+static ue_bwp_config make_ue_bwp_config(const ue_bwp_config& bwp_cfg, const ue_rrm_config& rrm_cfg)
+{
+  ue_bwp_config cfg = bwp_cfg;
+
+  cfg.ul.pucch.res_set_cfg_id     = rrm_cfg.pucch.res_set_cfg_id;
+  cfg.ul.pucch.sr_res_id          = rrm_cfg.pucch.sr_res_id;
+  cfg.ul.pucch.sr_offset          = rrm_cfg.pucch.sr_offset;
+  cfg.ul.pucch.rep_f1_3_4_enabled = rrm_cfg.pucch.rep_f1_3_4_enabled;
+  cfg.ul.pucch.rep_f0_2_enabled   = rrm_cfg.pucch.rep_f0_2_enabled;
+  cfg.ul.csi.periodic_report.reset();
+  if (rrm_cfg.csi.periodic_report.has_value()) {
+    cfg.ul.csi.periodic_report.emplace(ue_periodic_csi_config{.pucch_res_id = rrm_cfg.csi.periodic_report->res_id,
+                                                              .offset       = rrm_cfg.csi.periodic_report->offset});
+  }
+
+  return cfg;
+}
+
+ue_cell_config_ptr du_cell_config_pool::update_ue(const sched_ue_cell_config& ue_cell)
 {
   ue_cell_res_config& ret = acquire_ue_cell_cfg();
-  ret.cell_index          = ue_cell.serv_cell_cfg.cell_index;
-  if (ue_cell.serv_cell_cfg.ul_config.has_value() and
-      ue_cell.serv_cell_cfg.ul_config.value().pusch_serv_cell_cfg.has_value()) {
-    ret.pusch_serv_cell_cfg.emplace(
-        pusch_serv_cell_pool.create(ue_cell.serv_cell_cfg.ul_config.value().pusch_serv_cell_cfg.value()));
-  }
-  if (ue_cell.serv_cell_cfg.pdsch_serv_cell_cfg.has_value()) {
-    ret.pdsch_serv_cell_cfg = pdsch_serv_cell_pool.create(ue_cell.serv_cell_cfg.pdsch_serv_cell_cfg.value());
-  }
-  if (ue_cell.serv_cell_cfg.csi_meas_cfg.has_value()) {
-    ret.csi_meas_cfg = ue_cell.serv_cell_cfg.csi_meas_cfg.value();
-  }
-  ret.tag_id = ue_cell.serv_cell_cfg.tag_id;
+  ret.cell_index          = ue_cell.cell_index;
 
   // TODO: Support more than one BWP.
-  add_bwp(ret,
-          ue_cell.serv_cell_cfg.init_dl_bwp,
-          ue_cell.serv_cell_cfg.ul_config.has_value() ? &ue_cell.serv_cell_cfg.ul_config->init_ul_bwp : nullptr,
-          ue_cell.bwps[0]);
+  if (not ue_cell.ded.has_value()) {
+    // Common config only.
+    add_bwp(ret, cell_bwps[0]->cell_cfg());
+  } else {
+    // Common and dedicated config.
+    const serving_cell_config& serv_cell_cfg = ue_cell.ded->serv_cell_cfg;
+    if (serv_cell_cfg.ul_config.has_value() and serv_cell_cfg.ul_config.value().pusch_serv_cell_cfg.has_value()) {
+      ret.pusch_serv_cell_cfg.emplace(
+          pusch_serv_cell_pool.create(serv_cell_cfg.ul_config.value().pusch_serv_cell_cfg.value()));
+    }
+    if (serv_cell_cfg.pdsch_serv_cell_cfg.has_value()) {
+      ret.pdsch_serv_cell_cfg = pdsch_serv_cell_pool.create(serv_cell_cfg.pdsch_serv_cell_cfg.value());
+    }
+    ret.tag_id = serv_cell_cfg.tag_id;
+
+    add_bwp(
+        ret,
+        cell_bwps[0]->add_ded_cfg(&serv_cell_cfg.init_dl_bwp,
+                                  serv_cell_cfg.ul_config.has_value() ? &serv_cell_cfg.ul_config->init_ul_bwp : nullptr,
+                                  make_ue_bwp_config(ue_cell.ded->bwps[0], ue_cell.ded->rrm)));
+  }
 
   // Hand out an intrusive_ptr to the pool-owned slot. Dropping the last reference (possibly on the RT thread) only
   // decrements ref_cnt; the slot is reused on a later acquire, never freed off the config path.
   return ue_cell_config_ptr{&ret};
 }
 
-void du_cell_config_pool::add_bwp(ue_cell_res_config&           out,
-                                  const bwp_downlink_dedicated& dl_bwp_ded,
-                                  const bwp_uplink_dedicated*   ul_bwp_ded,
-                                  const ue_bwp_config&          ue_bwp_cfg)
+void du_cell_config_pool::add_bwp(ue_cell_res_config& out, sched_bwp_config bwp_cfg)
 {
-  sched_bwp_config bwp_cfg = cell_bwps[0]->add_ded_cfg(&dl_bwp_ded, ul_bwp_ded, ue_bwp_cfg);
-
   // Generate cell-wide lookups of CORESETs and SearchSpaces for this UE. These reference the (shared, pooled) PDCCH
   // config, so they stay valid after the BWP config is moved into the owned list below.
   for (const auto& cs : bwp_cfg.dl.pdcch().coresets()) {
@@ -221,7 +240,7 @@ ue_creation_params du_cell_group_config_pool::add_ue(const sched_ue_creation_req
   slotted_id_vector<du_cell_index_t, ue_cell_config_ptr> cell_cfgs;
   if (ue_creation_req.cfg.cells.has_value()) {
     for (const auto& cell : ue_creation_req.cfg.cells.value()) {
-      cell_cfgs.emplace(cell.serv_cell_cfg.cell_index, cells[cell.serv_cell_cfg.cell_index]->update_ue(cell));
+      cell_cfgs.emplace(cell.cell_index, cells[cell.cell_index]->update_ue(cell));
     }
   }
 
@@ -239,7 +258,12 @@ ue_reconfig_params du_cell_group_config_pool::reconf_ue(const sched_ue_reconfigu
   slotted_id_vector<du_cell_index_t, ue_cell_config_ptr> cell_cfgs;
   if (ue_reconf_req.cfg.cells.has_value()) {
     for (const auto& cell : ue_reconf_req.cfg.cells.value()) {
-      cell_cfgs.emplace(cell.serv_cell_cfg.cell_index, cells[cell.serv_cell_cfg.cell_index]->update_ue(cell));
+      // An RRC Reconfiguration cannot remove the dedicated configuration of a serving cell.
+      ocudu_assert(cell.ded.has_value(),
+                   "ue={} cell={}: Reconfiguration without dedicated configuration",
+                   ue_reconf_req.ue_index,
+                   cell.cell_index);
+      cell_cfgs.emplace(cell.cell_index, cells[cell.cell_index]->update_ue(cell));
     }
   }
 

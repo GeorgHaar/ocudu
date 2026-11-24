@@ -49,7 +49,7 @@ uplink_processor_impl::uplink_processor_impl(std::unique_ptr<prach_detector>  pr
   pucch_proc(std::move(pucch_proc_)),
   srs(std::move(srs_)),
   grid(std::move(grid_)),
-  grid_controller(*grid, get_grid_ref_counter()),
+  grid_controller(*grid),
   task_executors(task_executors_),
   rm_buffer_pool(rm_buffer_pool_),
   rx_payload_pool(max_nof_prb, max_nof_layers),
@@ -562,11 +562,4 @@ void uplink_processor_impl::discard_slot()
       state_machine.on_finish_processing_pdu();
     }
   }
-}
-
-std::atomic<unsigned>& uplink_processor_impl::get_grid_ref_counter()
-{
-  static std::vector<std::unique_ptr<std::atomic<unsigned>>> ref_counters;
-  ref_counters.emplace_back(std::make_unique<std::atomic<unsigned>>(0));
-  return *ref_counters.back();
 }

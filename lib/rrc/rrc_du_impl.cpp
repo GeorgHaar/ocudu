@@ -58,7 +58,7 @@ rrc_du_impl::get_cell_info(const std::vector<cu_cp_du_served_cells_item>& served
 
     asn1::cbit_ref                  bref_meas{served_cell.served_cell_info.meas_timing_cfg};
     asn1::rrc_nr::meas_timing_cfg_s asn1_meas_timing_cfg;
-    if (asn1_meas_timing_cfg.unpack(bref_meas) != asn1::OCUDUASN_SUCCESS) {
+    if (asn1::unpack(asn1_meas_timing_cfg, bref_meas) != asn1::OCUDUASN_SUCCESS) {
       logger.error("nci={}: Failed to unpack Measurement Timing Config container", nci);
       continue;
     }
@@ -86,7 +86,7 @@ rrc_du_impl::get_cell_info(const std::vector<cu_cp_du_served_cells_item>& served
     // Unpack SIB1 to store timers.
     asn1::rrc_nr::sib1_s sib1_msg;
     asn1::cbit_ref       bref2(served_cell.gnb_du_sys_info.value().sib1_msg);
-    if (sib1_msg.unpack(bref2) != asn1::OCUDUASN_SUCCESS) {
+    if (asn1::unpack(sib1_msg, bref2) != asn1::OCUDUASN_SUCCESS) {
       logger.error("nci={}: Failed to unpack SIB1", nci);
       continue;
     }
@@ -190,7 +190,7 @@ std::optional<std::chrono::system_clock::time_point> rrc_du_impl::get_ref_time_r
 {
   ref_time_r16_s rrc_ref_time;
   asn1::cbit_ref bref{encoded};
-  if (rrc_ref_time.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(rrc_ref_time, bref) != asn1::OCUDUASN_SUCCESS) {
     logger.error("Failed to unpack ReferenceTime-r16 container");
     return std::nullopt;
   }
@@ -212,7 +212,7 @@ std::optional<arfcn_t> rrc_du_impl::get_ssb_arfcn(const byte_buffer& encoded)
 
   meas_timing_cfg_s meas_timing_cfg;
   asn1::cbit_ref    bref{encoded};
-  if (meas_timing_cfg.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(meas_timing_cfg, bref) != asn1::OCUDUASN_SUCCESS) {
     logger.warning("Failed to unpack MeasurementTimingConfiguration container");
     return std::nullopt;
   }
@@ -248,7 +248,7 @@ byte_buffer rrc_du_impl::pack_meas_config(const rrc_meas_cfg& meas_cfg)
   return pack_into_pdu(meas_config_to_rrc_asn1(meas_cfg), "RRCMeasConfig");
 }
 
-std::optional<rrc_resume_context_t> rrc_du_impl::get_rrc_resume_context(byte_buffer rrc_container)
+std::optional<ul_ccch_msg_info_t> rrc_du_impl::parse_ul_ccch_msg(byte_buffer rrc_container)
 {
   if (rrc_container.empty()) {
     return std::nullopt;
@@ -261,35 +261,52 @@ std::optional<rrc_resume_context_t> rrc_du_impl::get_rrc_resume_context(byte_buf
     ul_ccch_msg_s ul_ccch_msg;
     {
       asn1::cbit_ref bref(rrc_container);
-      if (ul_ccch_msg.unpack(bref) != asn1::OCUDUASN_SUCCESS or
+      if (asn1::unpack(ul_ccch_msg, bref) != asn1::OCUDUASN_SUCCESS or
           ul_ccch_msg.msg.type().value != ul_ccch_msg_type_c::types_opts::c1) {
         logger.error(rrc_container.begin(), rrc_container.end(), "Failed to unpack CCCH UL PDU");
         return std::nullopt;
       }
     }
 
-    if (ul_ccch_msg.msg.c1().type().value != ul_ccch_msg_type_c::c1_c_::types_opts::rrc_resume_request) {
-      return rrc_resume_context_t{.is_resume = false};
+    // Handle message.
+    switch (ul_ccch_msg.msg.c1().type().value) {
+      case ul_ccch_msg_type_c::c1_c_::types_opts::rrc_setup_request: {
+        establishment_cause_t cause = asn1_to_establishment_cause(
+            ul_ccch_msg.msg.c1().rrc_setup_request().rrc_setup_request.establishment_cause.value);
+        // Notify metrics about attempted RRC connection establishment.
+        handle_attempted_rrc_setup(cause);
+        return ul_ccch_msg_info_t{cause};
+      }
+      case ul_ccch_msg_type_c::c1_c_::types_opts::rrc_reest_request:
+        // Notify metrics about attempted RRC connection reestablishment.
+        handle_attempted_rrc_reestablishment();
+        return ul_ccch_msg_info_t{rrc_reest_request_t{}};
+      case ul_ccch_msg_type_c::c1_c_::types_opts::rrc_resume_request: {
+        // Notify metrics about attempted RRC connection resume.
+        handle_attempted_rrc_resume(
+            asn1_to_resume_cause(ul_ccch_msg.msg.c1().rrc_resume_request().rrc_resume_request.resume_cause));
+
+        // Extract Short-I-RNTI.
+        expected<short_i_rnti_t> resume_id = short_i_rnti_t::from_uint(
+            static_cast<uint32_t>(ul_ccch_msg.msg.c1().rrc_resume_request().rrc_resume_request.resume_id.to_number()));
+        if (!resume_id.has_value()) {
+          logger.error("Invalid Resume ID in RRC Resume Request (ASN.1 short-i-rnti=0x{:x})",
+                       ul_ccch_msg.msg.c1().rrc_resume_request().rrc_resume_request.resume_id.to_number());
+          return std::nullopt;
+        }
+
+        rrc_resume_context_t resume_context{
+            .is_resume     = true,
+            .rrc_resume_id = resume_id.value(),
+            .resume_cause =
+                asn1_to_resume_cause(ul_ccch_msg.msg.c1().rrc_resume_request().rrc_resume_request.resume_cause),
+        };
+        return ul_ccch_msg_info_t{std::move(resume_context)};
+      }
+      default:
+        logger.error("Unsupported CCCH UL message type");
+        return std::nullopt;
     }
-
-    // Notify metrics about attempted RRC connection resume.
-    handle_attempted_rrc_resume(
-        asn1_to_resume_cause(ul_ccch_msg.msg.c1().rrc_resume_request().rrc_resume_request.resume_cause));
-
-    // Extract Short-I-RNTI.
-    expected<short_i_rnti_t> resume_id = short_i_rnti_t::from_uint(
-        static_cast<uint32_t>(ul_ccch_msg.msg.c1().rrc_resume_request().rrc_resume_request.resume_id.to_number()));
-    if (!resume_id.has_value()) {
-      logger.error("Invalid Resume ID in RRC Resume Request (ASN.1 short-i-rnti=0x{:x})",
-                   ul_ccch_msg.msg.c1().rrc_resume_request().rrc_resume_request.resume_id.to_number());
-      return std::nullopt;
-    }
-
-    return rrc_resume_context_t{
-        .is_resume     = true,
-        .rrc_resume_id = resume_id.value(),
-        .resume_cause = asn1_to_resume_cause(ul_ccch_msg.msg.c1().rrc_resume_request().rrc_resume_request.resume_cause),
-    };
   }
 
   // 64 bits RRC Resume Request containing Full-I-RNTI.
@@ -297,7 +314,7 @@ std::optional<rrc_resume_context_t> rrc_du_impl::get_rrc_resume_context(byte_buf
   ul_ccch1_msg_s ul_ccch1_msg;
   {
     asn1::cbit_ref bref(rrc_container);
-    if (ul_ccch1_msg.unpack(bref) != asn1::OCUDUASN_SUCCESS or
+    if (asn1::unpack(ul_ccch1_msg, bref) != asn1::OCUDUASN_SUCCESS or
         ul_ccch1_msg.msg.type().value != ul_ccch1_msg_type_c::types_opts::c1) {
       logger.error(rrc_container.begin(), rrc_container.end(), "Failed to unpack CCCH UL PDU");
       return std::nullopt;
@@ -305,8 +322,14 @@ std::optional<rrc_resume_context_t> rrc_du_impl::get_rrc_resume_context(byte_buf
   }
 
   if (ul_ccch1_msg.msg.c1().type().value != ul_ccch1_msg_type_c::c1_c_::types_opts::rrc_resume_request1) {
-    return rrc_resume_context_t{.is_resume = false};
+    // UL-CCCH1 only ever carries a RRCResumeRequest1; any other message here is unexpected.
+    logger.error("Unsupported CCCH UL message type");
+    return std::nullopt;
   }
+
+  // Notify metrics about attempted RRC connection resume.
+  handle_attempted_rrc_resume(
+      asn1_to_resume_cause(ul_ccch1_msg.msg.c1().rrc_resume_request1().rrc_resume_request1.resume_cause));
 
   // Extract Full-I-RNTI.
   expected<full_i_rnti_t> resume_id =
@@ -317,12 +340,13 @@ std::optional<rrc_resume_context_t> rrc_du_impl::get_rrc_resume_context(byte_buf
     return std::nullopt;
   }
 
-  return rrc_resume_context_t{
+  rrc_resume_context_t resume_context{
       .is_resume     = true,
       .rrc_resume_id = resume_id.value(),
       .resume_cause =
           asn1_to_resume_cause(ul_ccch1_msg.msg.c1().rrc_resume_request1().rrc_resume_request1.resume_cause),
   };
+  return ul_ccch_msg_info_t{std::move(resume_context)};
 }
 
 rrc_ue_interface* rrc_du_impl::add_ue(const rrc_ue_creation_message& msg)
@@ -333,14 +357,14 @@ rrc_ue_interface* rrc_du_impl::add_ue(const rrc_ue_creation_message& msg)
     // Unpack DU to CU container.
     asn1::rrc_nr::cell_group_cfg_s cell_group_cfg;
     asn1::cbit_ref                 bref_cell({msg.du_to_cu_container.begin(), msg.du_to_cu_container.end()});
-    if (cell_group_cfg.unpack(bref_cell) != asn1::OCUDUASN_SUCCESS) {
+    if (asn1::unpack(cell_group_cfg, bref_cell) != asn1::OCUDUASN_SUCCESS) {
       logger.error("Failed to unpack DU to CU RRC container - aborting user creation");
       return nullptr;
     }
 
     if (logger.debug.enabled()) {
       asn1::json_writer js;
-      cell_group_cfg.to_json(js);
+      asn1::to_json(js, cell_group_cfg);
       logger.debug("Containerized MasterCellGroup: {}", js.to_string());
     }
   }

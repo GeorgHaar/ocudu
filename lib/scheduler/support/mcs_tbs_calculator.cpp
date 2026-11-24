@@ -53,8 +53,8 @@ static ulsch_configuration build_ulsch_info(const pusch_config_params& pusch_cfg
   // alpha_scaling_opt::f1, as this is not used.
   ulsch_info.alpha_scaling = alpha_scaling_to_float(uci_cfg != nullptr ? uci_cfg->scaling : alpha_scaling_opt::f1);
 
-  // HARQ-ACK beta offset. Which of the beta_offset to be used among the indices 1, 2, 3 is determined as per TS38.213,
-  // Section 9.3 and TS38.331, \c BetaOffsets.
+  // HARQ-ACK beta offset. Which of the beta_offset to be used among the indices 1, 2, 3 is determined as per TS 38.213,
+  // Section 9.3 and TS 38.331, \c BetaOffsets.
   // If no HARQ-ACK reporting, this value won't be used.
   if (pusch_cfg.nof_harq_ack_bits == 0) {
     ulsch_info.beta_offset_harq_ack = 0;
@@ -75,8 +75,8 @@ static ulsch_configuration build_ulsch_info(const pusch_config_params& pusch_cfg
     }
   }
 
-  // CSI Part 1 beta offset. Which of the beta_offset to be used among the indices 1, 2 is determined as per TS38.213,
-  // Section 9.3 and TS38.331, \c BetaOffsets.
+  // CSI Part 1 beta offset. Which of the beta_offset to be used among the indices 1, 2 is determined as per TS 38.213,
+  // Section 9.3 and TS 38.331, \c BetaOffsets.
   // If no CSI Part 1 reporting, this value won't be used.
   if (pusch_cfg.nof_csi_part1_bits == 0) {
     ulsch_info.beta_offset_csi_part1 = 0;
@@ -93,8 +93,8 @@ static ulsch_configuration build_ulsch_info(const pusch_config_params& pusch_cfg
     }
   }
 
-  // CSI Part 2 beta offset. The beta_offset to be used among the indices 1, 2 is determined as per TS38.213, Section
-  // 9.3 and TS38.331, \c BetaOffsets.
+  // CSI Part 2 beta offset. The beta_offset to be used among the indices 1, 2 is determined as per TS 38.213, Section
+  // 9.3 and TS 38.331, \c BetaOffsets.
   // If no CSI Part 2 reporting, this value won't be used.
   if (pusch_cfg.max_nof_csi_part2_bits == 0) {
     ulsch_info.beta_offset_csi_part2 = 0;
@@ -205,9 +205,10 @@ static compute_ul_mcs_tbs_error is_pusch_effective_rate_valid(const pusch_config
 std::optional<sch_mcs_tbs> ocudu::compute_dl_mcs_tbs(const pdsch_config_params& pdsch_params,
                                                      sch_mcs_index              max_mcs,
                                                      unsigned                   nof_prbs,
-                                                     bool                       contains_dc)
+                                                     bool                       contains_dc,
+                                                     unsigned                   nof_csi_rs_re)
 {
-  // The maximum supported code rate is 0.95, as per TS38.214, Section 5.1.3. The maximum code rate is defined for DL,
+  // The maximum supported code rate is 0.95, as per TS 38.214, Section 5.1.3. The maximum code rate is defined for DL,
   // but we consider the same value for UL.
   static constexpr double max_supported_code_rate = 0.95;
   const unsigned          dmrs_prbs               = calculate_nof_dmrs_per_rb(pdsch_params.dmrs);
@@ -219,11 +220,12 @@ std::optional<sch_mcs_tbs> ocudu::compute_dl_mcs_tbs(const pdsch_config_params& 
                                                             .nof_dmrs_prb     = dmrs_prbs,
                                                             .nof_oh_prb       = pdsch_params.nof_oh_prb,
                                                             .mcs_descr        = mcs_info,
-                                                            .nof_layers       = pdsch_params.nof_layers,
+                                                            .nof_layers       = pdsch_params.nof_layers(),
                                                             .tb_scaling_field = pdsch_params.tb_scaling_field,
                                                             .n_prb            = nof_prbs});
 
-  // > Compute the effective code rate.
+  // > Compute the effective code rate. The TBS does not account for the CSI-RS resource elements, as per TS 38.214,
+  // Section 5.1.3.2, but the PDSCH is not mapped to them, which raises the effective code rate.
   dlsch_configuration dlsch_info{.tbs                = tbs_bytes.to_bits(),
                                  .mcs_descr          = mcs_info,
                                  .nof_rb             = nof_prbs,
@@ -233,8 +235,9 @@ std::optional<sch_mcs_tbs> ocudu::compute_dl_mcs_tbs(const pdsch_config_params& 
                                  .dmrs_symbol_mask   = pdsch_params.dmrs.dmrs_symb_pos,
                                  .nof_cdm_groups_without_data =
                                      static_cast<unsigned>(pdsch_params.dmrs.num_dmrs_cdm_grps_no_data),
-                                 .nof_layers  = pdsch_params.nof_layers,
-                                 .contains_dc = contains_dc};
+                                 .nof_layers    = pdsch_params.nof_layers(),
+                                 .contains_dc   = contains_dc,
+                                 .nof_csi_rs_re = nof_csi_rs_re};
 
   float effective_code_rate = get_dlsch_information(dlsch_info).get_effective_code_rate();
 
@@ -247,7 +250,7 @@ std::optional<sch_mcs_tbs> ocudu::compute_dl_mcs_tbs(const pdsch_config_params& 
                                                                       .nof_dmrs_prb     = dmrs_prbs,
                                                                       .nof_oh_prb       = pdsch_params.nof_oh_prb,
                                                                       .mcs_descr        = mcs_info,
-                                                                      .nof_layers       = pdsch_params.nof_layers,
+                                                                      .nof_layers       = pdsch_params.nof_layers(),
                                                                       .tb_scaling_field = pdsch_params.tb_scaling_field,
                                                                       .n_prb            = nof_prbs});
 

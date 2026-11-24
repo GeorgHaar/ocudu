@@ -233,7 +233,10 @@ protected:
   }
 
   /// Gets the PRACH scheduler results for the last executed slot.
-  span<const prach_occasion_info> get_prach_sched_result() const { return (*res_grid)[0].result.ul.prachs; }
+  span<const prach_occasion_info> get_prach_sched_result() const
+  {
+    return (*res_grid)[0].result_reader().ul().prachs();
+  }
 
   /// Gets the PRACH scheduler expected results for the last executed slot.
   span<const prach_occasion_info> get_expected_prach_sched_result(slot_point slot) const

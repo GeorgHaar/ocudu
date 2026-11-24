@@ -102,8 +102,13 @@ static void fill_rb_allocation(pdsch_processor::pdu_t& proc_pdu, const fapi::dl_
     report_error("Unsupported VRB to PRB mapping in PDSCH PDU");
   }
 
-  proc_pdu.freq_alloc = rb_allocation::make_type1(
-      fapi_pdu.resource_alloc.vrbs.start(), fapi_pdu.resource_alloc.vrbs.length(), vrb_to_prb_config);
+  if (const auto* type0 = std::get_if<fapi::resource_allocation_type_0>(&fapi_pdu.resource_alloc)) {
+    proc_pdu.freq_alloc = rb_allocation::make_type0(type0->vrbs, vrb_to_prb_config);
+  } else if (const auto* type1 = std::get_if<fapi::resource_allocation_type_1>(&fapi_pdu.resource_alloc)) {
+    proc_pdu.freq_alloc = rb_allocation::make_type1(type1->vrbs.start(), type1->vrbs.length(), vrb_to_prb_config);
+  } else {
+    report_error("Unsupported resource allocation in PDSCH PDU");
+  }
 }
 
 void ocudu::fapi_adaptor::convert_pdsch_fapi_to_phy(pdsch_processor::pdu_t&              proc_pdu,
@@ -131,6 +136,7 @@ void ocudu::fapi_adaptor::convert_pdsch_fapi_to_phy(pdsch_processor::pdu_t&     
   proc_pdu.scrambling_id               = fapi_pdu.pdsch_dmrs_scrambling_id;
   proc_pdu.n_scid                      = fapi_pdu.nscid == 1U;
   proc_pdu.nof_cdm_groups_without_data = fapi_pdu.num_dmrs_cdm_grps_no_data;
+  proc_pdu.dmrs_ports                  = fapi_pdu.dmrs_ports;
   proc_pdu.start_symbol_index          = fapi_pdu.symbols.start();
   proc_pdu.nof_symbols                 = fapi_pdu.symbols.length();
 

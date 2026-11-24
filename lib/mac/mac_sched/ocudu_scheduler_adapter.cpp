@@ -4,7 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "ocudu_scheduler_adapter.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/scheduler/scheduler_factory.h"
 #include "ocudu/support/async/async_timer.h"
 #include "ocudu/support/executors/execute_until_success.h"
@@ -111,11 +111,11 @@ async_task<bool> ocudu_scheduler_adapter::handle_ue_reconfiguration_request(cons
     // Reconfigure UE in the scheduler.
     sched_impl->handle_ue_reconfiguration_request(make_scheduler_ue_reconfiguration_request(msg));
 
-    // Await Scheduler notification.
-    CORO_AWAIT(sched_cfg_notif_map[msg.ue_index].ue_config_ready);
+    // Await Scheduler notification, which reports whether the scheduler accepted the new configuration.
+    CORO_AWAIT_VALUE(bool res, sched_cfg_notif_map[msg.ue_index].ue_config_ready);
     sched_cfg_notif_map[msg.ue_index].ue_config_ready.reset();
 
-    CORO_RETURN(true);
+    CORO_RETURN(res);
   });
 }
 
@@ -284,13 +284,24 @@ void ocudu_scheduler_adapter::handle_ul_ta_report_indication(const mac_ta_report
   sched_impl->handle_ul_ta_report_indication(ind);
 }
 
+void ocudu_scheduler_adapter::handle_cg_confirmation_indication(const mac_cg_confirmation_ce_info& cg_conf)
+{
+  // Forward the CG Confirmation to the scheduler.
+  cg_confirmation_indication_message ind{};
+  ind.cell_index = cg_conf.cell_index;
+  ind.ue_index   = cg_conf.ue_index;
+  ind.rnti       = cg_conf.rnti;
+  ind.slot_rx    = cg_conf.slot_rx;
+  sched_impl->handle_cg_confirmation_message(ind);
+}
+
 void ocudu_scheduler_adapter::handle_crnti_ce_indication(du_ue_index_t old_ue_index, du_cell_index_t cell_index)
 {
   rlf_handler.handle_crnti_ce(old_ue_index);
   sched_impl->handle_crnti_ce_received(old_ue_index);
 }
 
-const sched_result& ocudu_scheduler_adapter::slot_indication(slot_point_extended slot_tx, du_cell_index_t cell_idx)
+sched_slot_result_reader ocudu_scheduler_adapter::slot_indication(slot_point_extended slot_tx, du_cell_index_t cell_idx)
 {
   using namespace std::chrono;
 
@@ -300,11 +311,13 @@ const sched_result& ocudu_scheduler_adapter::slot_indication(slot_point_extended
     last_slot_tp.store(slot_tp, std::memory_order_relaxed);
   }
 
-  const sched_result& res = sched_impl->slot_indication(slot_tx, cell_idx);
+  const auto res = sched_impl->slot_indication(slot_tx, cell_idx);
 
-  if (res.success) {
+  if (res.success()) {
     // Store UCI PDUs for later decoding.
-    cell_handlers[cell_idx].uci_decoder.store_uci(slot_tx.without_hyper_sfn(), res.ul.pucchs.unsorted(), res.ul.puschs);
+    const auto ul_res = res.ul();
+    cell_handlers[cell_idx].uci_decoder.store_uci(
+        slot_tx.without_hyper_sfn(), ul_res.pucchs().unsorted(), ul_res.puschs());
   }
 
   return res;

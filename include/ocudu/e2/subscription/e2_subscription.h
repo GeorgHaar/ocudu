@@ -5,12 +5,15 @@
 
 #pragma once
 
-#include "ocudu/asn1/asn1_utils.h"
+#include "ocudu/asn1/asn1_dispatch.h"
 #include "ocudu/asn1/e2ap/e2ap.h"
+#include "ocudu/asn1/e2ap/e2ap_pdu_contents.h"
 #include "ocudu/e2/e2.h"
 #include "ocudu/e2/e2_event_manager.h"
 #include "ocudu/e2/e2sm/e2sm.h"
 #include "ocudu/support/async/eager_async_task.h"
+#include "ocudu/support/timers.h"
+#include <chrono>
 
 namespace ocudu {
 
@@ -27,7 +30,7 @@ struct e2_subscription_info_t {
   asn1::e2ap::ric_request_id_s request_id;
   uint16_t                     ran_function_id;
   std::vector<ric_action_t>    action_list;
-  uint64_t                     report_period;
+  std::chrono::milliseconds    report_period;
 };
 
 struct e2_subscription_t {
@@ -45,10 +48,11 @@ public:
   virtual e2_subscribe_delete_response_message
   handle_subscription_delete(const asn1::e2ap::ric_sub_delete_request_s& msg) = 0;
   /// \brief start the subscription request
-  virtual void start_subscription(const asn1::e2ap::ric_request_id_s& ric_request_id,
+  virtual bool start_subscription(const asn1::e2ap::ric_request_id_s& ric_request_id,
                                   uint16_t                            ran_func_id,
                                   e2_event_manager&                   ev_mng,
-                                  e2_message_notifier&                tx_pdu_notifier) = 0;
+                                  e2_message_notifier&                tx_pdu_notifier,
+                                  timer_factory                       timers) = 0;
   /// \brief void stop the subscription request
   virtual void stop_subscription(const asn1::e2ap::ric_request_id_s&         ric_request_id,
                                  e2_event_manager&                           ev_mng,

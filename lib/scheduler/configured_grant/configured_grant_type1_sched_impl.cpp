@@ -53,7 +53,11 @@ void configured_grant_type1_sched_impl::add_ue_to_wheel(const ue_cell_configurat
   const auto&             ul_grant = cg_cfg.rrc_configured_ul_grant_cfg.value();
 
   // Fill the slot wheel at every slot where a CG PUSCH opportunity occurs.
-  const auto wheel_res = periodic_pusch_slot_wheel.add_ue(ue_cfg.crnti, ul_grant.time_domain_offset);
+  // The wheel is indexed by DL slot, the CG period/offset by UE UL slot against timeReferenceSFN (TS 38.321,
+  // Section 5.8.2).
+  const unsigned wheel_offset =
+      cell_cfg.ue_ul_to_dl_slot_offset(ul_grant.time_domain_offset, static_cast<unsigned>(cg_periodicity));
+  const auto wheel_res = periodic_pusch_slot_wheel.add_ue(ue_cfg.crnti, wheel_offset);
   if (wheel_res.nof_dup != 0) {
     logger.error("rnti={}: CG grant already present in slot wheel at {} offsets", ue_cfg.crnti, wheel_res.nof_dup);
   }
@@ -93,7 +97,10 @@ void configured_grant_type1_sched_impl::rem_ue(const ue_cell_configuration& ue_c
 
   // Remove the UE from the periodic wheel and the updated-UE list, even though the UE is gone from the repository: this
   // is to avoid to keep allocating CG PUSCH for a released RNTI (stale entries).
-  const unsigned nof_missing = periodic_pusch_slot_wheel.rem_ue(ue_cfg.crnti, ul_grant.time_domain_offset);
+  // The registration was shifted by k_mac in add_ue().
+  const unsigned wheel_offset =
+      cell_cfg.ue_ul_to_dl_slot_offset(ul_grant.time_domain_offset, static_cast<unsigned>(cg_periodicity));
+  const unsigned nof_missing = periodic_pusch_slot_wheel.rem_ue(ue_cfg.crnti, wheel_offset);
   if (nof_missing != 0) {
     logger.error(
         "rnti={}: CG grant not found in slot wheel at {} offsets during UE removal", ue_cfg.crnti, nof_missing);

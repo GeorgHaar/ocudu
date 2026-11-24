@@ -61,6 +61,18 @@ public:
   }
 
   // See interface for documentation.
+  void on_e_cid_measurement_report(const e_cid_measurement_report_t& report) override
+  {
+    parent.cu_cp_notifier.on_e_cid_measurement_report(report);
+  }
+
+  // See interface for documentation.
+  void on_e_cid_measurement_failure_indication(const e_cid_measurement_failure_indication_t& ind) override
+  {
+    parent.cu_cp_notifier.on_e_cid_measurement_failure_indication(ind);
+  }
+
+  // See interface for documentation.
   void on_ref_time_info_report(const f1ap_time_ref_info& info) override
   {
     std::optional<std::chrono::system_clock::time_point> time_point =
@@ -107,7 +119,12 @@ du_processor_impl::du_processor_impl(const du_processor_config& cfg_, du_process
   ue_mng(dependencies.ue_mng),
   ref_time_report_notifier(dependencies.ref_time_report_notifier),
   f1ap_ev_notifier(std::make_unique<f1ap_du_processor_adapter>(*this, dependencies.common_task_sched)),
-  f1ap(create_f1ap(cfg.f1ap, f1ap_pdu_notifier, *f1ap_ev_notifier, dependencies.timers, dependencies.cu_cp_executor)),
+  f1ap(create_f1ap(cfg.f1ap,
+                   f1ap_pdu_notifier,
+                   *f1ap_ev_notifier,
+                   dependencies.cu_ue_f1ap_id_alloc,
+                   dependencies.timers,
+                   dependencies.cu_cp_executor)),
   rrc(create_rrc_du(rrc_cfg_t{.gnb_id                         = cfg.gnb_id,
                               .srb2_cfg                       = cfg.srb2_cfg,
                               .drb_config                     = cfg.drb_config,
@@ -512,8 +529,16 @@ du_processor_impl::handle_ue_rrc_context_creation_request(const ue_rrc_context_c
 {
   ocudu_assert(req.c_rnti != rnti_t::INVALID_RNTI, "ue={} c-rnti={}: Invalid C-RNTI", req.ue_index, req.c_rnti);
 
+  std::optional<ul_ccch_msg_info_t> ccch_info;
+
   // Lambda to release the UE context in case of any failure during the creation procedure.
-  auto release_ue = [this](cu_cp_ue_index_t ue_index) {
+  auto release_ue = [this, &ccch_info](cu_cp_ue_index_t ue_index) {
+    // Each RRCReject message transmitted from gNB to UE is added to the subcounter for the cause 'NetworkReject'.
+    // TS 28.552 section 5.1.1.15.3.
+    if (ccch_info.has_value() && std::holds_alternative<establishment_cause_t>(*ccch_info)) {
+      rrc->handle_failed_rrc_connection_establishment(establishment_fail_cause_t::network_reject);
+    }
+
     cu_cp_ue_context_release_request release_request;
     release_request.ue_index = ue_index;
     release_request.cause    = ngap_cause_radio_network_t::radio_res_not_available;
@@ -543,15 +568,18 @@ du_processor_impl::handle_ue_rrc_context_creation_request(const ue_rrc_context_c
 
   // Check if this is a RRC Resume request for an existing UE.
   if (!req.rrc_container.empty()) {
-    std::optional<rrc_resume_context_t> resume_context = rrc->get_rrc_resume_context(req.rrc_container.copy());
-    if (!resume_context.has_value()) {
-      logger.warning("ue={}: Could not extract RRC Resume context from UL CCCH Message", req.ue_index);
+    ccch_info = rrc->parse_ul_ccch_msg(req.rrc_container.copy());
+    if (!ccch_info.has_value()) {
+      logger.warning("ue={}: Could not parse UL CCCH Message", req.ue_index);
       // Schedule UE context release and return error response.
       release_ue(req.ue_index);
       return make_unexpected(default_error_t{});
     }
 
-    if (resume_context->is_resume && resume_context->rrc_resume_id.has_value()) {
+    auto*                               resume_context_ptr = std::get_if<rrc_resume_context_t>(&*ccch_info);
+    std::optional<rrc_resume_context_t> resume_context =
+        resume_context_ptr != nullptr ? std::optional<rrc_resume_context_t>(*resume_context_ptr) : std::nullopt;
+    if (resume_context.has_value() && resume_context->rrc_resume_id.has_value()) {
       cu_cp_ue_index_t resume_ue_index;
       if (const auto* full_i_rnti = std::get_if<full_i_rnti_t>(&(*resume_context->rrc_resume_id))) {
         resume_ue_index = ue_mng.get_ue_index(*full_i_rnti);
@@ -567,21 +595,33 @@ du_processor_impl::handle_ue_rrc_context_creation_request(const ue_rrc_context_c
         // The I-RNTI matched no local UE, so the node that suspended it holds the context.
         remote_resume_context = resume_context;
       } else {
-        if (cfg.force_resume_fallback) {
+        const cu_cp_ue* resume_ue = ue_mng.find_du_ue(resume_ue_index);
+        if (resume_ue != nullptr and resume_ue->get_du_index() != cfg.du_index) {
+          // The RRC context of the UE is in the DU processor of another DU. The new UE falls back to RRC Setup
+          // (TS 38.401 section 8.6.2). The CU-CP keeps the suspended UE until its release.
+          logger.info("ue={}: RRC Resume through another DU. Falling back to RRC Setup", resume_ue_index);
+        } else if (cfg.force_resume_fallback) {
           // RRC Resume fallback forced - do not resume. The DU doesn't have a F1AP UE context, so we also remove it
           // here.
           logger.info("ue={}: RRC Resume fallback forced. Removing F1AP UE context", resume_ue_index);
           f1ap->get_f1ap_ue_context_removal_handler().remove_ue_context(resume_ue_index);
+        } else if (resume_context->resume_cause.has_value() and
+                   not cu_cp_notifier.on_ue_resume_admission_request(resume_ue_index,
+                                                                     resume_context->resume_cause.value())) {
+          // The UE gets an RRCReject and stays in RRC_INACTIVE (TS 38.331 section 5.3.15.2), so the CU-CP keeps the
+          // context of the UE. The release of the new UE context sends the RRCReject.
+          logger.info("ue={}: Rejecting RRC Resume Request. Cause: The AMF of the UE is overloaded", resume_ue_index);
+          release_ue(req.ue_index);
+          return make_unexpected(default_error_t{});
         } else {
           ue = ue_mng.find_du_ue(resume_ue_index);
           ue_mng.set_active(resume_ue_index);
           is_resume_request = true;
 
-          // Remove the new UE context that was created for this request since it's a resume request, and we should
-          // reuse the existing context.
+          // Remove the new UE that was created for this request, since the resumed UE takes its place. The F1AP gives
+          // the new F1-connection to the resumed UE.
           logger.debug("ue={}: RRC Resume detected, removing newly created UE context", req.ue_index);
           ue_mng.remove_ue(req.ue_index);
-          f1ap->get_f1ap_ue_context_removal_handler().remove_ue_context(req.ue_index);
         }
       }
     }
@@ -593,11 +633,6 @@ du_processor_impl::handle_ue_rrc_context_creation_request(const ue_rrc_context_c
     // Check that UE can be served by this CU.
     if (ue_mng.ue_admission_limit_reached()) {
       logger.warning("ue={}: UE admission limit reached", req.ue_index);
-      // Update the RRC connection establishment attempt cause as unknown, since the real cause isn't known at this
-      // stage.
-      rrc->handle_attempted_rrc_setup(establishment_cause_t::unknown);
-      // Update the RRC connection establishment fail cause.
-      rrc->handle_failed_rrc_connection_establishment(establishment_fail_cause_t::network_reject);
       // Schedule UE context release and return error response.
       release_ue(req.ue_index);
       return make_unexpected(default_error_t{});
@@ -665,15 +700,16 @@ void du_processor_impl::handle_du_initiated_ue_context_release_request(const f1a
     return;
   }
 
-  logger.debug("ue={}: Handling DU initiated UE context release request", request.ue_index);
+  logger.debug("ue={}: Handling DU initiated UE context release request. Cause: {}", request.ue_index, request.cause);
 
-  // The DU requested a UE release, so we cancel all ongoing RRC transactions for the UE.
+  // The DU requested a UE release, so we cancel all ongoing RRC transactions for the UE. This is a UE-specific
+  // abnormal failure.
   auto* rrc_ue = ue->get_rrc_ue();
   if (!rrc_ue) {
     logger.warning("ue={}: Dropping DU initiated UE context release request. RRC UE does not exist", request.ue_index);
     return;
   }
-  rrc_ue->cancel_all_transactions();
+  rrc_ue->cancel_all_transactions(protocol_transaction_failure::abnormal);
 
   // Schedule on UE task scheduler.
   ue->get_task_sched().schedule_async_task(

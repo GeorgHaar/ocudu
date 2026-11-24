@@ -9,6 +9,8 @@
 #include "ocudu/adt/span.h"
 #include "ocudu/adt/static_vector.h"
 #include "ocudu/cu_cp/cu_cp_ue_messages.h"
+#include "ocudu/ran/amf_selection_request.h"
+#include "ocudu/ran/cause/common.h"
 #include "ocudu/ran/cause/ngap_cause.h"
 #include "ocudu/ran/cu_cp_types.h"
 #include "ocudu/ran/cu_cp_ue_context_release.h"
@@ -23,6 +25,7 @@
 #include "ocudu/rrc/rrc_ue_config.h"
 #include "ocudu/security/security.h"
 #include "ocudu/support/async/async_task.h"
+#include "ocudu/support/async/protocol_transaction_manager.h"
 #include <chrono>
 #include <variant>
 
@@ -183,6 +186,10 @@ public:
   /// Resume and re-establishment activate security without a Security Mode Command, so this is what tells the RRC UE
   /// that anything gated on AS security may now run.
   virtual void on_as_security_activated() = 0;
+
+  /// \brief Send a NAS PDU from the UE to the AMF.
+  /// \param[in] nas_pdu The NAS PDU.
+  virtual void on_ul_nas_pdu(byte_buffer nas_pdu) = 0;
 };
 
 /// Interface to notify about NGAP messages.
@@ -295,13 +302,17 @@ public:
   get_rrc_ue_cond_reconfiguration_context(const rrc_reconfiguration_procedure_request& request) = 0;
 
   /// \brief Await a RRC Reconfiguration Complete for a handover.
+  ///
+  /// A UE that is not in connected state enters connected state on reception and counts as a new RRC connection.
   /// \param[in] transaction_id The transaction ID of the RRC Reconfiguration Complete.
   /// \param[in] timeout_ms The timeout for the RRC Reconfiguration Complete.
   /// \param[in] release_on_failure If true, trigger a UE release when the transaction fails.
-  /// \returns True if the RRC Reconfiguration Complete was received, false otherwise.
-  virtual async_task<bool> handle_handover_reconfiguration_complete_expected(uint8_t                   transaction_id,
-                                                                             std::chrono::milliseconds timeout_ms,
-                                                                             bool release_on_failure = true) = 0;
+  /// \returns Success if the RRC Reconfiguration Complete was received, the failure cause otherwise. Another message
+  /// with the transaction ID gives protocol_transaction_failure::abnormal.
+  virtual async_task<error_type<protocol_transaction_failure>>
+  handle_handover_reconfiguration_complete_expected(uint8_t                   transaction_id,
+                                                    std::chrono::milliseconds timeout_ms,
+                                                    bool                      release_on_failure = true) = 0;
 
   /// \brief Store UE capabilities received from the NGAP.
   /// \param[in] ue_capabilities The UE capabilities.
@@ -406,7 +417,8 @@ public:
   virtual void cancel_handover_reconfiguration_transaction(uint8_t transaction_id) = 0;
 
   /// \brief Cancel all ongoing transactions.
-  virtual void cancel_all_transactions() = 0;
+  /// \param[in] cause Reason recorded for the cancellation. Defaults to \c cancel when no input is given.
+  virtual void cancel_all_transactions(protocol_transaction_failure cause = protocol_transaction_failure::cancel) = 0;
 };
 
 class rrc_ue_cu_cp_ue_notifier
@@ -523,20 +535,22 @@ public:
   virtual ~rrc_ue_context_update_notifier() = default;
 
   /// \brief Notifies that a new RRC UE needs to be setup.
+  /// \param[in] establishment_cause The establishment cause of the RRC Setup Request.
   /// \return True if the UE is accepted.
-  virtual bool on_ue_setup_request() = 0;
+  virtual bool on_ue_setup_request(establishment_cause_t establishment_cause) = 0;
 
   /// \brief Notifies that the RRC UE setup complete is received.
-  /// \param[in] plmn The selected PLMN of the UE.
+  /// \param[in] request The selected PLMN of the UE and the identities that the AMF selection uses.
   /// \return True if the UE setup complete is accepted.
-  virtual bool on_ue_setup_complete_received(const plmn_identity& plmn) = 0;
+  virtual bool on_ue_setup_complete_received(const amf_selection_request& request) = 0;
 
   /// \brief Notify about the reception of an RRC Reestablishment Request.
   /// \param[in] old_pci The old PCI contained in the RRC Reestablishment Request.
   /// \param[in] old_c_rnti The old C-RNTI contained in the RRC Reestablishment Request.
-  /// \param[in] ue_index The new UE index of the UE that sent the Reestablishment Request.
+  /// \param[in] reest_cause The reestablishment cause contained in the RRC Reestablishment Request.
   /// \returns The RRC Reestablishment UE context for the old UE.
-  virtual rrc_ue_reestablishment_context_response on_rrc_reestablishment_request(pci_t old_pci, rnti_t old_c_rnti) = 0;
+  virtual rrc_ue_reestablishment_context_response
+  on_rrc_reestablishment_request(pci_t old_pci, rnti_t old_c_rnti, reest_cause_t reest_cause) = 0;
 
   /// \brief Notify the CU-CP to retrieve the UE context from the peer NG-RAN node that still holds it, over Xn
   /// (TS 38.423 section 8.2.4). Used when no local UE context matches the reestablishment identity, but a peer serves
@@ -570,9 +584,17 @@ public:
   /// \param[in] request The release request.
   virtual async_task<void> on_ue_release_required(const cu_cp_ue_context_release_request& request) = 0;
 
-  /// \brief Notify the CU-CP to setup an UP context.
-  /// \param[in] ctxt The UP context to setup.
-  virtual void on_up_context_setup_required(const up_context& ctxt) = 0;
+  /// \brief Checks whether an imported UP context is compatible without changing the UE state.
+  /// \param[in] ctxt The UP context to validate.
+  /// \param[in] capabilities The decoded capabilities of the UE.
+  /// \return True if the context satisfies the configured limits and UE capabilities.
+  virtual bool on_up_context_validation_required(const up_context& ctxt, const rrc_ue_capabilities_t& capabilities) = 0;
+
+  /// \brief Sets up an imported UP context if it satisfies the configured limits and UE capabilities.
+  /// \param[in] ctxt The UP context to set up.
+  /// \param[in] capabilities The decoded capabilities of the UE.
+  /// \return True on success; false leaves the existing UP context unchanged.
+  virtual bool on_up_context_setup_required(const up_context& ctxt, const rrc_ue_capabilities_t& capabilities) = 0;
 
   /// \brief Notifies the CU-CP that the location the UE reports has changed, so that a Location Report is sent when
   /// the AMF configured location reporting.
@@ -650,6 +672,9 @@ class rrc_ue_capability_handler
 public:
   virtual ~rrc_ue_capability_handler() = default;
 
+  /// Returns the decoded UE capabilities.
+  virtual const rrc_ue_capabilities_t& get_capabilities() const = 0;
+
   /// \brief Check if RRC Inactive is supported by the UE.
   virtual bool is_rrc_inactive_supported() const = 0;
 
@@ -677,10 +702,6 @@ public:
   /// \brief Notify the RRC DU about a new RRC connection.
   virtual void on_new_rrc_connection() = 0;
 
-  /// \brief Notify the RRC DU about a new RRC connection establishment attempt.
-  /// \param[in] cause The establishment cause of the RRC connection.
-  virtual void on_attempted_rrc_connection_establishment(establishment_cause_t cause) = 0;
-
   /// \brief Notify the RRC DU about a successful RRC connection establishment.
   /// \param[in] cause The establishment cause of the RRC connection.
   /// \param[in] setup_time The time from the reception of the RRCSetupRequest to the reception of the RRCSetupComplete.
@@ -689,9 +710,6 @@ public:
 
   /// \brief Notify the RRC DU about a failed RRC connection establishment.
   virtual void on_failed_rrc_connection_establishment(establishment_fail_cause_t cause) = 0;
-
-  /// \brief Notify the RRC DU about the attempted RRC connection re-establishment.
-  virtual void on_attempted_rrc_connection_reestablishment() = 0;
 
   /// \brief Notify the RRC DU about the successful RRC connection re-establishment.
   virtual void on_successful_rrc_connection_reestablishment() = 0;

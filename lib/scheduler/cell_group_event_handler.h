@@ -12,6 +12,7 @@
 #include "ocudu/ran/time_alignment_config.h"
 #include "ocudu/scheduler/scheduler_dl_buffer_state_indication_handler.h"
 #include "ocudu/scheduler/scheduler_feedback_handler.h"
+#include "ocudu/scheduler/scheduler_slot_handler.h"
 
 namespace ocudu {
 
@@ -84,6 +85,12 @@ public:
                                      time_alignment_group::id_t tag_id,
                                      phy_time_unit              n_ta_diff,
                                      float                      ul_sinr) = 0;
+
+  /// Forwards a cell group's UE's Configured Grant activation complete indication to the scheduler.
+  virtual void handle_cg_activation_complete_indication(du_ue_index_t ue_index) = 0;
+
+  /// Forwards an error indication to the cell group for a past slot of the cell.
+  virtual void handle_error_indication(slot_point sl_tx, scheduler_slot_handler::error_outcome event) = 0;
 };
 
 /// Interface that a cell uses to hand over to its cell group the events that the cell group has to handle.

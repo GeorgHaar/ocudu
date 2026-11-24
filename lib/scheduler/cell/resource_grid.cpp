@@ -295,19 +295,24 @@ const cell_slot_resource_grid::carrier_resource_grid& cell_slot_resource_grid::g
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-cell_slot_resource_allocator::cell_slot_resource_allocator(const cell_configuration& cfg_) :
+cell_slot_resource_allocator::cell_slot_resource_allocator(sched_result_grid&        results_,
+                                                           unsigned                  res_idx_,
+                                                           const cell_configuration& cfg_) :
   cfg(cfg_),
   dl_res_grid(cfg.params.dl_cfg_common.freq_info_dl.scs_carrier_list),
-  ul_res_grid(cfg.params.ul_cfg_common.freq_info_ul.scs_carrier_list)
+  ul_res_grid(cfg.params.ul_cfg_common.freq_info_ul.scs_carrier_list),
+  results(&results_),
+  res_idx(res_idx_)
 {
 }
 
-cell_slot_resource_allocator::cell_slot_resource_allocator(const cell_configuration&  cfg_,
+cell_slot_resource_allocator::cell_slot_resource_allocator(sched_result_grid&         results_,
+                                                           unsigned                   res_idx_,
+                                                           const cell_configuration&  cfg_,
                                                            span<scs_specific_carrier> dl_scs_carriers,
                                                            span<scs_specific_carrier> ul_scs_carriers) :
-  cfg(cfg_), dl_res_grid(dl_scs_carriers), ul_res_grid(ul_scs_carriers)
+  cfg(cfg_), dl_res_grid(dl_scs_carriers), ul_res_grid(ul_scs_carriers), results(&results_), res_idx(res_idx_)
 {
-  result.ul.pucchs.reserve(MAX_PUCCH_PDUS_PER_SLOT);
 }
 
 void cell_slot_resource_allocator::slot_indication(slot_point sl)
@@ -316,36 +321,16 @@ void cell_slot_resource_allocator::slot_indication(slot_point sl)
   clear();
 
   // Initiate new slot in the same grid ring location.
-  slot                     = sl;
-  result.success           = true;
-  result.dl.nof_dl_symbols = cfg.get_nof_dl_symbol_per_slot(sl);
-  result.ul.nof_ul_symbols = cfg.get_nof_ul_symbol_per_slot(sl);
+  slot = sl;
+  results->reset_slot(res_idx, cfg.get_nof_dl_symbol_per_slot(sl), cfg.get_nof_ul_symbol_per_slot(sl));
+  result_builder().set_success(true);
 }
 
 void cell_slot_resource_allocator::clear()
 {
-  result.dl.dl_pdcchs.clear();
-  result.dl.ul_pdcchs.clear();
-  result.dl.bc.ssb_info.clear();
-  result.dl.bc.sibs.clear();
-  result.dl.rar_grants.clear();
-  result.dl.paging_grants.clear();
-  result.dl.ue_grants.clear();
-  result.dl.csi_rs.clear();
-  result.dl.prs.clear();
-  result.ul.puschs.clear();
-  result.ul.prachs.clear();
-  result.ul.pucchs.clear();
-  result.ul.srss.clear();
-  result.failed_attempts.dl_pdcch            = 0;
-  result.failed_attempts.ul_pdcch            = 0;
-  result.failed_attempts.common_dl_pdcch     = 0;
-  result.failed_attempts.common_ul_pdcch     = 0;
-  result.failed_attempts.uci                 = 0;
-  result.failed_attempts.fallback_uci_allocs = 0;
+  results->reset_slot(res_idx);
   dl_res_grid.clear();
   ul_res_grid.clear();
-  result.success = false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -353,7 +338,11 @@ void cell_slot_resource_allocator::clear()
 cell_resource_allocator::cell_resource_allocator(const cell_configuration& cfg_) :
   cfg(cfg_),
   max_dl_slot_alloc_delay(SCHEDULER_MAX_K0),
-  max_ul_slot_alloc_delay(get_max_slot_ul_alloc_delay(cfg.ntn_cs_koffset))
+  max_ul_slot_alloc_delay(get_max_slot_ul_alloc_delay(cfg_.ntn_ul_alloc_delay_slots())),
+  results(sched_result_grid_config{
+      get_allocator_ring_size_gt_min(RING_MAX_HISTORY_SIZE + max_ul_slot_alloc_delay),
+      // A slot holds PDUs from when it is allocated, at most the max alloc delay ahead, until it leaves the history.
+      RING_MAX_HISTORY_SIZE + std::max(max_dl_slot_alloc_delay, max_ul_slot_alloc_delay)})
 {
   // Create cell_slot_resource_allocator objects.
   std::vector<scs_specific_carrier> dl_scs_carriers;
@@ -361,8 +350,7 @@ cell_resource_allocator::cell_resource_allocator(const cell_configuration& cfg_)
   subcarrier_spacing                max_scs = cfg.params.dl_cfg_common.freq_info_dl.scs_carrier_list.back().scs;
   max_scs = std::max(max_scs, cfg.params.ul_cfg_common.freq_info_ul.scs_carrier_list.back().scs);
 
-  const unsigned ring_size =
-      get_allocator_ring_size_gt_min(RING_MAX_HISTORY_SIZE + get_max_slot_ul_alloc_delay(cfg.ntn_cs_koffset));
+  const auto ring_size = static_cast<unsigned>(results.nof_slots());
   slots.reserve(ring_size);
   unsigned nof_slots_per_subframe = get_nof_slots_per_subframe(max_scs);
   for (unsigned i = 0; i != ring_size; ++i) {
@@ -378,7 +366,7 @@ cell_resource_allocator::cell_resource_allocator(const cell_configuration& cfg_)
         ul_scs_carriers.emplace_back(carrier);
       }
     }
-    slots.emplace_back(cfg, dl_scs_carriers, ul_scs_carriers);
+    slots.emplace_back(results, i, cfg, dl_scs_carriers, ul_scs_carriers);
     dl_scs_carriers.clear();
     ul_scs_carriers.clear();
   }

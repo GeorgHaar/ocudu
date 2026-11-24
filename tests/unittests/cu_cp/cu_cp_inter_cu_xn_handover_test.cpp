@@ -265,9 +265,9 @@ public:
                               "The Handover Request does not carry the address of the AMF association");
 
     local_xnap_ue_id =
-        uint_to_local_xnap_ue_id(xnap_pdu.pdu.init_msg().value.ho_request()->source_ng_ra_nnode_ue_xn_ap_id);
+        uint_to_local_xnap_ue_id(xnap_pdu.pdu.init_msg().value.ho_request()->source_ng_ran_node_ue_xnap_id);
     peer_xnap_ue_id =
-        uint_to_peer_xnap_ue_id(xnap_pdu.pdu.init_msg().value.ho_request()->source_ng_ra_nnode_ue_xn_ap_id);
+        uint_to_peer_xnap_ue_id(xnap_pdu.pdu.init_msg().value.ho_request()->source_ng_ran_node_ue_xnap_id);
 
     return true;
   }
@@ -543,6 +543,24 @@ TEST_F(cu_cp_inter_cu_xn_handover_test, when_handover_succeeds_then_amf_releases
 ///////////////////////////////////////////////////////////////////////////////
 //                             Target CU-CP
 ///////////////////////////////////////////////////////////////////////////////
+TEST_F(cu_cp_inter_cu_xn_handover_test, when_handover_request_carries_guami_of_unknown_amf_then_handover_fails)
+{
+  // The CU-CP is connected to no AMF of the AMF Set 2.
+  xn_handover_request_params ho_params;
+  ho_params.guami.amf_set_id = 2;
+  get_xnc_cu_cp(xnc_peer_idx).push_tx_pdu(generate_handover_request(source_local_xnap_ue_id, ho_params));
+
+  // The CU-CP cannot send the Path Switch Request to the AMF of the UE, so it rejects the handover.
+  ASSERT_TRUE(this->wait_for_xnap_tx_pdu(xnc_peer_idx, xnap_pdu));
+  ASSERT_EQ(xnap_pdu.pdu.type().value, asn1::xnap::xnap_pdu_c::types_opts::unsuccessful_outcome);
+  ASSERT_EQ(xnap_pdu.pdu.unsuccessful_outcome().value.type().value,
+            asn1::xnap::xnap_elem_procs_o::unsuccessful_outcome_c::types_opts::ho_prep_fail);
+  const auto& cause = xnap_pdu.pdu.unsuccessful_outcome().value.ho_prep_fail()->cause;
+  ASSERT_EQ(cause.type().value, asn1::xnap::cause_c::types_opts::radio_network);
+  ASSERT_EQ(cause.radio_network().value, asn1::xnap::cause_radio_network_layer_opts::unknown_guami_id);
+  ASSERT_FALSE(this->get_cu_up(cu_up_idx).try_pop_rx_pdu(e1ap_pdu));
+}
+
 TEST_F(cu_cp_inter_cu_xn_handover_test, when_handover_request_received_then_path_switch_request_is_sent)
 {
   // Inject Handover Request and await Bearer Context Setup Request.
@@ -892,9 +910,11 @@ TEST_F(cu_cp_inter_cu_xn_handover_test, when_zigzag_handover_is_performed_then_h
 
 TEST_F(cu_cp_inter_cu_xn_handover_test, when_ue_arrived_by_xn_handover_then_next_handover_request_carries_its_guami)
 {
-  // This CU-CP is the target. The Handover Request carries the GUAMI with AMF Region ID 1 and AMF Pointer 1, while the
-  // first GUAMI of the NG Setup Response has AMF Region ID 2 and AMF Pointer 0.
-  ASSERT_TRUE(send_handover_request_and_await_bearer_context_setup_request(source_local_xnap_ue_id));
+  // This CU-CP is the target. The Handover Request carries a GUAMI with AMF Pointer 1 of the AMF Set that the AMF
+  // serves, while the first GUAMI of the NG Setup Response has AMF Pointer 0.
+  xn_handover_request_params ho_params;
+  ho_params.guami.amf_pointer = 1;
+  ASSERT_TRUE(send_handover_request_and_await_bearer_context_setup_request(source_local_xnap_ue_id, ho_params));
   ASSERT_TRUE(send_bearer_context_setup_response_and_await_ue_context_setup_request());
   ASSERT_TRUE(send_ue_context_setup_response_and_await_bearer_context_modification_request());
   ASSERT_TRUE(send_bearer_context_modification_response_and_await_handover_request_ack());
@@ -916,7 +936,8 @@ TEST_F(cu_cp_inter_cu_xn_handover_test, when_ue_arrived_by_xn_handover_then_next
 
   // The Handover Request carries the GUAMI that the previous source reported.
   const auto& guami = xnap_pdu.pdu.init_msg().value.ho_request()->guami;
-  ASSERT_EQ(guami.amf_region_id.to_number(), 1);
+  ASSERT_EQ(guami.amf_region_id.to_number(), 2);
+  ASSERT_EQ(guami.amf_set_id.to_number(), 1);
   ASSERT_EQ(guami.amf_pointer.to_number(), 1);
 }
 
@@ -933,7 +954,7 @@ TEST_F(cu_cp_inter_cu_xn_handover_test, when_source_proposes_dl_data_forwarding_
                                        .value.bearer_context_setup_request()
                                        ->sys_bearer_context_setup_request.ng_ran_bearer_context_setup_request();
   const asn1::e1ap::pdu_session_res_to_setup_item_s& e1ap_pdu_session =
-      ng_ran_bearer_ctxt[0]->pdu_session_res_to_setup_list()[0];
+      ng_ran_bearer_ctxt.pdu_session_res_to_setup_list[0];
 
   // The source forwards straight to this target over Xn, and it reused the source's DRB ID for every proposed QoS
   // flow of the DRB, so the DRB gets its own tunnel and keeps the PDCP sequence numbers.

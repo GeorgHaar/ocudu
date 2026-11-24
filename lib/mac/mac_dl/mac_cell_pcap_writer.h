@@ -9,13 +9,13 @@
 #include "ocudu/adt/span.h"
 #include "ocudu/ran/slot_point.h"
 #include "ocudu/scheduler/config/si_scheduling_config.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include <cstdint>
 
 namespace ocudu {
 
 class mac_pcap;
 struct mac_dl_data_result;
-struct sched_result;
 
 /// Writer of the MAC PDUs transmitted in a cell to a PCAP file.
 class mac_cell_pcap_writer
@@ -24,13 +24,13 @@ public:
   mac_cell_pcap_writer(mac_pcap& pcap, bool is_tdd, span<const si_message_scheduling_config> si_messages);
 
   /// Writes the DL MAC PDUs of a given slot.
-  void write_slot_result(slot_point sl_tx, const sched_result& sl_res, const mac_dl_data_result& dl_res);
+  void write_slot_result(slot_point sl_tx, sched_slot_result_reader sl_res, const mac_dl_data_result& dl_res);
 
 private:
-  void write_si_pdus(slot_point sl_tx, const sched_result& sl_res, const mac_dl_data_result& dl_res);
-  void write_rar_pdus(slot_point sl_tx, const sched_result& sl_res, const mac_dl_data_result& dl_res);
-  void write_paging_pdus(slot_point sl_tx, const sched_result& sl_res, const mac_dl_data_result& dl_res);
-  void write_ue_pdus(slot_point sl_tx, const sched_result& sl_res, const mac_dl_data_result& dl_res);
+  void write_si_pdus(slot_point sl_tx, sched_slot_result_reader sl_res, const mac_dl_data_result& dl_res);
+  void write_rar_pdus(slot_point sl_tx, sched_slot_result_reader sl_res, const mac_dl_data_result& dl_res);
+  void write_paging_pdus(slot_point sl_tx, sched_slot_result_reader sl_res, const mac_dl_data_result& dl_res);
+  void write_ue_pdus(slot_point sl_tx, sched_slot_result_reader sl_res, const mac_dl_data_result& dl_res);
 
   mac_pcap& pcap;
 

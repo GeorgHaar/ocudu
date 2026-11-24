@@ -11,7 +11,6 @@
 #include "ocudu/ran/rnti.h"
 #include "ocudu/ran/slot_point.h"
 #include "ocudu/scheduler/config/pucch_resource_builder_params.h"
-#include "ocudu/scheduler/config/ue_bwp_config.h"
 #include "ocudu/scheduler/resource_grid_util.h"
 #include "ocudu/support/math/exponential_averager.h"
 #include <optional>
@@ -74,7 +73,6 @@ private:
   const bool                           enable_cl_pw_control;
   const rnti_t                         rnti;
   const pucch_resource_builder_params& res_params;
-  const ue_pucch_config&               ue_pucch_cfg;
   const float                          target_sinr_dB_01;
   const float                          target_sinr_dB_234;
 

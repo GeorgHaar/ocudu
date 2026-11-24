@@ -577,6 +577,10 @@ TEST_F(cu_cp_intra_du_handover_test, when_ho_succeeds_then_source_ue_is_removed)
 
   // STATUS: Source UE should be removed from DU.
   ASSERT_EQ(report.ues.size(), 1) << "Source UE should be removed";
+
+  // STATUS: The target UE is the only RRC connection of the DU.
+  report = this->get_cu_cp().get_metrics_handler().request_metrics_report();
+  ASSERT_EQ(report.dus[0].rrc_metrics.max_nof_rrc_connections, 1U);
 }
 
 /// Fixture that attaches the UE with cell-change location reporting configured via Initial Context Setup.

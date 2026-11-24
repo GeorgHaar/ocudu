@@ -20,6 +20,7 @@ sched_config_helper::make_default_sched_cell_configuration_request(const cell_co
   sched_cell_configuration_request_message            sched_req{};
   sched_req.cell_index = to_du_cell_index(0);
   sched_req.ran        = config_helpers::make_default_ran_cell_config(params);
+  sched_req.rrm        = make_cell_rrm_config(sched_req.ran);
 
   // SIB1 parameters.
   sched_req.si_scheduling.sib1_payload_size = units::bytes{101}; // Random size.
@@ -37,7 +38,7 @@ sched_config_helper::create_default_sched_ue_creation_request(const ran_cell_con
   msg.crnti    = to_rnti(0x4601);
 
   msg.cfg.cells.emplace();
-  msg.cfg.cells->push_back(config_helpers::make_default_ue_cell_config(cell_cfg));
+  msg.cfg.cells->push_back(make_sched_ue_cell_config(config_helpers::make_default_ue_cell_config(cell_cfg)));
 
   msg.cfg.lc_config_list.emplace();
   msg.cfg.lc_config_list->resize(2);
@@ -67,13 +68,8 @@ sched_config_helper::create_empty_spcell_cfg_sched_ue_creation_request(const ran
   msg.ue_index = to_du_ue_index(0);
   msg.crnti    = to_rnti(0x4601);
 
-  ue_cell_config       cfg;
-  serving_cell_config& serv_cell = cfg.serv_cell_cfg;
-  serv_cell.cell_index           = to_du_cell_index(0);
-  cfg.bwps.emplace_back(ue_bwp_config{});
-
   msg.cfg.cells.emplace();
-  msg.cfg.cells->push_back(cfg);
+  msg.cfg.cells->push_back(sched_ue_cell_config{.cell_index = to_du_cell_index(0), .ded = std::nullopt});
 
   msg.cfg.lc_config_list.emplace();
   msg.cfg.lc_config_list->resize(1);

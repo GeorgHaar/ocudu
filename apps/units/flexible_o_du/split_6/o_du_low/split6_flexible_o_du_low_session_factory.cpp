@@ -170,6 +170,7 @@ split6_flexible_o_du_low_session_factory::create_o_du_low(const fapi::cell_confi
       .scs                           = config.scs_common,
       .scs_common                    = config.scs_common,
       .carrier_cfg                   = config.carrier_cfg,
+      .tx_ant_topology               = get_tx_antenna_topology(config.carrier_cfg.num_tx_ant),
       .prach_cfg                     = config.prach_cfg,
       .prach_ports                   = prach_ports,
       .dbfs_to_dbm_conversion_factor =
@@ -200,8 +201,10 @@ split6_flexible_o_du_low_session_factory::create_o_du_low(const fapi::cell_confi
   return odu_low_factory.create(odu_low_cfg, odu_low_dependencies);
 }
 
-static flexible_o_du_ru_config
-generate_o_du_ru_config(const fapi::cell_configuration& config, unsigned expected_max_proc_delay, bool uses_ofh)
+static flexible_o_du_ru_config generate_o_du_ru_config(const fapi::cell_configuration& config,
+                                                       unsigned                        expected_max_proc_delay,
+                                                       bool                            uses_ofh,
+                                                       const std::string&              ru_dft_processor_type)
 {
   flexible_o_du_ru_config out_cfg;
   out_cfg.prach_nof_ports = split6_du_low::PRACH_NOF_PORTS;
@@ -212,6 +215,7 @@ generate_o_du_ru_config(const fapi::cell_configuration& config, unsigned expecte
   } else {
     // Split 8 notifies OTA + max_proc_delay + 1ms.
     out_cfg.max_processing_delay = expected_max_proc_delay - get_nof_slots_per_subframe(config.scs_common);
+    out_cfg.dft_processor_type   = ru_dft_processor_type;
   }
 
   // Add one cell.
@@ -271,6 +275,9 @@ get_ru_sdr_validation_dependencies(const fapi::cell_configuration& config)
           ? get_prach_preamble_long_info(prach_info.format)
           : get_prach_preamble_short_info(prach_info.format, to_ra_subcarrier_spacing(config.scs_common), false);
 
+  out_cell.nof_antennas_dl = config.carrier_cfg.num_tx_ant;
+  out_cell.nof_antennas_ul = config.carrier_cfg.num_rx_ant;
+
   return out_cfg;
 }
 
@@ -280,7 +287,8 @@ split6_flexible_o_du_low_session_factory::create_radio_unit(split6_flexible_o_du
 {
   auto ru_config = generate_o_du_ru_config(config,
                                            unit_config.du_low_cfg.expert_phy_cfg.max_processing_delay_slots,
-                                           std::holds_alternative<ru_ofh_unit_parsed_config>(unit_config.ru_cfg));
+                                           std::holds_alternative<ru_ofh_unit_parsed_config>(unit_config.ru_cfg),
+                                           unit_config.du_low_cfg.expert_phy_cfg.dft_processor_type);
 
   const auto& ru_cfg = unit_config.ru_cfg;
 

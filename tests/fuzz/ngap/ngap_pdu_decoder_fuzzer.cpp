@@ -15,7 +15,7 @@
 /// See tests/fuzz/README.md for build instructions and run commands.
 
 #include "ocudu/adt/byte_buffer.h"
-#include "ocudu/asn1/asn1_utils.h"
+#include "ocudu/asn1/asn1_dispatch.h"
 #include "ocudu/asn1/ngap/ngap.h"
 #include "ocudu/ocudulog/ocudulog.h"
 #include <cstddef>
@@ -41,7 +41,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
   // Drive the NGAP PER decoder — this mirrors ngap_asn1_packer::handle_packed_pdu().
   asn1::cbit_ref         bref{buf};
   asn1::ngap::ngap_pdu_c pdu;
-  (void)pdu.unpack(bref);
+  (void)asn1::unpack(pdu, bref);
 
   return 0;
 }

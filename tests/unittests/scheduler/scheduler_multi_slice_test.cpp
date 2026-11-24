@@ -380,7 +380,7 @@ TEST_F(multi_slice_dedicated_ul_rbs_test, ul_dedicated_rbs_ratio_is_respected)
 
   for (unsigned i = 0; i < nof_test_slots; ++i) {
     run_slot();
-    const sched_result* res = last_sched_result();
+    const sched_result_copy* res = last_sched_result();
 
     // UL: count per-slice PRBs and total PRBs in each UL slot.
     if (not res->ul.puschs.empty()) {
@@ -477,7 +477,7 @@ TEST_F(multi_slice_dedicated_ul_rbs_test, ul_retx_does_not_overflow_slice_rb_bud
 
   for (unsigned i = 0; i != 3000; ++i) {
     run_slot();
-    const sched_result* res = last_sched_result();
+    const sched_result_copy* res = last_sched_result();
     if (not res->ul.puschs.empty()) {
       // Unconditionally NACK every UL transmission to keep forcing retransmissions across all UEs.
       ul_crc_indication crc_ind = test_helper::create_crc_indication(last_result_slot(), res->ul.puschs, false);

@@ -133,9 +133,9 @@ ocudu::ocucp::get_ue_guami(ngap_interface& ngap, cu_cp_ue_index_t ue_index, cons
     return serving_guami;
   }
 
-  for (const auto& guami : ngap.get_ngap_context().served_guami_list) {
-    if (guami.plmn == plmn) {
-      return guami;
+  for (const auto& served_guami : ngap.get_ngap_context().served_guami_list) {
+    if (served_guami.guami.plmn == plmn) {
+      return served_guami.guami;
     }
   }
   return std::nullopt;

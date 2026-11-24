@@ -8,7 +8,6 @@
 #include "../support/sr_helper.h"
 #include "../ue_context/ue_cell.h"
 #include "ocudu/ocudulog/ocudulog.h"
-#include "ocudu/ran/csi_report/csi_report_config_helpers.h"
 #include "ocudu/ran/csi_report/csi_report_on_pucch_helpers.h"
 #include "ocudu/ran/csi_report/csi_report_on_pusch_helpers.h"
 #include "ocudu/ran/csi_report/csi_report_size.h"
@@ -26,7 +25,7 @@ uci_allocator_impl::uci_allocator_impl(const cell_configuration& cell_cfg_, pucc
 {
   // The ring must be at least 1 slot larger than the max. UL allocation delay, to take into account the current slot.
   const unsigned ring_size =
-      get_pow2_allocator_ring_size_gt_min(get_max_slot_ul_alloc_delay(cell_cfg_.ntn_cs_koffset) + 1);
+      get_pow2_allocator_ring_size_gt_min(get_max_slot_ul_alloc_delay(cell_cfg_.ntn_ul_alloc_delay_slots()) + 1);
   uci_alloc_grid.resize(ring_size);
 }
 
@@ -39,7 +38,7 @@ static void update_uci_on_pusch_harq_offsets(uci_info::harq_info& uci_harq, cons
   // We assume the configuration contains the values for beta_offsets.
   const auto& beta_offsets = std::get<uci_on_pusch::beta_offsets_semi_static>(uci_cfg.beta_offsets_cfg.value());
 
-  // The values of \c beta_offsets are set according to Section 9.3, TS38.213.
+  // The values of \c beta_offsets are set according to Section 9.3, TS 38.213.
   const uint16_t harq_ack_nof_bits = uci_harq.harq_ack_nof_bits;
   if (harq_ack_nof_bits <= 2) {
     uci_harq.beta_offset_harq_ack = beta_offsets.beta_offset_ack_idx_1.value();
@@ -53,12 +52,12 @@ static void update_uci_on_pusch_harq_offsets(uci_info::harq_info& uci_harq, cons
 static void
 add_csi_to_uci_on_pusch(uci_info::csi_info& uci_csi, const ue_cell_configuration& ue_cell_cfg, bool configured_grant)
 {
-  uci_csi.csi_rep_cfg = create_csi_report_configuration(*ue_cell_cfg.csi_meas_cfg());
+  uci_csi.csi_rep_cfg = ue_cell_cfg.csi_report_cfg();
 
   // NOTE: The CSI size depends on whether the CSI is configured on PUSCH or PUCCH, as per Section 5.2.3, TS 38.214:
   // "For both Type I and Type II reports configured for PUCCH but transmitted on PUSCH, the determination of the
   // payload for CSI part 1 and CSI part 2 follows that of PUCCH as described in clause 5.2.4."
-  if (not ue_cell_cfg.init_bwp().ul.ue_cfg()->periodic_csi_report.has_value()) {
+  if (not ue_cell_cfg.init_bwp().ul.ue_cfg()->csi.periodic_report.has_value()) {
     csi_report_size csi_size   = get_csi_report_pusch_size(uci_csi.csi_rep_cfg);
     uci_csi.csi_part1_nof_bits = csi_size.part1_size.value();
 
@@ -121,15 +120,16 @@ uci_allocator_impl::slot_alloc_list::ue_uci* uci_allocator_impl::get_uci_alloc(s
   return it != ucis.end() ? it : nullptr;
 }
 
-unsigned uci_allocator_impl::get_min_pdsch_to_ack_slot_distance(slot_point pdsch_slot,
-                                                                rnti_t     rnti,
-                                                                unsigned   min_k1,
-                                                                unsigned   max_k1,
-                                                                unsigned   ntn_koffset)
+unsigned uci_allocator_impl::get_min_pdsch_to_ack_slot_distance(const cell_configuration& cell_cfg,
+                                                                slot_point                pdsch_slot,
+                                                                rnti_t                    rnti,
+                                                                unsigned                  min_k1,
+                                                                unsigned                  max_k1,
+                                                                unsigned                  ntn_koffset)
 {
   ocudu_assert(min_k1 <= max_k1, "Minimum k1 value must be greater than maximum k1 value");
   for (int sl_inc = max_k1; sl_inc >= static_cast<int>(min_k1); --sl_inc) {
-    const slot_point uci_slot = pdsch_slot + sl_inc + ntn_koffset;
+    const slot_point uci_slot = pdsch_slot + cell_cfg.ul_delay(sl_inc + ntn_koffset);
     if (get_uci_alloc(uci_slot, rnti) != nullptr) {
       return sl_inc;
     }
@@ -174,7 +174,8 @@ std::optional<uci_allocation> uci_allocator_impl::alloc_harq_ack(cell_resource_a
   const slot_point          pdsch_slot = res_alloc[k0].slot;
   const cell_configuration& cell_cfg   = ue_cell_cfg.cell_cfg_common;
   const unsigned            min_pdsch_to_ack_slot_distance =
-      get_min_pdsch_to_ack_slot_distance(pdsch_slot,
+      get_min_pdsch_to_ack_slot_distance(cell_cfg,
+                                         pdsch_slot,
                                          ue_cell_cfg.crnti,
                                          *std::min_element(k1_list.begin(), k1_list.end()),
                                          *std::max_element(k1_list.begin(), k1_list.end()),
@@ -192,7 +193,7 @@ std::optional<uci_allocation> uci_allocator_impl::alloc_harq_ack(cell_resource_a
     }
 
     // Retrieve the scheduling results for slot = k0 + k1;
-    cell_slot_resource_allocator& slot_alloc = res_alloc[k0 + k1_candidate + ue_cc.ntn_koffset()];
+    cell_slot_resource_allocator& slot_alloc = res_alloc[cell_cfg.ul_delay(k0 + k1_candidate + ue_cc.ntn_koffset())];
     const slot_point              uci_slot   = slot_alloc.slot;
 
     // Check whether UCI slot is UL enabled — O(1), runs before the PUSCH scan below.
@@ -219,25 +220,27 @@ std::optional<uci_allocation> uci_allocator_impl::alloc_harq_ack(cell_resource_a
     // in the PUSCH transmission.
     // Note: the constraint applies only to the same UE — a PUSCH from a different UE must not block PUCCH placement.
     const bool ue_has_pusch_in_slot =
-        std::any_of(slot_alloc.result.ul.puschs.begin(),
-                    slot_alloc.result.ul.puschs.end(),
+        std::any_of(slot_alloc.result_reader().ul().puschs().begin(),
+                    slot_alloc.result_reader().ul().puschs().end(),
                     [rnti = ue_cell_cfg.crnti](const ul_sched_info& p) { return p.pusch_cfg.rnti == rnti; });
     if (ue_has_pusch_in_slot) {
       continue;
     }
 
-    const bool is_sr_opportunity = sr_helper::is_sr_opportunity_slot(
-        *ue_cell_cfg.init_bwp().ul.ue_cfg(), cell_cfg.params.init_bwp.pucch.sr_period, uci_slot);
-    const unsigned scheduled_harq_bits     = get_scheduled_pdsch_counter_in_ue_uci(slot_alloc.slot, ue_cell_cfg.crnti);
-    unsigned       nof_available_harq_bits = 0U;
+    // SR and CSI period/offset are in the UE's UL slot numbering, uci_slot is on the gNB DL clock.
+    const slot_point ue_ul_slot        = cell_cfg.dl_to_ue_ul_slot(uci_slot);
+    const bool       is_sr_opportunity = sr_helper::is_sr_opportunity_slot(
+        *ue_cell_cfg.init_bwp().ul.ue_cfg(), cell_cfg.params.init_bwp.pucch.sr_period, ue_ul_slot);
+    const unsigned scheduled_harq_bits = get_scheduled_pdsch_counter_in_ue_uci(slot_alloc.slot, ue_cell_cfg.crnti);
 
-    if (ue_cell_cfg.init_bwp().ul.ue_cfg()->periodic_csi_report.has_value() and
-        csi_helper::is_csi_reporting_slot(*ue_cell_cfg.init_bwp().ul.ue_cfg()->periodic_csi_report,
+    unsigned nof_available_harq_bits = 0U;
+
+    if (ue_cell_cfg.init_bwp().ul.ue_cfg()->csi.periodic_report.has_value() and
+        csi_helper::is_csi_reporting_slot(*ue_cell_cfg.init_bwp().ul.ue_cfg()->csi.periodic_report,
                                           cell_cfg.params.init_bwp.csi->csi_rs_period,
-                                          uci_slot)) {
+                                          ue_ul_slot)) {
       // TODO: Remove this when the PUCCH allocator handle properly more than 2 HARQ-ACK bits + CSI.
-      const auto     csi_report_cfg  = create_csi_report_configuration(*ue_cell_cfg.csi_meas_cfg());
-      const unsigned csi_report_size = get_csi_report_pucch_size(csi_report_cfg).part1_size.value();
+      const unsigned csi_report_size = get_csi_report_pucch_size(ue_cell_cfg.csi_report_cfg()).part1_size.value();
       // NOTE: This is only to avoid allocating more than 2 HARQ bits in PUCCH that are expected to carry CSI reporting.
       nof_available_harq_bits = std::min(max_pucch_payload - csi_report_size - static_cast<unsigned>(is_sr_opportunity),
                                          static_cast<unsigned>(max_harq_bits_per_uci));
@@ -280,14 +283,13 @@ bool uci_allocator_impl::alloc_sr_opportunity(cell_slot_resource_allocator& slot
                                               const ue_cell_configuration&  ue_cell_cfg)
 {
   // Retrieve the scheduling results for slot = k0 + k1;
-  auto&          puschs = slot_alloc.result.ul.puschs;
-  ul_sched_info* existing_pusch =
+  auto puschs = slot_alloc.result_builder().ul().puschs();
+  auto existing_pusch =
       std::find_if(puschs.begin(), puschs.end(), [rnti = ue_cell_cfg.crnti](const ul_sched_info& pusch) {
         return pusch.pusch_cfg.rnti == rnti;
       });
 
-  const bool has_pusch_grants =
-      not slot_alloc.result.ul.puschs.empty() and existing_pusch != slot_alloc.result.ul.puschs.end();
+  const bool has_pusch_grants = not puschs.empty() and existing_pusch != puschs.end();
 
   // If there is a PUSCH allocated for this UE, do not allocate any PUCCH SR grants.
   if (has_pusch_grants) {
@@ -301,14 +303,13 @@ bool uci_allocator_impl::alloc_sr_opportunity(cell_slot_resource_allocator& slot
 bool uci_allocator_impl::alloc_csi_opportunity(cell_slot_resource_allocator& slot_alloc,
                                                const ue_cell_configuration&  ue_cell_cfg)
 {
-  auto&          puschs = slot_alloc.result.ul.puschs;
-  ul_sched_info* existing_pusch =
+  auto puschs = slot_alloc.result_builder().ul().puschs();
+  auto existing_pusch =
       std::find_if(puschs.begin(), puschs.end(), [rnti = ue_cell_cfg.crnti](const ul_sched_info& pusch) {
         return pusch.pusch_cfg.rnti == rnti;
       });
 
-  const bool has_pusch_grants =
-      not slot_alloc.result.ul.puschs.empty() and existing_pusch != slot_alloc.result.ul.puschs.end();
+  const bool has_pusch_grants = not puschs.empty() and existing_pusch != puschs.end();
 
   // TODO: check if this case is possible. The first PUSCH that is allocated outside the RAR grant is will be allocated
   //       after the UE objected gets created with the UE dedicated configuration; this means the CSI scheduler should

@@ -226,9 +226,9 @@ dl_pdsch_pdu unittest::build_valid_dl_pdsch_pdu()
   pdu.num_dmrs_cdm_grps_no_data = 2;
   pdu.dmrs_ports                = dmrs_ports_mask(12);
   pdu.dmrs_ports.from_uint64(0);
-  pdu.resource_alloc.vrbs = {42, 89};
-  pdu.vrb_to_prb_mapping  = vrb_to_prb::mapping_type::interleaved_n2;
-  pdu.symbols             = generate_symbols();
+  pdu.resource_alloc     = fapi::resource_allocation_type_1{{42, 89}};
+  pdu.vrb_to_prb_mapping = vrb_to_prb::mapping_type::interleaved_n2;
+  pdu.symbols            = generate_symbols();
 
   auto& power                 = pdu.power_config.emplace<dl_pdsch_pdu::power_profile_nr>();
   power.pwr_control_offset_db = 6;

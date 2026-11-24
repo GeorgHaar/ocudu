@@ -5,6 +5,7 @@
 
 #include "ngap_handover_preparation_procedure.h"
 #include "../ngap_asn1_converters.h"
+#include "../ngap_asn1_utils.h"
 #include "ocudu/asn1/ngap/common.h"
 #include "ocudu/ngap/ngap_message.h"
 
@@ -80,34 +81,39 @@ void ngap_handover_preparation_procedure::operator()(coro_context<async_task<nga
     if (ho_cancel_transaction_sink.timeout_expired()) {
       logger.log_warning("\"{}\" Handover Cancel timed out after {}ms", name(), ng_cancel_ack_timeout.count());
     }
-    if (transaction_sink.successful()) {
+    if (ho_cancel_transaction_sink.successful()) {
       logger.log_debug("\"{}\" Handover Cancel Ack received", name());
     }
     CORO_EARLY_RETURN(ngap_handover_preparation_response{false});
   }
 
   if (transaction_sink.failed()) {
-    logger.log_warning("\"{}\" failed. Cause: Received HandoverPreparationFailure", name());
+    logger.log_warning("\"{}\" failed. Cause: Received HandoverPreparationFailure ({})",
+                       name(),
+                       asn1_utils::get_cause_str(transaction_sink.failure()->cause));
     CORO_EARLY_RETURN(ngap_handover_preparation_response{false});
   }
 
-  if (transaction_sink.successful()) {
-    // Unpack transparent container to get RRC Handover Command.
-    rrc_ho_cmd = get_rrc_handover_command();
-    if (rrc_ho_cmd.rrc_container.empty()) {
-      logger.log_warning("\"{}\" failed. Cause: Received invalid HandoverCommand", name());
-      CORO_EARLY_RETURN(ngap_handover_preparation_response{false});
-    }
-
-    // Forward RRC Handover Command to DU Processor.
-    CORO_AWAIT_VALUE(rrc_reconfig_success, cu_cp_notifier.on_new_rrc_handover_command(std::move(rrc_ho_cmd)));
-    if (!rrc_reconfig_success) {
-      logger.log_warning("\"{}\" failed. Cause: Received invalid HandoverCommand", name());
-      CORO_EARLY_RETURN(ngap_handover_preparation_response{false});
-    }
-
-    logger.log_info("\"{}\" finished successfully", name());
+  if (not transaction_sink.successful()) {
+    logger.log_info("\"{}\" cancelled", name());
+    CORO_EARLY_RETURN(ngap_handover_preparation_response{false});
   }
+
+  // Unpack transparent container to get RRC Handover Command.
+  rrc_ho_cmd = get_rrc_handover_command();
+  if (rrc_ho_cmd.rrc_container.empty()) {
+    logger.log_warning("\"{}\" failed. Cause: Received invalid HandoverCommand", name());
+    CORO_EARLY_RETURN(ngap_handover_preparation_response{false});
+  }
+
+  // Forward RRC Handover Command to DU Processor.
+  CORO_AWAIT_VALUE(rrc_reconfig_success, cu_cp_notifier.on_new_rrc_handover_command(std::move(rrc_ho_cmd)));
+  if (!rrc_reconfig_success) {
+    logger.log_warning("\"{}\" failed. Cause: Received invalid HandoverCommand", name());
+    CORO_EARLY_RETURN(ngap_handover_preparation_response{false});
+  }
+
+  logger.log_info("\"{}\" finished successfully", name());
 
   // Forward procedure result to DU manager.
   CORO_RETURN(ngap_handover_preparation_response{true});
@@ -197,7 +203,7 @@ void ngap_handover_preparation_procedure::fill_asn1_pdu_session_res_list(
     ho_required_transfer_s ho_required_transfer = {};
     byte_buffer            ho_required_transfer_packed;
     asn1::bit_ref          bref(ho_required_transfer_packed);
-    if (ho_required_transfer.pack(bref) != asn1::OCUDUASN_SUCCESS) {
+    if (asn1::pack(bref, ho_required_transfer) != asn1::OCUDUASN_SUCCESS) {
       logger.log_error("Failed to pack PDU");
       return;
     }
@@ -247,7 +253,7 @@ byte_buffer ngap_handover_preparation_procedure::fill_asn1_source_to_target_tran
 
   byte_buffer   buf{};
   asn1::bit_ref bref{buf};
-  if (transparent_container.pack(bref) == asn1::OCUDUASN_ERROR_ENCODE_FAIL) {
+  if (asn1::pack(bref, transparent_container) == asn1::OCUDUASN_ERROR_ENCODE_FAIL) {
     logger.log_error("Failed to pack transparent container.");
     return {};
   }
@@ -264,7 +270,7 @@ cu_cp_rrc_handover_command ngap_handover_preparation_procedure::get_rrc_handover
   asn1::ngap::target_ngran_node_to_source_ngran_node_transparent_container_s target_to_source_container;
   asn1::cbit_ref bref({target_to_source_container_packed.begin(), target_to_source_container_packed.end()});
 
-  if (target_to_source_container.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(target_to_source_container, bref) != asn1::OCUDUASN_SUCCESS) {
     logger.log_error("Couldn't unpack target to source transparent container");
     return ho_command;
   }
@@ -275,7 +281,7 @@ cu_cp_rrc_handover_command ngap_handover_preparation_procedure::get_rrc_handover
   for (const auto& asn1_pdu_session : transaction_sink.response()->pdu_session_res_ho_list) {
     asn1::ngap::ho_cmd_transfer_s asn1_ho_cmd_transfer;
     asn1::cbit_ref transfer_bref({asn1_pdu_session.ho_cmd_transfer.begin(), asn1_pdu_session.ho_cmd_transfer.end()});
-    if (asn1_ho_cmd_transfer.unpack(transfer_bref) != asn1::OCUDUASN_SUCCESS) {
+    if (asn1::unpack(asn1_ho_cmd_transfer, transfer_bref) != asn1::OCUDUASN_SUCCESS) {
       logger.log_warning("Couldn't unpack Handover Command Transfer of psi={}", asn1_pdu_session.pdu_session_id);
       continue;
     }

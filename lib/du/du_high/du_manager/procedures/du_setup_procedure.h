@@ -22,7 +22,7 @@ struct du_start_request {
   /// Value of \c max_f1c_tnl_connection_retries that requests an unlimited number of setup attempts.
   static constexpr unsigned unlimited_retries = std::numeric_limits<unsigned>::max();
 
-  /// Maximum number of F1-C TNL connection attempts. A rejected F1 Setup is not retried and is not counted here.
+  /// Maximum number of F1-C TNL connection attempts. F1 Setup failures are retried only if unlimited.
   unsigned                  max_f1c_tnl_connection_retries = 1;
   std::chrono::milliseconds f1c_tnl_connection_retry_wait{1000};
 };
@@ -42,10 +42,16 @@ public:
   void operator()(coro_context<async_task<void>>& ctx);
 
 private:
+  /// Establishes the F1-C TNL association with the CU-CP, unless a stop is requested first.
+  async_task<void> connect_to_cu_cp();
+
   async_task<f1_setup_result> start_f1_setup_request();
 
   // Handle F1 setup response with list of cells to activate.
   async_task<void> handle_f1_setup_response(const f1_setup_result& resp);
+
+  /// Waits before a failed F1 Setup is retried, or closes the application if the F1 Setup is not retried.
+  async_task<void> wait_for_f1_setup_retry();
 
   const du_proc_context_view& ctxt;
   const du_start_request      request;
@@ -57,6 +63,10 @@ private:
 
   unsigned    count = 0;
   std::string failure_cause;
+  /// Number of retry waits left before the next F1 Setup attempt.
+  unsigned nof_retry_waits = 0;
+  /// Whether a failed F1 Setup was already announced in STDOUT.
+  bool setup_failure_reported = false;
 };
 
 } // namespace odu

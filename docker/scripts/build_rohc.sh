@@ -18,15 +18,34 @@ main() {
     local rohc_version=$1
     local arch="${2:-native}"
     local ncores="${3:-$(nproc)}"
-    local rohc_name="rohc"
     local rohc_series="${rohc_version%.*}.x"
-    local rohc_archive="${rohc_name}-${rohc_version}.tar.xz"
+    local rohc_ref="rohc-${rohc_version}"
 
-    cd /tmp
-    curl "https://rohc-lib.org/download/rohc-${rohc_series}/${rohc_version}/${rohc_archive}" -o "${rohc_archive}"
-    tar -xf "${rohc_archive}"
+    # The GitHub repository does not tag every release, those are pinned to the commit that made the release.
+    case "${rohc_version}" in
+        2.3.1)
+            rohc_ref="8d00cde3bc79740f15ed1062269ae046c8558702"
+            ;;
+    esac
 
-    pushd "${rohc_name}-${rohc_version}"
+    local rohc_src="/tmp/rohc-${rohc_version}"
+    local rohc_archive="/tmp/rohc-${rohc_version}-src.tar"
+    rm -Rf "${rohc_src}" "${rohc_archive}"
+    mkdir -p "${rohc_src}"
+
+    # Prefer the official release tarball, use the GitHub repository as fallback.
+    if ! curl -fL --connect-timeout 30 --retry 2 \
+        "https://rohc-lib.org/download/rohc-${rohc_series}/${rohc_version}/rohc-${rohc_version}.tar.xz" \
+        -o "${rohc_archive}"; then
+        echo "Downloading ROHC ${rohc_version} from rohc-lib.org failed, falling back to GitHub"
+        curl -fL --connect-timeout 30 --retry 2 \
+            "https://github.com/didier-barvaux/rohc/archive/${rohc_ref}.tar.gz" \
+            -o "${rohc_archive}"
+    fi
+    tar -xf "${rohc_archive}" -C "${rohc_src}" --strip-components=1
+    rm -f "${rohc_archive}"
+
+    pushd "${rohc_src}"
     export PATH="/usr/bin:/bin:${PATH}"
     ./autogen.sh
     ./configure --prefix=/opt/rohc
@@ -34,8 +53,8 @@ main() {
     make install
     ldconfig
     popd
-    
-    rm -Rf /tmp/rohc-"${rohc_version}"*
+
+    rm -Rf "${rohc_src}"
 
 }
 

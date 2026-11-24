@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 
 #include "radio_difi_udp_socket.h"
+#include "ocudu/adt/static_vector.h"
+#include "ocudu/radio/radio_constants.h"
+#include "ocudu/support/ocudu_assert.h"
 #include <algorithm>
 #include <arpa/inet.h>
 #include <cerrno>
@@ -11,6 +14,7 @@
 #include <netinet/in.h>
 #include <poll.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
 #include <unistd.h>
 
 using namespace ocudu;
@@ -60,6 +64,13 @@ bool radio_difi_udp_socket::open_rx(const std::string& ip, uint16_t port, units:
   if (fd < 0) {
     logger.error("failed to create socket: {}", std::strerror(errno));
     return false;
+  }
+
+  // Have the kernel stamp each datagram on arrival, so a receiver can tell how early it came in rather than when it
+  // got around to reading it.
+  const int timestamp_on = 1;
+  if (::setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPNS, &timestamp_on, sizeof(timestamp_on)) < 0) {
+    logger.warning("port={}: Receive timestamps unavailable: {}", port, std::strerror(errno));
   }
 
   // Large receive buffer to absorb bursts without dropping packets. SO_RCVBUF takes an int.
@@ -138,15 +149,75 @@ expected<span<uint8_t>, difi_recv_error> radio_difi_udp_socket::try_recv(span<ui
   return buf.first(static_cast<size_t>(n));
 }
 
-bool radio_difi_udp_socket::wait_readable(std::chrono::microseconds timeout)
+expected<span<uint8_t>, difi_recv_error>
+radio_difi_udp_socket::try_recv(std::optional<std::chrono::system_clock::time_point>& arrival, span<uint8_t> buf)
 {
+  arrival.reset();
   if (fd < 0) {
-    return false;
+    return make_unexpected(difi_recv_error::failure);
   }
 
-  struct pollfd pfd = {};
-  pfd.fd            = fd;
-  pfd.events        = POLLIN;
+  struct iovec iov = {};
+  iov.iov_base     = buf.data();
+  iov.iov_len      = buf.size();
+  // Room for the one receive timestamp the socket is set up to attach.
+  alignas(struct cmsghdr) uint8_t control[CMSG_SPACE(sizeof(struct timespec))];
+  struct msghdr                   msg = {};
+  msg.msg_iov                         = &iov;
+  msg.msg_iovlen                      = 1;
+  msg.msg_control                     = control;
+  msg.msg_controllen                  = sizeof(control);
+
+  const ssize_t n = ::recvmsg(fd, &msg, MSG_DONTWAIT);
+  if (n < 0) {
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+      return make_unexpected(difi_recv_error::timeout);
+    }
+    logger.error("recvmsg error: {}", std::strerror(errno));
+    return make_unexpected(difi_recv_error::failure);
+  }
+
+  for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msg); cmsg != nullptr; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+    if ((cmsg->cmsg_level != SOL_SOCKET) || (cmsg->cmsg_type != SCM_TIMESTAMPNS)) {
+      continue;
+    }
+    struct timespec ts = {};
+    std::memcpy(&ts, CMSG_DATA(cmsg), sizeof(ts));
+    arrival = std::chrono::system_clock::time_point(std::chrono::duration_cast<std::chrono::system_clock::duration>(
+        std::chrono::seconds(ts.tv_sec) + std::chrono::nanoseconds(ts.tv_nsec)));
+  }
+
+  return buf.first(static_cast<size_t>(n));
+}
+
+bool radio_difi_udp_socket::wait_readable(std::chrono::microseconds timeout)
+{
+  radio_difi_udp_socket* const self = this;
+  return wait_any_readable(span<radio_difi_udp_socket* const>(&self, 1), timeout);
+}
+
+bool radio_difi_udp_socket::wait_any_readable(span<radio_difi_udp_socket* const> sockets,
+                                              std::chrono::microseconds          timeout)
+{
+  ocudu_assert(sockets.size() <= RADIO_MAX_NOF_CHANNELS,
+               "Cannot wait on {} sockets, at most {}.",
+               sockets.size(),
+               RADIO_MAX_NOF_CHANNELS);
+
+  static_vector<struct pollfd, RADIO_MAX_NOF_CHANNELS> pfds;
+  ocudulog::basic_logger*                              error_logger = nullptr;
+  for (const radio_difi_udp_socket* socket : sockets) {
+    if (socket->fd < 0) {
+      continue;
+    }
+    struct pollfd& pfd = pfds.emplace_back();
+    pfd.fd             = socket->fd;
+    pfd.events         = POLLIN;
+    error_logger       = &socket->logger;
+  }
+  if (pfds.empty()) {
+    return false;
+  }
 
   // ppoll() rather than poll() so sub-millisecond budgets are honoured: at a slot of 1 ms, the
   // millisecond granularity of poll() would be the whole budget.
@@ -155,15 +226,16 @@ bool radio_difi_udp_socket::wait_readable(std::chrono::microseconds timeout)
   ts.tv_sec            = secs.count();
   ts.tv_nsec           = std::chrono::duration_cast<std::chrono::nanoseconds>(timeout - secs).count();
 
-  const int ret = ::ppoll(&pfd, 1, &ts, nullptr);
+  const int ret = ::ppoll(pfds.data(), pfds.size(), &ts, nullptr);
   if (ret < 0) {
     if (errno == EINTR) {
       // Interrupted by a signal — treat as "nothing ready yet"; the caller re-checks its deadline.
       return false;
     }
-    logger.error("ppoll error: {}", std::strerror(errno));
+    error_logger->error("ppoll error: {}", std::strerror(errno));
     return false;
   }
 
-  return (ret > 0) && ((pfd.revents & POLLIN) != 0);
+  return (ret > 0) &&
+         std::any_of(pfds.begin(), pfds.end(), [](const struct pollfd& pfd) { return (pfd.revents & POLLIN) != 0; });
 }

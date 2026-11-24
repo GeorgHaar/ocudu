@@ -234,8 +234,6 @@ public:
     msg.tx_upper_cn            = &entry.rrc_tx_control_notifier;
     msg.rx_upper_dn            = &entry.rrc_rx_data_notifier;
     msg.rx_upper_cn            = &entry.rrc_rx_data_notifier;
-    msg.ue_dl_timer_factory    = timers;
-    msg.ue_ul_timer_factory    = timers;
     msg.ue_ctrl_timer_factory  = timers;
     msg.ue_dl_executor         = &entry.inline_executor;
     msg.ue_ul_executor         = &entry.inline_executor;

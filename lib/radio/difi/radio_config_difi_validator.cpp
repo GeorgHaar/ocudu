@@ -4,8 +4,11 @@
 
 #include "radio_config_difi_validator.h"
 #include "radio_difi_stream_config.h"
+#include "ocudu/adt/static_vector.h"
+#include "ocudu/radio/radio_constants.h"
 #include "fmt/base.h"
 #include <cmath>
+#include <string_view>
 
 using namespace ocudu;
 
@@ -36,16 +39,45 @@ static bool validate_otw_format(radio_configuration::over_the_wire_format otw_fo
   return true;
 }
 
-static bool validate_tx_stream_args(const std::string& args)
+/// \brief Validates the streams of one direction and the ports of their channels.
+///
+/// \p default_ip and \p default_port apply where the stream arguments leave them out. \p direction, "transmit" or
+/// "receive", labels the error messages.
+static bool validate_streams(span<const radio_configuration::stream> streams,
+                             const std::string&                      default_ip,
+                             uint16_t                                default_port,
+                             std::string_view                        direction)
 {
-  // Default Tx: send to localhost:4991.
-  return parse_difi_stream_args(args, "127.0.0.1", 4991).has_value();
-}
+  static_vector<uint16_t, RADIO_MAX_NOF_PORTS> ports;
 
-static bool validate_rx_stream_args(const std::string& args)
-{
-  // Default Rx: bind on all interfaces, port 4992.
-  return parse_difi_stream_args(args, "0.0.0.0", 4992).has_value();
+  for (unsigned stream_id = 0, nof_streams = streams.size(); stream_id != nof_streams; ++stream_id) {
+    const radio_configuration::stream& stream = streams[stream_id];
+
+    if (stream.channels.empty()) {
+      fmt::print("Every DIFI {} stream needs at least one channel.\n", direction);
+      return false;
+    }
+
+    const std::optional<radio_difi_stream_config> parsed =
+        parse_difi_stream_args(stream.args, default_ip, default_port);
+    if (!parsed.has_value()) {
+      return false;
+    }
+
+    const auto channel_ports = resolve_difi_channel_ports(stream, parsed->port, stream_id);
+    if (!channel_ports.has_value()) {
+      return false;
+    }
+    if (ports.size() + channel_ports->size() > ports.capacity()) {
+      fmt::print("DIFI takes at most {} {} ports.\n", ports.capacity(), direction);
+      return false;
+    }
+    for (uint16_t port : *channel_ports) {
+      ports.push_back(port);
+    }
+  }
+
+  return has_unique_difi_ports(ports, direction);
 }
 
 bool radio_config_difi_validator::is_configuration_valid(const radio_configuration::radio& config) const
@@ -60,16 +92,14 @@ bool radio_config_difi_validator::is_configuration_valid(const radio_configurati
     return false;
   }
 
-  for (const radio_configuration::stream& tx_stream : config.tx_streams) {
-    if (!validate_tx_stream_args(tx_stream.args)) {
-      return false;
-    }
+  // Default Tx: send to localhost:4991.
+  if (!validate_streams(config.tx_streams, "127.0.0.1", 4991, "transmit")) {
+    return false;
   }
 
-  for (const radio_configuration::stream& rx_stream : config.rx_streams) {
-    if (!validate_rx_stream_args(rx_stream.args)) {
-      return false;
-    }
+  // Default Rx: bind on all interfaces, port 4992.
+  if (!validate_streams(config.rx_streams, "0.0.0.0", 4992, "receive")) {
+    return false;
   }
 
   if (!validate_sampling_rate(config.sampling_rate_Hz)) {

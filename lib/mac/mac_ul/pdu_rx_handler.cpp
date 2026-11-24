@@ -97,12 +97,17 @@ bool pdu_rx_handler::handle_rx_pdu(slot_point sl_rx, du_cell_index_t cell_index,
     logger.info("{} subPDUs: [{}]", create_prefix(ctx), to_c_str(fmtbuf));
   }
 
-  // RedCap admission requires the access profile and conservative bearer configuration.
+  bool     has_redcap_ccch = false;
+  bool     has_crnti       = false;
+  unsigned nof_ccch        = 0;
   for (const mac_ul_sch_subpdu& subpdu : ctx.decoded_subpdus) {
-    if (subpdu.lcid().is_redcap_ccch()) {
-      logger.info("{}: Discarding PDU. Cause: RedCap UE creation is not supported", create_prefix(ctx, subpdu));
-      return false;
-    }
+    has_redcap_ccch |= subpdu.lcid().is_redcap_ccch();
+    has_crnti |= subpdu.lcid() == lcid_ul_sch_t::CRNTI;
+    nof_ccch += subpdu.lcid().is_ccch();
+  }
+  if (has_redcap_ccch and (nof_ccch != 1 or has_crnti or is_du_ue_index_valid(ctx.ue_index))) {
+    logger.info("{}: Discarding PDU with conflicting RedCap access identity", create_prefix(ctx));
+    return false;
   }
 
   // > If Msg3 (UE index is still not assigned) is received, check if MAC CRNTI CE or UL-CCCH CE are present.
@@ -114,7 +119,7 @@ bool pdu_rx_handler::handle_rx_pdu(slot_point sl_rx, du_cell_index_t cell_index,
         // >> Dispatch continuation of subPDU handling to execution context of previous C-RNTI.
         return handle_crnti_ce(ctx, subpdu);
       }
-      if (subpdu.lcid() == lcid_ul_sch_t::CCCH_SIZE_48 or subpdu.lcid() == lcid_ul_sch_t::CCCH_SIZE_64) {
+      if (subpdu.lcid().is_ccch()) {
         return handle_ccch_msg(ctx, subpdu);
       }
     }
@@ -221,6 +226,19 @@ void pdu_rx_handler::forward_ta_report(du_ue_index_t             ue_index,
   sched.handle_ul_ta_report_indication(ta_report_ind);
 }
 
+void pdu_rx_handler::forward_cg_confirmation(du_ue_index_t   ue_index,
+                                             du_cell_index_t cell_index,
+                                             rnti_t          rnti,
+                                             slot_point      slot_rx)
+{
+  mac_cg_confirmation_ce_info cg_conf_ind{};
+  cg_conf_ind.cell_index = cell_index;
+  cg_conf_ind.ue_index   = ue_index;
+  cg_conf_ind.rnti       = rnti;
+  cg_conf_ind.slot_rx    = slot_rx;
+  sched.handle_cg_confirmation_indication(cg_conf_ind);
+}
+
 bool pdu_rx_handler::handle_mac_ce(const decoded_mac_rx_pdu& ctx, const mac_ul_sch_subpdu& subpdu)
 {
   // Handle MAC CEs
@@ -307,6 +325,14 @@ bool pdu_rx_handler::handle_mac_ce(const decoded_mac_rx_pdu& ctx, const mac_ul_s
       }
       forward_ta_report(
           ctx.ue_index, ctx.cell_index_rx, ctx.pdu_rx.rnti, ctx.slot_rx, decode_ta_report(subpdu.payload()));
+    } break;
+    case lcid_ul_sch_t::CG_CONFIRMATION: {
+      if (not is_du_ue_index_valid(ctx.ue_index)) {
+        logger.warning("{}: Discarding MAC CE. Cause: C-RNTI is not associated with any existing UE",
+                       create_prefix(ctx, subpdu));
+        return false;
+      }
+      forward_cg_confirmation(ctx.ue_index, ctx.cell_index_rx, ctx.pdu_rx.rnti, ctx.slot_rx);
     } break;
     case lcid_ul_sch_t::PADDING:
       break;

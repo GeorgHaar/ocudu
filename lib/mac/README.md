@@ -179,7 +179,7 @@ state directly.
 The DL path is driven by the per-cell slot indication. `mac_cell_processor::handle_slot_indication_impl()` runs once per
 cell per slot and:
 
-1. Invokes the scheduler for that cell, obtaining a `sched_result`.
+1. Invokes the scheduler for that cell, obtaining a `sched_slot_result_reader` over the result of the slot.
 2. `assemble_dl_sched_request()` builds the `mac_dl_sched_result` — SSB (`ssb_helper`) and the encoded PDCCH DCIs
    (`encode_dci`) — and forwards it to FAPI via `on_new_downlink_scheduler_results`.
 3. `assemble_dl_data_request()` builds the `mac_dl_data_result`, i.e. the actual MAC PDU payloads, and forwards it via
@@ -219,9 +219,9 @@ resolved through the RNTI table and the work is dispatched onto that UE's `mac_u
 The MAC contains the gNB scheduler but treats it as a self-contained subsystem behind `ocudu_scheduler_adapter`
 (implementing `mac_scheduler_adapter`). The MAC _pushes_ events to the scheduler — `rach_indication`, CRC/UCI/SRS,
 BSR/PHR, DL buffer state, and UE add/reconfigure/remove — and _queries_ it once per cell per slot through
-`slot_indication()`, whose returned `sched_result` drives the DL data path above. As described under Concurrency, the
-scheduler manages its own thread-safety for indication ingest. Its internal design is documented separately in
-[`lib/scheduler/README.md`](../scheduler/README.md).
+`slot_indication()`, whose returned `sched_slot_result_reader` drives the DL data path above. As described under
+Concurrency, the scheduler manages its own thread-safety for indication ingest. Its internal design is documented
+separately in [`lib/scheduler/README.md`](../scheduler/README.md).
 
 ## Configuration Lifecycle
 

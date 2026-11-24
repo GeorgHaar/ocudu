@@ -23,7 +23,9 @@ public:
     data_direction    direction = data_direction::downlink;
     slot_point        slot;
     filter_index_type filter_type;
-    beam_identifier   beam_id = beam_identifier::invalid;
+    beam_identifier   beam_id      = beam_identifier::invalid;
+    unsigned          start_symbol = 0;
+    unsigned          time_offset  = 0;
   };
 
   operation_controller& get_operation_controller() override { return *this; }
@@ -48,6 +50,8 @@ public:
     info.eaxc                                             = context.eaxc;
     info.direction                                        = data_direction::uplink;
     info.filter_type                                      = context.filter_type;
+    info.start_symbol                                     = context.start_symbol;
+    info.time_offset                                      = context.time_offset;
   }
 
   data_flow_message_encoding_metrics_collector* get_metrics_collector() override { return nullptr; }

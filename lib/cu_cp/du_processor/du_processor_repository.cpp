@@ -68,6 +68,7 @@ cu_cp_du_index_t du_processor_repository::add_du(std::unique_ptr<f1ap_message_no
                                                   .f1ap_pdu_notifier        = *du_ctxt.f1ap_tx_pdu_notifier,
                                                   .common_task_sched        = common_task_sched,
                                                   .ue_mng                   = ue_mng,
+                                                  .cu_ue_f1ap_id_alloc      = cu_ue_f1ap_id_alloc,
                                                   .ref_time_report_notifier = ref_time_report_notifier,
                                                   .logger                   = logger};
   std::unique_ptr<du_processor> du = create_du_processor(du_processor_cfg, std::move(du_processor_deps));

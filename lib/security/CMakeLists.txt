@@ -25,11 +25,16 @@ else(MBEDTLS_FOUND)
     message(FATAL_ERROR "mbedTLS is required to build ${CMAKE_PROJECT_NAME}")
 endif (MBEDTLS_FOUND)
 
+# IPSec-MB 
+find_package(IPSecMB)
+#TODO SOBM.
+
 set(SOURCES
   security_engine_factory.cpp
   ciphering_engine_nea1.cpp
   ciphering_engine_nea2.cpp
   ciphering_engine_nea2_psa.cpp
+  ciphering_engine_nea2_ipsec_mb.cpp
   ciphering_engine_nea3.cpp
   integrity_engine_generic.cpp
   integrity_engine_nia2_cmac.cpp
@@ -43,4 +48,14 @@ set(SOURCES
 
 add_library(ocudu_security STATIC ${SOURCES})
 target_include_directories(ocudu_security PUBLIC ${SEC_INCLUDE_DIRS})
-target_link_libraries(ocudu_security ${SEC_LIBRARIES})
+target_link_libraries(ocudu_security PUBLIC ${SEC_LIBRARIES})
+
+if(IPSecMB_FOUND)
+	target_sources(ocudu_security PRIVATE integrity_engine_nia2_ipsec_mb.cpp)
+	target_compile_definitions(ocudu_security PUBLIC OCUDU_HAVE_IPSEC_MB=1)
+	target_link_libraries(ocudu_security PUBLIC ${IPSEC_MB_LIBRARIES})
+	target_include_directories(ocudu_security PRIVATE ${IPSEC_MB_INCLUDE_DIRS})
+    message(STATUS "IPsec-MB security engine enabled")
+else()
+    message(STATUS "IPsec-MB security engine disabled")
+endif()

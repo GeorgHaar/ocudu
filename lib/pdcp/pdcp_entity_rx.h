@@ -77,7 +77,7 @@ public:
                  pdcp_rx_config                  cfg_,
                  pdcp_rx_upper_data_notifier&    upper_dn_,
                  pdcp_rx_upper_control_notifier& upper_cn_,
-                 timer_factory                   ue_ul_timer_factory_,
+                 timer_factory                   ue_ctrl_timer_factory_,
                  task_executor&                  ue_ul_executor_,
                  task_executor&                  crypto_executor_,
                  uint32_t                        max_nof_crypto_workers_,
@@ -270,7 +270,7 @@ private:
   pdcp_rx_upper_data_notifier&    upper_dn;
   pdcp_rx_upper_control_notifier& upper_cn;
 
-  timer_factory ue_ul_timer_factory;
+  timer_factory ue_ctrl_timer_factory;
 
   task_executor& ue_ul_executor;
   task_executor& crypto_executor;

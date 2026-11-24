@@ -5,6 +5,8 @@
 
 #include "channel_precoder_avx2.h"
 #include "ocudu/adt/format.h"
+#include "ocudu/adt/static_vector.h"
+#include "ocudu/ocuduvec/copy.h"
 #include <immintrin.h>
 
 using namespace ocudu;
@@ -12,8 +14,11 @@ using namespace ocudu;
 /// Size of an AVX2 register in complex numbers with 32-bit floating point precision.
 static constexpr unsigned AVX2_CF_SIZE = 4;
 
-/// Size of an AVX2 register in complex numbers with 8-bit fixed point precision.
-static constexpr unsigned AVX2_CI8_SIZE = 16;
+/// Number of resource elements processed per iteration by the layer mapping and precoding loops.
+static constexpr unsigned AVX2_LAYER_MAP_NOF_RE = 8;
+
+/// Scaling applied to the ci8_t symbols when they are placed in the most significant byte of a 32-bit integer.
+static constexpr float CI8_MSB_SCALING = 1.0F / static_cast<float>(1U << 24U);
 
 namespace {
 
@@ -35,27 +40,56 @@ using simd_cf_interleaved = __m256;
 
 } // namespace
 
-/// Multiplication operator for the precoding weights.
-static simd_cf_interleaved operator*(const simd_cf_interleaved& re, const simd_cf_t& weight)
+/// Multiplies two sets of complex numbers stored in split real and imaginary registers.
+static simd_cf_t operator*(const simd_cf_t& in, const simd_cf_t& weight)
 {
-  return _mm256_fmaddsub_ps(re, weight.re, _mm256_mul_ps(_mm256_shuffle_ps(re, re, 0xb1), weight.im));
+  return {_mm256_fmsub_ps(in.re, weight.re, _mm256_mul_ps(in.im, weight.im)),
+          _mm256_fmadd_ps(in.re, weight.im, _mm256_mul_ps(in.im, weight.re))};
 }
 
-static __m128i ps_to_cbf16(simd_cf_interleaved in)
+/// Multiplies two sets of complex numbers stored in split registers and accumulates the result.
+static void simd_cmac(simd_cf_t& acc, const simd_cf_t& in, const simd_cf_t& weight)
+{
+  acc.re = _mm256_fnmadd_ps(in.im, weight.im, _mm256_fmadd_ps(in.re, weight.re, acc.re));
+  acc.im = _mm256_fmadd_ps(in.im, weight.re, _mm256_fmadd_ps(in.re, weight.im, acc.im));
+}
+
+/// Rounds single precision floating point numbers to the nearest even brain floating point in the upper 16 bits.
+static __m256i simd_f_round_to_bf16(__m256 in)
 {
   const __m256i bias = _mm256_set1_epi32(0x7fff);
   const __m256i one  = _mm256_set1_epi32(0x1);
 
   __m256i a_i32 = _mm256_castps_si256(in);
+  return _mm256_add_epi32(a_i32, _mm256_add_epi32(bias, _mm256_and_si256(_mm256_srli_epi32(a_i32, 16), one)));
+}
 
-  // Round to nearest even.
-  a_i32 = _mm256_add_epi32(a_i32, _mm256_add_epi32(bias, _mm256_and_si256(_mm256_srli_epi32(a_i32, 16), one)));
-
-  // Shift right 16 bits.
-  a_i32 = _mm256_srai_epi32(a_i32, 16);
+/// Converts a register with interleaved complex numbers into four consecutive c.
+static __m128i simd_cf_to_cbf16(simd_cf_interleaved in)
+{
+  // Round to nearest even and shift right 16 bits.
+  __m256i a_i32 = _mm256_srai_epi32(simd_f_round_to_bf16(in), 16);
 
   // Pack both parts in 32-bit registers.
   return _mm_packs_epi32(_mm256_extractf128_si256(a_i32, 0), _mm256_extractf128_si256(a_i32, 1));
+}
+
+/// Converts two registers with interleaved complex numbers into eight consecutive cbf16_t.
+static __m256i simd_cf_to_cbf16(simd_cf_interleaved in0, simd_cf_interleaved in1)
+{
+  // The logical shift leaves values within the unsigned 16-bit range, so the unsigned saturation is lossless.
+  __m256i packed = _mm256_packus_epi32(_mm256_srli_epi32(simd_f_round_to_bf16(in0), 16),
+                                       _mm256_srli_epi32(simd_f_round_to_bf16(in1), 16));
+
+  // Restore the order of the 64-bit words after the in-lane packing.
+  return _mm256_permute4x64_epi64(packed, 0xd8);
+}
+
+/// Converts complex numbers stored in split real and imaginary registers into eight consecutive cbf16_t.
+static __m256i simd_cf_to_cbf16(const simd_cf_t& in)
+{
+  // The real part goes to the lower 16 bits and the imaginary part to the upper 16 bits of each 32-bit word.
+  return _mm256_blend_epi16(_mm256_srli_epi32(simd_f_round_to_bf16(in.re), 16), simd_f_round_to_bf16(in.im), 0xaa);
 }
 
 void channel_precoder_avx2::apply_precoding_port(span<cbf16_t>             port_re,
@@ -79,25 +113,32 @@ void channel_precoder_avx2::apply_precoding_port(span<cbf16_t>             port_
     port_weights_simd[i_layer].set1(port_weights[i_layer]);
   }
 
-  unsigned i_re = 0;
-
-  for (unsigned max_re = (nof_re / AVX2_CF_SIZE) * AVX2_CF_SIZE; i_re != max_re; i_re += AVX2_CF_SIZE) {
-    // Load layer 0 RE.
-    simd_cf_interleaved re_in = _mm256_loadu_ps(reinterpret_cast<const float*>(&layer_re_view_list[0][i_re]));
-
-    // Multiply the input REs by the precoding coefficient.
-    simd_cf_interleaved re_out = re_in * port_weights_simd[0];
+  // Applies the port weights to AVX2_CF_SIZE consecutive RE. The products by the real and imaginary parts of the
+  // weights are accumulated separately and combined at the end.
+  auto precode = [&layer_re_view_list, &port_weights_simd, nof_layers](unsigned i_re) {
+    simd_cf_interleaved re_in  = _mm256_loadu_ps(reinterpret_cast<const float*>(&layer_re_view_list[0][i_re]));
+    simd_cf_interleaved acc_re = _mm256_mul_ps(re_in, port_weights_simd[0].re);
+    simd_cf_interleaved acc_im = _mm256_mul_ps(_mm256_shuffle_ps(re_in, re_in, 0xb1), port_weights_simd[0].im);
 
     for (unsigned i_layer = 1; i_layer != nof_layers; ++i_layer) {
-      // Load layer RE.
-      re_in = _mm256_loadu_ps(reinterpret_cast<const float*>(&layer_re_view_list[i_layer][i_re]));
-
-      // Multiply the input REs by the coefficient and add to the contributions of other layers.
-      re_out += re_in * port_weights_simd[i_layer];
+      re_in  = _mm256_loadu_ps(reinterpret_cast<const float*>(&layer_re_view_list[i_layer][i_re]));
+      acc_re = _mm256_fmadd_ps(re_in, port_weights_simd[i_layer].re, acc_re);
+      acc_im = _mm256_fmadd_ps(_mm256_shuffle_ps(re_in, re_in, 0xb1), port_weights_simd[i_layer].im, acc_im);
     }
 
-    // Store.
-    _mm_storeu_si128(reinterpret_cast<__m128i*>(&port_re[i_re]), ps_to_cbf16(re_out));
+    return _mm256_addsub_ps(acc_re, acc_im);
+  };
+
+  unsigned i_re = 0;
+
+  for (unsigned max_re = (nof_re / (2 * AVX2_CF_SIZE)) * (2 * AVX2_CF_SIZE); i_re != max_re; i_re += 2 * AVX2_CF_SIZE) {
+    _mm256_storeu_si256(reinterpret_cast<__m256i*>(&port_re[i_re]),
+                        simd_cf_to_cbf16(precode(i_re), precode(i_re + AVX2_CF_SIZE)));
+  }
+
+  if (nof_re - i_re >= AVX2_CF_SIZE) {
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(&port_re[i_re]), simd_cf_to_cbf16(precode(i_re)));
+    i_re += AVX2_CF_SIZE;
   }
 
   for (; i_re != nof_re; ++i_re) {
@@ -110,217 +151,291 @@ void channel_precoder_avx2::apply_precoding_port(span<cbf16_t>             port_
   }
 }
 
-/// Converts ci8_t symbols into cf_t and stores them on four AVX2 registers.
-static void from_ci8_to_cf(simd_cf_interleaved& out0,
-                           simd_cf_interleaved& out1,
-                           simd_cf_interleaved& out2,
-                           simd_cf_interleaved& out3,
-                           const __m256i        in)
+/// Loads two unaligned 128-bit words into the lower and higher lanes of an AVX2 register.
+static __m256i simd_loadu2_si128(const int8_t* hi, const int8_t* lo)
 {
-  // Expand to 16 bit.
-  __m256i in16_0 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(in, 0));
-  __m256i in16_1 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(in, 1));
-
-  // Expand to 32 bit.
-  __m256i in32_0 = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(in16_0, 0));
-  __m256i in32_1 = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(in16_0, 1));
-  __m256i in32_2 = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(in16_1, 0));
-  __m256i in32_3 = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(in16_1, 1));
-
-  // Convert to floating point.
-  out0 = _mm256_cvtepi32_ps(in32_0);
-  out1 = _mm256_cvtepi32_ps(in32_1);
-  out2 = _mm256_cvtepi32_ps(in32_2);
-  out3 = _mm256_cvtepi32_ps(in32_3);
+  return _mm256_inserti128_si256(_mm256_castsi128_si256(_mm_loadu_si128(reinterpret_cast<const __m128i*>(lo))),
+                                 _mm_loadu_si128(reinterpret_cast<const __m128i*>(hi)),
+                                 1);
 }
 
-/// Applies layer mapping for two layers and converts the symbols to cf_t.
-static void layer2_map_and_ci8_to_cf(simd_cf_interleaved& out0_l0,
-                                     simd_cf_interleaved& out0_l1,
-                                     simd_cf_interleaved& out1_l0,
-                                     simd_cf_interleaved& out1_l1,
-                                     const __m256i        in)
+/// \brief Converts the ci8_t symbol in the lower 16 bits of each 32-bit word into split complex floats.
+///
+/// Each byte is moved to the most significant byte of the 32-bit word and converted to float. The result is scaled
+/// by \ref CI8_MSB_SCALING, which is compensated in the precoding weights.
+static simd_cf_t simd_ci8_lo_to_cf(__m256i in)
 {
-  // Apply layer mapping to each 128 bit lane. The lower 128 bits of the input register contain REs 0..3, while the
-  // higher 128 bits contain REs 4..7.
-  __m256i idx = _mm256_setr_epi8(
-      0, 1, 4, 5, 8, 9, 12, 13, 2, 3, 6, 7, 10, 11, 14, 15, 0, 1, 4, 5, 8, 9, 12, 13, 2, 3, 6, 7, 10, 11, 14, 15);
-  __m256i tmp = _mm256_shuffle_epi8(in, idx);
-
-  from_ci8_to_cf(out0_l0, out0_l1, out1_l0, out1_l1, tmp);
+  const __m256i mask = _mm256_set1_epi32(0xff000000);
+  return {_mm256_cvtepi32_ps(_mm256_slli_epi32(in, 24)),
+          _mm256_cvtepi32_ps(_mm256_and_si256(_mm256_slli_epi32(in, 16), mask))};
 }
 
-/// Applies layer mapping for three layers and converts the symbols to cf_t.
-static void layer3_map_and_ci8_to_cf(simd_cf_interleaved& out_l0,
-                                     simd_cf_interleaved& out_l1,
-                                     simd_cf_interleaved& out_l2,
-                                     const __m256i        in)
+/// Converts the ci8_t symbol in the upper 16 bits of each 32-bit word into split complex floats.
+static simd_cf_t simd_ci8_hi_to_cf(__m256i in)
 {
-  simd_cf_interleaved unused;
-
-  // Align the symbol corresponding to RE 2 and layer 0 to the 128 bit boundary.
-  __m256i idx = _mm256_setr_epi32(0, 1, 2, 0, 3, 4, 5, 0);
-  __m256i tmp = _mm256_permutevar8x32_epi32(in, idx);
-
-  // Deinterlave 16 bit symbols belonging to REs 0 and 1 using the lower 128 bits and symbols belonging to REs 2 and 3
-  // using the higher 128 bits. This achieves layer mapping for REs 0..1 and 2..3 separately.
-  idx = _mm256_setr_epi8(
-      0, 1, 6, 7, 2, 3, 8, 9, 4, 5, 10, 11, 0, 0, 0, 0, 0, 1, 6, 7, 2, 3, 8, 9, 4, 5, 10, 11, 0, 0, 0, 0);
-  tmp = _mm256_shuffle_epi8(tmp, idx);
-
-  // Interleave the lower and higher 128 bits in groups of 2 symbols, this concatenates each REs 0..4 for all layers.
-  idx = _mm256_setr_epi32(0, 4, 1, 5, 2, 6, 0, 0);
-  tmp = _mm256_permutevar8x32_epi32(tmp, idx);
-
-  from_ci8_to_cf(out_l0, out_l1, out_l2, unused, tmp);
+  const __m256i mask = _mm256_set1_epi32(0xff000000);
+  return {_mm256_cvtepi32_ps(_mm256_and_si256(_mm256_slli_epi32(in, 8), mask)),
+          _mm256_cvtepi32_ps(_mm256_and_si256(in, mask))};
 }
 
-/// Applies layer mapping for four layers and converts the symbols to cf_t.
-static void layer4_map_and_ci8_to_cf(simd_cf_interleaved& out_l0,
-                                     simd_cf_interleaved& out_l1,
-                                     simd_cf_interleaved& out_l2,
-                                     simd_cf_interleaved& out_l3,
-                                     const __m256i        in)
+/// \brief Applies layer mapping and converts eight RE to split complex floats.
+///
+/// The generic implementation supports five to eight layers. The symbols of each RE are loaded with a 16-byte load.
+/// For fewer than eight layers, the load also reads the first symbols of the next RE, see
+/// \ref simd_layer_map_nof_guard_re. The specializations for one to four layers do not read past the eight RE.
+///
+/// \tparam     NofLayers Number of layers.
+/// \param[out] out       Split complex floats, one register per layer, each holding the eight RE of that layer. The
+///                       values are scaled by \ref CI8_MSB_SCALING.
+/// \param[in]  in        Layer-interleaved ci8_t symbols of the eight RE, layer index varying fastest.
+template <unsigned NofLayers>
+static void simd_layer_n_map_and_ci8_to_cf(simd_cf_t (&out)[NofLayers], const ci8_t* in)
 {
-  // Apply layer mapping to each 128 bit lane. The lower 128 bits of the input register contain REs 0 and 1, while the
-  // higher 128 bits contain REs 2 and 3.
-  __m256i idx = _mm256_setr_epi8(
-      0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15, 0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15);
-  __m256i tmp = _mm256_shuffle_epi8(in, idx);
+  static_assert((NofLayers >= 5) && (NofLayers <= 8), "Invalid number of layers.");
 
-  // Interleave the lower and higher 128 bits in groups of 2 symbols, this concatenates each REs 0..4 for all layers.
-  idx = _mm256_setr_epi32(0, 4, 1, 5, 2, 6, 3, 7);
-  tmp = _mm256_permutevar8x32_epi32(tmp, idx);
+  // Number of bytes per RE in the input array.
+  static constexpr unsigned nof_bytes_per_re = sizeof(ci8_t) * NofLayers;
 
-  from_ci8_to_cf(out_l0, out_l1, out_l2, out_l3, tmp);
+  const int8_t* in8    = reinterpret_cast<const int8_t*>(in);
+  auto          get_re = [in8](unsigned i_re) { return in8 + nof_bytes_per_re * i_re; };
+
+  // Load RE j in the lower lane and RE j + 4 in the upper lane, so the in-lane transpose returns the RE in order.
+  __m256i v0 = simd_loadu2_si128(get_re(4), get_re(0));
+  __m256i v1 = simd_loadu2_si128(get_re(5), get_re(1));
+  __m256i v2 = simd_loadu2_si128(get_re(6), get_re(2));
+  __m256i v3 = simd_loadu2_si128(get_re(7), get_re(3));
+
+  // Transpose the 32-bit words, each word containing one symbol for two consecutive layers.
+  __m256i t0 = _mm256_unpacklo_epi32(v0, v1);
+  __m256i t1 = _mm256_unpackhi_epi32(v0, v1);
+  __m256i t2 = _mm256_unpacklo_epi32(v2, v3);
+  __m256i t3 = _mm256_unpackhi_epi32(v2, v3);
+
+  __m256i l01 = _mm256_unpacklo_epi64(t0, t2);
+  __m256i l23 = _mm256_unpackhi_epi64(t0, t2);
+  __m256i l45 = _mm256_unpacklo_epi64(t1, t3);
+
+  out[0] = simd_ci8_lo_to_cf(l01);
+  out[1] = simd_ci8_hi_to_cf(l01);
+  out[2] = simd_ci8_lo_to_cf(l23);
+  out[3] = simd_ci8_hi_to_cf(l23);
+  out[4] = simd_ci8_lo_to_cf(l45);
+  if (NofLayers > 5) {
+    out[5] = simd_ci8_hi_to_cf(l45);
+  }
+  if (NofLayers > 6) {
+    __m256i l67 = _mm256_unpackhi_epi64(t1, t3);
+    out[6]      = simd_ci8_lo_to_cf(l67);
+    if (NofLayers == 8) {
+      out[7] = simd_ci8_hi_to_cf(l67);
+    }
+  }
+}
+
+/// Number of RE past the processed RE that \ref simd_layer_n_map_and_ci8_to_cf may read.
+template <unsigned NofLayers>
+static constexpr unsigned simd_layer_map_nof_guard_re = ((NofLayers >= 5) && (NofLayers < 8)) ? 1 : 0;
+
+/// Applies layer mapping for one layer and converts eight symbols to split complex floats.
+template <>
+void simd_layer_n_map_and_ci8_to_cf<1>(simd_cf_t (&out)[1], const ci8_t* in)
+{
+  out[0] = simd_ci8_lo_to_cf(_mm256_cvtepu16_epi32(_mm_loadu_si128(reinterpret_cast<const __m128i*>(in))));
+}
+
+/// Applies layer mapping for two layers and converts eight RE to split complex floats.
+template <>
+void simd_layer_n_map_and_ci8_to_cf<2>(simd_cf_t (&out)[2], const ci8_t* in)
+{
+  // Each 32-bit word already contains the symbols of both layers for one RE.
+  __m256i tmp = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(in));
+
+  out[0] = simd_ci8_lo_to_cf(tmp);
+  out[1] = simd_ci8_hi_to_cf(tmp);
+}
+
+/// Applies layer mapping for three layers and converts eight RE to split complex floats.
+template <>
+void simd_layer_n_map_and_ci8_to_cf<3>(simd_cf_t (&out)[3], const ci8_t* in)
+{
+  // Number of bytes per RE in the input array.
+  static constexpr unsigned nof_bytes_per_re = sizeof(ci8_t) * 3;
+
+  const int8_t* in8    = reinterpret_cast<const int8_t*>(in);
+  auto          get_re = [in8](unsigned i_re) { return in8 + nof_bytes_per_re * i_re; };
+
+  // Load REs 0, 1, 4 and 5 starting at the beginning of each lane, and REs 2, 3, 6 and 7 starting four bytes into each
+  // lane. The second load ends on the last input byte, so no data is read past the input.
+  __m256i x = simd_loadu2_si128(get_re(4), get_re(0));
+  __m256i y = simd_loadu2_si128(get_re(6) - 4, get_re(2) - 4);
+
+  // Arrange each lane as the symbols of layers 0 and 1 of two consecutive RE followed by the symbols of layer 2. The
+  // indices of y are offset by four bytes, and the zeroing indices keep the most significant bit set after the offset.
+  const __m256i idx_x =
+      _mm256_broadcastsi128_si256(_mm_setr_epi8(0, 1, 2, 3, 6, 7, 8, 9, 4, 5, -128, -128, 10, 11, -128, -128));
+  const __m256i idx_y = _mm256_add_epi8(idx_x, _mm256_set1_epi8(4));
+  x                   = _mm256_shuffle_epi8(x, idx_x);
+  y                   = _mm256_shuffle_epi8(y, idx_y);
+
+  // Gather layers 0 and 1, and layer 2, for REs 0 to 7.
+  __m256  xf  = _mm256_castsi256_ps(x);
+  __m256  yf  = _mm256_castsi256_ps(y);
+  __m256i l01 = _mm256_castps_si256(_mm256_shuffle_ps(xf, yf, 0x44));
+  __m256i l2  = _mm256_castps_si256(_mm256_shuffle_ps(xf, yf, 0xee));
+
+  out[0] = simd_ci8_lo_to_cf(l01);
+  out[1] = simd_ci8_hi_to_cf(l01);
+  out[2] = simd_ci8_lo_to_cf(l2);
+}
+
+/// Applies layer mapping for four layers and converts eight RE to split complex floats.
+template <>
+void simd_layer_n_map_and_ci8_to_cf<4>(simd_cf_t (&out)[4], const ci8_t* in)
+{
+  // Number of bytes per RE in the input array.
+  static constexpr unsigned nof_bytes_per_re = sizeof(ci8_t) * 4;
+
+  const int8_t* in8    = reinterpret_cast<const int8_t*>(in);
+  auto          get_re = [in8](unsigned i_re) { return in8 + nof_bytes_per_re * i_re; };
+
+  // Load REs 0, 1, 4 and 5, and REs 2, 3, 6 and 7, so that the in-lane shuffles return the RE in order.
+  __m256 a = _mm256_castsi256_ps(simd_loadu2_si128(get_re(4), get_re(0)));
+  __m256 b = _mm256_castsi256_ps(simd_loadu2_si128(get_re(6), get_re(2)));
+
+  // Gather layers 0 and 1, and layers 2 and 3, for REs 0 to 7.
+  __m256i l01 = _mm256_castps_si256(_mm256_shuffle_ps(a, b, 0x88));
+  __m256i l23 = _mm256_castps_si256(_mm256_shuffle_ps(a, b, 0xdd));
+
+  out[0] = simd_ci8_lo_to_cf(l01);
+  out[1] = simd_ci8_hi_to_cf(l01);
+  out[2] = simd_ci8_lo_to_cf(l23);
+  out[3] = simd_ci8_hi_to_cf(l23);
+}
+
+/// \brief Applies layer mapping and precoding to one block of \ref AVX2_LAYER_MAP_NOF_RE RE.
+///
+/// \param[out] outputs Precoded RE of each port. The block is stored starting at \c i_re.
+/// \param[in]  i_re    Index of the first RE of the block within each port.
+/// \param[in]  input   Layer-interleaved symbols of the block, followed by \ref simd_layer_map_nof_guard_re RE.
+/// \param[in]  weights Precoding weights for each port and layer.
+template <unsigned NofLayers>
+static void simd_layer_map_and_precode_block(span<span<cbf16_t>> outputs,
+                                             unsigned            i_re,
+                                             const ci8_t*        input,
+                                             const simd_cf_t (*weights)[precoding_constants::MAX_NOF_LAYERS])
+{
+  // Layer map and convert to complex float.
+  simd_cf_t in[NofLayers];
+  simd_layer_n_map_and_ci8_to_cf<NofLayers>(in, input);
+
+  for (unsigned i_port = 0, nof_ports = outputs.size(); i_port != nof_ports; ++i_port) {
+    // Apply precoding.
+    simd_cf_t result = in[0] * weights[i_port][0];
+    for (unsigned i_layer = 1; i_layer != NofLayers; ++i_layer) {
+      simd_cmac(result, in[i_layer], weights[i_port][i_layer]);
+    }
+
+    // Store.
+    _mm256_storeu_si256(reinterpret_cast<__m256i*>(&outputs[i_port][i_re]), simd_cf_to_cbf16(result));
+  }
+}
+
+/// \brief Applies layer mapping and precoding to all the RE.
+///
+/// The RE that do not fill a complete block, including those the layer mapping may read past, are copied into a
+/// zero-padded block that is processed with the same SIMD instructions.
+///
+/// \param[out] outputs    Precoded RE of each port.
+/// \param[in]  input      Layer-interleaved input symbols.
+/// \param[in]  weights    Precoding weights for each port and layer.
+/// \param[in]  nof_layers Actual number of layers. The call recurses down to the instantiation with \c NofLayers equal
+///                        to \c nof_layers.
+template <unsigned NofLayers>
+static void simd_layer_map_and_precode(span<span<cbf16_t>> outputs,
+                                       span<const ci8_t>   input,
+                                       const simd_cf_t (*weights)[precoding_constants::MAX_NOF_LAYERS],
+                                       unsigned nof_layers)
+{
+  if (nof_layers != NofLayers) {
+    simd_layer_map_and_precode<NofLayers - 1>(outputs, input, weights, nof_layers);
+    return;
+  }
+
+  static constexpr unsigned nof_guard_re = simd_layer_map_nof_guard_re<NofLayers>;
+
+  unsigned nof_re      = outputs.front().size();
+  unsigned nof_re_simd = (nof_re > nof_guard_re) ? (nof_re - nof_guard_re) : 0;
+  unsigned i_re_end    = (nof_re_simd / AVX2_LAYER_MAP_NOF_RE) * AVX2_LAYER_MAP_NOF_RE;
+  unsigned nof_ports   = outputs.size();
+
+  for (unsigned i_re = 0; i_re != i_re_end; i_re += AVX2_LAYER_MAP_NOF_RE) {
+    simd_layer_map_and_precode_block<NofLayers>(outputs, i_re, &input[NofLayers * i_re], weights);
+  }
+
+  // Number of RE left for processing, at most one block.
+  unsigned nof_re_tail = nof_re - i_re_end;
+  if (nof_re_tail == 0) {
+    return;
+  }
+
+  // Zero-padded input, one block plus the RE that the layer mapping may read past the block.
+  static constexpr unsigned             nof_padded_symbols = NofLayers * (AVX2_LAYER_MAP_NOF_RE + nof_guard_re);
+  std::array<ci8_t, nof_padded_symbols> input_padded       = {};
+
+  // Copy the remaining REs in the input to the padded input buffer.
+  span<const ci8_t> input_tail = input.subspan(NofLayers * i_re_end, NofLayers * nof_re_tail);
+  ocuduvec::copy(span<ci8_t>(input_padded).first(input_tail.size()), input_tail);
+
+  // Padded output, one block for each port.
+  using padded_block = std::array<cbf16_t, AVX2_LAYER_MAP_NOF_RE>;
+  static_vector<padded_block, precoding_constants::MAX_NOF_PORTS> outputs_padded(nof_ports);
+
+  // Build a vector containing a view of each output padded block per port.
+  static_vector<span<cbf16_t>, precoding_constants::MAX_NOF_PORTS> outputs_padded_views(outputs_padded.begin(),
+                                                                                        outputs_padded.end());
+
+  // Layer map and precode the padded block.
+  simd_layer_map_and_precode_block<NofLayers>(outputs_padded_views, 0, input_padded.data(), weights);
+
+  // Copy the valid RE to the outputs.
+  for (unsigned i_port = 0; i_port != nof_ports; ++i_port) {
+    span<cbf16_t> port_tail = outputs[i_port].subspan(i_re_end, nof_re_tail);
+    ocuduvec::copy(port_tail, outputs_padded_views[i_port].first(port_tail.size()));
+  }
+}
+
+template <>
+void simd_layer_map_and_precode<0>(span<span<cbf16_t>> /* outputs */,
+                                   span<const ci8_t> /* input */,
+                                   const simd_cf_t (* /* weights */)[precoding_constants::MAX_NOF_LAYERS],
+                                   unsigned /* nof_layers */)
+{
+  // Do nothing.
 }
 
 void channel_precoder_avx2::apply_layer_map_and_precoding(re_buffer_writer<cbf16_t>&     output,
                                                           span<const ci8_t>              input,
                                                           const precoding_weight_matrix& precoding) const
 {
-  unsigned nof_re     = output.get_nof_re();
   unsigned nof_layers = precoding.get_nof_layers();
   unsigned nof_ports  = precoding.get_nof_ports();
 
-  // Registers to load the precoding weights.
+  ocudu_assert((nof_layers >= 1) && (nof_layers <= 8), "The number of layers must be in the range [1, 8].");
+
+  // Registers to load the precoding weights, scaled to compensate the ci8_t to float conversion.
   simd_cf_t weights[precoding_constants::MAX_NOF_PORTS][precoding_constants::MAX_NOF_LAYERS];
 
   // Views to store the precoded symbols.
-  span<cbf16_t> outputs[precoding_constants::MAX_NOF_PORTS];
+  std::array<span<cbf16_t>, precoding_constants::MAX_NOF_PORTS> outputs;
 
   for (unsigned i_port = 0; i_port != nof_ports; ++i_port) {
     span<const cf_t> port_coeff = precoding.get_port_coefficients(i_port);
     outputs[i_port]             = output.get_slice(i_port);
     for (unsigned i_layer = 0; i_layer != nof_layers; ++i_layer) {
-      weights[i_port][i_layer].set1(port_coeff[i_layer]);
+      weights[i_port][i_layer].set1(port_coeff[i_layer] * CI8_MSB_SCALING);
     }
   }
 
-  unsigned i_re = 0;
-  if (nof_layers == 1) {
-    for (unsigned i_re_end = (nof_re / AVX2_CI8_SIZE) * AVX2_CI8_SIZE; i_re != i_re_end; i_re += AVX2_CI8_SIZE) {
-      // Load input.
-      __m256i in8 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(input.data() + i_re));
-
-      // Convert to complex float.
-      simd_cf_interleaved infp_0, infp_1, infp_2, infp_3;
-      from_ci8_to_cf(infp_0, infp_1, infp_2, infp_3, in8);
-
-      for (unsigned i_port = 0; i_port != nof_ports; ++i_port) {
-        // Apply precoding.
-        simd_cf_interleaved result0 = infp_0 * weights[i_port][0];
-        simd_cf_interleaved result1 = infp_1 * weights[i_port][0];
-        simd_cf_interleaved result2 = infp_2 * weights[i_port][0];
-        simd_cf_interleaved result3 = infp_3 * weights[i_port][0];
-
-        // Store.
-        _mm_storeu_si128(reinterpret_cast<__m128i*>(&outputs[i_port][i_re + 0 * AVX2_CF_SIZE]), ps_to_cbf16(result0));
-        _mm_storeu_si128(reinterpret_cast<__m128i*>(&outputs[i_port][i_re + 1 * AVX2_CF_SIZE]), ps_to_cbf16(result1));
-        _mm_storeu_si128(reinterpret_cast<__m128i*>(&outputs[i_port][i_re + 2 * AVX2_CF_SIZE]), ps_to_cbf16(result2));
-        _mm_storeu_si128(reinterpret_cast<__m128i*>(&outputs[i_port][i_re + 3 * AVX2_CF_SIZE]), ps_to_cbf16(result3));
-      }
-    }
-  }
-
-  if (nof_layers == 2) {
-    static constexpr unsigned AVX2_NOF_RE = AVX2_CI8_SIZE / 2;
-    for (unsigned i_re_end = (nof_re / AVX2_NOF_RE) * AVX2_NOF_RE; i_re != i_re_end; i_re += AVX2_NOF_RE) {
-      // Load input.
-      __m256i in8 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&input[2 * i_re]));
-
-      // Layer map and convert to complex float.
-      simd_cf_interleaved infp0_l0, infp0_l1, infp1_l0, infp1_l1;
-      layer2_map_and_ci8_to_cf(infp0_l0, infp0_l1, infp1_l0, infp1_l1, in8);
-
-      for (unsigned i_port = 0; i_port != nof_ports; ++i_port) {
-        // Apply precoding.
-        simd_cf_interleaved result0 = infp0_l0 * weights[i_port][0] + infp0_l1 * weights[i_port][1];
-        simd_cf_interleaved result1 = infp1_l0 * weights[i_port][0] + infp1_l1 * weights[i_port][1];
-
-        // Store.
-        _mm_storeu_si128(reinterpret_cast<__m128i*>(&outputs[i_port][i_re]), ps_to_cbf16(result0));
-        _mm_storeu_si128(reinterpret_cast<__m128i*>(&outputs[i_port][i_re + AVX2_CF_SIZE]), ps_to_cbf16(result1));
-      }
-    }
-  }
-
-  if (nof_layers == 3) {
-    static constexpr unsigned AVX2_NOF_RE = AVX2_CI8_SIZE / 4;
-    // For three layers, more input symbols are loaded than those actually used. The last loop iteration must be skipped
-    // in order to avoid exceeding the input buffer boundaries.
-    unsigned i_re_end = (nof_re > AVX2_NOF_RE) ? (nof_re / AVX2_NOF_RE) * AVX2_NOF_RE - AVX2_NOF_RE : 0U;
-    for (; i_re != i_re_end; i_re += AVX2_NOF_RE) {
-      // Load input.
-      __m256i in8 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&input[3 * i_re]));
-
-      // Layer map and convert to complex float.
-      simd_cf_interleaved infp_0, infp_1, infp_2;
-      layer3_map_and_ci8_to_cf(infp_0, infp_1, infp_2, in8);
-
-      for (unsigned i_port = 0; i_port != nof_ports; ++i_port) {
-        // Apply precoding.
-        simd_cf_interleaved result =
-            infp_0 * weights[i_port][0] + infp_1 * weights[i_port][1] + infp_2 * weights[i_port][2];
-
-        // Store.
-        _mm_storeu_si128(reinterpret_cast<__m128i*>(&outputs[i_port][i_re]), ps_to_cbf16(result));
-      }
-    }
-  }
-
-  if (nof_layers == 4) {
-    static constexpr unsigned AVX2_NOF_RE = AVX2_CI8_SIZE / 4;
-    for (unsigned i_re_end = (nof_re / AVX2_NOF_RE) * AVX2_NOF_RE; i_re != i_re_end; i_re += AVX2_NOF_RE) {
-      // Load input.
-      __m256i in8 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&input[4 * i_re]));
-
-      // Layer map and convert to complex float.
-      simd_cf_interleaved infp_0, infp_1, infp_2, infp_3;
-      layer4_map_and_ci8_to_cf(infp_0, infp_1, infp_2, infp_3, in8);
-
-      for (unsigned i_port = 0; i_port != nof_ports; ++i_port) {
-        // Apply precoding.
-        simd_cf_interleaved result = infp_0 * weights[i_port][0] + infp_1 * weights[i_port][1] +
-                                     infp_2 * weights[i_port][2] + infp_3 * weights[i_port][3];
-
-        // Store.
-        _mm_storeu_si128(reinterpret_cast<__m128i*>(&outputs[i_port][i_re]), ps_to_cbf16(result));
-      }
-    }
-  }
-
-  // Process remaining symbols.
-  for (; i_re != nof_re; ++i_re) {
-    for (unsigned i_port = 0; i_port != nof_ports; ++i_port) {
-      span<const cf_t> port_weights = precoding.get_port_coefficients(i_port);
-      span<cbf16_t>    port_re      = output.get_slice(i_port);
-
-      cf_t sum = to_cf(input[nof_layers * i_re]) * port_weights[0];
-      for (unsigned i_layer = 1; i_layer != nof_layers; ++i_layer) {
-        sum += to_cf(input[nof_layers * i_re + i_layer]) * port_weights[i_layer];
-      }
-      port_re[i_re] = sum;
-    }
-  }
+  span<span<cbf16_t>> port_outputs = span<span<cbf16_t>>(outputs).first(nof_ports);
+  simd_layer_map_and_precode<precoding_constants::MAX_NOF_LAYERS>(port_outputs, input, weights, nof_layers);
 }

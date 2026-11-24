@@ -201,7 +201,7 @@ struct ssb_information {
 
 /// Stores the information associated with an SIB1 or other SI allocation.
 struct sib_information {
-  enum si_indicator_type { sib1, other_si } si_indicator;
+  enum si_indicator_type { sib1, other_si } si_indicator = sib1;
   /// Position of the SI message in the SIB1 schedulingInfoList of the SI epoch this grant was scheduled with.
   std::optional<uint8_t> si_msg_index;
   /// \brief SIBs carried by the SI message. Empty for SIB1.
@@ -216,7 +216,7 @@ struct sib_information {
   /// If the SI message is segmented, all transmission events are counted, regardless of the transmitted segment.
   unsigned long nof_txs;
   /// Set to \c true if the SIB allocation is for an SIB retransmission, \c false otherwise.
-  bool              is_repetition;
+  bool              is_repetition = false;
   pdsch_information pdsch_cfg;
 };
 

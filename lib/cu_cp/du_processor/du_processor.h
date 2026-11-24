@@ -113,6 +113,12 @@ public:
   /// \brief Notify the CU-CP about the cells a DU stopped serving, so their logical cells are de-realized.
   virtual void on_du_cells_removed(span<const nr_cell_identity> cells) = 0;
 
+  /// \brief Asks the CU-CP if an RRC_INACTIVE UE can resume.
+  /// \param[in] ue_index The index of the RRC_INACTIVE UE.
+  /// \param[in] resume_cause The resume cause of the RRC Resume Request.
+  /// \return True if the UE is accepted.
+  virtual bool on_ue_resume_admission_request(cu_cp_ue_index_t ue_index, resume_cause_t resume_cause) = 0;
+
   /// \brief Notifies about a successful RRC UE creation.
   /// \param[in] ue_index The index of the UE.
   /// \param[in] rrc_ue The created RRC UE.
@@ -127,6 +133,12 @@ public:
   /// \brief Notify the CU-CP to completly remove a UE from the CU-CP.
   /// \param[in] ue_index The index of the UE to remove.
   virtual async_task<void> on_ue_removal_required(cu_cp_ue_index_t ue_index) = 0;
+
+  /// \brief Notify the CU-CP about an E-CID measurement report of the gNB-DU.
+  virtual void on_e_cid_measurement_report(const e_cid_measurement_report_t& report) = 0;
+
+  /// \brief Notify the CU-CP about an E-CID measurement failure indication of the gNB-DU.
+  virtual void on_e_cid_measurement_failure_indication(const e_cid_measurement_failure_indication_t& ind) = 0;
 
   /// \brief Notify the CU-CP to release a UE.
   /// \param[in] request The release request.

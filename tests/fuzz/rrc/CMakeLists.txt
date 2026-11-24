@@ -57,3 +57,5 @@ target_link_libraries(rrc_cu_cp_fuzzer
 target_compile_options(rrc_cu_cp_fuzzer PRIVATE ${FUZZ_SANITIZER_FLAGS_COMPILE})
 
 add_dependencies(fuzz_targets rrc_cu_cp_fuzzer)
+
+add_fuzz_corpus(rrc_fuzz_corpus seeds.py)

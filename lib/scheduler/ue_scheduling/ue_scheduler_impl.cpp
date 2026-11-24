@@ -5,9 +5,25 @@
 
 #include "ue_scheduler_impl.h"
 #include "../configured_grant/configured_grant_type1_sched_impl.h"
+#include "../configured_grant/configured_grant_type2_sched_impl.h"
 #include "../logging/cell_metrics_handler.h"
 
 using namespace ocudu;
+
+static std::unique_ptr<configured_grant_scheduler> create_cg_scheduler(const cell_configuration& cell_cfg,
+                                                                       uci_allocator&            uci_alloc,
+                                                                       ue_repository&            ues,
+                                                                       pdcch_resource_allocator& pdcch_alloc)
+{
+  if (not cell_cfg.params.init_bwp.cg_cfg.has_value()) {
+    return nullptr;
+  }
+  const auto& cell_cg_cfg = *cell_cfg.params.init_bwp.cg_cfg;
+  if (cell_cg_cfg.is_type2()) {
+    return std::make_unique<configured_grant_type2_sched_impl>(cell_cfg, cell_cg_cfg, uci_alloc, pdcch_alloc, ues);
+  }
+  return std::make_unique<configured_grant_type1_sched_impl>(cell_cfg, cell_cg_cfg, uci_alloc, ues);
+}
 
 ue_scheduler_impl::ue_scheduler_impl(const scheduler_ue_expert_config& expert_cfg_) :
   expert_cfg(expert_cfg_), logger(ocudulog::fetch_basic_logger("SCHED")), ue_db(expert_cfg), event_mng(ue_db)
@@ -45,10 +61,32 @@ void ue_scheduler_impl::do_stop_cell(du_cell_index_t cell_index)
   ocudu_assert(cells.contains(cell_index), "Cell reference not found in the scheduler");
   auto& c = cells[cell_index];
 
+  // The other cells of the group may be running the UE scheduling, which reads the UEs and slices modified below.
+  std::unique_lock<std::mutex> lock(cell_group_mutex, std::defer_lock);
+  if (cells.size() > 1) {
+    lock.lock();
+  }
+
   // Stop sub-schedulers.
   c.fallback_sched.stop();
   if (c.cg_sched != nullptr) {
     c.cg_sched->stop();
+  }
+
+  // The UE repository drops every UE that has this cell, even as an SCell, without going through the UE removal event
+  // that detaches it from the slice schedulers. Detach it here from the slices and the pending triggered UL grants of
+  // each of its cells, or they would keep referencing a destroyed UE.
+  for (const ue& u : ue_db) {
+    if (u.find_cell(cell_index) == nullptr) {
+      continue;
+    }
+    for (unsigned i = 0, e = u.nof_cells(); i != e; ++i) {
+      const du_cell_index_t ue_cell_idx = u.get_cell(to_serv_cell_index(i)).cell_index;
+      if (cells.contains(ue_cell_idx)) {
+        cells[ue_cell_idx].slice_sched.rem_ue(u.ue_index);
+        cells[ue_cell_idx].trig_ul_sched.rem_ue(u.ue_index);
+      }
+    }
   }
 
   // Remove UEs from the UE repository associated with this cell.
@@ -94,13 +132,13 @@ void ue_scheduler_impl::run_sched_strategy(du_cell_index_t cell_index)
   }
 
   // Spans through the PUCCH grant list and check if there is any PUCCH grant scheduled for a UE that has a PUSCH.
-  for (const auto& pucch : slot_alloc.result.ul.pucchs) {
-    const auto* pusch_grant =
-        std::find_if(slot_alloc.result.ul.puschs.begin(),
-                     slot_alloc.result.ul.puschs.end(),
-                     [&pucch](const ul_sched_info& pusch) { return pusch.pusch_cfg.rnti == pucch.crnti; });
+  auto puschs = slot_alloc.result_reader().ul().puschs();
+  for (const auto& pucch : slot_alloc.result_reader().ul().pucchs()) {
+    const auto pusch_grant = std::find_if(puschs.begin(), puschs.end(), [&pucch](const ul_sched_info& pusch) {
+      return pusch.pusch_cfg.rnti == pucch.crnti;
+    });
 
-    if (pusch_grant != slot_alloc.result.ul.puschs.end()) {
+    if (pusch_grant != puschs.end()) {
       logger.error("rnti={}: has both PUCCH and PUSCH grants scheduled at slot {}, PUCCH  format={} with uci_bits={}",
                    pucch.crnti,
                    slot_alloc.slot,
@@ -121,7 +159,7 @@ void ue_scheduler_impl::post_process_results(du_cell_index_t cell_index, slot_po
 
   // Update the PUCCH power control data.
   const auto& slot_alloc = (*cell.cell_res_alloc)[0];
-  for (const auto& pucch : slot_alloc.result.ul.pucchs) {
+  for (const auto& pucch : slot_alloc.result_reader().ul().pucchs()) {
     ue_cell* ue_cc = cell.ue_cell_db.find_by_rnti(pucch.crnti);
     // The UE may be removed between the PUCCH allocation and its transmission.
     if (ue_cc == nullptr) {
@@ -132,7 +170,7 @@ void ue_scheduler_impl::post_process_results(du_cell_index_t cell_index, slot_po
   }
 
   // Record UEs needing triggered UL grants based on the finalized DL grant list.
-  cell.trig_ul_sched.process_dl_results(sl_tx, (*cell.cell_res_alloc)[0].result);
+  cell.trig_ul_sched.process_dl_results(sl_tx, (*cell.cell_res_alloc)[0].result_reader());
 
   ocudu_sanity_check(puxch_grant_sanitizer(*cell.cell_res_alloc, logger),
                      "PUCCH and PUSCH found for the same UE in the same slot");
@@ -205,12 +243,7 @@ ue_scheduler_impl::cell_context::cell_context(ue_scheduler_impl&                
                     *params.cell_res_alloc,
                     *params.cell_metrics,
                     ocudulog::fetch_basic_logger("SCHED")),
-  cg_sched(params.cell_res_alloc->cfg.params.init_bwp.cg_cfg.has_value()
-               ? std::make_unique<configured_grant_type1_sched_impl>(params.cell_res_alloc->cfg,
-                                                                     *params.cell_res_alloc->cfg.params.init_bwp.cg_cfg,
-                                                                     *params.uci_alloc,
-                                                                     parent.ue_db)
-               : nullptr),
+  cg_sched(create_cg_scheduler(params.cell_res_alloc->cfg, *params.uci_alloc, parent.ue_db, *params.pdcch_sched)),
   trig_ul_sched(parent.ue_db, params.cell_res_alloc->cfg.cell_index, params.cell_res_alloc->cfg.scs_common())
 {
 }

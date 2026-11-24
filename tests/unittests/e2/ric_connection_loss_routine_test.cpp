@@ -20,9 +20,13 @@ public:
   {
     return {};
   }
-  void
-  start_subscription(const asn1::e2ap::ric_request_id_s&, uint16_t, e2_event_manager&, e2_message_notifier&) override
+  bool start_subscription(const asn1::e2ap::ric_request_id_s&,
+                          uint16_t,
+                          e2_event_manager&,
+                          e2_message_notifier&,
+                          timer_factory) override
   {
+    return true;
   }
   void stop_subscription(const asn1::e2ap::ric_request_id_s&,
                          e2_event_manager&,

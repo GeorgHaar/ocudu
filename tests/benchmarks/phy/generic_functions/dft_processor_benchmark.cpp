@@ -4,16 +4,25 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "ocudu/phy/generic_functions/generic_functions_factories.h"
+#include "ocudu/ran/resource_block.h"
+#include "ocudu/ran/transform_precoding/transform_precoding_helpers.h"
 #include "ocudu/support/benchmark_utils.h"
+#include "ocudu/support/error_handling.h"
 #include "ocudu/support/ocudu_assert.h"
+#include <algorithm>
+#include <cmath>
 #include <getopt.h>
 #include <random>
+#include <set>
+#include <string>
+#include <vector>
 
 using namespace ocudu;
 
 // Random generator.
 static std::mt19937 rgen(0);
 
+static std::string dft_type                   = "all";
 static std::string fftw_optimization_str      = "estimate";
 static double      fftw_plan_creation_timeout = 1.0;
 static unsigned    nof_repetitions            = 1000;
@@ -21,7 +30,14 @@ static bool        silent                     = false;
 
 static void usage(const char* prog)
 {
-  fmt::print("Usage: {} [-F DFT factory] [-R repetitions]\n", prog);
+  fmt::print("Usage: {} [-D <dft_type>] [-R repetitions]\n", prog);
+  fmt::print("\t-D DFT library (fftw, fftz, generic, hwy, hwy:<arch>, all) [Default {}]\n"
+             "\t   Highway architectures that this CPU supports: {}\n",
+             dft_type,
+             [] {
+               std::string architectures = get_dft_processor_hwy_architectures();
+               return architectures.empty() ? std::string("none") : architectures;
+             }());
   fmt::print("\t-O Select FFTW optimization flag (estimate, measure, exhaustive) [Default {}]\n",
              fftw_optimization_str);
   fmt::print("\t-T Select FFTW plan creation maximum time in seconds, set to zero or lower for infinite [Default {}]\n",
@@ -34,8 +50,11 @@ static void usage(const char* prog)
 static void parse_args(int argc, char** argv)
 {
   int opt = 0;
-  while ((opt = getopt(argc, argv, "R:O:T:sh")) != -1) {
+  while ((opt = getopt(argc, argv, "D:R:O:T:sh")) != -1) {
     switch (opt) {
+      case 'D':
+        dft_type = std::string(optarg);
+        break;
       case 'R':
         nof_repetitions = std::strtol(optarg, nullptr, 10);
         break;
@@ -62,104 +81,90 @@ int main(int argc, char** argv)
 
   std::uniform_real_distribution<float> dist(-1.0, +1.0);
 
-  std::shared_ptr<dft_processor_factory> generic_dft_factory = create_dft_processor_factory_generic();
+  // Select the DFT factories. The Highway architecture follows the colon, auto by default. If none is specified
+  // ("all"), benchmark all the available factories.
+  std::vector<std::pair<std::string, std::shared_ptr<dft_processor_factory>>> dft_factories;
+  bool                                                                        all = (dft_type == "all");
+  if (all || (dft_type == "generic")) {
+    dft_factories.emplace_back("generic", create_dft_processor_factory_generic());
+  }
+  if (all || (dft_type == "fftw")) {
+    dft_factories.emplace_back("fftw",
+                               create_dft_processor_factory_fftw(fftw_optimization_str, fftw_plan_creation_timeout));
+  }
+  if (all || (dft_type == "fftz")) {
+    dft_factories.emplace_back("fftz", create_dft_processor_factory_fftz());
+  }
+  if (all || (dft_type == "hwy") || (dft_type.rfind("hwy:", 0) == 0)) {
+    std::string arch = (all || (dft_type == "hwy")) ? "auto" : dft_type.substr(4);
+    dft_factories.emplace_back((arch == "auto") ? "hwy" : fmt::format("hwy({})", arch),
+                               create_dft_processor_factory_hwy(arch));
+  }
+  report_fatal_error_if_not(!dft_factories.empty(), "Unknown DFT factory type: {}", dft_type);
 
-  std::shared_ptr<dft_processor_factory> fftw_dft_factory =
-      create_dft_processor_factory_fftw(fftw_optimization_str, fftw_plan_creation_timeout);
-
-  // Create DFT for 16-bit complex integers. It might not be available for machines other than x86.
-  std::shared_ptr<dft_processor_ci16_factory> dft_ci16_factory = create_dft_processor_ci16_factory_avx2();
-
-  std::shared_ptr<dft_processor_factory> fftz_dft_factory = create_dft_processor_factory_fftz();
+  // A selected DFT factory must be available. With all, the factories that are not available are skipped.
+  if (!all) {
+    report_fatal_error_if_not(dft_factories.front().second, "Failed to create DFT factory ({})", dft_type);
+  }
+  dft_factories.erase(std::remove_if(dft_factories.begin(),
+                                     dft_factories.end(),
+                                     [](const auto& entry) { return entry.second == nullptr; }),
+                      dft_factories.end());
 
   benchmarker perf_meas("DFT", nof_repetitions);
 
-  // Test for the most common DFT sizes
-  for (unsigned size : {128,  256,  384,  512,  768,   1024,  1536,  2048,  3072,  4096,
-                        4608, 6144, 8192, 9216, 12288, 16384, 18432, 24576, 36864, 49152}) {
+  // Most common OFDM DFT sizes.
+  std::set<unsigned> dft_sizes = {128,  256,  384,  512,  768,   1024,  1536,  2048,  3072,  4096,
+                                  4608, 6144, 8192, 9216, 12288, 16384, 18432, 24576, 36864, 49152};
+
+  // Transform precoding DFT sizes.
+  span<const bool> valid_nof_prbs = transform_precoding::get_valid_nof_prbs();
+  for (unsigned nof_prb = 0, nof_prb_end = valid_nof_prbs.size(); nof_prb != nof_prb_end; ++nof_prb) {
+    if (valid_nof_prbs[nof_prb]) {
+      dft_sizes.emplace(nof_prb * NOF_SUBCARRIERS_PER_RB);
+    }
+  }
+
+  for (unsigned size : dft_sizes) {
+    // Small DFTs run several times per measurement, so the clock overhead does not dominate.
+    unsigned nof_runs = std::max(1U, 4096U / size);
+
     for (dft_processor::direction direction : {dft_processor::direction::DIRECT, dft_processor::direction::INVERSE}) {
       // Create FFTW configuration;
       dft_processor::configuration config;
       config.size = size;
       config.dir  = direction;
 
-      // Benchmark generic DFT if available.
-      {
-        std::unique_ptr<dft_processor> dft = generic_dft_factory->create(config);
-        if (dft != nullptr) {
-          // Get DFT input buffer
-          span<cf_t> input = dft->get_input();
-
-          // Generate input random data.
-          for (cf_t& value : input) {
-            value = {dist(rgen), dist(rgen)};
-          }
-
-          // Measure performance.
-          perf_meas.new_measure(fmt::format("generic {} {}", size, dft_processor::direction_to_string(direction)),
-                                size,
-                                [&dft]() { dft->run(); });
+      for (const auto& [name, factory] : dft_factories) {
+        std::unique_ptr<dft_processor> dft = factory->create(config);
+        if (dft == nullptr) {
+          continue;
         }
-      }
 
-      // Benchmark FFTW DFT if available.
-      if (fftw_dft_factory) {
-        std::unique_ptr<dft_processor> dft = fftw_dft_factory->create(config);
-        if (dft != nullptr) {
-          // Get DFT input buffer
-          span<cf_t> input = dft->get_input();
-
-          // Generate input random data.
-          for (cf_t& value : input) {
-            value = {dist(rgen), dist(rgen)};
-          }
-
-          // Measure performance.
-          perf_meas.new_measure(fmt::format("fftw {} {}", size, dft_processor::direction_to_string(direction)),
-                                size,
-                                [&dft]() { dft->run(); });
+        // Generate input random data, with an output in the 16-bit integer range.
+        span<cf_t> input = dft->get_input();
+        for (cf_t& value : input) {
+          value = cf_t(dist(rgen), dist(rgen)) * (8192.0F / std::sqrt(static_cast<float>(size)));
         }
-      }
 
-      // Benchmark FFTZ DFT if available.
-      if (fftz_dft_factory) {
-        std::unique_ptr<dft_processor> dft = fftz_dft_factory->create(config);
-        if (dft != nullptr) {
-          // Get DFT input buffer
-          span<cf_t> input = dft->get_input();
-
-          // Generate input random data.
-          for (cf_t& value : input) {
-            value = {dist(rgen), dist(rgen)};
+        // Measure performance.
+        std::string direction_str = dft_processor::direction_to_string(direction);
+        perf_meas.new_measure(fmt::format("{} {} {}", name, size, direction_str), size * nof_runs, [&dft, nof_runs]() {
+          for (unsigned i_run = 0; i_run != nof_runs; ++i_run) {
+            dft->run();
           }
+        });
 
-          // Measure performance.
-          perf_meas.new_measure(fmt::format("fftz {} {}", size, dft_processor::direction_to_string(direction)),
-                                size,
-                                [&dft]() { dft->run(); });
-        }
-      }
-
-      // Benchmark CI16 DFT if available.
-      if (dft_ci16_factory) {
-        dft_processor_ci16::configuration config_ci16;
-        config_ci16.size = size;
-        config_ci16.dir  = direction == dft_processor::direction::DIRECT ? dft_processor_ci16::direction::direct
-                                                                         : dft_processor_ci16::direction::inverse;
-
-        std::unique_ptr<dft_processor_ci16> dft = dft_ci16_factory->create(config_ci16);
-        if (dft != nullptr) {
-          std::vector<ci16_t> input_ci16(size);
-          std::vector<ci16_t> output_ci16(size);
-
-          for (ci16_t& value : input_ci16) {
-            value = to_ci16({dist(rgen), dist(rgen)});
-          }
-
-          // Measure performance.
-          perf_meas.new_measure(fmt::format("ci16 {} {}", size, dft_processor::direction_to_string(direction)),
-                                size,
-                                [&dft, &input_ci16, &output_ci16]() { dft->run(output_ci16, input_ci16); });
+        // The Highway DFT also writes 16-bit integers directly.
+        if (name.rfind("hwy", 0) == 0) {
+          std::vector<ci16_t> output(size);
+          std::string ci16_name = (name.back() == ')') ? name.substr(0, name.size() - 1) + ",ci16)" : name + "(ci16)";
+          perf_meas.new_measure(
+              fmt::format("{} {} {}", ci16_name, size, direction_str), size * nof_runs, [&dft, &output, nof_runs]() {
+                for (unsigned i_run = 0; i_run != nof_runs; ++i_run) {
+                  dft->run(output);
+                }
+              });
         }
       }
     }

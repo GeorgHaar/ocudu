@@ -188,12 +188,10 @@ static void make_asn1_csi_resource_periodicity_and_offset(csi_res_periodicity_an
 asn1::rrc_nr::zp_csi_rs_res_s ocudu::odu::make_asn1_zp_csi_rs_resource(const zp_csi_rs_resource& cfg)
 {
   zp_csi_rs_res_s out{};
-  out.zp_csi_rs_res_id = static_cast<uint8_t>(cfg.id);
-  out.res_map          = make_asn1_nzp_csi_rs_resource_mapping(cfg.res_mapping);
-  if (cfg.period.has_value() and cfg.offset.has_value()) {
-    out.periodicity_and_offset_present = true;
-    make_asn1_csi_resource_periodicity_and_offset(out.periodicity_and_offset, cfg.period.value(), cfg.offset.value());
-  }
+  out.zp_csi_rs_res_id               = static_cast<uint8_t>(cfg.id);
+  out.res_map                        = make_asn1_nzp_csi_rs_resource_mapping(cfg.res_mapping);
+  out.periodicity_and_offset_present = true;
+  make_asn1_csi_resource_periodicity_and_offset(out.periodicity_and_offset, cfg.period, cfg.offset);
   return out;
 }
 
@@ -214,37 +212,17 @@ static asn1::rrc_nr::nzp_csi_rs_res_s make_asn1_nzp_csi_rs_resource(const nzp_cs
   out.nzp_csi_rs_res_id = cfg.res_id;
   out.res_map           = make_asn1_nzp_csi_rs_resource_mapping(cfg.res_mapping);
   out.pwr_ctrl_offset   = cfg.pwr_ctrl_offset;
-  if (cfg.pwr_ctrl_offset_ss_db.has_value()) {
-    out.pwr_ctrl_offset_ss_present = true;
-    switch (cfg.pwr_ctrl_offset_ss_db.value()) {
-      case -3:
-        out.pwr_ctrl_offset_ss = nzp_csi_rs_res_s::pwr_ctrl_offset_ss_opts::db_neg3;
-        break;
-      case 0:
-        out.pwr_ctrl_offset_ss = nzp_csi_rs_res_s::pwr_ctrl_offset_ss_opts::db0;
-        break;
-      case 3:
-        out.pwr_ctrl_offset_ss = nzp_csi_rs_res_s::pwr_ctrl_offset_ss_opts::db3;
-        break;
-      case 6:
-        out.pwr_ctrl_offset_ss = nzp_csi_rs_res_s::pwr_ctrl_offset_ss_opts::db6;
-        break;
-      default:
-        ocudu_assertion_failure("Invalid power control offset SS={}", cfg.pwr_ctrl_offset_ss_db.value());
-    }
-  }
-  out.scrambling_id = cfg.scrambling_id;
+  // The power of the NZP-CSI-RS relative to the SSS is always 0 dB.
+  out.pwr_ctrl_offset_ss_present = true;
+  out.pwr_ctrl_offset_ss         = nzp_csi_rs_res_s::pwr_ctrl_offset_ss_opts::db0;
+  out.scrambling_id              = cfg.scrambling_id;
 
-  if (cfg.csi_res_period.has_value() and cfg.csi_res_offset.has_value()) {
-    out.periodicity_and_offset_present = true;
-    make_asn1_csi_resource_periodicity_and_offset(
-        out.periodicity_and_offset, cfg.csi_res_period.value(), cfg.csi_res_offset.value());
-  }
+  out.periodicity_and_offset_present = true;
+  make_asn1_csi_resource_periodicity_and_offset(out.periodicity_and_offset, cfg.csi_res_period, cfg.csi_res_offset);
 
-  if (cfg.qcl_info_periodic_csi_rs.has_value()) {
-    out.qcl_info_periodic_csi_rs_present = true;
-    out.qcl_info_periodic_csi_rs         = cfg.qcl_info_periodic_csi_rs.value();
-  }
+  // The NZP-CSI-RS is always quasi co-located with the TCI state 0.
+  out.qcl_info_periodic_csi_rs_present = true;
+  out.qcl_info_periodic_csi_rs         = 0;
 
   return out;
 }
@@ -278,82 +256,33 @@ static asn1::rrc_nr::csi_im_res_s make_asn1_csi_im_resource(const csi_im_resourc
   csi_im_res_s out{};
   out.csi_im_res_id = cfg.res_id;
 
-  if (cfg.csi_im_res_element_pattern.has_value()) {
-    out.csi_im_res_elem_pattern_present = true;
-    switch (cfg.csi_im_res_element_pattern.value().pattern_type) {
-      case csi_im_resource::csi_im_resource_element_pattern_type::pattern0: {
-        auto& pattern = out.csi_im_res_elem_pattern.set_pattern0();
-        switch (cfg.csi_im_res_element_pattern.value().subcarrier_location) {
-          case 0:
-            pattern.subcarrier_location_p0 =
-                csi_im_res_s::csi_im_res_elem_pattern_c_::pattern0_s_::subcarrier_location_p0_opts::s0;
-            break;
-          case 2:
-            pattern.subcarrier_location_p0 =
-                csi_im_res_s::csi_im_res_elem_pattern_c_::pattern0_s_::subcarrier_location_p0_opts::s2;
-            break;
-          case 4:
-            pattern.subcarrier_location_p0 =
-                csi_im_res_s::csi_im_res_elem_pattern_c_::pattern0_s_::subcarrier_location_p0_opts::s4;
-            break;
-          case 6:
-            pattern.subcarrier_location_p0 =
-                csi_im_res_s::csi_im_res_elem_pattern_c_::pattern0_s_::subcarrier_location_p0_opts::s6;
-            break;
-          case 8:
-            pattern.subcarrier_location_p0 =
-                csi_im_res_s::csi_im_res_elem_pattern_c_::pattern0_s_::subcarrier_location_p0_opts::s8;
-            break;
-          case 10:
-            pattern.subcarrier_location_p0 =
-                csi_im_res_s::csi_im_res_elem_pattern_c_::pattern0_s_::subcarrier_location_p0_opts::s10;
-            break;
-          default:
-            ocudu_assertion_failure("Invalid CSI IM resource subcarrier location={}",
-                                    cfg.csi_im_res_element_pattern.value().subcarrier_location);
-        }
-        pattern.symbol_location_p0 = cfg.csi_im_res_element_pattern.value().symbol_location;
-        break;
-      }
-      case csi_im_resource::csi_im_resource_element_pattern_type::pattern1: {
-        auto& pattern = out.csi_im_res_elem_pattern.set_pattern1();
-        switch (cfg.csi_im_res_element_pattern.value().subcarrier_location) {
-          case 0:
-            pattern.subcarrier_location_p1 =
-                csi_im_res_s::csi_im_res_elem_pattern_c_::pattern1_s_::subcarrier_location_p1_opts::s0;
-            break;
-          case 4:
-            pattern.subcarrier_location_p1 =
-                csi_im_res_s::csi_im_res_elem_pattern_c_::pattern1_s_::subcarrier_location_p1_opts::s4;
-            break;
-          case 8:
-            pattern.subcarrier_location_p1 =
-                csi_im_res_s::csi_im_res_elem_pattern_c_::pattern1_s_::subcarrier_location_p1_opts::s8;
-            break;
-          default:
-            ocudu_assertion_failure("Invalid CSI IM resource subcarrier location={}",
-                                    cfg.csi_im_res_element_pattern.value().subcarrier_location);
-        }
-        pattern.symbol_location_p1 = cfg.csi_im_res_element_pattern.value().symbol_location;
-        break;
-      }
-      default:
-        ocudu_assertion_failure("Invalid CSI IM resource element pattern={}",
-                                fmt::underlying(cfg.csi_im_res_element_pattern.value().pattern_type));
-    }
+  // The CSI-IM resource uses always the resource element pattern Pattern1 (4,1).
+  out.csi_im_res_elem_pattern_present = true;
+  auto& pattern                       = out.csi_im_res_elem_pattern.set_pattern1();
+  switch (cfg.subcarrier_location) {
+    case 0:
+      pattern.subcarrier_location_p1 =
+          csi_im_res_s::csi_im_res_elem_pattern_c_::pattern1_s_::subcarrier_location_p1_opts::s0;
+      break;
+    case 4:
+      pattern.subcarrier_location_p1 =
+          csi_im_res_s::csi_im_res_elem_pattern_c_::pattern1_s_::subcarrier_location_p1_opts::s4;
+      break;
+    case 8:
+      pattern.subcarrier_location_p1 =
+          csi_im_res_s::csi_im_res_elem_pattern_c_::pattern1_s_::subcarrier_location_p1_opts::s8;
+      break;
+    default:
+      ocudu_assertion_failure("Invalid CSI IM resource subcarrier location={}", cfg.subcarrier_location);
   }
+  pattern.symbol_location_p1 = cfg.symbol_location;
 
-  if (not cfg.freq_band_rbs.empty()) {
-    out.freq_band_present  = true;
-    out.freq_band.start_rb = cfg.freq_band_rbs.start();
-    out.freq_band.nrof_rbs = cfg.freq_band_rbs.length();
-  }
+  out.freq_band_present  = true;
+  out.freq_band.start_rb = cfg.freq_band_rbs.start();
+  out.freq_band.nrof_rbs = cfg.freq_band_rbs.length();
 
-  if (cfg.csi_res_period.has_value() and cfg.csi_res_offset.has_value()) {
-    out.periodicity_and_offset_present = true;
-    make_asn1_csi_resource_periodicity_and_offset(
-        out.periodicity_and_offset, cfg.csi_res_period.value(), cfg.csi_res_offset.value());
-  }
+  out.periodicity_and_offset_present = true;
+  make_asn1_csi_resource_periodicity_and_offset(out.periodicity_and_offset, cfg.csi_res_period, cfg.csi_res_offset);
 
   return out;
 }
@@ -874,8 +803,7 @@ static asn1::rrc_nr::csi_report_cfg_s make_asn1_csi_report_config(const csi_repo
           rep_cfg.report_slot_cfg, rep_cfg_val->report_slot_period, rep_cfg_val->report_slot_offset);
       for (const auto& pucch_csi_res : rep_cfg_val->pucch_csi_res_list) {
         rep_cfg.pucch_csi_res_list.push_back(
-            {.ul_bw_part_id = pucch_csi_res.ul_bwp,
-             .pucch_res     = static_cast<uint8_t>(pucch_csi_res.pucch_res_id.ded().ue_res_id)});
+            {.ul_bw_part_id = pucch_csi_res.ul_bwp, .pucch_res = static_cast<uint8_t>(pucch_csi_res.pucch_res_id)});
       }
     } else if (rep_cfg_val->report_type ==
                csi_report_config::periodic_or_semi_persistent_report_on_pucch::report_type_t::semi_persistent) {
@@ -884,8 +812,7 @@ static asn1::rrc_nr::csi_report_cfg_s make_asn1_csi_report_config(const csi_repo
           rep_cfg.report_slot_cfg, rep_cfg_val->report_slot_period, rep_cfg_val->report_slot_offset);
       for (const auto& pucch_csi_res : rep_cfg_val->pucch_csi_res_list) {
         rep_cfg.pucch_csi_res_list.push_back(
-            {.ul_bw_part_id = pucch_csi_res.ul_bwp,
-             .pucch_res     = static_cast<uint8_t>(pucch_csi_res.pucch_res_id.ded().ue_res_id)});
+            {.ul_bw_part_id = pucch_csi_res.ul_bwp, .pucch_res = static_cast<uint8_t>(pucch_csi_res.pucch_res_id)});
       }
     }
   } else if (const auto* rep_cfg_val2 =

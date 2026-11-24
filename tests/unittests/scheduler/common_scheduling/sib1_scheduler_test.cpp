@@ -28,22 +28,25 @@ public:
                                               rnti_t                         rnti,
                                               search_space_id                ss_id,
                                               aggregation_level              aggr_lvl,
-                                              std::optional<beam_identifier> beam) override
+                                              std::optional<beam_identifier> beam,
+                                              unsigned                       ssb_idx = 0) override
   {
     report_fatal_error_if_not(
         (fmt::underlying(ss_id)) ==
             (fmt::underlying(slot_alloc.cfg.params.dl_cfg_common.init_dl_bwp.pdcch_common.sib1_search_space_id)),
         "fmt::underlying(ss_id) != "
         "fmt::underlying(slot_alloc.cfg.params.dl_cfg_common.init_dl_bwp.pdcch_common.sib1_search_space_id)");
-    slot_alloc.result.dl.dl_pdcchs.emplace_back();
-    slot_alloc.result.dl.dl_pdcchs.back().ctx.rnti    = rnti;
-    slot_alloc.result.dl.dl_pdcchs.back().ctx.bwp_cfg = &slot_alloc.cfg.params.dl_cfg_common.init_dl_bwp.generic_params;
-    slot_alloc.result.dl.dl_pdcchs.back().ctx.coreset_cfg =
-        &*slot_alloc.cfg.params.dl_cfg_common.init_dl_bwp.pdcch_common.coreset0;
-    slot_alloc.result.dl.dl_pdcchs.back().ctx.cces = {0, ocudu::aggregation_level::n4};
-    slot_alloc.result.dl.dl_pdcchs.back().ctx.precoding_and_beamforming =
+    pdcch_dl_information* pdcch = slot_alloc.result_builder().dl().dl_pdcchs().emplace_back();
+    if (pdcch == nullptr) {
+      return nullptr;
+    }
+    pdcch->ctx.rnti        = rnti;
+    pdcch->ctx.bwp_cfg     = &slot_alloc.cfg.params.dl_cfg_common.init_dl_bwp.generic_params;
+    pdcch->ctx.coreset_cfg = &*slot_alloc.cfg.params.dl_cfg_common.init_dl_bwp.pdcch_common.coreset0;
+    pdcch->ctx.cces        = {0, ocudu::aggregation_level::n4};
+    pdcch->ctx.precoding_and_beamforming =
         beam.has_value() ? make_single_beam_precoding(*beam) : make_default_precoding();
-    return &slot_alloc.result.dl.dl_pdcchs[0];
+    return &slot_alloc.result_builder().dl().dl_pdcchs()[0];
   }
 
   pdcch_dl_information* alloc_dl_pdcch_ue(cell_slot_resource_allocator& slot_alloc,
@@ -105,7 +108,7 @@ public:
   void assess_filled_grants()
   {
     // Test SIB_information message
-    const sib_information& test_sib1 = res_grid[0].result.dl.bc.sibs.back();
+    const sib_information& test_sib1 = res_grid[0].result_reader().dl().sibs().back();
     report_fatal_error_if_not(
         (fmt::underlying(sib_information::si_indicator_type::sib1)) == (fmt::underlying(test_sib1.si_indicator)),
         "fmt::underlying(sib_information::si_indicator_type::sib1) != fmt::underlying(test_sib1.si_indicator)");
@@ -113,11 +116,11 @@ public:
                               "rnti_t::SI_RNTI != test_sib1.pdsch_cfg.rnti");
 
     // Test PDCCH_grant and DCI
-    const pdcch_dl_information* pdcch =
-        std::find_if(res_grid[0].result.dl.dl_pdcchs.begin(),
-                     res_grid[0].result.dl.dl_pdcchs.end(),
-                     [](const auto& pdcch_) { return pdcch_.ctx.rnti == rnti_t::SI_RNTI; });
-    report_fatal_error_if_not(pdcch != nullptr, "pdcch != nullptr");
+    const auto dl_pdcchs = res_grid[0].result_reader().dl().dl_pdcchs();
+    const auto pdcch_it  = std::find_if(
+        dl_pdcchs.begin(), dl_pdcchs.end(), [](const auto& pdcch_) { return pdcch_.ctx.rnti == rnti_t::SI_RNTI; });
+    report_fatal_error_if_not(pdcch_it != dl_pdcchs.end(), "pdcch != nullptr");
+    const pdcch_dl_information* pdcch = &*pdcch_it;
     report_fatal_error_if_not(
         (fmt::underlying(dci_dl_rnti_config_type::si_f1_0)) == (fmt::underlying(pdcch->dci.type())),
         "fmt::underlying(dci_dl_rnti_config_type::si_f1_0) != fmt::underlying(pdcch->dci.type())");
@@ -298,7 +301,7 @@ void test_sib1_scheduler(subcarrier_spacing                                  scs
           (sl_idx % sib1_period_slots == sib1_pdcch_slots[ssb_idx])) {
         // Verify that the scheduler results list contain 1 element with the SIB1 information.
         report_fatal_error_if_not(
-            (1) == (t_bench.res_grid[0].result.dl.bc.sibs.size()), "Slot {}", t_bench.res_grid[0].slot);
+            (1) == (t_bench.res_grid[0].result_reader().dl().sibs().size()), "Slot {}", t_bench.res_grid[0].slot);
         // Verify the PDCCH grants and DCI have been filled correctly.
         t_bench.assess_filled_grants();
         // Verify the PRBs in the res_grid are set as used.
@@ -350,11 +353,11 @@ void test_sib1_periodicity(sib1_rtx_periodicity sib1_rtx_period, ssb_periodicity
     // this beam.
     if ((sl_idx % expected_sib1_period_slots) == sib1_allocation_slot) {
       // Verify that the scheduler results list contain 1 element with the SIB1 information.
-      report_fatal_error_if_not((1) == (t_bench.res_grid[0].result.dl.bc.sibs.size()),
-                                "1 != t_bench.res_grid[0].result.dl.bc.sibs.size()");
+      report_fatal_error_if_not((1) == (t_bench.res_grid[0].result_reader().dl().sibs().size()),
+                                "1 != t_bench.res_grid[0].result_reader().dl().sibs().size()");
     } else {
-      report_fatal_error_if_not(t_bench.res_grid[0].result.dl.bc.sibs.empty(),
-                                "t_bench.res_grid[0].result.dl.bc.sibs.empty()");
+      report_fatal_error_if_not(t_bench.res_grid[0].result_reader().dl().sibs().empty(),
+                                "t_bench.res_grid[0].result_reader().dl().sibs().empty()");
     }
   }
 }
@@ -362,11 +365,11 @@ void test_sib1_periodicity(sib1_rtx_periodicity sib1_rtx_period, ssb_periodicity
 /// \brief Tests if any potential collision occurs between SIB1 PDCCH/PDSCH and SSB.
 ///
 /// \param[in] freq_arfcn ARFCN of point A for DL carrier.
-/// \param[in] offset_to_point_A as per TS38.211, Section 4.4.4.2.
-/// \param[in] k_ssb or ssb-SubcarrierOffset, as per TS38.211, Section 7.4.3.1.
-/// \param[in] ssb_bitmap is \c ssb-PositionsInBurst.inOneGroup, as per TS38.331, \c ServingCellConfigCommonSIB.
+/// \param[in] offset_to_point_A as per TS 38.211, Section 4.4.4.2.
+/// \param[in] k_ssb or ssb-SubcarrierOffset, as per TS 38.211, Section 7.4.3.1.
+/// \param[in] ssb_bitmap is \c ssb-PositionsInBurst.inOneGroup, as per TS 38.331, \c ServingCellConfigCommonSIB.
 /// \param[in] scs subcarrier spacing of SSB and SCScommon.
-/// \param[in] pdcch_config_sib1 is \c pdcch-ConfigSIB1, as per TS38.213, Section 13.
+/// \param[in] pdcch_config_sib1 is \c pdcch-ConfigSIB1, as per TS 38.213, Section 13.
 /// \param[in] carrier_bw_mhz corresponds to the width of this carrier in MHz. Values: 5, 10, 15, 20, 25, 30, 40,
 /// 50, 60, 70, 80, 90, 100, 200, 400.
 void test_ssb_sib1_collision(arfcn_t              freq_arfcn,
@@ -389,7 +392,7 @@ void test_ssb_sib1_collision(arfcn_t              freq_arfcn,
   for (size_t sl_idx = 0; sl_idx < test_length_slots; sl_idx++) {
     t_bench.run_slot();
 
-    test_dl_resource_grid_collisions(t_bench.cell_cfg, t_bench.res_grid[0].result.dl);
+    test_dl_resource_grid_collisions(t_bench.cell_cfg, t_bench.res_grid[0].result_reader().dl());
   }
 }
 
@@ -651,7 +654,8 @@ TEST(sib1_scheduler_test, sib1_is_carried_by_the_beam_of_its_ssb)
   for (unsigned sl_idx = 0; sl_idx != 100 and not is_sib1_scheduled; ++sl_idx) {
     t_bench.run_slot();
 
-    const auto& sibs = t_bench.res_grid[0].result.dl.bc.sibs;
+    const auto res  = t_bench.res_grid[0].result_reader();
+    const auto sibs = res.dl().sibs();
     if (sibs.empty()) {
       continue;
     }
@@ -659,8 +663,8 @@ TEST(sib1_scheduler_test, sib1_is_carried_by_the_beam_of_its_ssb)
 
     ASSERT_EQ(test_ssb_beam, std::get<beam_identifier>(sibs.back().pdsch_cfg.precoding_and_beamforming));
 
-    const auto& pdcchs = t_bench.res_grid[0].result.dl.dl_pdcchs;
-    const auto* pdcch  = std::find_if(
+    const auto pdcchs = res.dl().dl_pdcchs();
+    const auto pdcch  = std::find_if(
         pdcchs.begin(), pdcchs.end(), [](const auto& pdcch_) { return pdcch_.ctx.rnti == rnti_t::SI_RNTI; });
     ASSERT_NE(pdcch, pdcchs.end());
     ASSERT_EQ(test_ssb_beam, std::get<beam_identifier>(pdcch->ctx.precoding_and_beamforming));
@@ -707,9 +711,9 @@ TEST_P(sib1_tdd_partial_slot_test, successful_sib1_allocation_in_partial_slot)
         (sib1_allocation_slot_pattern2.has_value() and
          (sl_idx % expected_sib1_period_slots) == sib1_allocation_slot_pattern2.value())) {
       // Verify that the scheduler results list contain 1 element with the SIB1 information.
-      ASSERT_EQ(1, t_bench.res_grid[0].result.dl.bc.sibs.size());
+      ASSERT_EQ(1, t_bench.res_grid[0].result_reader().dl().sibs().size());
     } else {
-      ASSERT_TRUE(t_bench.res_grid[0].result.dl.bc.sibs.empty());
+      ASSERT_TRUE(t_bench.res_grid[0].result_reader().dl().sibs().empty());
     }
   }
 }
@@ -730,3 +734,55 @@ INSTANTIATE_TEST_SUITE_P(sib1_scheduler_test,
                              .carrier_bw_mhz    = 20,
                              .sib1_rtx_period   = sib1_rtx_periodicity::ms10,
                              .ssb_period        = ssb_periodicity::ms10}));
+
+// A cell may transmit its SS/PBCH block at a position other than 0 within the burst, and it must still deliver SIB1.
+// For the Search Space indexes with M = 1/2, an odd SS/PBCH block index is monitored from symbol N^CORESET_symb rather
+// than from symbol 0 (TS 38.213 Table 13-11), and no mapping type A resource of the default table starts late enough
+// to fit after CORESET#0 once the occasion itself starts late.
+TEST(sib1_scheduler_non_zero_ssb_position, sib1_is_scheduled_with_a_mapping_type_B_resource)
+{
+  constexpr uint8_t ssb_position = 1;
+  // ssb-PositionsInBurst is most-significant-bit first, so position 1 is the second bit.
+  constexpr uint8_t ssb_beam_bitmap = 0b01000000;
+  // Search Space index 5 is one of the rows with M = 1/2.
+  constexpr uint8_t pdcch_config_sib1 = 5U;
+  constexpr uint8_t l_max             = 8U;
+
+  sib1_scheduler_setup t_bench{
+      sib1_scheduler_setup::make_scheduler_expert_cfg({10, aggregation_level::n4, 10, aggregation_level::n4}),
+      sib1_scheduler_setup::make_cell_cfg_req_for_sib_sched(subcarrier_spacing::kHz30,
+                                                            pdcch_config_sib1,
+                                                            ssb_beam_bitmap,
+                                                            l_max,
+                                                            ssb_periodicity::ms5,
+                                                            20,
+                                                            duplex_mode::FDD)};
+
+  const auto&    pdcch_common = t_bench.cell_cfg.params.dl_cfg_common.init_dl_bwp.pdcch_common;
+  const auto&    ss_cfg       = pdcch_common.search_spaces[pdcch_common.sib1_search_space_id];
+  const unsigned first_symbol = ss_cfg.get_first_symbol_index(ssb_position);
+  // Without this the test would pass for the wrong reason, by exercising an occasion that starts at symbol 0 anyway.
+  ASSERT_GT(first_symbol, 0U) << "the chosen Search Space index does not delay the monitoring occasion";
+  const unsigned coreset_duration = pdcch_common.coreset0->duration();
+  // The PDSCH assertion below doubles as a check of which mapping was used, but only while no default mapping type A
+  // row can satisfy it. Those start at symbol 1 or 2, so the required start has to exceed 2 for that to hold.
+  ASSERT_GT(first_symbol + coreset_duration, 2U) << "a default mapping type A resource would fit, so this test would "
+                                                    "no longer distinguish the two mappings";
+
+  bool sib1_scheduled = false;
+  for (unsigned sl_idx = 0; sl_idx != 1000 and not sib1_scheduled; ++sl_idx) {
+    t_bench.run_slot();
+    const auto sibs = t_bench.res_grid[0].result_reader().dl().sibs();
+    if (sibs.empty()) {
+      continue;
+    }
+    sib1_scheduled = true;
+
+    // A start at or after CORESET#0 cannot come from a default mapping type A row, whose latest start is symbol 2, so
+    // this also establishes which mapping was used.
+    const sib_information& sib1 = sibs.back();
+    ASSERT_GE(sib1.pdsch_cfg.symbols.start(), first_symbol + coreset_duration) << "the SIB1 PDSCH overlaps CORESET#0";
+  }
+
+  ASSERT_TRUE(sib1_scheduled) << "SIB1 was never scheduled for a non-zero SS/PBCH block position";
+}

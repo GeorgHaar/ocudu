@@ -8,38 +8,17 @@
 /// CG PUSCH grants in the right slots, and that the scheduler output (symbols, RBs, RNTI) matches the CG
 /// configuration.
 
+#include "configured_grant_scheduler_test_fixture.h"
 #include "tests/ocudu_test_requirements.h"
-#include "tests/test_doubles/scheduler/cell_config_builder_profiles.h"
-#include "tests/test_doubles/scheduler/scheduler_config_helper.h"
-#include "tests/test_doubles/scheduler/scheduler_result_finder.h"
 #include "tests/test_doubles/scheduler/scheduler_test_message_validators.h"
 #include "tests/test_doubles/utils/test_rng_seed.h"
 #include "tests/unittests/scheduler/test_utils/result_test_helpers.h"
-#include "tests/unittests/scheduler/test_utils/scheduler_test_simulator.h"
-#include "ocudu/ran/configured_grant/cg_configuration.h"
 #include "ocudu/ran/du_types.h"
 #include "ocudu/ran/logical_channel/lcid.h"
-#include "ocudu/ran/resource_allocation/resource_allocation_frequency.h"
-#include "ocudu/scheduler/config/cg_builder_params.h"
-#include "ocudu/scheduler/resource_grid_util.h"
-#include <gtest/gtest.h>
 
 using namespace ocudu;
 
 namespace {
-/// Helper struct that holds parameters for a single CG test scenario.
-struct cg_test_params {
-  cg_configuration::periodicity_t periodicity    = cg_configuration::periodicity_t::sl40;
-  unsigned                        period_slots   = 40;
-  unsigned                        mcs            = 5;
-  unsigned                        nof_harq_procs = 4;
-  /// When false, the cell is built without CG configured at cell level, so the CG scheduler is not instantiated.
-  bool cell_cg_enabled = true;
-  /// Selecting Type 2 CG requires DCI activation before any CG PUSCH is scheduled.
-  cg_builder_params::cg_type type = cg_builder_params::cg_type::type1;
-  /// When true, the cell's HARQ-ACK PUCCH resources are configured with repetitions, which the UE always uses.
-  bool pucch_rep_enabled = false;
-};
 
 /// Default CG VRB allocation set by the config factory (see make_default_cg_config() in
 /// serving_cell_config_factory.cpp): start_vrb=10, length_vrb=10. The CG resource manager, which would overwrite these
@@ -47,198 +26,7 @@ struct cg_test_params {
 constexpr unsigned default_cg_start_vrb = 10;
 constexpr unsigned default_cg_nof_rbs   = 10;
 
-struct cg_duplex_test_params {
-  std::string                            name;
-  duplex_mode                            mode;
-  std::optional<tdd_ul_dl_config_common> tdd_pattern;
-  unsigned                               default_cg_offset;
-};
-
-/// Formatter for duplex test params, used by gtest. Avoids the fallback raw-byte printer, which reads
-/// uninitialized padding bytes.
-void PrintTo(const cg_duplex_test_params& value, ::std::ostream* os)
-{
-  *os << fmt::format("{}, default_cg_offset={}", value.name, value.default_cg_offset);
-}
-
 } // namespace
-
-/// Builds cell_config_builder_params from duplex test params.
-static cell_config_builder_params make_cell_builder_params(const cg_duplex_test_params& p)
-{
-  auto params = cell_config_builder_profiles::create(p.mode);
-  if (p.tdd_pattern.has_value()) {
-    params.tdd_ul_dl_cfg_common = p.tdd_pattern.value();
-  }
-  return params;
-}
-
-/// Base class for all configured_grant_scheduler tests. Provides cell + UE setup with CG enabled and
-/// helper methods to find CG grants in the scheduler output.
-class configured_grant_scheduler_test : public scheduler_test_simulator, public ::testing::Test
-{
-protected:
-  static constexpr rnti_t ue_crnti = to_rnti(0x4601);
-  /// CS-RNTI assigned to the test UE.
-  static constexpr rnti_t cs_rnti = to_rnti(0xe0ef);
-
-  cg_test_params                           cg_params;
-  sched_cell_configuration_request_message cell_req;
-  unsigned                                 default_cg_offset_;
-
-  explicit configured_grant_scheduler_test(const cg_test_params&             params_        = {},
-                                           const cell_config_builder_params& builder_params = {},
-                                           unsigned                          default_offset = 0) :
-    scheduler_test_simulator(/*tx_rx_delay=*/4, builder_params.scs_common),
-    cg_params(params_),
-    default_cg_offset_(default_offset)
-  {
-    cell_req = sched_config_helper::make_default_sched_cell_configuration_request(builder_params);
-    if (cg_params.cell_cg_enabled) {
-      cell_req.ran.init_bwp.cg_cfg = cg_builder_params{
-          .periodicity        = cg_params.periodicity,
-          .type               = cg_params.type,
-          .mcs                = cg_params.mcs,
-          .nof_harq_processes = cg_params.nof_harq_procs,
-      };
-    }
-    if (cg_params.pucch_rep_enabled) {
-      // SINR thresholds that no SINR estimate reaches, so that n4 repetitions are always recommended.
-      auto& pucch_res = cell_req.ran.init_bwp.pucch.resources;
-      pucch_res.harq_ack_rep =
-          pucch_harq_ack_rep_params{.sinr_thresholds = {1000.0F, 1000.0F},
-                                    .factors_per_res = std::vector<pucch_repetition_factor>(
-                                        pucch_res.res_set_size.value(), pucch_repetition_factor::n4)};
-    }
-    add_cell(cell_req);
-  }
-
-  /// Adds the test UE to the scheduler with CG configuration.
-  /// CG is applied via a reconfiguration (not at creation) to match the DRB-gated CG production flow,
-  /// where add_reconf_ue() is the sole entry point for CG scheduler setup.
-  void add_cg_ue(du_ue_index_t           ue_idx         = to_du_ue_index(0),
-                 std::optional<unsigned> cg_slot_offset = std::nullopt,
-                 rnti_t                  crnti          = ue_crnti,
-                 rnti_t                  cs_rnti_val    = cs_rnti,
-                 std::optional<unsigned> cg_start_vrb   = std::nullopt)
-  {
-    auto ue_req     = sched_config_helper::create_default_sched_ue_creation_request(cell_req.ran);
-    ue_req.ue_index = ue_idx;
-    ue_req.crnti    = crnti;
-    ASSERT_TRUE(ue_req.cfg.cells.has_value() and not ue_req.cfg.cells->empty());
-    auto& ue_cell = ue_req.cfg.cells->front();
-    ASSERT_TRUE(ue_cell.serv_cell_cfg.ul_config.has_value());
-    ASSERT_TRUE(ue_cell.serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.has_value());
-    if (cg_params.pucch_rep_enabled) {
-      // Same as the UE reporting full support for dynamic PUCCH repetition in its capabilities.
-      ue_cell.init_bwp().ul.pucch.rep_f1_3_4_enabled = true;
-      ue_cell.init_bwp().ul.pucch.rep_f0_2_enabled   = true;
-    }
-    ue_cell.serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg->rrc_configured_ul_grant_cfg->time_domain_offset =
-        cg_slot_offset.value_or(default_cg_offset_);
-    if (cg_start_vrb.has_value()) {
-      auto& freq = std::get<ra_frequency_type1_configuration>(
-          ue_cell.serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg->rrc_configured_ul_grant_cfg->freq_domain_res);
-      freq.start_vrb = cg_start_vrb.value();
-    }
-
-    // Step 1: Create the UE without CG — add_reconf_ue() is the sole CG entry point, so CG setup
-    // is deferred to the reconfiguration below. Wait for the creation event to be processed before
-    // issuing the reconfiguration, since handle_ue_reconfiguration_request requires the UE to exist.
-    auto ue_req_no_cg = ue_req;
-    ue_req_no_cg.cfg.cells->front().serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
-    add_ue(ue_req_no_cg, /*wait_notification=*/true);
-
-    // Step 2: Reconfigure to install the CG config, which triggers add_reconf_ue() in the scheduler.
-    sched_ue_reconfiguration_message reconf;
-    reconf.ue_index = ue_idx;
-    reconf.crnti    = crnti;
-    reconf.cfg      = ue_req.cfg;
-    reconf.cs_rnti  = cs_rnti_val;
-    sched->handle_ue_reconfiguration_request(reconf);
-
-    // Step 3: Confirm the UE applied the new config, so it exits the pending_reconf state. Otherwise, the UE stays in
-    // fallback, where HARQ-ACKs are never allocated on CG slots (the UE might not have applied the CG config yet).
-    sched->handle_ue_config_applied(ue_idx);
-  }
-
-  /// Advances the scheduler until a CG PUSCH for \c search_rnti is seen in the output, or \c max_slots is exhausted.
-  const ul_sched_info* run_until_next_cg_pusch(unsigned max_slots = 0, rnti_t search_rnti = cs_rnti)
-  {
-    if (max_slots == 0) {
-      // The CG PUSCH is booked max_ul_slot_alloc_delay slots ahead, so the first grant appears in last_sched_result()
-      // max_ul_slot_alloc_delay + (period - 1) steps after UE creation. Add extra margin for safety.
-      constexpr unsigned ul_delay = get_max_slot_ul_alloc_delay(/*ntn_cs_koffset=*/0);
-      max_slots                   = ul_delay + cg_params.period_slots + 20;
-    }
-    for (unsigned i = 0; i != max_slots; ++i) {
-      run_slot();
-      const ul_sched_info* grant = find_ue_pusch(search_rnti, *last_sched_result());
-      if (grant != nullptr) {
-        return grant;
-      }
-    }
-    return nullptr;
-  }
-
-  /// \brief Sends a UE reconfiguration with modified CG parameters.
-  ///
-  /// The CG period is deliberately not reconfigurable here: every UE of a cell uses the cell's CG period.
-  void reconf_cg(std::optional<unsigned> new_offset = std::nullopt, std::optional<unsigned> new_mcs = std::nullopt)
-  {
-    auto ue_req     = sched_config_helper::create_default_sched_ue_creation_request(cell_req.ran);
-    ue_req.ue_index = to_du_ue_index(0);
-    ue_req.crnti    = ue_crnti;
-    auto& cg_cfg    = ue_req.cfg.cells->front().serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.value();
-
-    if (new_mcs.has_value()) {
-      cg_cfg.rrc_configured_ul_grant_cfg->mcs = new_mcs.value();
-    }
-    cg_cfg.rrc_configured_ul_grant_cfg->time_domain_offset = new_offset.value_or(default_cg_offset_);
-
-    sched_ue_reconfiguration_message reconf;
-    reconf.ue_index = to_du_ue_index(0);
-    reconf.crnti    = ue_crnti;
-    reconf.cfg      = ue_req.cfg;
-    reconf.cs_rnti  = cs_rnti;
-    sched->handle_ue_reconfiguration_request(reconf);
-
-    // Confirm the UE applied the new config, so it exits the pending_reconf state (see add_cg_ue()).
-    sched->handle_ue_config_applied(to_du_ue_index(0));
-  }
-
-  /// Sends a UE reconfiguration that removes the CG configuration (cg_cfg reset to nullopt).
-  void remove_cg_via_reconfig() const
-  {
-    auto ue_req     = sched_config_helper::create_default_sched_ue_creation_request(cell_req.ran);
-    ue_req.ue_index = to_du_ue_index(0);
-    ue_req.crnti    = ue_crnti;
-    ue_req.cfg.cells->front().serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
-
-    sched_ue_reconfiguration_message reconf;
-    reconf.ue_index = to_du_ue_index(0);
-    reconf.crnti    = ue_crnti;
-    reconf.cfg      = ue_req.cfg;
-    reconf.cs_rnti  = cs_rnti;
-    sched->handle_ue_reconfiguration_request(reconf);
-  }
-
-  /// Sends a CRC indication for a CG PUSCH grant with the given CRC result and SINR.
-  void send_cg_crc(const ul_sched_info& grant, slot_point pusch_slot, bool crc_ok, std::optional<float> sinr_dB) const
-  {
-    ul_crc_indication crc_ind;
-    crc_ind.cell_index = to_du_cell_index(0);
-    crc_ind.sl_rx      = pusch_slot;
-    ul_crc_pdu_indication pdu{};
-    pdu.rnti           = grant.pusch_cfg.rnti;
-    pdu.ue_index       = grant.context.ue_index;
-    pdu.harq_id        = grant.pusch_cfg.harq_id;
-    pdu.tb_crc_success = crc_ok;
-    pdu.ul_sinr_dB     = sinr_dB;
-    crc_ind.crcs.push_back(pdu);
-    sched->handle_crc_indication(crc_ind);
-  }
-};
 
 /// Parameterised fixture for running the base CG tests across FDD and TDD configurations.
 class cg_duplex_test : public configured_grant_scheduler_test,
@@ -399,7 +187,7 @@ TEST_P(cg_duplex_test, ue_with_no_cg_config_produces_no_cg_grants)
   auto ue_req     = sched_config_helper::create_default_sched_ue_creation_request(cell_req.ran);
   ue_req.ue_index = to_du_ue_index(0);
   ue_req.crnti    = ue_crnti;
-  ue_req.cfg.cells->front().serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
+  ue_req.cfg.cells->front().ded->serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
   add_ue(ue_req);
 
   // Run for 2 periods and verify no PUSCH with cs_rnti = 0xe0ef appears.
@@ -425,8 +213,8 @@ TEST_P(cg_duplex_test, cg_pusch_absorbs_pucch_harq_ack)
     push_dl_buffer_state(dl_buffer_state_indication_message{to_du_ue_index(0), LCID_SRB1, 10000});
     run_slot();
 
-    const sched_result&  res      = *last_sched_result();
-    const ul_sched_info* cg_pusch = find_ue_pusch_with_harq_ack(cs_rnti, res);
+    const sched_result_copy& res      = *last_sched_result();
+    const ul_sched_info*     cg_pusch = find_ue_pusch_with_harq_ack(cs_rnti, res);
     if (cg_pusch == nullptr) {
       continue;
     }
@@ -652,6 +440,189 @@ INSTANTIATE_TEST_SUITE_P(
                                             5}),
     [](const auto& p) { return p.param.name; });
 
+/// Fixture for the NTN k_mac regression. A Type 1 CG occasion is timed by the UE against timeReferenceSFN, so with a
+/// non-zero k_mac it reaches the gNB k_mac slots after the configured offset. k_mac is deliberately not a multiple of
+/// the number of slots per frame, so an unshifted registration cannot pass by coincidence.
+class configured_grant_scheduler_ntn_kmac_test : public configured_grant_scheduler_test
+{
+protected:
+  static constexpr std::chrono::milliseconds K_MAC{19};
+  static constexpr unsigned                  CG_OFFSET = 7;
+
+  configured_grant_scheduler_ntn_kmac_test() :
+    configured_grant_scheduler_test(cg_test_params{},
+                                    cell_config_builder_profiles::create(duplex_mode::FDD),
+                                    /*default_offset=*/CG_OFFSET,
+                                    /*ntn_cs_koffset=*/{},
+                                    K_MAC)
+  {
+  }
+};
+
+/// Test: with a non-zero k_mac the CG PUSCH is reserved at (time_domain_offset + k_mac) modulo the CG periodicity.
+TEST_F(configured_grant_scheduler_ntn_kmac_test, cg_pusch_is_placed_at_offset_shifted_by_k_mac)
+{
+  const unsigned k_mac_slots = cell_cfg(to_du_cell_index(0)).ntn_k_mac_slots;
+  ASSERT_GT(k_mac_slots, 0U);
+  const unsigned expected_offset = (CG_OFFSET + k_mac_slots) % cg_params.period_slots;
+  ASSERT_NE(expected_offset, CG_OFFSET % cg_params.period_slots)
+      << "k_mac must shift the occasion, or the test cannot tell the two apart";
+
+  add_cg_ue();
+
+  const ul_sched_info* grant = run_until_next_cg_pusch();
+  ASSERT_NE(grant, nullptr) << "No CG PUSCH found in an NTN cell with k_mac=" << K_MAC.count();
+  EXPECT_EQ(last_result_slot().count() % cg_params.period_slots, expected_offset)
+      << "CG PUSCH was not shifted to the gNB DL clock";
+
+  // The next occasion must keep the same shifted position one period later.
+  const ul_sched_info* next_grant = run_until_next_cg_pusch();
+  ASSERT_NE(next_grant, nullptr) << "No second CG PUSCH found";
+  EXPECT_EQ(last_result_slot().count() % cg_params.period_slots, expected_offset);
+}
+
+/// Test: removal clears the shifted wheel entry, so no CG PUSCH survives it.
+TEST_F(configured_grant_scheduler_ntn_kmac_test, ue_removal_clears_the_shifted_wheel_entry)
+{
+  add_cg_ue();
+  ASSERT_NE(run_until_next_cg_pusch(), nullptr);
+
+  rem_ue(to_du_ue_index(0));
+
+  for (unsigned i = 0; i != 2 * cg_params.period_slots + 10; ++i) {
+    run_slot();
+    EXPECT_EQ(find_ue_pusch(cs_rnti, *last_sched_result()), nullptr)
+        << fmt::format("Unexpected CG PUSCH after UE removal at slot {}", last_result_slot());
+  }
+}
+
+/// \brief Fixture for the HARQ process the UE derives for its CG occasions, as per TS 38.321, Section 5.4.1.
+///
+/// The configured offset sits at the end of the CG period, so the k_mac shift carries the occasion into the next
+/// period on the gNB clock: the process derived from the uplink slot of the UE and the one the grid slot would give
+/// are then different, which is what tells the two clocks apart.
+class configured_grant_scheduler_ntn_kmac_harq_test : public configured_grant_scheduler_test
+{
+protected:
+  static constexpr std::chrono::milliseconds K_MAC{19};
+  static constexpr unsigned                  CG_OFFSET = 39;
+
+  configured_grant_scheduler_ntn_kmac_harq_test() :
+    configured_grant_scheduler_test(cg_test_params{},
+                                    cell_config_builder_profiles::create(duplex_mode::FDD),
+                                    /*default_offset=*/CG_OFFSET,
+                                    /*ntn_cs_koffset=*/{},
+                                    K_MAC)
+  {
+  }
+
+  /// HARQ process of a CG occasion whose first symbol is \c symbol of slot \c sl, as per TS 38.321, Section 5.4.1.
+  unsigned harq_id_of_occasion(slot_point sl, unsigned symbol) const
+  {
+    const unsigned current_symbol = static_cast<unsigned>(sl.system_slot()) * NOF_OFDM_SYM_PER_SLOT_NORMAL_CP + symbol;
+    const unsigned period_symbols = cg_params.period_slots * NOF_OFDM_SYM_PER_SLOT_NORMAL_CP;
+    return (current_symbol / period_symbols) % cg_params.nof_harq_procs;
+  }
+};
+
+/// Test: the CG PUSCH carries the HARQ process the UE derives from its own uplink slot, not the one the grid slot the
+/// gNB receives it in would give.
+TEST_F(configured_grant_scheduler_ntn_kmac_harq_test, cg_harq_process_follows_the_uplink_slot_of_the_ue)
+{
+  const cell_configuration& cell_configuration_ref = cell_cfg(to_du_cell_index(0));
+  ASSERT_GT(cell_configuration_ref.ntn_k_mac_slots, 0U);
+
+  add_cg_ue();
+
+  const ul_sched_info* grant = run_until_next_cg_pusch();
+  ASSERT_NE(grant, nullptr) << "No CG PUSCH found in an NTN cell with k_mac=" << K_MAC.count();
+
+  const slot_point grid_slot  = last_result_slot();
+  const slot_point ue_ul_slot = cell_configuration_ref.dl_to_ue_ul_slot(grid_slot);
+  const unsigned   symbol     = grant->pusch_cfg.symbols.start();
+  ASSERT_NE(harq_id_of_occasion(ue_ul_slot, symbol), harq_id_of_occasion(grid_slot, symbol))
+      << "the occasion does not straddle a CG period, so the test cannot tell the two clocks apart";
+  ASSERT_EQ(static_cast<unsigned>(grant->pusch_cfg.harq_id), harq_id_of_occasion(ue_ul_slot, symbol));
+}
+
+/// Fixture for the NTN cell-specific K-offset. A Type 1 CG occasion is self-timed by the UE against timeReferenceSFN
+/// as per TS 38.321, Section 5.8.2, so the K-offset the UE applies to granted transmissions leaves it where it is.
+/// The K-offset is deliberately not a multiple of the CG periodicity, so a wrongly shifted occasion cannot pass by
+/// coincidence.
+class configured_grant_scheduler_ntn_koffset_test : public configured_grant_scheduler_test
+{
+protected:
+  static constexpr std::chrono::milliseconds KOFFSET{5};
+  static constexpr unsigned                  CG_OFFSET = 7;
+
+  configured_grant_scheduler_ntn_koffset_test() :
+    configured_grant_scheduler_test(cg_test_params{},
+                                    cell_config_builder_profiles::create(duplex_mode::FDD),
+                                    /*default_offset=*/CG_OFFSET,
+                                    KOFFSET)
+  {
+  }
+};
+
+/// Test: with a cell-specific K-offset and no k_mac the CG PUSCH stays at its configured time domain offset.
+TEST_F(configured_grant_scheduler_ntn_koffset_test, cg_pusch_is_not_shifted_by_the_cell_specific_koffset)
+{
+  const auto& cfg = cell_cfg(to_du_cell_index(0));
+  ASSERT_GT(cfg.ntn_cs_koffset, 0U);
+  ASSERT_EQ(cfg.ntn_k_mac_slots, 0U);
+  ASSERT_NE(cfg.ntn_cs_koffset % cg_params.period_slots, 0U)
+      << "the K-offset must be able to move the occasion, or the test cannot tell the two apart";
+
+  add_cg_ue();
+
+  const ul_sched_info* grant = run_until_next_cg_pusch();
+  ASSERT_NE(grant, nullptr) << "No CG PUSCH found in an NTN cell with cell_specific_koffset=" << KOFFSET.count();
+  EXPECT_EQ(last_result_slot().count() % cg_params.period_slots, CG_OFFSET % cg_params.period_slots)
+      << "CG PUSCH was moved by the cell-specific K-offset";
+
+  // The next occasion must keep the same position one period later.
+  const ul_sched_info* next_grant = run_until_next_cg_pusch();
+  ASSERT_NE(next_grant, nullptr) << "No second CG PUSCH found";
+  EXPECT_EQ(last_result_slot().count() % cg_params.period_slots, CG_OFFSET % cg_params.period_slots);
+}
+
+/// Fixture for an NTN cell carrying both a cell-specific K-offset and a k_mac.
+class configured_grant_scheduler_ntn_koffset_and_kmac_test : public configured_grant_scheduler_test
+{
+protected:
+  static constexpr std::chrono::milliseconds KOFFSET{5};
+  static constexpr std::chrono::milliseconds K_MAC{19};
+  static constexpr unsigned                  CG_OFFSET = 7;
+
+  configured_grant_scheduler_ntn_koffset_and_kmac_test() :
+    configured_grant_scheduler_test(cg_test_params{},
+                                    cell_config_builder_profiles::create(duplex_mode::FDD),
+                                    /*default_offset=*/CG_OFFSET,
+                                    KOFFSET,
+                                    K_MAC)
+  {
+  }
+};
+
+/// Test: with both offsets configured the CG PUSCH moves by k_mac alone.
+TEST_F(configured_grant_scheduler_ntn_koffset_and_kmac_test, cg_pusch_is_shifted_by_k_mac_only)
+{
+  const auto& cfg = cell_cfg(to_du_cell_index(0));
+  ASSERT_GT(cfg.ntn_cs_koffset, 0U);
+  ASSERT_GT(cfg.ntn_k_mac_slots, 0U);
+  const unsigned expected_offset = (CG_OFFSET + cfg.ntn_k_mac_slots) % cg_params.period_slots;
+  ASSERT_NE(expected_offset, (CG_OFFSET + cfg.ntn_ul_alloc_delay_slots()) % cg_params.period_slots)
+      << "k_mac and the total uplink delay must differ, or the test cannot tell the two apart";
+
+  add_cg_ue();
+
+  const ul_sched_info* grant = run_until_next_cg_pusch();
+  ASSERT_NE(grant, nullptr) << "No CG PUSCH found in an NTN cell with k_mac=" << K_MAC.count()
+                            << " and cell_specific_koffset=" << KOFFSET.count();
+  EXPECT_EQ(last_result_slot().count() % cg_params.period_slots, expected_offset)
+      << "CG PUSCH was not shifted by k_mac alone";
+}
+
 /// Fixture for multi-UE CG tests. Provides constants for a second CG UE.
 class cg_multi_ue_test : public configured_grant_scheduler_test
 {
@@ -686,12 +657,14 @@ TEST_F(cg_multi_ue_test, two_ues_with_different_offsets)
   constexpr unsigned   safety_margin = 10U;
   const ul_sched_info* g2_ue1        = run_until_next_cg_pusch(cg_params.period_slots + safety_margin, cs_rnti);
   ASSERT_NE(g2_ue1, nullptr) << "No second CG PUSCH for UE1";
+  // The search for UE2 below overwrites the stored result, so save UE1's RNTI while the grant is still reachable.
+  const rnti_t g2_ue1_rnti = g2_ue1->pusch_cfg.rnti;
 
   const ul_sched_info* g2_ue2 = run_until_next_cg_pusch(cg_params.period_slots + safety_margin, cs_rnti_2);
   ASSERT_NE(g2_ue2, nullptr) << "No second CG PUSCH for UE2";
 
   // Verify correct RNTI assignment.
-  EXPECT_EQ(g2_ue1->pusch_cfg.rnti, cs_rnti);
+  EXPECT_EQ(g2_ue1_rnti, cs_rnti);
   EXPECT_EQ(g2_ue2->pusch_cfg.rnti, cs_rnti_2);
 }
 
@@ -758,17 +731,6 @@ TEST_F(cg_multi_ue_test, removing_one_ue_preserves_other_cg_grants)
 }
 
 /// Parameterised fixture for checking that the periodicity is met for different CG period values.
-struct cg_period_test_params {
-  cg_configuration::periodicity_t periodicity;
-  unsigned                        period_slots;
-};
-
-/// Formatter for period test params, used by gtest. Avoids the fallback raw-byte printer.
-void PrintTo(const cg_period_test_params& value, ::std::ostream* os)
-{
-  *os << fmt::format("period={} slots", value.period_slots);
-}
-
 class cg_period_test : public configured_grant_scheduler_test,
                        public ::testing::WithParamInterface<cg_period_test_params>
 {
@@ -808,161 +770,6 @@ INSTANTIATE_TEST_SUITE_P(cg_periods,
                                            cg_period_test_params{cg_configuration::periodicity_t::sl40, 40},
                                            cg_period_test_params{cg_configuration::periodicity_t::sl80, 80}));
 
-/// Fixture for CG DTX detection tests. Uses a single HARQ process so that every CG occasion must reuse the same
-/// HARQ ID. With configured_grant_timer=4 and period=40, the HARQ timeout is 160 slots (4 periods). If the CRC
-/// indication doesn't free the HARQ, no CG PUSCH can be scheduled for the next 3 periods.
-class cg_dtx_test : public configured_grant_scheduler_test
-{
-protected:
-  cg_dtx_test() :
-    configured_grant_scheduler_test(cg_test_params{
-        .periodicity    = cg_configuration::periodicity_t::sl40,
-        .period_slots   = 40,
-        .mcs            = 5,
-        .nof_harq_procs = 1,
-    })
-  {
-  }
-};
-
-/// Test: DTX is detected when CRC KO and SINR is below the threshold (-8 dB). With a single HARQ process, the
-/// only way the next CG PUSCH appears within one period is if the DTX path freed the HARQ.
-TEST_F(cg_dtx_test, cg_dtx_detected_when_crc_ko_and_low_sinr)
-{
-  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-BW-16-3");
-
-  add_cg_ue();
-
-  const ul_sched_info* grant = run_until_next_cg_pusch();
-  ASSERT_NE(grant, nullptr) << "No CG PUSCH found";
-
-  // Send DTX: CRC KO with SINR well below the -8 dB threshold.
-  send_cg_crc(*grant, last_result_slot(), false, -20.0f);
-
-  // With 1 HARQ and configured_grant_timer=4 (timeout = 4 × period = 160 slots), if DTX doesn't free
-  // the HARQ, no CG PUSCH would appear for 4 periods. Verify it appears within 1 period.
-  const ul_sched_info* next_grant = run_until_next_cg_pusch(cg_params.period_slots + 10);
-  EXPECT_NE(next_grant, nullptr) << "CG PUSCH should appear within 1 period after DTX (HARQ should be freed)";
-}
-
-/// Test: when CRC KO but SINR is above the threshold, DTX is NOT triggered (treated as NACK). With max_retx=0,
-/// the HARQ is freed by NACK handling and the next CG grant appears within one period.
-TEST_F(cg_dtx_test, cg_nack_when_crc_ko_and_high_sinr)
-{
-  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-BW-16-3");
-
-  add_cg_ue();
-
-  const ul_sched_info* grant = run_until_next_cg_pusch();
-  ASSERT_NE(grant, nullptr) << "No CG PUSCH found";
-
-  // Send NACK: CRC KO with SINR above the -8 dB threshold (not DTX).
-  send_cg_crc(*grant, last_result_slot(), false, 10.0f);
-
-  // HARQ freed by NACK (max_retx=0) — next CG should appear within 1 period.
-  const ul_sched_info* next_grant = run_until_next_cg_pusch(cg_params.period_slots + 10);
-  EXPECT_NE(next_grant, nullptr) << "CG PUSCH should appear within 1 period after NACK (HARQ should be freed)";
-}
-
-/// Test: when CRC KO but SINR is not reported (nullopt), DTX is NOT triggered. HARQ is freed by NACK handling.
-TEST_F(cg_dtx_test, cg_no_dtx_when_sinr_missing)
-{
-  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-BW-16-3");
-
-  add_cg_ue();
-
-  const ul_sched_info* grant = run_until_next_cg_pusch();
-  ASSERT_NE(grant, nullptr) << "No CG PUSCH found";
-
-  // Send CRC KO with no SINR reported — should NOT trigger DTX, treated as NACK.
-  send_cg_crc(*grant, last_result_slot(), false, std::nullopt);
-
-  // HARQ freed by NACK (max_retx=0) — next CG should appear within 1 period.
-  const ul_sched_info* next_grant = run_until_next_cg_pusch(cg_params.period_slots + 10);
-  EXPECT_NE(next_grant, nullptr) << "CG PUSCH should appear within 1 period when SINR is missing";
-}
-
-/// Test: when the CRC is OK (ACK), the HARQ is freed immediately and the next CG grant appears within one period.
-/// With a single HARQ process, the next grant can only appear if the ACK freed the HARQ (the timeout would take
-/// 4 periods).
-TEST_F(cg_dtx_test, cg_ack_frees_harq_for_next_occasion)
-{
-  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-BW-16-3");
-
-  add_cg_ue();
-
-  const ul_sched_info* grant = run_until_next_cg_pusch();
-  ASSERT_NE(grant, nullptr) << "No CG PUSCH found";
-
-  // Send ACK: CRC OK.
-  send_cg_crc(*grant, last_result_slot(), true, 15.0f);
-
-  const ul_sched_info* next_grant = run_until_next_cg_pusch(cg_params.period_slots + 10);
-  EXPECT_NE(next_grant, nullptr) << "CG PUSCH should appear within 1 period after ACK (HARQ should be freed)";
-}
-
-/// Test: when no CRC indication ever arrives, CG grants keep appearing every period. With 1 HARQ process and
-/// period=40, the same HARQ ID is needed again one period later, while the HARQ timeout is 4 periods (160 slots);
-/// the HARQ manager must forcibly reuse the still-busy HARQ process (forced-reuse path) instead of stalling.
-TEST_F(cg_dtx_test, cg_grants_continue_when_crc_never_arrives)
-{
-  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-BW-16-3");
-
-  add_cg_ue();
-
-  const ul_sched_info* first_grant = run_until_next_cg_pusch();
-  ASSERT_NE(first_grant, nullptr) << "No CG PUSCH found";
-  unsigned cg_grant_count = 1;
-
-  // Never send a CRC indication. Run for 8 periods (2 full HARQ-timeout cycles) and count CG grants.
-  const unsigned total_slots = 8 * cg_params.period_slots;
-  for (unsigned i = 0; i != total_slots; ++i) {
-    run_slot();
-    if (find_ue_pusch(cs_rnti, *last_sched_result()) != nullptr) {
-      ++cg_grant_count;
-    }
-  }
-
-  // Expect one grant per period despite the missing CRCs.
-  const unsigned expected_min_grants = total_slots / cg_params.period_slots;
-  EXPECT_GE(cg_grant_count, expected_min_grants)
-      << "CG grants should continue via HARQ forced reuse when the CRC never arrives";
-}
-
-/// Test: stress test sending DTX for every CG grant across multiple cycles. With a single HARQ, every CG occasion
-/// reuses the same HARQ ID; any free-list corruption would cause later allocations to fail.
-TEST_F(cg_dtx_test, cg_dtx_stress_multiple_cycles)
-{
-  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-BW-16-3");
-
-  add_cg_ue();
-
-  // With 1 HARQ, each period reuses the same ID. Run for 12 periods (= configured_grant_timer × 3 cycles).
-  const unsigned total_slots    = cg_configuration::configured_grant_timer * cg_params.period_slots * 3;
-  unsigned       cg_grant_count = 0;
-
-  // Find the first CG grant.
-  const ul_sched_info* first_grant = run_until_next_cg_pusch();
-  ASSERT_NE(first_grant, nullptr) << "No CG PUSCH found";
-  send_cg_crc(*first_grant, last_result_slot(), false, -20.0f);
-  ++cg_grant_count;
-
-  // Run for the remaining slots, sending DTX for every CG grant.
-  for (unsigned i = 0; i < total_slots; ++i) {
-    run_slot();
-    const ul_sched_info* grant = find_ue_pusch(cs_rnti, *last_sched_result());
-    if (grant != nullptr) {
-      send_cg_crc(*grant, last_result_slot(), false, -20.0f);
-      ++cg_grant_count;
-    }
-  }
-
-  // Expect at least one grant per period.
-  const unsigned expected_min_grants = total_slots / cg_params.period_slots;
-  EXPECT_GE(cg_grant_count, expected_min_grants)
-      << "CG grants should keep appearing every period despite continuous DTX";
-}
-
 /// Fixture for the CSI mux test. The CG offset is forced to match the CSI report slot offset so that CG
 /// PUSCH and periodic CSI PUCCH overlap deterministically.
 class cg_csi_mux_test : public configured_grant_scheduler_test
@@ -989,8 +796,8 @@ TEST_F(cg_csi_mux_test, cg_pusch_absorbs_pucch_csi)
     push_dl_buffer_state(dl_buffer_state_indication_message{to_du_ue_index(0), LCID_SRB1, 10000});
     run_slot();
 
-    const sched_result&  res      = *last_sched_result();
-    const ul_sched_info* cg_pusch = find_ue_pusch(cs_rnti, res);
+    const sched_result_copy& res      = *last_sched_result();
+    const ul_sched_info*     cg_pusch = find_ue_pusch(cs_rnti, res);
     if (cg_pusch == nullptr or not cg_pusch->uci.has_value()) {
       continue;
     }
@@ -1001,7 +808,7 @@ TEST_F(cg_csi_mux_test, cg_pusch_absorbs_pucch_csi)
     // The PUSCH UCI should carry at least one CSI Part 1 bit.
     EXPECT_GT(cg_pusch->uci->csi->csi_part1_nof_bits, 0U);
     // The PUCCH carrying CSI for this UE must have been removed after the mux.
-    EXPECT_EQ(find_ue_pucch_with_csi(ue_crnti, res.ul.pucchs.unsorted()), nullptr)
+    EXPECT_EQ(find_ue_pucch_with_csi(ue_crnti, res.ul.pucchs), nullptr)
         << "PUCCH CSI should be absent after UCI mux onto CG PUSCH";
     break;
   }
@@ -1043,8 +850,8 @@ TEST_F(cg_multi_harq_ack_mux_test, cg_pusch_absorbs_multiple_harq_ack_bits)
     push_dl_buffer_state(dl_buffer_state_indication_message{to_du_ue_index(0), LCID_SRB1, 10000});
     run_slot();
 
-    const sched_result&  res      = *last_sched_result();
-    const ul_sched_info* cg_pusch = find_ue_pusch_with_harq_ack(cs_rnti, res);
+    const sched_result_copy& res      = *last_sched_result();
+    const ul_sched_info*     cg_pusch = find_ue_pusch_with_harq_ack(cs_rnti, res);
     if (cg_pusch == nullptr or cg_pusch->uci->harq->harq_ack_nof_bits < 2) {
       continue;
     }
@@ -1088,9 +895,9 @@ TEST_F(cg_pucch_rep_test, cg_occasion_skipped_in_pucch_repetition_slots)
     push_dl_buffer_state(dl_buffer_state_indication_message{to_du_ue_index(0), LCID_SRB1, 10000});
     run_slot();
 
-    const sched_result&    res           = *last_sched_result();
-    span<const pucch_info> pucchs        = res.ul.pucchs.unsorted();
-    const bool             has_pucch_rep = std::any_of(pucchs.begin(), pucchs.end(), [](const pucch_info& pucch) {
+    const sched_result_copy& res           = *last_sched_result();
+    span<const pucch_info>   pucchs        = res.ul.pucchs;
+    const bool               has_pucch_rep = std::any_of(pucchs.begin(), pucchs.end(), [](const pucch_info& pucch) {
       return pucch.crnti == ue_crnti and pucch.repetition.has_value();
     });
     ASSERT_FALSE(has_pucch_rep and find_ue_pusch(cs_rnti, res) != nullptr)
@@ -1127,7 +934,7 @@ TEST_F(cg_disabled_cell_test, cell_without_cg_config_runs_and_produces_no_cg_gra
   auto ue_req     = sched_config_helper::create_default_sched_ue_creation_request(cell_req.ran);
   ue_req.ue_index = to_du_ue_index(0);
   ue_req.crnti    = ue_crnti;
-  ASSERT_FALSE(ue_req.cfg.cells->front().serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.has_value())
+  ASSERT_FALSE(ue_req.cfg.cells->front().ded->serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.has_value())
       << "Pre-condition: UE config should have no CG when the cell has no CG";
   add_ue(ue_req, /*wait_notification=*/true);
 
@@ -1171,7 +978,7 @@ protected:
     ue_req.starts_in_fallback = true;
     ASSERT_EQ(sched_config_helper::to_ue_creation_mode(ue_req), ue_creation_mode::high_layers);
     // Create the UE without CG: the CG config is installed via reconfiguration (see add_cg_ue()).
-    ue_req.cfg.cells->front().serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
+    ue_req.cfg.cells->front().ded->serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg.reset();
 
     sched->handle_ue_creation_request(ue_req);
     notif.last_ue_index_cfg.reset();
@@ -1188,7 +995,7 @@ protected:
     ue_req.ue_index = ue_idx;
     ue_req.crnti    = ue_crnti;
     ue_req.cfg.cells->front()
-        .serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg->rrc_configured_ul_grant_cfg->time_domain_offset =
+        .ded->serv_cell_cfg.ul_config->init_ul_bwp.cg_cfg->rrc_configured_ul_grant_cfg->time_domain_offset =
         default_cg_offset_;
 
     sched_ue_reconfiguration_message reconf;

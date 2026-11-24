@@ -31,14 +31,14 @@ const char* ocudu::ocucp::asn1_utils::get_cause_str(const asn1::xnap::cause_c& c
   return "unknown";
 }
 
-const char* ocudu::ocucp::asn1_utils::get_message_type_str(const asn1::xnap::xn_ap_pdu_c& pdu)
+const char* ocudu::ocucp::asn1_utils::get_message_type_str(const asn1::xnap::xnap_pdu_c& pdu)
 {
   switch (pdu.type().value) {
-    case xn_ap_pdu_c::types_opts::init_msg:
+    case xnap_pdu_c::types_opts::init_msg:
       return pdu.init_msg().value.type().to_string();
-    case xn_ap_pdu_c::types_opts::successful_outcome:
+    case xnap_pdu_c::types_opts::successful_outcome:
       return pdu.successful_outcome().value.type().to_string();
-    case xn_ap_pdu_c::types_opts::unsuccessful_outcome:
+    case xnap_pdu_c::types_opts::unsuccessful_outcome:
       return pdu.unsuccessful_outcome().value.type().to_string();
     default:
       break;
@@ -54,11 +54,11 @@ ocudu::ocucp::asn1_utils::get_local_xnap_ue_id(const asn1::xnap::successful_outc
 
   switch (success_outcome.value.type()) {
     case success_types::ho_request_ack:
-      return uint_to_local_xnap_ue_id(success_outcome.value.ho_request_ack()->source_ng_ra_nnode_ue_xn_ap_id);
+      return uint_to_local_xnap_ue_id(success_outcome.value.ho_request_ack()->source_ng_ran_node_ue_xnap_id);
     case success_types::retrieve_ue_context_resp:
       // The Retrieve UE Context Response is sent from the source to the target, and it is the target that initiated
       // the procedure, so the local UE ID is the new NG-RAN node UE XnAP ID.
-      return uint_to_local_xnap_ue_id(success_outcome.value.retrieve_ue_context_resp()->new_ng_ra_nnode_ue_xn_ap_id);
+      return uint_to_local_xnap_ue_id(success_outcome.value.retrieve_ue_context_resp()->new_ng_ran_node_ue_xnap_id);
     default:
       break;
   }
@@ -74,11 +74,11 @@ ocudu::ocucp::asn1_utils::get_local_xnap_ue_id(const asn1::xnap::unsuccessful_ou
 
   switch (unsuccessful_outcome.value.type()) {
     case unsuccess_types::ho_prep_fail:
-      return uint_to_local_xnap_ue_id(unsuccessful_outcome.value.ho_prep_fail()->source_ng_ra_nnode_ue_xn_ap_id);
+      return uint_to_local_xnap_ue_id(unsuccessful_outcome.value.ho_prep_fail()->source_ng_ran_node_ue_xnap_id);
     case unsuccess_types::retrieve_ue_context_fail:
       // See the note on the Retrieve UE Context Response above: the local UE ID is the new NG-RAN node UE XnAP ID.
       return uint_to_local_xnap_ue_id(
-          unsuccessful_outcome.value.retrieve_ue_context_fail()->new_ng_ra_nnode_ue_xn_ap_id);
+          unsuccessful_outcome.value.retrieve_ue_context_fail()->new_ng_ran_node_ue_xnap_id);
     default:
       break;
   }

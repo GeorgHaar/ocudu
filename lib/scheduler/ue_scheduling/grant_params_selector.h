@@ -14,6 +14,7 @@ namespace ocudu {
 
 class ue_cell;
 class slice_ue;
+struct search_space_info;
 
 namespace sched_helper {
 
@@ -26,12 +27,18 @@ struct dl_sched_context {
   uint8_t pdsch_td_res_index;
   /// Recommended MCS, considering channel state or, in case of reTx, last HARQ MCS.
   sch_mcs_index recommended_mcs;
-  /// Recommended number of layers.
-  unsigned recommended_ri;
+  /// DM-RS ports of the PDSCH, one per layer.
+  dmrs_port_mask dmrs_ports;
+  /// Number of DM-RS CDM groups without data of the PDSCH.
+  uint8_t nof_dmrs_cdm_groups_without_data;
+  /// Limits for grant size in RBs.
+  interval<unsigned> nof_rb_lims;
   /// Expected number of RBs to allocate.
   unsigned expected_nof_rbs;
   /// Pending bytes for newTx.
   units::bytes pending_bytes;
+  /// Restrictions the transport block carries. Open for a reTx, which follows the process it already holds.
+  dl_transport_block_restrictions restrictions;
   /// Number of Rel-16 slot-based PDSCH repetitions of the selected TDRA row, or nullopt for a single transmission.
   std::optional<uint8_t> nof_repetitions;
 };
@@ -40,11 +47,12 @@ struct dl_sched_context {
 /// The number of Rel-16 PDSCH repetitions to request is decided by link adaptation: when it asks for repetitions, the
 /// selector picks the TDRA row carrying that repetitionNumber-r16 and returns nullopt if it does not fit the slot;
 /// otherwise it picks a single-transmission row.
-std::optional<dl_sched_context> get_newtx_dl_sched_context(const slice_ue& u,
-                                                           slot_point      pdcch_slot,
-                                                           slot_point      pdsch_slot,
-                                                           bool            interleaving_enabled,
-                                                           units::bytes    pending_bytes);
+std::optional<dl_sched_context> get_newtx_dl_sched_context(const slice_ue&                 u,
+                                                           slot_point                      pdcch_slot,
+                                                           slot_point                      pdsch_slot,
+                                                           bool                            interleaving_enabled,
+                                                           units::bytes                    pending_bytes,
+                                                           dl_transport_block_restrictions restrictions);
 
 /// Retrieve recommended PDCCH and PDSCH parameters for a reTx DL grant.
 /// The reTx keeps the repetition scheme of the original transmission, so only the TDRA row carrying its
@@ -56,13 +64,26 @@ std::optional<dl_sched_context> get_retx_dl_sched_context(const slice_ue&       
                                                           const dl_harq_process_handle& h_dl,
                                                           unsigned                      max_rbs = MAX_NOF_PRBS);
 
-/// Select DL VRBs to allocate for a newTx.
-vrb_interval compute_newtx_dl_vrbs(const dl_sched_context& decision_ctxt,
-                                   const vrb_bitmap&       used_vrbs,
-                                   unsigned                max_nof_rbs = MAX_NOF_PRBS);
+/// Minimum number of VRBs of a DL newTx grant.
+unsigned get_min_newtx_dl_nof_vrbs(const search_space_info& ss_info, bool interleaving_enabled);
 
-/// Select DL VRBs to allocate for a reTx.
-vrb_interval compute_retx_dl_vrbs(const dl_sched_context& decision_ctxt, const vrb_bitmap& used_vrbs);
+/// \brief Select DL VRBs to allocate for a newTx, using resource allocation type 0 or 1.
+///
+/// \param[in] max_nof_rbs Maximum number of VRBs of the grant.
+/// \param[in] nof_rbs_remaining Hard limit on the VRBs of a type 0 grant, which may exceed \c max_nof_rbs to fit whole
+/// RBGs.
+vrb_alloc compute_newtx_dl_vrbs(const dl_sched_context&  decision_ctxt,
+                                const search_space_info& ss_info,
+                                const vrb_bitmap&        used_vrbs,
+                                bool                     interleaving_enabled,
+                                unsigned                 max_nof_rbs,
+                                unsigned                 nof_rbs_remaining);
+
+/// Select DL VRBs to allocate for a reTx, keeping the number of VRBs of the previous transmission.
+vrb_alloc compute_retx_dl_vrbs(const dl_sched_context&  decision_ctxt,
+                               const search_space_info& ss_info,
+                               const vrb_bitmap&        used_vrbs,
+                               bool                     interleaving_enabled);
 
 /// PDCCH and PUSCH parameters recommended for a UL grant.
 struct ul_sched_context {
@@ -80,6 +101,8 @@ struct ul_sched_context {
   unsigned expected_nof_rbs;
   /// Pending bytes for newTx.
   units::bytes pending_bytes;
+  /// Restrictions the grant satisfies. Open for a reTx, which follows the process it already holds.
+  ul_grant_restrictions restrictions;
   /// PUSCH config params.
   pusch_config_params pusch_cfg;
   /// Number of Rel-16 PUSCH repetitions of the selected TDRA row, or nullopt for a single transmission.
@@ -97,12 +120,13 @@ struct ul_sched_context {
 /// The number of Rel-16 PUSCH repetitions to request is decided by link adaptation: when it asks for repetitions, the
 /// selector picks the TDRA row carrying that numberOfRepetitions-r16 and returns nullopt if it does not fit the slot;
 /// otherwise it picks a single-transmission row.
-std::optional<ul_sched_context> get_newtx_ul_sched_context(const slice_ue&   u,
-                                                           slot_point        pdcch_slot,
-                                                           slot_point        pusch_slot,
-                                                           unsigned          uci_nof_harq_bits,
-                                                           units::bytes      pending_bytes,
-                                                           ofdm_symbol_range allowed_symbols);
+std::optional<ul_sched_context> get_newtx_ul_sched_context(const slice_ue&       u,
+                                                           slot_point            pdcch_slot,
+                                                           slot_point            pusch_slot,
+                                                           unsigned              uci_nof_harq_bits,
+                                                           units::bytes          pending_bytes,
+                                                           ofdm_symbol_range     allowed_symbols,
+                                                           ul_grant_restrictions restrictions);
 
 /// Retrieve recommended PDCCH and PUSCH parameters for a reTx UL grant.
 /// The reTx tries to reuse the repetition scheme of the original transmission, if it's not possible, fallback to single

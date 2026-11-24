@@ -28,6 +28,19 @@ static void configure_cli11_ngu_socket_args(CLI::App& app, cu_up_unit_ngu_socket
              ngu_sock_params.ext_addr,
              "External IP address that is advertised to receive GTP-U packets from UPF via NG-U interface")
       ->check(CLI::ValidIPV4 | CLI::IsMember({"auto"}));
+  add_option(
+      app,
+      "--sst",
+      ngu_sock_params.sst,
+      "Slice Service Type of the S-NSSAI the socket is dedicated to. Without it, the socket serves every S-NSSAI "
+      "that has no dedicated socket")
+      ->range(0, 255);
+  add_option(app,
+             "--sd",
+             ngu_sock_params.sd,
+             "Service Differentiator of the S-NSSAI the socket is dedicated to. Without it, the socket serves the "
+             "S-NSSAI of the given SST that has no SD")
+      ->range(0, 0xfffffe);
 
   configure_cli11_with_udp_config_schema(app, ngu_sock_params.udp_config);
 }
@@ -36,6 +49,8 @@ static void configure_cli11_ngu_gtpu_args(CLI::App& app, cu_up_unit_ngu_gtpu_con
 {
   add_option(app, "--queue_size", gtpu_cfg.gtpu_queue_size, "GTP-U queue size, in PDUs")->capture_default_str();
   add_option(app, "--batch_size", gtpu_cfg.gtpu_batch_size, "Maximum number of GTP-U PDUs processed in a batch")
+      ->capture_default_str();
+  add_option(app, "--global_rate_limiter", gtpu_cfg.global_rate_limiter_bps, "NG-U global rate limiter in bps")
       ->capture_default_str();
   add_option(
       app, "--reordering_timer", gtpu_cfg.gtpu_reordering_timer_ms, "GTP-U RX reordering timer (in milliseconds)")

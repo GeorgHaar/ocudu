@@ -6,6 +6,7 @@
 #pragma once
 
 #include "ocudu/asn1/e2ap/e2ap.h"
+#include "ocudu/asn1/e2ap/e2ap_pdu_contents.h"
 #include "ocudu/support/async/protocol_transaction_manager.h"
 #include <map>
 

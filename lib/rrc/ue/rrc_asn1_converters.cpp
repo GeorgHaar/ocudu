@@ -40,7 +40,6 @@ asn1::rrc_nr::pdcp_cfg_s ocudu::ocucp::pdcp_config_to_rrc_nr_asn1(const pdcp_con
   if (!pdcp_cfg.ciphering_required) {
     rrc_pdcp_cfg.ciphering_disabled_present = true;
     // This is an extension field.
-    rrc_pdcp_cfg.ext = true;
   }
 
   // Fill more than one RLC.
@@ -249,6 +248,21 @@ five_g_s_tmsi_t ocudu::ocucp::asn1_to_five_g_s_tmsi(const asn1::fixed_bitstring<
   return five_g_s_tmsi_t{five_g_s_tmsi};
 }
 
+s_nssai_t ocudu::ocucp::asn1_to_s_nssai(const asn1::rrc_nr::s_nssai_c& asn1_s_nssai)
+{
+  s_nssai_t s_nssai;
+  if (asn1_s_nssai.type().value == asn1::rrc_nr::s_nssai_c::types_opts::sst) {
+    s_nssai.sst = slice_service_type{static_cast<uint8_t>(asn1_s_nssai.sst().to_number())};
+    return s_nssai;
+  }
+
+  // The SST comes first, then the SD (TS 23.003 section 28.4.2, TS 24.501 section 9.11.2.8).
+  uint32_t sst_sd = asn1_s_nssai.sst_sd().to_number();
+  s_nssai.sst     = slice_service_type{static_cast<uint8_t>(sst_sd >> 24U)};
+  s_nssai.sd      = slice_differentiator::create(sst_sd & 0xffffffU).value();
+  return s_nssai;
+}
+
 amf_identifier_t ocudu::ocucp::asn1_to_amf_identifier(const asn1::fixed_bitstring<24>& asn1_amf_id)
 {
   amf_identifier_t amf_id;
@@ -349,6 +363,20 @@ resume_cause_t ocudu::ocucp::asn1_to_resume_cause(const asn1::rrc_nr::resume_cau
   }
 
   return cause;
+}
+
+reest_cause_t ocudu::ocucp::asn1_to_reest_cause(const asn1::rrc_nr::reest_cause_opts::options& asn1_cause)
+{
+  switch (asn1_cause) {
+    case asn1::rrc_nr::reest_cause_opts::options::recfg_fail:
+      return reest_cause_t::recfg_fail;
+    case asn1::rrc_nr::reest_cause_opts::options::ho_fail:
+      return reest_cause_t::ho_fail;
+    case asn1::rrc_nr::reest_cause_opts::options::other_fail:
+      return reest_cause_t::other_fail;
+    default:
+      return reest_cause_t::unknown;
+  }
 }
 
 establishment_cause_t
@@ -599,4 +627,19 @@ ocudu::ocucp::ue_cap_rat_container_list_to_asn1(const rrc_ue_cap_rat_container_l
     asn1_capabilities_list[i].ue_cap_rat_container = capabilities_list[i].ue_cap_rat_container.copy();
   }
   return asn1_capabilities_list;
+}
+
+expected<plmn_identity> ocudu::ocucp::asn1_to_plmn_identity(const asn1::rrc_nr::plmn_id_s& asn1_plmn,
+                                                            const plmn_identity&           plmn_of_absent_mcc)
+{
+  expected<mobile_country_code> mcc = plmn_of_absent_mcc.mcc();
+  if (asn1_plmn.mcc_present) {
+    mcc = mobile_country_code::from_bytes(asn1_plmn.mcc);
+  }
+  expected<mobile_network_code> mnc =
+      mobile_network_code::from_bytes(span<const uint8_t>(asn1_plmn.mnc.data(), asn1_plmn.mnc.size()));
+  if (not mcc.has_value() or not mnc.has_value()) {
+    return make_unexpected(default_error_t{});
+  }
+  return plmn_identity{mcc.value(), mnc.value()};
 }

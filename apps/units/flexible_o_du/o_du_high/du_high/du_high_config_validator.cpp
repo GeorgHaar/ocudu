@@ -6,6 +6,7 @@
 #include "du_high_config_validator.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/ran/antenna_topology.h"
+#include "ocudu/ran/configured_grant/cg_configuration.h"
 #include "ocudu/ran/duplex_mode.h"
 #include "ocudu/ran/frame_types.h"
 #include "ocudu/ran/nr_cell_identity.h"
@@ -293,6 +294,13 @@ static bool validate_pdsch_cell_unit_config(const du_high_unit_pdsch_config& con
     return false;
   }
 
+  if (config.res_alloc != pdsch_config::resource_allocation::resource_allocation_type_1 and
+      config.interleaving_bundle_size != vrb_to_prb::mapping_type::non_interleaved) {
+    fmt::print("PDSCH resource allocation type 0 is not supported with interleaving. Set interleaving_bundle_size to 0 "
+               "or resource_allocation to type1.\n");
+    return false;
+  }
+
   unsigned max_ue_mcs = 28;
   if (config.mcs_table == pdsch_mcs_table::qam256) {
     max_ue_mcs = 27;
@@ -429,7 +437,7 @@ static bool validate_pusch_cell_unit_config(const du_high_unit_pusch_config& con
     return false;
   }
 
-  // Modulation and Code Scheme MCS ranges are given in TS38.214 Section 6.1.4.2.
+  // Modulation and Code Scheme MCS ranges are given in TS 38.214 Section 6.1.4.2.
   unsigned max_ue_mcs = 28;
   if ((config.mcs_table == pusch_mcs_table::qam256) || config.enable_transform_precoding) {
     max_ue_mcs = 27;
@@ -749,6 +757,35 @@ static bool validate_ntn_config(const du_high_unit_base_cell_config& cell_cfg, n
   if (not validate_ntn_sr_config(
           cell_cfg.mcg_cfg.sr_cfg, cell_cfg.pucch_cfg.sr_period_msec, serving.cell_specific_koffset)) {
     valid = false;
+  }
+
+  if (serving.ue_specific_koffset_enabled) {
+    if (not serving.ta_report_offset_threshold.has_value()) {
+      fmt::print("ntn.ue_specific_koffset_enabled requires ntn.ta_report_offset_threshold to be set.\n");
+      valid = false;
+    }
+    // The HARQ-ACK of its transport block is what tells the scheduler a UE applies a Differential Koffset, and a
+    // HARQ process with feedback disabled never sends one. The UE would apply a value the scheduler drops.
+    if (cell_cfg.pdsch_cfg.harq_feedback_disabled.any()) {
+      fmt::print("ntn.ue_specific_koffset_enabled cannot be combined with pdsch.harq_feedback_disabled.\n");
+      valid = false;
+    }
+    // Mode B reuses an uplink HARQ process before the round trip of its previous transmission has elapsed, and a
+    // Differential Koffset moves the uplink of a UE earlier still.
+    if (cell_cfg.pusch_cfg.harq_mode_b.any()) {
+      fmt::print("ntn.ue_specific_koffset_enabled cannot be combined with pusch.harq_mode_b.\n");
+      valid = false;
+    }
+    if (serving.ue_specific_koffset_margin >= serving.cell_specific_koffset) {
+      fmt::print("ntn.ue_specific_koffset_margin must be smaller than ntn.cell_specific_koffset.\n");
+      valid = false;
+    }
+    // T_TA grows by up to the reporting threshold before the UE reports again, and the margin has to cover it.
+    if (serving.ta_report_offset_threshold.has_value() and
+        static_cast<float>(serving.ue_specific_koffset_margin.count()) < serving.ta_report_offset_threshold.value()) {
+      fmt::print("ntn.ue_specific_koffset_margin must be at least ntn.ta_report_offset_threshold.\n");
+      valid = false;
+    }
   }
 
   if (serving.sat_switch_with_resync) {
@@ -1814,7 +1851,7 @@ static bool validate_cell_sib_config(const du_high_unit_base_cell_config& cell_c
   }
 
   // SI messages scheduled by schedulingInfoList and/or posSchedulingInfoList do not overlap
-  // with SI messages scheduled by schedulingInfoList2. See TS38.331 \c si-WindowPosition.
+  // with SI messages scheduled by schedulingInfoList2. See TS 38.331 \c si-WindowPosition.
   if (!si_window_positions.empty() && (si_window_positions[0] <= n_sched_info_list_messages)) {
     fmt::print("Any SI element in schedulingInfoList2 must be scheduled after any SI "
                "in schedulingInfoList ({}<={})\n",
@@ -1900,8 +1937,11 @@ static bool validate_ntn_tn_cell_config(const du_high_unit_cell_ntn_config& ntn,
   return validate_ntn_neighbor_cells(ntn);
 }
 
-static bool validate_cell_cg_config(const du_high_configured_grants& cg_cfg, unsigned nof_crbs, unsigned max_nof_harqs)
+static bool validate_cell_cg_config(const du_high_unit_base_cell_config& config, unsigned nof_crbs, bool is_tdd)
 {
+  const du_high_configured_grants& cg_cfg        = config.cg_cfg;
+  const unsigned                   max_nof_harqs = config.pusch_cfg.nof_harqs;
+
   if (cg_cfg.max_nof_cell_cg_rbs > nof_crbs) {
     fmt::print("Max number of RBs {} for configured grant exceeds the number of BWP RBs {}.\n",
                cg_cfg.max_nof_cell_cg_rbs,
@@ -1915,6 +1955,43 @@ static bool validate_cell_cg_config(const du_high_configured_grants& cg_cfg, uns
                cg_cfg.nof_harq_processes,
                max_nof_harqs);
     return false;
+  }
+
+  // The CG HARQ timeout is configured_grant_timer CG periods, so it only expires before the next CG occasion of the
+  // same HARQ process if there are at least that many CG HARQ processes.
+  if (cg_cfg.nof_harq_processes < cg_configuration::configured_grant_timer) {
+    fmt::print("The number of UE HARQ processes {} reserved for configured grant (CG) must be at least {}, the "
+               "configured grant timer, so that the CG HARQ timeout expires before the HARQ process is used again.\n",
+               cg_cfg.nof_harq_processes,
+               cg_configuration::configured_grant_timer);
+    return false;
+  }
+
+  // [Implementation-defined] The CG PUSCH waveform follows msg3-transformPrecoder, which is set from the PUSCH
+  // transform precoding, and the CG scheduler only supports CP-OFDM.
+  if (config.pusch_cfg.enable_transform_precoding) {
+    fmt::print("Configured grants are not supported with PUSCH transform precoding enabled.\n");
+    return false;
+  }
+
+  // The scheduler needs some full UL slots without a CG occasion to allocate the dynamic PUSCHs, which the RRC
+  // reconfiguration that sets up the CG requires.
+  if (is_tdd and config.tdd_ul_dl_cfg.has_value()) {
+    const du_high_unit_tdd_ul_dl_config& tdd = config.tdd_ul_dl_cfg.value();
+    const unsigned                       period_slots =
+        tdd.pattern1.dl_ul_period_slots + (tdd.pattern2.has_value() ? tdd.pattern2->dl_ul_period_slots : 0U);
+    const unsigned full_ul_slots =
+        tdd.pattern1.nof_ul_slots + (tdd.pattern2.has_value() ? tdd.pattern2->nof_ul_slots : 0U);
+    const unsigned cg_period = cg_cfg.periodicity_slots.value();
+    if (cg_period < period_slots or (cg_period == period_slots and full_ul_slots <= 1U)) {
+      fmt::print("Configured grant periodicity of {} slots is not compatible with the TDD period of {} slots and {} "
+                 "full UL slots. It must be longer than the TDD period, or equal to it with more than one full UL "
+                 "slot.\n",
+                 cg_period,
+                 period_slots,
+                 full_ul_slots);
+      return false;
+    }
   }
 
   return true;
@@ -2137,7 +2214,25 @@ static bool validate_base_cell_unit_config(const du_high_unit_base_cell_config& 
   }
 
   if (config.cg_cfg.periodicity_slots.has_value() and
-      !validate_cell_cg_config(config.cg_cfg, nof_crbs, config.pusch_cfg.nof_harqs)) {
+      !validate_cell_cg_config(config, nof_crbs, band_helper::get_duplex_mode(band) == duplex_mode::TDD)) {
+    return false;
+  }
+
+  // A Type 2 CG is activated by a DCI format 0_1 scrambled with the CS-RNTI, which needs a UE-specific SearchSpace
+  // monitored with that format.
+  if (config.cg_cfg.periodicity_slots.has_value() and config.cg_cfg.type2 and
+      (config.pdcch_cfg.dedicated.ss2_type == search_space_configuration::type_t::common or
+       not config.pdcch_cfg.dedicated.dci_format_0_1_and_1_1)) {
+    fmt::print("Configured grants Type 2 require SearchSpace#2 to be UE-specific and monitored with DCI format 0_1.\n");
+    return false;
+  }
+
+  // [Implementation-defined] Configured Grants is not supported in NTN cells.
+  // NOTE: a TN cell may carry an NTN config listing only NTN neighbor cells, which does not make it an NTN cell.
+  const bool is_ntn_cell =
+      band_helper::is_ntn_band(band) or (config.ntn_cfg.has_value() and config.ntn_cfg->serving.has_value());
+  if (config.cg_cfg.periodicity_slots.has_value() and is_ntn_cell) {
+    fmt::print("Configured grants are not supported in NTN cells.\n");
     return false;
   }
 
@@ -2224,6 +2319,15 @@ static bool validate_cells_unit_config(span<const du_high_unit_cell_config> conf
 
 static bool validate_test_mode_unit_config(const du_high_unit_config& config)
 {
+  const unsigned last_test_rnti = static_cast<unsigned>(config.test_mode_cfg.test_ue.rnti) +
+                                  config.test_mode_cfg.test_ue.nof_ues * config.cells_cfg.size() - 1;
+  if (last_test_rnti > static_cast<unsigned>(rnti_t::MAX_CRNTI)) {
+    fmt::print("For test mode, the RNTI of the last test UE exceeds the maximum C-RNTI ({:#x} > {:#x})\n",
+               last_test_rnti,
+               static_cast<unsigned>(rnti_t::MAX_CRNTI));
+    return false;
+  }
+
   if ((config.test_mode_cfg.test_ue.ri > 1) and
       not config.cells_cfg.front().cell.pdcch_cfg.dedicated.dci_format_0_1_and_1_1) {
     fmt::print("For test mode, RI shall not be set if UE is configured to use DCI format 1_0\n");

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 
 #include "ofh_integration_test_config.h"
+#include "apps/helpers/config/config_file_cli11_utils.h"
 #include "ocudu/ofh/compression/compression_validator.h"
 #include "ocudu/ofh/ofh_constants.h"
 #include "ocudu/support/cli11_utils.h"
@@ -208,7 +209,8 @@ expected<test_parameters, int> test::parse_test_configuration(int argc, char** a
   CLI::App app("OFH integration test");
   app.config_formatter(create_yaml_config_parser());
   app.allow_config_extras(CLI::config_extras_mode::error);
-  app.set_config("-c,--config_file", "", "Read configuration from a YAML file", false);
+  app_helpers::add_config_file_option(
+      app, app_helpers::MAX_NOF_CONFIG_FILES, "-c,--config_file", "Read configuration from a YAML file");
   configure_cli11_test_args(app, config);
 
   try {

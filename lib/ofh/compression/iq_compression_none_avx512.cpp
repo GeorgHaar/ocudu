@@ -7,6 +7,7 @@
 #include "packing_utils_avx512.h"
 #include "quantizer.h"
 #include "ocudu/ofh/compression/compression_properties.h"
+#include "ocudu/support/cpu_features.h"
 
 using namespace ocudu;
 using namespace ofh;
@@ -15,12 +16,6 @@ void iq_compression_none_avx512::compress(span<uint8_t>                buffer,
                                           span<const cbf16_t>          iq_data,
                                           const ru_compression_params& params)
 {
-  // Number of quantized samples per resource block.
-  static constexpr size_t NOF_SAMPLES_PER_PRB = 2 * NOF_SUBCARRIERS_PER_RB;
-
-  // Quantizer object.
-  quantizer q(params.data_width);
-
   // Use generic implementation if AVX512 utils don't support requested bit width.
   if (!mm512::iq_width_packing_supported(params.data_width)) {
     iq_compression_none_impl::compress(buffer, iq_data, params);
@@ -35,31 +30,26 @@ void iq_compression_none_avx512::compress(span<uint8_t>                buffer,
 
   ocudu_assert(buffer.size() >= prb_size * nof_prbs, "Output buffer doesn't have enough space to decompress PRBs");
 
-  // Auxiliary arrays used for float to fixed point conversion of the input data.
-  std::array<int16_t, NOF_SAMPLES_PER_PRB * MAX_NOF_PRBS> input_quantized;
+  span<const bf16_t> float_samples(reinterpret_cast<const bf16_t*>(iq_data.data()), iq_data.size() * 2U);
+  log_quantized_input_rms(float_samples, params.data_width);
 
-  span<const bf16_t> float_samples_span(reinterpret_cast<const bf16_t*>(iq_data.data()), iq_data.size() * 2U);
-  span<int16_t>      input_quantized_span(input_quantized.data(), iq_data.size() * 2U);
-  q.to_fixed_point(
-      input_quantized_span, float_samples_span, scaling_table.get_compression_iq_scaling(params.data_width));
+  // Scaling applied to the input floats before the conversion to fixed point, including the quantizer gain, and the
+  // largest quantized value.
+  const float   full_scale  = static_cast<float>((1 << (params.data_width - 1)) - 1);
+  const float   scale       = full_scale * scaling_table.get_compression_iq_scaling(params.data_width);
+  const __m512  scale_ps    = _mm512_set1_ps(scale);
+  const __m512i clamp_epi16 = _mm512_set1_epi16(get_bf16_saturation_clamp(scale));
 
-  log_post_quantization_rms(input_quantized_span);
-
-  unsigned        sample_idx = 0;
-  const __mmask32 load_mask  = 0x00ffffff;
-
-  // Process one PRB at a time.
-  for (unsigned rb = 0; rb != nof_prbs; ++rb) {
-    // View over output bytes corresponding to the current PRB.
-    span<uint8_t> out_compr_prb(&buffer[rb * prb_size], prb_size);
-
-    // Load 16-bit IQ samples from non-aligned memory.
-    __m512i rb_epi16 = _mm512_maskz_loadu_epi16(load_mask, &input_quantized[sample_idx]);
-
-    // Pack using utility function.
-    mm512::pack_prb_big_endian(out_compr_prb, rb_epi16, params.data_width);
-
-    sample_idx += NOF_SAMPLES_PER_PRB;
+  switch (params.data_width) {
+    case 9:
+      mm512::compress_prb_quads<9>(buffer.data(), float_samples.data(), nof_prbs, scale_ps, clamp_epi16, full_scale);
+      break;
+    case 14:
+      mm512::compress_prb_quads<14>(buffer.data(), float_samples.data(), nof_prbs, scale_ps, clamp_epi16, full_scale);
+      break;
+    default:
+      mm512::compress_prb_quads<16>(buffer.data(), float_samples.data(), nof_prbs, scale_ps, clamp_epi16, full_scale);
+      break;
   }
 }
 
@@ -82,25 +72,31 @@ bool iq_compression_none_avx512::decompress(span<cbf16_t>                iq_data
                "Input does not contain enough bytes to decompress {} PRBs",
                nof_prbs);
 
-  // Quantizer object.
-  quantizer q_out(params.data_width);
+  // Scaling of the decompressed samples, including the quantizer gain.
+  const float scale =
+      quantizer(params.data_width).to_float(1) * scaling_table.get_decompression_iq_scaling(params.data_width);
 
-  std::array<int16_t, MAX_NOF_SUBCARRIERS * 2> unpacked_iq_data;
+  // The rounding to brain float is faster with the AVX512_BF16 instruction set, which is checked at run time.
+  static const bool use_bf16 = cpu_supports_feature(cpu_feature::avx512bf16);
 
-  unsigned idx = 0;
-  for (unsigned rb = 0; rb != nof_prbs; ++rb) {
-    span<const uint8_t> comp_prb_buffer(&compressed_data[rb * comp_prb_size], comp_prb_size);
-
-    // Unpack resource block.
-    span<int16_t> unpacked_prb_span(&unpacked_iq_data[idx], NOF_SUBCARRIERS_PER_RB * 2);
-    mm512::unpack_prb_big_endian(unpacked_prb_span, comp_prb_buffer, params.data_width);
-
-    idx += (NOF_SUBCARRIERS_PER_RB * 2);
+  auto decompress = [&](auto bits) {
+    static constexpr unsigned BITS = decltype(bits)::value;
+    if (use_bf16) {
+      mm512::decompress_prb_quads_bf16<BITS, false>(iq_data.data(), compressed_data.data(), nof_prbs, scale);
+    } else {
+      mm512::decompress_prb_quads<BITS, false, false>(iq_data.data(), compressed_data.data(), nof_prbs, scale);
+    }
+  };
+  switch (params.data_width) {
+    case 9:
+      decompress(std::integral_constant<unsigned, 9>());
+      break;
+    case 14:
+      decompress(std::integral_constant<unsigned, 14>());
+      break;
+    default:
+      decompress(std::integral_constant<unsigned, 16>());
+      break;
   }
-
-  span<int16_t> unpacked_iq_int16_span(unpacked_iq_data.data(), iq_data.size() * 2);
-  // Convert to complex brain float samples.
-  q_out.to_brain_float(iq_data, unpacked_iq_int16_span, scaling_table.get_decompression_iq_scaling(params.data_width));
-
   return true;
 }

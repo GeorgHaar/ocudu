@@ -54,11 +54,19 @@ ran_function_definition_ctrl_action_item_s e2sm_rc_control_action_du_executor_ba
 async_task<e2sm_ric_control_response>
 e2sm_rc_control_action_du_executor_base::return_ctrl_failure(const e2sm_ric_control_request& req)
 {
-  return launch_async([req](coro_context<async_task<e2sm_ric_control_response>>& ctx) {
+  cause_c cause;
+  cause.set_misc().value = cause_misc_e::options::unspecified;
+  return return_ctrl_failure(req, cause);
+}
+
+async_task<e2sm_ric_control_response>
+e2sm_rc_control_action_du_executor_base::return_ctrl_failure(const e2sm_ric_control_request& req, const cause_c& cause)
+{
+  return launch_async([req, cause](coro_context<async_task<e2sm_ric_control_response>>& ctx) {
     CORO_BEGIN(ctx);
     e2sm_ric_control_response e2sm_response;
-    e2sm_response.success                = false;
-    e2sm_response.cause.set_misc().value = cause_misc_e::options::unspecified;
+    e2sm_response.success = false;
+    e2sm_response.cause   = cause;
     CORO_RETURN(e2sm_response);
   });
 }
@@ -86,13 +94,58 @@ e2sm_rc_control_action_2_6_du_executor::e2sm_rc_control_action_2_6_du_executor(
   action_params.insert({13, "Dedicated PRB Policy Ratio"});
 }
 
-void e2sm_rc_control_action_2_6_du_executor::parse_action_ran_parameter_value(
+bool e2sm_rc_control_action_2_6_du_executor::parse_action_ran_parameter_value(
     const ran_param_value_type_c&     ran_param,
     uint64_t                          ran_param_id,
     uint64_t                          ue_id,
     odu::du_mac_sched_control_config& ctrl_cfg)
 {
-  // TODO: validate types.
+  // Parameters 7, 9 and 10 identify a RRM Policy Member, and parameters 11, 12 and 13 set the PRB quota of a RRM
+  // Policy Ratio Group. The remaining ones only group the parameters below them.
+  const bool is_policy_member_param = ran_param_id == 7 or ran_param_id == 9 or ran_param_id == 10;
+  const bool is_policy_ratio_param  = ran_param_id == 11 or ran_param_id == 12 or ran_param_id == 13;
+
+  if (is_policy_member_param or is_policy_ratio_param) {
+    // Reading a RAN parameter as a type it does not hold reinterprets its storage, so the value type has to be
+    // checked before the value is read.
+    if (ran_param.type() != ran_param_value_type_c::types_opts::ran_p_choice_elem_false) {
+      logger.info("E2SM-RC Slice-level PRB quota Control Request: RAN parameter (param_id={}) is not an element.",
+                  ran_param_id);
+      return false;
+    }
+    const auto& elem = ran_param.ran_p_choice_elem_false();
+    if (not elem.ran_param_value_present) {
+      logger.info("E2SM-RC Slice-level PRB quota Control Request: RAN parameter (param_id={}) carries no value.",
+                  ran_param_id);
+      return false;
+    }
+    const auto expected_value_type =
+        is_policy_member_param ? ran_param_value_c::types_opts::value_oct_s : ran_param_value_c::types_opts::value_int;
+    if (elem.ran_param_value.type() != expected_value_type) {
+      logger.info(
+          "E2SM-RC Slice-level PRB quota Control Request: RAN parameter (param_id={}) carries an unexpected value "
+          "type.",
+          ran_param_id);
+      return false;
+    }
+  }
+
+  // A RRM Policy Member and the PRB quota belong to the RRM Policy Ratio Group that encloses them, and the PLMN, the
+  // SST and the SD to the RRM Policy Member. Reject a parameter that its enclosing structure does not precede.
+  if ((ran_param_id == 6 or is_policy_member_param or is_policy_ratio_param) and
+      ctrl_cfg.rrm_policy_ratio_list.empty()) {
+    logger.info("E2SM-RC Slice-level PRB quota Control Request: RAN parameter (param_id={}) is not preceded by a RRM "
+                "Policy Ratio Group.",
+                ran_param_id);
+    return false;
+  }
+  if (is_policy_member_param and ctrl_cfg.rrm_policy_ratio_list.back().policy_members_list.empty()) {
+    logger.info("E2SM-RC Slice-level PRB quota Control Request: RAN parameter (param_id={}) is not preceded by a RRM "
+                "Policy Member.",
+                ran_param_id);
+    return false;
+  }
+
   if (ran_param_id == 1 or ran_param_id == 3 or ran_param_id == 5 or ran_param_id == 8) {
     // No need to parse.
   } else if (ran_param_id == 2) {
@@ -103,41 +156,80 @@ void e2sm_rc_control_action_2_6_du_executor::parse_action_ran_parameter_value(
     ctrl_cfg.rrm_policy_ratio_list.back().policy_members_list.emplace_back();
   } else if (ran_param_id == 7) {
     // PLMN Identity.
-    if (ran_param.ran_p_choice_elem_false().ran_param_value.value_oct_s().size() != 3) {
+    const auto& plmn_octets = ran_param.ran_p_choice_elem_false().ran_param_value.value_oct_s();
+    // A PLMN identity is an OCTET STRING (SIZE(3)), as per TS 38.473, Section 9.3.1.14.
+    if (plmn_octets.size() != 3) {
       logger.info("E2SM-RC Slice-level PRB quota Control Request: PLMN (param_id={}) encoded not correctly.",
                   ran_param_id);
-      return;
+      return false;
     }
     std::array<uint8_t, 3> plmn_bytes;
-    std::copy(ran_param.ran_p_choice_elem_false().ran_param_value.value_oct_s().begin(),
-              ran_param.ran_p_choice_elem_false().ran_param_value.value_oct_s().end(),
-              plmn_bytes.begin());
-    ctrl_cfg.rrm_policy_ratio_list.back().policy_members_list.back().plmn_id =
-        plmn_identity::from_bytes(plmn_bytes).value();
+    std::copy(plmn_octets.begin(), plmn_octets.end(), plmn_bytes.begin());
+    expected<plmn_identity> plmn_id = plmn_identity::from_bytes(plmn_bytes);
+    if (not plmn_id.has_value()) {
+      logger.info("E2SM-RC Slice-level PRB quota Control Request: PLMN (param_id={}) is not a valid PLMN identity.",
+                  ran_param_id);
+      return false;
+    }
+    ctrl_cfg.rrm_policy_ratio_list.back().policy_members_list.back().plmn_id = plmn_id.value();
   } else if (ran_param_id == 9) {
     // SST.
+    const auto& sst_octets = ran_param.ran_p_choice_elem_false().ran_param_value.value_oct_s();
+    // An SST is an OCTET STRING (SIZE(1)), as per TS 38.473, Section 9.3.1.38.
+    if (sst_octets.size() != 1) {
+      logger.info("E2SM-RC Slice-level PRB quota Control Request: SST (param_id={}) encoded not correctly.",
+                  ran_param_id);
+      return false;
+    }
     ctrl_cfg.rrm_policy_ratio_list.back().policy_members_list.back().s_nssai.sst =
-        slice_service_type{(uint8_t)ran_param.ran_p_choice_elem_false().ran_param_value.value_oct_s().to_number()};
+        slice_service_type{static_cast<uint8_t>(sst_octets.to_number())};
   } else if (ran_param_id == 10) {
     // SD.
-    uint64_t sd = ran_param.ran_p_choice_elem_false().ran_param_value.value_oct_s().to_number();
-    ctrl_cfg.rrm_policy_ratio_list.back().policy_members_list.back().s_nssai.sd =
-        slice_differentiator::create(sd).value();
+    const auto& sd_octets = ran_param.ran_p_choice_elem_false().ran_param_value.value_oct_s();
+    // An SD is an OCTET STRING (SIZE(3)), as per TS 38.473, Section 9.3.1.38.
+    if (sd_octets.size() != 3) {
+      logger.info("E2SM-RC Slice-level PRB quota Control Request: SD (param_id={}) encoded not correctly.",
+                  ran_param_id);
+      return false;
+    }
+    expected<slice_differentiator> sd = slice_differentiator::create(static_cast<uint32_t>(sd_octets.to_number()));
+    if (not sd.has_value()) {
+      logger.info("E2SM-RC Slice-level PRB quota Control Request: SD (param_id={}) exceeds 24 bits.", ran_param_id);
+      return false;
+    }
+    ctrl_cfg.rrm_policy_ratio_list.back().policy_members_list.back().s_nssai.sd = sd.value();
   } else if (ran_param_id == 11) {
     // Min PRB Policy Ratio.
-    ctrl_cfg.rrm_policy_ratio_list.back().minimum_ratio =
-        ran_param.ran_p_choice_elem_false().ran_param_value.value_int();
+    const int64_t min_ratio = ran_param.ran_p_choice_elem_false().ran_param_value.value_int();
+    if (min_ratio < 0 or min_ratio > 100) {
+      logger.info("E2SM-RC Slice-level PRB quota Control Request: Min PRB Policy Ratio (param_id={}) is out of range.",
+                  ran_param_id);
+      return false;
+    }
+    ctrl_cfg.rrm_policy_ratio_list.back().minimum_ratio = static_cast<unsigned>(min_ratio);
   } else if (ran_param_id == 12) {
     // Max PRB Policy Ratio.
-    ctrl_cfg.rrm_policy_ratio_list.back().maximum_ratio =
-        ran_param.ran_p_choice_elem_false().ran_param_value.value_int();
+    const int64_t max_ratio = ran_param.ran_p_choice_elem_false().ran_param_value.value_int();
+    if (max_ratio < 0 or max_ratio > 100) {
+      logger.info("E2SM-RC Slice-level PRB quota Control Request: Max PRB Policy Ratio (param_id={}) is out of range.",
+                  ran_param_id);
+      return false;
+    }
+    ctrl_cfg.rrm_policy_ratio_list.back().maximum_ratio = static_cast<unsigned>(max_ratio);
   } else if (ran_param_id == 13) {
     // Dedicated PRB Policy Ratio.
-    ctrl_cfg.rrm_policy_ratio_list.back().dedicated_ratio =
-        ran_param.ran_p_choice_elem_false().ran_param_value.value_int();
+    const int64_t ded_ratio = ran_param.ran_p_choice_elem_false().ran_param_value.value_int();
+    if (ded_ratio < 0 or ded_ratio > 100) {
+      logger.info(
+          "E2SM-RC Slice-level PRB quota Control Request: Dedicated PRB Policy Ratio (param_id={}) is out of range.",
+          ran_param_id);
+      return false;
+    }
+    ctrl_cfg.rrm_policy_ratio_list.back().dedicated_ratio = static_cast<unsigned>(ded_ratio);
   } else {
     logger.error("Unknown RAN parameter ID {}", ran_param_id);
   }
+  return true;
 }
 
 bool e2sm_rc_control_action_2_6_du_executor::ric_control_action_supported(const e2sm_ric_control_request& req)
@@ -156,7 +248,14 @@ bool e2sm_rc_control_action_2_6_du_executor::ric_control_action_supported(const 
 async_task<e2sm_ric_control_response>
 e2sm_rc_control_action_2_6_du_executor::execute_ric_control_action(const e2sm_ric_control_request& req)
 {
-  odu::du_mac_sched_control_config ctrl_config = convert_to_du_config_request(req);
+  bool                             malformed   = false;
+  odu::du_mac_sched_control_config ctrl_config = convert_to_du_config_request(req, malformed);
+  // If the control message does not respect the RAN parameter definitions, report it as invalid.
+  if (malformed) {
+    cause_c cause;
+    cause.set_ric_request().value = cause_ric_request_e::options::ctrl_msg_invalid;
+    return return_ctrl_failure(req, cause);
+  }
   // If empty request, return failure.
   if (ctrl_config.rrm_policy_ratio_list.empty()) {
     return return_ctrl_failure(req);
@@ -215,7 +314,8 @@ e2sm_rc_control_action_2_6_du_executor::execute_ric_control_action(const e2sm_ri
 }
 
 odu::du_mac_sched_control_config
-e2sm_rc_control_action_2_6_du_executor::convert_to_du_config_request(const e2sm_ric_control_request& e2sm_req_)
+e2sm_rc_control_action_2_6_du_executor::convert_to_du_config_request(const e2sm_ric_control_request& e2sm_req_,
+                                                                     bool&                           malformed)
 {
   odu::du_mac_sched_control_config  ctrl_config = {};
   const e2sm_rc_ctrl_hdr_format1_s& ctrl_hdr =
@@ -236,11 +336,13 @@ e2sm_rc_control_action_2_6_du_executor::convert_to_du_config_request(const e2sm_
   }
 
   // Use a lambda to define the template function in parse_ran_parameter_value
-  auto parse_action_ran_parameter_value_lambda = [this](const ran_param_value_type_c&     ran_param,
-                                                        uint64_t                          ran_param_id,
-                                                        uint64_t                          ue_id,
-                                                        odu::du_mac_sched_control_config& ctrl_cfg) {
-    this->parse_action_ran_parameter_value(ran_param, ran_param_id, ue_id, ctrl_cfg);
+  auto parse_action_ran_parameter_value_lambda = [this, &malformed](const ran_param_value_type_c&     ran_param,
+                                                                    uint64_t                          ran_param_id,
+                                                                    uint64_t                          ue_id,
+                                                                    odu::du_mac_sched_control_config& ctrl_cfg) {
+    if (not this->parse_action_ran_parameter_value(ran_param, ran_param_id, ue_id, ctrl_cfg)) {
+      malformed = true;
+    }
   };
   for (auto& ran_p : ctrl_msg.ran_p_list) {
     if (action_params.find(ran_p.ran_param_id) != action_params.end()) {
@@ -250,6 +352,10 @@ e2sm_rc_control_action_2_6_du_executor::convert_to_du_config_request(const e2sm_
                                 ctrl_config,
                                 parse_action_ran_parameter_value_lambda);
     }
+  }
+  // Reject the whole request, so that a malformed policy member cannot be applied in part.
+  if (malformed) {
+    return {};
   }
   if (ctrl_config.rrm_policy_ratio_list.empty()) {
     return {};

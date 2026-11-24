@@ -23,7 +23,6 @@
 #include "ocudu/scheduler/config/pusch_td_resource_indices.h"
 #include "ocudu/scheduler/result/pusch_info.h"
 #include "ocudu/scheduler/support/rb_helper.h"
-#include "ocudu/support/format/custom_formattable.h"
 #include <algorithm>
 
 using namespace ocudu;
@@ -51,7 +50,7 @@ ue_fallback_scheduler::ue_fallback_scheduler(const scheduler_ue_expert_config& e
   pucch_crbs(
       ocudu::compute_pucch_crbs(cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.crbs,
                                 cell_cfg.params.ul_cfg_common.init_ul_bwp.pucch_cfg_common->pucch_resource_common,
-                                cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.dedicated)),
+                                cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.dedicated.resources)),
   logger(ocudulog::fetch_basic_logger("SCHED"))
 {
   // Pre-reserve memory to avoid allocations in RT.
@@ -374,6 +373,18 @@ static slot_point get_next_srb_slot(const cell_configuration& cell_cfg, slot_poi
   return next_candidate_slot;
 }
 
+// Helper to determine DCI type to use in PDSCH.
+static dci_dl_rnti_config_type get_dci_type(const ue& u, const std::optional<dl_harq_process_handle>& h_dl)
+{
+  if (h_dl.has_value()) {
+    return h_dl->get_grant_params().dci_cfg_type;
+  }
+  if (u.logical_channels().is_con_res_id_pending()) {
+    return dci_dl_rnti_config_type::tc_rnti_f1_0;
+  }
+  return dci_dl_rnti_config_type::c_rnti_f1_0;
+}
+
 ue_fallback_scheduler::dl_sched_outcome
 ue_fallback_scheduler::schedule_dl_srb(cell_resource_allocator&              res_alloc,
                                        ue&                                   u,
@@ -382,6 +393,11 @@ ue_fallback_scheduler::schedule_dl_srb(cell_resource_allocator&              res
   // Search valid PDSCH time domain resource.
 
   const bool is_retx = h_dl_retx.has_value();
+  // A TC-RNTI DCI grants its HARQ-ACK at the cell-specific Koffset, as the UE applies no Differential Koffset to one,
+  // as per TS 38.213, Section 9. The slots checked below have to be the ones the grant lands in.
+  const unsigned ack_ntn_koffset = get_dci_type(u, h_dl_retx) == dci_dl_rnti_config_type::tc_rnti_f1_0
+                                       ? cell_cfg.ntn_cs_koffset
+                                       : u.get_pcell().ntn_koffset();
 
   // Search for empty HARQ in normal mode in case of newTx.
   if (not is_retx and not u.get_pcell().harqs.has_empty_dl_harqs(harq_utils::harq_mode_t::normal)) {
@@ -420,11 +436,16 @@ ue_fallback_scheduler::schedule_dl_srb(cell_resource_allocator&              res
       continue;
     }
 
-    auto                                offset_to_sched_ref_slot = static_cast<unsigned>(next_slot - sched_ref_slot);
-    const cell_slot_resource_allocator& pdcch_alloc              = res_alloc[offset_to_sched_ref_slot];
-    const cell_slot_resource_allocator& pdsch_alloc              = res_alloc[offset_to_sched_ref_slot];
+    auto                          offset_to_sched_ref_slot = static_cast<unsigned>(next_slot - sched_ref_slot);
+    cell_slot_resource_allocator& pdcch_alloc              = res_alloc[offset_to_sched_ref_slot];
+    cell_slot_resource_allocator& pdsch_alloc              = res_alloc[offset_to_sched_ref_slot];
 
     if ((not cell_cfg.is_dl_enabled(pdcch_alloc.slot)) or (not cell_cfg.is_dl_enabled(pdsch_alloc.slot))) {
+      continue;
+    }
+
+    // The HARQ-ACK slot depends on the Koffset the UE applies to this PDCCH, as per TS 38.213, Section 9.
+    if (not u.koffset_tracker().is_known_at(pdcch_alloc.slot)) {
       continue;
     }
 
@@ -441,17 +462,15 @@ ue_fallback_scheduler::schedule_dl_srb(cell_resource_allocator&              res
     // care of removing the UE.
     if (u.get_pcell().get_pcell_state().conres_st == ue_conres_state::pending_conres_ce) {
       // The UE is still on its TC-RNTI here, which uses the cell-specific Koffset, as per TS 38.213, Section 9.
-      const auto ntn_cs_koffset_subframes =
-          cell_cfg.ntn_cs_koffset
-              ? divide_ceil<uint32_t, uint32_t>(cell_cfg.ntn_cs_koffset, pdsch_alloc.slot.nof_slots_per_subframe())
-              : 0;
-      const auto ra_conres_timer_subframes =
-          static_cast<uint32_t>(
-              u.get_pcell().cfg().init_bwp().ul.common().rach_cfg_common.value().ra_con_res_timer.count()) +
-          ntn_cs_koffset_subframes;
-      const int conres_prach_slot_diff = pdsch_alloc.slot - u.get_pcell().get_pcell_state().conres_win_start();
-      if (conres_prach_slot_diff < 0 or
-          divide_ceil<uint32_t, uint32_t>(static_cast<uint32_t>(conres_prach_slot_diff),
+      // Shifting the anchor by the whole uplink delay covers that Koffset and k_mac, so the configured timer is left
+      // at its nominal duration.
+      const slot_point conres_ref_slot =
+          u.get_pcell().get_pcell_state().conres_win_start(cell_cfg.ntn_ul_alloc_delay_slots());
+      const auto ra_conres_timer_subframes = static_cast<uint32_t>(
+          u.get_pcell().cfg().init_bwp().ul.common().rach_cfg_common.value().ra_con_res_timer.count());
+      const int conres_ref_slot_diff = conres_ref_slot.valid() ? pdsch_alloc.slot - conres_ref_slot : 0;
+      if (conres_ref_slot_diff < 0 or
+          divide_ceil<uint32_t, uint32_t>(static_cast<uint32_t>(conres_ref_slot_diff),
                                           pdsch_alloc.slot.nof_slots_per_subframe()) > ra_conres_timer_subframes) {
         // If the slot difference is larger than the RA ConRes timer, then it's too late to schedule the ConRes.
         logger.debug(
@@ -473,14 +492,14 @@ ue_fallback_scheduler::schedule_dl_srb(cell_resource_allocator&              res
     ocudu_sanity_check(pdsch_td_cfg.k0 == 0, "Fallback scheduler only supports k0=0");
 
     // We do not support multiplexing of PDSCH for SRB0 and SRB1 when in fallback with CSI-RS.
-    const bool is_csi_rs_slot = next_slot == sched_ref_slot ? not pdsch_alloc.result.dl.csi_rs.empty()
+    const bool is_csi_rs_slot = next_slot == sched_ref_slot ? not pdsch_alloc.result_reader().dl().csi_rs().empty()
                                                             : csi_helper::is_csi_rs_slot(cell_cfg, pdsch_alloc.slot);
     if (is_csi_rs_slot) {
       continue;
     }
 
     // Verify there is space in PDSCH and PDCCH result lists for new allocations.
-    if (pdcch_alloc.result.dl.dl_pdcchs.full() or pdsch_alloc.result.dl.ue_grants.full()) {
+    if (pdcch_alloc.result_builder().dl().dl_pdcchs().full() or pdsch_alloc.result_builder().dl().ue_grants().full()) {
       logger.debug("rnti={}: Failed to allocate fallback PDSCH. Cause: No space available in scheduler output list",
                    u.crnti);
       slots_with_no_pdxch_space[next_slot.count() % FALLBACK_SCHED_RING_BUFFER_SIZE] = true;
@@ -495,7 +514,9 @@ ue_fallback_scheduler::schedule_dl_srb(cell_resource_allocator&              res
     if (last_slot_ack.valid() and last_slot_ack > most_recent_ack_slot) {
       most_recent_ack_slot = last_slot_ack;
     }
-    if (pdsch_alloc.slot + dci_1_0_k1_values.back() + u.get_pcell().ntn_koffset() <= most_recent_ack_slot) {
+    // \c most_recent_ack_slot comes from the HARQ, which waits for its feedback on the gNB DL clock, so the candidate
+    // PUCCH slot has to be converted onto it before the two are compared.
+    if (pdsch_alloc.slot + cell_cfg.ul_delay(dci_1_0_k1_values.back() + ack_ntn_koffset) <= most_recent_ack_slot) {
       continue;
     }
 
@@ -522,24 +543,13 @@ ue_fallback_scheduler::schedule_dl_srb(cell_resource_allocator&              res
   return dl_sched_outcome::next_ue;
 }
 
-// Helper to determine DCI type to use in PDSCH.
-static dci_dl_rnti_config_type get_dci_type(const ue& u, const std::optional<dl_harq_process_handle>& h_dl)
-{
-  if (h_dl.has_value()) {
-    return h_dl->get_grant_params().dci_cfg_type;
-  }
-  if (u.logical_channels().is_con_res_id_pending()) {
-    return dci_dl_rnti_config_type::tc_rnti_f1_0;
-  }
-  return dci_dl_rnti_config_type::c_rnti_f1_0;
-}
-
 // Helper to allocate common (and optionally dedicated) PUCCH.
 static std::optional<uci_allocation> allocate_ue_fallback_pucch(ue&                         u,
                                                                 cell_resource_allocator&    res_alloc,
                                                                 pucch_allocator&            pucch_alloc,
                                                                 uci_allocator&              uci_alloc,
                                                                 const pdcch_dl_information& pdcch_info,
+                                                                dci_dl_rnti_config_type     dci_type,
                                                                 span<const uint8_t>         k1_values,
                                                                 slot_point                  pdsch_slot,
                                                                 slot_point                  min_ack_slot,
@@ -551,9 +561,8 @@ static std::optional<uci_allocation> allocate_ue_fallback_pucch(ue&             
   // The HARQ-ACK is k1 + Koffset slots after its PDSCH, as per TS 38.213, Section 9. A TC-RNTI DCI grants it at the
   // cell-specific Koffset, as the UE applies no Differential Koffset to one. The slots checked below have to be the
   // ones the grant lands in, so they take the same Koffset the allocation does.
-  const unsigned ntn_koffset = pdcch_info.dci.type() == dci_dl_rnti_config_type::tc_rnti_f1_0
-                                   ? res_alloc.cfg.ntn_cs_koffset
-                                   : u.get_pcell().ntn_koffset();
+  const unsigned ntn_koffset =
+      dci_type == dci_dl_rnti_config_type::tc_rnti_f1_0 ? res_alloc.cfg.ntn_cs_koffset : u.get_pcell().ntn_koffset();
 
   if (not common_alloc and ded_alloc) {
     // UE dedicated-only PUCCH allocation.
@@ -562,7 +571,8 @@ static std::optional<uci_allocation> allocate_ue_fallback_pucch(ue&             
     // PUSCH, as the gNB would expect.
     static_vector<uint8_t, pucch_td_helper::MAX_K1_CANDIDATES> filtered_k1;
     for (const uint8_t k1_candidate : k1_values) {
-      if (not u.get_pcell().get_conf_grant_state_manager().is_cg_slot(pdsch_slot + k1_candidate + ntn_koffset)) {
+      if (not u.get_pcell().get_conf_grant_state_manager().is_cg_slot(
+              res_alloc.cfg.dl_to_ue_ul_slot(pdsch_slot + res_alloc.cfg.ul_delay(k1_candidate + ntn_koffset)))) {
         filtered_k1.push_back(k1_candidate);
       }
     }
@@ -572,7 +582,7 @@ static std::optional<uci_allocation> allocate_ue_fallback_pucch(ue&             
 
   std::optional<uint8_t> last_valid_k1;
   for (uint8_t k1_candidate : k1_values) {
-    slot_point uci_slot = pdsch_slot + k1_candidate + ntn_koffset;
+    const slot_point uci_slot = pdsch_slot + res_alloc.cfg.ul_delay(k1_candidate + ntn_koffset);
     if (uci_slot <= min_ack_slot) {
       // Skip k1 values that would result in a PUCCH transmission in a slot that is older than the most recent ACK slot.
       continue;
@@ -581,7 +591,7 @@ static std::optional<uci_allocation> allocate_ue_fallback_pucch(ue&             
       // If it is not UL-enabled slot.
       continue;
     }
-    if (u.get_pcell().get_conf_grant_state_manager().is_cg_slot(uci_slot)) {
+    if (u.get_pcell().get_conf_grant_state_manager().is_cg_slot(res_alloc.cfg.dl_to_ue_ul_slot(uci_slot))) {
       // TODO: This is only valid for CG type1, remove for type 2.
       // We do not allocate PUCCHs on slots that are for Configured Grant; if that were the case, we would need to
       // multiplex the UCI on the CG PUSCH. The problem with this is that we can't be sure that the UE decodes the PDSCH
@@ -597,7 +607,7 @@ static std::optional<uci_allocation> allocate_ue_fallback_pucch(ue&             
           res_alloc, u.get_pcell().cfg(), pdsch_delay, k1_candidate, pdcch_info, ntn_koffset);
     } else {
       pucch_res_indicator =
-          pucch_alloc.alloc_common_harq_ack(res_alloc, u.crnti, pdsch_delay, k1_candidate, pdcch_info);
+          pucch_alloc.alloc_common_harq_ack(res_alloc, u.crnti, pdsch_delay, k1_candidate, pdcch_info, ntn_koffset);
     }
     if (pucch_res_indicator.has_value()) {
       // Note: the PUCCH grants used during fallback are never repeated over multiple slots.
@@ -666,7 +676,7 @@ ue_fallback_scheduler::alloc_grant(ue&                                   u,
   if (is_retx) {
     // Use the same MCS, nof PRBs and TBS as the last allocation.
     mcs_idx            = h_dl_retx->get_grant_params().mcs;
-    prbs_tbs.nof_prbs  = h_dl_retx->get_grant_params().rbs.type1().length();
+    prbs_tbs.nof_prbs  = h_dl_retx->get_grant_params().rbs.nof_vrbs();
     prbs_tbs.tbs_bytes = h_dl_retx->get_grant_params().tbs;
 
     if (unused_crbs.length() < prbs_tbs.nof_prbs) {
@@ -781,6 +791,7 @@ ue_fallback_scheduler::alloc_grant(ue&                                   u,
                                                                  pucch_alloc,
                                                                  uci_alloc,
                                                                  *pdcch,
+                                                                 dci_type,
                                                                  dci_1_0_k1_values,
                                                                  pdsch_alloc.slot,
                                                                  most_recent_ack_slot,
@@ -789,7 +800,7 @@ ue_fallback_scheduler::alloc_grant(ue&                                   u,
   if (not uci.has_value() or not uci.value().pucch_res_indicator.has_value()) {
     if (uci.has_value() and not uci.value().pucch_res_indicator.has_value()) {
       // A valid k1 candidate existed but the common HARQ-ACK PUCCH collided on every candidate: PUCCH contention.
-      ++pdcch_alloc.result.failed_attempts.fallback_uci_allocs;
+      ++pdcch_alloc.result_builder().failed_attempts().fallback_uci_allocs;
       // Note: Only log if there was at least one valid k1 candidate for this PDSCH slot.
       logger.debug("rnti={}: Failed to allocate fallback PDSCH for slot={}. Cause: No space in PUCCH",
                    u.crnti,
@@ -805,6 +816,10 @@ ue_fallback_scheduler::alloc_grant(ue&                                   u,
   // Update DRX controller state.
   u.drx_controller().on_new_dl_pdcch_alloc(pdcch_alloc.slot);
 
+  // Room was checked before the PDCCH and PUCCH were allocated.
+  dl_msg_alloc* msg = pdsch_alloc.result_builder().dl().ue_grants().emplace_back();
+  ocudu_assert(msg != nullptr, "rnti={}: No space available in scheduler PDSCH outputs", u.crnti);
+
   // Fill ConRes and/or SRB grant.
   return fill_dl_srb_grant(u,
                            pdcch_alloc.slot,
@@ -812,7 +827,7 @@ ue_fallback_scheduler::alloc_grant(ue&                                   u,
                            h_dl_retx,
                            *pdcch,
                            dci_type,
-                           pdsch_alloc.result.dl.ue_grants.emplace_back(),
+                           *msg,
                            uci.value(),
                            pdsch_time_res,
                            mcs_idx,
@@ -842,7 +857,7 @@ ue_fallback_scheduler::select_tbs(const pdsch_config_params&          pdsch_cfg,
                                                        nof_dmrs_per_rb,
                                                        pdsch_cfg.nof_oh_prb,
                                                        mcs_config,
-                                                       pdsch_cfg.nof_layers},
+                                                       pdsch_cfg.nof_layers()},
                             unused_crbs.length());
 
     // [Implementation-defined] In case of partial slots and nof. PRBs allocated equals to 1 probability of KO is
@@ -859,7 +874,7 @@ ue_fallback_scheduler::select_tbs(const pdsch_config_params&          pdsch_cfg,
                                            nof_dmrs_per_rb,
                                            pdsch_cfg.nof_oh_prb,
                                            pdsch_mcs_get_config(pdsch_cfg.mcs_table, chosen_mcs_idx),
-                                           pdsch_cfg.nof_layers,
+                                           pdsch_cfg.nof_layers(),
                                            pdsch_cfg.tb_scaling_field,
                                            prbs_tbs.nof_prbs};
       prbs_tbs.tbs_bytes = tbs_calculator_calculate(tbs_cfg);
@@ -875,7 +890,11 @@ ue_fallback_scheduler::select_tbs(const pdsch_config_params&          pdsch_cfg,
           cell_cfg.params.dl_cfg_common.freq_info_dl.scs_carrier_list.back().tx_direct_current_location.value(),
           grant_crbs);
     }
-    std::optional<sch_mcs_tbs> mcs_tbs = compute_dl_mcs_tbs(pdsch_cfg, chosen_mcs_idx, prbs_tbs.nof_prbs, contains_dc);
+    // The fallback scheduler does not allocate PDSCHs in slots with CSI-RS, hence no CSI-RS resource element is
+    // rate-matched around.
+    static constexpr unsigned  nof_csi_rs_re = 0;
+    std::optional<sch_mcs_tbs> mcs_tbs =
+        compute_dl_mcs_tbs(pdsch_cfg, chosen_mcs_idx, prbs_tbs.nof_prbs, contains_dc, nof_csi_rs_re);
     if (mcs_tbs.has_value()) {
       chosen_mcs_idx     = mcs_tbs.value().mcs;
       prbs_tbs.tbs_bytes = mcs_tbs.value().tbs;
@@ -901,7 +920,7 @@ ue_fallback_scheduler::select_tbs(const pdsch_config_params&          pdsch_cfg,
                                                          nof_dmrs_per_rb,
                                                          pdsch_cfg.nof_oh_prb,
                                                          mcs_config,
-                                                         pdsch_cfg.nof_layers},
+                                                         pdsch_cfg.nof_layers()},
                               unused_crbs.length());
       chosen_mcs_idx                       = next_mcs_idx;
       ++next_mcs_idx;
@@ -936,11 +955,14 @@ dl_harq_process_handle ue_fallback_scheduler::fill_dl_srb_grant(ue&             
   const unsigned ntn_koffset =
       dci_type == dci_dl_rnti_config_type::tc_rnti_f1_0 ? cell_cfg.ntn_cs_koffset : u.get_pcell().ntn_koffset();
   if (not is_retx) {
-    h_dl = u.get_pcell().harqs.alloc_dl_harq(
-        pdcch_slot, pdsch_slot, uci.k1 + ntn_koffset, expert_cfg.max_nof_dl_harq_retxs, uci.harq_bit_idx);
+    h_dl = u.get_pcell().harqs.alloc_dl_harq(pdcch_slot,
+                                             pdsch_slot,
+                                             cell_cfg.ul_delay(uci.k1 + ntn_koffset),
+                                             expert_cfg.max_nof_dl_harq_retxs,
+                                             uci.harq_bit_idx);
     ocudu_assert(h_dl.has_value(), "Failed to allocate DL HARQ");
   } else {
-    bool result = h_dl->new_retx(pdsch_slot, uci.k1 + ntn_koffset, uci.harq_bit_idx);
+    bool result = h_dl->new_retx(pdsch_slot, cell_cfg.ul_delay(uci.k1 + ntn_koffset), uci.harq_bit_idx);
     ocudu_sanity_check(result, "Unable to allocate HARQ retx");
   }
 
@@ -1067,10 +1089,10 @@ ue_fallback_scheduler::ul_srb_sched_outcome ue_fallback_scheduler::schedule_ul_u
   }
 
   // The caller ensures the slot is UL enabled.
-  const cell_slot_resource_allocator& pdcch_alloc = res_alloc[0];
-  slot_point                          pdcch_slot  = pdcch_alloc.slot;
+  cell_slot_resource_allocator& pdcch_alloc = res_alloc[0];
+  slot_point                    pdcch_slot  = pdcch_alloc.slot;
 
-  if (pdcch_alloc.result.dl.ul_pdcchs.full()) {
+  if (pdcch_alloc.result_builder().dl().ul_pdcchs().full()) {
     // Early exit. No space for new PDCCH grants in the scheduler output.
     logger.info("ue={} rnti={}: Failed to allocate fallback PUSCH grant. Cause: Max PDCCH grants reached for slot={}",
                 u.ue_index,
@@ -1096,11 +1118,11 @@ ue_fallback_scheduler::ul_srb_sched_outcome ue_fallback_scheduler::schedule_ul_u
   for (uint8_t pusch_td_res_idx : pusch_td_res_index_list) {
     const pusch_time_domain_resource_allocation& pusch_td =
         cell_cfg.init_bwp.ul.td_mapper().common_pusch_td_resources()[pusch_td_res_idx];
-    cell_slot_resource_allocator& pusch_alloc = res_alloc[pusch_td.k2 + u.get_pcell().ntn_koffset()];
+    cell_slot_resource_allocator& pusch_alloc = res_alloc[cell_cfg.ul_delay(pusch_td.k2 + u.get_pcell().ntn_koffset())];
     const slot_point              pusch_slot  = pusch_alloc.slot;
 
     // Skip PUSCH allocation if this is a Configured Grant slot, to avoid collision with CG PUSCH.
-    if (u.get_pcell().get_conf_grant_state_manager().is_cg_slot(pusch_slot)) {
+    if (u.get_pcell().get_conf_grant_state_manager().is_cg_slot(cell_cfg.dl_to_ue_ul_slot(pusch_slot))) {
       continue;
     }
 
@@ -1117,11 +1139,11 @@ ue_fallback_scheduler::ul_srb_sched_outcome ue_fallback_scheduler::schedule_ul_u
 
     // When checking the number of remaining grants for PUSCH, take into account that the PUCCH grants for this UE
     // will be removed when multiplexing the UCI on PUSCH.
+    auto       puschs     = pusch_alloc.result_builder().ul().puschs();
     const auto max_puschs = std::min<unsigned>(
-        {static_cast<unsigned>(pusch_alloc.result.ul.puschs.capacity()),
-         expert_cfg.max_puschs_per_slot,
-         expert_cfg.max_ul_grants_per_slot - static_cast<unsigned>(pusch_alloc.result.ul.pucchs.size())});
-    if (pusch_alloc.result.ul.puschs.size() >= max_puschs) {
+        {expert_cfg.max_puschs_per_slot,
+         expert_cfg.max_ul_grants_per_slot - static_cast<unsigned>(pusch_alloc.result_reader().ul().pucchs().size())});
+    if (puschs.full() or puschs.size() >= max_puschs) {
       logger.info("ue={} rnti={}: Failed to allocate fallback PUSCH grant in slot={}. Cause: Max number of UL "
                   "grants per slot {} was reached.",
                   u.ue_index,
@@ -1132,17 +1154,16 @@ ue_fallback_scheduler::ul_srb_sched_outcome ue_fallback_scheduler::schedule_ul_u
     }
 
     const bool existing_pusch =
-        pusch_alloc.result.ul.puschs.end() !=
-        std::find_if(pusch_alloc.result.ul.puschs.begin(),
-                     pusch_alloc.result.ul.puschs.end(),
-                     [rnti = u.crnti](const ul_sched_info& pusch) { return pusch.pusch_cfg.rnti == rnti; });
+        puschs.end() != std::find_if(puschs.begin(), puschs.end(), [rnti = u.crnti](const ul_sched_info& pusch) {
+          return pusch.pusch_cfg.rnti == rnti;
+        });
 
     if (existing_pusch) {
       // Only one PUSCH per UE per slot.
       continue;
     }
 
-    span<const pucch_info> pucchs         = pusch_alloc.result.ul.pucchs.unsorted();
+    span<const pucch_info> pucchs         = pusch_alloc.result_reader().ul().pucchs().unsorted();
     const auto*            existing_pucch = std::find_if(
         pucchs.begin(), pucchs.end(), [rnti = u.crnti](const pucch_info& pucch) { return pucch.crnti == rnti; });
 
@@ -1194,7 +1215,7 @@ ue_fallback_scheduler::schedule_ul_srb(ue&                                      
 {
   ue_cell&                      ue_pcell    = u.get_pcell();
   cell_slot_resource_allocator& pdcch_alloc = res_alloc[0];
-  cell_slot_resource_allocator& pusch_alloc = res_alloc[pusch_td.k2 + ue_pcell.ntn_koffset()];
+  cell_slot_resource_allocator& pusch_alloc = res_alloc[cell_cfg.ul_delay(pusch_td.k2 + ue_pcell.ntn_koffset())];
 
   const crb_interval init_ul_bwp_crbs = cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params.crbs;
 
@@ -1229,7 +1250,7 @@ ue_fallback_scheduler::schedule_ul_srb(ue&                                      
   crb_interval ue_grant_crbs;
   sch_mcs_tbs  final_mcs_tbs;
   if (is_retx) {
-    const unsigned final_nof_prbs = h_ul_retx->get_grant_params().rbs.type1().length();
+    const unsigned final_nof_prbs = h_ul_retx->get_grant_params().rbs.nof_vrbs();
     final_mcs_tbs.mcs             = h_ul_retx->get_grant_params().mcs;
     final_mcs_tbs.tbs             = h_ul_retx->get_grant_params().tbs;
 
@@ -1344,11 +1365,15 @@ ue_fallback_scheduler::schedule_ul_srb(ue&                                      
   // Update DRX controller state.
   u.drx_controller().on_new_ul_pdcch_alloc(pdcch_alloc.slot, pusch_alloc.slot);
 
+  // Room was checked before the PDCCH was allocated and the PUCCH removed.
+  ul_sched_info* msg = pusch_alloc.result_builder().ul().puschs().emplace_back();
+  ocudu_assert(msg != nullptr, "rnti={}: No space available in scheduler PUSCH outputs", u.crnti);
+
   fill_ul_srb_grant(u,
                     pdcch_alloc.slot,
                     h_ul_retx,
                     *pdcch,
-                    pusch_alloc.result.ul.puschs.emplace_back(),
+                    *msg,
                     pusch_time_res,
                     pusch_td.k2,
                     final_mcs_tbs.mcs,
@@ -1375,12 +1400,12 @@ void ue_fallback_scheduler::fill_ul_srb_grant(ue&                               
 {
   if (is_retx) {
     // It is a retx.
-    bool result = h_ul->new_retx(pdcch_slot + k2 + u.get_pcell().ntn_koffset());
+    bool result = h_ul->new_retx(pdcch_slot + cell_cfg.ul_delay(k2 + u.get_pcell().ntn_koffset()));
     ocudu_sanity_check(result, "Failed to setup HARQ retx");
   } else {
     // It is a new tx.
     h_ul = u.get_pcell().harqs.alloc_ul_harq(
-        pdcch_slot, pdcch_slot + k2 + u.get_pcell().ntn_koffset(), expert_cfg.max_nof_ul_harq_retxs);
+        pdcch_slot, pdcch_slot + cell_cfg.ul_delay(k2 + u.get_pcell().ntn_koffset()), expert_cfg.max_nof_ul_harq_retxs);
     ocudu_assert(h_ul.has_value(), "Failed to allocate UL HARQ");
   }
 
@@ -1472,14 +1497,13 @@ void ue_fallback_scheduler::store_harq_tx(du_ue_index_t ue_index, const dl_harq_
 
 bool ue_fallback_scheduler::handle_conres_expiry(ue& u, slot_point sl_tx)
 {
-  const unsigned ntn_cs_koffset = cell_cfg.ntn_cs_koffset;
-  auto&          ue_pcell       = u.get_pcell();
+  auto& ue_pcell = u.get_pcell();
 
   if (ue_pcell.get_pcell_state().conres_st != ue_conres_state::pending_conres_ce) {
     return false;
   }
 
-  const slot_point conres_ref_slot = ue_pcell.get_pcell_state().conres_win_start();
+  const slot_point conres_ref_slot = ue_pcell.get_pcell_state().conres_win_start(cell_cfg.ntn_ul_alloc_delay_slots());
   if (not conres_ref_slot.valid()) {
     logger.warning("ue={} rnti={}: attempting to compute ra-ContentionResolutionTimer with non-valid prach/msg3 rx "
                    "slot",
@@ -1489,7 +1513,7 @@ bool ue_fallback_scheduler::handle_conres_expiry(ue& u, slot_point sl_tx)
   }
 
   const auto conres_timer       = ue_pcell.cfg().init_bwp().ul.common().rach_cfg_common->ra_con_res_timer.count();
-  const auto conres_timer_slots = conres_timer * sl_tx.nof_slots_per_subframe() + ntn_cs_koffset;
+  const auto conres_timer_slots = conres_timer * sl_tx.nof_slots_per_subframe();
   const auto sl_conres          = conres_ref_slot + conres_timer_slots;
   if (sl_conres > sl_tx) {
     // ConRes window has not yet elapsed.
@@ -1498,18 +1522,12 @@ bool ue_fallback_scheduler::handle_conres_expiry(ue& u, slot_point sl_tx)
 
   // If the ConRes CE was never scheduled, then we deactivate the UE right away.
   if (u.logical_channels().is_con_res_id_pending()) {
-    const auto ntn_cs_koffset_ms =
-        ntn_cs_koffset ? divide_ceil<uint32_t, uint32_t>(ntn_cs_koffset, sl_tx.nof_slots_per_subframe()) : 0;
-    logger.warning(
-        "ue={} rnti={}: ra-ContentionResolutionTimer, for prach/msg3 rx at slot={}, expired ({}ms{}) before ConRes "
-        "CE was scheduled. UE will stop being scheduled",
-        u.ue_index,
-        u.crnti,
-        conres_ref_slot,
-        conres_timer,
-        make_formattable([k = ntn_cs_koffset_ms](auto& ctx) {
-          return k ? fmt::format_to(ctx.out(), " + RTT: {}ms", k) : ctx.out();
-        }));
+    logger.warning("ue={} rnti={}: ra-ContentionResolutionTimer, for msg3/prach rx at slot={}, expired ({}ms) before "
+                   "ConRes CE was scheduled. UE will stop being scheduled",
+                   u.ue_index,
+                   u.crnti,
+                   conres_ref_slot,
+                   conres_timer);
     metrics.handle_conres_timer_expired();
     ues.handle_conres_ce_outcome(u.ue_index, false);
     return true;
@@ -1532,14 +1550,11 @@ bool ue_fallback_scheduler::handle_conres_expiry(ue& u, slot_point sl_tx)
 
   // ConRes timer has expired, but there is a chance the UE received the ConRes CE but the ACK was not successful.
   // In this case, the scheduler will stop retransmitting the ConRes CE.
-  logger.info("ue={} rnti={}: ra-ContentionResolutionTimer ({}ms{}) expired, but the scheduler never got back a "
+  logger.info("ue={} rnti={}: ra-ContentionResolutionTimer ({}ms) expired, but the scheduler never got back a "
               "positive ACK. The scheduler will stop retransmitting the ConRes CE",
               u.ue_index,
               u.crnti,
-              conres_timer,
-              make_formattable([k = ntn_cs_koffset](auto& ctx) {
-                return k ? fmt::format_to(ctx.out(), " + RTT: {}ms", k) : ctx.out();
-              }));
+              conres_timer);
   metrics.handle_conres_ce_never_acked();
   ues.handle_conres_ce_outcome(u.ue_index, false);
   return true;

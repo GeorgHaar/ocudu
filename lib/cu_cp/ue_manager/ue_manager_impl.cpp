@@ -220,11 +220,11 @@ void ue_manager::remove_blocked_plmns(const std::vector<plmn_identity>& plmns)
   }
 }
 
-std::vector<cu_cp_ue*> ue_manager::find_ues(plmn_identity plmn)
+std::vector<cu_cp_ue*> ue_manager::find_ues(cu_cp_amf_index_t amf_index)
 {
   std::vector<cu_cp_ue*> found_ues;
   for (auto& ue : ues) {
-    if (ue.second.get_ue_context().plmn == plmn) {
+    if (ue.second.get_ue_context().amf_index == amf_index) {
       found_ues.push_back(&ue.second);
     }
   }

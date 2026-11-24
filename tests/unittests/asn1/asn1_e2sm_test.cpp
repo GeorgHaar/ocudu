@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
+#include "asn1_test_utils.h"
+#include "ocudu/asn1/e2sm/e2sm.h"
 #include "ocudu/asn1/e2sm/e2sm_kpm_ies.h"
-#include "ocudu/asn1/e2sm/e2sm_rc_ies.h"
 #include <gtest/gtest.h>
 
 using namespace asn1;
@@ -38,9 +39,9 @@ TEST_F(asn1_e2sm_test, unpack_ric_control_header)
 
   asn1::cbit_ref                 bref{buffer};
   asn1::e2sm::e2sm_rc_ctrl_hdr_s pdu;
-  ASSERT_EQ(pdu.unpack(bref), OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::unpack(pdu, bref), OCUDUASN_SUCCESS);
 
-  ASSERT_EQ(test_pack_unpack_consistency(pdu), OCUDUASN_SUCCESS);
+  ASSERT_EQ(test_pack_roundtrip(pdu), OCUDUASN_SUCCESS);
 }
 
 TEST_F(asn1_e2sm_test, unpack_ric_control_message)
@@ -55,7 +56,7 @@ TEST_F(asn1_e2sm_test, unpack_ric_control_message)
 
   asn1::cbit_ref                 bref{buffer};
   asn1::e2sm::e2sm_rc_ctrl_msg_s pdu;
-  ASSERT_EQ(pdu.unpack(bref), OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::unpack(pdu, bref), OCUDUASN_SUCCESS);
 
   ASSERT_EQ(pdu.ric_ctrl_msg_formats.type().value,
             asn1::e2sm::e2sm_rc_ctrl_msg_s::ric_ctrl_msg_formats_c_::types_opts::ctrl_msg_format1);
@@ -107,7 +108,7 @@ TEST_F(asn1_e2sm_test, unpack_ric_control_message)
   ASSERT_EQ(seq_params[3].ran_param_value_type.type().value,
             asn1::e2sm::ran_param_value_type_c::types_opts::ran_p_choice_elem_false);
 
-  ASSERT_EQ(test_pack_unpack_consistency(pdu), OCUDUASN_SUCCESS);
+  ASSERT_EQ(test_pack_roundtrip(pdu), OCUDUASN_SUCCESS);
 }
 
 TEST_F(asn1_e2sm_test, pack_unpack_action_definition_with_negative_test_cond_values)
@@ -151,15 +152,31 @@ TEST_F(asn1_e2sm_test, pack_unpack_action_definition_with_negative_test_cond_val
 
   byte_buffer   buffer;
   asn1::bit_ref bref{buffer};
-  ASSERT_EQ(action_def.pack(bref), OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::pack(bref, action_def), OCUDUASN_SUCCESS);
 
   e2sm_kpm_action_definition_s unpacked_action_def;
   asn1::cbit_ref               cbref{buffer};
-  ASSERT_EQ(unpacked_action_def.unpack(cbref), OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::unpack(unpacked_action_def, cbref), OCUDUASN_SUCCESS);
 
   const auto& unpacked_cond =
       unpacked_action_def.action_definition_formats.action_definition_format3().meas_cond_list[0].matching_cond;
   ASSERT_EQ(unpacked_cond.size(), 2);
   ASSERT_EQ(unpacked_cond[0].matching_cond_choice.test_cond_info().test_value.value_int(), -110);
   ASSERT_EQ(unpacked_cond[1].matching_cond_choice.test_cond_info().test_value.value_int(), -50);
+}
+
+// E2SM-RC encodings from asn1tools.
+TEST_F(asn1_e2sm_test, rc_encodings_match_reference)
+{
+  // LogicalOR of E2SM-RC has two root values, unlike the one of E2SM-KPM.
+  EXPECT_EQ(test_unpack_roundtrip<e2sm::e2sm_rc_event_trigger_s>(hex_to_bytes("00000008000002a0")), OCUDUASN_SUCCESS);
+  // Items of a SEQUENCE OF named like messages are not padded to an octet boundary.
+  EXPECT_EQ(test_unpack_roundtrip<e2sm::e2sm_rc_ctrl_msg_s>(hex_to_bytes("400012000101000000000002000040c0fffffffe40")),
+            OCUDUASN_SUCCESS);
+  // Unconstrained BIT STRING of 63 bits and of no bits, whose length is octet-aligned.
+  EXPECT_EQ(test_unpack_roundtrip<e2sm::e2sm_rc_ctrl_outcome_s>(
+                hex_to_bytes("40001400010100000000000000303fa827babf1e74950a")),
+            OCUDUASN_SUCCESS);
+  EXPECT_EQ(test_unpack_roundtrip<e2sm::e2sm_rc_ctrl_outcome_s>(hex_to_bytes("40000c000101000000000000003000")),
+            OCUDUASN_SUCCESS);
 }

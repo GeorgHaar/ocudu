@@ -322,8 +322,11 @@ public:
     ngu_gws[1].set_bind_address("127.0.0.3");
   }
 
-  // Hands out the gateways in round-robin order, like ngu_session_manager_impl does.
-  gtpu_tnl_pdu_session& get_next_ngu_gateway() override { return ngu_gws[next_gw++ % ngu_gws.size()]; }
+  // Hands out the gateways in round-robin order, like ngu_session_manager_impl does with default gateways.
+  gtpu_tnl_pdu_session* get_next_ngu_gateway(const s_nssai_t& snssai) override
+  {
+    return &ngu_gws[next_gw++ % ngu_gws.size()];
+  }
 
 private:
   std::array<dummy_gtpu_gateway, 2> ngu_gws;
@@ -412,8 +415,7 @@ inline e1ap_message generate_bearer_context_setup_request(unsigned cu_cp_ue_e1ap
   auto& ng_ran_bearer_context_setup_req =
       bearer_context_setup_req->sys_bearer_context_setup_request.set_ng_ran_bearer_context_setup_request();
 
-  ng_ran_bearer_context_setup_req.resize(1);
-  auto& pdu_session_res_list = ng_ran_bearer_context_setup_req[0]->pdu_session_res_to_setup_list();
+  auto& pdu_session_res_list = ng_ran_bearer_context_setup_req.pdu_session_res_to_setup_list;
 
   asn1::e1ap::pdu_session_res_to_setup_item_s pdu_session_res_to_setup_item;
   pdu_session_res_to_setup_item.pdu_session_id   = 2;
@@ -455,11 +457,11 @@ inline e1ap_message generate_bearer_context_setup_request(unsigned cu_cp_ue_e1ap
   auto& qos_characteristics   = qos_flow_qos_param_item.qos_flow_level_qos_params.qos_characteristics.non_dyn_5qi();
   qos_characteristics.five_qi = 9;
 
-  qos_flow_qos_param_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.prio_level = 15;
-  qos_flow_qos_param_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.pre_emption_cap =
+  qos_flow_qos_param_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.prio_level = 15;
+  qos_flow_qos_param_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.pre_emption_cap =
       asn1::e1ap::pre_emption_cap_e::shall_not_trigger_pre_emption;
 
-  qos_flow_qos_param_item.qos_flow_level_qos_params.ngra_nalloc_retention_prio.pre_emption_vulnerability =
+  qos_flow_qos_param_item.qos_flow_level_qos_params.ngran_alloc_retention_prio.pre_emption_vulnerability =
       asn1::e1ap::pre_emption_vulnerability_e::pre_emptable;
 
   drb_to_setup_item_ng_ran.qos_flow_info_to_be_setup.push_back(qos_flow_qos_param_item);

@@ -6,12 +6,12 @@
 #pragma once
 
 #include "ocudu/adt/complex.h"
-#include "ocudu/phy/antenna_ports.h"
 #include "ocudu/phy/support/re_buffer.h"
 #include "ocudu/phy/support/resource_grid_mapper.h"
 #include "ocudu/phy/support/resource_grid_writer.h"
 #include "ocudu/phy/upper/sequence_generators/pseudo_random_generator.h"
 #include "ocudu/phy/upper/signal_processors/pdsch/dmrs_pdsch_processor.h"
+#include <array>
 
 namespace ocudu {
 
@@ -59,8 +59,8 @@ private:
                         unsigned         symbol,
                         const config_t&  config);
 
-  /// Temporal resource element storage.
-  static_re_buffer<MAX_PORTS, MAX_DMRS_PER_SYMBOL * MAX_DMRS_SYMBOLS> temp_re;
+  /// Temporal resource element storage for the DM-RS port sequences.
+  static_re_buffer<DMRS_MAX_NPORTS, MAX_DMRS_PER_SYMBOL * MAX_DMRS_SYMBOLS> temp_re;
 
 public:
   dmrs_pdsch_processor_impl(std::unique_ptr<pseudo_random_generator> pseudo_random_generator_,

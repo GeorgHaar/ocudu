@@ -296,7 +296,7 @@ public:
     // Decode the BCCH-DL-SCH message (which wraps SIB1).
     asn1::cbit_ref                  bref{sib1_buffer};
     asn1::rrc_nr::bcch_dl_sch_msg_s bcch_msg;
-    EXPECT_EQ(bcch_msg.unpack(bref), asn1::OCUDUASN_SUCCESS);
+    EXPECT_EQ(asn1::unpack(bcch_msg, bref), asn1::OCUDUASN_SUCCESS);
 
     // Extract the SIB1 from the message.
     EXPECT_EQ(bcch_msg.msg.type().value, asn1::rrc_nr::bcch_dl_sch_msg_type_c::types_opts::c1);
@@ -377,7 +377,7 @@ public:
     // Decode the BCCH-DL-SCH message containing the SI message.
     asn1::cbit_ref                  bref{si_msg_buffer};
     asn1::rrc_nr::bcch_dl_sch_msg_s bcch_msg;
-    EXPECT_EQ(bcch_msg.unpack(bref), asn1::OCUDUASN_SUCCESS);
+    EXPECT_EQ(asn1::unpack(bcch_msg, bref), asn1::OCUDUASN_SUCCESS);
 
     // Extract the SystemInformation message.
     EXPECT_EQ(bcch_msg.msg.type().value, asn1::rrc_nr::bcch_dl_sch_msg_type_c::types_opts::c1);
@@ -389,7 +389,8 @@ public:
     const auto& si_content = sys_info.crit_exts.sys_info();
 
     for (const auto& sib_entry : si_content.sib_type_and_info) {
-      if (sib_entry.type().value == asn1::rrc_nr::sys_info_ies_s::item_c_::types_opts::sib19_v1700) {
+      if (sib_entry.type().value ==
+          asn1::rrc_nr::sys_info_ies_s::sib_type_and_info_l_item_c_::types_opts::sib19_v1700) {
         const auto& sib19_asn1 = sib_entry.sib19_v1700();
 
         // Convert ASN.1 SIB19 to our sib19_info structure.

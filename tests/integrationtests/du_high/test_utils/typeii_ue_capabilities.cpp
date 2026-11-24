@@ -44,7 +44,7 @@ ocudu::test_helpers::create_typeii_ue_capability_container(nr_band band, unsigne
   ue_nr_cap_s ue_cap;
   {
     asn1::cbit_ref bref{rat_list[0].ue_cap_rat_container};
-    report_fatal_error_if_not(ue_cap.unpack(bref) == asn1::OCUDUASN_SUCCESS,
+    report_fatal_error_if_not(asn1::unpack(ue_cap, bref) == asn1::OCUDUASN_SUCCESS,
                               "Failed to unpack the UE NR capabilities.");
   }
 
@@ -52,10 +52,9 @@ ocudu::test_helpers::create_typeii_ue_capability_container(nr_band band, unsigne
   band_nr_s& band_cap = ue_cap.rf_params.supported_band_list_nr[0];
   band_cap.band_nr    = static_cast<uint16_t>(band);
 
-  // Report the codebooks of the band, as per TS38.331 codebookParameters.
+  // Report the codebooks of the band, as per TS 38.331 codebookParameters.
   band_cap.mimo_params_per_band_present = true;
   // The codebook parameters belong to the first extension group of the MIMO parameters.
-  band_cap.mimo_params_per_band.ext = true;
   if (not band_cap.mimo_params_per_band.codebook_params.is_present()) {
     band_cap.mimo_params_per_band.codebook_params = asn1::make_copy_ptr(codebook_params_s{});
   }
@@ -84,7 +83,8 @@ ocudu::test_helpers::create_typeii_ue_capability_container(nr_band band, unsigne
   byte_buffer packed_ue_cap;
   {
     asn1::bit_ref bref{packed_ue_cap};
-    report_fatal_error_if_not(ue_cap.pack(bref) == asn1::OCUDUASN_SUCCESS, "Failed to pack the UE NR capabilities.");
+    report_fatal_error_if_not(asn1::pack(bref, ue_cap) == asn1::OCUDUASN_SUCCESS,
+                              "Failed to pack the UE NR capabilities.");
   }
   rat_list[0].ue_cap_rat_container = std::move(packed_ue_cap);
 

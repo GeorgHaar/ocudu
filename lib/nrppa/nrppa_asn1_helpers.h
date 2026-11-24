@@ -39,6 +39,12 @@ inline void fill_nrppa_e_cid_meas_initiation_request(nrppa_e_cid_meas_initiation
   for (const auto& asn1_meas_quantities_item : asn1_request->meas_quantities) {
     request.meas_quantities.push_back(asn1_to_meas_quantities_item(asn1_meas_quantities_item->meas_quantities_item()));
   }
+
+  // NR Angle of Arrival carries its own reporting periodicity, as per TS 38.455 section 9.1.1.1.
+  if (asn1_request->meas_periodicity_nr_ao_a_present) {
+    request.meas_periodicity_nr_aoa =
+        static_cast<meas_periodicity_nr_aoa_t>(asn1_request->meas_periodicity_nr_ao_a.to_number());
+  }
 }
 
 /// \brief Fills the common type \c nrppa_otdoa_information_request struct.
@@ -47,13 +53,11 @@ inline void fill_nrppa_e_cid_meas_initiation_request(nrppa_e_cid_meas_initiation
 inline void fill_nrppa_otdoa_information_request(nrppa_otdoa_information_request&         request,
                                                  const asn1::nrppa::otdoa_info_request_s& asn1_request)
 {
-  for (const auto& asn1_item : *asn1_request) {
-    for (const auto& asn1_info_type_item : asn1_item.value().otdoa_info_type_group()) {
-      if (asn1_info_type_item.value().otdoa_info_type_item().otdoa_info_item.value !=
-          asn1::nrppa::otdoa_info_item_opts::nulltype) {
-        request.otdoa_info_type.push_back({static_cast<nrppa_otdoa_info_item>(
-            asn1_info_type_item.value().otdoa_info_type_item().otdoa_info_item.value)});
-      }
+  for (const auto& asn1_info_type_item : asn1_request->otdoa_info_type_group) {
+    if (asn1_info_type_item.value().otdoa_info_type_item().otdoa_info_item.value !=
+        asn1::nrppa::otdoa_info_item_opts::nulltype) {
+      request.otdoa_info_type.push_back({static_cast<nrppa_otdoa_info_item>(
+          asn1_info_type_item.value().otdoa_info_type_item().otdoa_info_item.value)});
     }
   }
 }
@@ -474,8 +478,8 @@ inline void fill_measurement_request(measurement_request_t& request, const asn1:
   }
 
   // Fill SRS configuration.
-  if (asn1_request->srs_configuration_present) {
-    request.srs_config = asn1_to_srs_configuration(asn1_request->srs_configuration);
+  if (asn1_request->srs_cfg_present) {
+    request.srs_config = asn1_to_srs_configuration(asn1_request->srs_cfg);
   }
 
   // Fill measurement beam info request.

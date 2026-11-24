@@ -10,9 +10,9 @@
 
 using namespace ocudu;
 
-std::optional<csi_meas_config> config_helpers::build_csi_meas_config(const ran_cell_config&        cell_cfg,
-                                                                     const cell_ul_bwp_res_config& cell_ul_bwp_res,
-                                                                     const ue_bwp_config&          ue_bwp_cfg)
+std::optional<csi_meas_config> config_helpers::build_csi_meas_config(const ran_cell_config&      cell_cfg,
+                                                                     const cell_pucch_resources& cell_pucch_res,
+                                                                     const ue_rrm_config&        ue_rrm_cfg)
 {
   if (not cell_cfg.init_bwp.csi.has_value()) {
     return std::nullopt;
@@ -28,12 +28,12 @@ std::optional<csi_meas_config> config_helpers::build_csi_meas_config(const ran_c
   csi_meas_config cfg       = csi_helper::make_csi_meas_config(
       csi_params, cell_cfg.ul_cfg_common.init_ul_bwp.pusch_cfg_common->pusch_td_alloc_list);
 
-  if (ue_bwp_cfg.ul.periodic_csi_report.has_value()) {
+  if (ue_rrm_cfg.csi.periodic_report.has_value()) {
     auto& report_cfg = std::get<csi_report_config::periodic_or_semi_persistent_report_on_pucch>(
         cfg.csi_report_cfg_list[0].report_cfg_type);
-    report_cfg.report_slot_offset = ue_bwp_cfg.ul.periodic_csi_report->offset;
+    report_cfg.report_slot_offset = ue_rrm_cfg.csi.periodic_report->offset;
     report_cfg.pucch_csi_res_list.front().pucch_res_id =
-        cell_cfg.init_bwp.pucch.resources.csi_res_id(ue_bwp_cfg.ul.periodic_csi_report->pucch_res_id);
+        ue_csi_res_id(cell_pucch_res.get_harq(ue_rrm_cfg.pucch.res_set_cfg_id).set_0.size());
   }
 
   return cfg;

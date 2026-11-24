@@ -71,12 +71,22 @@ struct search_space_info {
     return pdsch_cfg_list[pdsch_td_res_index].size();
   }
 
+  /// Returns the PDSCH configuration of a single-user transmission with the given number of layers.
   const pdsch_config_params& get_pdsch_config(unsigned pdsch_td_res_index, unsigned nof_layers) const
   {
-    ocudu_assert(pdsch_cfg_list.size() > pdsch_td_res_index and pdsch_cfg_list[pdsch_td_res_index].size() >= nof_layers,
+    ocudu_assert(pdsch_cfg_list.size() > pdsch_td_res_index and nof_layers > 0 and
+                     pdsch_cfg_list[pdsch_td_res_index].size() >= nof_layers,
                  "get_pdsch_config: Invalid params");
     return pdsch_cfg_list[pdsch_td_res_index][nof_layers - 1];
   }
+
+  /// \brief Returns the PDSCH configuration of a transmission on the given DM-RS ports.
+  ///
+  /// The number of layers is the number of DM-RS ports. Only DCI format 1_1 can signal DM-RS ports and CDM groups
+  /// without data other than the ones of the configuration returned for that number of layers.
+  pdsch_config_params get_pdsch_config(unsigned              pdsch_td_res_index,
+                                       const dmrs_port_mask& dmrs_ports,
+                                       unsigned              nof_cdm_groups_without_data) const;
 
   /// \brief Assigns computed PDCCH candidates to a SearchSpace.
   void update_pdcch_candidates(const std::vector<std::array<pdcch_candidate_list, NOF_AGGREGATION_LEVELS>>& candidates);
@@ -128,10 +138,9 @@ public:
 
   const std::optional<drx_config>& get_drx_cfg() const { return drx_cfg; }
 
-  /// Returns whether UE dedicated configuration is considered complete or not for scheduling the UE as a non-fallback
-  /// UE.
-  /// \remark UE can be scheduled in fallback scheduler even if UE does not have a complete UE dedicated configuration.
-  bool is_cfg_dedicated_complete() const;
+  /// \brief Returns whether the UE has a dedicated configuration in this cell.
+  /// \remark A UE without dedicated configuration uses only the common configuration of the cell, in fallback mode.
+  bool has_dedicated_cfg() const;
 
   /// Get BWP information given a BWP-Id.
   bool                    has_bwp_id(bwp_id_t bwp_id) const { return cell_ded->bwps.contains(bwp_id); }
@@ -180,10 +189,18 @@ public:
   /// own. Callers holding a \c ue_cell should use \c ue_cell::is_ul_enabled, which supplies it.
   bool is_ul_enabled(slot_point ul_slot, std::optional<std::chrono::microseconds> reported_ul_ta) const;
 
-  /// Get CSI-MeasConfig for the UE.
-  const csi_meas_config* csi_meas_cfg() const
+  /// \brief Returns whether the UE has a CSI configuration in this cell.
+  /// \remark A UE with a dedicated configuration has a CSI configuration if the cell configures CSI.
+  bool has_csi_cfg() const
   {
-    return cell_ded->csi_meas_cfg.has_value() ? &*cell_ded->csi_meas_cfg : nullptr;
+    return has_dedicated_cfg() and cell_cfg_common.bwp_res[to_bwp_id(0)].dl().csi.has_value();
+  }
+
+  /// \brief Gets the CSI report configuration of the UE.
+  /// \remark Call it only for a UE with a CSI configuration.
+  const csi_report_configuration& csi_report_cfg() const
+  {
+    return cell_cfg_common.bwp_res[to_bwp_id(0)].dl().csi.value().report(init_bwp().ul.ue_cfg()->csi.codebook);
   }
 
   /// PDSCH parameters common to all BWPs.
@@ -203,15 +220,7 @@ public:
   /// Determines the use of transform precoding for DCI Format 0_1 for C-RNTI.
   bool use_pusch_transform_precoding_dci_0_1() const
   {
-    // If the UE is not configured with the higher layer parameter transformPrecoder in pusch-Config, determine the
-    // transform precoder use according to parameter msg3-transformPrecoder.
-    if (init_bwp().ul.pusch_ded() == nullptr or
-        init_bwp().ul.pusch_ded()->trans_precoder == pusch_config::transform_precoder::not_set) {
-      return cell_cfg_common.use_msg3_transform_precoder();
-    }
-
-    // Otherwise, determine the use of transform pecoding according to transformPrecoder in pusch-Config.
-    return init_bwp().ul.pusch_ded()->trans_precoder == pusch_config::transform_precoder::enabled;
+    return use_pusch_transform_precoding(init_bwp().ul.pusch_ded(), cell_cfg_common.use_msg3_transform_precoder());
   }
 
   /// \brief Gets the PUSCH transmit scheme codebook configuration.
@@ -305,6 +314,9 @@ public:
   /// Get DRX configuration for the UE cell group.
   const std::optional<drx_config>& drx_cfg() const { return ue_drx_cfg; }
 
+  /// Whether the UE accepts a Differential Koffset MAC CE, as per TS 38.321, Section 5.18.24.
+  bool supports_ue_specific_koffset() const { return ue_specific_koffset_supported; }
+
 private:
   // List of configured logical channels
   logical_channel_config_list_ptr lc_list;
@@ -317,6 +329,9 @@ private:
 
   // DRX config for the UE cell group.
   std::optional<drx_config> ue_drx_cfg;
+
+  // Whether the UE accepts a Differential Koffset MAC CE.
+  bool ue_specific_koffset_supported = false;
 
   // CS-RNTI for Configured Grants
   std::optional<rnti_t> cs_rnti;

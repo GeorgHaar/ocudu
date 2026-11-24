@@ -68,7 +68,7 @@ radio_session_realtime_loopback_impl::radio_session_realtime_loopback_impl(
 
 unsigned radio_session_realtime_loopback_impl::get_receiver_optimal_buffer_size() const
 {
-  /// Return a buffer size capable of holding 100 microseconds of samples.
+  // Return a buffer size capable of holding 100 microseconds of samples.
   return sampling_rate_hz / 10000;
 }
 
@@ -87,7 +87,7 @@ void radio_session_realtime_loopback_impl::start(baseband_gateway_timestamp init
   next_receive_timestamp = init_time;
   buffer.set_first_expected_rx_timestamp(init_time);
   bool expected_start_requested = false;
-  if (!start_requested.compare_exchange_weak(expected_start_requested, true)) {
+  if (!start_requested.compare_exchange_strong(expected_start_requested, true)) {
     report_fatal_error("Called start when radio is already running");
   }
 }
@@ -96,26 +96,6 @@ void radio_session_realtime_loopback_impl::stop()
 {
   // Request the radio to stop.
   stop_control.stop();
-}
-
-bool radio_session_realtime_loopback_impl::set_tx_gain(unsigned port_id, double gain_dB)
-{
-  return true;
-}
-
-bool radio_session_realtime_loopback_impl::set_rx_gain(unsigned port_id, double gain_dB)
-{
-  return true;
-}
-
-bool radio_session_realtime_loopback_impl::set_tx_freq(unsigned stream_id, double center_freq_Hz)
-{
-  return true;
-}
-
-bool radio_session_realtime_loopback_impl::set_rx_freq(unsigned stream_id, double center_freq_Hz)
-{
-  return true;
 }
 
 baseband_gateway_receiver::metadata radio_session_realtime_loopback_impl::receive(baseband_gateway_buffer_writer& data)

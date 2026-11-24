@@ -17,6 +17,8 @@
 #include "ocudu/scheduler/config/si_scheduling_config.h"
 #include "ocudu/scheduler/config/slice_rrm_policy_config.h"
 #include "ocudu/scheduler/config/ue_bwp_config.h"
+#include "ocudu/scheduler/rrm/cell_rrm_config.h"
+#include "ocudu/scheduler/rrm/ue_rrm_config.h"
 
 namespace ocudu {
 
@@ -40,6 +42,9 @@ struct sched_cell_configuration_request_message {
 
   /// RAN-specific cell parameters.
   ran_cell_config ran;
+
+  /// Cell resources that the RRM allocates to the UEs of the cell.
+  cell_rrm_config rrm;
 
   /// Scheduling of SI messages.
   si_scheduling_config si_scheduling;
@@ -85,12 +90,27 @@ struct sched_ue_resource_alloc_config {
 
 struct ue_cell_config {
   serving_cell_config serv_cell_cfg;
+  /// Resources that the RRM allocates to the UE in this cell.
+  ue_rrm_config rrm;
   // List of BWP configurations for this UE in this cell.
   std::vector<ue_bwp_config> bwps;
 
   /// Returns the initial BWP configuration for this UE in this cell.
   ue_bwp_config& init_bwp() { return bwps[0]; }
 };
+
+/// UE configuration of a serving cell.
+struct sched_ue_cell_config {
+  du_cell_index_t cell_index;
+  /// UE-dedicated configuration. Absent when the UE uses only the common configuration of the cell.
+  std::optional<ue_cell_config> ded;
+};
+
+/// Creates the configuration of a serving cell in which the UE has the given dedicated configuration.
+inline sched_ue_cell_config make_sched_ue_cell_config(const ue_cell_config& ded)
+{
+  return sched_ue_cell_config{ded.serv_cell_cfg.cell_index, ded};
+}
 
 /// Request for a new UE configuration provided to the scheduler during UE creation or reconfiguration.
 struct sched_ue_config_request {
@@ -99,16 +119,18 @@ struct sched_ue_config_request {
   /// if the cause is not a RRC procedure (not_rrc_proc), the UE does not need to enter fallback mode.
   enum class causes { other_rrc_proc, rrc_reconf_after_reest, not_rrc_proc };
 
-  /// List of configured Logical Channels. See \c mac-LogicalChannelConfig, TS38.331.
+  /// List of configured Logical Channels. See \c mac-LogicalChannelConfig, TS 38.331.
   std::optional<std::vector<logical_channel_config>> lc_config_list;
-  /// UE-dedicated configuration for the PCell and SCells.
-  std::optional<std::vector<ue_cell_config>> cells;
+  /// Configuration of the PCell and the SCells of the UE. The PCell is the first element.
+  std::optional<std::vector<sched_ue_cell_config>> cells;
   /// Resource allocation configuration for the given UE.
   std::optional<sched_ue_resource_alloc_config> res_alloc_cfg;
   /// DRX-Config.
   std::optional<drx_config> drx_cfg;
   /// measGapConfig.
   std::optional<meas_gap_config> meas_gap_cfg;
+  /// Whether the UE accepts a Differential Koffset MAC CE, as per TS 38.321, Section 5.18.24.
+  bool ue_specific_koffset_supported = false;
   /// Whether this configuration was triggered by RRC.
   causes cause = causes::other_rrc_proc;
 };

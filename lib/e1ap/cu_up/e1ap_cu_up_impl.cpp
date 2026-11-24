@@ -26,13 +26,12 @@ e1ap_cu_up_impl::e1ap_cu_up_impl(const e1ap_configuration&           e1ap_cfg_,
   cu_up_notifier(dependencies.cu_up_notifier),
   timers(dependencies.timers),
   cu_up_exec(dependencies.cu_up_exec),
-  connection_handler(e1ap_cu_up_connection_handler_configuration{.e1_index = e1ap_cfg.e1_index},
-                     e1ap_cu_up_connection_handler_dependencies{.e1ap_client_handler = dependencies.e1_client_handler,
+  ue_ctxt_list(e1ap_cfg.max_nof_ues, logger),
+  connection_handler(e1ap_cu_up_connection_handler_dependencies{.e1ap_client_handler = dependencies.e1_client_handler,
                                                                 .e1ap_pdu_handler    = *this,
-                                                                .cu_up_manager       = dependencies.cu_up_notifier,
+                                                                .e1ap_ev_handler     = *this,
                                                                 .cu_up_executor      = cu_up_exec,
                                                                 .logger              = logger}),
-  ue_ctxt_list(e1ap_cfg.max_nof_ues, logger),
   ev_mng(std::make_unique<e1ap_event_manager>(timer_factory{timers, cu_up_exec})),
   metrics(e1ap_cfg.metrics_period.count())
 {
@@ -90,7 +89,7 @@ void e1ap_cu_up_impl::handle_bearer_context_inactivity_notification(
     const e1ap_bearer_context_inactivity_notification& msg)
 {
   if (!ue_ctxt_list.contains(msg.ue_index)) {
-    logger.log_error("ue={}: Dropping BearerContextInactivityNotification. UE does not exist", msg.ue_index);
+    logger.log_info("ue={}: Dropping BearerContextInactivityNotification. UE does not exist", msg.ue_index);
     return;
   }
 
@@ -123,7 +122,7 @@ void e1ap_cu_up_impl::handle_bearer_context_inactivity_notification(
 void e1ap_cu_up_impl::handle_bearer_context_release_request_required(cu_up_ue_index_t ue_index)
 {
   if (!ue_ctxt_list.contains(ue_index)) {
-    logger.log_error("ue={}: Could not initiate BearerContextReleaseRequest. UE does not exist.", ue_index);
+    logger.log_info("ue={}: Could not initiate BearerContextReleaseRequest. UE does not exist.", ue_index);
     return;
   }
 
@@ -147,7 +146,7 @@ void e1ap_cu_up_impl::handle_dl_data_notification_required(cu_up_ue_index_t ue_i
 {
   // Get UE context.
   if (!ue_ctxt_list.contains(ue_index)) {
-    logger.log_error("ue={}: Dropping DL data notification. UE does not exist", ue_index);
+    logger.log_info("ue={}: Dropping DL data notification. UE does not exist", ue_index);
     return;
   }
   e1ap_ue_context& ue_ctxt = ue_ctxt_list[ue_index];
@@ -328,17 +327,9 @@ void e1ap_cu_up_impl::handle_bearer_context_release_command(const bearer_context
 {
   if (!ue_ctxt_list.contains(int_to_gnb_cu_up_ue_e1ap_id(msg->gnb_cu_up_ue_e1ap_id))) {
     // Received a release command for a context that we do not possess.
-    // Reply with release complete and log an error.
-    e1ap_message e1ap_msg;
-    e1ap_msg.pdu.set_successful_outcome();
-    e1ap_msg.pdu.successful_outcome().load_info_obj(ASN1_E1AP_ID_BEARER_CONTEXT_RELEASE);
-    e1ap_msg.pdu.successful_outcome().value.bearer_context_release_complete()->gnb_cu_cp_ue_e1ap_id =
-        msg->gnb_cu_cp_ue_e1ap_id;
-    e1ap_msg.pdu.successful_outcome().value.bearer_context_release_complete()->gnb_cu_up_ue_e1ap_id =
-        msg->gnb_cu_up_ue_e1ap_id;
-
-    logger.log_error("No UE context for the received gnb_cu_up_ue_e1ap_id={} available", msg->gnb_cu_up_ue_e1ap_id);
-    pdu_notifier->on_new_message(e1ap_msg);
+    // Reply with release complete.
+    logger.log_warning("No UE context for the received gnb_cu_up_ue_e1ap_id={} available", msg->gnb_cu_up_ue_e1ap_id);
+    send_bearer_context_release_complete(msg);
     return;
   }
 
@@ -358,14 +349,28 @@ void e1ap_cu_up_impl::handle_bearer_context_release_command(const bearer_context
                                                             .cu_up_notifier = cu_up_notifier,
                                                             .metrics        = metrics,
                                                             .logger         = logger}))) {
-    logger.log_warning("Failed to start Bearer Context Release procedure");
+    // The procedure has no failure message. Reply with release complete, as per TS 37.483 section 8.3.4.2.
+    logger.log_error("ue={}: Failed to start Bearer Context Release procedure", ue_index);
+    send_bearer_context_release_complete(msg);
   }
+}
+
+void e1ap_cu_up_impl::send_bearer_context_release_complete(const bearer_context_release_cmd_s& msg)
+{
+  e1ap_message e1ap_msg;
+  e1ap_msg.pdu.set_successful_outcome();
+  e1ap_msg.pdu.successful_outcome().load_info_obj(ASN1_E1AP_ID_BEARER_CONTEXT_RELEASE);
+  e1ap_msg.pdu.successful_outcome().value.bearer_context_release_complete()->gnb_cu_cp_ue_e1ap_id =
+      msg->gnb_cu_cp_ue_e1ap_id;
+  e1ap_msg.pdu.successful_outcome().value.bearer_context_release_complete()->gnb_cu_up_ue_e1ap_id =
+      msg->gnb_cu_up_ue_e1ap_id;
+  pdu_notifier->on_new_message(e1ap_msg);
 }
 
 void e1ap_cu_up_impl::handle_cu_up_e1ap_reset(const reset_s& msg)
 {
   if (!cu_up_notifier.on_schedule_cu_up_async_task(launch_async<e1ap_cu_up_reset_procedure>(
-          e1ap_cu_up_reset_procedure_configuration{.reset_msg = msg},
+          e1ap_cu_up_reset_procedure_configuration{.reset_msg = msg, .e1_index = e1ap_cfg.e1_index},
           e1ap_cu_up_reset_procedure_dependencies{.ue_ctxt_list    = ue_ctxt_list,
                                                   .cu_up_notifier  = cu_up_notifier,
                                                   .tx_pdu_notifier = *pdu_notifier,
@@ -400,6 +405,13 @@ void e1ap_cu_up_impl::handle_unsuccessful_outcome(const unsuccessful_outcome_s& 
   if (!ev_mng->transactions.set_response(*transaction_id, make_unexpected(outcome))) {
     logger.log_warning("Unexpected transaction id={}", *transaction_id);
   }
+}
+
+void e1ap_cu_up_impl::handle_connection_loss()
+{
+  // The CU-UP removes the UEs of a lost E1 TNL association. Thus, remove their E1AP UE contexts as well.
+  ue_ctxt_list.clear();
+  cu_up_notifier.on_connection_loss(e1ap_cfg.e1_index);
 }
 
 void e1ap_cu_up_impl::log_pdu(bool is_rx, const e1ap_message& e1ap_pdu)

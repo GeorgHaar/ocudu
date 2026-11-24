@@ -41,7 +41,7 @@ public:
   {
     return run_until([this, cell_idx, rnti]() {
       if (phy.cells[cell_idx].last_ul_res.has_value()) {
-        return find_ue_uci_with_csi(rnti, *phy.cells[cell_idx].last_ul_res.value().ul_res) != nullptr;
+        return find_ue_uci_with_csi(rnti, phy.cells[cell_idx].last_ul_res->ul_res) != nullptr;
       }
       return false;
     });
@@ -157,8 +157,9 @@ TEST_P(du_high_many_cells_tester, when_ue_created_in_multiple_cells_then_traffic
       if (not phy_cell.last_dl_data.has_value()) {
         continue;
       }
+      const auto ue_grants = phy_cell.last_dl_res->dl_res.ue_grants();
       for (unsigned i = 0; i != phy_cell.last_dl_data.value().ue_pdus.size(); ++i) {
-        const auto& ue_grant = phy_cell.last_dl_res.value().dl_res->ue_grants[i];
+        const auto& ue_grant = ue_grants[i];
         ASSERT_EQ(ue_grant.pdsch_cfg.rnti, to_rnti(0x4601 + c))
             << fmt::format("c-rnti={} scheduled in the wrong cell={}", ue_grant.pdsch_cfg.rnti, c);
 
@@ -315,23 +316,25 @@ TEST_F(du_high_many_cells_deferred_activation_test, when_cell_starts_deactivated
 
     for (unsigned c = 0; c != this->nof_cells; ++c) {
       if (phy.cells[c].last_dl_res.has_value()) {
-        ASSERT_TRUE(phy.cells[c].last_dl_res.value().dl_res->csi_rs.empty());
-        ASSERT_TRUE(phy.cells[c].last_dl_res.value().dl_res->bc.sibs.empty());
-        ASSERT_TRUE(phy.cells[c].last_dl_res.value().dl_res->bc.ssb_info.empty());
-        ASSERT_TRUE(phy.cells[c].last_dl_res.value().dl_res->dl_pdcchs.empty());
-        ASSERT_TRUE(phy.cells[c].last_dl_res.value().dl_res->ul_pdcchs.empty());
-        ASSERT_TRUE(phy.cells[c].last_dl_res.value().dl_res->ue_grants.empty());
-        ASSERT_TRUE(phy.cells[c].last_dl_res.value().dl_res->rar_grants.empty());
-        ASSERT_TRUE(phy.cells[c].last_dl_res.value().dl_res->paging_grants.empty());
+        const auto dl_res = phy.cells[c].last_dl_res->dl_res;
+        ASSERT_TRUE(dl_res.csi_rs().empty());
+        ASSERT_TRUE(dl_res.sibs().empty());
+        ASSERT_TRUE(dl_res.ssb_info().empty());
+        ASSERT_TRUE(dl_res.dl_pdcchs().empty());
+        ASSERT_TRUE(dl_res.ul_pdcchs().empty());
+        ASSERT_TRUE(dl_res.ue_grants().empty());
+        ASSERT_TRUE(dl_res.rar_grants().empty());
+        ASSERT_TRUE(dl_res.paging_grants().empty());
         ASSERT_TRUE(phy.cells[c].last_dl_res.value().dl_pdcch_pdus.empty());
         ASSERT_TRUE(phy.cells[c].last_dl_res.value().ul_pdcch_pdus.empty());
         ASSERT_TRUE(phy.cells[c].last_dl_res.value().ssb_pdus.empty());
       }
       if (phy.cells[c].last_ul_res.has_value()) {
-        ASSERT_TRUE(phy.cells[c].last_ul_res.value().ul_res->prachs.empty());
-        ASSERT_TRUE(phy.cells[c].last_ul_res.value().ul_res->pucchs.empty());
-        ASSERT_TRUE(phy.cells[c].last_ul_res.value().ul_res->puschs.empty());
-        ASSERT_TRUE(phy.cells[c].last_ul_res.value().ul_res->srss.empty());
+        const auto ul_res = phy.cells[c].last_ul_res->ul_res;
+        ASSERT_TRUE(ul_res.prachs().empty());
+        ASSERT_TRUE(ul_res.pucchs().empty());
+        ASSERT_TRUE(ul_res.puschs().empty());
+        ASSERT_TRUE(ul_res.srss().empty());
       }
     }
   }
@@ -358,12 +361,13 @@ TEST_F(du_high_many_cells_deferred_activation_test, when_cell_starts_deactivated
 
     for (unsigned c = 0; c != nof_cells; ++c) {
       if (phy.cells[c].last_dl_res.has_value()) {
-        csi_rs_alloc[c] |= not phy.cells[c].last_dl_res.value().dl_res->csi_rs.empty();
-        ssb_alloc[c] |= not phy.cells[c].last_dl_res.value().dl_res->bc.ssb_info.empty();
-        sib1_alloc[c] |= not phy.cells[c].last_dl_res.value().dl_res->bc.sibs.empty();
+        const auto dl_res = phy.cells[c].last_dl_res->dl_res;
+        csi_rs_alloc[c] |= not dl_res.csi_rs().empty();
+        ssb_alloc[c] |= not dl_res.ssb_info().empty();
+        sib1_alloc[c] |= not dl_res.sibs().empty();
       }
       if (phy.cells[c].last_ul_res.has_value()) {
-        prach_alloc[c] |= not phy.cells[c].last_ul_res.value().ul_res->prachs.empty();
+        prach_alloc[c] |= not phy.cells[c].last_ul_res->ul_res.prachs().empty();
       }
     }
   }

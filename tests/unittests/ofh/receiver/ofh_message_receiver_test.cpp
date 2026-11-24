@@ -7,10 +7,8 @@
 #include "../../../../lib/ofh/receiver/ofh_message_receiver_impl.h"
 #include "../../../../lib/ofh/receiver/ofh_rx_window_checker.h"
 #include "../../../../lib/ofh/receiver/ofh_sequence_id_checker_dummy_impl.h"
-#include "../../../../lib/ofh/receiver/ofh_sequence_id_checker_impl.h"
 #include "../../support/task_executor_test_doubles.h"
 #include "../compression/ofh_iq_decompressor_test_doubles.h"
-#include "ocudu/adt/format.h"
 #include "ocudu/ofh/ethernet/ethernet_controller.h"
 #include "ocudu/ofh/ethernet/ethernet_receiver_metrics_collector.h"
 #include "ocudu/ofh/ethernet/ethernet_unique_buffer.h"
@@ -192,15 +190,14 @@ public:
 
   message_receiver_config generate_config()
   {
-    message_receiver_config config;
-    config.nof_symbols         = 14;
-    config.scs                 = subcarrier_spacing::kHz30;
-    config.vlan_params         = vlan_params;
-    config.ul_eaxc             = ul_eaxc;
-    config.prach_eaxc          = ul_prach_eaxc;
-    config.are_metrics_enabled = check_seq_id;
-
-    return config;
+    return message_receiver_config{.sector                 = 0,
+                                   .nof_symbols            = 14,
+                                   .scs                    = subcarrier_spacing::kHz30,
+                                   .vlan_params            = vlan_params,
+                                   .prach_eaxc             = ul_prach_eaxc,
+                                   .ul_eaxc                = ul_eaxc,
+                                   .warn_unreceived_frames = warn_unreceived_ru_frames::after_traffic_detection,
+                                   .are_metrics_enabled    = check_seq_id};
   }
 
   message_receiver_dependencies generate_dependencies()
@@ -226,11 +223,11 @@ public:
       dependencies.eth_frame_decoder = std::move(temp);
     }
     {
-      ecpri_params.header.msg_type       = ecpri::message_type::iq_data;
-      ecpri_params.header.is_last_packet = true;
-      ecpri_params.header.payload_size   = units::bytes(1);
-      ecpri_params.header.revision       = 1U;
-      ecpri_params.type_params.emplace<ecpri::iq_data_parameters>(ecpri::iq_data_parameters{1, 2});
+      ecpri_params = {.header      = {.revision       = 1U,
+                                      .is_last_packet = true,
+                                      .msg_type       = ecpri::message_type::iq_data,
+                                      .payload_size   = units::bytes(1)},
+                      .type_params = ecpri::iq_data_parameters{.pc_id = 1, .seq_id = 2}};
 
       auto temp                  = std::make_unique<ecpri_packet_decoder_spy>(ecpri_params);
       ecpri_decoder              = temp.get();

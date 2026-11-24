@@ -29,7 +29,7 @@ void scheduler_time_rr::compute_ue_ul_priorities(slot_point               pdcch_
   }
 }
 
-void scheduler_time_rr::save_dl_newtx_grants(span<const dl_msg_alloc> dl_grants)
+void scheduler_time_rr::save_dl_newtx_grants(pdu_span<dl_msg_alloc> dl_grants)
 {
   if (dl_grants.empty()) {
     return;
@@ -42,7 +42,7 @@ void scheduler_time_rr::save_dl_newtx_grants(span<const dl_msg_alloc> dl_grants)
   ++dl_alloc_count;
 }
 
-void scheduler_time_rr::save_ul_newtx_grants(span<const ul_sched_info> ul_grants)
+void scheduler_time_rr::save_ul_newtx_grants(pdu_span<ul_sched_info> ul_grants)
 {
   if (ul_grants.empty()) {
     return;

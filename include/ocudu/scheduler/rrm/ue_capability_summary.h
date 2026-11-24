@@ -134,6 +134,8 @@ struct ue_capability_summary {
   bool short_drx_cycle_supported = false;
   /// Set to true if UE supports \c interleavingVRB-ToPRB-PDSCH, as per TS 38.306, Section 4.2.7.10.
   bool pdsch_interleaving_vrb_to_prb_supported = false;
+  /// Set to true if UE supports \c dynamicSwitchRA-Type0-1-PDSCH, as per TS 38.306, Section 4.2.7.10.
+  bool pdsch_dyn_switch_ra_type0_1_supported = false;
   /// Set to true if UE supports NTN features.
   bool ntn_supported = false;
   /// Indicates whether the UE supports disabled HARQ feedback for downlink transmission.
@@ -154,16 +156,24 @@ struct ue_capability_summary {
   /// It is given by field \e slotBasedDynamicPUCCH-Rep-r17 in Information Element \e Phy-ParametersCommon.
   bool slot_based_dyn_pucch_rep_r17_supported = false;
 
+  /// RedCap capability indication, as per TS 38.306, Section 4.2.21.2.
+  bool is_redcap = false;
+  /// RedCap 18-bit RLC AM SN support, as per TS 38.306, Section 4.2.21.4.
+  bool redcap_rlc_am_long_sn_supported = false;
+
   /// Equality operator.
   bool operator==(const ue_capability_summary& other) const
   {
-    return (pdsch_qam256_supported == other.pdsch_qam256_supported) &&
+    return (is_redcap == other.is_redcap) &&
+           (redcap_rlc_am_long_sn_supported == other.redcap_rlc_am_long_sn_supported) &&
+           (pdsch_qam256_supported == other.pdsch_qam256_supported) &&
            (pdsch_qam64lowse_supported == other.pdsch_qam64lowse_supported) &&
            (pusch_qam64lowse_supported == other.pusch_qam64lowse_supported) &&
            (pusch_rep_type_a_supported == other.pusch_rep_type_a_supported) && (bands == other.bands) &&
            (long_drx_cycle_supported == other.long_drx_cycle_supported) &&
            (short_drx_cycle_supported == other.short_drx_cycle_supported) &&
            (pdsch_interleaving_vrb_to_prb_supported == other.pdsch_interleaving_vrb_to_prb_supported) &&
+           (pdsch_dyn_switch_ra_type0_1_supported == other.pdsch_dyn_switch_ra_type0_1_supported) &&
            (ntn_supported == other.ntn_supported) &&
            (disabled_dl_harq_feedback_supported == other.disabled_dl_harq_feedback_supported) &&
            (ul_harq_mode_b_supported == other.ul_harq_mode_b_supported) &&

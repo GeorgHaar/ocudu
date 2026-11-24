@@ -5,15 +5,11 @@
 
 #include "ocudu/scheduler/config/serving_cell_config_validator.h"
 #include "ocudu/adt/format.h"
-#include "ocudu/ran/csi_report/csi_report_config_helpers.h"
-#include "ocudu/ran/csi_report/csi_report_on_pucch_helpers.h"
 #include "ocudu/ran/csi_rs/csi_rs_config_helpers.h"
 #include "ocudu/ran/csi_rs/csi_rs_pattern.h"
 #include "ocudu/ran/pdcch/pdcch_candidates.h"
-#include "ocudu/ran/sr_configuration.h"
 #include "ocudu/ran/srs/srs_bandwidth_configuration.h"
 #include "ocudu/scheduler/config/bwp_configuration.h"
-#include "ocudu/scheduler/config/csi_helper.h"
 #include "ocudu/scheduler/config/sched_cell_config_helpers.h"
 #include "ocudu/scheduler/config/serving_cell_config.h"
 #include "ocudu/scheduler/sched_consts.h"
@@ -99,14 +95,14 @@ static validator_result validate_zp_csi_rs(const serving_cell_config& ue_cell_cf
     bool found = std::any_of(zp_list.begin(), zp_list.end(), [&csi_im](const zp_csi_rs_resource& zp) {
       return zp.period == csi_im.csi_res_period and zp.offset == csi_im.csi_res_offset and
              zp.res_mapping.freq_band_rbs == csi_im.freq_band_rbs and
-             zp.res_mapping.first_ofdm_symbol_in_td == csi_im.csi_im_res_element_pattern->symbol_location;
+             zp.res_mapping.first_ofdm_symbol_in_td == csi_im.symbol_location;
     });
     VERIFY(found,
            "CSI-IM does not overlap with ZP-CSI-RS. CSI-IM: {{period={} offset={} band={} symbol={}}}",
-           csi_im.csi_res_period ? fmt::to_string(fmt::underlying(*csi_im.csi_res_period)) : "none",
-           csi_im.csi_res_offset ? fmt::to_string(*csi_im.csi_res_offset) : "none",
+           fmt::underlying(csi_im.csi_res_period),
+           csi_im.csi_res_offset,
            csi_im.freq_band_rbs,
-           csi_im.csi_im_res_element_pattern->symbol_location);
+           csi_im.symbol_location);
   }
 
   return {};
@@ -124,181 +120,7 @@ validator_result config_validators::validate_pdsch_cfg(const serving_cell_config
     VERIFY(pdsch.k0 <= SCHEDULER_MAX_K0, "k0={} value exceeds maximum supported k0", pdsch.k0);
   }
 
-  HANDLE_ERROR(validate_zp_csi_rs(ue_cell_cfg));
-
   // TODO: Validate other parameters.
-  return {};
-}
-
-validator_result config_validators::validate_pucch_cfg(const serving_cell_config&           ue_cell_cfg,
-                                                       const pucch_resource_builder_params& res_params,
-                                                       const std::vector<pucch_resource>&   cell_pucch_res_list,
-                                                       const pucch_config_common&           pucch_cfg_common,
-                                                       unsigned                             nof_dl_antennas)
-{
-  VERIFY(ue_cell_cfg.ul_config.has_value() and ue_cell_cfg.ul_config->init_ul_bwp.pucch_cfg.has_value(),
-         "Missing configuration for uplinkConfig or pucch-Config in spCellConfig");
-
-  // [Implementation defined] The scheduler expects the resources from the common resource set and Resource Set ID 0 to
-  // use the same format. The formats from the common resource sets are expressed in TS 38.213 Table 9.2.1-1.
-  if (res_params.format_01() == pucch_format::FORMAT_0) {
-    VERIFY(pucch_cfg_common.pucch_resource_common <= 2,
-           "When using PUCCH Format 0, the valid values for pucch_resource_common are {{0, 1, 2}}.");
-  } else {
-    VERIFY(pucch_cfg_common.pucch_resource_common > 2,
-           "When using PUCCH Format 1, the valid values for pucch_resource_common are {{3, ..., 15}}.");
-  }
-
-  const auto& pucch_cfg = ue_cell_cfg.ul_config.value().init_ul_bwp.pucch_cfg.value();
-
-  // Verify the PUCCH resource list.
-  for (const auto& res : pucch_cfg.pucch_res_list) {
-    // Verify that each PUCCH resource matches the corresponding cell resource.
-    VERIFY(res.res_id.ded().cell_res_id < cell_pucch_res_list.size(),
-           "PUCCH resource with cell_res_id={} does not exist in the cell configuration",
-           res.res_id.ded().cell_res_id);
-
-    const auto& cell_res = cell_pucch_res_list[res.res_id.ded().cell_res_id];
-    // The UE's repetition factor may be clamped down from the cell's configured value if the UE doesn't support
-    // PUCCH repetition for this resource's format.
-    pucch_resource cell_res_same_rep = cell_res;
-    cell_res_same_rep.rep_factor     = res.rep_factor;
-    VERIFY(res == cell_res_same_rep,
-           "PUCCH resource with cell_res_id={} does not match the corresponding cell resource",
-           res.res_id.ded().cell_res_id);
-    VERIFY(res.rep_factor == cell_res.rep_factor or res.rep_factor == pucch_repetition_factor::n1,
-           "PUCCH resource with cell_res_id={} has an incorrect repetition factor",
-           res.res_id.ded().cell_res_id);
-    VERIFY(res.format() == res_params.format_01() or res.format() == res_params.format_234(),
-           "Invalid PUCCH format configured for UE resource ID {}",
-           res.res_id.ded().ue_res_id);
-  }
-
-  // Verify the configured Resource Sets.
-  VERIFY(pucch_cfg.pucch_res_set.size() >= 2, "At least 2 PUCCH resource sets need to be configured in PUCCH-Config");
-  const auto& res_set_0 = pucch_cfg.pucch_res_set[0];
-  const auto& res_set_1 = pucch_cfg.pucch_res_set[1];
-  VERIFY(res_set_0.id == pucch_res_set_id::set_0 and res_set_1.id == pucch_res_set_id::set_1,
-         "PUCCH resource sets 0 and 1 are expected to have PUCCH-ResourceSetId 0 and 1, respectively");
-  VERIFY((not res_set_0.resources.empty()) and (not res_set_1.resources.empty()),
-         "PUCCH resource sets 0 and 1 are expected to have a non-empty list of PUCCH resource ID");
-  VERIFY(res_set_0.resources.size() <= res_set_1.resources.size(),
-         "PUCCH Resource Set ID 1's size should be greater or equal to PUCCH Resource Set ID 0's size");
-
-  // Verify that the resources indicated in the Resource Sets point to the correct resources in the PUCCH resource list.
-  for (size_t pucch_res_set_idx = 0; pucch_res_set_idx != 2; ++pucch_res_set_idx) {
-    for (auto res_id : pucch_cfg.pucch_res_set[pucch_res_set_idx].resources) {
-      const auto& res = pucch_cfg.pucch_res_list[res_id.ded().ue_res_id];
-      VERIFY(res.res_id == res_id,
-             "PUCCH resource with UE resource ID {} does not match the corresponding resource ID in the resource set",
-             res_id.ded().ue_res_id);
-    }
-  }
-
-  // Check PUCCH Formats for each Resource Set.
-  for (auto res_id : res_set_0.resources) {
-    VERIFY(res_id.ded().ue_res_id < pucch_cfg.pucch_res_list.size(), "Invalid UE resource ID");
-    const auto& res = pucch_cfg.pucch_res_list[res_id.ded().ue_res_id];
-    VERIFY(res.res_id == res_id and res.format() == res_params.format_01(),
-           "Invalid PUCCH resource in Resource Set ID 0");
-  }
-  for (auto res_id : res_set_1.resources) {
-    VERIFY(res_id.ded().ue_res_id < pucch_cfg.pucch_res_list.size(), "Invalid UE resource ID");
-    const auto& res = pucch_cfg.pucch_res_list[res_id.ded().ue_res_id];
-    VERIFY(res.res_id == res_id and res.format() == res_params.format_234(),
-           "Invalid PUCCH resource in Resource Set ID 1");
-  }
-
-  if (res_params.format_01() == pucch_format::FORMAT_0) {
-    VERIFY(res_set_0.resources.size() == pucch_cfg.pucch_res_set[1].resources.size(),
-           "With Format 0, the PUCCH resource sets 0 and 1 must have the same size");
-  }
-
-  // NOTE: There is no analogous structure for PUCCH Format 0.
-  VERIFY(res_params.format_01() != pucch_format::FORMAT_1 or pucch_cfg.format_1_common_param.has_value(),
-         "Missing PUCCH-format1 parameters in PUCCH-Config");
-  VERIFY(res_params.format_234() != pucch_format::FORMAT_2 or pucch_cfg.format_2_common_param.has_value(),
-         "Missing PUCCH-format2 parameters in PUCCH-Config");
-  VERIFY(res_params.format_234() != pucch_format::FORMAT_3 or pucch_cfg.format_3_common_param.has_value(),
-         "Missing PUCCH-format3 parameters in PUCCH-Config");
-  VERIFY(res_params.format_234() != pucch_format::FORMAT_4 or pucch_cfg.format_4_common_param.has_value(),
-         "Missing PUCCH-format4 parameters in PUCCH-Config");
-
-  // Verify the PUCCH resource ID indicated in the SR resource config exists in the PUCCH resource list.
-  VERIFY(pucch_cfg.sr_res_list.size() == 1, "Only SchedulingRequestResourceConfig with size 1 supported");
-  VERIFY(pucch_cfg.sr_res_list.front().pucch_res_id.ded().ue_res_id < pucch_cfg.pucch_res_list.size(),
-         "Invalid UE resource ID");
-  const auto  sr_res_id = pucch_cfg.sr_res_list.front().pucch_res_id;
-  const auto& sr_res    = pucch_cfg.pucch_res_list[sr_res_id.ded().ue_res_id];
-  VERIFY(sr_res.res_id == sr_res_id and sr_res.format() == res_params.format_01(),
-         "Invalid PUCCH resource used for SR reporting");
-
-  // With Format 0, the last resource in PUCCH resource set 1 should point at the SR resource. Also, the last (or second
-  // last if there is CSI) resource in PUCCH resource set 1 should have symbols and starting PRBs that match those of
-  // the SR resource.
-  const bool using_02 =
-      res_params.format_01() == pucch_format::FORMAT_0 and res_params.format_234() == pucch_format::FORMAT_2;
-  if (using_02) {
-    VERIFY(res_set_0.resources[res_params.res_set_size.value()] == sr_res_id,
-           "With Format 0, the SR resource must be present in Resource Set ID 0");
-
-    VERIFY(res_set_1.resources[res_params.res_set_size.value()].ded().ue_res_id ==
-               res_params.sr_f2_res_id(pucch_sr_resource_id(0)).ded().ue_res_id,
-           "With Format 0, the SR_F2 resource must be present in Resource Set ID 1");
-  }
-
-  // Verify that the PUCCH setting used for CSI report have been configured properly.
-  if (ue_cell_cfg.csi_meas_cfg.has_value() and not is_pusch_configured(*ue_cell_cfg.csi_meas_cfg)) {
-    const auto& csi = std::get<csi_report_config::periodic_or_semi_persistent_report_on_pucch>(
-        ue_cell_cfg.csi_meas_cfg->csi_report_cfg_list.front().report_cfg_type);
-    VERIFY(not csi.pucch_csi_res_list.empty(),
-           "PUCCH-CSI-ResourceList has not been configured in the CSI-reportConfig");
-
-    // Verify the PUCCH resource id that indicated in the CSI resource config exists in the PUCCH resource list.
-    const auto  csi_res_id = csi.pucch_csi_res_list.front().pucch_res_id;
-    const auto& csi_res    = pucch_cfg.pucch_res_list[csi_res_id.ded().ue_res_id];
-    VERIFY(csi_res.res_id == csi_res_id and csi_res.format() == res_params.format_234(),
-           "Invalid PUCCH resource used for CSI reporting");
-
-    // Verify the CSI/SR bits do not exceed the PUCCH F2/F3/F4 payload.
-    const auto     csi_report_cfg   = create_csi_report_configuration(ue_cell_cfg.csi_meas_cfg.value());
-    const unsigned csi_report_size  = get_csi_report_pucch_size(csi_report_cfg).part1_size.value();
-    const bool     csi_sr_collision = csi_helper::are_sr_and_csi_pucchs_scheduled_together(
-        sr_periodicity_to_slot(pucch_cfg.sr_res_list.front().period),
-        pucch_cfg.sr_res_list.front().offset,
-        to_underlying(csi.report_slot_period),
-        csi.report_slot_offset);
-
-    // If SR and CSI are reported within the same slot, 1 SR bit can be multiplexed with CSI within the same PUCCH
-    // resource.
-    unsigned sr_bits_mplexed_with_csi = csi_sr_collision ? 1U : 0U;
-    // In the PUCCH resource for CSI, there are no HARQ-ACK bits being reported; therefore we only need to check where
-    // the CSI + SR bits fit into the max payload.
-    const unsigned uci_bits_pucch_resource = csi_report_size + sr_bits_mplexed_with_csi;
-    VERIFY(res_params.max_payload_234() >= uci_bits_pucch_resource,
-           "UCI num. of bits ({}) exceeds the maximum CSI's PUCCH Format 2/3/4 payload ({})",
-           uci_bits_pucch_resource,
-           res_params.max_payload_234());
-
-    if (using_02) {
-      VERIFY(res_set_0.resources[res_params.res_set_size.value() + 1].ded().ue_res_id ==
-                 res_params.csi_f0_res_id(pucch_csi_resource_id(0)).ded().ue_res_id,
-             "With Format 0, the CSI_F0 resource must be present in Resource Set ID 0");
-
-      VERIFY(res_set_1.resources[res_params.res_set_size.value() + 1] == csi_res_id,
-             "With Format 0, the CSI resource must be present in Resource Set ID 1");
-    }
-  }
-
-  const auto& init_ul_bwp = ue_cell_cfg.ul_config.value().init_ul_bwp;
-  if (init_ul_bwp.pucch_cfg.has_value()) {
-    const auto& dl_to_ack_lst = init_ul_bwp.pucch_cfg.value().dl_data_to_ul_ack;
-    for (const auto& k1 : dl_to_ack_lst) {
-      VERIFY(k1 <= SCHEDULER_MAX_K1, "k1={} value exceeds maximum supported k1", k1);
-      VERIFY(k1 >= 1, "k1={} value below minimum supported k1", k1);
-    }
-  }
-
   return {};
 }
 
@@ -334,7 +156,9 @@ validator_result config_validators::validate_pusch_cfg(const uplink_config& ul_c
   return {};
 }
 
-validator_result config_validators::validate_srs_cfg(const serving_cell_config& ue_cell_cfg, crb_interval ul_bwp_crbs)
+validator_result config_validators::validate_srs_cfg(const serving_cell_config& ue_cell_cfg,
+                                                     crb_interval               ul_bwp_crbs,
+                                                     span<const uint8_t>        dl_data_to_ul_ack)
 {
   VERIFY(ue_cell_cfg.ul_config.has_value() and ue_cell_cfg.ul_config.value().init_ul_bwp.srs_cfg.has_value(),
          "Missing configuration for uplinkConfig or srs-Config in spCellConfig");
@@ -346,15 +170,9 @@ validator_result config_validators::validate_srs_cfg(const serving_cell_config& 
   const auto& srs_res_set = srs_cfg.srs_res_set_list.front();
   if (std::holds_alternative<srs_config::srs_resource_set::aperiodic_resource_type>(srs_res_set.res_type)) {
     const auto& aperiodic_set = std::get<srs_config::srs_resource_set::aperiodic_resource_type>(srs_res_set.res_type);
-    const auto& init_ul_bwp   = ue_cell_cfg.ul_config.value().init_ul_bwp;
-    unsigned    min_k1        = 0;
-    // This existence of pucch_cfg should be checked by the \ref validate_pucch_cfg().
-    if (init_ul_bwp.pucch_cfg.has_value()) {
-      const auto min_k1_it = std::min_element(init_ul_bwp.pucch_cfg.value().dl_data_to_ul_ack.begin(),
-                                              init_ul_bwp.pucch_cfg.value().dl_data_to_ul_ack.end());
-      VERIFY(min_k1_it != init_ul_bwp.pucch_cfg.value().dl_data_to_ul_ack.end(), "Expected min k1 from a list");
-      min_k1 = *min_k1_it;
-    }
+    const auto  min_k1_it     = std::min_element(dl_data_to_ul_ack.begin(), dl_data_to_ul_ack.end());
+    VERIFY(min_k1_it != dl_data_to_ul_ack.end(), "Expected min k1 from a list");
+    const unsigned min_k1 = *min_k1_it;
     VERIFY(aperiodic_set.slot_offset.has_value() and aperiodic_set.slot_offset.value() > min_k1,
            "The SRS resource set ID {}'s slot_offset should be greater than the max between min_k1 and max k2",
            fmt::underlying(srs_res_set.id));
@@ -451,77 +269,69 @@ config_validators::validate_nzp_csi_rs_list(span<const nzp_csi_rs_resource>     
 
   // Check: Verify that NZP-CSI-RS do not collide with each other.
   for (const auto* it = nzp_csi_rs_res_list.begin(); it != nzp_csi_rs_res_list.end(); ++it) {
-    if (it->csi_res_offset.has_value() and it->csi_res_period.has_value()) {
-      for (const auto* it2 = it + 1; it2 != nzp_csi_rs_res_list.end(); ++it2) {
-        if (it2->csi_res_offset.has_value() and it2->csi_res_period.has_value()) {
-          VERIFY(it->csi_res_period.value() == it2->csi_res_period.value(),
-                 "NZP-CSI-RS resources with different periods not supported");
+    for (const auto* it2 = it + 1; it2 != nzp_csi_rs_res_list.end(); ++it2) {
+      VERIFY(it->csi_res_period == it2->csi_res_period, "NZP-CSI-RS resources with different periods not supported");
 
-          if (*it->csi_res_offset != *it2->csi_res_offset) {
-            continue;
-          }
-          // In case that match in slot offset, ensure symbols are different.
-          VERIFY(it->res_mapping.first_ofdm_symbol_in_td != it2->res_mapping.first_ofdm_symbol_in_td,
-                 "NZP-CSI-RS resources with same slot offset and same symbol");
-          // TODO: Extend to support CSI-RS in the same symbols, but different frequency resources.
-        }
+      if (it->csi_res_offset != it2->csi_res_offset) {
+        continue;
       }
+      // In case that match in slot offset, ensure symbols are different.
+      VERIFY(it->res_mapping.first_ofdm_symbol_in_td != it2->res_mapping.first_ofdm_symbol_in_td,
+             "NZP-CSI-RS resources with same slot offset and same symbol");
+      // TODO: Extend to support CSI-RS in the same symbols, but different frequency resources.
     }
   }
 
   // Check: Verify if CSI-RS symbols allocation are on DL symbols.
   if (tdd_cfg_common.has_value()) {
     for (const nzp_csi_rs_resource& res : nzp_csi_rs_res_list) {
-      // Period and offset are specified only for periodic and semi-persistent NZP-CSI-RS-Resources.
-      if (res.csi_res_offset.has_value() and res.csi_res_period.has_value()) {
-        // Get the symbol mapping from the NZ-CSI-RS configuration.
-        const auto&   res_mapping = res.res_mapping;
-        const uint8_t row_idx     = csi_rs::get_csi_rs_resource_mapping_row_number(
-            res_mapping.nof_ports, res_mapping.freq_density, res_mapping.cdm, res_mapping.fd_alloc);
-        csi_rs_pattern_configuration csi_rs_cfg{.start_rb                 = res_mapping.freq_band_rbs.start(),
-                                                .nof_rb                   = res_mapping.freq_band_rbs.length(),
-                                                .csi_rs_mapping_table_row = static_cast<unsigned>(row_idx),
-                                                .symbol_l0                = res_mapping.first_ofdm_symbol_in_td,
-                                                .cdm                      = res_mapping.cdm,
-                                                .freq_density             = res_mapping.freq_density};
-        // symbol_l1 is only used in some configuration, and might not be provided by the higher layers; in such
-        // cases, we set an invalid value for symbol_l1, as a way to let the PHY know this value should not be used.
-        csi_rs_cfg.symbol_l1 =
-            res_mapping.first_ofdm_symbol_in_td2.has_value() ? res_mapping.first_ofdm_symbol_in_td2.value() : 0;
-        csi_rs::convert_freq_domain(
-            csi_rs_cfg.freq_allocation_ref_idx, res.res_mapping.fd_alloc, static_cast<unsigned>(row_idx));
+      // Get the symbol mapping from the NZ-CSI-RS configuration.
+      const auto&   res_mapping = res.res_mapping;
+      const uint8_t row_idx     = csi_rs::get_csi_rs_resource_mapping_row_number(
+          res_mapping.nof_ports, res_mapping.freq_density, res_mapping.cdm, res_mapping.fd_alloc);
+      csi_rs_pattern_configuration csi_rs_cfg{.start_rb                 = res_mapping.freq_band_rbs.start(),
+                                              .nof_rb                   = res_mapping.freq_band_rbs.length(),
+                                              .csi_rs_mapping_table_row = static_cast<unsigned>(row_idx),
+                                              .symbol_l0                = res_mapping.first_ofdm_symbol_in_td,
+                                              .cdm                      = res_mapping.cdm,
+                                              .freq_density             = res_mapping.freq_density};
+      // symbol_l1 is only used in some configuration, and might not be provided by the higher layers; in such
+      // cases, we set an invalid value for symbol_l1, as a way to let the PHY know this value should not be used.
+      csi_rs_cfg.symbol_l1 =
+          res_mapping.first_ofdm_symbol_in_td2.has_value() ? res_mapping.first_ofdm_symbol_in_td2.value() : 0;
+      csi_rs::convert_freq_domain(
+          csi_rs_cfg.freq_allocation_ref_idx, res.res_mapping.fd_alloc, static_cast<unsigned>(row_idx));
 
-        const unsigned tdd_period_slots    = nof_slots_per_tdd_period(tdd_cfg_common.value());
-        const unsigned csi_rs_period_slots = to_underlying(res.csi_res_period.value());
+      const unsigned tdd_period_slots    = nof_slots_per_tdd_period(tdd_cfg_common.value());
+      const unsigned csi_rs_period_slots = to_underlying(res.csi_res_period);
 
-        VERIFY(csi_rs_period_slots % tdd_period_slots == 0,
-               "Period={} of NZP-CSI-RS-ResourceId={} is not a multiple of the TDD pattern period={}",
-               csi_rs_period_slots,
+      VERIFY(csi_rs_period_slots % tdd_period_slots == 0,
+             "Period={} of NZP-CSI-RS-ResourceId={} is not a multiple of the TDD pattern period={}",
+             csi_rs_period_slots,
+             fmt::underlying(res.res_id),
+             tdd_period_slots);
+
+      const cyclic_prefix     cp{cyclic_prefix::NORMAL};
+      const ofdm_symbol_range dl_symbols =
+          get_active_tdd_dl_symbols(tdd_cfg_common.value(), res.csi_res_offset % tdd_period_slots, cp);
+
+      VERIFY(not dl_symbols.empty(),
+             "NZP-CSI-RS-ResourceId={} with offset={} is scheduled in slot={} with no DL symbols",
+             fmt::underlying(res.res_id),
+             res.csi_res_offset,
+             res.csi_res_offset % tdd_period_slots);
+
+      if (dl_symbols.length() != get_nsymb_per_slot(cp)) {
+        // In case of special slot.
+        const csi_rs_pattern csi_res_mapping = get_csi_rs_pattern(csi_rs_cfg);
+        unsigned             max_symbol_idx  = csi_res_mapping.get_reserved_pattern().symbol_mask.find_highest();
+        VERIFY(max_symbol_idx < dl_symbols.stop(),
+               "NZP-CSI-RS-ResourceId={}, with slot offset {} and symbol index {}, falls outside DL symbols {} in "
+               "special slot.",
                fmt::underlying(res.res_id),
-               tdd_period_slots);
-
-        const cyclic_prefix     cp{cyclic_prefix::NORMAL};
-        const ofdm_symbol_range dl_symbols =
-            get_active_tdd_dl_symbols(tdd_cfg_common.value(), res.csi_res_offset.value() % tdd_period_slots, cp);
-
-        VERIFY(not dl_symbols.empty(),
-               "NZP-CSI-RS-ResourceId={} with offset={} is scheduled in slot={} with no DL symbols",
-               fmt::underlying(res.res_id),
-               res.csi_res_offset.value(),
-               res.csi_res_offset.value() % tdd_period_slots);
-
-        if (dl_symbols.length() != get_nsymb_per_slot(cp)) {
-          // In case of special slot.
-          const csi_rs_pattern csi_res_mapping = get_csi_rs_pattern(csi_rs_cfg);
-          unsigned             max_symbol_idx  = csi_res_mapping.get_reserved_pattern().symbol_mask.find_highest();
-          VERIFY(max_symbol_idx < dl_symbols.stop(),
-                 "NZP-CSI-RS-ResourceId={}, with slot offset {} and symbol index {}, falls outside DL symbols {} in "
-                 "special slot.",
-                 fmt::underlying(res.res_id),
-                 res.csi_res_offset.value(),
-                 max_symbol_idx,
-                 dl_symbols);
-        }
+               res.csi_res_offset,
+               max_symbol_idx,
+               dl_symbols);
       }
     }
   }
@@ -533,6 +343,8 @@ validator_result config_validators::validate_csi_meas_cfg(const serving_cell_con
                                                           const std::optional<tdd_ul_dl_config_common>& tdd_cfg_common,
                                                           const ul_config_common&                       ul_cfg_common)
 {
+  HANDLE_ERROR(validate_zp_csi_rs(ue_cell_cfg));
+
   if (not ue_cell_cfg.csi_meas_cfg.has_value()) {
     return {};
   }
@@ -626,21 +438,7 @@ validator_result config_validators::validate_csi_meas_cfg(const serving_cell_con
           fmt::underlying(nzp_csi_rs_res_for_interference));
     }
 
-    if (std::holds_alternative<csi_report_config::periodic_or_semi_persistent_report_on_pucch>(
-            rep_cfg.report_cfg_type)) {
-      const auto& pucch_csi =
-          std::get<csi_report_config::periodic_or_semi_persistent_report_on_pucch>(rep_cfg.report_cfg_type);
-      VERIFY(ue_cell_cfg.ul_config.has_value(), "Cell does not define a UL Config");
-      VERIFY(ue_cell_cfg.ul_config.value().init_ul_bwp.pucch_cfg.has_value(), "Cell={} does not define a PUCCH Config");
-      const auto& pucch_resources = ue_cell_cfg.ul_config.value().init_ul_bwp.pucch_cfg.value().pucch_res_list;
-      for (const auto& pucch_res : pucch_csi.pucch_csi_res_list) {
-        const auto& pucch_res_id = pucch_res.pucch_res_id;
-        VERIFY_ID_EXISTS([pucch_res_id](const pucch_resource& rhs) { return rhs.res_id == pucch_res_id; },
-                         pucch_resources,
-                         "PUCCH resource id={} does not exist",
-                         pucch_res_id.ded().cell_res_id);
-      }
-    } else if (std::holds_alternative<csi_report_config::aperiodic_report>(rep_cfg.report_cfg_type)) {
+    if (std::holds_alternative<csi_report_config::aperiodic_report>(rep_cfg.report_cfg_type)) {
       const auto& aperiodic_csi = std::get<csi_report_config::aperiodic_report>(rep_cfg.report_cfg_type);
       if (not ue_cell_cfg.ul_config->init_ul_bwp.pusch_cfg->pusch_td_alloc_list.empty()) {
         VERIFY(ue_cell_cfg.ul_config->init_ul_bwp.pusch_cfg->pusch_td_alloc_list.size() ==

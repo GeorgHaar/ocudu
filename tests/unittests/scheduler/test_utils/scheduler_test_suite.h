@@ -25,7 +25,9 @@ struct cell_resource_allocator;
 /// - CSI-RS, SSBs, PDCCHs and PDSCHs are only allocated in DL slots.
 /// - PUCCHs, PUSCHs and PRACHs are only allocated in UL slots.
 /// - In partial DL/UL slots, verifies that allocations are within the respective DL/UL symbols.
-void assert_tdd_pattern_consistency(const cell_configuration& cell_cfg, slot_point sl_tx, const sched_result& result);
+void assert_tdd_pattern_consistency(const cell_configuration& cell_cfg,
+                                    slot_point                sl_tx,
+                                    sched_slot_result_reader  result);
 
 /// \brief Current checks:
 /// - RNTIs match.
@@ -55,16 +57,16 @@ void test_pdsch_sib_consistency(const cell_configuration& cell_cfg, span<const s
 /// - RAR must be alloc_type_1.
 /// - No repeated RA-RNTIs across RAR grants and no repeated C-RNTIs across Msg3 grants.
 /// - Consistent content in DCI of RARs (e.g. has to be f1_0, PRBs fall within CORESET#0 RB limits).
-void test_pdsch_rar_consistency(const cell_configuration& cell_cfg, span<const rar_information> rars);
+void test_pdsch_rar_consistency(const cell_configuration& cell_cfg, pdu_span<rar_information> rars);
 
 /// \brief Verify UE PDSCH content is valid. Current checks:
 /// - PRBs fall within BWP boundaries.
-void test_pdsch_ue_consistency(const cell_configuration& cell_cfg, span<const dl_msg_alloc> ue_grants);
+void test_pdsch_ue_consistency(const cell_configuration& cell_cfg, pdu_span<dl_msg_alloc> ue_grants);
 
 /// \brief Verify UE PUSCH content is valid. Current checks:
 /// - Number of PUSCHs does not exceed max_puschs_per_slot.
 /// - PRBs fall within BWP boundaries.
-void test_pusch_ue_consistency(const cell_configuration& cell_cfg, span<const ul_sched_info> ue_grants);
+void test_pusch_ue_consistency(const cell_configuration& cell_cfg, pdu_span<ul_sched_info> ue_grants);
 
 /// \brief Verify UE PUCCH content is valid. Current checks:
 /// - Number of PUCCHs does not exceed max_pucchs_per_slot.
@@ -82,23 +84,23 @@ void test_prach_opportunity_validity(const cell_configuration&       cell_cfg,
                                      span<const prach_occasion_info> prachs);
 
 /// \brief Detects collisions in the "RB x symbol" DL resource grid.
-void test_dl_resource_grid_collisions(const cell_configuration& cell_cfg, const dl_sched_result& result);
+void test_dl_resource_grid_collisions(const cell_configuration& cell_cfg, sched_slot_dl_result_reader result);
 
 /// \brief Detects collisions in the "RB x symbol" UL resource grid.
-void test_ul_resource_grid_collisions(const cell_configuration& cell_cfg, const ul_sched_result& result);
+void test_ul_resource_grid_collisions(const cell_configuration& cell_cfg, sched_slot_ul_result_reader result);
 
 /// \brief Detects inconsistencies in the whole UL scheduling result. This function calls other more specific UL
 /// validity checks.
-void test_ul_consistency(const cell_configuration& cell_cfg, slot_point sl_tx, const ul_sched_result& result);
+void test_ul_consistency(const cell_configuration& cell_cfg, slot_point sl_tx, sched_slot_ul_result_reader result);
 
 /// \brief Detects inconsistencies in the whole DL scheduling result. This function calls other more specific DL
 /// validity checks.
-void test_dl_consistency(const cell_configuration& cell_cfg, slot_point sl_tx, const dl_sched_result& result);
+void test_dl_consistency(const cell_configuration& cell_cfg, slot_point sl_tx, sched_slot_dl_result_reader result);
 
 /// \brief Run all consistency checks for the scheduler result on a given slot.
 void test_scheduler_result_consistency(const cell_configuration& cell_cfg,
                                        slot_point                sl_tx,
-                                       const sched_result&       result);
+                                       sched_slot_result_reader  result);
 
 /// \brief Run all consistency checks for multiple slot scheduler results.
 void test_scheduler_result_consistency(const cell_configuration&      cell_cfg,
@@ -120,7 +122,7 @@ public:
   void on_new_rach_ind(const rach_indication_message& ind);
   void on_crc_indication(const ul_crc_indication& crc);
 
-  void on_new_result(slot_point sl_tx, const sched_result& result);
+  void on_new_result(slot_point sl_tx, sched_slot_result_reader result);
 
   unsigned nof_ra_dl_pdcchs() const { return ra_dl_pdcch_ack_counter; }
   unsigned nof_rars() const { return rar_counter; }
@@ -201,7 +203,7 @@ private:
 class harq_tracker
 {
 public:
-  void on_new_result(slot_point sl_tx, const sched_result& result);
+  void on_new_result(slot_point sl_tx, sched_slot_result_reader result);
 
   /// Forgets the HARQ history of \c rnti, as a new UE starts with no previous NDI (e.g. on RNTI reuse).
   void on_ue_added(rnti_t rnti);

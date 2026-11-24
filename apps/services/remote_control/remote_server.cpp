@@ -10,6 +10,7 @@
 #include "ocudu/ocudulog/ocudulog.h"
 #include "ocudu/support/synchronization/stop_event.h"
 #include "ocudu/support/synchronization/sync_event.h"
+#include "ocudu/support/versioning/interface_versions.h"
 #ifndef __clang__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstringop-overflow"
@@ -111,7 +112,10 @@ class remote_server_impl : public remote_server,
     expected<nlohmann::json, std::string> execute(const nlohmann::json& json) override
     {
       parent->subscribe_metrics_client();
-      return {};
+      // Report the version of the metrics the subscriber is going to receive.
+      nlohmann::json result;
+      result["metrics_version"] = metrics_interface_version;
+      return result;
     }
   };
 

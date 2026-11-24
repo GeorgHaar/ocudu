@@ -79,6 +79,12 @@ private:
   /// \remark Forward the Initial UE Message to the NGAP
   void send_initial_ue_msg();
 
+  /// Stores the 5G-S-TMSI of the RRC Setup Complete, or of the RRC Setup Request and the RRC Setup Complete together.
+  void store_five_g_s_tmsi();
+
+  /// Gets the identities of the UE in the RRC Setup Complete that the AMF selection uses.
+  amf_selection_request get_amf_selection_request() const;
+
   static resume_cause_t establishment_cause_to_resume_cause(const establishment_cause_t& establishment_cause);
 
   rrc_ue_context_t&  context;

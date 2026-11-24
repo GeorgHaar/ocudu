@@ -9,6 +9,7 @@
 #include "tests/test_doubles/e1ap/e1ap_test_message_validators.h"
 #include "tests/test_doubles/f1ap/f1ap_test_message_validators.h"
 #include "tests/test_doubles/ngap/ngap_test_message_validators.h"
+#include "tests/test_doubles/rrc/redcap_ue_capability_fixture.h"
 #include "tests/test_doubles/rrc/rrc_test_message_validators.h"
 #include "tests/test_doubles/utils/test_rng.h"
 #include "tests/unittests/ngap/ngap_test_messages.h"
@@ -32,13 +33,14 @@ static const asn1::e1ap::pdu_session_res_to_setup_item_s& get_pdu_session_res_to
   const auto& ng_ran_bearer_ctxt = msg.pdu.init_msg()
                                        .value.bearer_context_setup_request()
                                        ->sys_bearer_context_setup_request.ng_ran_bearer_context_setup_request();
-  return ng_ran_bearer_ctxt[0]->pdu_session_res_to_setup_list()[0];
+  return ng_ran_bearer_ctxt.pdu_session_res_to_setup_list[0];
 }
 
 class cu_cp_inter_cu_ng_handover_test : public cu_cp_test_environment, public ::testing::Test
 {
 public:
-  cu_cp_inter_cu_ng_handover_test() : cu_cp_test_environment(cu_cp_test_env_params{})
+  explicit cu_cp_inter_cu_ng_handover_test(cu_cp_test_env_params env_params = {}) :
+    cu_cp_test_environment(std::move(env_params))
   {
     OCUDU_TEST_REQUIREMENTS("MVP-FUNC-MOB-4", "MVP-FUNC-MOB-1-e");
 
@@ -70,9 +72,10 @@ public:
   }
 
   [[nodiscard]] bool
-  send_handover_request_and_await_bearer_context_setup_request(const handover_request_params& ho_params = {})
+  send_handover_request_and_await_bearer_context_setup_request(const handover_request_params& ho_params    = {},
+                                                               const byte_buffer*             rrc_override = nullptr)
   {
-    report_fatal_error_if_not(not this->get_amf().try_pop_rx_pdu(ngap_pdu),
+    report_fatal_error_if_not(not this->get_amf(target_amf_idx).try_pop_rx_pdu(ngap_pdu),
                               "there are still NGAP messages to pop from AMF");
     report_fatal_error_if_not(not this->get_du(du_idx).try_pop_dl_pdu(f1ap_pdu),
                               "there are still F1AP DL messages to pop from DU");
@@ -80,7 +83,20 @@ public:
                               "there are still E1AP messages to pop from CU-UP");
 
     // Inject Handover Request and wait for Bearer Context Setup Request.
-    get_amf().push_tx_pdu(generate_valid_handover_request(amf_ue_id, ho_params));
+    auto request = generate_valid_handover_request(amf_ue_id, ho_params);
+    if (rrc_override != nullptr) {
+      auto& encoded = request.pdu.init_msg().value.ho_request()->source_to_target_transparent_container;
+      asn1::ngap::source_ngran_node_to_target_ngran_node_transparent_container_s container;
+      asn1::cbit_ref                                                             reader{encoded};
+      report_fatal_error_if_not(asn1::unpack(container, reader) == asn1::OCUDUASN_SUCCESS,
+                                "Invalid handover container");
+      container.rrc_container = rrc_override->copy();
+      byte_buffer   packed;
+      asn1::bit_ref writer{packed};
+      report_fatal_error_if_not(asn1::pack(writer, container) == asn1::OCUDUASN_SUCCESS, "Invalid handover container");
+      encoded = std::move(packed);
+    }
+    get_amf(target_amf_idx).push_tx_pdu(request);
     report_fatal_error_if_not(this->wait_for_e1ap_tx_pdu(cu_up_idx, e1ap_pdu),
                               "Failed to receive Bearer Context Setup Request");
     report_fatal_error_if_not(test_helpers::is_valid_bearer_context_setup_request(e1ap_pdu),
@@ -144,7 +160,8 @@ public:
   {
     // Inject Bearer Context Modification Response and wait for Handover Request Ack.
     get_cu_up(cu_up_idx).push_tx_pdu(generate_bearer_context_modification_response(cu_cp_e1ap_id, cu_up_e1ap_id));
-    report_fatal_error_if_not(this->wait_for_ngap_tx_pdu(ngap_pdu), "Failed to receive Handover Request Ack");
+    report_fatal_error_if_not(this->wait_for_ngap_tx_pdu(ngap_pdu, std::chrono::milliseconds{500}, target_amf_idx),
+                              "Failed to receive Handover Request Ack");
     report_fatal_error_if_not(test_helpers::is_valid_handover_request_ack(ngap_pdu), "Invalid Handover Request Ack");
     return true;
   }
@@ -160,7 +177,7 @@ public:
   bool
   send_dl_ran_status_transfer_and_await_bearer_context_modification_request(const std::vector<drb_id_t>& drb_ids = {})
   {
-    get_amf().push_tx_pdu(generate_valid_dl_ran_status_transfer(amf_ue_id, {}, drb_ids));
+    get_amf(target_amf_idx).push_tx_pdu(generate_valid_dl_ran_status_transfer(amf_ue_id, {}, drb_ids));
     report_fatal_error_if_not(this->wait_for_e1ap_tx_pdu(cu_up_idx, e1ap_pdu),
                               "Failed to receive Bearer Context Modification Request");
     report_fatal_error_if_not(test_helpers::is_valid_bearer_context_modification_request(e1ap_pdu),
@@ -186,7 +203,8 @@ public:
 
   [[nodiscard]] bool await_handover_notify_and_ue_context_modification_request()
   {
-    report_fatal_error_if_not(this->wait_for_ngap_tx_pdu(ngap_pdu), "Failed to receive Handover Notify");
+    report_fatal_error_if_not(this->wait_for_ngap_tx_pdu(ngap_pdu, std::chrono::milliseconds{500}, target_amf_idx),
+                              "Failed to receive Handover Notify");
     report_fatal_error_if_not(this->wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu),
                               "Failed to receive UE context modification response");
     report_fatal_error_if_not(test_helpers::is_valid_handover_notify(ngap_pdu), "Invalid Handover Notify");
@@ -425,6 +443,9 @@ public:
   pdu_session_id_t psi = uint_to_pdu_session_id(1);
   qos_flow_id_t    qfi = uint_to_qos_flow_id(1);
 
+  /// AMF that sends the Handover Request when this CU-CP is the target.
+  unsigned target_amf_idx = 0;
+
   ngap_message ngap_pdu;
   f1ap_message f1ap_pdu;
   e1ap_message e1ap_pdu;
@@ -518,6 +539,8 @@ TEST_F(cu_cp_inter_cu_ng_handover_test, when_handover_succeeds_then_amf_releases
   // Inject Bearer Context Release Complete and await F1AP UE Context Release Command.
   ASSERT_TRUE(send_bearer_context_release_complete_and_await_f1ap_ue_context_release_command(
       ue_ctx->cu_cp_e1ap_id.value(), ue_ctx->cu_up_e1ap_id.value()));
+  // The UE is connected to the target, so the source sends no RRCRelease.
+  ASSERT_FALSE(f1ap_pdu.pdu.init_msg().value.ue_context_release_cmd()->rrc_container_present);
 
   // Inject F1AP UE Context Release Complete and await NGAP UE Context Release Complete.
   ASSERT_TRUE(send_f1ap_ue_context_release_complete_and_await_ngap_ue_context_release_complete(
@@ -947,7 +970,7 @@ TEST_F(cu_cp_inter_cu_ng_handover_test, when_target_allocated_fwd_tunnels_then_t
 
   asn1::ngap::ho_request_ack_transfer_s ack_transfer;
   asn1::cbit_ref                        bref(ho_request_ack->pdu_session_res_admitted_list[0].ho_request_ack_transfer);
-  ASSERT_EQ(ack_transfer.unpack(bref), asn1::OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::unpack(ack_transfer, bref), asn1::OCUDUASN_SUCCESS);
 
   ASSERT_TRUE(ack_transfer.dl_forwarding_up_tnl_info_present);
   ASSERT_FALSE(ack_transfer.ie_exts.ul_forwarding_up_tnl_info_present);
@@ -986,7 +1009,7 @@ TEST_F(cu_cp_inter_cu_ng_handover_test, when_data_forwarding_is_not_possible_the
   const auto&                           ho_request_ack = ngap_pdu.pdu.successful_outcome().value.ho_request_ack();
   asn1::ngap::ho_request_ack_transfer_s ack_transfer;
   asn1::cbit_ref                        bref(ho_request_ack->pdu_session_res_admitted_list[0].ho_request_ack_transfer);
-  ASSERT_EQ(ack_transfer.unpack(bref), asn1::OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::unpack(ack_transfer, bref), asn1::OCUDUASN_SUCCESS);
 
   ASSERT_EQ(ack_transfer.data_forwarding_resp_drb_list.size(), 0U);
   ASSERT_FALSE(ack_transfer.dl_forwarding_up_tnl_info_present);
@@ -1205,4 +1228,71 @@ TEST_F(
                             "Unexpected F1AP message after handover target success");
   report_fatal_error_if_not(not this->get_cu_up(cu_up_idx).try_pop_rx_pdu(e1ap_pdu),
                             "Unexpected E1AP message after handover target success");
+}
+
+/// Two AMFs serve the PLMN of the CU-CP.
+class cu_cp_inter_cu_ng_handover_two_amfs_test : public cu_cp_inter_cu_ng_handover_test
+{
+public:
+  cu_cp_inter_cu_ng_handover_two_amfs_test() :
+    cu_cp_inter_cu_ng_handover_test(
+        cu_cp_test_env_params{8, 8, 8192, 8, {{default_supported_tracking_area}, {default_supported_tracking_area}}})
+  {
+  }
+};
+
+TEST_F(cu_cp_inter_cu_ng_handover_two_amfs_test, when_second_amf_sends_handover_request_then_ue_is_served_by_it)
+{
+  // The second AMF of the PLMN sends the Handover Request.
+  target_amf_idx = 1;
+
+  ASSERT_TRUE(send_handover_request_and_await_bearer_context_setup_request());
+  ASSERT_TRUE(send_bearer_context_setup_response_and_await_ue_context_setup_request());
+  ASSERT_TRUE(send_ue_context_setup_response_and_await_bearer_context_modification_request());
+  ASSERT_TRUE(send_bearer_context_modification_response_and_await_handover_request_ack());
+  ASSERT_TRUE(send_dl_ran_status_transfer_and_await_bearer_context_modification_request());
+  ASSERT_TRUE(send_bearer_context_modification_response());
+
+  // The Handover Notify goes to the AMF that sent the Handover Request.
+  ASSERT_TRUE(send_rrc_reconfiguration_complete_and_await_handover_notify_and_ue_context_modification_request());
+}
+
+TEST_F(cu_cp_inter_cu_ng_handover_test, redcap_target_handover_allocates_from_forwarded_capabilities_without_msg3)
+{
+  auto container = test_helpers::make_redcap_handover_preparation(false);
+  ASSERT_TRUE(send_handover_request_and_await_bearer_context_setup_request({}, &container));
+  const auto& drb = get_pdu_session_res_to_setup_item(e1ap_pdu).drb_to_setup_list_ng_ran[0];
+  EXPECT_EQ(drb.pdcp_cfg.pdcp_sn_size_dl, asn1::e1ap::pdcp_sn_size_opts::s_neg12);
+  EXPECT_EQ(drb.pdcp_cfg.pdcp_sn_size_ul, asn1::e1ap::pdcp_sn_size_opts::s_neg12);
+  ASSERT_TRUE(send_bearer_context_setup_response_and_await_ue_context_setup_request());
+  ASSERT_TRUE(send_ue_context_setup_response_and_await_bearer_context_modification_request());
+  ASSERT_TRUE(send_bearer_context_modification_response_and_await_handover_request_ack());
+  ASSERT_TRUE(send_dl_ran_status_transfer_and_await_bearer_context_modification_request({drb_id_t::drb1}));
+  ASSERT_TRUE(send_bearer_context_modification_response());
+  ASSERT_TRUE(send_rrc_reconfiguration_complete_and_await_handover_notify_and_ue_context_modification_request());
+  ASSERT_TRUE(send_ue_context_modification_response_empty(cu_ue_id, du_ue_id));
+}
+
+TEST_F(cu_cp_inter_cu_ng_handover_test,
+       when_ordinary_source_uses_12bit_pdcp_then_target_preserves_it_despite_18bit_defaults)
+{
+  auto                         container = test_helpers::make_redcap_handover_preparation(false);
+  asn1::rrc_nr::ho_prep_info_s info;
+  asn1::cbit_ref               reader{container};
+  ASSERT_EQ(asn1::unpack(info, reader), asn1::OCUDUASN_SUCCESS);
+  info.crit_exts.c1().ho_prep_info().ue_cap_rat_list.clear();
+  byte_buffer   ordinary_container;
+  asn1::bit_ref writer{ordinary_container};
+  ASSERT_EQ(asn1::pack(writer, info), asn1::OCUDUASN_SUCCESS);
+  ASSERT_TRUE(send_handover_request_and_await_bearer_context_setup_request({}, &ordinary_container));
+  const auto& drb = get_pdu_session_res_to_setup_item(e1ap_pdu).drb_to_setup_list_ng_ran[0];
+  EXPECT_EQ(drb.pdcp_cfg.pdcp_sn_size_dl, asn1::e1ap::pdcp_sn_size_opts::s_neg12);
+  EXPECT_EQ(drb.pdcp_cfg.pdcp_sn_size_ul, asn1::e1ap::pdcp_sn_size_opts::s_neg12);
+  ASSERT_TRUE(send_bearer_context_setup_response_and_await_ue_context_setup_request());
+  ASSERT_TRUE(send_ue_context_setup_response_and_await_bearer_context_modification_request());
+  ASSERT_TRUE(send_bearer_context_modification_response_and_await_handover_request_ack());
+  ASSERT_TRUE(send_dl_ran_status_transfer_and_await_bearer_context_modification_request({drb_id_t::drb1}));
+  ASSERT_TRUE(send_bearer_context_modification_response());
+  ASSERT_TRUE(send_rrc_reconfiguration_complete_and_await_handover_notify_and_ue_context_modification_request());
+  ASSERT_TRUE(send_ue_context_modification_response_empty(cu_ue_id, du_ue_id));
 }

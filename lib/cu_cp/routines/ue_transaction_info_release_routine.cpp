@@ -35,18 +35,18 @@ void ue_transaction_info_release_routine::operator()(coro_context<async_task<voi
 
   logger.info("\"{}\" started...", name());
 
-  // Prepare NG Reset messages for each PLMN.
+  // Prepare NG Reset messages for each AMF.
   prepare_ng_reset_messages();
 
   // Run NG Reset to signal to the AMF the reset of UEs.
-  for (plmn_id_it = ng_reset_per_plmn.begin(); plmn_id_it != ng_reset_per_plmn.end(); ++plmn_id_it) {
-    ngap = ngap_db.find_ngap(plmn_id_it->first);
+  for (amf_index_it = ng_reset_per_amf.begin(); amf_index_it != ng_reset_per_amf.end(); ++amf_index_it) {
+    ngap = ngap_db.find_ngap(amf_index_it->first);
     if (ngap == nullptr) {
-      logger.debug("Skipping NGReset. Cause: NGAP not found for plmn={}", plmn_id_it->first);
+      logger.debug("Skipping NGReset. Cause: NGAP not found for amf_index={}", amf_index_it->first);
       continue;
     }
 
-    CORO_AWAIT(ngap->handle_ng_reset_message(plmn_id_it->second));
+    CORO_AWAIT(ngap->handle_ng_reset_message(amf_index_it->second));
   }
 
   // Prepare E1 Reset messages for each CU-UP.
@@ -88,14 +88,15 @@ void ue_transaction_info_release_routine::prepare_ng_reset_messages()
       continue;
     }
 
-    if (ng_reset_per_plmn.find(ue->get_ue_context().plmn) == ng_reset_per_plmn.end()) {
-      // Create a new entry for the PLMN.
-      ngap_cause_t reset_cause                     = ngap_cause_radio_network_t::radio_conn_with_ue_lost;
-      ng_reset_per_plmn[ue->get_ue_context().plmn] = cu_cp_reset{reset_cause, false, {}};
+    const cu_cp_amf_index_t amf_index = ue->get_ue_context().amf_index;
+    if (ng_reset_per_amf.find(amf_index) == ng_reset_per_amf.end()) {
+      // Create a new entry for the AMF.
+      ngap_cause_t reset_cause    = ngap_cause_radio_network_t::radio_conn_with_ue_lost;
+      ng_reset_per_amf[amf_index] = cu_cp_reset{reset_cause, false, {}};
     }
 
-    // Add reset message to the PLMN list.
-    ng_reset_per_plmn[ue->get_ue_context().plmn].ues_to_reset.push_back(ue_idx);
+    // Add reset message to the AMF list.
+    ng_reset_per_amf[amf_index].ues_to_reset.push_back(ue_idx);
   }
 }
 

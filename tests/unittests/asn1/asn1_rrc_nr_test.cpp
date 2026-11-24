@@ -3,7 +3,14 @@
 // SPDX-License-Identifier: BSD-3-Clause-Open-MPI
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
+#include "asn1_test_utils.h"
+#include "ocudu/asn1/rrc_nr/bcch_bch_msg.h"
+#include "ocudu/asn1/rrc_nr/cell_group_config.h"
+#include "ocudu/asn1/rrc_nr/dl_ccch_msg.h"
+#include "ocudu/asn1/rrc_nr/dl_dcch_msg.h"
 #include "ocudu/asn1/rrc_nr/rrc_nr.h"
+#include "ocudu/asn1/rrc_nr/sys_info.h"
+#include "ocudu/asn1/rrc_nr/ul_ccch_msg.h"
 #include "ocudu/asn1/rrc_nr/ul_dcch_msg.h"
 #include "ocudu/support/test_utils.h"
 #include <cstdio>
@@ -64,8 +71,6 @@ TEST_F(asn1_rrc_nr_test, when_eutra_nr_capabilities_correct_then_packing_success
   band_combination.band_list.push_back(band_param_nr);
 
   mrdc_cap.rf_params_mrdc.supported_band_combination_list.push_back(band_combination);
-
-  mrdc_cap.rf_params_mrdc.ext = true;
 
   // RF Params MRDC applied_freq_band_list_filt
   freq_band_info_c band_info_eutra;
@@ -135,9 +140,9 @@ TEST_F(asn1_rrc_nr_test, when_eutra_nr_capabilities_correct_then_packing_success
   // Pack mrdc_cap
   ocudu::byte_buffer buffer;
   asn1::bit_ref      bref(buffer);
-  mrdc_cap.pack(bref);
+  ASSERT_EQ(OCUDUASN_SUCCESS, asn1::pack(bref, mrdc_cap));
 
-  ASSERT_EQ(test_pack_unpack_consistency(mrdc_cap), OCUDUASN_SUCCESS);
+  ASSERT_EQ(test_pack_roundtrip(mrdc_cap), OCUDUASN_SUCCESS);
 
   //  ocudulog::fetch_basic_logger("RRC").info(
   //      buffer, bref.distance_bytes(), "Packed cap struct ({} bytes):", bref.distance_bytes());
@@ -155,9 +160,9 @@ TEST_F(asn1_rrc_nr_test, when_ue_mrdc_capabilities_correct_then_unpacking_succes
   asn1::cbit_ref bref{pdu};
   ue_mrdc_cap_s  mrdc_cap;
 
-  ASSERT_EQ(mrdc_cap.unpack(bref), OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::unpack(mrdc_cap, bref), OCUDUASN_SUCCESS);
 
-  ASSERT_EQ(test_pack_unpack_consistency(mrdc_cap), OCUDUASN_SUCCESS);
+  ASSERT_EQ(test_pack_roundtrip(mrdc_cap), OCUDUASN_SUCCESS);
 }
 
 TEST_F(asn1_rrc_nr_test, when_ue_rrc_reconfiguration_correct_then_unpacking_successful)
@@ -191,12 +196,12 @@ TEST_F(asn1_rrc_nr_test, when_ue_rrc_reconfiguration_correct_then_unpacking_succ
   cbit_ref    bref(pdu);
   rrc_recfg_s rrc_recfg;
 
-  ASSERT_EQ(rrc_recfg.unpack(bref), OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::unpack(rrc_recfg, bref), OCUDUASN_SUCCESS);
   ASSERT_EQ(rrc_recfg.rrc_transaction_id, 0);
 
 #if JSON_OUTPUT
   json_writer jw;
-  rrc_recfg.to_json(jw);
+  asn1::to_json(jw, rrc_recfg);
   test_logger.info("RRC Reconfig: \n {}", jw.to_string().c_str());
 #endif
 
@@ -205,11 +210,11 @@ TEST_F(asn1_rrc_nr_test, when_ue_rrc_reconfiguration_correct_then_unpacking_succ
 
   cell_group_cfg_s cell_group_cfg;
   cbit_ref         bref0(rrc_recfg.crit_exts.rrc_recfg().secondary_cell_group);
-  ASSERT_EQ(cell_group_cfg.unpack(bref0), OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::unpack(cell_group_cfg, bref0), OCUDUASN_SUCCESS);
 
 #if JSON_OUTPUT
   json_writer jw1;
-  cell_group_cfg.to_json(jw1);
+  asn1::to_json(jw1, cell_group_cfg);
   test_logger.info("RRC Secondary Cell Group: \n {}", jw1.to_string().c_str());
 #endif
   ASSERT_EQ(cell_group_cfg.cell_group_id, 1);
@@ -226,11 +231,11 @@ TEST_F(asn1_rrc_nr_test, when_radio_bearer_config_correct_then_unpacking_success
 
   cbit_ref           bref(pdu);
   radio_bearer_cfg_s radio_bearer_cfg;
-  ASSERT_EQ(radio_bearer_cfg.unpack(bref), OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::unpack(radio_bearer_cfg, bref), OCUDUASN_SUCCESS);
 
 #if JSON_OUTPUT
   json_writer jw;
-  radio_bearer_cfg.to_json(jw);
+  asn1::to_json(jw, radio_bearer_cfg);
   test_logger.info("RRC Bearer CFG Message: \n {}", jw.to_string().c_str());
 #endif
   ASSERT_EQ(radio_bearer_cfg.drb_to_add_mod_list.size(), 1);
@@ -271,9 +276,9 @@ TEST_F(asn1_rrc_nr_test, when_cell_group_config_correct_then_unpacking_successfu
   cbit_ref         bref(pdu);
   cell_group_cfg_s cell_group_cfg;
 
-  ASSERT_EQ(cell_group_cfg.unpack(bref), OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::unpack(cell_group_cfg, bref), OCUDUASN_SUCCESS);
 
-  ASSERT_EQ(test_pack_unpack_consistency(cell_group_cfg), OCUDUASN_SUCCESS);
+  ASSERT_EQ(test_pack_roundtrip(cell_group_cfg), OCUDUASN_SUCCESS);
 
   ASSERT_TRUE(cell_group_cfg.sp_cell_cfg_present);
   ASSERT_TRUE(cell_group_cfg.sp_cell_cfg.serv_cell_idx_present);
@@ -315,7 +320,7 @@ TEST_F(asn1_rrc_nr_test, when_cell_group_config_correct_then_unpacking_successfu
 
 #if JSON_OUTPUT
   asn1::json_writer json_writer;
-  cell_group_cfg.to_json(json_writer);
+  asn1::to_json(json_writer, cell_group_cfg);
   test_logger.info("RRC Secondary Cell Group: Content: {}\n", json_writer.to_string().c_str());
 #endif
 }
@@ -345,13 +350,13 @@ TEST_F(asn1_rrc_nr_test, when_ue_nr_capabilities_rel15_correct_then_unpacking_su
   asn1::cbit_ref            bref{pdu};
   asn1::rrc_nr::ue_nr_cap_s ue_nr_cap;
 
-  ASSERT_EQ(ue_nr_cap.unpack(bref), OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::unpack(ue_nr_cap, bref), OCUDUASN_SUCCESS);
 
-  ASSERT_EQ(test_pack_unpack_consistency(ue_nr_cap), OCUDUASN_SUCCESS);
+  ASSERT_EQ(test_pack_roundtrip(ue_nr_cap), OCUDUASN_SUCCESS);
 
 #if JSON_OUTPUT
   asn1::json_writer json_writer;
-  ue_nr_cap.to_json(json_writer);
+  asn1::to_json(json_writer, ue_nr_cap);
   test_logger.info("UE capabilities: {}\n", json_writer.to_string().c_str());
 #endif
 }
@@ -449,13 +454,13 @@ TEST_F(asn1_rrc_nr_test, when_ue_nr_capabilities_rel16_correct_then_unpacking_su
   asn1::cbit_ref            bref{pdu};
   asn1::rrc_nr::ue_nr_cap_s ue_nr_cap;
 
-  ASSERT_EQ(ue_nr_cap.unpack(bref), OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::unpack(ue_nr_cap, bref), OCUDUASN_SUCCESS);
 
-  ASSERT_EQ(test_pack_unpack_consistency(ue_nr_cap), OCUDUASN_SUCCESS);
+  ASSERT_EQ(test_pack_roundtrip(ue_nr_cap), OCUDUASN_SUCCESS);
 
 #if JSON_OUTPUT
   asn1::json_writer json_writer;
-  ue_nr_cap.to_json(json_writer);
+  asn1::to_json(json_writer, ue_nr_cap);
   test_logger.info("UE capabilities: {}\n", json_writer.to_string().c_str());
 #endif
 }
@@ -567,16 +572,16 @@ TEST_F(asn1_rrc_nr_test, when_ue_nr_capabilities_rel16_v2_correct_then_unpacking
   asn1::cbit_ref            bref{pdu};
   asn1::rrc_nr::ue_nr_cap_s ue_nr_cap;
 
-  ASSERT_EQ(ue_nr_cap.unpack(bref), OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::unpack(ue_nr_cap, bref), OCUDUASN_SUCCESS);
 
   ASSERT_TRUE(ue_nr_cap.feature_sets_present);
   ASSERT_EQ(ue_nr_cap.feature_sets.feature_sets_dl.size(), 1);
 
-  ASSERT_EQ(test_pack_unpack_consistency(ue_nr_cap), OCUDUASN_SUCCESS);
+  ASSERT_EQ(test_pack_roundtrip(ue_nr_cap), OCUDUASN_SUCCESS);
 
 #if JSON_OUTPUT
   asn1::json_writer json_writer;
-  ue_nr_cap.to_json(json_writer);
+  asn1::to_json(json_writer, ue_nr_cap);
   test_logger.info("UE capabilities: {}\n", json_writer.to_string().c_str());
 #endif
 }
@@ -592,5 +597,179 @@ TEST_F(asn1_rrc_nr_test, unpack_malformed_rrc_setup_complete)
   ul_dcch_msg_s rrc_msg;
 
   cbit_ref bref{pdu};
-  ASSERT_NE(rrc_msg.unpack(bref), OCUDUASN_SUCCESS);
+  ASSERT_NE(asn1::unpack(rrc_msg, bref), OCUDUASN_SUCCESS);
+}
+
+TEST_F(asn1_rrc_nr_test, null_ext_choice_alternative_is_an_open_type)
+{
+  location_meas_info_c info;
+  info.set_eutra_fine_timing_detection();
+
+  byte_buffer pdu;
+  bit_ref     bref(pdu);
+  ASSERT_EQ(asn1::pack(bref, info), OCUDUASN_SUCCESS);
+
+  // Extension index followed by an open type holding the single zero octet that encodes NULL.
+  uint8_t expected[] = {0x80, 0x01, 0x00};
+  ASSERT_EQ(pdu, byte_buffer::create(expected).value());
+
+  location_meas_info_c info_unpacked;
+  cbit_ref             cbref(pdu);
+  ASSERT_EQ(asn1::unpack(info_unpacked, cbref), OCUDUASN_SUCCESS);
+  ASSERT_EQ(info_unpacked.type(), location_meas_info_c::types::eutra_fine_timing_detection);
+  ASSERT_EQ(cbref.distance_bytes(), (int)pdu.length());
+}
+
+TEST_F(asn1_rrc_nr_test, mandatory_ext_group_member_with_first_enum_value)
+{
+  rlf_timers_and_consts_s rlf;
+  rlf.t310.value = rlf_timers_and_consts_s::t310_opts::ms1000;
+  rlf.n310.value = rlf_timers_and_consts_s::n310_opts::n2;
+  rlf.n311.value = rlf_timers_and_consts_s::n311_opts::n3;
+  rlf.t311.set_present();
+  rlf.t311->value = rlf_timers_and_consts_s::t311_opts::ms1000;
+
+  byte_buffer pdu;
+  bit_ref     bref(pdu);
+  ASSERT_EQ(asn1::pack(bref, rlf), OCUDUASN_SUCCESS);
+
+  // The extension group is present although t311 holds the first enumerated value.
+  ASSERT_EQ(pdu, ocudu::make_byte_buffer("a940202000").value());
+
+  rlf_timers_and_consts_s rlf_unpacked;
+  cbit_ref                cbref(pdu);
+  ASSERT_EQ(asn1::unpack(rlf_unpacked, cbref), OCUDUASN_SUCCESS);
+  ASSERT_TRUE(rlf_unpacked.t311.is_present());
+  ASSERT_EQ(rlf_unpacked.t311->value, rlf_timers_and_consts_s::t311_opts::ms1000);
+  ASSERT_EQ(test_pack_roundtrip(rlf_unpacked), OCUDUASN_SUCCESS);
+}
+
+// Real PDUs from lab captures.
+static const std::vector<capture_pdu> dl_ccch_msg_captures = {
+    {"RRC Setup",
+     "204004097ae00580088bd76380830f0003e0106341e0400020904c0ca8000fffffffffffd83708420001b81650020c00"
+     "000081a60404542801f9409000113557c841c001040c2050c1c9c48a163068e1e408800004280004005a8000a2042800"
+     "0e205a80010024280014025a8001a1e428001e1e5a80020084280025f48200a7d20902df48280c7d20b035f48300e7d2"
+     "0d03df4838100ba0804430821024b92e4b18166c47456789bc9a074820f177e060870000000e3ff5988d53544a058000"
+     "0865d8000002000000000000ac22b5514011c008a45003f1082b40801c040821001f88415a0200e040420800fc420ad0"
+     "10070302084007e2105680c038201082003f1082b40600140000008218081018201c12000fca04000000200400080600"
+     "0809002200b4000024040089c661fffffe1e8000"},
+};
+
+static const std::vector<capture_pdu> dl_dcch_msg_captures = {
+    {"RRC Reconfiguration",
+     "028a844040404092ae01604b0701f00831a0f0200010482606540007ffffffffffec1b84210000dc0b28050600000040"
+     "d18101250a007e502c00044d55f21070004103081430727122858c1a3879022000010a00010016a00028810a00038816"
+     "a00040090a00050096a00068790a00078796a00080216a00097d208029f48240b7d20a031f482c0d7d20c039f48340f7"
+     "d20e0402e820110ca0b4092e4b92c605ac11d159e26f2687d2083c5df81821c000000243ff5988d5355ca0580000865d"
+     "80000020000000000000c22b5514011c00400820801f88401a0500e020410800fc4200d010070202104007e210068080"
+     "38181042003f1080340601c100841001f88401a03000a000000410c04080c100e0b0007e502800000100200040300040"
+     "480110052000012024044e390000"},
+    // Re-encoded: the captured encoding left out the absent extension additions after the last present one,
+    // which X.691 requires in the extension bitmap.
+    {"RRC Reconfiguration",
+     "068a80409a01e0020de3b0a0380180a0385c02b091117aec701065e000b1c034c55fc8120d05900408c0082411012000"
+     "8023404490f8381df81821d2100040029000008c48089c720003b3f013f9423d981bf0034008033970080e1088004808"
+     "00318980080ff80830309c4023d09148280e0540181110200800000c0bc8003009020808084bd800c404010850180000"
+     "540830404040400068204040404000880128e0434b73a32b93732ba0336b7319818188336b1b19818188233b83939890"
+     "08"},
+    {"RRC Reestablishment", "1800"},
+    {"Security Mode Command", "220810"},
+    {"DL Information Transfer",
+     "2888efc040b282d5c02fc00840212ee0017e401e221000202de9b26baa80e0001e22000000e2a0a08020000026214080"
+     "2000002080400005442041e00bc037c6810063e33e2063e23e40"},
+    {"UE Capability Enquiry", "3402012001013400"},
+};
+
+static const std::vector<capture_pdu> ul_ccch_msg_captures = {
+    {"RRC Setup Request", "065800000028"},
+    {"RRC Reestablishment Request", "48c0800ebcac"},
+};
+
+static const std::vector<capture_pdu> ul_dcch_msg_captures = {
+    {"RRC Reconfiguration Complete", "0a00"},
+    {"RRC Setup Complete, Registration request",
+     "1010111f8060604c55809f8010424002fc803c443d446cb00000fccb80b8381c4009746d20f7ccdcc296965b13c8a097"
+     "94717c6679d30995fe6a48e3730140593ea50e270e8df76230"},
+    {"RRC Reestablishment Complete", "1800"},
+    {"Security Mode Complete", "2a00"},
+    {"UL Information Transfer",
+     "3a233f011545c27e813f0033808015970080e0ffffc8d8bd801040401088008000084083000000004183000000000005"
+     "000008000006800008800900c092848434b73a32b93732ba00"},
+    {"UE Capability Information",
+     "4c821ff0680ce811d39680b7ef60e1c800005824c5c00060fc340031bff001700298b89b2000002190000d5a0c000600"
+     "7a071e439f000020b801ff800e007fe00151000001b2f8002f800000400e268000000010134b40000003804048f80000"
+     "00000000295500010000096594003caa0a3a00002d003c000400000010020040902800"},
+};
+
+static const std::vector<capture_pdu> mib_captures = {
+    {"MIB", "020d08"},
+};
+
+static const std::vector<capture_pdu> sib1_captures = {
+    // Re-encoded: the captured encoding left out the absent extension additions after the last present one,
+    // which X.691 requires in the extension bitmap.
+    {"SIB1",
+     "de0405c04100100800003800000cd86015842680f08001880081599830225986cdc1008000040200010688a08e484c10"
+     "9a4c190000018878112cc893e02c1992afbc0493a441b8a37186e38dcb1befd5b1c0140d388400260dc4100004800020"
+     "40ea008580ce03058b682280"},
+};
+
+static const std::vector<capture_pdu> cell_group_cfg_captures = {
+    {"CellGroupConfig",
+     "5c02b091117aec701065e000b1c034c55fc8120d05900418c00824110120008023405490f8381df81821d23080003000"
+     "000000000560008005a000012020044e330ffffff0f480"},
+};
+
+static const std::vector<capture_pdu> meas_timing_cfg_captures = {
+    {"MeasurementTimingConfiguration", "10113c08050200"},
+};
+
+TEST_F(asn1_rrc_nr_test, captured_pdus_repack_to_same_bytes)
+{
+  for (const capture_pdu& c : dl_ccch_msg_captures) {
+    EXPECT_EQ(test_unpack_roundtrip<dl_ccch_msg_s>(hex_to_bytes(c.hex)), OCUDUASN_SUCCESS) << c.name;
+  }
+  for (const capture_pdu& c : dl_dcch_msg_captures) {
+    EXPECT_EQ(test_unpack_roundtrip<dl_dcch_msg_s>(hex_to_bytes(c.hex)), OCUDUASN_SUCCESS) << c.name;
+  }
+  for (const capture_pdu& c : ul_ccch_msg_captures) {
+    EXPECT_EQ(test_unpack_roundtrip<ul_ccch_msg_s>(hex_to_bytes(c.hex)), OCUDUASN_SUCCESS) << c.name;
+  }
+  for (const capture_pdu& c : ul_dcch_msg_captures) {
+    EXPECT_EQ(test_unpack_roundtrip<ul_dcch_msg_s>(hex_to_bytes(c.hex)), OCUDUASN_SUCCESS) << c.name;
+  }
+  for (const capture_pdu& c : mib_captures) {
+    EXPECT_EQ(test_unpack_roundtrip<mib_s>(hex_to_bytes(c.hex)), OCUDUASN_SUCCESS) << c.name;
+  }
+  for (const capture_pdu& c : sib1_captures) {
+    EXPECT_EQ(test_unpack_roundtrip<sib1_s>(hex_to_bytes(c.hex)), OCUDUASN_SUCCESS) << c.name;
+  }
+  for (const capture_pdu& c : cell_group_cfg_captures) {
+    EXPECT_EQ(test_unpack_roundtrip<cell_group_cfg_s>(hex_to_bytes(c.hex)), OCUDUASN_SUCCESS) << c.name;
+  }
+  for (const capture_pdu& c : meas_timing_cfg_captures) {
+    EXPECT_EQ(test_unpack_roundtrip<meas_timing_cfg_s>(hex_to_bytes(c.hex)), OCUDUASN_SUCCESS) << c.name;
+  }
+}
+
+TEST_F(asn1_rrc_nr_test, when_choice_is_assigned_then_it_holds_a_copy_of_the_other_alternative)
+{
+  dl_dcch_msg_s recfg;
+  recfg.msg.set_c1().set_rrc_recfg().rrc_transaction_id = 1;
+  dl_dcch_msg_s release;
+  release.msg.set_c1().set_rrc_release().rrc_transaction_id = 2;
+
+  release = recfg;
+  ASSERT_EQ(release.msg.c1().type().value, dl_dcch_msg_type_c::c1_c_::types::rrc_recfg);
+  ASSERT_EQ(release.msg.c1().rrc_recfg().rrc_transaction_id, 1);
+
+  // Assigning the same alternative replaces its value.
+  recfg.msg.c1().rrc_recfg().rrc_transaction_id = 3;
+  release                                       = recfg;
+  ASSERT_EQ(release.msg.c1().rrc_recfg().rrc_transaction_id, 3);
+
+  const dl_dcch_msg_s& self = release;
+  release                   = self;
+  ASSERT_EQ(release.msg.c1().rrc_recfg().rrc_transaction_id, 3);
 }

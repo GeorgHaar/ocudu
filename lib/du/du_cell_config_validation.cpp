@@ -18,9 +18,11 @@
 #include "ocudu/ran/prs/prs_constants.h"
 #include "ocudu/ran/srs/srs_bandwidth_configuration.h"
 #include "ocudu/ran/ssb/ssb_mapping.h"
+#include "ocudu/scheduler/config/csi_helper.h"
 #include "ocudu/scheduler/config/periodic_resource_sched_validator.h"
 #include "ocudu/scheduler/config/pucch_guardbands.h"
 #include "ocudu/scheduler/config/pucch_resource_generator.h"
+#include "ocudu/scheduler/config/ran_cell_config_helper.h"
 #include "ocudu/scheduler/config/sched_cell_config_helpers.h"
 #include "ocudu/scheduler/config/serving_cell_config.h"
 #include "ocudu/scheduler/config/serving_cell_config_factory.h"
@@ -75,7 +77,7 @@ static bool is_valid_enum_number(Number number)
   return asn1::number_to_enum(e, number);
 }
 
-/// Checks whether CORESET#0 table index is valid as per TS38.213, Table 13-{1,...,10}.
+/// Checks whether CORESET#0 table index is valid as per TS 38.213, Table 13-{1,...,10}.
 static check_outcome is_coreset0_ss0_idx_valid(const du_cell_config& cell_cfg)
 {
   const subcarrier_spacing scs_common = cell_cfg.ran.dl_cfg_common.init_dl_bwp.generic_params.scs;
@@ -87,10 +89,10 @@ static check_outcome is_coreset0_ss0_idx_valid(const du_cell_config& cell_cfg)
   // TODO: Check which table to use.
   // TODO: Add checks on minimum bandwidth.
   if (scs_common == subcarrier_spacing::kHz15 and cell_cfg.ran.ssb_cfg.scs == subcarrier_spacing::kHz15) {
-    // As per TS38.213, Table 13-1.
+    // As per TS 38.213, Table 13-1.
     CHECK_BELOW(cs0_idx.value(), 15, "CORESET#0 index table");
   } else if (scs_common == subcarrier_spacing::kHz30 and cell_cfg.ran.ssb_cfg.scs == subcarrier_spacing::kHz30) {
-    // As per TS38.213, Table 13-4.
+    // As per TS 38.213, Table 13-4.
     CHECK_BELOW(cs0_idx.value(), 16, "CORESET#0 index table");
   }
   // The remaining cases will trigger an assert in the SSB checks.
@@ -98,14 +100,14 @@ static check_outcome is_coreset0_ss0_idx_valid(const du_cell_config& cell_cfg)
   // This constraint is implementation-defined and comes from the fact that our PDCCH scheduler only schedules PDCCH
   // starting from the symbol index 0.
   if (scs_common == subcarrier_spacing::kHz15 and cell_cfg.ran.ssb_cfg.scs == subcarrier_spacing::kHz15) {
-    // As per TS38.213, Table 13-11.
+    // As per TS 38.213, Table 13-11.
     CHECK_EQ_OR_BELOW(ss0_idx.value(), 9, "SearchSpaceZero index table");
   }
 
   return {};
 }
 
-/// Checks whether CORESET#0 configuration matches the values specified in TS38.211 Section 7.3.2.2.
+/// Checks whether CORESET#0 configuration matches the values specified in TS 38.211 Section 7.3.2.2.
 static check_outcome is_coreset0_params_valid(const du_cell_config& cell_cfg)
 {
   const coreset_configuration& cs_cfg = *cell_cfg.ran.dl_cfg_common.init_dl_bwp.pdcch_common.coreset0;
@@ -223,22 +225,26 @@ static check_outcome check_rlm_config(const du_cell_config& cell_cfg)
   if (not rlm_cfg.has_value()) {
     return {};
   }
-  const auto csi_meas_cfg = serv_cell_cfg.csi_meas_cfg;
+  const bool                       csi_enabled = cell_cfg.ran.init_bwp.csi.has_value();
+  std::vector<nzp_csi_rs_resource> nzp_csi_rs_res_list;
+  if (csi_enabled) {
+    nzp_csi_rs_res_list =
+        csi_helper::make_nzp_csi_rs_resource_list(config_helpers::make_csi_meas_config_builder_params(cell_cfg.ran));
+  }
   for (const auto& rlm_res : rlm_cfg->rlm_resources) {
     CHECK_TRUE(rlm_res.resource_purpose == radio_link_monitoring_config::radio_link_monitoring_rs::purpose::rlf,
                "Radio Link Failure is the only supported Radio Link Monitoring purpose");
-    if (not csi_meas_cfg.has_value()) {
+    if (not csi_enabled) {
       CHECK_TRUE(not std::holds_alternative<nzp_csi_rs_res_id_t>(rlm_res.detection_resource),
                  "RLM resources cannot use CSI-RS resources if CSI is not enabled");
     } else {
       if (std::holds_alternative<nzp_csi_rs_res_id_t>(rlm_res.detection_resource)) {
-        const auto&               csi_cfg   = csi_meas_cfg.value();
         const nzp_csi_rs_res_id_t csi_rs_id = std::get<nzp_csi_rs_res_id_t>(rlm_res.detection_resource);
         const auto                csi_res_it =
-            std::find_if(csi_cfg.nzp_csi_rs_res_list.begin(),
-                         csi_cfg.nzp_csi_rs_res_list.end(),
+            std::find_if(nzp_csi_rs_res_list.begin(),
+                         nzp_csi_rs_res_list.end(),
                          [csi_rs_id](const nzp_csi_rs_resource& csi_r) { return csi_r.res_id == csi_rs_id; });
-        CHECK_TRUE(csi_res_it != csi_cfg.nzp_csi_rs_res_list.end(),
+        CHECK_TRUE(csi_res_it != nzp_csi_rs_res_list.end(),
                    "RLM resource id={} points at CSI-RS resource id={}, which wasn't found in the CSI configuration",
                    fmt::underlying(rlm_res.res_id),
                    fmt::underlying(csi_rs_id));
@@ -397,7 +403,7 @@ static check_outcome check_ssb_configuration(const du_cell_config& cell_cfg)
     CHECK_EQ_OR_BELOW(ssb_cfg.k_ssb.value(), 11, "For SCS common 15kHz, k_SSB must be within the range [0, 11].");
 
     // In the following, we assume the SSB is located inside the Transmission Bandwidth Configuration of the specified
-    // band. Refer to TS38.104, Section 5.3.1 for the definition of Transmission Bandwidth Configuration.
+    // band. Refer to TS 38.104, Section 5.3.1 for the definition of Transmission Bandwidth Configuration.
     // We assume the Initial DL BWP ranges over the whole Transmission Bandwidth Configuration.
     unsigned nof_crbs               = cell_cfg.ran.dl_cfg_common.init_dl_bwp.generic_params.crbs.length();
     unsigned offset_p_A_upper_bound = ssb_cfg.k_ssb.value() > 0 ? nof_crbs - NOF_SSB_PRBS - 1 : nof_crbs - NOF_SSB_PRBS;
@@ -414,7 +420,7 @@ static check_outcome check_ssb_configuration(const du_cell_config& cell_cfg)
     CHECK_TRUE(ssb_cfg.k_ssb.value() % 2 == 0, "For SCS common 30kHz, k_SSB must be an even number.");
 
     // In the following, we assume the SSB is located inside the Transmission Bandwidth Configuration of the specified
-    // band. Refer to TS38.104, Section 5.3.1 for the definition of Transmission Bandwidth Configuration.
+    // band. Refer to TS 38.104, Section 5.3.1 for the definition of Transmission Bandwidth Configuration.
     // We assume the Initial DL BWP ranges over the whole Transmission Bandwidth Configuration.
     unsigned nof_crbs = cell_cfg.ran.dl_cfg_common.init_dl_bwp.generic_params.crbs.length();
     unsigned offset_p_A_upper_bound =
@@ -820,15 +826,14 @@ static check_outcome check_pucch_common_ded_overlap(const du_cell_config& cell_c
     reserved_prbs_desc = fmt::format("common PUCCH resources of pucch-ResourceCommon={}", pucch_res_common);
   }
 
-  const std::vector<pucch_resource> ded_res = config_helpers::generate_cell_pucch_res_list(
-      pucch_params, bwp_size, config_helpers::get_dedicated_pucch_rb_start(pucch_params, pucch_res_common, bwp_size));
-  for (const pucch_resource& res : ded_res) {
+  const cell_pucch_resources ded_res = config_helpers::generate_cell_pucch_res_list(cell_cfg.ran);
+  for (const pucch_resource& res : ded_res.resources) {
     const prb_interval hop1 = res.prbs();
     const prb_interval hop2 =
         res.second_hop_prb.has_value() ? prb_interval::start_and_len(*res.second_hop_prb, hop1.length()) : hop1;
     CHECK_TRUE(not reserved_prbs.any(hop1.start(), hop1.stop()) and not reserved_prbs.any(hop2.start(), hop2.stop()),
-               "The dedicated PUCCH resource cell_res_id={} in PRBs={} (second hop {}) overlaps the {}",
-               res.res_id.ded().cell_res_id,
+               "The dedicated PUCCH resource ded_id={} in PRBs={} (second hop {}) overlaps the {}",
+               res.res_id.ded_id(),
                hop1,
                hop2,
                reserved_prbs_desc);

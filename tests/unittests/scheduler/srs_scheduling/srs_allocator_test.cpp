@@ -42,11 +42,10 @@ static unsigned compute_c_srs(unsigned nof_ul_crbs)
 
 static void validate_default_ue_cfg_req(const sched_ue_creation_request_message& ue_req)
 {
-  ocudu_assert(ue_req.cfg.cells.value().front().serv_cell_cfg.ul_config.has_value(),
-               "UL config is required for this test");
-  ocudu_assert(ue_req.cfg.cells.value().front().serv_cell_cfg.ul_config.value().init_ul_bwp.srs_cfg.has_value(),
-               "SRS config is required for this test");
-  const auto& srs_cfg = ue_req.cfg.cells.value().front().serv_cell_cfg.ul_config.value().init_ul_bwp.srs_cfg.value();
+  const serving_cell_config& serv_cell_cfg = ue_req.cfg.cells.value().front().ded->serv_cell_cfg;
+  ocudu_assert(serv_cell_cfg.ul_config.has_value(), "UL config is required for this test");
+  ocudu_assert(serv_cell_cfg.ul_config.value().init_ul_bwp.srs_cfg.has_value(), "SRS config is required for this test");
+  const auto& srs_cfg = serv_cell_cfg.ul_config.value().init_ul_bwp.srs_cfg.value();
   ocudu_assert(srs_cfg.srs_res_set_list.size() == 1, "SRS Resource Set is expected to have size 1");
   const auto& srs_set = srs_cfg.srs_res_set_list.front();
   ocudu_assert(srs_set.srs_res_id_list.size() == 1 and
@@ -86,17 +85,33 @@ std::ostream& operator<<(std::ostream& os, const srs_params& params)
 template <>
 struct fmt::formatter<srs_params> : ostream_formatter {};
 
+static sched_cell_configuration_request_message
+make_srs_alloc_cell_request(test_helpers::test_sched_config_manager& cfg_mng, unsigned cs_koffset_ms, unsigned k_mac_ms)
+{
+  auto req = cfg_mng.get_default_cell_config_request();
+  if (cs_koffset_ms != 0 or k_mac_ms != 0) {
+    req.ran.ntn_params.emplace();
+    if (cs_koffset_ms != 0) {
+      req.ran.ntn_params->ntn_cfg.cell_specific_koffset = std::chrono::milliseconds{cs_koffset_ms};
+    }
+    if (k_mac_ms != 0) {
+      req.ran.ntn_params->ntn_cfg.k_mac = std::chrono::milliseconds{k_mac_ms};
+    }
+  }
+  return req;
+}
+
 class srs_alloc_test_bench
 {
 public:
-  srs_alloc_test_bench(const srs_params& params) :
+  srs_alloc_test_bench(const srs_params& params, unsigned cs_koffset_ms = 0, unsigned k_mac_ms = 0) :
     expert_cfg{[](srs_periodicity srs_prohib_time) {
       auto cfg                 = config_helpers::make_default_scheduler_expert_config();
       cfg.ue.srs_prohibit_time = srs_prohib_time;
       return cfg;
     }(params.srs_prohib_time)},
     cfg_mng{cell_config_builder_profiles::create(params.is_tdd ? duplex_mode::TDD : duplex_mode::FDD), expert_cfg},
-    cell_cfg(*cfg_mng.add_cell(cfg_mng.get_default_cell_config_request())),
+    cell_cfg(*cfg_mng.add_cell(make_srs_alloc_cell_request(cfg_mng, cs_koffset_ms, k_mac_ms))),
     cell_ues(cell_cfg, nullptr),
     ues(expert_cfg.ue),
     srs_alloc(cell_cfg, expert_cfg.ue.srs_prohibit_time.value()),
@@ -229,7 +244,7 @@ public:
     // Set SRS resource aperiodic.
     srs_config::srs_resource& srs_res = ue_req.cfg.cells.value()
                                             .front()
-                                            .serv_cell_cfg.ul_config.value()
+                                            .ded->serv_cell_cfg.ul_config.value()
                                             .init_ul_bwp.srs_cfg.value()
                                             .srs_res_list.front();
     srs_res.res_type = srs_resource_type::aperiodic;
@@ -264,7 +279,7 @@ public:
 
     auto& srs_set_cfg = ue_req.cfg.cells.value()
                             .front()
-                            .serv_cell_cfg.ul_config.value()
+                            .ded->serv_cell_cfg.ul_config.value()
                             .init_ul_bwp.srs_cfg.value()
                             .srs_res_set_list.front();
     srs_set_cfg.id      = srs_config::srs_res_set_id::MIN_SRS_RES_SET_ID;
@@ -325,16 +340,17 @@ TEST_P(srs_alloc_tester, with_only_1_ue_srs_is_allocated_every_time_prohibit_tim
         last_srs_slot = current_sl_tx + res.slot_offset;
         at_least_one_alloc |= true;
         expected_srs_slot = last_srs_slot + srs_prohib_time_uint;
-        ASSERT_EQ(1, res_grid[res.slot_offset].result.ul.srss.size());
+        ASSERT_EQ(1, res_grid[res.slot_offset].result_reader().ul().srss().size());
         expected<bool, std::string> pdu_test =
-            test_srs_pdu(res_grid[res.slot_offset].result.ul.srss.front(), u.ue_index);
+            test_srs_pdu(res_grid[res.slot_offset].result_reader().ul().srss().front(), u.ue_index);
         ASSERT_TRUE(pdu_test.has_value())
             << fmt::format("UE did not pass the SRS PDU check. Cause: {}", pdu_test.error());
       }
 
       // With 1 UE only, the aperiodic SRS allocation is expected periodically.
       if (expected_srs_slot.has_value() and current_sl_tx == expected_srs_slot) {
-        ASSERT_EQ(1, res_grid[0].result.ul.srss.size()) << fmt::format("Expected SRS PDU at slot {}", current_sl_tx);
+        ASSERT_EQ(1, res_grid[0].result_reader().ul().srss().size())
+            << fmt::format("Expected SRS PDU at slot {}", current_sl_tx);
       }
     }
   }
@@ -354,6 +370,73 @@ INSTANTIATE_TEST_SUITE_P(
                     srs_params{.is_tdd = true, .slot_offset = 11, .srs_prohib_time = srs_periodicity::sl80},
                     srs_params{.is_tdd = true, .slot_offset = 11, .srs_prohib_time = srs_periodicity::sl160}),
     [](const testing::TestParamInfo<srs_params>& params_item) { return fmt::format("{}", params_item.param); });
+
+/// Fixture for an aperiodic SRS in an NTN cell configured with a cell-specific K-offset and no k_mac. A DCI triggers
+/// the SRS, so the UE delays it by the K-offset as per TS 38.213, Section 9, in the same way as a scheduled PUSCH or
+/// PUCCH.
+class srs_alloc_ntn_koffset_test : public ::testing::Test, public srs_alloc_test_bench
+{
+protected:
+  static constexpr unsigned   KOFFSET_MS = 5;
+  static constexpr srs_params PARAMS{.is_tdd = false, .slot_offset = 5, .srs_prohib_time = srs_periodicity::sl40};
+
+  srs_alloc_ntn_koffset_test() : srs_alloc_test_bench(PARAMS, KOFFSET_MS) {}
+};
+
+/// Verifies that the aperiodic SRS is placed the cell-specific K-offset after its configured slot offset.
+TEST_F(srs_alloc_ntn_koffset_test, aperiodic_srs_is_placed_the_cell_specific_koffset_after_its_slot_offset)
+{
+  const du_ue_index_t ue_idx = add_ue(PARAMS);
+
+  ASSERT_GT(cell_cfg.ntn_cs_koffset, 0U);
+
+  const slot_point pdcch_slot         = res_grid[0].slot;
+  const slot_point expected_srs_slot  = pdcch_slot + PARAMS.slot_offset + cell_cfg.ntn_cs_koffset;
+  const slot_point unshifted_srs_slot = pdcch_slot + PARAMS.slot_offset;
+
+  const aperiodic_srs_alloc_info info = srs_alloc.allocate_aperiodic_srs(
+      res_grid, slot_point{}, ues[ue_idx].get_pcell().cfg(), ues[ue_idx].get_pcell().ntn_koffset());
+  ASSERT_NE(info.aperiodic_srs_res_trigger, 0U) << "No aperiodic SRS was allocated";
+
+  ASSERT_EQ(res_grid[expected_srs_slot].result_reader().ul().srss().size(), 1)
+      << "Aperiodic SRS must be placed K_offset slots after its slot offset";
+  ASSERT_TRUE(res_grid[unshifted_srs_slot].result_reader().ul().srss().empty())
+      << "Aperiodic SRS must not be placed at the terrestrial slot offset";
+}
+
+/// Fixture for an aperiodic SRS in an NTN cell carrying both a cell-specific K-offset and a k_mac. The UE delays the
+/// transmission by the K-offset, and it reaches the gNB k_mac slots later still.
+class srs_alloc_ntn_koffset_and_kmac_test : public ::testing::Test, public srs_alloc_test_bench
+{
+protected:
+  static constexpr unsigned   KOFFSET_MS = 5;
+  static constexpr unsigned   K_MAC_MS   = 19;
+  static constexpr srs_params PARAMS{.is_tdd = false, .slot_offset = 5, .srs_prohib_time = srs_periodicity::sl40};
+
+  srs_alloc_ntn_koffset_and_kmac_test() : srs_alloc_test_bench(PARAMS, KOFFSET_MS, K_MAC_MS) {}
+};
+
+/// Verifies that the aperiodic SRS is placed the total uplink delay after its configured slot offset.
+TEST_F(srs_alloc_ntn_koffset_and_kmac_test, aperiodic_srs_is_placed_the_total_uplink_delay_after_its_slot_offset)
+{
+  const du_ue_index_t ue_idx = add_ue(PARAMS);
+
+  ASSERT_GT(cell_cfg.ntn_cs_koffset, 0U);
+  ASSERT_GT(cell_cfg.ntn_k_mac_slots, 0U);
+
+  const slot_point pdcch_slot        = res_grid[0].slot;
+  const slot_point expected_srs_slot = pdcch_slot + PARAMS.slot_offset + cell_cfg.ntn_ul_alloc_delay_slots();
+  const slot_point koffset_only_slot = pdcch_slot + PARAMS.slot_offset + cell_cfg.ntn_cs_koffset;
+
+  const aperiodic_srs_alloc_info info = srs_alloc.allocate_aperiodic_srs(
+      res_grid, slot_point{}, ues[ue_idx].get_pcell().cfg(), ues[ue_idx].get_pcell().ntn_koffset());
+  ASSERT_NE(info.aperiodic_srs_res_trigger, 0U) << "No aperiodic SRS was allocated";
+
+  ASSERT_EQ(res_grid[expected_srs_slot].result_reader().ul().srss().size(), 1)
+      << "Aperiodic SRS must be placed K_offset plus k_mac slots after its slot offset";
+  ASSERT_TRUE(res_grid[koffset_only_slot].result_reader().ul().srss().empty())
+      << "Aperiodic SRS must not be placed at the K_offset delay alone, without k_mac";
+}
 
 class srs_alloc_multi_ue_tester : public ::testing::TestWithParam<srs_params>, public srs_alloc_test_bench
 {
@@ -426,11 +509,11 @@ TEST_P(srs_alloc_multi_ue_tester, multiple_ues_with_orthogonal_srs_res_is_alloca
           }
           test_ue.last_srs_slot = current_sl_tx + res.slot_offset;
           test_ue.at_least_one_alloc |= true;
-          ASSERT_FALSE(res_grid[res.slot_offset].result.ul.srss.empty());
-          auto* const ue_srs_pdu_it = std::find_if(res_grid[res.slot_offset].result.ul.srss.begin(),
-                                                   res_grid[res.slot_offset].result.ul.srss.end(),
+          ASSERT_FALSE(res_grid[res.slot_offset].result_reader().ul().srss().empty());
+          auto* const ue_srs_pdu_it = std::find_if(res_grid[res.slot_offset].result_reader().ul().srss().begin(),
+                                                   res_grid[res.slot_offset].result_reader().ul().srss().end(),
                                                    [rnti = u.crnti](const srs_info& srs) { return srs.crnti == rnti; });
-          ASSERT_NE(ue_srs_pdu_it, res_grid[res.slot_offset].result.ul.srss.end());
+          ASSERT_NE(ue_srs_pdu_it, res_grid[res.slot_offset].result_reader().ul().srss().end());
           expected<bool, std::string> pdu_test = test_srs_pdu(*ue_srs_pdu_it, u.ue_index);
           ASSERT_TRUE(pdu_test.has_value())
               << fmt::format("rnti={} did not pass the SRS pdu check. Cause: {}", u.crnti, pdu_test.error());
@@ -439,7 +522,7 @@ TEST_P(srs_alloc_multi_ue_tester, multiple_ues_with_orthogonal_srs_res_is_alloca
 
       // Check possible collisions.
       cell_srs_res_usage.fill(0U);
-      for (const auto& srs_pdu : res_grid[0U].result.ul.srss) {
+      for (const auto& srs_pdu : res_grid[0U].result_reader().ul().srss()) {
         const ue* srs_ue = ues.find_by_rnti(srs_pdu.crnti);
         ASSERT_NE(srs_ue, nullptr);
         const unsigned srs_cell_id = get_ue_srs_cell_id(*srs_ue);

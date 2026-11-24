@@ -297,7 +297,7 @@ void si_scheduler::try_schedule_short_message(cell_slot_resource_allocator& slot
     return;
   }
   // Verify there is space in PDSCH and PDCCH result lists for new allocations.
-  if (slot_alloc.result.dl.dl_pdcchs.full()) {
+  if (slot_alloc.result_builder().dl().dl_pdcchs().full()) {
     return;
   }
 

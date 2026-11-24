@@ -39,6 +39,9 @@ private:
 
   bool add_security_context_to_bearer_context_modification(const ocudu::security::sec_as_config& security_cfg);
 
+  /// Clear the handover context of the source UE if it still refers to this target UE.
+  void clear_source_handover_context();
+
   /// Schedule the source UE release onto the source UE's own task scheduler. Kept out of the coroutine body because
   /// CORO_BEGIN cannot be nested (macro-local name collision).
   void schedule_source_release_on_source_task_sched(cu_cp_ue_index_t source_ue_index);
@@ -72,7 +75,7 @@ private:
   std::chrono::steady_clock::time_point start_time = std::chrono::steady_clock::now();
 
   // (Sub-)routine results.
-  bool                                      reconf_result    = false;
+  error_type<protocol_transaction_failure>  reconf_result;
   bool                                      ue_context_moved = false;
   e1ap_bearer_context_modification_response bearer_context_modification_response;
 };

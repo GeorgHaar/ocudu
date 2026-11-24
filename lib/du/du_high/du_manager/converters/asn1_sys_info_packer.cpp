@@ -58,7 +58,7 @@ byte_buffer asn1_packer::pack_mib(const du_cell_config& du_cfg)
 
   byte_buffer         buf;
   asn1::bit_ref       bref{buf};
-  asn1::OCUDUASN_CODE ret = mib.pack(bref);
+  asn1::OCUDUASN_CODE ret = asn1::pack(bref, mib);
   ocudu_assert(ret == asn1::OCUDUASN_SUCCESS, "Failed to pack MIB");
 
   return buf;
@@ -345,7 +345,6 @@ static asn1::rrc_nr::plmn_id_info_s make_asn1_plmn_id_info(const plmn_identity& 
     // NTN cells only. TS 38.331: trackingAreaList replaces trackingAreaCode; leave tac absent.
     asn1_plmn_info.tac_present = false;
     // The field sits in an extension group, only packed when the extension marker is set.
-    asn1_plmn_info.ext = true;
     asn1_plmn_info.tracking_area_list_r17.set_present();
     for (tac_t entry : tac_list) {
       asn1::fixed_bitstring<24> asn1_tac;
@@ -596,12 +595,12 @@ byte_buffer asn1_packer::pack_sib1(const du_cell_config& du_cfg, std::string* js
   byte_buffer          buf;
   asn1::bit_ref        bref{buf};
   asn1::rrc_nr::sib1_s sib1 = make_asn1_rrc_cell_sib1(du_cfg);
-  asn1::OCUDUASN_CODE  ret  = sib1.pack(bref);
+  asn1::OCUDUASN_CODE  ret  = asn1::pack(bref, sib1);
   ocudu_assert(ret == asn1::OCUDUASN_SUCCESS, "Failed to pack SIB1");
 
   if (js_str != nullptr) {
     asn1::json_writer js;
-    sib1.to_json(js);
+    asn1::to_json(js, sib1);
     *js_str = js.to_string();
   }
   return buf;
@@ -740,7 +739,7 @@ static std::vector<uint8_t> encode_warning_message(const std::string& warning_me
   return encoded_warning_message;
 }
 
-/// Maximum number of segments (see TS38.331 Section 6.3.2. Information Element \e SIB7).
+/// Maximum number of segments (see TS 38.331 Section 6.3.2. Information Element \e SIB7).
 static constexpr unsigned max_nof_sib_segments = 64U;
 
 /// Generates views of each segment of the CB-Data message.
@@ -908,22 +907,23 @@ byte_buffer asn1_packer::pack_sib19(const sib19_info& sib19_params, std::string*
   byte_buffer               buf;
   asn1::bit_ref             bref{buf};
   asn1::rrc_nr::sib19_r17_s sib19 = make_asn1_rrc_cell_sib19(sib19_params);
-  asn1::OCUDUASN_CODE       ret   = sib19.pack(bref);
+  asn1::OCUDUASN_CODE       ret   = asn1::pack(bref, sib19);
   ocudu_assert(ret == asn1::OCUDUASN_SUCCESS, "Failed to pack SIB19");
 
   if (js_str != nullptr) {
     asn1::json_writer js;
-    sib19.to_json(js);
+    asn1::to_json(js, sib19);
     *js_str = js.to_string();
   }
   return buf;
 }
 
-static std::vector<asn1::rrc_nr::sys_info_ies_s::item_c_> make_asn1_rrc_sib_item(const sib_info& sib)
+static std::vector<asn1::rrc_nr::sys_info_ies_s::sib_type_and_info_l_item_c_>
+make_asn1_rrc_sib_item(const sib_info& sib)
 {
   using namespace asn1::rrc_nr;
 
-  std::vector<sys_info_ies_s::item_c_> ret(1);
+  std::vector<sys_info_ies_s::sib_type_and_info_l_item_c_> ret(1);
 
   switch (get_sib_info_type(sib)) {
     case sib_type::sib2: {
@@ -1023,7 +1023,7 @@ static void pack_si_message(byte_buffer& buffer, const asn1::rrc_nr::bcch_dl_sch
 {
   // Pack into the buffer.
   asn1::bit_ref       bref{buffer};
-  asn1::OCUDUASN_CODE ret = msg.pack(bref);
+  asn1::OCUDUASN_CODE ret = asn1::pack(bref, msg);
 
   ocudu_assert(ret == asn1::OCUDUASN_SUCCESS, "Failed to pack SI message");
 }
@@ -1031,12 +1031,13 @@ static void pack_si_message(byte_buffer& buffer, const asn1::rrc_nr::bcch_dl_sch
 static std::string bcch_dl_sch_msg_to_json(const asn1::rrc_nr::bcch_dl_sch_msg_s& msg)
 {
   asn1::json_writer js;
-  msg.to_json(js);
+  asn1::to_json(js, msg);
   return js.to_string();
 }
 
 /// Packs an SI message from the contents of a single SIB.
-static void pack_si_message(bcch_dl_sch_payload_type& buffer, const asn1::rrc_nr::sys_info_ies_s::item_c_& sib)
+static void pack_si_message(bcch_dl_sch_payload_type&                                        buffer,
+                            const asn1::rrc_nr::sys_info_ies_s::sib_type_and_info_l_item_c_& sib)
 {
   // Fill the SI message with the contents of a single SIB.
   asn1::rrc_nr::bcch_dl_sch_msg_s msg;

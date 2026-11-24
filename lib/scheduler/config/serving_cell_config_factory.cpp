@@ -301,15 +301,10 @@ static cg_configuration make_default_cg_config(const cg_builder_params& cg_param
   return cfg;
 }
 
-static uplink_config make_default_ue_uplink_config(const ran_cell_config&     cell_cfg,
-                                                   const cell_bwp_res_config& cell_bwp_cfg,
-                                                   const ue_bwp_config&       ue_bwp_cfg)
+static uplink_config make_default_ue_uplink_config(const ran_cell_config& cell_cfg, const ue_bwp_config& ue_bwp_cfg)
 {
   // > UL Config.
   uplink_config ul_config{};
-
-  // >> PUCCH.
-  ul_config.init_ul_bwp.pucch_cfg = config_helpers::build_pucch_config(cell_cfg, cell_bwp_cfg.ul, ue_bwp_cfg);
 
   // > PUSCH config.
   ul_config.init_ul_bwp.pusch_cfg.emplace(make_default_pusch_config(cell_cfg, ue_bwp_cfg));
@@ -345,6 +340,7 @@ static pdsch_serving_cell_config make_default_pdsch_serving_cell_config(const pd
 
 static serving_cell_config make_default_serving_cell_config(const ran_cell_config& cell_cfg,
                                                             du_cell_index_t        cell_idx,
+                                                            const ue_rrm_config&   ue_rrm_cfg,
                                                             const ue_bwp_config&   ue_bwp_cfg)
 {
   serving_cell_config serv_cell;
@@ -359,32 +355,40 @@ static serving_cell_config make_default_serving_cell_config(const ran_cell_confi
   // > RadioLinkMonitoringConfig.
   serv_cell.init_dl_bwp.rlm_cfg = make_default_rlm_config(cell_cfg);
 
-  const auto cell_bwp_cfg = make_cell_bwp_res_config(cell_cfg);
-
   // > UL Config.
-  serv_cell.ul_config.emplace(make_default_ue_uplink_config(cell_cfg, cell_bwp_cfg, ue_bwp_cfg));
+  serv_cell.ul_config.emplace(make_default_ue_uplink_config(cell_cfg, ue_bwp_cfg));
 
   // > pdsch-ServingCellConfig.
   serv_cell.pdsch_serv_cell_cfg.emplace(make_default_pdsch_serving_cell_config(cell_cfg.init_bwp.pdsch));
 
   // > CSI-MeasConfig.
-  serv_cell.csi_meas_cfg = build_csi_meas_config(cell_cfg, cell_bwp_cfg.ul, ue_bwp_cfg);
+  serv_cell.csi_meas_cfg = build_csi_meas_config(cell_cfg, generate_cell_pucch_res_list(cell_cfg), ue_rrm_cfg);
 
   return serv_cell;
 }
 
-static ue_bwp_config make_default_ue_bwp_cfg(const ran_cell_config& cell_cfg)
+static ue_rrm_config make_default_ue_rrm_cfg(const ran_cell_config& cell_cfg)
 {
-  ue_bwp_config cfg{
+  ue_rrm_config cfg{
+      .pucch =
+          {
+              .res_set_cfg_id = pucch_resource_set_config_id(0),
+              .sr_res_id      = pucch_sr_resource_id(0),
+              .sr_offset = cell_cfg.tdd_cfg.has_value() ? find_next_tdd_full_ul_slot(*cell_cfg.tdd_cfg).value() : 0U,
+          },
+  };
+  if (cell_cfg.init_bwp.csi.has_value() and cell_cfg.init_bwp.csi->csi_report_slot_offset.has_value()) {
+    cfg.csi.periodic_report.emplace(ue_periodic_csi_rrm_config{
+        .res_id = pucch_csi_resource_id(0), .offset = *cell_cfg.init_bwp.csi->csi_report_slot_offset});
+  }
+  return cfg;
+}
+
+static ue_bwp_config make_default_ue_bwp_cfg()
+{
+  return ue_bwp_config{
       .ul =
           {
-              .pucch =
-                  {
-                      .res_set_cfg_id = pucch_resource_set_config_id(0),
-                      .sr_res_id      = pucch_sr_resource_id(0),
-                      .sr_offset =
-                          cell_cfg.tdd_cfg.has_value() ? find_next_tdd_full_ul_slot(*cell_cfg.tdd_cfg).value() : 0U,
-                  },
               .pusch =
                   {
                       .tx_cfg =
@@ -396,19 +400,14 @@ static ue_bwp_config make_default_ue_bwp_cfg(const ran_cell_config& cell_cfg)
                   },
           },
   };
-  if (cell_cfg.init_bwp.csi.has_value() and cell_cfg.init_bwp.csi->csi_report_slot_offset.has_value()) {
-    cfg.ul.periodic_csi_report.emplace(ue_periodic_csi_config{
-        .pucch_res_id = pucch_csi_resource_id(0), .offset = *cell_cfg.init_bwp.csi->csi_report_slot_offset});
-  }
-
-  return cfg;
 }
 
 ue_cell_config ocudu::config_helpers::make_default_ue_cell_config(const ran_cell_config& cell_cfg,
                                                                   du_cell_index_t        cell_idx)
 {
   ue_cell_config cfg{};
-  cfg.bwps.emplace_back(make_default_ue_bwp_cfg(cell_cfg));
-  cfg.serv_cell_cfg = make_default_serving_cell_config(cell_cfg, cell_idx, cfg.bwps.front());
+  cfg.rrm = make_default_ue_rrm_cfg(cell_cfg);
+  cfg.bwps.emplace_back(make_default_ue_bwp_cfg());
+  cfg.serv_cell_cfg = make_default_serving_cell_config(cell_cfg, cell_idx, cfg.rrm, cfg.bwps.front());
   return cfg;
 }

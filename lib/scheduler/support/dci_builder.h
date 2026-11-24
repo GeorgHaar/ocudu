@@ -10,6 +10,8 @@
 #include "ocudu/ran/resource_allocation/resource_allocation_frequency.h"
 #include "ocudu/scheduler/config/bwp_configuration.h"
 #include "ocudu/scheduler/result/dci_info.h"
+#include "ocudu/scheduler/result/dmrs_info.h"
+#include "ocudu/scheduler/result/vrb_alloc.h"
 
 namespace ocudu {
 
@@ -45,7 +47,7 @@ void build_dci_f1_0_ra_rnti(dci_dl_info&               dci,
 /// \param msgb_resp_window_ms Configured msgB-ResponseWindow duration, in msec.
 /// \param prach_sfn SFN where the UE transmitted PRACH.
 ///
-/// As per TS38.213, Section 8.2A, the DCI carries the 2 LSBs of \c prach_sfn if \c msgb_resp_window_ms is larger
+/// As per TS 38.213, Section 8.2A, the DCI carries the 2 LSBs of \c prach_sfn if \c msgb_resp_window_ms is larger
 /// than 10 msec; these bits are left at \c 0 otherwise.
 void build_dci_f1_0_msgb_rnti(dci_dl_info&               dci,
                               const bwp_downlink_common& init_dl_bwp,
@@ -79,11 +81,11 @@ void build_dci_f1_0_c_rnti(dci_dl_info&                  dci,
                            uint8_t                       rv,
                            const dl_harq_process_handle& h_dl);
 
-/// Builds DCI f1_1 for C-RNTI.
+/// Builds DCI f1_1 for C-RNTI. The Antenna port(s) field signals the DM-RS ports of \c dmrs.
 void build_dci_f1_1_c_rnti(dci_dl_info&                  dci,
                            const ue_cell_configuration&  ue_cell_cfg,
                            search_space_id               ss_id,
-                           vrb_interval                  vrbs,
+                           const vrb_alloc&              vrbs,
                            unsigned                      time_resource,
                            unsigned                      k1,
                            unsigned                      pucch_res_indicator,
@@ -91,7 +93,7 @@ void build_dci_f1_1_c_rnti(dci_dl_info&                  dci,
                            sch_mcs_index                 tb1_mcs_index,
                            uint8_t                       rv,
                            const dl_harq_process_handle& h_dl,
-                           unsigned                      nof_layers,
+                           const dmrs_information&       dmrs,
                            uint8_t                       tpc,
                            bool                          enable_interleaving,
                            unsigned                      srs_request);
@@ -131,5 +133,13 @@ void build_dci_f0_1_c_rnti(dci_ul_info&                  dci,
                            uint8_t                       tpc_command,
                            std::optional<bool>           csi_request,
                            unsigned                      srs_request);
+
+/// Builds DCI f0_1 for CS-RNTI.
+void build_dci_f0_1_cg_activation(dci_ul_info&                 dci,
+                                  const ue_cell_configuration& ue_cell_cfg,
+                                  search_space_id              ss_id,
+                                  const vrb_interval&          vrbs,
+                                  unsigned                     time_resource,
+                                  sch_mcs_index                mcs_index);
 
 } // namespace ocudu

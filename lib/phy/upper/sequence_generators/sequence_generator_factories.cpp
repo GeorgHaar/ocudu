@@ -7,7 +7,12 @@
 #include "low_papr_sequence_collection_impl.h"
 #include "low_papr_sequence_generator_impl.h"
 #include "pseudo_random_generator_impl.h"
+#include "ocudu/support/cpu_features.h"
 #include "ocudu/support/math/math_utils.h"
+
+#ifdef __x86_64__
+#include "pseudo_random_generator_avx2_impl.h"
+#endif // __x86_64__
 
 using namespace ocudu;
 
@@ -43,13 +48,31 @@ public:
   }
 };
 
-class pseudo_random_generator_sw_factory : public pseudo_random_generator_factory
+class pseudo_random_generator_factory_impl : public pseudo_random_generator_factory
 {
 public:
+  explicit pseudo_random_generator_factory_impl(std::string generator_type_) :
+    generator_type(std::move(generator_type_))
+  {
+  }
+
   std::unique_ptr<pseudo_random_generator> create() override
   {
-    return std::make_unique<pseudo_random_generator_impl>();
+#ifdef __x86_64__
+    if (((generator_type == "avx2") || (generator_type == "auto")) && cpu_supports_feature(cpu_feature::avx2)) {
+      return std::make_unique<pseudo_random_generator_avx2_impl>();
+    }
+#endif // __x86_64__
+
+    if ((generator_type == "generic") || (generator_type == "auto")) {
+      return std::make_unique<pseudo_random_generator_impl>();
+    }
+
+    return nullptr;
   }
+
+private:
+  std::string generator_type;
 };
 
 } // namespace
@@ -65,7 +88,8 @@ std::shared_ptr<low_papr_sequence_generator_factory> ocudu::create_low_papr_sequ
   return std::make_shared<low_papr_sequence_generator_sw_factory>();
 }
 
-std::shared_ptr<pseudo_random_generator_factory> ocudu::create_pseudo_random_generator_sw_factory()
+std::shared_ptr<pseudo_random_generator_factory>
+ocudu::create_pseudo_random_generator_sw_factory(const std::string& generator_type)
 {
-  return std::make_shared<pseudo_random_generator_sw_factory>();
+  return std::make_shared<pseudo_random_generator_factory_impl>(generator_type);
 }

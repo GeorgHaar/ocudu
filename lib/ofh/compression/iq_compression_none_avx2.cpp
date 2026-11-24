@@ -16,19 +16,14 @@ void iq_compression_none_avx2::compress(span<uint8_t>                buffer,
                                         span<const cbf16_t>          iq_data,
                                         const ru_compression_params& params)
 {
-  // Number of quantized samples per resource block.
-  static constexpr size_t NOF_SAMPLES_PER_PRB = 2 * NOF_SUBCARRIERS_PER_RB;
-  // AVX2 register size in a number of 16-bit words.
-  static constexpr size_t AVX2_REG_SIZE = 16;
-
-  // Quantizer object.
-  quantizer q(params.data_width);
-
-  // Use generic implementation if AVX512 utils don't support requested bit width.
+  // Use generic implementation if AVX2 utils don't support requested bit width.
   if (!mm256::iq_width_packing_supported(params.data_width)) {
     iq_compression_none_impl::compress(buffer, iq_data, params);
     return;
   }
+
+  // Number of quantized samples per resource block.
+  static constexpr unsigned NOF_SAMPLES_PER_PRB = 2 * NOF_SUBCARRIERS_PER_RB;
 
   // Number of input PRBs.
   unsigned nof_prbs = (iq_data.size() / NOF_SUBCARRIERS_PER_RB);
@@ -38,48 +33,36 @@ void iq_compression_none_avx2::compress(span<uint8_t>                buffer,
 
   ocudu_assert(buffer.size() >= prb_size * nof_prbs, "Output buffer doesn't have enough space to decompress PRBs");
 
-  // Auxiliary arrays used for float to fixed point conversion of the input data.
-  std::array<int16_t, NOF_SAMPLES_PER_PRB * MAX_NOF_PRBS> input_quantized;
+  span<const bf16_t> float_samples(reinterpret_cast<const bf16_t*>(iq_data.data()), iq_data.size() * 2U);
+  log_quantized_input_rms(float_samples, params.data_width);
 
-  span<const bf16_t> float_samples_span(reinterpret_cast<const bf16_t*>(iq_data.data()), iq_data.size() * 2U);
-  span<int16_t>      input_quantized_span(input_quantized.data(), float_samples_span.size());
-  q.to_fixed_point(
-      input_quantized_span, float_samples_span, scaling_table.get_compression_iq_scaling(params.data_width));
+  // Scaling applied to the input floats before the conversion to fixed point, including the quantizer gain, and the
+  // largest quantized value.
+  const float   full_scale  = static_cast<float>((1 << (params.data_width - 1)) - 1);
+  const float   iq_scaling  = scaling_table.get_compression_iq_scaling(params.data_width);
+  const float   scale       = full_scale * iq_scaling;
+  const __m256  scale_ps    = _mm256_set1_ps(scale);
+  const __m256i clamp_epi16 = _mm256_set1_epi16(get_bf16_saturation_clamp(scale));
 
-  log_post_quantization_rms(input_quantized_span);
-
-  unsigned sample_idx = 0;
-  unsigned rb         = 0;
-  // One AVX2 register stores 8 16-bit IQ pairs. We can process 2 PRBs at a time by using 3 AVX2 registers.
-  for (size_t rb_index_end = (nof_prbs / 2) * 2; rb != rb_index_end; rb += 2) {
-    // Get view over bytes corresponding to two PRBs processed in this iteration.
-    span<uint8_t> comp_prb0_buffer(&buffer[rb * prb_size], prb_size);
-    span<uint8_t> comp_prb1_buffer(&buffer[(rb + 1) * prb_size], prb_size);
-
-    // Load symbols.
-    const auto* start_it   = input_quantized.begin() + sample_idx;
-    __m256i     rb0_epi16  = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(start_it + 0));
-    __m256i     rb01_epi16 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(start_it + AVX2_REG_SIZE));
-    __m256i     rb1_epi16  = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(start_it + AVX2_REG_SIZE * 2));
-
-    // Pack 2 PRBs using utility function and save compression parameters.
-    mm256::pack_prbs_big_endian(
-        comp_prb0_buffer, comp_prb1_buffer, rb0_epi16, rb01_epi16, rb1_epi16, params.data_width);
-
-    sample_idx += (NOF_SAMPLES_PER_PRB * 2);
+  // The PRBs are processed in pairs, as two PRBs fill exactly three AVX2 registers.
+  unsigned nof_prb_pairs = nof_prbs / 2;
+  if (params.data_width == MAX_IQ_WIDTH) {
+    mm256::compress_prb_pairs_16b<false>(buffer.data(), float_samples.data(), nof_prb_pairs, scale_ps, clamp_epi16, 0);
+  } else {
+    mm256::compress_prb_pairs_9b(buffer.data(), float_samples.data(), nof_prb_pairs, scale_ps, full_scale);
   }
 
-  // Use generic implementation for the remaining resource blocks.
-  for (; rb != nof_prbs; ++rb) {
-    span<const int16_t> input_quantized_last_rb(&input_quantized[sample_idx], NOF_SAMPLES_PER_PRB);
+  // Use generic implementation for the remaining resource block.
+  if (nof_prbs % 2 != 0) {
+    unsigned last_prb = nof_prbs - 1;
 
-    // View over output bytes corresponding to the current PRB.
-    span<uint8_t> out_compr_prb(&buffer[rb * prb_size], prb_size);
+    std::array<int16_t, NOF_SAMPLES_PER_PRB> input_quantized;
+    quantizer(params.data_width)
+        .to_fixed_point(
+            input_quantized, float_samples.subspan(last_prb * NOF_SAMPLES_PER_PRB, NOF_SAMPLES_PER_PRB), iq_scaling);
 
-    bit_buffer bit_buf = bit_buffer::from_bytes(out_compr_prb);
-    pack_bytes(bit_buf, input_quantized_last_rb, params.data_width);
-
-    sample_idx += NOF_SAMPLES_PER_PRB;
+    bit_buffer bit_buf = bit_buffer::from_bytes(buffer.subspan(last_prb * prb_size, prb_size));
+    pack_bytes(bit_buf, input_quantized, params.data_width);
   }
 }
 
@@ -102,27 +85,14 @@ bool iq_compression_none_avx2::decompress(span<cbf16_t>                iq_data,
                "Input does not contain enough bytes to decompress {} PRBs",
                nof_prbs);
 
-  // Quantizer object.
-  quantizer q(params.data_width);
+  // Scaling of the decompressed samples, including the quantizer gain.
+  const float scale =
+      quantizer(params.data_width).to_float(1) * scaling_table.get_decompression_iq_scaling(params.data_width);
 
-  constexpr size_t avx2_size_iqs = 16;
-  constexpr size_t prb_size      = divide_ceil(NOF_SUBCARRIERS_PER_RB * 2, avx2_size_iqs) * avx2_size_iqs;
-  alignas(64) std::array<int16_t, prb_size * MAX_NOF_PRBS> unpacked_iq_data;
-
-  unsigned idx = 0;
-  for (unsigned rb = 0; rb != nof_prbs; ++rb) {
-    span<const uint8_t> comp_prb_buffer(&compressed_data[rb * comp_prb_size], comp_prb_size);
-
-    // Unpack resource block.
-    span<int16_t> unpacked_prb_span(&unpacked_iq_data[idx], prb_size);
-    mm256::unpack_prb_big_endian(unpacked_prb_span, comp_prb_buffer, params.data_width);
-
-    idx += (NOF_SUBCARRIERS_PER_RB * 2);
+  if (params.data_width == MAX_IQ_WIDTH) {
+    mm256::decompress_prbs<16, false>(iq_data.data(), compressed_data.data(), nof_prbs, scale);
+  } else {
+    mm256::decompress_prbs<9, false>(iq_data.data(), compressed_data.data(), nof_prbs, scale);
   }
-
-  span<int16_t> unpacked_iq_int16_span(unpacked_iq_data.data(), iq_data.size() * 2);
-  // Convert to complex brain float samples.
-  q.to_brain_float(iq_data, unpacked_iq_int16_span, scaling_table.get_decompression_iq_scaling(params.data_width));
-
   return true;
 }

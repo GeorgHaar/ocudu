@@ -110,8 +110,9 @@ TEST_F(du_high_tester, when_ue_context_setup_completes_then_drb_is_active)
   while (bytes_sched < nof_pdcp_pdus * pdcp_pdu_size and this->run_until([this]() {
     return phy.cells[0].last_dl_data.has_value() and not phy.cells[0].last_dl_data.value().ue_pdus.empty();
   })) {
+    const auto ue_grants = phy.cells[0].last_dl_res->dl_res.ue_grants();
     for (unsigned i = 0; i != phy.cells[0].last_dl_data.value().ue_pdus.size(); ++i) {
-      if (phy.cells[0].last_dl_res.value().dl_res->ue_grants[i].pdsch_cfg.codewords[0].new_data) {
+      if (ue_grants[i].pdsch_cfg.codewords[0].new_data) {
         bytes_sched += phy.cells[0].last_dl_data.value().ue_pdus[i].pdu.get_buffer().size();
       }
     }
@@ -169,7 +170,8 @@ TEST_F(du_high_tester,
 
   // Sanity Check: Ensure DRB is active by verifying that some DRB PDUs are scheduled.
   EXPECT_TRUE(this->run_until([this, rnti1]() {
-    return find_ue_pdsch_with_lcid(rnti1, LCID_MIN_DRB, phy.cells[0].last_dl_res.value().dl_res->ue_grants) != nullptr;
+    return phy.cells[0].last_dl_res.has_value() and
+           find_ue_pdsch_with_lcid(rnti1, LCID_MIN_DRB, phy.cells[0].last_dl_res->dl_res.ue_grants()) != nullptr;
   }));
 
   // EVENT: DU receives F1AP UE Context Release Command (Containing RRC Release).
@@ -182,7 +184,10 @@ TEST_F(du_high_tester,
   this->test_logger.info("STATUS: UEContextReleaseCommand received by DU. Waiting for rrcRelease being transmitted...");
   unsigned srb1_bytes     = msg.pdu.init_msg().value.ue_context_release_cmd()->rrc_container.size();
   auto     srb1_scheduled = [this, rnti1, &srb1_bytes]() mutable {
-    auto* pdsch = find_ue_pdsch_with_lcid(rnti1, LCID_SRB1, phy.cells[0].last_dl_res.value().dl_res->ue_grants);
+    if (not phy.cells[0].last_dl_res.has_value()) {
+      return srb1_bytes == 0;
+    }
+    auto* pdsch = find_ue_pdsch_with_lcid(rnti1, LCID_SRB1, phy.cells[0].last_dl_res->dl_res.ue_grants());
     if (pdsch != nullptr) {
       for (auto& lc : pdsch->tb_list[0].lc_chs_to_sched) {
         if (lc.lcid == LCID_SRB1) {
@@ -209,22 +214,31 @@ TEST_F(du_high_tester,
   for (unsigned count = 0, max_count = 1000; count < max_count and cu_notifier.f1ap_ul_msgs.empty(); ++count) {
     run_slot();
 
-    // TEST CASE: Ensure no PDSCH/PUSCH grants are scheduled for UE1.
-    ASSERT_EQ(find_ue_dl_pdcch(rnti1, *phy.cells[0].last_dl_res.value().dl_res), nullptr)
-        << "New DL grants were scheduled for UE1 while its release was ongoing";
-    ASSERT_EQ(find_ue_ul_pdcch(rnti1, *phy.cells[0].last_dl_res->dl_res), nullptr)
-        << "New UL grants were scheduled for UE1 while its release was ongoing";
+    if (phy.cells[0].last_dl_res.has_value()) {
+      const auto dl_res = phy.cells[0].last_dl_res->dl_res;
 
-    // TEST CASE: Ensure that UE2 activity is unaffected.
-    if (find_ue_pdsch_with_lcid(rnti2, LCID_MIN_DRB, phy.cells[0].last_dl_res.value().dl_res->ue_grants) != nullptr) {
-      ue2_pdsch_count++;
+      // TEST CASE: Ensure no PDSCH/PUSCH grants are scheduled for UE1.
+      ASSERT_EQ(find_ue_dl_pdcch(rnti1, dl_res), nullptr)
+          << "New DL grants were scheduled for UE1 while its release was ongoing";
+      ASSERT_EQ(find_ue_ul_pdcch(rnti1, dl_res), nullptr)
+          << "New UL grants were scheduled for UE1 while its release was ongoing";
+
+      // TEST CASE: Ensure that UE2 activity is unaffected.
+      if (find_ue_pdsch_with_lcid(rnti2, LCID_MIN_DRB, dl_res.ue_grants()) != nullptr) {
+        ue2_pdsch_count++;
+      }
     }
+
+    if (not phy.cells[0].last_ul_res.has_value()) {
+      continue;
+    }
+    const span<const pucch_info> pucchs = phy.cells[0].last_ul_res->ul_res.pucchs().unsorted();
 
     // TEST CASE: Ensure UE1 UCI periodic resources are still scheduled.
-    if (find_ue_pucch_with_csi(rnti1, phy.cells[0].last_ul_res.value().ul_res->pucchs.unsorted()) != nullptr) {
+    if (find_ue_pucch_with_csi(rnti1, pucchs) != nullptr) {
       ue1_csi_count++;
     }
-    auto* pucch = find_ue_pucch_with_sr(rnti1, phy.cells[0].last_ul_res.value().ul_res->pucchs.unsorted());
+    auto* pucch = find_ue_pucch_with_sr(rnti1, pucchs);
     if (pucch != nullptr) {
       // Push SR indication to MAC. It should be ignored.
       mac_uci_indication_message uci;
@@ -268,7 +282,10 @@ TEST_F(du_high_tester, when_f1ap_reset_received_then_ues_are_removed)
   const unsigned nof_slots_check = 100;
   ASSERT_FALSE(this->run_until(
       [this, rnti]() {
-        const dl_msg_alloc* pdsch = find_ue_pdsch(rnti, phy.cells[0].last_dl_res.value().dl_res->ue_grants);
+        if (not phy.cells[0].last_dl_res.has_value()) {
+          return false;
+        }
+        const dl_msg_alloc* pdsch = find_ue_pdsch(rnti, phy.cells[0].last_dl_res->dl_res.ue_grants());
         return pdsch != nullptr;
       },
       nof_slots_check));
@@ -397,7 +414,7 @@ TEST_F(du_high_tester, when_ue_context_modification_with_rem_drbs_is_received_th
   {
     asn1::cbit_ref                 bref{resp->du_to_cu_rrc_info.cell_group_cfg};
     asn1::rrc_nr::cell_group_cfg_s cell_grp_cfg;
-    ASSERT_EQ(cell_grp_cfg.unpack(bref), asn1::OCUDUASN_SUCCESS);
+    ASSERT_EQ(asn1::unpack(cell_grp_cfg, bref), asn1::OCUDUASN_SUCCESS);
     ASSERT_EQ(cell_grp_cfg.rlc_bearer_to_release_list.size(), 1);
     ASSERT_EQ(cell_grp_cfg.rlc_bearer_to_release_list[0], 4) << "DRB1 with LCID=4 should have been removed";
   }
@@ -424,7 +441,10 @@ TEST_F(du_high_tester, when_dl_rrc_message_with_old_du_ue_id_received_then_old_u
 
   ASSERT_FALSE(this->run_until(
       [this, rnti]() {
-        const dl_msg_alloc* pdsch = find_ue_pdsch(rnti, phy.cells[0].last_dl_res.value().dl_res->ue_grants);
+        if (not phy.cells[0].last_dl_res.has_value()) {
+          return false;
+        }
+        const dl_msg_alloc* pdsch = find_ue_pdsch(rnti, phy.cells[0].last_dl_res->dl_res.ue_grants());
         if (pdsch != nullptr and pdsch->pdsch_cfg.codewords[0].new_data) {
           return true;
         }
@@ -457,8 +477,8 @@ TEST_F(du_high_tester, when_dl_rrc_message_with_old_du_ue_id_received_then_drbs_
   }
   ASSERT_TRUE(this->run_until(
       [this, rnti2]() {
-        return find_ue_pdsch_with_lcid(rnti2, LCID_MIN_DRB, phy.cells[0].last_dl_res.value().dl_res->ue_grants) !=
-               nullptr;
+        return phy.cells[0].last_dl_res.has_value() and
+               find_ue_pdsch_with_lcid(rnti2, LCID_MIN_DRB, phy.cells[0].last_dl_res->dl_res.ue_grants()) != nullptr;
       },
       100));
 }
@@ -489,8 +509,8 @@ TEST_F(du_high_tester,
   }
   ASSERT_TRUE(this->run_until(
       [this, rnti2]() {
-        return find_ue_pdsch_with_lcid(rnti2, LCID_MIN_DRB, phy.cells[0].last_dl_res.value().dl_res->ue_grants) !=
-               nullptr;
+        return phy.cells[0].last_dl_res.has_value() and
+               find_ue_pdsch_with_lcid(rnti2, LCID_MIN_DRB, phy.cells[0].last_dl_res->dl_res.ue_grants()) != nullptr;
       },
       100));
 }
@@ -513,7 +533,10 @@ TEST_F(du_high_tester, when_reestablishment_takes_place_then_previous_ue_capabil
   const unsigned nof_slots_test = 1000;
   ASSERT_TRUE(this->run_until(
       [this, rnti1]() {
-        auto* pdsch = find_ue_pdsch_with_lcid(rnti1, LCID_MIN_DRB, phy.cells[0].last_dl_res.value().dl_res->ue_grants);
+        if (not phy.cells[0].last_dl_res.has_value()) {
+          return false;
+        }
+        auto* pdsch = find_ue_pdsch_with_lcid(rnti1, LCID_MIN_DRB, phy.cells[0].last_dl_res->dl_res.ue_grants());
         return pdsch != nullptr and pdsch->pdsch_cfg.mcs_table == pdsch_mcs_table::qam256;
       },
       nof_slots_test));
@@ -532,7 +555,10 @@ TEST_F(du_high_tester, when_reestablishment_takes_place_then_previous_ue_capabil
   // Check QAM256 MCS table is used after RRC Reestablishment (the UE capabilities were not forgotten).
   ASSERT_TRUE(this->run_until(
       [this, rnti2]() {
-        auto* pdsch = find_ue_pdsch_with_lcid(rnti2, LCID_MIN_DRB, phy.cells[0].last_dl_res.value().dl_res->ue_grants);
+        if (not phy.cells[0].last_dl_res.has_value()) {
+          return false;
+        }
+        auto* pdsch = find_ue_pdsch_with_lcid(rnti2, LCID_MIN_DRB, phy.cells[0].last_dl_res->dl_res.ue_grants());
         return pdsch != nullptr and pdsch->pdsch_cfg.mcs_table == pdsch_mcs_table::qam256;
       },
       nof_slots_test));
@@ -599,12 +625,14 @@ TEST_F(du_high_rrm_policy_tester, when_rrm_policy_remote_command_is_received_the
     for (unsigned sl = 0; sl != nof_slots_to_assess_rrm_cfg; ++sl) {
       run_slot();
 
-      unsigned rbs       = 0;
-      auto&    ue_grants = phy.cells[0].last_dl_res.value().dl_res->ue_grants;
-      for (auto& ue_grant : ue_grants) {
-        rbs += ue_grant.pdsch_cfg.rbs.type1().length();
+      if (phy.cells[0].last_dl_res.has_value()) {
+        unsigned   rbs       = 0;
+        const auto ue_grants = phy.cells[0].last_dl_res->dl_res.ue_grants();
+        for (const auto& ue_grant : ue_grants) {
+          rbs += ue_grant.pdsch_cfg.rbs.type1().length();
+        }
+        ASSERT_LT(rbs, max_slice_rbs);
       }
-      ASSERT_LT(rbs, max_slice_rbs);
       phy.cells[0].last_dl_data.reset();
     }
   };
@@ -691,8 +719,10 @@ TEST_F(du_high_cg_tester, when_ue_context_setup_with_drb_and_cg_enabled_then_cs_
        ++i) {
     run_slot();
 
-    const dl_msg_alloc* pdsch =
-        find_ue_pdsch_with_lcid(rnti, LCID_SRB1, phy.cells[0].last_dl_res.value().dl_res->ue_grants);
+    if (not phy.cells[0].last_dl_res.has_value()) {
+      continue;
+    }
+    const dl_msg_alloc* pdsch = find_ue_pdsch_with_lcid(rnti, LCID_SRB1, phy.cells[0].last_dl_res->dl_res.ue_grants());
     if (pdsch != nullptr) {
       for (const dl_msg_lc_info& lc_grant : pdsch->tb_list[0].lc_chs_to_sched) {
         if (lc_grant.lcid == LCID_SRB1) {
@@ -710,7 +740,7 @@ TEST_F(du_high_cg_tester, when_ue_context_setup_with_drb_and_cg_enabled_then_cs_
   {
     asn1::cbit_ref                 bref{resp->du_to_cu_rrc_info.cell_group_cfg};
     asn1::rrc_nr::cell_group_cfg_s cell_grp_cfg;
-    ASSERT_EQ(cell_grp_cfg.unpack(bref), asn1::OCUDUASN_SUCCESS);
+    ASSERT_EQ(asn1::unpack(cell_grp_cfg, bref), asn1::OCUDUASN_SUCCESS);
     ASSERT_TRUE(cell_grp_cfg.phys_cell_group_cfg_present) << "PhysCellGroupConfig should be present";
     ASSERT_TRUE(cell_grp_cfg.phys_cell_group_cfg.cs_rnti_present) << "CS-RNTI should be allocated when CG is enabled";
     ASSERT_EQ(cell_grp_cfg.phys_cell_group_cfg.cs_rnti.type(), asn1::setup_release_opts::setup)
@@ -752,11 +782,58 @@ TEST_F(du_high_cg_tester, when_all_drbs_removed_then_cs_rnti_is_deallocated)
   {
     asn1::cbit_ref                 bref{resp->du_to_cu_rrc_info.cell_group_cfg};
     asn1::rrc_nr::cell_group_cfg_s cell_grp_cfg;
-    ASSERT_EQ(cell_grp_cfg.unpack(bref), asn1::OCUDUASN_SUCCESS);
+    ASSERT_EQ(asn1::unpack(cell_grp_cfg, bref), asn1::OCUDUASN_SUCCESS);
     ASSERT_TRUE(cell_grp_cfg.phys_cell_group_cfg_present) << "PhysCellGroupConfig should be present";
     ASSERT_TRUE(cell_grp_cfg.phys_cell_group_cfg.cs_rnti_present)
         << "CS-RNTI field should be present when CS-RNTI is deallocated";
     ASSERT_EQ(cell_grp_cfg.phys_cell_group_cfg.cs_rnti.type(), asn1::setup_release_opts::release)
         << "CS-RNTI should be released when all DRBs are removed";
   }
+}
+
+// A CG configuration that the scheduler rejects for the UE, which the app config validator would have refused at
+// startup: fewer CG HARQ processes than the configured grant timer.
+class du_high_invalid_cg_tester : public du_high_env_simulator, public testing::Test
+{
+protected:
+  du_high_invalid_cg_tester() :
+    du_high_env_simulator([]() {
+      du_high_configuration du_cfg            = create_du_high_configuration();
+      du_cfg.ran.cells[0].ran.init_bwp.cg_cfg = cg_builder_params{.nof_harq_processes = 2};
+      return du_cfg;
+    }())
+  {
+  }
+};
+
+TEST_F(du_high_invalid_cg_tester, when_scheduler_rejects_the_cg_config_then_ue_context_setup_fails)
+{
+  // Create UE.
+  rnti_t rnti = to_rnti(0x4601);
+  ASSERT_TRUE(add_ue(rnti));
+  ASSERT_TRUE(run_rrc_setup(rnti));
+
+  auto& u = ues[rnti];
+
+  // DU receives UE Context Setup Request with a DRB, which gives the UE its CG.
+  cu_notifier.f1ap_ul_msgs.clear();
+  f1ap_message msg = test_helpers::generate_ue_context_setup_request(
+      *u.cu_ue_id,
+      u.du_ue_id,
+      u.srbs[LCID_SRB1].next_pdcp_sn++,
+      {drb_id_t::drb1},
+      {plmn_identity::test_value(), nr_cell_identity::create(0).value()});
+  asn1::f1ap::ue_context_setup_request_s& cmd      = msg.pdu.init_msg().value.ue_context_setup_request();
+  auto&                                   drb_item = cmd->drbs_to_be_setup_list[0].value().drbs_to_be_setup_item();
+  auto&                                   drb_info = drb_item.qos_info.choice_ext().value().drb_info();
+  drb_info.drb_qos.qos_characteristics.non_dyn_5qi().five_qi = 7U;
+  drb_item.rlc_mode.value                                    = asn1::f1ap::rlc_mode_opts::rlc_um_bidirectional;
+  this->du_hi->get_f1ap_pdu_handler().handle_message(msg);
+
+  // The scheduler rejects the UE reconfiguration, so the DU must report a failure rather than a DRB it never schedules.
+  ASSERT_TRUE(run_until([this]() { return not cu_notifier.f1ap_ul_msgs.empty(); }));
+  const f1ap_message& resp = cu_notifier.f1ap_ul_msgs.rbegin()->second;
+  ASSERT_EQ(resp.pdu.type().value, asn1::f1ap::f1ap_pdu_c::types_opts::unsuccessful_outcome);
+  ASSERT_EQ(resp.pdu.unsuccessful_outcome().value.type().value,
+            asn1::f1ap::f1ap_elem_procs_o::unsuccessful_outcome_c::types_opts::ue_context_setup_fail);
 }

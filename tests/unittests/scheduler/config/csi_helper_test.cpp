@@ -6,8 +6,11 @@
 #include "tests/ocudu_test_requirements.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/ran/csi_report/csi_report_config_helpers.h"
+#include "ocudu/ran/csi_report/csi_report_on_pucch_helpers.h"
+#include "ocudu/ran/csi_report/csi_report_on_pusch_helpers.h"
 #include "ocudu/ran/tdd/tdd_ul_dl_config_formatters.h"
 #include "ocudu/scheduler/config/bwp_configuration.h"
+#include "ocudu/scheduler/config/cell_bwp_res_config.h"
 #include "ocudu/scheduler/config/csi_helper.h"
 #include "ocudu/scheduler/config/ran_cell_config_helper.h"
 #include "ocudu/scheduler/config/serving_cell_config_factory.h"
@@ -264,7 +267,7 @@ TEST(csi_helper_test, csi_report_config_with_eight_ports_uses_type2_codebook)
   EXPECT_EQ(typeii.n1_n2_codebook_subset_restriction_value.size(), 32);
   EXPECT_EQ(typeii.n1_n2_codebook_subset_restriction_value.count(), 32);
 
-  // As per TS38.214 Section 5.2.2.2.3, the Type-II codebook supports at most two layers.
+  // As per TS 38.214 Section 5.2.2.2.3, the Type-II codebook supports at most two layers.
   EXPECT_EQ(typeii.typeii_ri_restriction.size(), 2);
   EXPECT_EQ(typeii.typeii_ri_restriction.count(), 2);
 }
@@ -311,3 +314,68 @@ TEST(csi_helper_test, type1_codebook_is_generated_when_type2_is_disabled)
 
   ASSERT_TRUE(std::holds_alternative<codebook_config::type1>(codebook.codebook_type));
 }
+
+TEST(cell_csi_config_test, cell_without_csi_has_no_csi_config)
+{
+  cell_config_builder_params builder;
+  builder.csi_rs_enabled = false;
+
+  const ran_cell_config cell_cfg = config_helpers::make_default_ran_cell_config(builder);
+  ASSERT_FALSE(make_cell_bwp_res_config(cell_cfg, make_cell_rrm_config(cell_cfg)).dl.csi.has_value());
+}
+
+struct cell_csi_test_params {
+  unsigned        nof_ports;
+  bool            aperiodic;
+  pdsch_mcs_table mcs_table;
+  bool            type2 = false;
+};
+
+class cell_csi_config_test : public ::testing::TestWithParam<cell_csi_test_params>
+{};
+
+TEST_P(cell_csi_config_test, cell_csi_config_matches_the_ue_csi_meas_config)
+{
+  cell_config_builder_params builder;
+  builder.dl_carrier.nof_ant        = GetParam().nof_ports;
+  ran_cell_config cell_cfg          = config_helpers::make_default_ran_cell_config(builder);
+  cell_cfg.init_bwp.pdsch.mcs_table = GetParam().mcs_table;
+  if (GetParam().aperiodic) {
+    cell_cfg.init_bwp.csi->csi_report_slot_offset.reset();
+    cell_cfg.init_bwp.csi->enable_aperiodic_report = true;
+  }
+  if (GetParam().type2) {
+    cell_cfg.init_bwp.csi->type2_codebook.emplace();
+  }
+
+  const cell_bwp_csi_config csi = make_cell_bwp_res_config(cell_cfg, make_cell_rrm_config(cell_cfg)).dl.csi.value();
+  const csi_meas_config     ue_csi =
+      config_helpers::make_default_ue_cell_config(cell_cfg).serv_cell_cfg.csi_meas_cfg.value();
+
+  EXPECT_EQ(get_cqi_table(GetParam().mcs_table), ue_csi.csi_report_cfg_list.front().cqi_table);
+  EXPECT_EQ(csi_helper::get_csi_report_trigger_size(*cell_cfg.init_bwp.csi), ue_csi.report_trigger_size.value_or(0));
+  EXPECT_EQ(csi.report_type, is_pusch_configured(ue_csi) ? csi_report_type::aperiodic : csi_report_type::periodic);
+  EXPECT_EQ(csi.pucch_report() != nullptr, csi.report_type == csi_report_type::periodic);
+
+  // The default UE configuration uses the codebook that the cell offers.
+  const csi_report_configuration ue_report = create_csi_report_configuration(ue_csi);
+  ASSERT_EQ(csi.type2_report.has_value(), GetParam().type2);
+  const csi_report_configuration& cell_report = GetParam().type2 ? *csi.type2_report : csi.type1_report;
+  EXPECT_EQ(cell_report.pmi_codebook.index(), ue_report.pmi_codebook.index());
+  EXPECT_EQ(get_csi_report_pusch_size(cell_report).part1_size, get_csi_report_pusch_size(ue_report).part1_size);
+  EXPECT_EQ(get_csi_report_pusch_size(cell_report).part2_max_size, get_csi_report_pusch_size(ue_report).part2_max_size);
+  EXPECT_EQ(cell_report.ri_restriction, ue_report.ri_restriction);
+  EXPECT_EQ(cell_report.nof_csi_rs_resources, ue_report.nof_csi_rs_resources);
+  EXPECT_EQ(cell_report.quantities, ue_report.quantities);
+  if (GetParam().type2) {
+    EXPECT_TRUE(std::holds_alternative<pmi_codebook_typeI_single_panel>(csi.type1_report.pmi_codebook));
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(cell_csi_config_test,
+                         cell_csi_config_test,
+                         ::testing::Values(cell_csi_test_params{1, false, pdsch_mcs_table::qam64},
+                                           cell_csi_test_params{2, false, pdsch_mcs_table::qam256},
+                                           cell_csi_test_params{4, false, pdsch_mcs_table::qam64},
+                                           cell_csi_test_params{4, true, pdsch_mcs_table::qam256},
+                                           cell_csi_test_params{4, true, pdsch_mcs_table::qam64, true}));

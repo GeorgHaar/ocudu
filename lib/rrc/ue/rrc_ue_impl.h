@@ -67,9 +67,10 @@ public:
   get_rrc_ue_handover_reconfiguration_context(const rrc_reconfiguration_procedure_request& request) override;
   rrc_ue_cond_reconfiguration_context
   get_rrc_ue_cond_reconfiguration_context(const rrc_reconfiguration_procedure_request& request) override;
-  async_task<bool> handle_handover_reconfiguration_complete_expected(uint8_t                   transaction_id,
+  async_task<error_type<protocol_transaction_failure>>
+                   handle_handover_reconfiguration_complete_expected(uint8_t                   transaction_id,
                                                                      std::chrono::milliseconds timeout_ms,
-                                                                     bool release_on_failure = true) override;
+                                                                     bool                      release_on_failure = true) override;
   bool             store_ue_capabilities(byte_buffer ue_capabilities) override;
   async_task<bool> handle_rrc_ue_capability_transfer_request(const rrc_ue_capability_transfer_request& msg) override;
   void             fill_ue_derived_location(cu_cp_user_location_info_nr& user_location_info) const override;
@@ -104,7 +105,7 @@ public:
   void                                  set_rrc_state(rrc_state state) override { context.state = state; }
   rrc_state                             get_rrc_state() const override;
   void                                  cancel_handover_reconfiguration_transaction(uint8_t transaction_id) override;
-  void                                  cancel_all_transactions() override;
+  void cancel_all_transactions(protocol_transaction_failure cause = protocol_transaction_failure::cancel) override;
 
   // rrc_ue_context_handler
   rrc_ue_reestablishment_context_response get_context() override;
@@ -114,6 +115,7 @@ public:
   byte_buffer&                            get_cell_group_config() override { return context.cell_group_config; }
 
   // rrc_ue_capability_handler
+  const rrc_ue_capabilities_t& get_capabilities() const override { return context.capabilities; }
   bool is_rrc_inactive_supported() const override { return context.capabilities.rrc_inactive_supported; }
   bool is_conditional_handover_supported() const override
   {
@@ -167,6 +169,7 @@ private:
   void on_new_dl_dcch(srb_id_t srb_id, const asn1::rrc_nr::dl_dcch_msg_s& dl_dcch_msg) override;
   void on_new_as_security_context(bool security_mode_active) override;
   void on_as_security_activated() override;
+  void on_ul_nas_pdu(byte_buffer nas_pdu) override;
 
   // helpers
   void handle_illegal_pdu_integrity(const char* msg, bool integrity_verified);

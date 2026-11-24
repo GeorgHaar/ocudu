@@ -429,11 +429,54 @@ const cu_cp_test_environment::ue_context* cu_cp_test_environment::find_ue_contex
   return &attached_ues.at(it->second);
 }
 
+void cu_cp_test_environment::update_ue_f1ap_ids(unsigned            du_idx,
+                                                gnb_du_ue_f1ap_id_t old_du_ue_id,
+                                                gnb_du_ue_f1ap_id_t new_du_ue_id,
+                                                gnb_cu_ue_f1ap_id_t new_cu_ue_id)
+{
+  auto& du_ue_ids = du_ue_id_to_ran_ue_id_map.at(du_idx);
+  auto  it        = du_ue_ids.find(old_du_ue_id);
+  report_fatal_error_if_not(it != du_ue_ids.end(), "DU UE ID not found");
+  ran_ue_id_t ran_ue_id = it->second;
+  du_ue_ids.erase(it);
+  report_fatal_error_if_not(du_ue_ids.insert(std::make_pair(new_du_ue_id, ran_ue_id)).second,
+                            "DU UE ID already exists");
+
+  ue_context& ue_ctx = attached_ues.at(ran_ue_id);
+  ue_ctx.du_ue_id    = new_du_ue_id;
+  ue_ctx.cu_ue_id    = new_cu_ue_id;
+}
+
+ngap_message cu_cp_test_environment::generate_amf_ng_setup_response(unsigned amf_idx) const
+{
+  auto it = amf_configs.find(amf_idx);
+  report_fatal_error_if_not(it != amf_configs.end(), "AMF {} not found", amf_idx);
+
+  std::vector<plmn_identity> plmns;
+  for (const auto& ta : it->second.supported_tas) {
+    for (const auto& plmn_item : ta.plmn_list) {
+      if (std::find(plmns.begin(), plmns.end(), plmn_item.plmn_id) == plmns.end()) {
+        plmns.push_back(plmn_item.plmn_id);
+      }
+    }
+  }
+  report_fatal_error_if_not(not plmns.empty(), "AMF {} has no PLMN", amf_idx);
+
+  ngap_message ng_setup_response = ocucp::generate_ng_setup_response(plmns.front());
+  auto&        asn1_response     = ng_setup_response.pdu.successful_outcome().value.ng_setup_resp();
+  for (unsigned i = 1; i != plmns.size(); ++i) {
+    asn1::ngap::plmn_support_item_s plmn_support_item = asn1_response->plmn_support_list[0];
+    plmn_support_item.plmn_id                         = plmns[i].to_bytes();
+    asn1_response->plmn_support_list.push_back(plmn_support_item);
+  }
+  return ng_setup_response;
+}
+
 void cu_cp_test_environment::enqueue_procedure_outcome_pdus_and_start_cu_cp()
 {
   // Enqueue NG Setup responses.s.
   for (const auto& [amf_index, amf_config] : amf_configs) {
-    get_amf(amf_index).enqueue_next_tx_pdu(ocucp::generate_ng_setup_response());
+    get_amf(amf_index).enqueue_next_tx_pdu(generate_amf_ng_setup_response(amf_index));
   }
 
   // Enqueue XN Setup responses. Each peer advertises one served cell, so that tests can resolve it by PCI the way a
@@ -492,7 +535,7 @@ bool cu_cp_test_environment::reconnect_amf(unsigned amf_idx)
 
   it->second.amf_stub->allow_reconnection();
 
-  it->second.amf_stub->enqueue_next_tx_pdu(ocucp::generate_ng_setup_response());
+  it->second.amf_stub->enqueue_next_tx_pdu(generate_amf_ng_setup_response(amf_idx));
 
   tick_until(cu_cp_cfg.ngap.amf_reconnection_retry_time, [&]() { return false; }, false);
 
@@ -744,7 +787,8 @@ bool cu_cp_test_environment::setup_ue_security_and_ue_capabilities(
     gnb_du_ue_f1ap_id_t                                        du_ue_id,
     std::optional<cu_cp_core_network_assist_info_for_inactive> cn_assist_info_for_inactive,
     bool                                                       rrc_inactive_supported,
-    std::optional<location_report_request>                     location_reporting_request)
+    std::optional<location_report_request>                     location_reporting_request,
+    std::optional<byte_buffer>                                 nr_capabilities)
 {
   ngap_message ngap_pdu;
   ocudu_assert(not this->get_amf().try_pop_rx_pdu(ngap_pdu), "there are still NGAP messages to pop from AMF");
@@ -796,14 +840,15 @@ bool cu_cp_test_environment::setup_ue_security_and_ue_capabilities(
   }
 
   // Inject UL RRC Message Transfer (containing UE Capability Info).
+  auto capability_info = test_helpers::create_ue_capability_info(2, rrc_inactive_supported);
+  if (nr_capabilities.has_value()) {
+    auto& list = capability_info.msg.c1().ue_cap_info().crit_exts.ue_cap_info().ue_cap_rat_container_list;
+    list.resize(1);
+    list[0].rat_type             = asn1::rrc_nr::rat_type_opts::nr;
+    list[0].ue_cap_rat_container = std::move(*nr_capabilities);
+  }
   get_du(du_idx).push_ul_pdu(test_helpers::generate_ul_rrc_message_transfer(
-      du_ue_id,
-      ue_ctx.cu_ue_id.value(),
-      srb_id_t::srb1,
-      4,
-      test_helpers::pack_ul_dcch_msg(test_helpers::create_ue_capability_info(2, rrc_inactive_supported)),
-      rrc_inactive_supported ? std::array<uint8_t, 4>{0x11, 0x23, 0x53, 0x24}
-                             : std::array<uint8_t, 4>{0xb8, 0xe4, 0x13, 0x83}));
+      du_ue_id, ue_ctx.cu_ue_id.value(), srb_id_t::srb1, generate_protected_ul_dcch_pdu(capability_info, 4)));
 
   // Wait for DL RRC Message Transfer (containing NAS Registration Accept).
   result = this->wait_for_f1ap_tx_pdu(du_idx, f1ap_pdu);

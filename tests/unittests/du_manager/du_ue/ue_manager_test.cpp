@@ -34,15 +34,15 @@ protected:
     // Add and start cells, so that they accept UEs.
     mac_dummy.mac_cell.wait_start.ready_ev.set();
     for (unsigned i = 0; i != cells.size(); ++i) {
-      cell_mng.add_cell(cells[i]);
+      cell_mng.add_cell(cells[i], make_cell_rrm_config(cells[i].ran));
       async_task<bool>         t = cell_mng.start(to_du_cell_index(i));
       lazy_task_launcher<bool> launcher{t};
       report_fatal_error_if_not(t.ready() and t.get(), "Failed to start cell={}", i);
     }
 
     // By default F1AP creates two F1-C bearers.
-    f1ap_dummy.next_ue_create_response.result = true;
-    f1ap_dummy.next_ue_create_response.f1c_bearers_added.resize(2);
+    f1ap_dummy.next_ue_create_response.result            = true;
+    f1ap_dummy.next_ue_create_response.f1c_bearers_added = {&f1c_srb0, &f1c_srb1};
   }
   ~du_ue_manager_tester() override { ocudulog::flush(); }
 
@@ -101,6 +101,9 @@ protected:
 
   std::vector<du_cell_config> cells = {config_helpers::make_default_du_cell_config()};
   f1ap_test_dummy             f1ap_dummy;
+  // F1-C bearers that F1AP returns for SRB0 and SRB1 of each UE.
+  dummy_f1c_bearer    f1c_srb0;
+  dummy_f1c_bearer    f1c_srb1;
   gtpu_teid_pool_impl f1u_teid_allocator{MAX_NOF_DU_UES * MAX_NOF_DRBS, GTPU_DEFAULT_TEID_RELEASE_LINGER_TIME, timers};
   f1u_gateway_dummy   f1u_dummy;
   mac_test_dummy      mac_dummy;

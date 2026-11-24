@@ -48,10 +48,10 @@ asn1::f1ap::drbs_to_be_setup_item_s ocudu::odu::generate_drb_am_setup_item(drb_i
   drb.qos_info.set_choice_ext().load_info_obj(ASN1_F1AP_ID_DRB_INFO);
   auto& drb_info                                                 = drb.qos_info.choice_ext()->drb_info();
   drb_info.drb_qos.qos_characteristics.set_non_dyn_5qi().five_qi = 8;
-  drb_info.drb_qos.ngra_nalloc_retention_prio.prio_level         = 1;
-  drb_info.drb_qos.ngra_nalloc_retention_prio.pre_emption_cap.value =
+  drb_info.drb_qos.ngran_alloc_retention_prio.prio_level         = 1;
+  drb_info.drb_qos.ngran_alloc_retention_prio.pre_emption_cap.value =
       pre_emption_cap_opts::shall_not_trigger_pre_emption;
-  drb_info.drb_qos.ngra_nalloc_retention_prio.pre_emption_vulnerability.value =
+  drb_info.drb_qos.ngran_alloc_retention_prio.pre_emption_vulnerability.value =
       pre_emption_vulnerability_opts::not_pre_emptable;
   drb_info.drb_qos.reflective_qos_attribute_present = true;
   drb_info.drb_qos.reflective_qos_attribute.value =
@@ -78,10 +78,10 @@ asn1::f1ap::drbs_to_be_setup_mod_item_s ocudu::odu::generate_drb_am_mod_item(drb
   drb.qos_info.set_choice_ext().load_info_obj(ASN1_F1AP_ID_DRB_INFO);
   auto& drb_info                                                 = drb.qos_info.choice_ext()->drb_info();
   drb_info.drb_qos.qos_characteristics.set_non_dyn_5qi().five_qi = 8;
-  drb_info.drb_qos.ngra_nalloc_retention_prio.prio_level         = 1;
-  drb_info.drb_qos.ngra_nalloc_retention_prio.pre_emption_cap.value =
+  drb_info.drb_qos.ngran_alloc_retention_prio.prio_level         = 1;
+  drb_info.drb_qos.ngran_alloc_retention_prio.pre_emption_cap.value =
       pre_emption_cap_opts::shall_not_trigger_pre_emption;
-  drb_info.drb_qos.ngra_nalloc_retention_prio.pre_emption_vulnerability.value =
+  drb_info.drb_qos.ngran_alloc_retention_prio.pre_emption_vulnerability.value =
       pre_emption_vulnerability_opts::not_pre_emptable;
   drb_info.drb_qos.reflective_qos_attribute_present = true;
   drb_info.drb_qos.reflective_qos_attribute.value =

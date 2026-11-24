@@ -16,4 +16,14 @@ struct ngap_dl_nas_transport_message {
   bool             ue_cap_info_request = false;
 };
 
+/// Request of the source AMF to reroute the INITIAL UE MESSAGE of a UE to a target AMF of an AMF Set (TS 38.413
+/// section 8.6.5).
+struct ngap_reroute_nas_request {
+  cu_cp_ue_index_t ue_index = cu_cp_ue_index_t::invalid;
+  /// AMF Set ID of the target AMF.
+  uint16_t amf_set_id = 0;
+  /// Packed REROUTE NAS REQUEST. The NGAP of the target AMF builds the rerouted INITIAL UE MESSAGE from it.
+  byte_buffer packed_reroute_nas_request;
+};
+
 } // namespace ocudu::ocucp

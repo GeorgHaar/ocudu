@@ -10,6 +10,6 @@
 namespace ocudu::ocucp {
 
 /// \brief Log Received/Transmitted NGAP PDU.
-void log_xnap_pdu(ocudulog::basic_logger& logger, bool json_log, bool is_rx, const asn1::xnap::xn_ap_pdu_c& pdu);
+void log_xnap_pdu(ocudulog::basic_logger& logger, bool json_log, bool is_rx, const asn1::xnap::xnap_pdu_c& pdu);
 
 } // namespace ocudu::ocucp

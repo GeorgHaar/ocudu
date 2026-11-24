@@ -8,7 +8,9 @@
 #include "ocudu/cu_cp/up_context.h"
 #include "ocudu/ngap/ngap_pdu_session.h"
 #include "ocudu/ran/cu_cp_pdu_session.h"
+#include "ocudu/rrc/rrc_ue_capabilities.h"
 #include <map>
+#include <optional>
 
 namespace ocudu::ocucp {
 
@@ -53,11 +55,15 @@ struct up_config_update {
   std::vector<drb_id_t>         drb_to_remove_list;                 // List of DRBs to be removed.
 };
 
-/// \brief Maps a QoS flow, scoped to its PDU session, to the DRB ID the source RAN node used for it. Derived from
-/// the (optional) DRBs to QoS Flows Mapping List conveyed in the source's Handover Preparation Information
-/// (TS 38.413 Section 9.3.1.29), and used to prefer the same DRB ID at the target during handover admission, since
-/// DRB IDs are otherwise allocated independently by each RAN node (TS 38.300 Section 9.2.3.2.3).
-using up_old_drb_association = std::map<pdu_session_id_t, std::map<qos_flow_id_t, drb_id_t>>;
+/// Source DRB identity and optional PDCP SN lengths forwarded during handover.
+struct up_old_drb_context {
+  drb_id_t                    drb_id          = drb_id_t::invalid;
+  std::optional<pdcp_sn_size> pdcp_sn_size_dl = std::nullopt;
+  std::optional<pdcp_sn_size> pdcp_sn_size_ul = std::nullopt;
+};
+
+/// Maps each QoS flow, scoped to its PDU session, to its source DRB configuration.
+using up_old_drb_association = std::map<pdu_session_id_t, std::map<qos_flow_id_t, up_old_drb_context>>;
 
 // Response given back to the UP resource manager containing the full context
 // that could be setup.
@@ -83,8 +89,10 @@ public:
 
   up_config_update
   calculate_update(const slotted_id_vector<pdu_session_id_t, cu_cp_pdu_session_res_setup_item>& setup_items,
+                   const rrc_ue_capabilities_t&                                                 capabilities,
                    const up_old_drb_association& old_drb_association = {});
-  up_config_update calculate_update(const ngap_pdu_session_resource_modify_request& pdu);
+  up_config_update calculate_update(const ngap_pdu_session_resource_modify_request& pdu,
+                                    const rrc_ue_capabilities_t&                    capabilities);
   up_config_update calculate_update(const ngap_pdu_session_resource_release_command& pdu);
 
   void                          apply_config_update(const up_config_update_result& result);
@@ -104,7 +112,11 @@ public:
   std::vector<drb_id_t>         get_drbs() const;
 
   up_context get_up_context() const;
-  void       set_up_context(const up_context& ctx);
+  bool       set_up_context(const up_context& ctx, const rrc_ue_capabilities_t& capabilities);
+
+  /// Checks imported resources against UE capabilities and configured limits without changing the current context.
+  /// Returns false if a RedCap DRB count or PDCP SN length is unsupported.
+  bool validate_context(const up_context& ctx, const rrc_ue_capabilities_t& capabilities) const;
 
   const std::map<pdu_session_id_t, up_pdu_session_context>& get_pdu_sessions_map() const;
 

@@ -314,6 +314,23 @@ protected:
     }
   }
 
+  void test_shifted()
+  {
+    const unsigned          bitset_size = this->get_random_size();
+    const std::vector<bool> vec         = this->create_random_vector(bitset_size);
+    bitset_type             bitmap(vec.begin(), vec.end());
+
+    const unsigned new_size = test_rng::uniform_int<unsigned>(0, bitset_type::max_size());
+    const unsigned offset   = test_rng::uniform_int<unsigned>(0, new_size);
+
+    bitset_type shifted_bitmap = bitmap.shifted(offset, new_size);
+    ASSERT_EQ(shifted_bitmap.size(), new_size);
+    for (unsigned i = 0; i != new_size; ++i) {
+      const bool expected = i >= offset and i - offset < bitset_size and bitmap.test(i - offset);
+      ASSERT_EQ(shifted_bitmap.test(i), expected) << "mismatch at position " << i << " with offset " << offset;
+    }
+  }
+
   void test_resize_keeps_existing_bit_values()
   {
     const unsigned large_size   = this->get_random_size(2);
@@ -464,6 +481,7 @@ TYPED_TEST(bounded_bitset_tester, all_tests_combined)
   this->test_fill_ones();
   this->test_fill_zeros();
   this->test_slice();
+  this->test_shifted();
   this->test_resize_keeps_existing_bit_values();
   this->test_copy_preserves_size_and_values();
   this->test_binary_format_is_mirror_of_binary_format_reverse();

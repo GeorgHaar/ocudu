@@ -299,7 +299,7 @@ static pucch_processor_factory& get_pucch_processor_factory()
   std::shared_ptr<pseudo_random_generator_factory> prg_factory = create_pseudo_random_generator_sw_factory();
   report_fatal_error_if_not(prg_factory, "prg_factory");
 
-  std::shared_ptr<dft_processor_factory> dft_factory = create_dft_processor_factory_fftw_slow();
+  std::shared_ptr<dft_processor_factory> dft_factory = create_dft_processor_factory();
   report_fatal_error_if_not(dft_factory, "dft_factory");
 
   std::shared_ptr<transform_precoder_factory> precoding_factory =

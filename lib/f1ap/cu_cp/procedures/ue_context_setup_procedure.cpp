@@ -89,8 +89,6 @@ bool ue_context_setup_procedure::find_or_create_f1ap_ue_context()
   ue_ctxt = ue_ctxt_list.find(request.ue_index);
   if (ue_ctxt != nullptr) {
     logger.debug("{}: UE context found", f1ap_ue_log_prefix{ue_ctxt->ue_ids, name()});
-    // Reset release state so the context can be released again if needed (e.g. RRC Resume flow).
-    ue_ctxt->reset_release_state(); // TODO: This is a temporary solution, F1AP context should not be reused
     return true;
   }
 
@@ -213,8 +211,7 @@ f1ap_ue_context_setup_response ue_context_setup_procedure::handle_procedure_resu
   } else if (transaction_sink.cancelled()) {
     // The transaction was cancelled because the F1AP UE context is being torn down (e.g. F1AP/DU stop). The
     // standard UE removal path removes this UE context.
-    logger.warning("{} cancelled. Cause: F1AP UE context is being torn down",
-                   f1ap_ue_log_prefix{ue_ctxt->ue_ids, name()});
+    logger.info("{} cancelled. Cause: F1AP UE context is being torn down", f1ap_ue_log_prefix{ue_ctxt->ue_ids, name()});
     return resp;
   } else {
     logger.warning("{} failed. Cause: Timeout reached while waiting for DU response, timeout={}ms",

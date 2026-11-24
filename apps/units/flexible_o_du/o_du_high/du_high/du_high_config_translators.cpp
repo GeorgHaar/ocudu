@@ -524,6 +524,10 @@ static ntn_cell_params make_ntn_cell_params(const du_high_unit_ntn_serving_cell_
         cfg.ta_report_sr_enabled};
   }
 
+  if (cfg.ue_specific_koffset_enabled) {
+    ntn.ue_koffset_cfg = ue_koffset_config{cfg.ue_specific_koffset_margin};
+  }
+
   // Derived from PUSCH config.
   ntn.ul_harq_mode_b = ul_harq_mode_b;
 
@@ -915,6 +919,8 @@ std::vector<odu::du_cell_config> ocudu::generate_du_cell_config(const du_high_un
     out_cell.ran.init_bwp.pdsch.additional_positions =
         uint_to_dmrs_additional_positions(base_cell.pdsch_cfg.dmrs_add_pos);
     out_cell.ran.init_bwp.pdsch.interleaving_bundle_size = base_cell.pdsch_cfg.interleaving_bundle_size;
+    out_cell.ran.init_bwp.pdsch.res_alloc                = base_cell.pdsch_cfg.res_alloc;
+    out_cell.ran.init_bwp.pdsch.rbg_sz                   = base_cell.pdsch_cfg.rbg_sz;
     // > PUSCH
     out_cell.ran.init_bwp.pusch.min_k2                      = base_cell.pusch_cfg.min_k2;
     out_cell.ran.init_bwp.pusch.transform_precoding_enabled = base_cell.pusch_cfg.enable_transform_precoding;
@@ -1178,7 +1184,8 @@ std::vector<odu::du_cell_config> ocudu::generate_du_cell_config(const du_high_un
     if (user_cg_cfg.periodicity_slots.has_value()) {
       cg_builder_params du_cg_params{};
       du_cg_params.periodicity = static_cast<cg_configuration::periodicity_t>(user_cg_cfg.periodicity_slots.value());
-      du_cg_params.mcs         = user_cg_cfg.mcs;
+      du_cg_params.type = user_cg_cfg.type2 ? cg_builder_params::cg_type::type2 : cg_builder_params::cg_type::type1;
+      du_cg_params.mcs  = user_cg_cfg.mcs;
       du_cg_params.nof_harq_processes  = user_cg_cfg.nof_harq_processes;
       du_cg_params.max_nof_cell_cg_rbs = user_cg_cfg.max_nof_cell_cg_rbs;
       // The requested bitrate, when set, takes precedence over the grant size.

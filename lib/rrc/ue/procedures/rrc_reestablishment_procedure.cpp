@@ -6,6 +6,7 @@
 #include "rrc_reestablishment_procedure.h"
 #include "rrc_setup_procedure.h"
 #include "ue/rrc_asn1_converters.h"
+#include "ue/rrc_asn1_helpers.h"
 #include "ue/rrc_ue_helpers.h"
 #include "ue/rrc_ue_security_helpers.h"
 #include "ocudu/adt/format.h"
@@ -73,6 +74,10 @@ void rrc_reestablishment_procedure::operator()(coro_context<async_task<void>>& c
   }
 
   if (not is_context_retrieved()) {
+    if (not validate_reestablishment_context()) {
+      CORO_AWAIT(handle_rrc_reestablishment_fallback());
+      CORO_EARLY_RETURN();
+    }
     // Transfer old UE context to new UE context. If it fails, resort to fallback.
     CORO_AWAIT_VALUE(context_transfer_success, cu_cp_notifier.on_ue_transfer_required(old_ue_reest_context.ue_index));
     if (not context_transfer_success) {
@@ -93,7 +98,15 @@ void rrc_reestablishment_procedure::operator()(coro_context<async_task<void>>& c
       CORO_EARLY_RETURN();
     }
   } else {
-    transfer_reestablishment_context_and_update_keys();
+    if (not transfer_reestablishment_context_and_update_keys()) {
+      // The protocol contexts have moved, so an unexpected import failure requires release.
+      logger.log_warning("Could not set up the validated UP context after UE context transfer");
+      ue_context_release_request.ue_index = context.ue_index;
+      ue_context_release_request.cause    = ngap_cause_radio_network_t::unspecified;
+      CORO_AWAIT(cu_cp_notifier.on_ue_release_required(ue_context_release_request));
+      cu_cp_notifier.on_rrc_reestablishment_complete(old_ue_reest_context.ue_index);
+      CORO_EARLY_RETURN();
+    }
   }
 
   // Create SRB1.
@@ -113,7 +126,9 @@ void rrc_reestablishment_procedure::operator()(coro_context<async_task<void>>& c
   // Await UE response.
   CORO_AWAIT(transaction);
 
-  if (transaction.has_response()) {
+  if (transaction.has_response() and
+      is_ul_dcch_c1_msg(transaction.response(),
+                        asn1::rrc_nr::ul_dcch_msg_type_c::c1_c_::types_opts::rrc_reest_complete)) {
     context.state = rrc_state::connected;
 
     // Notify metrics about successful RRC connection reestablishment.
@@ -136,11 +151,18 @@ void rrc_reestablishment_procedure::operator()(coro_context<async_task<void>>& c
       logger.log_info("\"{}\" for old_ue={} finished successfully", name(), old_ue_reest_context.ue_index);
     }
 
-  } else {
+  } else if (transaction.has_response()) {
+    logger.log_warning("\"{}\" for old_ue={} failed. Cause: unexpected {} in place of RRC Reestablishment Complete",
+                       name(),
+                       old_ue_reest_context.ue_index,
+                       get_rrc_message_name(transaction.response()));
+  } else if (transaction.failure_cause() == protocol_transaction_failure::timeout) {
     logger.log_warning("\"{}\" for old_ue={} failed. Cause: timed out after {}ms",
                        name(),
                        old_ue_reest_context.ue_index,
                        procedure_timeout.count());
+  } else {
+    logger.log_info("\"{}\" for old_ue={} cancelled", name(), old_ue_reest_context.ue_index);
   }
 
   // Notify CU-CP to remove the old UE. A retrieved context has no local old UE; the peer's context is released over Xn
@@ -195,9 +217,10 @@ rrc_reestablishment_procedure::is_local_reestablishment_accepted()
   // Notify the CU-CP about the reestablishment. This will return the old RRC UE context if it exists.
   // Note that this needs to be run before any other sanity check, as it will also cancel an possibly ongoing handover
   // transaction for the old UE.
-  old_ue_reest_context =
-      cu_cp_notifier.on_rrc_reestablishment_request(reestablishment_request.rrc_reest_request.ue_id.pci,
-                                                    to_rnti(reestablishment_request.rrc_reest_request.ue_id.c_rnti));
+  old_ue_reest_context = cu_cp_notifier.on_rrc_reestablishment_request(
+      reestablishment_request.rrc_reest_request.ue_id.pci,
+      to_rnti(reestablishment_request.rrc_reest_request.ue_id.c_rnti),
+      asn1_to_reest_cause(reestablishment_request.rrc_reest_request.reest_cause.value));
 
   if (context.cfg.force_reestablishment_fallback) {
     log_rejected_reestablishment("RRC Reestablishments were disabled by the app configuration");
@@ -272,21 +295,34 @@ bool rrc_reestablishment_procedure::verify_security_context()
       logger);
 }
 
-void rrc_reestablishment_procedure::transfer_reestablishment_context_and_update_keys()
+bool rrc_reestablishment_procedure::validate_reestablishment_context()
 {
-  // Store capabilities if available.
+  imported_capabilities = context.capabilities;
   if (old_ue_reest_context.capabilities_list.has_value()) {
-    context.capabilities_list = ue_cap_rat_container_list_to_asn1(old_ue_reest_context.capabilities_list.value());
-
-    // Store parsed capabilities.
-    std::optional<rrc_ue_capabilities_t> caps = get_capabilities(context.capabilities_list.value(), logger);
-    if (caps.has_value()) {
-      context.capabilities = caps.value();
+    auto capabilities =
+        get_capabilities(ue_cap_rat_container_list_to_asn1(*old_ue_reest_context.capabilities_list), logger);
+    if (not capabilities.has_value()) {
+      log_rejected_reestablishment("Invalid imported UE capabilities");
+      return false;
     }
+    imported_capabilities = *capabilities;
   }
+  if (not cu_cp_notifier.on_up_context_validation_required(old_ue_reest_context.up_ctx, imported_capabilities)) {
+    log_rejected_reestablishment("Imported UP context is incompatible with UE capabilities or configured limits");
+    return false;
+  }
+  return true;
+}
 
-  // Transfer UP context from old UE.
-  cu_cp_notifier.on_up_context_setup_required(old_ue_reest_context.up_ctx);
+bool rrc_reestablishment_procedure::transfer_reestablishment_context_and_update_keys()
+{
+  if (not cu_cp_notifier.on_up_context_setup_required(old_ue_reest_context.up_ctx, imported_capabilities)) {
+    return false;
+  }
+  if (old_ue_reest_context.capabilities_list.has_value()) {
+    context.capabilities_list = ue_cap_rat_container_list_to_asn1(*old_ue_reest_context.capabilities_list);
+  }
+  context.capabilities = imported_capabilities;
 
   // Transfer the ongoing location measurements from old UE.
   if (old_ue_reest_context.location_meas_info.has_value()) {
@@ -299,6 +335,7 @@ void rrc_reestablishment_procedure::transfer_reestablishment_context_and_update_
   cu_cp_ue_notifier.update_security_context(old_ue_reest_context.sec_context);
   cu_cp_ue_notifier.perform_horizontal_key_derivation(context.cell.pci, ssb_arfcn);
   logger.log_debug("Refreshed keys horizontally. pci={} ssb-arfcn_f_ref={}", context.cell.pci, ssb_arfcn);
+  return true;
 }
 
 bool rrc_reestablishment_procedure::transfer_retrieved_context_and_update_keys()

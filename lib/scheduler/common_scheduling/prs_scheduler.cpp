@@ -182,7 +182,8 @@ void prs_scheduler::schedule_slot(cell_slot_resource_allocator& slot_alloc)
         continue;
       }
 
-      if (slot_alloc.result.dl.prs.full()) {
+      auto prs_pdus = slot_alloc.result_builder().dl().prs();
+      if (prs_pdus.full()) {
         logger.error("Failed to allocate DL-PRS PDU in slot={}", slot_alloc.slot);
         return;
       }
@@ -190,7 +191,7 @@ void prs_scheduler::schedule_slot(cell_slot_resource_allocator& slot_alloc)
       // The resource grid is RB-granular, so the whole PRS bandwidth is reserved even though the resource only uses
       // one subcarrier out of every comb size. There is no PDSCH rate matching around DL-PRS.
       const prs_info& pdu = cached_pdus[set.first_pdu_idx + r];
-      slot_alloc.result.dl.prs.push_back(pdu);
+      prs_pdus.emplace_back(pdu);
       slot_alloc.dl_res_grid.fill(grant_info{pdu.scs, pdu.symbols, pdu.crbs});
     }
   }

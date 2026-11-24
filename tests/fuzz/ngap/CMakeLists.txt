@@ -52,3 +52,5 @@ add_dependencies(fuzz_targets
     ngap_pdu_decoder_fuzzer
     ngap_cu_cp_fuzzer
 )
+
+add_fuzz_corpus(ngap_fuzz_corpus seeds.py)

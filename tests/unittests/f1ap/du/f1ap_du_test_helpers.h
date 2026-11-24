@@ -17,6 +17,7 @@
 #include "ocudu/mac/mac_paging_information_handler.h"
 #include "ocudu/support/async/async_no_op_task.h"
 #include "ocudu/support/async/fifo_async_task_scheduler.h"
+#include "ocudu/support/async/protocol_transaction_manager.h"
 #include "ocudu/support/executors/manual_task_worker.h"
 #include "ocudu/support/ocudu_assert.h"
 #include <gtest/gtest.h>
@@ -57,8 +58,15 @@ public:
   du_e_cid_meas_response                                 next_e_cid_meas_response;
 
   // F1AP procedures.
-  std::optional<gnbcu_config_update_request>      last_cu_upd_req;
-  gnbcu_config_update_response                    next_cu_upd_resp;
+  std::optional<gnbcu_config_update_request> last_cu_upd_req;
+  gnbcu_config_update_response               next_cu_upd_resp;
+  /// Gate for a UE creation response held by a test.
+  manual_event_flag ue_creation_ready;
+  bool              hold_ue_creation = false;
+  /// Gate for a UE configuration response held by a test.
+  manual_event_flag ue_configuration_ready;
+  bool              hold_ue_configuration = false;
+
   std::optional<f1ap_ue_context_creation_request> last_ue_context_creation_req;
   f1ap_ue_context_creation_response               next_ue_context_creation_response;
   std::optional<f1ap_ue_context_update_request>   last_ue_context_update_req;
@@ -70,7 +78,10 @@ public:
   std::optional<du_positioning_meas_request>      last_positioning_meas_request;
   std::optional<du_e_cid_meas_request>            last_e_cid_meas_request;
 
-  explicit dummy_f1ap_du_configurator(timer_factory& timers_) : timers(timers_), task_loop(128), ue_sched(this) {}
+  explicit dummy_f1ap_du_configurator(timer_factory& timers_) :
+    timers(timers_), task_loop(128), ue_sched(this), held_measurements(MAX_NOF_HELD_MEASUREMENTS, timers_)
+  {
+  }
 
   void connect(f1ap_du& f1ap_) { f1ap = &f1ap_; }
 
@@ -95,17 +106,24 @@ public:
 
   du_ue_index_t find_free_ue_index() override { return next_ue_creation_req.ue_index; }
 
+  /// Creates the F1AP UE context and optionally waits before returning the DU response.
   async_task<f1ap_ue_context_creation_response>
   request_ue_creation(const f1ap_ue_context_creation_request& request) override
   {
     last_ue_context_creation_req = request;
     return launch_async([this](coro_context<async_task<f1ap_ue_context_creation_response>>& ctx) {
       CORO_BEGIN(ctx);
-      last_ue_creation_response = f1ap->handle_ue_creation_request(next_ue_creation_req);
+      if (hold_ue_creation) {
+        CORO_AWAIT(ue_creation_ready);
+      }
+      if (next_ue_context_creation_response.result) {
+        last_ue_creation_response = f1ap->handle_ue_creation_request(next_ue_creation_req);
+      }
       CORO_RETURN(next_ue_context_creation_response);
     });
   }
 
+  /// Configures the F1AP UE context and optionally waits before returning the DU response.
   async_task<f1ap_ue_context_update_response>
   request_ue_context_update(const f1ap_ue_context_update_request& request) override
   {
@@ -113,6 +131,9 @@ public:
     return launch_async([this](coro_context<async_task<f1ap_ue_context_update_response>>& ctx) {
       CORO_BEGIN(ctx);
       last_ue_cfg_response = f1ap->handle_ue_configuration_request(next_ue_cfg_req);
+      if (hold_ue_configuration) {
+        CORO_AWAIT(ue_configuration_ready);
+      }
       CORO_RETURN(next_ue_context_update_response);
     });
   }
@@ -170,14 +191,55 @@ public:
   request_positioning_measurement(const du_positioning_meas_request& req) override
   {
     last_positioning_meas_request = req;
-    return launch_no_op_task(du_positioning_meas_response{next_positioning_meas_response});
+    ++nof_positioning_meas_requests;
+    return wait_for_measurement(du_positioning_meas_response{next_positioning_meas_response});
   }
 
   async_task<du_e_cid_meas_response> request_e_cid_measurement(const du_e_cid_meas_request& req) override
   {
     last_e_cid_meas_request = req;
-    return launch_no_op_task(du_e_cid_meas_response{next_e_cid_meas_response});
+    ++nof_e_cid_meas_requests;
+    return wait_for_measurement(du_e_cid_meas_response{next_e_cid_meas_response});
   }
+
+  /// Maximum number of measurements that wait at the same time.
+  static constexpr unsigned MAX_NOF_HELD_MEASUREMENTS = 16;
+
+  /// When set, the positioning measurements wait until the test calls \c release_measurements.
+  bool     hold_measurements             = false;
+  unsigned nof_positioning_meas_requests = 0;
+  unsigned nof_e_cid_meas_requests       = 0;
+
+  /// Completes the held measurements whose procedures still exist.
+  void release_measurements()
+  {
+    // The transaction of a procedure destroyed while it waits no longer exists, so its response is dropped.
+    auto ids = std::move(held_measurement_ids);
+    for (protocol_transaction_id_t id : ids) {
+      (void)held_measurements.set_response(id, true);
+    }
+  }
+
+  /// Returns the measurement response right away, or once the test releases the held measurements.
+  template <typename Response>
+  async_task<Response> wait_for_measurement(Response resp)
+  {
+    if (not hold_measurements) {
+      return launch_no_op_task(std::move(resp));
+    }
+    protocol_transaction<bool> transaction = held_measurements.create_transaction();
+    held_measurement_ids.push_back(transaction.id());
+    return launch_async([transaction = std::move(transaction),
+                         resp        = std::move(resp)](coro_context<async_task<Response>>& ctx) mutable {
+      CORO_BEGIN(ctx);
+      CORO_AWAIT(transaction);
+      CORO_RETURN(std::move(resp));
+    });
+  }
+
+  /// Transactions of the held measurements, owned by the waiting tasks.
+  protocol_transaction_manager<bool>     held_measurements;
+  std::vector<protocol_transaction_id_t> held_measurement_ids;
 
   /// \brief Retrieve task scheduler specific to a given UE.
   f1ap_ue_task_scheduler& get_ue_handler(du_ue_index_t ue_index) override { return ue_sched; }
@@ -237,6 +299,9 @@ public:
     return ret;
   }
   void clear_tx_pdus() { tx_f1ap_pdus.clear(); }
+
+  /// Takes down the F1-C Rx path, as on a loss of the connection with the CU-CP.
+  void lose_connection() { du_rx_pdu_notifier.reset(); }
 
   std::unique_ptr<f1ap_message_notifier>
   handle_du_connection_request(std::unique_ptr<f1ap_message_notifier> du_rx_pdu_notifier) override;

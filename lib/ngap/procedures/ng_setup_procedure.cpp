@@ -5,7 +5,7 @@
 
 #include "ng_setup_procedure.h"
 #include "../ngap_asn1_validators.h"
-#include "ocudu/asn1/asn1_utils.h"
+#include "ocudu/asn1/asn1_dispatch.h"
 #include "ocudu/asn1/ngap/common.h"
 #include "ocudu/ngap/ngap_setup.h"
 #include "ocudu/support/async/async_timer.h"
@@ -133,17 +133,18 @@ ngap_ng_setup_result ng_setup_procedure::create_ng_setup_result()
 
   ngap_ng_setup_response response = create_ngap_ng_setup_response(transaction_sink.response());
 
-  context.served_guami_list.clear();
-  for (const auto& guami_item : response.served_guami_list) {
-    context.served_guami_list.push_back(guami_item.guami);
-  }
-  context.amf_name = response.amf_name;
+  context.served_guami_list     = response.served_guami_list;
+  context.relative_amf_capacity = response.relative_amf_capacity;
+  context.plmn_support_list     = response.plmn_support_list;
+  context.amf_name              = response.amf_name;
+  context.unavailable_guami_list.clear();
+  context.overload.reset();
 
   // Capture packed request bytes.
   {
     byte_buffer   packed{byte_buffer::fallback_allocation_tag{}};
     asn1::bit_ref bref(packed);
-    if (request.pdu.pack(bref) == asn1::OCUDUASN_SUCCESS) {
+    if (asn1::pack(bref, request.pdu) == asn1::OCUDUASN_SUCCESS) {
       response.packed_ng_setup_request = std::move(packed);
     } else {
       logger.debug("\"{}\": failed to pack NGSetupRequest", name());
@@ -157,7 +158,7 @@ ngap_ng_setup_result ng_setup_procedure::create_ng_setup_result()
     resp_pdu.successful_outcome().value.ng_setup_resp() = transaction_sink.response();
     byte_buffer   packed{byte_buffer::fallback_allocation_tag{}};
     asn1::bit_ref bref(packed);
-    if (resp_pdu.pack(bref) == asn1::OCUDUASN_SUCCESS) {
+    if (asn1::pack(bref, resp_pdu) == asn1::OCUDUASN_SUCCESS) {
       response.packed_ng_setup_response = std::move(packed);
     } else {
       logger.debug("\"{}\": failed to pack NGSetupResponse", name());
@@ -197,36 +198,13 @@ ng_setup_procedure::create_ngap_ng_setup_response(const asn1::ngap::ng_setup_res
   response.amf_name = asn1_response->amf_name.to_string();
 
   // Fill served GUAMI list.
-  for (const auto& asn1_served_guami_item : asn1_response->served_guami_list) {
-    ngap_served_guami_item served_guami_item = {};
-    // Note: The GUAMI is checked in the validation function, so it is safe to access it here.
-    served_guami_item.guami = asn1_to_guami(asn1_served_guami_item.guami).value();
-    if (asn1_served_guami_item.backup_amf_name_present) {
-      served_guami_item.backup_amf_name = asn1_served_guami_item.backup_amf_name.to_string();
-    }
-    response.served_guami_list.push_back(served_guami_item);
-  }
+  response.served_guami_list = asn1_to_served_guami_list(asn1_response->served_guami_list);
 
   // Fill relative AMF capacity.
   response.relative_amf_capacity = asn1_response->relative_amf_capacity;
 
   // Fill PLMN support list.
-  for (const auto& asn1_plmn_support_item : asn1_response->plmn_support_list) {
-    ngap_plmn_support_item plmn_support_item = {};
-    plmn_support_item.plmn_id                = asn1_plmn_support_item.plmn_id.to_string();
-
-    for (const auto& asn1_slice_support_item : asn1_plmn_support_item.slice_support_list) {
-      slice_support_item_t slice_support_item = {};
-      slice_support_item.s_nssai.sst = slice_service_type{(uint8_t)asn1_slice_support_item.s_nssai.sst.to_number()};
-      if (asn1_slice_support_item.s_nssai.sd_present) {
-        // Note: The SD is checked in the validation function, so it is safe to access it here.
-        slice_support_item.s_nssai.sd =
-            slice_differentiator::create(asn1_slice_support_item.s_nssai.sd.to_number()).value();
-      }
-      plmn_support_item.slice_support_list.push_back(slice_support_item);
-    }
-    response.plmn_support_list.push_back(plmn_support_item);
-  }
+  response.plmn_support_list = asn1_to_plmn_support_list(asn1_response->plmn_support_list);
 
   // TODO: Add missing optional values.
 

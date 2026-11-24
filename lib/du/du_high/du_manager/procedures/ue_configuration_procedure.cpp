@@ -4,6 +4,7 @@
 // Portions of this file may implement 3GPP specifications, which may be subject to additional licensing requirements.
 
 #include "ue_configuration_procedure.h"
+#include "../converters/asn1_cell_group_release_helpers.h"
 #include "../converters/asn1_rrc_config_helpers.h"
 #include "../converters/rlc_config_helpers.h"
 #include "../converters/scheduler_configuration_helpers.h"
@@ -47,7 +48,7 @@ void ue_configuration_procedure::operator()(coro_context<async_task<f1ap_ue_cont
   if (not changed_detected()) {
     // Nothing to do (e.g. No SCells, DRBs or SRBs to setup or release)
     proc_logger.log_proc_completed();
-    CORO_EARLY_RETURN(make_empty_ue_config_response());
+    CORO_EARLY_RETURN(request.gnb_du_cfg_query ? make_ue_config_query_response() : make_empty_ue_config_response());
   }
 
   if (not handle_conditional_mobility_request()) {
@@ -341,13 +342,15 @@ f1ap_ue_context_update_response ue_configuration_procedure::make_ue_config_respo
 
   // > Calculate ASN.1 CellGroupConfig to be sent in DU-to-CU container.
   ue->reestablished_ue_caps_summary = nullptr;
-  asn1::rrc_nr::cell_group_cfg_s asn1_cell_group;
+  asn1::rrc_nr::cell_group_cfg_s                asn1_cell_group;
+  std::optional<asn1::rrc_nr::cell_group_cfg_s> src_cell_group;
+  const cell_rrm_config&                        pcell_rrm = cell_mng.get_cell_rrm_cfg(ue->pcell_index);
   if (ue->reestablished_cfg_pending != nullptr) {
     // In case of reestablishment, we send the full configuration to the UE but without an SRB1 and with SRB2 and DRBs
     // set to "RLCReestablish".
     ue->reestablished_cfg_pending = nullptr;
 
-    calculate_cell_group_config_diff(asn1_cell_group, du_ue_resource_config{}, ue->resources.value());
+    calculate_cell_group_config_diff(asn1_cell_group, du_ue_resource_config{}, ue->resources.value(), pcell_rrm);
     auto it = std::find_if(asn1_cell_group.rlc_bearer_to_add_mod_list.begin(),
                            asn1_cell_group.rlc_bearer_to_add_mod_list.end(),
                            [](const auto& b) { return b.lc_ch_id == LCID_SRB1; });
@@ -361,28 +364,34 @@ f1ap_ue_context_update_response ue_configuration_procedure::make_ue_config_respo
     }
   } else if (request.full_config_required) {
     // The CU requested a full configuration of the UE cellGroupConfig.
-    calculate_cell_group_config_diff(asn1_cell_group, {}, ue->resources.value());
+    calculate_cell_group_config_diff(asn1_cell_group, {}, ue->resources.value(), pcell_rrm);
     resp.full_config_present = true;
 
   } else if (not request.source_cell_group_cfg.empty()) {
-    // In case of source cell group configuration is passed, a delta configuration should be generated with it.
-    // TODO: Apply diff using sourceCellGroup. For now, we use fullConfig.
-    calculate_cell_group_config_diff(asn1_cell_group, {}, ue->resources.value());
+    // If the CU passes the source cell group configuration, generate a delta configuration to it.
+    // [Implementation-defined] The delta contains the complete configuration of the UE and releases the elements that
+    // only the source configures.
+    calculate_cell_group_config_diff(asn1_cell_group, {}, ue->resources.value(), pcell_rrm);
     resp.full_config_present = false;
-    auto* it                 = std::find_if(asn1_cell_group.rlc_bearer_to_add_mod_list.begin(),
+    src_cell_group.emplace();
+    asn1::cbit_ref src_bref{request.source_cell_group_cfg};
+    if (asn1::unpack(*src_cell_group, src_bref) == asn1::OCUDUASN_SUCCESS) {
+      calculate_cell_group_config_release(asn1_cell_group, *src_cell_group);
+    } else {
+      proc_logger.log_proc_warning("Failed to unpack the source cellGroupConfig. The delta does not release source "
+                                   "elements and re-establishes all RLC bearers");
+      src_cell_group.reset();
+    }
+    auto* it = std::find_if(asn1_cell_group.rlc_bearer_to_add_mod_list.begin(),
                             asn1_cell_group.rlc_bearer_to_add_mod_list.end(),
                             [](const auto& b) { return b.lc_ch_id == LCID_SRB1; });
     if (it != asn1_cell_group.rlc_bearer_to_add_mod_list.end()) {
       asn1_cell_group.rlc_bearer_to_add_mod_list.erase(it);
     }
-    for (auto& b : asn1_cell_group.rlc_bearer_to_add_mod_list) {
-      b.rlc_cfg_present         = false;
-      b.mac_lc_ch_cfg_present   = false;
-      b.reestablish_rlc_present = true;
-    }
+    set_rlc_bearers_to_reestablish(asn1_cell_group, src_cell_group);
 
   } else {
-    calculate_cell_group_config_diff(asn1_cell_group, prev_ue_res_cfg, ue->resources.value());
+    calculate_cell_group_config_diff(asn1_cell_group, prev_ue_res_cfg, ue->resources.value(), pcell_rrm);
   }
 
   // Include RRC ReconfigWithSync if HandoverPreparationInformation is included.
@@ -403,7 +412,7 @@ f1ap_ue_context_update_response ue_configuration_procedure::make_ue_config_respo
     asn1::rrc_nr::ho_prep_info_s ho_prep_info;
     {
       asn1::cbit_ref      bref{request.ho_prep_info};
-      asn1::OCUDUASN_CODE code = ho_prep_info.unpack(bref);
+      asn1::OCUDUASN_CODE code = asn1::unpack(ho_prep_info, bref);
       if (code != asn1::OCUDUASN_SUCCESS) {
         proc_logger.log_proc_failure("Failed to unpack HandoverPreparation IE");
         return make_ue_config_failure();
@@ -462,7 +471,7 @@ f1ap_ue_context_update_response ue_configuration_procedure::make_ue_config_respo
   // Pack cellGroupConfig.
   {
     asn1::bit_ref       bref{resp.cell_group_cfg};
-    asn1::OCUDUASN_CODE code = asn1_cell_group.pack(bref);
+    asn1::OCUDUASN_CODE code = asn1::pack(bref, asn1_cell_group);
     ocudu_assert(code == asn1::OCUDUASN_SUCCESS, "Invalid cellGroupConfig");
   }
 
@@ -474,10 +483,27 @@ f1ap_ue_context_update_response ue_configuration_procedure::make_ue_config_respo
     // Pack measGapConfig.
     {
       asn1::bit_ref       bref{resp.meas_gap_cfg};
-      asn1::OCUDUASN_CODE code = meas_gap.pack(bref);
+      asn1::OCUDUASN_CODE code = asn1::pack(bref, meas_gap);
       ocudu_assert(code == asn1::OCUDUASN_SUCCESS, "Invalid measGapConfig");
     }
   }
+
+  return resp;
+}
+
+f1ap_ue_context_update_response ue_configuration_procedure::make_ue_config_query_response() const
+{
+  f1ap_ue_context_update_response resp;
+  resp.result = true;
+
+  // [Implementation-defined] Only a query without changes gets the complete cellGroupConfig. With changes, the
+  // response carries their delta, because the CU-CP uses it for the RRC reconfiguration of the UE.
+  asn1::rrc_nr::cell_group_cfg_s asn1_cell_group;
+  calculate_cell_group_config_diff(
+      asn1_cell_group, {}, ue->resources.value(), cell_mng.get_cell_rrm_cfg(ue->pcell_index));
+  asn1::bit_ref       bref{resp.cell_group_cfg};
+  asn1::OCUDUASN_CODE code = asn1::pack(bref, asn1_cell_group);
+  ocudu_assert(code == asn1::OCUDUASN_SUCCESS, "Invalid cellGroupConfig");
 
   return resp;
 }
@@ -494,6 +520,21 @@ f1ap_ue_context_update_response ue_configuration_procedure::make_empty_ue_config
   f1ap_ue_context_update_response resp;
   resp.result = true;
   return resp;
+}
+
+void ue_configuration_procedure::set_rlc_bearers_to_reestablish(
+    asn1::rrc_nr::cell_group_cfg_s&                      cell_group,
+    const std::optional<asn1::rrc_nr::cell_group_cfg_s>& src_cell_group)
+{
+  if (src_cell_group.has_value()) {
+    calculate_rlc_bearer_reestablishment(cell_group, *src_cell_group);
+    return;
+  }
+  for (auto& b : cell_group.rlc_bearer_to_add_mod_list) {
+    b.rlc_cfg_present         = false;
+    b.mac_lc_ch_cfg_present   = false;
+    b.reestablish_rlc_present = true;
+  }
 }
 
 bool ue_configuration_procedure::changed_detected() const

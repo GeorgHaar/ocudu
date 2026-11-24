@@ -37,7 +37,6 @@ pdu_session_manager_impl::pdu_session_manager_impl(cu_up_ue_index_t             
   logger(dependencies.logger),
   ue_inactivity_timer(dependencies.ue_inactivity_timer),
   ue_dl_timer_factory(dependencies.ue_dl_timer_factory),
-  ue_ul_timer_factory(dependencies.ue_ul_timer_factory),
   ue_ctrl_timer_factory(dependencies.ue_ctrl_timer_factory),
   ngu_teid_allocator(dependencies.ngu_teid_allocator),
   xnu_teid_allocator(dependencies.xnu_teid_allocator),
@@ -76,6 +75,17 @@ pdu_session_setup_result pdu_session_manager_impl::setup_pdu_session(const e1ap_
   if (pdu_sessions.size() >= MAX_NUM_PDU_SESSIONS_PER_UE) {
     logger.log_error("PDU Session for {} cannot be created. Max number of PDU sessions reached",
                      session.pdu_session_id);
+    return pdu_session_result;
+  }
+
+  // Select the NG-U (N3) gateway of the PDU session from its S-NSSAI.
+  gtpu_tnl_pdu_session* ngu_gw = ngu_session_mngr.get_next_ngu_gateway(session.snssai);
+  if (ngu_gw == nullptr) {
+    logger.log_warning("Failed to create PDU session. Cause: no NG-U socket serves the slice. {} sst={} sd={:#x}",
+                       session.pdu_session_id,
+                       session.snssai.sst.value(),
+                       session.snssai.sd.value());
+    pdu_session_result.cause = e1ap_cause_radio_network_t::res_not_available_for_the_slice;
     return pdu_session_result;
   }
 
@@ -121,10 +131,8 @@ pdu_session_setup_result pdu_session_manager_impl::setup_pdu_session(const e1ap_
                    ul_tunnel_info.tp_address);
 
   // Advertise either local or external IP address of NG-U (N3) interface
-  // TODO select correct GW based on slice or UE info.
-  std::string           ngu_addr;
-  gtpu_tnl_pdu_session& ngu_gw = ngu_session_mngr.get_next_ngu_gateway();
-  if (not ngu_gw.get_bind_address(ngu_addr)) {
+  std::string ngu_addr;
+  if (not ngu_gw->get_bind_address(ngu_addr)) {
     report_error("Could not get NG-U bind address to report to core.");
   }
   pdu_session_result.gtp_tunnel =
@@ -158,7 +166,7 @@ pdu_session_setup_result pdu_session_manager_impl::setup_pdu_session(const e1ap_
   // Connect adapters
   new_session->sdap_to_gtpu_adapter.connect_gtpu(*new_session->gtpu->get_tx_lower_layer_interface());
   new_session->gtpu_to_sdap_adapter.connect_sdap(new_session->sdap->get_sdap_tx_sdu_handler());
-  new_session->gtpu_to_udp_adapter.connect_network_gateway(ngu_gw);
+  new_session->gtpu_to_udp_adapter.connect_network_gateway(*ngu_gw);
 
   // Register tunnel at demux
   expected<std::unique_ptr<gtpu_demux_dispatch_queue>> expected_dispatch_queue =
@@ -342,8 +350,6 @@ drb_setup_result pdu_session_manager_impl::handle_drb_to_setup_item(pdu_session&
   pdcp_msg.tx_upper_cn                         = &new_drb->pdcp_tx_to_cu_up_mngr_adapter;
   pdcp_msg.rx_upper_dn                         = &new_drb->pdcp_to_sdap_adapter;
   pdcp_msg.rx_upper_cn                         = &new_drb->pdcp_rx_to_cu_up_mngr_adapter;
-  pdcp_msg.ue_dl_timer_factory                 = ue_dl_timer_factory;
-  pdcp_msg.ue_ul_timer_factory                 = ue_ul_timer_factory;
   pdcp_msg.ue_ctrl_timer_factory               = ue_ctrl_timer_factory;
   pdcp_msg.ue_dl_executor                      = &ue_dl_exec;
   pdcp_msg.ue_ul_executor                      = &ue_ul_exec;

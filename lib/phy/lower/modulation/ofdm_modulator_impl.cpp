@@ -75,6 +75,11 @@ void ofdm_symbol_modulator_impl::modulate(span<ci16_t>                output,
                cp_len + dft_size,
                scs_to_khz(scs));
 
+  // The port weights include the phase compensation (TS 38.211, Section 5.4), the scale and the conversion to the
+  // 16-bit integer full scale, so the DFT output is the modulated signal in 16-bit integer units.
+  cf_t symbol_scale =
+      phase_compensation_table.get_coefficient(i_symbol_sf) * scale * ocuduvec::scaling_factor_cf_to_ci16;
+
   span<cf_t> lower_dft_input = dft->get_input().last(rg_size / 2);
   span<cf_t> upper_dft_input = dft->get_input().first(rg_size / 2);
 
@@ -103,6 +108,9 @@ void ofdm_symbol_modulator_impl::modulate(span<ci16_t>                output,
 
     // Extract resource grid.
     span<const cbf16_t> ofdm_symbol = grid.get_view(i_port, i_symbol);
+
+    // Apply the symbol scale to the port weight.
+    port_weight *= symbol_scale;
 
     // If it is empty, then apply the port weight on the entire OFDM symbol.
     if (is_empty && (!lower_subc_allocation.empty() || !upper_subc_allocation.empty())) {
@@ -139,15 +147,8 @@ void ofdm_symbol_modulator_impl::modulate(span<ci16_t>                output,
     return;
   }
 
-  // Execute DFT.
-  span<const cf_t> dft_output = dft->run();
-
-  // Get phase correction (TS138.211, Section 5.4)
-  cf_t phase_compensation = phase_compensation_table.get_coefficient(i_symbol_sf);
-
-  // Apply scaling and phase compensation, including the conversion from cf to ci16.
-  ocuduvec::sc_prod(
-      output.last(dft_size), dft_output, phase_compensation * scale * ocuduvec::scaling_factor_cf_to_ci16);
+  // Execute the DFT directly in the output, with the conversion to 16-bit integers.
+  dft->run(output.last(dft_size));
 
   // Copy cyclic prefix.
   ocuduvec::copy(output.first(cp_len), output.last(cp_len));

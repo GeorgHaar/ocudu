@@ -16,8 +16,9 @@ using namespace ocudu;
 /// Generates a lower PHY configuration from the given RU and cell configurations.
 static lower_phy_configuration generate_lower_phy_config(const flexible_o_du_ru_config::cell_config& config,
                                                          const ru_sdr_unit_config&                   ru_cfg,
-                                                         unsigned max_processing_delay_slot,
-                                                         unsigned sector_id)
+                                                         unsigned           max_processing_delay_slot,
+                                                         unsigned           sector_id,
+                                                         const std::string& dft_processor_type)
 {
   // Static configuration that the gnb supports.
   static constexpr cyclic_prefix cp = cyclic_prefix::NORMAL;
@@ -65,7 +66,8 @@ static lower_phy_configuration generate_lower_phy_config(const flexible_o_du_ru_
     out_cfg.baseband_rx_buffer_size_policy = lower_phy_baseband_buffer_size_policy::single_packet;
   }
 
-  out_cfg.gain_backoff_dB = ru_cfg.amplitude_cfg.gain_backoff_dB;
+  out_cfg.gain_backoff_dB    = ru_cfg.amplitude_cfg.gain_backoff_dB;
+  out_cfg.dft_processor_type = dft_processor_type;
 
   if (!is_valid_lower_phy_config(out_cfg)) {
     report_error("Invalid lower PHY configuration.\n");
@@ -92,9 +94,9 @@ static std::vector<std::string> split_rf_driver_args(const std::string& driver_a
   return result;
 }
 
-/// Finds the ZMQ ports within the given driver arguments. Returns a vector that contains with the ZMQ transmission or
-/// reception ports.
-static std::vector<std::string> extract_zmq_ports(const std::string& driver_args, const std::string& port_id)
+/// Finds the values of the driver arguments named \c port_id, for example the ZMQ endpoints or the DIFI ports and
+/// addresses, in the order they appear.
+static std::vector<std::string> extract_stream_args(const std::string& driver_args, const std::string& port_id)
 {
   std::vector<std::string> ports;
 
@@ -131,19 +133,23 @@ static void generate_radio_config(radio_configuration::radio&                   
   out_cfg.tx_mode          = radio_configuration::to_transmission_mode(ru_cfg.expert_cfg.transmission_mode);
   out_cfg.power_ramping_us = ru_cfg.expert_cfg.power_ramping_time_us;
 
-  std::vector<std::string> zmq_tx_addr = extract_zmq_ports(ru_cfg.device_arguments, "tx_port");
-  std::vector<std::string> zmq_rx_addr = extract_zmq_ports(ru_cfg.device_arguments, "rx_port");
+  std::vector<std::string> zmq_tx_addr = extract_stream_args(ru_cfg.device_arguments, "tx_port");
+  std::vector<std::string> zmq_rx_addr = extract_stream_args(ru_cfg.device_arguments, "rx_port");
 
   std::vector<std::string> difi_tx_ports;
   std::vector<std::string> difi_rx_ports;
   std::vector<std::string> difi_tx_addrs;
   std::vector<std::string> difi_rx_addrs;
   if (ru_cfg.device_driver == "difi") {
-    difi_tx_ports = extract_zmq_ports(ru_cfg.device_arguments, "tx_port");
-    difi_rx_ports = extract_zmq_ports(ru_cfg.device_arguments, "rx_port");
-    difi_tx_addrs = extract_zmq_ports(ru_cfg.device_arguments, "tx_addr");
-    difi_rx_addrs = extract_zmq_ports(ru_cfg.device_arguments, "rx_addr");
+    difi_tx_ports = extract_stream_args(ru_cfg.device_arguments, "tx_port");
+    difi_rx_ports = extract_stream_args(ru_cfg.device_arguments, "rx_port");
+    difi_tx_addrs = extract_stream_args(ru_cfg.device_arguments, "tx_addr");
+    difi_rx_addrs = extract_stream_args(ru_cfg.device_arguments, "rx_addr");
   }
+  // DIFI carries every antenna as a stream of its own, so the port lists hold one entry per antenna, numbered by cell
+  // and then by antenna. Without a list, every stream takes the driver default port.
+  unsigned difi_tx_port_index = 0;
+  unsigned difi_rx_port_index = 0;
 
   // For each sector...
   for (unsigned sector_id = 0, e = cells.size(); sector_id != e; ++sector_id) {
@@ -197,17 +203,15 @@ static void generate_radio_config(radio_configuration::radio&                   
 
         tx_ch_config.args = zmq_tx_addr[sector_id * cell.nof_tx_antennas + port_id];
       }
+      if ((ru_cfg.device_driver == "difi") && (difi_tx_port_index < difi_tx_ports.size())) {
+        tx_ch_config.args = fmt::format("port={}", difi_tx_ports[difi_tx_port_index++]);
+      }
       tx_stream_config.channels.emplace_back(tx_ch_config);
     }
 
-    // Set DIFI stream-level args (format expected by parse_difi_stream_args: "ip=X,port=Y").
-    if (ru_cfg.device_driver == "difi") {
-      if (sector_id < difi_tx_ports.size()) {
-        const std::string ip  = difi_tx_addrs.empty() ? "127.0.0.1" : difi_tx_addrs[0];
-        tx_stream_config.args = fmt::format("ip={},port={}", ip, difi_tx_ports[sector_id]);
-      } else if (!difi_tx_ports.empty()) {
-        report_error("DIFI transmission stream arguments out of bounds\n");
-      }
+    // DIFI streams share one address, and each channel names its own port.
+    if ((ru_cfg.device_driver == "difi") && !difi_tx_addrs.empty()) {
+      tx_stream_config.args = fmt::format("ip={}", difi_tx_addrs.front());
     }
     out_cfg.tx_streams.emplace_back(tx_stream_config);
 
@@ -231,17 +235,14 @@ static void generate_radio_config(radio_configuration::radio&                   
 
         rx_ch_config.args = zmq_rx_addr[sector_id * cell.nof_rx_antennas + port_id];
       }
+      if ((ru_cfg.device_driver == "difi") && (difi_rx_port_index < difi_rx_ports.size())) {
+        rx_ch_config.args = fmt::format("port={}", difi_rx_ports[difi_rx_port_index++]);
+      }
       rx_stream_config.channels.emplace_back(rx_ch_config);
     }
 
-    // Set DIFI stream-level args (format expected by parse_difi_stream_args: "ip=X,port=Y").
-    if (ru_cfg.device_driver == "difi") {
-      if (sector_id < difi_rx_ports.size()) {
-        const std::string ip  = difi_rx_addrs.empty() ? "0.0.0.0" : difi_rx_addrs[0];
-        rx_stream_config.args = fmt::format("ip={},port={}", ip, difi_rx_ports[sector_id]);
-      } else if (!difi_rx_ports.empty()) {
-        report_error("DIFI reception stream arguments out of bounds\n");
-      }
+    if ((ru_cfg.device_driver == "difi") && !difi_rx_addrs.empty()) {
+      rx_stream_config.args = fmt::format("ip={}", difi_rx_addrs.front());
     }
     out_cfg.rx_streams.emplace_back(rx_stream_config);
   }
@@ -249,7 +250,8 @@ static void generate_radio_config(radio_configuration::radio&                   
 
 ru_sdr_configuration ocudu::generate_ru_sdr_config(const ru_sdr_unit_config&                        ru_cfg,
                                                    span<const flexible_o_du_ru_config::cell_config> cells,
-                                                   unsigned max_processing_delay_slots)
+                                                   unsigned           max_processing_delay_slots,
+                                                   const std::string& dft_processor_type)
 {
   ru_sdr_configuration out_cfg;
   out_cfg.are_metrics_enabled = ru_cfg.metrics_cfg.enable_ru_metrics;
@@ -260,7 +262,7 @@ ru_sdr_configuration ocudu::generate_ru_sdr_config(const ru_sdr_unit_config&    
   unsigned sector_id = 0;
   for (const auto& cell : cells) {
     out_cfg.lower_phy_config.push_back(
-        generate_lower_phy_config(cell, ru_cfg, max_processing_delay_slots, sector_id++));
+        generate_lower_phy_config(cell, ru_cfg, max_processing_delay_slots, sector_id++, dft_processor_type));
   }
 
   return out_cfg;

@@ -50,6 +50,25 @@ TYPED_TEST(common_bounded_object_pool_test, one_allocation_works)
   obj.reset();
 }
 
+TYPED_TEST(common_bounded_object_pool_test, allocation_works_when_running_in_cpu_zero)
+{
+  ::cpu_set_t original_cpuset;
+  ASSERT_EQ(::sched_getaffinity(0, sizeof(original_cpuset), &original_cpuset), 0);
+  if (not CPU_ISSET(0, &original_cpuset)) {
+    GTEST_SKIP() << "CPU 0 is not available";
+  }
+  ::cpu_set_t cpu_zero_set;
+  CPU_ZERO(&cpu_zero_set);
+  CPU_SET(0, &cpu_zero_set);
+  ASSERT_EQ(::sched_setaffinity(0, sizeof(cpu_zero_set), &cpu_zero_set), 0);
+
+  auto obj = this->pool.get();
+  ASSERT_NE(obj, nullptr);
+  obj.reset();
+
+  ASSERT_EQ(::sched_setaffinity(0, sizeof(original_cpuset), &original_cpuset), 0);
+}
+
 TYPED_TEST(common_bounded_object_pool_test, depleted_pool_returns_null)
 {
   std::vector<typename decltype(this->pool)::ptr> objs;

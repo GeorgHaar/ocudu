@@ -7,7 +7,8 @@
 
 #include "../common/e2ap_asn1_utils.h"
 #include "ocudu/asn1/e2ap/e2ap.h"
-#include "ocudu/asn1/e2sm/e2sm_rc_ies.h"
+#include "ocudu/asn1/e2ap/e2ap_pdu_contents.h"
+#include "ocudu/asn1/e2sm/e2sm.h"
 #include "ocudu/e2/e2.h"
 #include "ocudu/e2/e2_event_manager.h"
 #include "ocudu/e2/e2_messages.h"

@@ -38,6 +38,8 @@ public:
   get_cn_assist_info_for_inactive(cu_cp_ue_index_t ue_index) override;
 
   std::optional<guami_t> get_serving_guami(cu_cp_ue_index_t ue_index) override;
+  std::vector<s_nssai_t> get_allowed_nssai(cu_cp_ue_index_t ue_index) override;
+  cu_cp_ue_index_t       remove_ue_association(ran_ue_id_t ran_ue_id) override;
 
   // NGAP connection manager functions.
   bool                             handle_amf_tnl_connection_request() override;
@@ -48,6 +50,7 @@ public:
   // ngap_nas_message_handler.
   void handle_initial_ue_message(const cu_cp_initial_ue_message& msg) override;
   void handle_ul_nas_transport_message(const cu_cp_ul_nas_transport& msg) override;
+  bool handle_rerouted_initial_ue_message(const ngap_reroute_nas_request& request) override;
 
   // ngap_location_reporting_handler.
   void handle_location_report_transmission(const location_report& msg) override;
@@ -144,9 +147,56 @@ private:
   /// \param[in] msg The received DL NAS Transport message.
   void handle_dl_nas_transport_message(const asn1::ngap::dl_nas_transport_s& msg);
 
+  /// \brief Schedules the transmission of an UPLINK NAS TRANSPORT message to the AMF.
+  /// \param[in] ue_ctxt The NGAP UE context with a valid AMF UE NGAP ID.
+  /// \param[in] msg The NAS message of the UE.
+  void send_ul_nas_transport(ngap_ue_context& ue_ctxt, const cu_cp_ul_nas_transport& msg);
+
+  /// \brief Sends the UL NAS messages that wait for the AMF UE NGAP ID, in the order of reception.
+  void send_pending_ul_nas_transports(ngap_ue_context& ue_ctxt);
+
+  /// \brief Releases a UE whose Reroute NAS Request procedure failed.
+  void release_ue_after_failed_reroute(ngap_ue_context& ue_ctxt);
+
+  /// \brief Handle the reception of an AMF Configuration Update message.
+  /// \param[in] msg The AMF Configuration Update message.
+  void handle_amf_configuration_update(const asn1::ngap::amf_cfg_upd_s& msg);
+
+  /// \brief Handle the reception of an AMF Status Indication message.
+  /// \param[in] msg The AMF Status Indication message.
+  void handle_amf_status_indication(const asn1::ngap::amf_status_ind_s& msg);
+
+  /// \brief Handle the reception of an Overload Start message.
+  /// \param[in] msg The Overload Start message.
+  void handle_overload_start(const asn1::ngap::overload_start_s& msg);
+
+  /// \brief Handle the reception of an Overload Stop message.
+  void handle_overload_stop();
+
+  /// \brief Handle the reception of a Reroute NAS Request message.
+  /// \param[in] msg The Reroute NAS Request message.
+  void handle_reroute_nas_request(const asn1::ngap::reroute_nas_request_s& msg);
+
+  /// \brief Creates the NGAP UE context of a UE and sends its INITIAL UE MESSAGE.
+  /// \param[in] ue_index The index of the UE.
+  /// \param[in] ngap_msg The INITIAL UE MESSAGE without the RAN UE NGAP ID.
+  /// \return True if the INITIAL UE MESSAGE was sent.
+  bool send_initial_ue_message(cu_cp_ue_index_t ue_index, ngap_message& ngap_msg);
+
+  /// \brief Starts the timer that releases the UE if the UE requests no PDU session.
+  void start_request_pdu_session_timer(ngap_ue_context& ue_ctxt);
+
   /// \brief Notify about the reception of an Initial Context Setup Request.
   /// \param[in] msg The received Initial Context Setup Request.
   void handle_initial_context_setup_request(const asn1::ngap::init_context_setup_request_s& request);
+
+  /// \brief Takes over a UE association that another NGAP instance of the CU-CP holds.
+  /// \return True if this NGAP holds the UE association now.
+  bool take_over_ue_association(ran_ue_id_t ran_ue_id);
+
+  /// \brief Schedules the destruction of a UE context on the UE task loop, after the procedures of the UE.
+  /// \return The object that takes the detached UE context, or nullptr if the UE task queue is full.
+  std::shared_ptr<ngap_ue_context_list::detached_ue_context> schedule_ue_context_destruction(ngap_ue_context& ue_ctxt);
 
   /// \brief Notify about the reception of an UE Context Modification Request.
   /// \param[in] msg The received UE Context Modification Request.

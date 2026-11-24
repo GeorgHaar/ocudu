@@ -28,6 +28,16 @@ protected:
                asn1::ngap::ngap_elem_procs_o::successful_outcome_c::types_opts::write_replace_warning_resp;
   }
 
+  bool was_error_indication_sent() const
+  {
+    if (n2_gw.last_ngap_msgs.empty()) {
+      return false;
+    }
+    const auto& last = n2_gw.last_ngap_msgs.back();
+    return last.pdu.type() == asn1::ngap::ngap_pdu_c::types_opts::init_msg &&
+           last.pdu.init_msg().value.type() == asn1::ngap::ngap_elem_procs_o::init_msg_c::types_opts::error_ind;
+  }
+
   const asn1::ngap::write_replace_warning_resp_ies_container& last_response_ies() const
   {
     return *n2_gw.last_ngap_msgs.back().pdu.successful_outcome().value.write_replace_warning_resp();
@@ -124,4 +134,41 @@ TEST_F(ngap_write_replace_warning_test, when_response_sent_msg_id_and_serial_num
   const auto& resp = last_response_ies();
   EXPECT_EQ(resp.msg_id.to_number(), 0x1234U);
   EXPECT_EQ(resp.serial_num.to_number(), 0x0001U);
+}
+
+/// Request with an invalid PLMN in the TAI warning area list is dropped and an Error Indication is sent.
+TEST_F(ngap_write_replace_warning_test,
+       when_request_with_invalid_plmn_in_tai_list_received_request_is_dropped_and_error_indication_is_sent)
+{
+  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-SVCS-16-5", "CU-GEN-1");
+
+  ngap_message msg = generate_write_replace_warning_request_with_tai_list({tai_t{plmn_identity::test_value(), 7}});
+  msg.pdu.init_msg()
+      .value.write_replace_warning_request()
+      ->warning_area_list.tai_list_for_warning()[0]
+      .plmn_id.from_string("ffffff");
+  ngap->handle_message(msg);
+  ctrl_worker.run_pending_tasks();
+
+  ASSERT_FALSE(was_request_forwarded_to_cu_cp());
+  ASSERT_TRUE(was_error_indication_sent());
+}
+
+/// Request with an invalid PLMN in the NR CGI warning area list is dropped and an Error Indication is sent.
+TEST_F(ngap_write_replace_warning_test,
+       when_request_with_invalid_plmn_in_nr_cgi_list_received_request_is_dropped_and_error_indication_is_sent)
+{
+  OCUDU_TEST_REQUIREMENTS("MVP-FUNC-SVCS-16-5", "CU-GEN-1");
+
+  nr_cell_global_id_t cgi{plmn_identity::test_value(), nr_cell_identity::create(0x66c000).value()};
+  ngap_message        msg = generate_write_replace_warning_request_with_nr_cgi_list({cgi});
+  msg.pdu.init_msg()
+      .value.write_replace_warning_request()
+      ->warning_area_list.nr_cgi_list_for_warning()[0]
+      .plmn_id.from_string("ffffff");
+  ngap->handle_message(msg);
+  ctrl_worker.run_pending_tasks();
+
+  ASSERT_FALSE(was_request_forwarded_to_cu_cp());
+  ASSERT_TRUE(was_error_indication_sent());
 }

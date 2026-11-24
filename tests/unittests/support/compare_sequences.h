@@ -74,6 +74,20 @@ std::string format_mismatch_row(unsigned index, const ci16_t& actual, const ci16
   return format_mismatch_row(index, to_cf(actual), to_cf(expected), distance, tolerance);
 }
 
+/// Specialization for two complex bf16 values.
+template <typename V>
+std::string format_mismatch_row(unsigned index, const cbf16_t& actual, const cbf16_t& expected, V distance, V tolerance)
+{
+  return format_mismatch_row(index, to_cf(actual), to_cf(expected), distance, tolerance);
+}
+
+/// Specialization for two bf16 values.
+template <typename V>
+std::string format_mismatch_row(unsigned index, const bf16_t& actual, const bf16_t& expected, V distance, V tolerance)
+{
+  return format_mismatch_row(index, to_float(actual), to_float(expected), distance, tolerance);
+}
+
 /// Builds the header line of the mismatch table.
 template <typename T>
 std::string format_mismatch_header()

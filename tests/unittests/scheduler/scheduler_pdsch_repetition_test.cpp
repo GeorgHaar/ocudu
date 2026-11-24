@@ -53,13 +53,14 @@ protected:
     auto cell_req = sched_config_helper::make_default_sched_cell_configuration_request(params);
     std::get<pucch_f2_params>(cell_req.ran.init_bwp.pucch.resources.f2_or_f3_or_f4_params).max_code_rate =
         max_pucch_code_rate::dot_35;
+    cell_req.rrm = make_cell_rrm_config(cell_req.ran);
     this->add_cell(cell_req);
 
     // Add UE with a Rel-16 PDSCH TDRA list that mirrors the common list and appends a repetition entry.
     auto ue_cfg           = sched_config_helper::create_default_sched_ue_creation_request(cell_req.ran, {ue_drb_lcid});
     ue_cfg.ue_index       = ue_idx;
     ue_cfg.crnti          = ue_rnti;
-    auto&       pdsch_cfg = (*ue_cfg.cfg.cells)[0].serv_cell_cfg.init_dl_bwp.pdsch_cfg.value();
+    auto&       pdsch_cfg = (*ue_cfg.cfg.cells)[0].ded->serv_cell_cfg.init_dl_bwp.pdsch_cfg.value();
     const auto& common_list = cell_req.ran.dl_cfg_common.init_dl_bwp.pdsch_common.pdsch_td_alloc_list;
     for (const auto& alloc : common_list) {
       pdsch_cfg.pdsch_td_alloc_list.push_back(alloc);
@@ -80,9 +81,9 @@ protected:
   {
     for (unsigned i = 0; i != nof_slots; ++i) {
       this->run_slot();
-      last_collected_slot     = this->last_result_slot();
-      const slot_point    sl  = this->last_result_slot();
-      const sched_result* res = this->last_sched_result(to_du_cell_index(0));
+      last_collected_slot          = this->last_result_slot();
+      const slot_point         sl  = this->last_result_slot();
+      const sched_result_copy* res = this->last_sched_result(to_du_cell_index(0));
       for (const auto& pdcch : res->dl.dl_pdcchs) {
         if (pdcch.ctx.rnti == ue_rnti and pdcch.dci.type() == dci_dl_rnti_config_type::c_rnti_f1_1) {
           dcis[sl].push_back(pdcch.dci.as_c_rnti_f1_1());

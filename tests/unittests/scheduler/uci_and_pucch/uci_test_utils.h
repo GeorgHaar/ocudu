@@ -63,6 +63,8 @@ struct test_bench_params {
   std::optional<meas_gap_config> meas_gap;
   // Cell-specific Koffset of an NTN cell. Zero for a TN cell.
   std::chrono::milliseconds ntn_cs_koffset{0};
+  // k_mac of an NTN cell. Zero when the Common TA covers the whole feeder link.
+  std::chrono::milliseconds ntn_k_mac{0};
 };
 
 class test_bench
@@ -95,6 +97,7 @@ public:
   ue_repository                           ues;
 
   // Other dependencies.
+  cell_rrm_config         cell_rrm;
   pucch_resource_manager  pucch_builder;
   cell_resource_allocator res_grid;
   ocudulog::basic_logger& mac_logger  = ocudulog::fetch_basic_logger("SCHED", true);

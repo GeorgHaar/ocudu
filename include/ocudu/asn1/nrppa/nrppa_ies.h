@@ -24,7 +24,7 @@ namespace nrppa {
 struct trigger_msg_opts {
   enum options { init_msg, successful_outcome, unsuccessful_outcome, nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using trigger_msg_e = enumerated<trigger_msg_opts>;
 
@@ -35,7 +35,6 @@ using location_uncertainty_ext_ies_container = protocol_ext_container_empty_l;
 
 // LocationUncertainty ::= SEQUENCE
 struct location_uncertainty_s {
-  bool                                   ext                    = false;
   bool                                   ie_exts_present        = false;
   uint16_t                               horizontal_uncertainty = 0;
   uint8_t                                horizontal_confidence  = 0;
@@ -44,10 +43,7 @@ struct location_uncertainty_s {
   location_uncertainty_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // RelativeGeodeticLocation-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -60,18 +56,17 @@ struct relative_geodetic_location_s {
   struct milli_arc_second_units_opts {
     enum options { zerodot03, zerodot3, three, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using milli_arc_second_units_e_ = enumerated<milli_arc_second_units_opts, true>;
   struct height_units_opts {
     enum options { mm, cm, m, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using height_units_e_ = enumerated<height_units_opts, true>;
 
   // member variables
-  bool                                         ext             = false;
   bool                                         ie_exts_present = false;
   milli_arc_second_units_e_                    milli_arc_second_units;
   height_units_e_                              height_units;
@@ -82,10 +77,7 @@ struct relative_geodetic_location_s {
   relative_geodetic_location_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // RelativeCartesianLocation-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -98,12 +90,11 @@ struct relative_cartesian_location_s {
   struct xy_zunit_opts {
     enum options { mm, cm, dm, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using xy_zunit_e_ = enumerated<xy_zunit_opts, true>;
 
   // member variables
-  bool                                          ext             = false;
   bool                                          ie_exts_present = false;
   xy_zunit_e_                                   xy_zunit;
   int32_t                                       xvalue = -65536;
@@ -113,10 +104,7 @@ struct relative_cartesian_location_s {
   relative_cartesian_location_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ARPLocationType-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -127,49 +115,42 @@ struct arp_location_type_c {
   struct types_opts {
     enum options { arp_position_relative_geodetic, arp_position_relative_cartesian, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  arp_location_type_c() = default;
-  arp_location_type_c(const arp_location_type_c& other);
-  arp_location_type_c& operator=(const arp_location_type_c& other);
-  ~arp_location_type_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  relative_geodetic_location_s& arp_position_relative_geodetic()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  relative_geodetic_location_s&                 arp_position_relative_geodetic()
   {
-    assert_choice_type(types::arp_position_relative_geodetic, type_, "ARPLocationType");
+    assert_choice_type(types::arp_position_relative_geodetic, c.type, "ARPLocationType");
     return c.get<relative_geodetic_location_s>();
   }
   relative_cartesian_location_s& arp_position_relative_cartesian()
   {
-    assert_choice_type(types::arp_position_relative_cartesian, type_, "ARPLocationType");
+    assert_choice_type(types::arp_position_relative_cartesian, c.type, "ARPLocationType");
     return c.get<relative_cartesian_location_s>();
   }
   protocol_ie_single_container_s<arp_location_type_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "ARPLocationType");
+    assert_choice_type(types::choice_ext, c.type, "ARPLocationType");
     return c.get<protocol_ie_single_container_s<arp_location_type_ext_ies_o>>();
   }
   const relative_geodetic_location_s& arp_position_relative_geodetic() const
   {
-    assert_choice_type(types::arp_position_relative_geodetic, type_, "ARPLocationType");
+    assert_choice_type(types::arp_position_relative_geodetic, c.type, "ARPLocationType");
     return c.get<relative_geodetic_location_s>();
   }
   const relative_cartesian_location_s& arp_position_relative_cartesian() const
   {
-    assert_choice_type(types::arp_position_relative_cartesian, type_, "ARPLocationType");
+    assert_choice_type(types::arp_position_relative_cartesian, c.type, "ARPLocationType");
     return c.get<relative_cartesian_location_s>();
   }
   const protocol_ie_single_container_s<arp_location_type_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "ARPLocationType");
+    assert_choice_type(types::choice_ext, c.type, "ARPLocationType");
     return c.get<protocol_ie_single_container_s<arp_location_type_ext_ies_o>>();
   }
   relative_geodetic_location_s&                                set_arp_position_relative_geodetic();
@@ -177,13 +158,12 @@ struct arp_location_type_c {
   protocol_ie_single_container_s<arp_location_type_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<protocol_ie_single_container_s<arp_location_type_ext_ies_o>,
-                  relative_cartesian_location_s,
-                  relative_geodetic_location_s>
+  asn1::table::choice_storage<arp_location_type_c,
+                              types,
+                              choice_buffer_t<protocol_ie_single_container_s<arp_location_type_ext_ies_o>,
+                                              relative_cartesian_location_s,
+                                              relative_geodetic_location_s>>
       c;
-
-  void destroy_();
 };
 
 // ARPLocationInformation-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -193,17 +173,13 @@ using arp_location_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // ARPLocationInformation-Item ::= SEQUENCE
 struct arp_location_info_item_s {
-  bool                                ext             = false;
   bool                                ie_exts_present = false;
   uint8_t                             arp_id          = 1;
   arp_location_type_c                 arp_location_type;
   arp_location_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ARPLocationInformation ::= SEQUENCE (SIZE (1..16)) OF ARPLocationInformation-Item
@@ -218,15 +194,13 @@ using scs_specific_carrier_ext_ies_container = protocol_ext_container_empty_l;
 struct scs_specific_carrier_s {
   struct subcarrier_spacing_opts {
     enum options { khz15, khz30, khz60, khz120, /*...*/ khz480, khz960, nulltype } value;
-    typedef uint16_t number_type;
 
-    const char* to_string() const;
-    uint16_t    to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint16_t                            to_number() const;
   };
   using subcarrier_spacing_e_ = enumerated<subcarrier_spacing_opts, true, 2>;
 
   // member variables
-  bool                                   ext               = false;
   bool                                   ie_exts_present   = false;
   uint16_t                               offset_to_carrier = 0;
   subcarrier_spacing_e_                  subcarrier_spacing;
@@ -234,10 +208,7 @@ struct scs_specific_carrier_s {
   scs_specific_carrier_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Combined-PosSRSResourceSet-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -247,7 +218,6 @@ using combined_pos_srs_res_set_item_ext_ies_container = protocol_ext_container_e
 
 // Combined-PosSRSResourceSet-Item ::= SEQUENCE
 struct combined_pos_srs_res_set_item_s {
-  bool                                            ext               = false;
   bool                                            pci_nr_present    = false;
   bool                                            ie_exts_present   = false;
   uint32_t                                        point_a           = 0;
@@ -257,10 +227,7 @@ struct combined_pos_srs_res_set_item_s {
   combined_pos_srs_res_set_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Combined-PosSRSResourceSet-List ::= SEQUENCE (SIZE (2..3)) OF Combined-PosSRSResourceSet-Item
@@ -273,16 +240,12 @@ using pos_srs_res_set_aggregation_item_ext_ies_container = protocol_ext_containe
 
 // PosSRSResourceSet-Aggregation-Item ::= SEQUENCE
 struct pos_srs_res_set_aggregation_item_s {
-  bool                                               ext             = false;
   bool                                               ie_exts_present = false;
   combined_pos_srs_res_set_list_l                    combined_pos_srs_res_set_list;
   pos_srs_res_set_aggregation_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PosSRSResourceSet-Aggregation-List ::= SEQUENCE (SIZE (1..32)) OF PosSRSResourceSet-Aggregation-Item
@@ -295,16 +258,12 @@ struct abort_tx_ext_ies_o {
     struct types_opts {
       enum options { pos_srs_res_set_aggregation_list, nulltype } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    types         type() const { return types::pos_srs_res_set_aggregation_list; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
+    types                                     type() const { return types::pos_srs_res_set_aggregation_list; }
+    static const asn1::table::choice_desc     desc;
     pos_srs_res_set_aggregation_list_l&       pos_srs_res_set_aggregation_list() { return c; }
     const pos_srs_res_set_aggregation_list_l& pos_srs_res_set_aggregation_list() const { return c; }
 
@@ -312,12 +271,7 @@ struct abort_tx_ext_ies_o {
     pos_srs_res_set_aggregation_list_l c;
   };
 
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static value_c    get_value(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::objset_desc desc;
 };
 
 // AbortTransmission ::= CHOICE
@@ -325,39 +279,32 @@ struct abort_tx_c {
   struct types_opts {
     enum options { deactiv_srs_res_set_id, release_all, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  abort_tx_c() = default;
-  abort_tx_c(const abort_tx_c& other);
-  abort_tx_c& operator=(const abort_tx_c& other);
-  ~abort_tx_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  uint8_t& deactiv_srs_res_set_id()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  uint8_t&                                      deactiv_srs_res_set_id()
   {
-    assert_choice_type(types::deactiv_srs_res_set_id, type_, "AbortTransmission");
+    assert_choice_type(types::deactiv_srs_res_set_id, c.type, "AbortTransmission");
     return c.get<uint8_t>();
   }
   protocol_ie_single_container_s<abort_tx_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "AbortTransmission");
+    assert_choice_type(types::choice_ext, c.type, "AbortTransmission");
     return c.get<protocol_ie_single_container_s<abort_tx_ext_ies_o>>();
   }
   const uint8_t& deactiv_srs_res_set_id() const
   {
-    assert_choice_type(types::deactiv_srs_res_set_id, type_, "AbortTransmission");
+    assert_choice_type(types::deactiv_srs_res_set_id, c.type, "AbortTransmission");
     return c.get<uint8_t>();
   }
   const protocol_ie_single_container_s<abort_tx_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "AbortTransmission");
+    assert_choice_type(types::choice_ext, c.type, "AbortTransmission");
     return c.get<protocol_ie_single_container_s<abort_tx_ext_ies_o>>();
   }
   uint8_t&                                            set_deactiv_srs_res_set_id();
@@ -365,10 +312,9 @@ struct abort_tx_c {
   protocol_ie_single_container_s<abort_tx_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                               type_;
-  choice_buffer_t<protocol_ie_single_container_s<abort_tx_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::
+      choice_storage<abort_tx_c, types, choice_buffer_t<protocol_ie_single_container_s<abort_tx_ext_ies_o>, uint8_t>>
+          c;
 };
 
 // TransmissionCombn8-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -383,10 +329,7 @@ struct tx_combn8_s {
   uint8_t                     cyclic_shift_n8 = 0;
   tx_combn8_ext_ies_container ie_exts;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TransmissionComb-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -395,32 +338,22 @@ struct tx_comb_ext_ies_o {
   struct value_c {
     struct types_opts {
       enum options { tx_combn8, nulltype } value;
-      typedef uint8_t number_type;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
+      static const asn1::table::enum_desc desc;
+      uint8_t                             to_number() const;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    types         type() const { return types::tx_combn8; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    tx_combn8_s&       tx_combn8() { return c; }
-    const tx_combn8_s& tx_combn8() const { return c; }
+    types                                 type() const { return types::tx_combn8; }
+    static const asn1::table::choice_desc desc;
+    tx_combn8_s&                          tx_combn8() { return c; }
+    const tx_combn8_s&                    tx_combn8() const { return c; }
 
   private:
     tx_combn8_s c;
   };
 
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static value_c    get_value(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::objset_desc desc;
 };
 
 // TransmissionComb ::= CHOICE
@@ -435,52 +368,44 @@ struct tx_comb_c {
   };
   struct types_opts {
     enum options { n2, n4, choice_ext, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  tx_comb_c() = default;
-  tx_comb_c(const tx_comb_c& other);
-  tx_comb_c& operator=(const tx_comb_c& other);
-  ~tx_comb_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  n2_s_& n2()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  n2_s_&                                        n2()
   {
-    assert_choice_type(types::n2, type_, "TransmissionComb");
+    assert_choice_type(types::n2, c.type, "TransmissionComb");
     return c.get<n2_s_>();
   }
   n4_s_& n4()
   {
-    assert_choice_type(types::n4, type_, "TransmissionComb");
+    assert_choice_type(types::n4, c.type, "TransmissionComb");
     return c.get<n4_s_>();
   }
   protocol_ie_single_container_s<tx_comb_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "TransmissionComb");
+    assert_choice_type(types::choice_ext, c.type, "TransmissionComb");
     return c.get<protocol_ie_single_container_s<tx_comb_ext_ies_o>>();
   }
   const n2_s_& n2() const
   {
-    assert_choice_type(types::n2, type_, "TransmissionComb");
+    assert_choice_type(types::n2, c.type, "TransmissionComb");
     return c.get<n2_s_>();
   }
   const n4_s_& n4() const
   {
-    assert_choice_type(types::n4, type_, "TransmissionComb");
+    assert_choice_type(types::n4, c.type, "TransmissionComb");
     return c.get<n4_s_>();
   }
   const protocol_ie_single_container_s<tx_comb_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "TransmissionComb");
+    assert_choice_type(types::choice_ext, c.type, "TransmissionComb");
     return c.get<protocol_ie_single_container_s<tx_comb_ext_ies_o>>();
   }
   n2_s_&                                             set_n2();
@@ -488,10 +413,9 @@ struct tx_comb_c {
   protocol_ie_single_container_s<tx_comb_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                            type_;
-  choice_buffer_t<n2_s_, n4_s_, protocol_ie_single_container_s<tx_comb_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::
+      choice_storage<tx_comb_c, types, choice_buffer_t<n2_s_, n4_s_, protocol_ie_single_container_s<tx_comb_ext_ies_o>>>
+          c;
 };
 
 // ResourceTypePeriodic-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -523,25 +447,20 @@ struct res_type_periodic_s {
       // ...
       nulltype
     } value;
-    typedef uint16_t number_type;
 
-    const char* to_string() const;
-    uint16_t    to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint16_t                            to_number() const;
   };
   using periodicity_e_ = enumerated<periodicity_opts, true>;
 
   // member variables
-  bool                                ext             = false;
   bool                                ie_exts_present = false;
   periodicity_e_                      periodicity;
   uint16_t                            offset = 0;
   res_type_periodic_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResourceTypeSemi-persistent-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -573,25 +492,20 @@ struct res_type_semi_persistent_s {
       // ...
       nulltype
     } value;
-    typedef uint16_t number_type;
 
-    const char* to_string() const;
-    uint16_t    to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint16_t                            to_number() const;
   };
   using periodicity_e_ = enumerated<periodicity_opts, true>;
 
   // member variables
-  bool                                       ext             = false;
   bool                                       ie_exts_present = false;
   periodicity_e_                             periodicity;
   uint16_t                                   offset = 0;
   res_type_semi_persistent_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResourceTypeAperiodic-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -604,21 +518,17 @@ struct res_type_aperiodic_s {
   struct aperiodic_res_type_opts {
     enum options { true_value, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using aperiodic_res_type_e_ = enumerated<aperiodic_res_type_opts, true>;
 
   // member variables
-  bool                                 ext             = false;
   bool                                 ie_exts_present = false;
   aperiodic_res_type_e_                aperiodic_res_type;
   res_type_aperiodic_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResourceType-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -629,59 +539,52 @@ struct res_type_c {
   struct types_opts {
     enum options { periodic, semi_persistent, aperiodic, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  res_type_c() = default;
-  res_type_c(const res_type_c& other);
-  res_type_c& operator=(const res_type_c& other);
-  ~res_type_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  res_type_periodic_s& periodic()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  res_type_periodic_s&                          periodic()
   {
-    assert_choice_type(types::periodic, type_, "ResourceType");
+    assert_choice_type(types::periodic, c.type, "ResourceType");
     return c.get<res_type_periodic_s>();
   }
   res_type_semi_persistent_s& semi_persistent()
   {
-    assert_choice_type(types::semi_persistent, type_, "ResourceType");
+    assert_choice_type(types::semi_persistent, c.type, "ResourceType");
     return c.get<res_type_semi_persistent_s>();
   }
   res_type_aperiodic_s& aperiodic()
   {
-    assert_choice_type(types::aperiodic, type_, "ResourceType");
+    assert_choice_type(types::aperiodic, c.type, "ResourceType");
     return c.get<res_type_aperiodic_s>();
   }
   protocol_ie_single_container_s<res_type_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "ResourceType");
+    assert_choice_type(types::choice_ext, c.type, "ResourceType");
     return c.get<protocol_ie_single_container_s<res_type_ext_ies_o>>();
   }
   const res_type_periodic_s& periodic() const
   {
-    assert_choice_type(types::periodic, type_, "ResourceType");
+    assert_choice_type(types::periodic, c.type, "ResourceType");
     return c.get<res_type_periodic_s>();
   }
   const res_type_semi_persistent_s& semi_persistent() const
   {
-    assert_choice_type(types::semi_persistent, type_, "ResourceType");
+    assert_choice_type(types::semi_persistent, c.type, "ResourceType");
     return c.get<res_type_semi_persistent_s>();
   }
   const res_type_aperiodic_s& aperiodic() const
   {
-    assert_choice_type(types::aperiodic, type_, "ResourceType");
+    assert_choice_type(types::aperiodic, c.type, "ResourceType");
     return c.get<res_type_aperiodic_s>();
   }
   const protocol_ie_single_container_s<res_type_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "ResourceType");
+    assert_choice_type(types::choice_ext, c.type, "ResourceType");
     return c.get<protocol_ie_single_container_s<res_type_ext_ies_o>>();
   }
   res_type_periodic_s&                                set_periodic();
@@ -690,33 +593,30 @@ struct res_type_c {
   protocol_ie_single_container_s<res_type_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<protocol_ie_single_container_s<res_type_ext_ies_o>,
-                  res_type_aperiodic_s,
-                  res_type_periodic_s,
-                  res_type_semi_persistent_s>
+  asn1::table::choice_storage<res_type_c,
+                              types,
+                              choice_buffer_t<protocol_ie_single_container_s<res_type_ext_ies_o>,
+                                              res_type_aperiodic_s,
+                                              res_type_periodic_s,
+                                              res_type_semi_persistent_s>>
       c;
-
-  void destroy_();
 };
 
 // NrofSymbolsExtended ::= ENUMERATED
 struct nrof_symbols_extended_opts {
   enum options { n8, n10, n12, n14, /*...*/ nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using nrof_symbols_extended_e = enumerated<nrof_symbols_extended_opts, true>;
 
 // RepetitionFactorExtended ::= ENUMERATED
 struct repeat_factor_extended_opts {
   enum options { n3, n5, n6, n7, n8, n10, n12, n14, /*...*/ nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using repeat_factor_extended_e = enumerated<repeat_factor_extended_opts, true>;
 
@@ -724,7 +624,7 @@ using repeat_factor_extended_e = enumerated<repeat_factor_extended_opts, true>;
 struct start_rb_hop_opts {
   enum options { enable, nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using start_rb_hop_e = enumerated<start_rb_hop_opts>;
 
@@ -735,52 +635,44 @@ using start_rb_idx_ext_ies_o = protocol_ies_empty_o;
 struct start_rb_idx_c {
   struct types_opts {
     enum options { freq_scaling_factor2, freq_scaling_factor4, choice_ext, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  start_rb_idx_c() = default;
-  start_rb_idx_c(const start_rb_idx_c& other);
-  start_rb_idx_c& operator=(const start_rb_idx_c& other);
-  ~start_rb_idx_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  uint8_t& freq_scaling_factor2()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  uint8_t&                                      freq_scaling_factor2()
   {
-    assert_choice_type(types::freq_scaling_factor2, type_, "StartRBIndex");
+    assert_choice_type(types::freq_scaling_factor2, c.type, "StartRBIndex");
     return c.get<uint8_t>();
   }
   uint8_t& freq_scaling_factor4()
   {
-    assert_choice_type(types::freq_scaling_factor4, type_, "StartRBIndex");
+    assert_choice_type(types::freq_scaling_factor4, c.type, "StartRBIndex");
     return c.get<uint8_t>();
   }
   protocol_ie_single_container_s<start_rb_idx_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "StartRBIndex");
+    assert_choice_type(types::choice_ext, c.type, "StartRBIndex");
     return c.get<protocol_ie_single_container_s<start_rb_idx_ext_ies_o>>();
   }
   const uint8_t& freq_scaling_factor2() const
   {
-    assert_choice_type(types::freq_scaling_factor2, type_, "StartRBIndex");
+    assert_choice_type(types::freq_scaling_factor2, c.type, "StartRBIndex");
     return c.get<uint8_t>();
   }
   const uint8_t& freq_scaling_factor4() const
   {
-    assert_choice_type(types::freq_scaling_factor4, type_, "StartRBIndex");
+    assert_choice_type(types::freq_scaling_factor4, c.type, "StartRBIndex");
     return c.get<uint8_t>();
   }
   const protocol_ie_single_container_s<start_rb_idx_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "StartRBIndex");
+    assert_choice_type(types::choice_ext, c.type, "StartRBIndex");
     return c.get<protocol_ie_single_container_s<start_rb_idx_ext_ies_o>>();
   }
   uint8_t&                                                set_freq_scaling_factor2();
@@ -788,53 +680,13 @@ struct start_rb_idx_c {
   protocol_ie_single_container_s<start_rb_idx_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                   type_;
-  choice_buffer_t<protocol_ie_single_container_s<start_rb_idx_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<start_rb_idx_c,
+                              types,
+                              choice_buffer_t<protocol_ie_single_container_s<start_rb_idx_ext_ies_o>, uint8_t>>
+      c;
 };
 
 // SRSResource-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct srs_res_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { nrof_symbols_extended, repeat_factor_extended, start_rb_hop, start_rb_idx, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    nrof_symbols_extended_e&        nrof_symbols_extended();
-    repeat_factor_extended_e&       repeat_factor_extended();
-    start_rb_hop_e&                 start_rb_hop();
-    start_rb_idx_c&                 start_rb_idx();
-    const nrof_symbols_extended_e&  nrof_symbols_extended() const;
-    const repeat_factor_extended_e& repeat_factor_extended() const;
-    const start_rb_hop_e&           start_rb_hop() const;
-    const start_rb_idx_c&           start_rb_idx() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct srs_res_ext_ies_container {
   bool                     nrof_symbols_extended_present  = false;
   bool                     repeat_factor_extended_present = false;
@@ -845,47 +697,40 @@ struct srs_res_ext_ies_container {
   start_rb_hop_e           start_rb_hop;
   start_rb_idx_c           start_rb_idx;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // SRSResource ::= SEQUENCE
 struct srs_res_s {
   struct nrof_srs_ports_opts {
     enum options { port1, ports2, ports4, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using nrof_srs_ports_e_ = enumerated<nrof_srs_ports_opts>;
   struct nrof_symbols_opts {
     enum options { n1, n2, n4, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using nrof_symbols_e_ = enumerated<nrof_symbols_opts>;
   struct repeat_factor_opts {
     enum options { n1, n2, n4, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using repeat_factor_e_ = enumerated<repeat_factor_opts>;
   struct group_or_seq_hop_opts {
     enum options { neither, group_hop, seq_hop, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using group_or_seq_hop_e_ = enumerated<group_or_seq_hop_opts>;
 
   // member variables
-  bool                      ext             = false;
   bool                      ie_exts_present = false;
   uint8_t                   srs_res_id      = 0;
   nrof_srs_ports_e_         nrof_srs_ports;
@@ -904,10 +749,7 @@ struct srs_res_s {
   srs_res_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SRSResource-List ::= SEQUENCE (SIZE (1..64)) OF SRSResource
@@ -932,62 +774,54 @@ struct tx_comb_pos_c {
   };
   struct types_opts {
     enum options { n2, n4, n8, choice_ext, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  tx_comb_pos_c() = default;
-  tx_comb_pos_c(const tx_comb_pos_c& other);
-  tx_comb_pos_c& operator=(const tx_comb_pos_c& other);
-  ~tx_comb_pos_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  n2_s_& n2()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  n2_s_&                                        n2()
   {
-    assert_choice_type(types::n2, type_, "TransmissionCombPos");
+    assert_choice_type(types::n2, c.type, "TransmissionCombPos");
     return c.get<n2_s_>();
   }
   n4_s_& n4()
   {
-    assert_choice_type(types::n4, type_, "TransmissionCombPos");
+    assert_choice_type(types::n4, c.type, "TransmissionCombPos");
     return c.get<n4_s_>();
   }
   n8_s_& n8()
   {
-    assert_choice_type(types::n8, type_, "TransmissionCombPos");
+    assert_choice_type(types::n8, c.type, "TransmissionCombPos");
     return c.get<n8_s_>();
   }
   protocol_ie_single_container_s<tx_comb_pos_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "TransmissionCombPos");
+    assert_choice_type(types::choice_ext, c.type, "TransmissionCombPos");
     return c.get<protocol_ie_single_container_s<tx_comb_pos_ext_ies_o>>();
   }
   const n2_s_& n2() const
   {
-    assert_choice_type(types::n2, type_, "TransmissionCombPos");
+    assert_choice_type(types::n2, c.type, "TransmissionCombPos");
     return c.get<n2_s_>();
   }
   const n4_s_& n4() const
   {
-    assert_choice_type(types::n4, type_, "TransmissionCombPos");
+    assert_choice_type(types::n4, c.type, "TransmissionCombPos");
     return c.get<n4_s_>();
   }
   const n8_s_& n8() const
   {
-    assert_choice_type(types::n8, type_, "TransmissionCombPos");
+    assert_choice_type(types::n8, c.type, "TransmissionCombPos");
     return c.get<n8_s_>();
   }
   const protocol_ie_single_container_s<tx_comb_pos_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "TransmissionCombPos");
+    assert_choice_type(types::choice_ext, c.type, "TransmissionCombPos");
     return c.get<protocol_ie_single_container_s<tx_comb_pos_ext_ies_o>>();
   }
   n2_s_&                                                 set_n2();
@@ -996,10 +830,11 @@ struct tx_comb_pos_c {
   protocol_ie_single_container_s<tx_comb_pos_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                                       type_;
-  choice_buffer_t<n2_s_, n4_s_, n8_s_, protocol_ie_single_container_s<tx_comb_pos_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      tx_comb_pos_c,
+      types,
+      choice_buffer_t<n2_s_, n4_s_, n8_s_, protocol_ie_single_container_s<tx_comb_pos_ext_ies_o>>>
+      c;
 };
 
 // SRSPeriodicity ::= ENUMERATED
@@ -1033,113 +868,57 @@ struct srs_periodicity_opts {
     slot20480,
     nulltype
   } value;
-  typedef uint32_t number_type;
 
-  const char* to_string() const;
-  uint32_t    to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint32_t                            to_number() const;
 };
 using srs_periodicity_e = enumerated<srs_periodicity_opts, true, 4>;
 
 // SRSPosPeriodicConfigHyperSFNIndex ::= ENUMERATED
 struct srs_pos_periodic_cfg_hyper_sfn_idx_opts {
   enum options { even0, odd1, nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using srs_pos_periodic_cfg_hyper_sfn_idx_e = enumerated<srs_pos_periodic_cfg_hyper_sfn_idx_opts>;
 
 // ResourceTypePeriodicPos-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct res_type_periodic_pos_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { srs_pos_periodic_cfg_hyper_sfn_idx, nulltype } value;
+struct res_type_periodic_pos_ext_ies_container {
+  bool                                 srs_pos_periodic_cfg_hyper_sfn_idx_present = false;
+  srs_pos_periodic_cfg_hyper_sfn_idx_e srs_pos_periodic_cfg_hyper_sfn_idx;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::srs_pos_periodic_cfg_hyper_sfn_idx; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    srs_pos_periodic_cfg_hyper_sfn_idx_e&       srs_pos_periodic_cfg_hyper_sfn_idx() { return c; }
-    const srs_pos_periodic_cfg_hyper_sfn_idx_e& srs_pos_periodic_cfg_hyper_sfn_idx() const { return c; }
-
-  private:
-    srs_pos_periodic_cfg_hyper_sfn_idx_e c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // ResourceTypePeriodicPos ::= SEQUENCE
 struct res_type_periodic_pos_s {
-  bool                                                      ext = false;
-  srs_periodicity_e                                         srs_periodicity;
-  uint32_t                                                  offset = 0;
-  protocol_ext_container_l<res_type_periodic_pos_ext_ies_o> ie_exts;
+  bool                                    ie_exts_present = false;
+  srs_periodicity_e                       srs_periodicity;
+  uint32_t                                offset = 0;
+  res_type_periodic_pos_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResourceTypeSemi-persistentPos-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct res_type_semi_persistent_pos_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { srs_pos_periodic_cfg_hyper_sfn_idx, nulltype } value;
+struct res_type_semi_persistent_pos_ext_ies_container {
+  bool                                 srs_pos_periodic_cfg_hyper_sfn_idx_present = false;
+  srs_pos_periodic_cfg_hyper_sfn_idx_e srs_pos_periodic_cfg_hyper_sfn_idx;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::srs_pos_periodic_cfg_hyper_sfn_idx; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    srs_pos_periodic_cfg_hyper_sfn_idx_e&       srs_pos_periodic_cfg_hyper_sfn_idx() { return c; }
-    const srs_pos_periodic_cfg_hyper_sfn_idx_e& srs_pos_periodic_cfg_hyper_sfn_idx() const { return c; }
-
-  private:
-    srs_pos_periodic_cfg_hyper_sfn_idx_e c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // ResourceTypeSemi-persistentPos ::= SEQUENCE
 struct res_type_semi_persistent_pos_s {
-  bool                                                             ext = false;
-  srs_periodicity_e                                                srs_periodicity;
-  uint32_t                                                         offset = 0;
-  protocol_ext_container_l<res_type_semi_persistent_pos_ext_ies_o> ie_exts;
+  bool                                           ie_exts_present = false;
+  srs_periodicity_e                              srs_periodicity;
+  uint32_t                                       offset = 0;
+  res_type_semi_persistent_pos_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResourceTypeAperiodicPos-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -1149,16 +928,12 @@ using res_type_aperiodic_pos_ext_ies_container = protocol_ext_container_empty_l;
 
 // ResourceTypeAperiodicPos ::= SEQUENCE
 struct res_type_aperiodic_pos_s {
-  bool                                     ext             = false;
   bool                                     ie_exts_present = false;
   uint8_t                                  slot_offset     = 0;
   res_type_aperiodic_pos_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResourceTypePos-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -1169,59 +944,52 @@ struct res_type_pos_c {
   struct types_opts {
     enum options { periodic, semi_persistent, aperiodic, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  res_type_pos_c() = default;
-  res_type_pos_c(const res_type_pos_c& other);
-  res_type_pos_c& operator=(const res_type_pos_c& other);
-  ~res_type_pos_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  res_type_periodic_pos_s& periodic()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  res_type_periodic_pos_s&                      periodic()
   {
-    assert_choice_type(types::periodic, type_, "ResourceTypePos");
+    assert_choice_type(types::periodic, c.type, "ResourceTypePos");
     return c.get<res_type_periodic_pos_s>();
   }
   res_type_semi_persistent_pos_s& semi_persistent()
   {
-    assert_choice_type(types::semi_persistent, type_, "ResourceTypePos");
+    assert_choice_type(types::semi_persistent, c.type, "ResourceTypePos");
     return c.get<res_type_semi_persistent_pos_s>();
   }
   res_type_aperiodic_pos_s& aperiodic()
   {
-    assert_choice_type(types::aperiodic, type_, "ResourceTypePos");
+    assert_choice_type(types::aperiodic, c.type, "ResourceTypePos");
     return c.get<res_type_aperiodic_pos_s>();
   }
   protocol_ie_single_container_s<res_type_pos_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "ResourceTypePos");
+    assert_choice_type(types::choice_ext, c.type, "ResourceTypePos");
     return c.get<protocol_ie_single_container_s<res_type_pos_ext_ies_o>>();
   }
   const res_type_periodic_pos_s& periodic() const
   {
-    assert_choice_type(types::periodic, type_, "ResourceTypePos");
+    assert_choice_type(types::periodic, c.type, "ResourceTypePos");
     return c.get<res_type_periodic_pos_s>();
   }
   const res_type_semi_persistent_pos_s& semi_persistent() const
   {
-    assert_choice_type(types::semi_persistent, type_, "ResourceTypePos");
+    assert_choice_type(types::semi_persistent, c.type, "ResourceTypePos");
     return c.get<res_type_semi_persistent_pos_s>();
   }
   const res_type_aperiodic_pos_s& aperiodic() const
   {
-    assert_choice_type(types::aperiodic, type_, "ResourceTypePos");
+    assert_choice_type(types::aperiodic, c.type, "ResourceTypePos");
     return c.get<res_type_aperiodic_pos_s>();
   }
   const protocol_ie_single_container_s<res_type_pos_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "ResourceTypePos");
+    assert_choice_type(types::choice_ext, c.type, "ResourceTypePos");
     return c.get<protocol_ie_single_container_s<res_type_pos_ext_ies_o>>();
   }
   res_type_periodic_pos_s&                                set_periodic();
@@ -1230,14 +998,13 @@ struct res_type_pos_c {
   protocol_ie_single_container_s<res_type_pos_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<protocol_ie_single_container_s<res_type_pos_ext_ies_o>,
-                  res_type_aperiodic_pos_s,
-                  res_type_periodic_pos_s,
-                  res_type_semi_persistent_pos_s>
+  asn1::table::choice_storage<res_type_pos_c,
+                              types,
+                              choice_buffer_t<protocol_ie_single_container_s<res_type_pos_ext_ies_o>,
+                                              res_type_aperiodic_pos_s,
+                                              res_type_periodic_pos_s,
+                                              res_type_semi_persistent_pos_s>>
       c;
-
-  void destroy_();
 };
 
 // SSB-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -1247,7 +1014,6 @@ using ssb_ext_ies_container = protocol_ext_container_empty_l;
 
 // SSB ::= SEQUENCE
 struct ssb_s {
-  bool                  ext             = false;
   bool                  ssb_idx_present = false;
   bool                  ie_exts_present = false;
   uint16_t              pci_nr          = 0;
@@ -1255,10 +1021,7 @@ struct ssb_s {
   ssb_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PRSInformationPos-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -1268,7 +1031,6 @@ using pr_si_nformation_pos_ext_ies_container = protocol_ext_container_empty_l;
 
 // PRSInformationPos ::= SEQUENCE
 struct pr_si_nformation_pos_s {
-  bool                                   ext                    = false;
   bool                                   prs_res_id_pos_present = false;
   bool                                   ie_exts_present        = false;
   uint16_t                               prs_id_pos             = 0;
@@ -1277,10 +1039,7 @@ struct pr_si_nformation_pos_s {
   pr_si_nformation_pos_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SpatialInformationPos-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -1291,49 +1050,42 @@ struct spatial_relation_pos_c {
   struct types_opts {
     enum options { ssb_pos, pr_si_nformation_pos, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  spatial_relation_pos_c() = default;
-  spatial_relation_pos_c(const spatial_relation_pos_c& other);
-  spatial_relation_pos_c& operator=(const spatial_relation_pos_c& other);
-  ~spatial_relation_pos_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  ssb_s& ssb_pos()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  ssb_s&                                        ssb_pos()
   {
-    assert_choice_type(types::ssb_pos, type_, "SpatialRelationPos");
+    assert_choice_type(types::ssb_pos, c.type, "SpatialRelationPos");
     return c.get<ssb_s>();
   }
   pr_si_nformation_pos_s& pr_si_nformation_pos()
   {
-    assert_choice_type(types::pr_si_nformation_pos, type_, "SpatialRelationPos");
+    assert_choice_type(types::pr_si_nformation_pos, c.type, "SpatialRelationPos");
     return c.get<pr_si_nformation_pos_s>();
   }
   protocol_ie_single_container_s<spatial_info_pos_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "SpatialRelationPos");
+    assert_choice_type(types::choice_ext, c.type, "SpatialRelationPos");
     return c.get<protocol_ie_single_container_s<spatial_info_pos_ext_ies_o>>();
   }
   const ssb_s& ssb_pos() const
   {
-    assert_choice_type(types::ssb_pos, type_, "SpatialRelationPos");
+    assert_choice_type(types::ssb_pos, c.type, "SpatialRelationPos");
     return c.get<ssb_s>();
   }
   const pr_si_nformation_pos_s& pr_si_nformation_pos() const
   {
-    assert_choice_type(types::pr_si_nformation_pos, type_, "SpatialRelationPos");
+    assert_choice_type(types::pr_si_nformation_pos, c.type, "SpatialRelationPos");
     return c.get<pr_si_nformation_pos_s>();
   }
   const protocol_ie_single_container_s<spatial_info_pos_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "SpatialRelationPos");
+    assert_choice_type(types::choice_ext, c.type, "SpatialRelationPos");
     return c.get<protocol_ie_single_container_s<spatial_info_pos_ext_ies_o>>();
   }
   ssb_s&                                                      set_ssb_pos();
@@ -1341,10 +1093,11 @@ struct spatial_relation_pos_c {
   protocol_ie_single_container_s<spatial_info_pos_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                                                      type_;
-  choice_buffer_t<pr_si_nformation_pos_s, protocol_ie_single_container_s<spatial_info_pos_ext_ies_o>, ssb_s> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      spatial_relation_pos_c,
+      types,
+      choice_buffer_t<pr_si_nformation_pos_s, protocol_ie_single_container_s<spatial_info_pos_ext_ies_o>, ssb_s>>
+      c;
 };
 
 // SlotOffsetRemainingHopsAperiodic-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -1354,7 +1107,6 @@ using slot_offset_remaining_hops_aperiodic_ext_ies_container = protocol_ext_cont
 
 // SlotOffsetRemainingHopsAperiodic ::= SEQUENCE
 struct slot_offset_remaining_hops_aperiodic_s {
-  bool                                                   ext                    = false;
   bool                                                   slot_offset_present    = false;
   bool                                                   start_position_present = false;
   bool                                                   ie_exts_present        = false;
@@ -1363,10 +1115,7 @@ struct slot_offset_remaining_hops_aperiodic_s {
   slot_offset_remaining_hops_aperiodic_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SlotOffsetRemainingHopsSemiPersistent-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -1376,7 +1125,6 @@ using slot_offset_remaining_hops_semi_persistent_ext_ies_container = protocol_ex
 
 // SlotOffsetRemainingHopsSemiPersistent ::= SEQUENCE
 struct slot_offset_remaining_hops_semi_persistent_s {
-  bool                                                         ext                    = false;
   bool                                                         start_position_present = false;
   bool                                                         ie_exts_present        = false;
   srs_periodicity_e                                            srs_periodicity;
@@ -1385,10 +1133,7 @@ struct slot_offset_remaining_hops_semi_persistent_s {
   slot_offset_remaining_hops_semi_persistent_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SlotOffsetRemainingHopsSemiPeriodic-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -1398,7 +1143,6 @@ using slot_offset_remaining_hops_semi_periodic_ext_ies_container = protocol_ext_
 
 // SlotOffsetRemainingHopsPeriodic ::= SEQUENCE
 struct slot_offset_remaining_hops_periodic_s {
-  bool                                                       ext                    = false;
   bool                                                       start_position_present = false;
   bool                                                       ie_exts_present        = false;
   srs_periodicity_e                                          srs_periodicity;
@@ -1407,10 +1151,7 @@ struct slot_offset_remaining_hops_periodic_s {
   slot_offset_remaining_hops_semi_periodic_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SlotOffsetRemainingHops-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -1421,59 +1162,52 @@ struct slot_offset_remaining_hops_c {
   struct types_opts {
     enum options { aperiodic, semi_persistent, periodic, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  slot_offset_remaining_hops_c() = default;
-  slot_offset_remaining_hops_c(const slot_offset_remaining_hops_c& other);
-  slot_offset_remaining_hops_c& operator=(const slot_offset_remaining_hops_c& other);
-  ~slot_offset_remaining_hops_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  slot_offset_remaining_hops_aperiodic_s& aperiodic()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  slot_offset_remaining_hops_aperiodic_s&       aperiodic()
   {
-    assert_choice_type(types::aperiodic, type_, "SlotOffsetRemainingHops");
+    assert_choice_type(types::aperiodic, c.type, "SlotOffsetRemainingHops");
     return c.get<slot_offset_remaining_hops_aperiodic_s>();
   }
   slot_offset_remaining_hops_semi_persistent_s& semi_persistent()
   {
-    assert_choice_type(types::semi_persistent, type_, "SlotOffsetRemainingHops");
+    assert_choice_type(types::semi_persistent, c.type, "SlotOffsetRemainingHops");
     return c.get<slot_offset_remaining_hops_semi_persistent_s>();
   }
   slot_offset_remaining_hops_periodic_s& periodic()
   {
-    assert_choice_type(types::periodic, type_, "SlotOffsetRemainingHops");
+    assert_choice_type(types::periodic, c.type, "SlotOffsetRemainingHops");
     return c.get<slot_offset_remaining_hops_periodic_s>();
   }
   protocol_ie_single_container_s<slot_offset_remaining_hops_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "SlotOffsetRemainingHops");
+    assert_choice_type(types::choice_ext, c.type, "SlotOffsetRemainingHops");
     return c.get<protocol_ie_single_container_s<slot_offset_remaining_hops_ext_ies_o>>();
   }
   const slot_offset_remaining_hops_aperiodic_s& aperiodic() const
   {
-    assert_choice_type(types::aperiodic, type_, "SlotOffsetRemainingHops");
+    assert_choice_type(types::aperiodic, c.type, "SlotOffsetRemainingHops");
     return c.get<slot_offset_remaining_hops_aperiodic_s>();
   }
   const slot_offset_remaining_hops_semi_persistent_s& semi_persistent() const
   {
-    assert_choice_type(types::semi_persistent, type_, "SlotOffsetRemainingHops");
+    assert_choice_type(types::semi_persistent, c.type, "SlotOffsetRemainingHops");
     return c.get<slot_offset_remaining_hops_semi_persistent_s>();
   }
   const slot_offset_remaining_hops_periodic_s& periodic() const
   {
-    assert_choice_type(types::periodic, type_, "SlotOffsetRemainingHops");
+    assert_choice_type(types::periodic, c.type, "SlotOffsetRemainingHops");
     return c.get<slot_offset_remaining_hops_periodic_s>();
   }
   const protocol_ie_single_container_s<slot_offset_remaining_hops_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "SlotOffsetRemainingHops");
+    assert_choice_type(types::choice_ext, c.type, "SlotOffsetRemainingHops");
     return c.get<protocol_ie_single_container_s<slot_offset_remaining_hops_ext_ies_o>>();
   }
   slot_offset_remaining_hops_aperiodic_s&                               set_aperiodic();
@@ -1482,14 +1216,13 @@ struct slot_offset_remaining_hops_c {
   protocol_ie_single_container_s<slot_offset_remaining_hops_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<protocol_ie_single_container_s<slot_offset_remaining_hops_ext_ies_o>,
-                  slot_offset_remaining_hops_aperiodic_s,
-                  slot_offset_remaining_hops_periodic_s,
-                  slot_offset_remaining_hops_semi_persistent_s>
+  asn1::table::choice_storage<slot_offset_remaining_hops_c,
+                              types,
+                              choice_buffer_t<protocol_ie_single_container_s<slot_offset_remaining_hops_ext_ies_o>,
+                                              slot_offset_remaining_hops_aperiodic_s,
+                                              slot_offset_remaining_hops_periodic_s,
+                                              slot_offset_remaining_hops_semi_persistent_s>>
       c;
-
-  void destroy_();
 };
 
 // SlotOffsetForRemainingHopsItem-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -1499,16 +1232,12 @@ using slot_offset_for_remaining_hops_item_ext_ies_container = protocol_ext_conta
 
 // SlotOffsetForRemainingHopsItem ::= SEQUENCE
 struct slot_offset_for_remaining_hops_item_s {
-  bool                                                  ext             = false;
   bool                                                  ie_exts_present = false;
   slot_offset_remaining_hops_c                          slot_offset_remaining_hops;
   slot_offset_for_remaining_hops_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SlotOffsetForRemainingHopsList ::= SEQUENCE (SIZE (1..5)) OF SlotOffsetForRemainingHopsItem
@@ -1523,15 +1252,13 @@ using tx_hop_cfg_ext_ies_container = protocol_ext_container_empty_l;
 struct tx_hop_cfg_s {
   struct overlap_value_opts {
     enum options { rb0, rb1, rb2, rb4, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using overlap_value_e_ = enumerated<overlap_value_opts>;
 
   // member variables
-  bool                                  ext             = false;
   bool                                  ie_exts_present = false;
   overlap_value_e_                      overlap_value;
   uint8_t                               nof_hops = 2;
@@ -1539,81 +1266,50 @@ struct tx_hop_cfg_s {
   tx_hop_cfg_ext_ies_container          ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PosSRSResource-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct pos_srs_res_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { tx_hop_cfg, nulltype } value;
+struct pos_srs_res_item_ext_ies_container {
+  bool         tx_hop_cfg_present = false;
+  tx_hop_cfg_s tx_hop_cfg;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::tx_hop_cfg; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    tx_hop_cfg_s&       tx_hop_cfg() { return c; }
-    const tx_hop_cfg_s& tx_hop_cfg() const { return c; }
-
-  private:
-    tx_hop_cfg_s c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // PosSRSResource-Item ::= SEQUENCE
 struct pos_srs_res_item_s {
   struct nrof_symbols_opts {
     enum options { n1, n2, n4, n8, n12, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using nrof_symbols_e_ = enumerated<nrof_symbols_opts>;
   struct group_or_seq_hop_opts {
     enum options { neither, group_hop, seq_hop, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using group_or_seq_hop_e_ = enumerated<group_or_seq_hop_opts>;
 
   // member variables
-  bool                                                 ext                          = false;
-  bool                                                 spatial_relation_pos_present = false;
-  uint8_t                                              srs_pos_res_id               = 0;
-  tx_comb_pos_c                                        tx_comb_pos;
-  uint8_t                                              start_position = 0;
-  nrof_symbols_e_                                      nrof_symbols;
-  uint16_t                                             freq_domain_shift = 0;
-  uint8_t                                              c_srs             = 0;
-  group_or_seq_hop_e_                                  group_or_seq_hop;
-  res_type_pos_c                                       res_type_pos;
-  uint32_t                                             seq_id = 0;
-  spatial_relation_pos_c                               spatial_relation_pos;
-  protocol_ext_container_l<pos_srs_res_item_ext_ies_o> ie_exts;
+  bool                               spatial_relation_pos_present = false;
+  bool                               ie_exts_present              = false;
+  uint8_t                            srs_pos_res_id               = 0;
+  tx_comb_pos_c                      tx_comb_pos;
+  uint8_t                            start_position = 0;
+  nrof_symbols_e_                    nrof_symbols;
+  uint16_t                           freq_domain_shift = 0;
+  uint8_t                            c_srs             = 0;
+  group_or_seq_hop_e_                group_or_seq_hop;
+  res_type_pos_c                     res_type_pos;
+  uint32_t                           seq_id = 0;
+  spatial_relation_pos_c             spatial_relation_pos;
+  pos_srs_res_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PosSRSResource-List ::= SEQUENCE (SIZE (1..64)) OF PosSRSResource-Item
@@ -1632,21 +1328,17 @@ struct res_set_type_periodic_s {
   struct periodic_set_opts {
     enum options { true_value, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using periodic_set_e_ = enumerated<periodic_set_opts, true>;
 
   // member variables
-  bool                                    ext             = false;
   bool                                    ie_exts_present = false;
   periodic_set_e_                         periodic_set;
   res_set_type_periodic_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResourceSetTypeSemi-persistent-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -1659,21 +1351,17 @@ struct res_set_type_semi_persistent_s {
   struct semi_persistent_set_opts {
     enum options { true_value, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using semi_persistent_set_e_ = enumerated<semi_persistent_set_opts, true>;
 
   // member variables
-  bool                                           ext             = false;
   bool                                           ie_exts_present = false;
   semi_persistent_set_e_                         semi_persistent_set;
   res_set_type_semi_persistent_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResourceSetTypeAperiodic-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -1683,17 +1371,13 @@ using res_set_type_aperiodic_ext_ies_container = protocol_ext_container_empty_l;
 
 // ResourceSetTypeAperiodic ::= SEQUENCE
 struct res_set_type_aperiodic_s {
-  bool                                     ext             = false;
   bool                                     ie_exts_present = false;
   uint8_t                                  srs_res_trigger = 1;
   uint8_t                                  slotoffset      = 0;
   res_set_type_aperiodic_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResourceSetType-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -1704,59 +1388,52 @@ struct res_set_type_c {
   struct types_opts {
     enum options { periodic, semi_persistent, aperiodic, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  res_set_type_c() = default;
-  res_set_type_c(const res_set_type_c& other);
-  res_set_type_c& operator=(const res_set_type_c& other);
-  ~res_set_type_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  res_set_type_periodic_s& periodic()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  res_set_type_periodic_s&                      periodic()
   {
-    assert_choice_type(types::periodic, type_, "ResourceSetType");
+    assert_choice_type(types::periodic, c.type, "ResourceSetType");
     return c.get<res_set_type_periodic_s>();
   }
   res_set_type_semi_persistent_s& semi_persistent()
   {
-    assert_choice_type(types::semi_persistent, type_, "ResourceSetType");
+    assert_choice_type(types::semi_persistent, c.type, "ResourceSetType");
     return c.get<res_set_type_semi_persistent_s>();
   }
   res_set_type_aperiodic_s& aperiodic()
   {
-    assert_choice_type(types::aperiodic, type_, "ResourceSetType");
+    assert_choice_type(types::aperiodic, c.type, "ResourceSetType");
     return c.get<res_set_type_aperiodic_s>();
   }
   protocol_ie_single_container_s<res_set_type_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "ResourceSetType");
+    assert_choice_type(types::choice_ext, c.type, "ResourceSetType");
     return c.get<protocol_ie_single_container_s<res_set_type_ext_ies_o>>();
   }
   const res_set_type_periodic_s& periodic() const
   {
-    assert_choice_type(types::periodic, type_, "ResourceSetType");
+    assert_choice_type(types::periodic, c.type, "ResourceSetType");
     return c.get<res_set_type_periodic_s>();
   }
   const res_set_type_semi_persistent_s& semi_persistent() const
   {
-    assert_choice_type(types::semi_persistent, type_, "ResourceSetType");
+    assert_choice_type(types::semi_persistent, c.type, "ResourceSetType");
     return c.get<res_set_type_semi_persistent_s>();
   }
   const res_set_type_aperiodic_s& aperiodic() const
   {
-    assert_choice_type(types::aperiodic, type_, "ResourceSetType");
+    assert_choice_type(types::aperiodic, c.type, "ResourceSetType");
     return c.get<res_set_type_aperiodic_s>();
   }
   const protocol_ie_single_container_s<res_set_type_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "ResourceSetType");
+    assert_choice_type(types::choice_ext, c.type, "ResourceSetType");
     return c.get<protocol_ie_single_container_s<res_set_type_ext_ies_o>>();
   }
   res_set_type_periodic_s&                                set_periodic();
@@ -1765,14 +1442,13 @@ struct res_set_type_c {
   protocol_ie_single_container_s<res_set_type_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<protocol_ie_single_container_s<res_set_type_ext_ies_o>,
-                  res_set_type_aperiodic_s,
-                  res_set_type_periodic_s,
-                  res_set_type_semi_persistent_s>
+  asn1::table::choice_storage<res_set_type_c,
+                              types,
+                              choice_buffer_t<protocol_ie_single_container_s<res_set_type_ext_ies_o>,
+                                              res_set_type_aperiodic_s,
+                                              res_set_type_periodic_s,
+                                              res_set_type_semi_persistent_s>>
       c;
-
-  void destroy_();
 };
 
 // SRSResourceSet-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -1782,7 +1458,6 @@ using srs_res_set_ext_ies_container = protocol_ext_container_empty_l;
 
 // SRSResourceSet ::= SEQUENCE
 struct srs_res_set_s {
-  bool                          ext             = false;
   bool                          ie_exts_present = false;
   uint8_t                       srs_res_set_id1 = 0;
   srs_res_id_list_l             srs_res_id_list;
@@ -1790,10 +1465,7 @@ struct srs_res_set_s {
   srs_res_set_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SRSResourceSet-List ::= SEQUENCE (SIZE (1..16)) OF SRSResourceSet
@@ -1812,21 +1484,17 @@ struct pos_res_set_type_periodic_s {
   struct posperiodic_set_opts {
     enum options { true_value, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using posperiodic_set_e_ = enumerated<posperiodic_set_opts, true>;
 
   // member variables
-  bool                                        ext             = false;
   bool                                        ie_exts_present = false;
   posperiodic_set_e_                          posperiodic_set;
   pos_res_set_type_periodic_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PosResourceSetTypeSemi-persistent-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -1839,21 +1507,17 @@ struct pos_res_set_type_semi_persistent_s {
   struct possemi_persistent_set_opts {
     enum options { true_value, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using possemi_persistent_set_e_ = enumerated<possemi_persistent_set_opts, true>;
 
   // member variables
-  bool                                               ext             = false;
   bool                                               ie_exts_present = false;
   possemi_persistent_set_e_                          possemi_persistent_set;
   pos_res_set_type_semi_persistent_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PosResourceSetTypeAperiodic-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -1863,16 +1527,12 @@ using pos_res_set_type_aperiodic_ext_ies_container = protocol_ext_container_empt
 
 // PosResourceSetTypeAperiodic ::= SEQUENCE
 struct pos_res_set_type_aperiodic_s {
-  bool                                         ext             = false;
   bool                                         ie_exts_present = false;
   uint8_t                                      srs_res_trigger = 1;
   pos_res_set_type_aperiodic_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PosResourceSetType-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -1883,59 +1543,52 @@ struct pos_res_set_type_c {
   struct types_opts {
     enum options { periodic, semi_persistent, aperiodic, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  pos_res_set_type_c() = default;
-  pos_res_set_type_c(const pos_res_set_type_c& other);
-  pos_res_set_type_c& operator=(const pos_res_set_type_c& other);
-  ~pos_res_set_type_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  pos_res_set_type_periodic_s& periodic()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  pos_res_set_type_periodic_s&                  periodic()
   {
-    assert_choice_type(types::periodic, type_, "PosResourceSetType");
+    assert_choice_type(types::periodic, c.type, "PosResourceSetType");
     return c.get<pos_res_set_type_periodic_s>();
   }
   pos_res_set_type_semi_persistent_s& semi_persistent()
   {
-    assert_choice_type(types::semi_persistent, type_, "PosResourceSetType");
+    assert_choice_type(types::semi_persistent, c.type, "PosResourceSetType");
     return c.get<pos_res_set_type_semi_persistent_s>();
   }
   pos_res_set_type_aperiodic_s& aperiodic()
   {
-    assert_choice_type(types::aperiodic, type_, "PosResourceSetType");
+    assert_choice_type(types::aperiodic, c.type, "PosResourceSetType");
     return c.get<pos_res_set_type_aperiodic_s>();
   }
   protocol_ie_single_container_s<pos_res_set_type_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "PosResourceSetType");
+    assert_choice_type(types::choice_ext, c.type, "PosResourceSetType");
     return c.get<protocol_ie_single_container_s<pos_res_set_type_ext_ies_o>>();
   }
   const pos_res_set_type_periodic_s& periodic() const
   {
-    assert_choice_type(types::periodic, type_, "PosResourceSetType");
+    assert_choice_type(types::periodic, c.type, "PosResourceSetType");
     return c.get<pos_res_set_type_periodic_s>();
   }
   const pos_res_set_type_semi_persistent_s& semi_persistent() const
   {
-    assert_choice_type(types::semi_persistent, type_, "PosResourceSetType");
+    assert_choice_type(types::semi_persistent, c.type, "PosResourceSetType");
     return c.get<pos_res_set_type_semi_persistent_s>();
   }
   const pos_res_set_type_aperiodic_s& aperiodic() const
   {
-    assert_choice_type(types::aperiodic, type_, "PosResourceSetType");
+    assert_choice_type(types::aperiodic, c.type, "PosResourceSetType");
     return c.get<pos_res_set_type_aperiodic_s>();
   }
   const protocol_ie_single_container_s<pos_res_set_type_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "PosResourceSetType");
+    assert_choice_type(types::choice_ext, c.type, "PosResourceSetType");
     return c.get<protocol_ie_single_container_s<pos_res_set_type_ext_ies_o>>();
   }
   pos_res_set_type_periodic_s&                                set_periodic();
@@ -1944,14 +1597,13 @@ struct pos_res_set_type_c {
   protocol_ie_single_container_s<pos_res_set_type_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<pos_res_set_type_aperiodic_s,
-                  pos_res_set_type_periodic_s,
-                  pos_res_set_type_semi_persistent_s,
-                  protocol_ie_single_container_s<pos_res_set_type_ext_ies_o>>
+  asn1::table::choice_storage<pos_res_set_type_c,
+                              types,
+                              choice_buffer_t<pos_res_set_type_aperiodic_s,
+                                              pos_res_set_type_periodic_s,
+                                              pos_res_set_type_semi_persistent_s,
+                                              protocol_ie_single_container_s<pos_res_set_type_ext_ies_o>>>
       c;
-
-  void destroy_();
 };
 
 // PosSRSResourceSet-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -1961,7 +1613,6 @@ using pos_srs_res_set_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // PosSRSResourceSet-Item ::= SEQUENCE
 struct pos_srs_res_set_item_s {
-  bool                                   ext               = false;
   bool                                   ie_exts_present   = false;
   uint8_t                                possrs_res_set_id = 0;
   pos_srs_res_id_per_set_list_l          poss_rs_res_id_per_set_list;
@@ -1969,10 +1620,7 @@ struct pos_srs_res_set_item_s {
   pos_srs_res_set_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PosSRSResourceSet-List ::= SEQUENCE (SIZE (1..16)) OF PosSRSResourceSet-Item
@@ -1985,7 +1633,6 @@ using srs_cfg_ext_ies_container = protocol_ext_container_empty_l;
 
 // SRSConfig ::= SEQUENCE
 struct srs_cfg_s {
-  bool                      ext             = false;
   bool                      ie_exts_present = false;
   srs_res_list_l            srs_res_list;
   pos_srs_res_list_l        pos_srs_res_list;
@@ -1994,10 +1641,7 @@ struct srs_cfg_s {
   srs_cfg_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ActiveULBWP-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -2009,30 +1653,28 @@ using active_ul_bwp_ext_ies_container = protocol_ext_container_empty_l;
 struct active_ul_bwp_s {
   struct subcarrier_spacing_opts {
     enum options { khz15, khz30, khz60, khz120, /*...*/ khz480, khz960, nulltype } value;
-    typedef uint16_t number_type;
 
-    const char* to_string() const;
-    uint16_t    to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint16_t                            to_number() const;
   };
   using subcarrier_spacing_e_ = enumerated<subcarrier_spacing_opts, true, 2>;
   struct cp_opts {
     enum options { normal, extended, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using cp_e_ = enumerated<cp_opts>;
   struct shift7dot5k_hz_opts {
     enum options { true_value, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using shift7dot5k_hz_e_ = enumerated<shift7dot5k_hz_opts, true>;
 
   // member variables
-  bool                            ext                    = false;
   bool                            shift7dot5k_hz_present = false;
   bool                            ie_exts_present        = false;
-  uint16_t                        location_and_bw        = 0;
+  uint32_t                        location_and_bw        = 0;
   subcarrier_spacing_e_           subcarrier_spacing;
   cp_e_                           cp;
   uint16_t                        tx_direct_current_location = 0;
@@ -2041,10 +1683,7 @@ struct active_ul_bwp_s {
   active_ul_bwp_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // RelativePathDelay-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -2062,134 +1701,116 @@ struct relative_path_delay_ext_ies_o {
         nulltype
       } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    value_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint16_t&       report_granularitykminus1_add_path();
-    uint16_t&       report_granularitykminus2_add_path();
-    uint32_t&       report_granularitykminus3_add_path();
-    uint32_t&       report_granularitykminus4_add_path();
-    uint32_t&       report_granularitykminus5_add_path();
-    uint32_t&       report_granularitykminus6_add_path();
-    const uint16_t& report_granularitykminus1_add_path() const;
-    const uint16_t& report_granularitykminus2_add_path() const;
-    const uint32_t& report_granularitykminus3_add_path() const;
-    const uint32_t& report_granularitykminus4_add_path() const;
-    const uint32_t& report_granularitykminus5_add_path() const;
-    const uint32_t& report_granularitykminus6_add_path() const;
+    void                                  set(types::options e = types::nulltype);
+    types                                 type() const { return type_; }
+    static const asn1::table::choice_desc desc;
+    uint16_t&                             report_granularitykminus1_add_path();
+    uint16_t&                             report_granularitykminus2_add_path();
+    uint32_t&                             report_granularitykminus3_add_path();
+    uint32_t&                             report_granularitykminus4_add_path();
+    uint32_t&                             report_granularitykminus5_add_path();
+    uint32_t&                             report_granularitykminus6_add_path();
+    const uint16_t&                       report_granularitykminus1_add_path() const;
+    const uint16_t&                       report_granularitykminus2_add_path() const;
+    const uint32_t&                       report_granularitykminus3_add_path() const;
+    const uint32_t&                       report_granularitykminus4_add_path() const;
+    const uint32_t&                       report_granularitykminus5_add_path() const;
+    const uint32_t&                       report_granularitykminus6_add_path() const;
 
   private:
     types             type_;
     choice_buffer_ptr c;
   };
 
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static value_c    get_value(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::objset_desc desc;
 };
 
 // RelativePathDelay ::= CHOICE
 struct relative_path_delay_c {
   struct types_opts {
     enum options { k0, k1, k2, k3, k4, k5, choice_ext, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  relative_path_delay_c() = default;
-  relative_path_delay_c(const relative_path_delay_c& other);
-  relative_path_delay_c& operator=(const relative_path_delay_c& other);
-  ~relative_path_delay_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  uint16_t& k0()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  uint16_t&                                     k0()
   {
-    assert_choice_type(types::k0, type_, "RelativePathDelay");
+    assert_choice_type(types::k0, c.type, "RelativePathDelay");
     return c.get<uint16_t>();
   }
   uint16_t& k1()
   {
-    assert_choice_type(types::k1, type_, "RelativePathDelay");
+    assert_choice_type(types::k1, c.type, "RelativePathDelay");
     return c.get<uint16_t>();
   }
   uint16_t& k2()
   {
-    assert_choice_type(types::k2, type_, "RelativePathDelay");
+    assert_choice_type(types::k2, c.type, "RelativePathDelay");
     return c.get<uint16_t>();
   }
   uint16_t& k3()
   {
-    assert_choice_type(types::k3, type_, "RelativePathDelay");
+    assert_choice_type(types::k3, c.type, "RelativePathDelay");
     return c.get<uint16_t>();
   }
   uint16_t& k4()
   {
-    assert_choice_type(types::k4, type_, "RelativePathDelay");
+    assert_choice_type(types::k4, c.type, "RelativePathDelay");
     return c.get<uint16_t>();
   }
   uint16_t& k5()
   {
-    assert_choice_type(types::k5, type_, "RelativePathDelay");
+    assert_choice_type(types::k5, c.type, "RelativePathDelay");
     return c.get<uint16_t>();
   }
   protocol_ie_single_container_s<relative_path_delay_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "RelativePathDelay");
+    assert_choice_type(types::choice_ext, c.type, "RelativePathDelay");
     return c.get<protocol_ie_single_container_s<relative_path_delay_ext_ies_o>>();
   }
   const uint16_t& k0() const
   {
-    assert_choice_type(types::k0, type_, "RelativePathDelay");
+    assert_choice_type(types::k0, c.type, "RelativePathDelay");
     return c.get<uint16_t>();
   }
   const uint16_t& k1() const
   {
-    assert_choice_type(types::k1, type_, "RelativePathDelay");
+    assert_choice_type(types::k1, c.type, "RelativePathDelay");
     return c.get<uint16_t>();
   }
   const uint16_t& k2() const
   {
-    assert_choice_type(types::k2, type_, "RelativePathDelay");
+    assert_choice_type(types::k2, c.type, "RelativePathDelay");
     return c.get<uint16_t>();
   }
   const uint16_t& k3() const
   {
-    assert_choice_type(types::k3, type_, "RelativePathDelay");
+    assert_choice_type(types::k3, c.type, "RelativePathDelay");
     return c.get<uint16_t>();
   }
   const uint16_t& k4() const
   {
-    assert_choice_type(types::k4, type_, "RelativePathDelay");
+    assert_choice_type(types::k4, c.type, "RelativePathDelay");
     return c.get<uint16_t>();
   }
   const uint16_t& k5() const
   {
-    assert_choice_type(types::k5, type_, "RelativePathDelay");
+    assert_choice_type(types::k5, c.type, "RelativePathDelay");
     return c.get<uint16_t>();
   }
   const protocol_ie_single_container_s<relative_path_delay_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "RelativePathDelay");
+    assert_choice_type(types::choice_ext, c.type, "RelativePathDelay");
     return c.get<protocol_ie_single_container_s<relative_path_delay_ext_ies_o>>();
   }
   uint16_t&                                                      set_k0();
@@ -2201,10 +1822,10 @@ struct relative_path_delay_c {
   protocol_ie_single_container_s<relative_path_delay_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                          type_;
-  choice_buffer_t<protocol_ie_single_container_s<relative_path_delay_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<relative_path_delay_c,
+                              types,
+                              choice_buffer_t<protocol_ie_single_container_s<relative_path_delay_ext_ies_o>, uint16_t>>
+      c;
 };
 
 // TrpMeasurementTimingQuality-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -2216,26 +1837,21 @@ using trp_meas_timing_quality_ext_ies_container = protocol_ext_container_empty_l
 struct trp_meas_timing_quality_s {
   struct resolution_opts {
     enum options { m0dot1, m1, m10, m30, /*...*/ nulltype } value;
-    typedef float number_type;
 
-    const char* to_string() const;
-    float       to_number() const;
-    const char* to_number_string() const;
+    static const asn1::table::enum_desc desc;
+    float                               to_number() const;
+    const char*                         to_number_string() const;
   };
   using resolution_e_ = enumerated<resolution_opts, true>;
 
   // member variables
-  bool                                      ext             = false;
   bool                                      ie_exts_present = false;
   uint8_t                                   meas_quality    = 0;
   resolution_e_                             resolution;
   trp_meas_timing_quality_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TrpMeasurementAngleQuality-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -2247,16 +1863,14 @@ using trp_meas_angle_quality_ext_ies_container = protocol_ext_container_empty_l;
 struct trp_meas_angle_quality_s {
   struct resolution_opts {
     enum options { deg0dot1, /*...*/ nulltype } value;
-    typedef float number_type;
 
-    const char* to_string() const;
-    float       to_number() const;
-    const char* to_number_string() const;
+    static const asn1::table::enum_desc desc;
+    float                               to_number() const;
+    const char*                         to_number_string() const;
   };
   using resolution_e_ = enumerated<resolution_opts, true>;
 
   // member variables
-  bool                                     ext                    = false;
   bool                                     zenith_quality_present = false;
   bool                                     ie_exts_present        = false;
   uint16_t                                 azimuth_quality        = 0;
@@ -2265,10 +1879,7 @@ struct trp_meas_angle_quality_s {
   trp_meas_angle_quality_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRPPhaseQuality-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -2280,26 +1891,21 @@ using trp_phase_quality_ext_ies_container = protocol_ext_container_empty_l;
 struct trp_phase_quality_s {
   struct resolution_opts {
     enum options { deg0dot1, deg1, /*...*/ nulltype } value;
-    typedef float number_type;
 
-    const char* to_string() const;
-    float       to_number() const;
-    const char* to_number_string() const;
+    static const asn1::table::enum_desc desc;
+    float                               to_number() const;
+    const char*                         to_number_string() const;
   };
   using resolution_e_ = enumerated<resolution_opts, true>;
 
   // member variables
-  bool                                ext               = false;
   bool                                ie_exts_present   = false;
   uint8_t                             phase_quality_idx = 0;
   resolution_e_                       resolution;
   trp_phase_quality_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TrpMeasurementQuality-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -2309,29 +1915,20 @@ struct trp_meas_quality_ext_ies_o {
     struct types_opts {
       enum options { trp_phase_quality, nulltype } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    types         type() const { return types::trp_phase_quality; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    trp_phase_quality_s&       trp_phase_quality() { return c; }
-    const trp_phase_quality_s& trp_phase_quality() const { return c; }
+    types                                 type() const { return types::trp_phase_quality; }
+    static const asn1::table::choice_desc desc;
+    trp_phase_quality_s&                  trp_phase_quality() { return c; }
+    const trp_phase_quality_s&            trp_phase_quality() const { return c; }
 
   private:
     trp_phase_quality_s c;
   };
 
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static value_c    get_value(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::objset_desc desc;
 };
 
 // TrpMeasurementQuality ::= CHOICE
@@ -2339,49 +1936,42 @@ struct trp_meas_quality_c {
   struct types_opts {
     enum options { timing_meas_quality, angle_meas_quality, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  trp_meas_quality_c() = default;
-  trp_meas_quality_c(const trp_meas_quality_c& other);
-  trp_meas_quality_c& operator=(const trp_meas_quality_c& other);
-  ~trp_meas_quality_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  trp_meas_timing_quality_s& timing_meas_quality()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  trp_meas_timing_quality_s&                    timing_meas_quality()
   {
-    assert_choice_type(types::timing_meas_quality, type_, "TrpMeasurementQuality");
+    assert_choice_type(types::timing_meas_quality, c.type, "TrpMeasurementQuality");
     return c.get<trp_meas_timing_quality_s>();
   }
   trp_meas_angle_quality_s& angle_meas_quality()
   {
-    assert_choice_type(types::angle_meas_quality, type_, "TrpMeasurementQuality");
+    assert_choice_type(types::angle_meas_quality, c.type, "TrpMeasurementQuality");
     return c.get<trp_meas_angle_quality_s>();
   }
   protocol_ie_single_container_s<trp_meas_quality_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "TrpMeasurementQuality");
+    assert_choice_type(types::choice_ext, c.type, "TrpMeasurementQuality");
     return c.get<protocol_ie_single_container_s<trp_meas_quality_ext_ies_o>>();
   }
   const trp_meas_timing_quality_s& timing_meas_quality() const
   {
-    assert_choice_type(types::timing_meas_quality, type_, "TrpMeasurementQuality");
+    assert_choice_type(types::timing_meas_quality, c.type, "TrpMeasurementQuality");
     return c.get<trp_meas_timing_quality_s>();
   }
   const trp_meas_angle_quality_s& angle_meas_quality() const
   {
-    assert_choice_type(types::angle_meas_quality, type_, "TrpMeasurementQuality");
+    assert_choice_type(types::angle_meas_quality, c.type, "TrpMeasurementQuality");
     return c.get<trp_meas_angle_quality_s>();
   }
   const protocol_ie_single_container_s<trp_meas_quality_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "TrpMeasurementQuality");
+    assert_choice_type(types::choice_ext, c.type, "TrpMeasurementQuality");
     return c.get<protocol_ie_single_container_s<trp_meas_quality_ext_ies_o>>();
   }
   trp_meas_timing_quality_s&                                  set_timing_meas_quality();
@@ -2389,13 +1979,12 @@ struct trp_meas_quality_c {
   protocol_ie_single_container_s<trp_meas_quality_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<protocol_ie_single_container_s<trp_meas_quality_ext_ies_o>,
-                  trp_meas_angle_quality_s,
-                  trp_meas_timing_quality_s>
+  asn1::table::choice_storage<trp_meas_quality_c,
+                              types,
+                              choice_buffer_t<protocol_ie_single_container_s<trp_meas_quality_ext_ies_o>,
+                                              trp_meas_angle_quality_s,
+                                              trp_meas_timing_quality_s>>
       c;
-
-  void destroy_();
 };
 
 // LCS-to-GCS-Translation-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -2405,7 +1994,6 @@ using lcs_to_gcs_translation_ext_ies_container = protocol_ext_container_empty_l;
 
 // LCS-to-GCS-Translation ::= SEQUENCE
 struct lcs_to_gcs_translation_s {
-  bool                                     ext             = false;
   bool                                     ie_exts_present = false;
   uint16_t                                 alpha           = 0;
   uint16_t                                 beta            = 0;
@@ -2413,10 +2001,7 @@ struct lcs_to_gcs_translation_s {
   lcs_to_gcs_translation_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // UL-AoA-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -2426,7 +2011,6 @@ using ul_ao_a_ext_ies_container = protocol_ext_container_empty_l;
 
 // UL-AoA ::= SEQUENCE
 struct ul_ao_a_s {
-  bool                      ext                            = false;
   bool                      zenith_ao_a_present            = false;
   bool                      lcs_to_gcs_translation_present = false;
   bool                      ie_exts_present                = false;
@@ -2436,10 +2020,7 @@ struct ul_ao_a_s {
   ul_ao_a_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ZoA-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -2449,7 +2030,6 @@ using zo_a_ext_ies_container = protocol_ext_container_empty_l;
 
 // ZoA ::= SEQUENCE
 struct zo_a_s {
-  bool                     ext                            = false;
   bool                     lcs_to_gcs_translation_present = false;
   bool                     ie_exts_present                = false;
   uint16_t                 zenith_ao_a                    = 0;
@@ -2457,10 +2037,7 @@ struct zo_a_s {
   zo_a_ext_ies_container   ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MultipleULAoA-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -2471,49 +2048,42 @@ struct multiple_ul_ao_a_item_c {
   struct types_opts {
     enum options { ul_ao_a, ul_zo_a, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  multiple_ul_ao_a_item_c() = default;
-  multiple_ul_ao_a_item_c(const multiple_ul_ao_a_item_c& other);
-  multiple_ul_ao_a_item_c& operator=(const multiple_ul_ao_a_item_c& other);
-  ~multiple_ul_ao_a_item_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  ul_ao_a_s& ul_ao_a()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  ul_ao_a_s&                                    ul_ao_a()
   {
-    assert_choice_type(types::ul_ao_a, type_, "MultipleULAoA-Item");
+    assert_choice_type(types::ul_ao_a, c.type, "MultipleULAoA-Item");
     return c.get<ul_ao_a_s>();
   }
   zo_a_s& ul_zo_a()
   {
-    assert_choice_type(types::ul_zo_a, type_, "MultipleULAoA-Item");
+    assert_choice_type(types::ul_zo_a, c.type, "MultipleULAoA-Item");
     return c.get<zo_a_s>();
   }
   protocol_ie_single_container_s<multiple_ul_ao_a_item_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "MultipleULAoA-Item");
+    assert_choice_type(types::choice_ext, c.type, "MultipleULAoA-Item");
     return c.get<protocol_ie_single_container_s<multiple_ul_ao_a_item_ext_ies_o>>();
   }
   const ul_ao_a_s& ul_ao_a() const
   {
-    assert_choice_type(types::ul_ao_a, type_, "MultipleULAoA-Item");
+    assert_choice_type(types::ul_ao_a, c.type, "MultipleULAoA-Item");
     return c.get<ul_ao_a_s>();
   }
   const zo_a_s& ul_zo_a() const
   {
-    assert_choice_type(types::ul_zo_a, type_, "MultipleULAoA-Item");
+    assert_choice_type(types::ul_zo_a, c.type, "MultipleULAoA-Item");
     return c.get<zo_a_s>();
   }
   const protocol_ie_single_container_s<multiple_ul_ao_a_item_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "MultipleULAoA-Item");
+    assert_choice_type(types::choice_ext, c.type, "MultipleULAoA-Item");
     return c.get<protocol_ie_single_container_s<multiple_ul_ao_a_item_ext_ies_o>>();
   }
   ul_ao_a_s&                                                       set_ul_ao_a();
@@ -2521,10 +2091,11 @@ struct multiple_ul_ao_a_item_c {
   protocol_ie_single_container_s<multiple_ul_ao_a_item_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                                               type_;
-  choice_buffer_t<protocol_ie_single_container_s<multiple_ul_ao_a_item_ext_ies_o>, ul_ao_a_s, zo_a_s> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      multiple_ul_ao_a_item_c,
+      types,
+      choice_buffer_t<protocol_ie_single_container_s<multiple_ul_ao_a_item_ext_ies_o>, ul_ao_a_s, zo_a_s>>
+      c;
 };
 
 // MultipleULAoA-List ::= SEQUENCE (SIZE (1..8)) OF MultipleULAoA-Item
@@ -2537,16 +2108,12 @@ using multiple_ul_ao_a_ext_ies_container = protocol_ext_container_empty_l;
 
 // MultipleULAoA ::= SEQUENCE
 struct multiple_ul_ao_a_s {
-  bool                               ext             = false;
   bool                               ie_exts_present = false;
   multiple_ul_ao_a_list_l            multiple_ul_ao_a;
   multiple_ul_ao_a_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // UL-SRS-RSRPP-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -2556,70 +2123,26 @@ using ul_srs_rsrp_p_ext_ies_container = protocol_ext_container_empty_l;
 
 // UL-SRS-RSRPP ::= SEQUENCE
 struct ul_srs_rsrp_p_s {
-  bool                            ext               = false;
   bool                            ie_exts_present   = false;
   uint8_t                         first_path_rsrp_p = 0;
   ul_srs_rsrp_p_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // AdditionalPathListItem-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct add_path_list_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { multiple_ul_ao_a, path_pwr, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    multiple_ul_ao_a_s&       multiple_ul_ao_a();
-    ul_srs_rsrp_p_s&          path_pwr();
-    const multiple_ul_ao_a_s& multiple_ul_ao_a() const;
-    const ul_srs_rsrp_p_s&    path_pwr() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct add_path_list_item_ext_ies_container {
   bool               multiple_ul_ao_a_present = false;
   bool               path_pwr_present         = false;
   multiple_ul_ao_a_s multiple_ul_ao_a;
   ul_srs_rsrp_p_s    path_pwr;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // AdditionalPathListItem ::= SEQUENCE
 struct add_path_list_item_s {
-  bool                                 ext                  = false;
   bool                                 path_quality_present = false;
   bool                                 ie_exts_present      = false;
   relative_path_delay_c                relative_time_of_path;
@@ -2627,10 +2150,7 @@ struct add_path_list_item_s {
   add_path_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // AdditionalPathList ::= SEQUENCE (SIZE (1..2)) OF AdditionalPathListItem
@@ -2643,16 +2163,12 @@ using dl_prs_res_set_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // DL-PRS-ResourceSet-Item ::= SEQUENCE
 struct dl_prs_res_set_item_s {
-  bool                                  ext                = false;
   bool                                  ie_exts_present    = false;
   uint8_t                               dl_prs_res_set_idx = 1;
   dl_prs_res_set_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DL-PRS-ResourceSet-List ::= SEQUENCE (SIZE (1..3)) OF DL-PRS-ResourceSet-Item
@@ -2665,84 +2181,35 @@ using aggr_prs_res_set_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // AggregatedPRSResourceSet-Item ::= SEQUENCE
 struct aggr_prs_res_set_item_s {
-  bool                                    ext             = false;
   bool                                    ie_exts_present = false;
   dl_prs_res_set_list_l                   dl_prs_res_set_list;
   aggr_prs_res_set_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // AggregatedPRSResourceSetList ::= SEQUENCE (SIZE (1..2)) OF AggregatedPRSResourceSet-Item
 using aggr_prs_res_set_list_l = dyn_array<aggr_prs_res_set_item_s>;
 
 // AggregatedPosSRSResourceID-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct aggr_pos_srs_res_id_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { point_a, scs_specific_carrier, nr_pci, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint32_t&                     point_a();
-    scs_specific_carrier_s&       scs_specific_carrier();
-    uint16_t&                     nr_pci();
-    const uint32_t&               point_a() const;
-    const scs_specific_carrier_s& scs_specific_carrier() const;
-    const uint16_t&               nr_pci() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct aggr_pos_srs_res_id_item_ext_ies_container {
   bool                   nr_pci_present = false;
   uint32_t               point_a;
   scs_specific_carrier_s scs_specific_carrier;
   uint16_t               nr_pci;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // AggregatedPosSRSResourceID-Item ::= SEQUENCE
 struct aggr_pos_srs_res_id_item_s {
-  bool                                       ext             = false;
   bool                                       ie_exts_present = false;
   uint8_t                                    srs_pos_res_id  = 0;
   aggr_pos_srs_res_id_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // AggregatedPosSRSResourceID-List ::= SEQUENCE (SIZE (2..3)) OF AggregatedPosSRSResourceID-Item
@@ -2755,17 +2222,13 @@ using expected_azimuth_ao_a_ext_ies_container = protocol_ext_container_empty_l;
 
 // Expected-Azimuth-AoA ::= SEQUENCE
 struct expected_azimuth_ao_a_s {
-  bool                                    ext                               = false;
   bool                                    ie_exts_present                   = false;
   uint16_t                                expected_azimuth_ao_a_value       = 0;
   uint16_t                                expected_azimuth_ao_a_uncertainty = 0;
   expected_azimuth_ao_a_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Expected-Zenith-AoA-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -2775,17 +2238,13 @@ using expected_zenith_ao_a_ext_ies_container = protocol_ext_container_empty_l;
 
 // Expected-Zenith-AoA ::= SEQUENCE
 struct expected_zenith_ao_a_s {
-  bool                                   ext                              = false;
   bool                                   ie_exts_present                  = false;
   uint16_t                               expected_zenith_ao_a_value       = 0;
   uint16_t                               expected_zenith_ao_a_uncertainty = 0;
   expected_zenith_ao_a_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Expected-UL-AoA-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -2795,7 +2254,6 @@ using expected_ul_ao_a_ext_ies_container = protocol_ext_container_empty_l;
 
 // Expected-UL-AoA ::= SEQUENCE
 struct expected_ul_ao_a_s {
-  bool                               ext                          = false;
   bool                               expected_zenith_ao_a_present = false;
   bool                               ie_exts_present              = false;
   expected_azimuth_ao_a_s            expected_azimuth_ao_a;
@@ -2803,10 +2261,7 @@ struct expected_ul_ao_a_s {
   expected_ul_ao_a_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Expected-ZoA-only-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -2816,16 +2271,12 @@ using expected_zo_a_only_ext_ies_container = protocol_ext_container_empty_l;
 
 // Expected-ZoA-only ::= SEQUENCE
 struct expected_zo_a_only_s {
-  bool                                 ext             = false;
   bool                                 ie_exts_present = false;
   expected_zenith_ao_a_s               expected_zo_a_only;
   expected_zo_a_only_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // AngleMeasurementType-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -2836,49 +2287,42 @@ struct angle_meas_type_c {
   struct types_opts {
     enum options { expected_ul_ao_a, expected_zo_a, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  angle_meas_type_c() = default;
-  angle_meas_type_c(const angle_meas_type_c& other);
-  angle_meas_type_c& operator=(const angle_meas_type_c& other);
-  ~angle_meas_type_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  expected_ul_ao_a_s& expected_ul_ao_a()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  expected_ul_ao_a_s&                           expected_ul_ao_a()
   {
-    assert_choice_type(types::expected_ul_ao_a, type_, "AngleMeasurementType");
+    assert_choice_type(types::expected_ul_ao_a, c.type, "AngleMeasurementType");
     return c.get<expected_ul_ao_a_s>();
   }
   expected_zo_a_only_s& expected_zo_a()
   {
-    assert_choice_type(types::expected_zo_a, type_, "AngleMeasurementType");
+    assert_choice_type(types::expected_zo_a, c.type, "AngleMeasurementType");
     return c.get<expected_zo_a_only_s>();
   }
   protocol_ie_single_container_s<angle_meas_type_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "AngleMeasurementType");
+    assert_choice_type(types::choice_ext, c.type, "AngleMeasurementType");
     return c.get<protocol_ie_single_container_s<angle_meas_type_ext_ies_o>>();
   }
   const expected_ul_ao_a_s& expected_ul_ao_a() const
   {
-    assert_choice_type(types::expected_ul_ao_a, type_, "AngleMeasurementType");
+    assert_choice_type(types::expected_ul_ao_a, c.type, "AngleMeasurementType");
     return c.get<expected_ul_ao_a_s>();
   }
   const expected_zo_a_only_s& expected_zo_a() const
   {
-    assert_choice_type(types::expected_zo_a, type_, "AngleMeasurementType");
+    assert_choice_type(types::expected_zo_a, c.type, "AngleMeasurementType");
     return c.get<expected_zo_a_only_s>();
   }
   const protocol_ie_single_container_s<angle_meas_type_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "AngleMeasurementType");
+    assert_choice_type(types::choice_ext, c.type, "AngleMeasurementType");
     return c.get<protocol_ie_single_container_s<angle_meas_type_ext_ies_o>>();
   }
   expected_ul_ao_a_s&                                        set_expected_ul_ao_a();
@@ -2886,11 +2330,12 @@ struct angle_meas_type_c {
   protocol_ie_single_container_s<angle_meas_type_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<expected_ul_ao_a_s, expected_zo_a_only_s, protocol_ie_single_container_s<angle_meas_type_ext_ies_o>>
+  asn1::table::choice_storage<angle_meas_type_c,
+                              types,
+                              choice_buffer_t<expected_ul_ao_a_s,
+                                              expected_zo_a_only_s,
+                                              protocol_ie_single_container_s<angle_meas_type_ext_ies_o>>>
       c;
-
-  void destroy_();
 };
 
 // AoA-AssistanceInfo-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -2900,7 +2345,6 @@ using ao_a_assist_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // AoA-AssistanceInfo ::= SEQUENCE
 struct ao_a_assist_info_s {
-  bool                               ext                            = false;
   bool                               lcs_to_gcs_translation_present = false;
   bool                               ie_exts_present                = false;
   angle_meas_type_c                  angle_meas;
@@ -2908,10 +2352,7 @@ struct ao_a_assist_info_s {
   ao_a_assist_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // AperiodicSRSResourceTriggerList ::= SEQUENCE (SIZE (1..3)) OF INTEGER (1..3)
@@ -2920,10 +2361,9 @@ using aperiodic_srs_res_trigger_list_l = bounded_array<uint8_t, 3>;
 // BroadcastPeriodicity ::= ENUMERATED
 struct broadcast_periodicity_opts {
   enum options { ms80, ms160, ms320, ms640, ms1280, ms2560, ms5120, /*...*/ nulltype } value;
-  typedef uint16_t number_type;
 
-  const char* to_string() const;
-  uint16_t    to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint16_t                            to_number() const;
 };
 using broadcast_periodicity_e = enumerated<broadcast_periodicity_opts, true>;
 
@@ -2990,7 +2430,7 @@ struct pos_sib_type_opts {
     nulltype
   } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using pos_sib_type_e = enumerated<pos_sib_type_opts, true, 17>;
 
@@ -3000,16 +2440,12 @@ using pos_sib_segments_ext_ies_o = protocol_ext_empty_o;
 using pos_sib_segments_ext_ies_container = protocol_ext_container_empty_l;
 
 struct pos_sib_segments_item_s_ {
-  bool                               ext             = false;
   bool                               ie_exts_present = false;
   unbounded_octstring<true>          assist_data_sib_elem;
   pos_sib_segments_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PosSIB-Segments ::= SEQUENCE (SIZE (1..64)) OF PosSIB-Segments-item
@@ -3025,24 +2461,23 @@ struct assist_info_meta_data_s {
   struct encrypted_opts {
     enum options { true_value, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using encrypted_e_ = enumerated<encrypted_opts, true>;
   struct gns_si_d_opts {
     enum options { gps, sbas, qzss, galileo, glonass, bds, navic, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using gns_si_d_e_ = enumerated<gns_si_d_opts, true>;
   struct sba_si_d_opts {
     enum options { waas, egnos, msas, gagan, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using sba_si_d_e_ = enumerated<sba_si_d_opts, true>;
 
   // member variables
-  bool                                    ext               = false;
   bool                                    encrypted_present = false;
   bool                                    gns_si_d_present  = false;
   bool                                    sba_si_d_present  = false;
@@ -3053,10 +2488,7 @@ struct assist_info_meta_data_s {
   assist_info_meta_data_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PosSIBs-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -3065,7 +2497,6 @@ using pos_sibs_ext_ies_o = protocol_ext_empty_o;
 using pos_sibs_ext_ies_container = protocol_ext_container_empty_l;
 
 struct pos_sibs_item_s_ {
-  bool                       ext                           = false;
   bool                       assist_info_meta_data_present = false;
   bool                       broadcast_prio_present        = false;
   bool                       ie_exts_present               = false;
@@ -3076,10 +2507,7 @@ struct pos_sibs_item_s_ {
   pos_sibs_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PosSIBs ::= SEQUENCE (SIZE (1..32)) OF PosSIBs-item
@@ -3091,17 +2519,13 @@ using sys_info_ext_ies_o = protocol_ext_empty_o;
 using sys_info_ext_ies_container = protocol_ext_container_empty_l;
 
 struct sys_info_item_s_ {
-  bool                       ext             = false;
   bool                       ie_exts_present = false;
   broadcast_periodicity_e    broadcast_periodicity;
   pos_sibs_l                 pos_sibs;
   sys_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SystemInformation ::= SEQUENCE (SIZE (1..32)) OF SystemInformation-item
@@ -3114,23 +2538,19 @@ using assist_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // Assistance-Information ::= SEQUENCE
 struct assist_info_s {
-  bool                          ext             = false;
   bool                          ie_exts_present = false;
   sys_info_l                    sys_info;
   assist_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Outcome ::= ENUMERATED
 struct outcome_opts {
   enum options { failed, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using outcome_e = enumerated<outcome_opts, true>;
 
@@ -3140,17 +2560,13 @@ using assist_info_fail_list_ext_ies_o = protocol_ext_empty_o;
 using assist_info_fail_list_ext_ies_container = protocol_ext_container_empty_l;
 
 struct assist_info_fail_list_item_s_ {
-  bool                                    ext             = false;
   bool                                    ie_exts_present = false;
   pos_sib_type_e                          pos_sib_type;
   outcome_e                               outcome;
   assist_info_fail_list_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // AssistanceInformationFailureList ::= SEQUENCE (SIZE (1..32)) OF AssistanceInformationFailureList-item
@@ -3160,7 +2576,7 @@ using assist_info_fail_list_l = dyn_array<assist_info_fail_list_item_s_>;
 struct bw_aggregation_request_ind_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using bw_aggregation_request_ind_e = enumerated<bw_aggregation_request_ind_opts, true>;
 
@@ -3191,68 +2607,58 @@ struct bw_srs_c {
       mhz90,
       nulltype
     } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using fr1_e_ = enumerated<fr1_opts, true, 10>;
   struct fr2_opts {
     enum options { mhz50, mhz100, mhz200, mhz400, /*...*/ mhz600, mhz800, mhz1600, mhz2000, nulltype } value;
-    typedef uint16_t number_type;
 
-    const char* to_string() const;
-    uint16_t    to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint16_t                            to_number() const;
   };
   using fr2_e_ = enumerated<fr2_opts, true, 4>;
   struct types_opts {
     enum options { fr1, fr2, choice_ext, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  bw_srs_c() = default;
-  bw_srs_c(const bw_srs_c& other);
-  bw_srs_c& operator=(const bw_srs_c& other);
-  ~bw_srs_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  fr1_e_& fr1()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  fr1_e_&                                       fr1()
   {
-    assert_choice_type(types::fr1, type_, "BandwidthSRS");
+    assert_choice_type(types::fr1, c.type, "BandwidthSRS");
     return c.get<fr1_e_>();
   }
   fr2_e_& fr2()
   {
-    assert_choice_type(types::fr2, type_, "BandwidthSRS");
+    assert_choice_type(types::fr2, c.type, "BandwidthSRS");
     return c.get<fr2_e_>();
   }
   protocol_ie_single_container_s<bw_srs_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "BandwidthSRS");
+    assert_choice_type(types::choice_ext, c.type, "BandwidthSRS");
     return c.get<protocol_ie_single_container_s<bw_srs_ext_ies_o>>();
   }
   const fr1_e_& fr1() const
   {
-    assert_choice_type(types::fr1, type_, "BandwidthSRS");
+    assert_choice_type(types::fr1, c.type, "BandwidthSRS");
     return c.get<fr1_e_>();
   }
   const fr2_e_& fr2() const
   {
-    assert_choice_type(types::fr2, type_, "BandwidthSRS");
+    assert_choice_type(types::fr2, c.type, "BandwidthSRS");
     return c.get<fr2_e_>();
   }
   const protocol_ie_single_container_s<bw_srs_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "BandwidthSRS");
+    assert_choice_type(types::choice_ext, c.type, "BandwidthSRS");
     return c.get<protocol_ie_single_container_s<bw_srs_ext_ies_o>>();
   }
   fr1_e_&                                           set_fr1();
@@ -3260,17 +2666,16 @@ struct bw_srs_c {
   protocol_ie_single_container_s<bw_srs_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                             type_;
-  choice_buffer_t<protocol_ie_single_container_s<bw_srs_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::
+      choice_storage<bw_srs_c, types, choice_buffer_t<fr1_e_, fr2_e_, protocol_ie_single_container_s<bw_srs_ext_ies_o>>>
+          c;
 };
 
 // Broadcast ::= ENUMERATED
 struct broadcast_opts {
   enum options { start, stop, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using broadcast_e = enumerated<broadcast_opts, true>;
 
@@ -3281,17 +2686,13 @@ using cgi_eutra_ext_ies_container = protocol_ext_container_empty_l;
 
 // CGI-EUTRA ::= SEQUENCE
 struct cgi_eutra_s {
-  bool                             ext             = false;
   bool                             ie_exts_present = false;
   fixed_octstring<3, true>         plmn_id;
   fixed_bitstring<28, false, true> eutr_acell_id;
   cgi_eutra_ext_ies_container      ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // CGI-NR-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -3301,24 +2702,20 @@ using cgi_nr_ext_ies_container = protocol_ext_container_empty_l;
 
 // CGI-NR ::= SEQUENCE
 struct cgi_nr_s {
-  bool                             ext             = false;
   bool                             ie_exts_present = false;
   fixed_octstring<3, true>         plmn_id;
   fixed_bitstring<36, false, true> nr_cell_id;
   cgi_nr_ext_ies_container         ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // CPLength-EUTRA ::= ENUMERATED
 struct cp_len_eutra_opts {
   enum options { normal, extended, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using cp_len_eutra_e = enumerated<cp_len_eutra_opts, true>;
 
@@ -3329,17 +2726,13 @@ using carrier_freq_ext_ies_container = protocol_ext_container_empty_l;
 
 // CarrierFreq ::= SEQUENCE
 struct carrier_freq_s {
-  bool                           ext               = false;
   bool                           ie_exts_present   = false;
   uint32_t                       point_a           = 0;
   uint16_t                       offset_to_carrier = 0;
   carrier_freq_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // CauseRadioNetwork ::= ENUMERATED
@@ -3354,7 +2747,7 @@ struct cause_radio_network_opts {
     nulltype
   } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using cause_radio_network_e = enumerated<cause_radio_network_opts, true, 2>;
 
@@ -3372,7 +2765,7 @@ struct cause_protocol_opts {
     nulltype
   } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using cause_protocol_e = enumerated<cause_protocol_opts, true>;
 
@@ -3380,7 +2773,7 @@ using cause_protocol_e = enumerated<cause_protocol_opts, true>;
 struct cause_misc_opts {
   enum options { unspecified, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using cause_misc_e = enumerated<cause_misc_opts, true>;
 
@@ -3391,62 +2784,54 @@ using cause_ext_ie_o = protocol_ies_empty_o;
 struct cause_c {
   struct types_opts {
     enum options { radio_network, protocol, misc, choice_ext, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  cause_c() = default;
-  cause_c(const cause_c& other);
-  cause_c& operator=(const cause_c& other);
-  ~cause_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  cause_radio_network_e& radio_network()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  cause_radio_network_e&                        radio_network()
   {
-    assert_choice_type(types::radio_network, type_, "Cause");
+    assert_choice_type(types::radio_network, c.type, "Cause");
     return c.get<cause_radio_network_e>();
   }
   cause_protocol_e& protocol()
   {
-    assert_choice_type(types::protocol, type_, "Cause");
+    assert_choice_type(types::protocol, c.type, "Cause");
     return c.get<cause_protocol_e>();
   }
   cause_misc_e& misc()
   {
-    assert_choice_type(types::misc, type_, "Cause");
+    assert_choice_type(types::misc, c.type, "Cause");
     return c.get<cause_misc_e>();
   }
   protocol_ie_single_container_s<cause_ext_ie_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "Cause");
+    assert_choice_type(types::choice_ext, c.type, "Cause");
     return c.get<protocol_ie_single_container_s<cause_ext_ie_o>>();
   }
   const cause_radio_network_e& radio_network() const
   {
-    assert_choice_type(types::radio_network, type_, "Cause");
+    assert_choice_type(types::radio_network, c.type, "Cause");
     return c.get<cause_radio_network_e>();
   }
   const cause_protocol_e& protocol() const
   {
-    assert_choice_type(types::protocol, type_, "Cause");
+    assert_choice_type(types::protocol, c.type, "Cause");
     return c.get<cause_protocol_e>();
   }
   const cause_misc_e& misc() const
   {
-    assert_choice_type(types::misc, type_, "Cause");
+    assert_choice_type(types::misc, c.type, "Cause");
     return c.get<cause_misc_e>();
   }
   const protocol_ie_single_container_s<cause_ext_ie_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "Cause");
+    assert_choice_type(types::choice_ext, c.type, "Cause");
     return c.get<protocol_ie_single_container_s<cause_ext_ie_o>>();
   }
   cause_radio_network_e&                          set_radio_network();
@@ -3455,10 +2840,13 @@ struct cause_c {
   protocol_ie_single_container_s<cause_ext_ie_o>& set_choice_ext();
 
 private:
-  types                                                           type_;
-  choice_buffer_t<protocol_ie_single_container_s<cause_ext_ie_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<cause_c,
+                              types,
+                              choice_buffer_t<cause_misc_e,
+                                              cause_protocol_e,
+                                              cause_radio_network_e,
+                                              protocol_ie_single_container_s<cause_ext_ie_o>>>
+      c;
 };
 
 // TRP-Beam-Power-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -3468,7 +2856,6 @@ using trp_beam_pwr_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // TRP-Beam-Power-Item ::= SEQUENCE
 struct trp_beam_pwr_item_s {
-  bool                                ext                       = false;
   bool                                prs_res_set_id_present    = false;
   bool                                relative_pwr_fine_present = false;
   bool                                ie_exts_present           = false;
@@ -3479,10 +2866,7 @@ struct trp_beam_pwr_item_s {
   trp_beam_pwr_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRP-ElevationAngleList-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -3495,7 +2879,6 @@ struct trp_elevation_angle_list_item_s {
   using trp_beam_pwr_list_l_ = dyn_array<trp_beam_pwr_item_s>;
 
   // member variables
-  bool                                            ext                              = false;
   bool                                            trp_elevation_angle_fine_present = false;
   bool                                            ie_exts_present                  = false;
   uint8_t                                         trp_elevation_angle              = 0;
@@ -3504,10 +2887,7 @@ struct trp_elevation_angle_list_item_s {
   trp_elevation_angle_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRP-BeamAntennaAnglesList-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -3520,7 +2900,6 @@ struct trp_beam_ant_angles_list_item_s {
   using trp_elevation_angle_list_l_ = dyn_array<trp_elevation_angle_list_item_s>;
 
   // member variables
-  bool                                            ext                            = false;
   bool                                            trp_azimuth_angle_fine_present = false;
   bool                                            ie_exts_present                = false;
   uint16_t                                        trp_azimuth_angle              = 0;
@@ -3529,10 +2908,7 @@ struct trp_beam_ant_angles_list_item_s {
   trp_beam_ant_angles_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRP-BeamAntennaAngles ::= SEQUENCE (SIZE (1..3600)) OF TRP-BeamAntennaAnglesList-Item
@@ -3545,7 +2921,6 @@ using trp_beam_ant_explicit_info_ext_ies_container = protocol_ext_container_empt
 
 // TRP-BeamAntennaExplicitInformation ::= SEQUENCE
 struct trp_beam_ant_explicit_info_s {
-  bool                                         ext                            = false;
   bool                                         lcs_to_gcs_translation_present = false;
   bool                                         ie_exts_present                = false;
   trp_beam_ant_angles_l                        trp_beam_ant_angles;
@@ -3553,10 +2928,7 @@ struct trp_beam_ant_explicit_info_s {
   trp_beam_ant_explicit_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Choice-TRP-Beam-Info-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -3565,63 +2937,58 @@ using choice_trp_beam_info_item_ext_ies_o = protocol_ies_empty_o;
 // Choice-TRP-Beam-Antenna-Info-Item ::= CHOICE
 struct choice_trp_beam_ant_info_item_c {
   struct types_opts {
-    enum options { ref, explicit_type, no_change, choice_ext, nulltype } value;
+    enum options { ref, explicit_value, no_change, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  choice_trp_beam_ant_info_item_c() = default;
-  choice_trp_beam_ant_info_item_c(const choice_trp_beam_ant_info_item_c& other);
-  choice_trp_beam_ant_info_item_c& operator=(const choice_trp_beam_ant_info_item_c& other);
-  ~choice_trp_beam_ant_info_item_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  uint32_t& ref()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  uint32_t&                                     ref()
   {
-    assert_choice_type(types::ref, type_, "Choice-TRP-Beam-Antenna-Info-Item");
+    assert_choice_type(types::ref, c.type, "Choice-TRP-Beam-Antenna-Info-Item");
     return c.get<uint32_t>();
   }
-  trp_beam_ant_explicit_info_s& explicit_type()
+  trp_beam_ant_explicit_info_s& explicit_value()
   {
-    assert_choice_type(types::explicit_type, type_, "Choice-TRP-Beam-Antenna-Info-Item");
+    assert_choice_type(types::explicit_value, c.type, "Choice-TRP-Beam-Antenna-Info-Item");
     return c.get<trp_beam_ant_explicit_info_s>();
   }
   protocol_ie_single_container_s<choice_trp_beam_info_item_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "Choice-TRP-Beam-Antenna-Info-Item");
+    assert_choice_type(types::choice_ext, c.type, "Choice-TRP-Beam-Antenna-Info-Item");
     return c.get<protocol_ie_single_container_s<choice_trp_beam_info_item_ext_ies_o>>();
   }
   const uint32_t& ref() const
   {
-    assert_choice_type(types::ref, type_, "Choice-TRP-Beam-Antenna-Info-Item");
+    assert_choice_type(types::ref, c.type, "Choice-TRP-Beam-Antenna-Info-Item");
     return c.get<uint32_t>();
   }
-  const trp_beam_ant_explicit_info_s& explicit_type() const
+  const trp_beam_ant_explicit_info_s& explicit_value() const
   {
-    assert_choice_type(types::explicit_type, type_, "Choice-TRP-Beam-Antenna-Info-Item");
+    assert_choice_type(types::explicit_value, c.type, "Choice-TRP-Beam-Antenna-Info-Item");
     return c.get<trp_beam_ant_explicit_info_s>();
   }
   const protocol_ie_single_container_s<choice_trp_beam_info_item_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "Choice-TRP-Beam-Antenna-Info-Item");
+    assert_choice_type(types::choice_ext, c.type, "Choice-TRP-Beam-Antenna-Info-Item");
     return c.get<protocol_ie_single_container_s<choice_trp_beam_info_item_ext_ies_o>>();
   }
   uint32_t&                                                            set_ref();
-  trp_beam_ant_explicit_info_s&                                        set_explicit_type();
+  trp_beam_ant_explicit_info_s&                                        set_explicit_value();
   void                                                                 set_no_change();
   protocol_ie_single_container_s<choice_trp_beam_info_item_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<protocol_ie_single_container_s<choice_trp_beam_info_item_ext_ies_o>, trp_beam_ant_explicit_info_s> c;
-
-  void destroy_();
+  asn1::table::choice_storage<choice_trp_beam_ant_info_item_c,
+                              types,
+                              choice_buffer_t<protocol_ie_single_container_s<choice_trp_beam_info_item_ext_ies_o>,
+                                              trp_beam_ant_explicit_info_s,
+                                              uint32_t>>
+      c;
 };
 
 // CommonTAParameters-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -3631,24 +2998,20 @@ using common_ta_params_ext_ies_container = protocol_ext_container_empty_l;
 
 // CommonTAParameters ::= SEQUENCE
 struct common_ta_params_s {
-  bool                               ext             = false;
   bool                               ie_exts_present = false;
   unbounded_octstring<true>          epoch_time;
   unbounded_octstring<true>          ta_info;
   common_ta_params_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TypeOfError ::= ENUMERATED
 struct type_of_error_opts {
   enum options { not_understood, missing, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using type_of_error_e = enumerated<type_of_error_opts, true>;
 
@@ -3658,7 +3021,6 @@ using crit_diagnostics_ie_list_ext_ies_o = protocol_ext_empty_o;
 using crit_diagnostics_ie_list_ext_ies_container = protocol_ext_container_empty_l;
 
 struct crit_diagnostics_ie_list_item_s_ {
-  bool                                       ext             = false;
   bool                                       ie_exts_present = false;
   crit_e                                     ie_crit;
   uint32_t                                   ie_id = 0;
@@ -3666,10 +3028,7 @@ struct crit_diagnostics_ie_list_item_s_ {
   crit_diagnostics_ie_list_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // CriticalityDiagnostics-IE-List ::= SEQUENCE (SIZE (1..256)) OF CriticalityDiagnostics-IE-List-item
@@ -3682,7 +3041,6 @@ using crit_diagnostics_ext_ies_container = protocol_ext_container_empty_l;
 
 // CriticalityDiagnostics ::= SEQUENCE
 struct crit_diagnostics_s {
-  bool                               ext                         = false;
   bool                               proc_code_present           = false;
   bool                               trigger_msg_present         = false;
   bool                               proc_crit_present           = false;
@@ -3696,19 +3054,15 @@ struct crit_diagnostics_s {
   crit_diagnostics_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DL-Bandwidth-EUTRA ::= ENUMERATED
 struct dl_bw_eutra_opts {
   enum options { bw6, bw15, bw25, bw50, bw75, bw100, /*...*/ nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using dl_bw_eutra_e = enumerated<dl_bw_eutra_opts, true>;
 
@@ -3719,7 +3073,6 @@ using dl_prs_ext_ies_container = protocol_ext_container_empty_l;
 
 // DL-PRS ::= SEQUENCE
 struct dl_prs_s {
-  bool                     ext                   = false;
   bool                     dl_prs_res_id_present = false;
   bool                     ie_exts_present       = false;
   uint16_t                 prsid                 = 0;
@@ -3728,10 +3081,7 @@ struct dl_prs_s {
   dl_prs_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DL-PRSBWAggregationRequestInfo-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -3741,16 +3091,12 @@ using dl_prsbw_aggregation_request_info_item_ext_ies_container = protocol_ext_co
 
 // DL-PRSBWAggregationRequestInfo-Item ::= SEQUENCE
 struct dl_prsbw_aggregation_request_info_item_s {
-  bool                                                     ext                = false;
   bool                                                     ie_exts_present    = false;
   uint8_t                                                  dl_prs_res_set_idx = 1;
   dl_prsbw_aggregation_request_info_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DL-PRSBWAggregationRequestInfo-List ::= SEQUENCE (SIZE (2..3)) OF DL-PRSBWAggregationRequestInfo-Item
@@ -3764,89 +3110,82 @@ struct dl_prs_muting_pattern_c {
   struct types_opts {
     enum options { two, four, six, eight, sixteen, thirty_two, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  dl_prs_muting_pattern_c() = default;
-  dl_prs_muting_pattern_c(const dl_prs_muting_pattern_c& other);
-  dl_prs_muting_pattern_c& operator=(const dl_prs_muting_pattern_c& other);
-  ~dl_prs_muting_pattern_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  fixed_bitstring<2, false, true>& two()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  fixed_bitstring<2, false, true>&              two()
   {
-    assert_choice_type(types::two, type_, "DL-PRSMutingPattern");
+    assert_choice_type(types::two, c.type, "DL-PRSMutingPattern");
     return c.get<fixed_bitstring<2, false, true>>();
   }
   fixed_bitstring<4, false, true>& four()
   {
-    assert_choice_type(types::four, type_, "DL-PRSMutingPattern");
+    assert_choice_type(types::four, c.type, "DL-PRSMutingPattern");
     return c.get<fixed_bitstring<4, false, true>>();
   }
   fixed_bitstring<6, false, true>& six()
   {
-    assert_choice_type(types::six, type_, "DL-PRSMutingPattern");
+    assert_choice_type(types::six, c.type, "DL-PRSMutingPattern");
     return c.get<fixed_bitstring<6, false, true>>();
   }
   fixed_bitstring<8, false, true>& eight()
   {
-    assert_choice_type(types::eight, type_, "DL-PRSMutingPattern");
+    assert_choice_type(types::eight, c.type, "DL-PRSMutingPattern");
     return c.get<fixed_bitstring<8, false, true>>();
   }
   fixed_bitstring<16, false, true>& sixteen()
   {
-    assert_choice_type(types::sixteen, type_, "DL-PRSMutingPattern");
+    assert_choice_type(types::sixteen, c.type, "DL-PRSMutingPattern");
     return c.get<fixed_bitstring<16, false, true>>();
   }
   fixed_bitstring<32, false, true>& thirty_two()
   {
-    assert_choice_type(types::thirty_two, type_, "DL-PRSMutingPattern");
+    assert_choice_type(types::thirty_two, c.type, "DL-PRSMutingPattern");
     return c.get<fixed_bitstring<32, false, true>>();
   }
   protocol_ie_single_container_s<dl_prs_muting_pattern_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "DL-PRSMutingPattern");
+    assert_choice_type(types::choice_ext, c.type, "DL-PRSMutingPattern");
     return c.get<protocol_ie_single_container_s<dl_prs_muting_pattern_ext_ies_o>>();
   }
   const fixed_bitstring<2, false, true>& two() const
   {
-    assert_choice_type(types::two, type_, "DL-PRSMutingPattern");
+    assert_choice_type(types::two, c.type, "DL-PRSMutingPattern");
     return c.get<fixed_bitstring<2, false, true>>();
   }
   const fixed_bitstring<4, false, true>& four() const
   {
-    assert_choice_type(types::four, type_, "DL-PRSMutingPattern");
+    assert_choice_type(types::four, c.type, "DL-PRSMutingPattern");
     return c.get<fixed_bitstring<4, false, true>>();
   }
   const fixed_bitstring<6, false, true>& six() const
   {
-    assert_choice_type(types::six, type_, "DL-PRSMutingPattern");
+    assert_choice_type(types::six, c.type, "DL-PRSMutingPattern");
     return c.get<fixed_bitstring<6, false, true>>();
   }
   const fixed_bitstring<8, false, true>& eight() const
   {
-    assert_choice_type(types::eight, type_, "DL-PRSMutingPattern");
+    assert_choice_type(types::eight, c.type, "DL-PRSMutingPattern");
     return c.get<fixed_bitstring<8, false, true>>();
   }
   const fixed_bitstring<16, false, true>& sixteen() const
   {
-    assert_choice_type(types::sixteen, type_, "DL-PRSMutingPattern");
+    assert_choice_type(types::sixteen, c.type, "DL-PRSMutingPattern");
     return c.get<fixed_bitstring<16, false, true>>();
   }
   const fixed_bitstring<32, false, true>& thirty_two() const
   {
-    assert_choice_type(types::thirty_two, type_, "DL-PRSMutingPattern");
+    assert_choice_type(types::thirty_two, c.type, "DL-PRSMutingPattern");
     return c.get<fixed_bitstring<32, false, true>>();
   }
   const protocol_ie_single_container_s<dl_prs_muting_pattern_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "DL-PRSMutingPattern");
+    assert_choice_type(types::choice_ext, c.type, "DL-PRSMutingPattern");
     return c.get<protocol_ie_single_container_s<dl_prs_muting_pattern_ext_ies_o>>();
   }
   fixed_bitstring<2, false, true>&                                 set_two();
@@ -3858,10 +3197,11 @@ struct dl_prs_muting_pattern_c {
   protocol_ie_single_container_s<dl_prs_muting_pattern_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<fixed_bitstring<32, false, true>, protocol_ie_single_container_s<dl_prs_muting_pattern_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<dl_prs_muting_pattern_c,
+                              types,
+                              choice_buffer_t<fixed_bitstring<32, false, true>,
+                                              protocol_ie_single_container_s<dl_prs_muting_pattern_ext_ies_o>>>
+      c;
 };
 
 // DL-PRSResourceARPLocation-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -3872,49 +3212,42 @@ struct dl_prs_res_arp_location_c {
   struct types_opts {
     enum options { relative_geodetic_location, relative_cartesian_location, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  dl_prs_res_arp_location_c() = default;
-  dl_prs_res_arp_location_c(const dl_prs_res_arp_location_c& other);
-  dl_prs_res_arp_location_c& operator=(const dl_prs_res_arp_location_c& other);
-  ~dl_prs_res_arp_location_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  relative_geodetic_location_s& relative_geodetic_location()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  relative_geodetic_location_s&                 relative_geodetic_location()
   {
-    assert_choice_type(types::relative_geodetic_location, type_, "DL-PRSResourceARPLocation");
+    assert_choice_type(types::relative_geodetic_location, c.type, "DL-PRSResourceARPLocation");
     return c.get<relative_geodetic_location_s>();
   }
   relative_cartesian_location_s& relative_cartesian_location()
   {
-    assert_choice_type(types::relative_cartesian_location, type_, "DL-PRSResourceARPLocation");
+    assert_choice_type(types::relative_cartesian_location, c.type, "DL-PRSResourceARPLocation");
     return c.get<relative_cartesian_location_s>();
   }
   protocol_ie_single_container_s<dl_prs_res_arp_location_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "DL-PRSResourceARPLocation");
+    assert_choice_type(types::choice_ext, c.type, "DL-PRSResourceARPLocation");
     return c.get<protocol_ie_single_container_s<dl_prs_res_arp_location_ext_ies_o>>();
   }
   const relative_geodetic_location_s& relative_geodetic_location() const
   {
-    assert_choice_type(types::relative_geodetic_location, type_, "DL-PRSResourceARPLocation");
+    assert_choice_type(types::relative_geodetic_location, c.type, "DL-PRSResourceARPLocation");
     return c.get<relative_geodetic_location_s>();
   }
   const relative_cartesian_location_s& relative_cartesian_location() const
   {
-    assert_choice_type(types::relative_cartesian_location, type_, "DL-PRSResourceARPLocation");
+    assert_choice_type(types::relative_cartesian_location, c.type, "DL-PRSResourceARPLocation");
     return c.get<relative_cartesian_location_s>();
   }
   const protocol_ie_single_container_s<dl_prs_res_arp_location_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "DL-PRSResourceARPLocation");
+    assert_choice_type(types::choice_ext, c.type, "DL-PRSResourceARPLocation");
     return c.get<protocol_ie_single_container_s<dl_prs_res_arp_location_ext_ies_o>>();
   }
   relative_geodetic_location_s&                                      set_relative_geodetic_location();
@@ -3922,13 +3255,12 @@ struct dl_prs_res_arp_location_c {
   protocol_ie_single_container_s<dl_prs_res_arp_location_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<protocol_ie_single_container_s<dl_prs_res_arp_location_ext_ies_o>,
-                  relative_cartesian_location_s,
-                  relative_geodetic_location_s>
+  asn1::table::choice_storage<dl_prs_res_arp_location_c,
+                              types,
+                              choice_buffer_t<protocol_ie_single_container_s<dl_prs_res_arp_location_ext_ies_o>,
+                                              relative_cartesian_location_s,
+                                              relative_geodetic_location_s>>
       c;
-
-  void destroy_();
 };
 
 // DL-PRSResourceSetARPLocation-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -3939,49 +3271,42 @@ struct dl_prs_res_set_arp_location_c {
   struct types_opts {
     enum options { relative_geodetic_location, relative_cartesian_location, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  dl_prs_res_set_arp_location_c() = default;
-  dl_prs_res_set_arp_location_c(const dl_prs_res_set_arp_location_c& other);
-  dl_prs_res_set_arp_location_c& operator=(const dl_prs_res_set_arp_location_c& other);
-  ~dl_prs_res_set_arp_location_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  relative_geodetic_location_s& relative_geodetic_location()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  relative_geodetic_location_s&                 relative_geodetic_location()
   {
-    assert_choice_type(types::relative_geodetic_location, type_, "DL-PRSResourceSetARPLocation");
+    assert_choice_type(types::relative_geodetic_location, c.type, "DL-PRSResourceSetARPLocation");
     return c.get<relative_geodetic_location_s>();
   }
   relative_cartesian_location_s& relative_cartesian_location()
   {
-    assert_choice_type(types::relative_cartesian_location, type_, "DL-PRSResourceSetARPLocation");
+    assert_choice_type(types::relative_cartesian_location, c.type, "DL-PRSResourceSetARPLocation");
     return c.get<relative_cartesian_location_s>();
   }
   protocol_ie_single_container_s<dl_prs_res_set_arp_location_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "DL-PRSResourceSetARPLocation");
+    assert_choice_type(types::choice_ext, c.type, "DL-PRSResourceSetARPLocation");
     return c.get<protocol_ie_single_container_s<dl_prs_res_set_arp_location_ext_ies_o>>();
   }
   const relative_geodetic_location_s& relative_geodetic_location() const
   {
-    assert_choice_type(types::relative_geodetic_location, type_, "DL-PRSResourceSetARPLocation");
+    assert_choice_type(types::relative_geodetic_location, c.type, "DL-PRSResourceSetARPLocation");
     return c.get<relative_geodetic_location_s>();
   }
   const relative_cartesian_location_s& relative_cartesian_location() const
   {
-    assert_choice_type(types::relative_cartesian_location, type_, "DL-PRSResourceSetARPLocation");
+    assert_choice_type(types::relative_cartesian_location, c.type, "DL-PRSResourceSetARPLocation");
     return c.get<relative_cartesian_location_s>();
   }
   const protocol_ie_single_container_s<dl_prs_res_set_arp_location_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "DL-PRSResourceSetARPLocation");
+    assert_choice_type(types::choice_ext, c.type, "DL-PRSResourceSetARPLocation");
     return c.get<protocol_ie_single_container_s<dl_prs_res_set_arp_location_ext_ies_o>>();
   }
   relative_geodetic_location_s&                                          set_relative_geodetic_location();
@@ -3989,20 +3314,19 @@ struct dl_prs_res_set_arp_location_c {
   protocol_ie_single_container_s<dl_prs_res_set_arp_location_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<protocol_ie_single_container_s<dl_prs_res_set_arp_location_ext_ies_o>,
-                  relative_cartesian_location_s,
-                  relative_geodetic_location_s>
+  asn1::table::choice_storage<dl_prs_res_set_arp_location_c,
+                              types,
+                              choice_buffer_t<protocol_ie_single_container_s<dl_prs_res_set_arp_location_ext_ies_o>,
+                                              relative_cartesian_location_s,
+                                              relative_geodetic_location_s>>
       c;
-
-  void destroy_();
 };
 
 // DL-reference-signal-UERxTx-TD ::= ENUMERATED
 struct dl_ref_sig_ue_rx_tx_td_opts {
   enum options { csirs, prs, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using dl_ref_sig_ue_rx_tx_td_e = enumerated<dl_ref_sig_ue_rx_tx_td_opts, true>;
 
@@ -4016,17 +3340,13 @@ using dl_prs_res_arp_ext_ies_container = protocol_ext_container_empty_l;
 
 // DLPRSResourceARP ::= SEQUENCE
 struct dl_prs_res_arp_s {
-  bool                             ext             = false;
   bool                             ie_exts_present = false;
   uint8_t                          dl_prs_res_id   = 0;
   dl_prs_res_arp_location_c        dl_prs_res_arp_location;
   dl_prs_res_arp_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DLPRSResourceSetARP-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -4039,7 +3359,6 @@ struct dl_prs_res_set_arp_s {
   using listof_dl_prs_res_arp_l_ = dyn_array<dl_prs_res_arp_s>;
 
   // member variables
-  bool                                 ext               = false;
   bool                                 ie_exts_present   = false;
   uint8_t                              dl_prs_res_set_id = 0;
   dl_prs_res_set_arp_location_c        dl_prs_res_set_arp_location;
@@ -4047,10 +3366,7 @@ struct dl_prs_res_set_arp_s {
   dl_prs_res_set_arp_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // DLPRSResourceCoordinates-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -4063,32 +3379,24 @@ struct dl_prs_res_coordinates_s {
   using listof_dl_prs_res_set_arp_l_ = dyn_array<dl_prs_res_set_arp_s>;
 
   // member variables
-  bool                                     ext             = false;
   bool                                     ie_exts_present = false;
   listof_dl_prs_res_set_arp_l_             listof_dl_prs_res_set_arp;
   dl_prs_res_coordinates_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 using dl_prs_res_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // DLPRSResourceID-Item ::= SEQUENCE
 struct dl_prs_res_id_item_s {
-  bool                              ext             = false;
   bool                              ie_exts_present = false;
   uint8_t                           dl_prs_res_id   = 0;
   dl_prs_res_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // NG-RANCell-ExtensionIE ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -4099,49 +3407,42 @@ struct ng_ran_cell_c {
   struct types_opts {
     enum options { eutra_cell_id, nr_cell_id, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  ng_ran_cell_c() = default;
-  ng_ran_cell_c(const ng_ran_cell_c& other);
-  ng_ran_cell_c& operator=(const ng_ran_cell_c& other);
-  ~ng_ran_cell_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  fixed_bitstring<28, false, true>& eutra_cell_id()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  fixed_bitstring<28, false, true>&             eutra_cell_id()
   {
-    assert_choice_type(types::eutra_cell_id, type_, "NG-RANCell");
+    assert_choice_type(types::eutra_cell_id, c.type, "NG-RANCell");
     return c.get<fixed_bitstring<28, false, true>>();
   }
   fixed_bitstring<36, false, true>& nr_cell_id()
   {
-    assert_choice_type(types::nr_cell_id, type_, "NG-RANCell");
+    assert_choice_type(types::nr_cell_id, c.type, "NG-RANCell");
     return c.get<fixed_bitstring<36, false, true>>();
   }
   protocol_ie_single_container_s<ng_ran_cell_ext_ie_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "NG-RANCell");
+    assert_choice_type(types::choice_ext, c.type, "NG-RANCell");
     return c.get<protocol_ie_single_container_s<ng_ran_cell_ext_ie_o>>();
   }
   const fixed_bitstring<28, false, true>& eutra_cell_id() const
   {
-    assert_choice_type(types::eutra_cell_id, type_, "NG-RANCell");
+    assert_choice_type(types::eutra_cell_id, c.type, "NG-RANCell");
     return c.get<fixed_bitstring<28, false, true>>();
   }
   const fixed_bitstring<36, false, true>& nr_cell_id() const
   {
-    assert_choice_type(types::nr_cell_id, type_, "NG-RANCell");
+    assert_choice_type(types::nr_cell_id, c.type, "NG-RANCell");
     return c.get<fixed_bitstring<36, false, true>>();
   }
   const protocol_ie_single_container_s<ng_ran_cell_ext_ie_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "NG-RANCell");
+    assert_choice_type(types::choice_ext, c.type, "NG-RANCell");
     return c.get<protocol_ie_single_container_s<ng_ran_cell_ext_ie_o>>();
   }
   fixed_bitstring<28, false, true>&                     set_eutra_cell_id();
@@ -4149,10 +3450,11 @@ struct ng_ran_cell_c {
   protocol_ie_single_container_s<ng_ran_cell_ext_ie_o>& set_choice_ext();
 
 private:
-  types                                                                                                   type_;
-  choice_buffer_t<fixed_bitstring<36, false, true>, protocol_ie_single_container_s<ng_ran_cell_ext_ie_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      ng_ran_cell_c,
+      types,
+      choice_buffer_t<fixed_bitstring<36, false, true>, protocol_ie_single_container_s<ng_ran_cell_ext_ie_o>>>
+      c;
 };
 
 // NG-RAN-CGI-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -4162,17 +3464,13 @@ using ng_ran_cgi_ext_ies_container = protocol_ext_container_empty_l;
 
 // NG-RAN-CGI ::= SEQUENCE
 struct ng_ran_cgi_s {
-  bool                         ext             = false;
   bool                         ie_exts_present = false;
   fixed_octstring<3, true>     plmn_id;
-  ng_ran_cell_c                ng_ra_ncell;
+  ng_ran_cell_c                ng_ran_cell;
   ng_ran_cgi_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // NG-RANAccessPointPosition-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -4185,20 +3483,18 @@ struct ng_ran_access_point_position_s {
   struct latitude_sign_opts {
     enum options { north, south, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using latitude_sign_e_ = enumerated<latitude_sign_opts>;
   struct direction_of_altitude_opts {
     enum options { height, depth, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using direction_of_altitude_e_ = enumerated<direction_of_altitude_opts>;
 
   // member variables
-  bool                                           ext             = false;
   bool                                           ie_exts_present = false;
   latitude_sign_e_                               latitude_sign;
   uint32_t                                       latitude  = 0;
@@ -4213,10 +3509,7 @@ struct ng_ran_access_point_position_s {
   ng_ran_access_point_position_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResultRSRP-EUTRA-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -4226,20 +3519,16 @@ using result_rsrp_eutra_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // ResultRSRP-EUTRA-Item ::= SEQUENCE
 struct result_rsrp_eutra_item_s {
-  bool                                     ext               = false;
   bool                                     cgi_eutra_present = false;
   bool                                     ie_exts_present   = false;
   uint16_t                                 pci_eutra         = 0;
   uint32_t                                 earfcn            = 0;
   cgi_eutra_s                              cgi_eutra;
-  uint8_t                                  value_rsrp_eutra = 0;
+  uint16_t                                 value_rsrp_eutra = 0;
   result_rsrp_eutra_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResultRSRP-EUTRA ::= SEQUENCE (SIZE (1..9)) OF ResultRSRP-EUTRA-Item
@@ -4252,7 +3541,6 @@ using result_rsrq_eutra_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // ResultRSRQ-EUTRA-Item ::= SEQUENCE
 struct result_rsrq_eutra_item_s {
-  bool                                     ext              = false;
   bool                                     cgi_utra_present = false;
   bool                                     ie_exts_present  = false;
   uint16_t                                 pci_eutra        = 0;
@@ -4262,10 +3550,7 @@ struct result_rsrq_eutra_item_s {
   result_rsrq_eutra_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResultRSRQ-EUTRA ::= SEQUENCE (SIZE (1..9)) OF ResultRSRQ-EUTRA-Item
@@ -4278,17 +3563,13 @@ using result_ss_rsrp_per_ssb_item_ext_ies_container = protocol_ext_container_emp
 
 // ResultSS-RSRP-PerSSB-Item ::= SEQUENCE
 struct result_ss_rsrp_per_ssb_item_s {
-  bool                                          ext             = false;
   bool                                          ie_exts_present = false;
   uint8_t                                       ssb_idx         = 0;
   uint8_t                                       value_ss_rsrp   = 0;
   result_ss_rsrp_per_ssb_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResultSS-RSRP-PerSSB ::= SEQUENCE (SIZE (1..64)) OF ResultSS-RSRP-PerSSB-Item
@@ -4301,7 +3582,6 @@ using result_ss_rsrp_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // ResultSS-RSRP-Item ::= SEQUENCE
 struct result_ss_rsrp_item_s {
-  bool                                  ext                        = false;
   bool                                  cgi_nr_present             = false;
   bool                                  value_ss_rsrp_cell_present = false;
   bool                                  ie_exts_present            = false;
@@ -4313,10 +3593,7 @@ struct result_ss_rsrp_item_s {
   result_ss_rsrp_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResultSS-RSRP ::= SEQUENCE (SIZE (1..9)) OF ResultSS-RSRP-Item
@@ -4329,17 +3606,13 @@ using result_ss_rsrq_per_ssb_item_ext_ies_container = protocol_ext_container_emp
 
 // ResultSS-RSRQ-PerSSB-Item ::= SEQUENCE
 struct result_ss_rsrq_per_ssb_item_s {
-  bool                                          ext             = false;
   bool                                          ie_exts_present = false;
   uint8_t                                       ssb_idx         = 0;
   uint8_t                                       value_ss_rsrq   = 0;
   result_ss_rsrq_per_ssb_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResultSS-RSRQ-PerSSB ::= SEQUENCE (SIZE (1..64)) OF ResultSS-RSRQ-PerSSB-Item
@@ -4352,7 +3625,6 @@ using result_ss_rsrq_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // ResultSS-RSRQ-Item ::= SEQUENCE
 struct result_ss_rsrq_item_s {
-  bool                                  ext                        = false;
   bool                                  cgi_nr_present             = false;
   bool                                  value_ss_rsrq_cell_present = false;
   bool                                  ie_exts_present            = false;
@@ -4364,10 +3636,7 @@ struct result_ss_rsrq_item_s {
   result_ss_rsrq_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResultSS-RSRQ ::= SEQUENCE (SIZE (1..9)) OF ResultSS-RSRQ-Item
@@ -4380,17 +3649,13 @@ using result_csi_rsrp_per_csi_rs_item_ext_ies_container = protocol_ext_container
 
 // ResultCSI-RSRP-PerCSI-RS-Item ::= SEQUENCE
 struct result_csi_rsrp_per_csi_rs_item_s {
-  bool                                              ext             = false;
   bool                                              ie_exts_present = false;
   uint8_t                                           csi_rs_idx      = 0;
   uint8_t                                           value_csi_rsrp  = 0;
   result_csi_rsrp_per_csi_rs_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResultCSI-RSRP-PerCSI-RS ::= SEQUENCE (SIZE (1..64)) OF ResultCSI-RSRP-PerCSI-RS-Item
@@ -4403,7 +3668,6 @@ using result_csi_rsrp_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // ResultCSI-RSRP-Item ::= SEQUENCE
 struct result_csi_rsrp_item_s {
-  bool                                   ext                         = false;
   bool                                   cgi_nr_present              = false;
   bool                                   value_csi_rsrp_cell_present = false;
   bool                                   ie_exts_present             = false;
@@ -4415,10 +3679,7 @@ struct result_csi_rsrp_item_s {
   result_csi_rsrp_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResultCSI-RSRP ::= SEQUENCE (SIZE (1..9)) OF ResultCSI-RSRP-Item
@@ -4431,17 +3692,13 @@ using result_csi_rsrq_per_csi_rs_item_ext_ies_container = protocol_ext_container
 
 // ResultCSI-RSRQ-PerCSI-RS-Item ::= SEQUENCE
 struct result_csi_rsrq_per_csi_rs_item_s {
-  bool                                              ext             = false;
   bool                                              ie_exts_present = false;
   uint8_t                                           csi_rs_idx      = 0;
   uint8_t                                           value_csi_rsrq  = 0;
   result_csi_rsrq_per_csi_rs_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResultCSI-RSRQ-PerCSI-RS ::= SEQUENCE (SIZE (1..64)) OF ResultCSI-RSRQ-PerCSI-RS-Item
@@ -4454,7 +3711,6 @@ using result_csi_rsrq_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // ResultCSI-RSRQ-Item ::= SEQUENCE
 struct result_csi_rsrq_item_s {
-  bool                                   ext                         = false;
   bool                                   cgi_nr_present              = false;
   bool                                   value_csi_rsrq_cell_present = false;
   bool                                   ie_exts_present             = false;
@@ -4466,10 +3722,7 @@ struct result_csi_rsrq_item_s {
   result_csi_rsrq_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResultCSI-RSRQ ::= SEQUENCE (SIZE (1..9)) OF ResultCSI-RSRQ-Item
@@ -4491,44 +3744,34 @@ struct measured_results_value_ext_ie_o {
         nulltype
       } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    value_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    result_ss_rsrp_l&        result_ss_rsrp();
-    result_ss_rsrq_l&        result_ss_rsrq();
-    result_csi_rsrp_l&       result_csi_rsrp();
-    result_csi_rsrq_l&       result_csi_rsrq();
-    ul_ao_a_s&               angle_of_arrival_nr();
-    uint16_t&                nr_tadv();
-    uint16_t&                ue_rx_tx_time_diff();
-    const result_ss_rsrp_l&  result_ss_rsrp() const;
-    const result_ss_rsrq_l&  result_ss_rsrq() const;
-    const result_csi_rsrp_l& result_csi_rsrp() const;
-    const result_csi_rsrq_l& result_csi_rsrq() const;
-    const ul_ao_a_s&         angle_of_arrival_nr() const;
-    const uint16_t&          nr_tadv() const;
-    const uint16_t&          ue_rx_tx_time_diff() const;
+    void                                  set(types::options e = types::nulltype);
+    types                                 type() const { return type_; }
+    static const asn1::table::choice_desc desc;
+    result_ss_rsrp_l&                     result_ss_rsrp();
+    result_ss_rsrq_l&                     result_ss_rsrq();
+    result_csi_rsrp_l&                    result_csi_rsrp();
+    result_csi_rsrq_l&                    result_csi_rsrq();
+    ul_ao_a_s&                            angle_of_arrival_nr();
+    uint16_t&                             nr_tadv();
+    uint16_t&                             ue_rx_tx_time_diff();
+    const result_ss_rsrp_l&               result_ss_rsrp() const;
+    const result_ss_rsrq_l&               result_ss_rsrq() const;
+    const result_csi_rsrp_l&              result_csi_rsrp() const;
+    const result_csi_rsrq_l&              result_csi_rsrq() const;
+    const ul_ao_a_s&                      angle_of_arrival_nr() const;
+    const uint16_t&                       nr_tadv() const;
+    const uint16_t&                       ue_rx_tx_time_diff() const;
 
   private:
     types             type_;
     choice_buffer_ptr c;
   };
 
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static value_c    get_value(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::objset_desc desc;
 };
 
 // MeasuredResultsValue ::= CHOICE
@@ -4543,82 +3786,74 @@ struct measured_results_value_c {
       choice_ext,
       nulltype
     } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  measured_results_value_c() = default;
-  measured_results_value_c(const measured_results_value_c& other);
-  measured_results_value_c& operator=(const measured_results_value_c& other);
-  ~measured_results_value_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  uint16_t& value_angle_of_arrival_eutra()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  uint16_t&                                     value_angle_of_arrival_eutra()
   {
-    assert_choice_type(types::value_angle_of_arrival_eutra, type_, "MeasuredResultsValue");
+    assert_choice_type(types::value_angle_of_arrival_eutra, c.type, "MeasuredResultsValue");
     return c.get<uint16_t>();
   }
   uint16_t& value_timing_advance_type1_eutra()
   {
-    assert_choice_type(types::value_timing_advance_type1_eutra, type_, "MeasuredResultsValue");
+    assert_choice_type(types::value_timing_advance_type1_eutra, c.type, "MeasuredResultsValue");
     return c.get<uint16_t>();
   }
   uint16_t& value_timing_advance_type2_eutra()
   {
-    assert_choice_type(types::value_timing_advance_type2_eutra, type_, "MeasuredResultsValue");
+    assert_choice_type(types::value_timing_advance_type2_eutra, c.type, "MeasuredResultsValue");
     return c.get<uint16_t>();
   }
   result_rsrp_eutra_l& result_rsrp_eutra()
   {
-    assert_choice_type(types::result_rsrp_eutra, type_, "MeasuredResultsValue");
+    assert_choice_type(types::result_rsrp_eutra, c.type, "MeasuredResultsValue");
     return c.get<result_rsrp_eutra_l>();
   }
   result_rsrq_eutra_l& result_rsrq_eutra()
   {
-    assert_choice_type(types::result_rsrq_eutra, type_, "MeasuredResultsValue");
+    assert_choice_type(types::result_rsrq_eutra, c.type, "MeasuredResultsValue");
     return c.get<result_rsrq_eutra_l>();
   }
   protocol_ie_single_container_s<measured_results_value_ext_ie_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "MeasuredResultsValue");
+    assert_choice_type(types::choice_ext, c.type, "MeasuredResultsValue");
     return c.get<protocol_ie_single_container_s<measured_results_value_ext_ie_o>>();
   }
   const uint16_t& value_angle_of_arrival_eutra() const
   {
-    assert_choice_type(types::value_angle_of_arrival_eutra, type_, "MeasuredResultsValue");
+    assert_choice_type(types::value_angle_of_arrival_eutra, c.type, "MeasuredResultsValue");
     return c.get<uint16_t>();
   }
   const uint16_t& value_timing_advance_type1_eutra() const
   {
-    assert_choice_type(types::value_timing_advance_type1_eutra, type_, "MeasuredResultsValue");
+    assert_choice_type(types::value_timing_advance_type1_eutra, c.type, "MeasuredResultsValue");
     return c.get<uint16_t>();
   }
   const uint16_t& value_timing_advance_type2_eutra() const
   {
-    assert_choice_type(types::value_timing_advance_type2_eutra, type_, "MeasuredResultsValue");
+    assert_choice_type(types::value_timing_advance_type2_eutra, c.type, "MeasuredResultsValue");
     return c.get<uint16_t>();
   }
   const result_rsrp_eutra_l& result_rsrp_eutra() const
   {
-    assert_choice_type(types::result_rsrp_eutra, type_, "MeasuredResultsValue");
+    assert_choice_type(types::result_rsrp_eutra, c.type, "MeasuredResultsValue");
     return c.get<result_rsrp_eutra_l>();
   }
   const result_rsrq_eutra_l& result_rsrq_eutra() const
   {
-    assert_choice_type(types::result_rsrq_eutra, type_, "MeasuredResultsValue");
+    assert_choice_type(types::result_rsrq_eutra, c.type, "MeasuredResultsValue");
     return c.get<result_rsrq_eutra_l>();
   }
   const protocol_ie_single_container_s<measured_results_value_ext_ie_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "MeasuredResultsValue");
+    assert_choice_type(types::choice_ext, c.type, "MeasuredResultsValue");
     return c.get<protocol_ie_single_container_s<measured_results_value_ext_ie_o>>();
   }
   uint16_t&                                                        set_value_angle_of_arrival_eutra();
@@ -4629,13 +3864,13 @@ struct measured_results_value_c {
   protocol_ie_single_container_s<measured_results_value_ext_ie_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<protocol_ie_single_container_s<measured_results_value_ext_ie_o>,
-                  result_rsrp_eutra_l,
-                  result_rsrq_eutra_l>
+  asn1::table::choice_storage<measured_results_value_c,
+                              types,
+                              choice_buffer_t<protocol_ie_single_container_s<measured_results_value_ext_ie_o>,
+                                              result_rsrp_eutra_l,
+                                              result_rsrq_eutra_l,
+                                              uint16_t>>
       c;
-
-  void destroy_();
 };
 
 // MeasuredResults ::= SEQUENCE (SIZE (1..64)) OF MeasuredResultsValue
@@ -4648,7 +3883,6 @@ using ngran_high_accuracy_access_point_position_ext_ies_container = protocol_ext
 
 // NGRANHighAccuracyAccessPointPosition ::= SEQUENCE
 struct ngran_high_accuracy_access_point_position_s {
-  bool                                                        ext                       = false;
   bool                                                        ie_exts_present           = false;
   int64_t                                                     latitude                  = -2147483648;
   int64_t                                                     longitude                 = -2147483648;
@@ -4662,10 +3896,7 @@ struct ngran_high_accuracy_access_point_position_s {
   ngran_high_accuracy_access_point_position_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRPPositionDirectAccuracy-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -4676,49 +3907,42 @@ struct trp_position_direct_accuracy_c {
   struct types_opts {
     enum options { trp_position, trph_aposition, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  trp_position_direct_accuracy_c() = default;
-  trp_position_direct_accuracy_c(const trp_position_direct_accuracy_c& other);
-  trp_position_direct_accuracy_c& operator=(const trp_position_direct_accuracy_c& other);
-  ~trp_position_direct_accuracy_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  ng_ran_access_point_position_s& trp_position()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  ng_ran_access_point_position_s&               trp_position()
   {
-    assert_choice_type(types::trp_position, type_, "TRPPositionDirectAccuracy");
+    assert_choice_type(types::trp_position, c.type, "TRPPositionDirectAccuracy");
     return c.get<ng_ran_access_point_position_s>();
   }
   ngran_high_accuracy_access_point_position_s& trph_aposition()
   {
-    assert_choice_type(types::trph_aposition, type_, "TRPPositionDirectAccuracy");
+    assert_choice_type(types::trph_aposition, c.type, "TRPPositionDirectAccuracy");
     return c.get<ngran_high_accuracy_access_point_position_s>();
   }
   protocol_ie_single_container_s<trp_position_direct_accuracy_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "TRPPositionDirectAccuracy");
+    assert_choice_type(types::choice_ext, c.type, "TRPPositionDirectAccuracy");
     return c.get<protocol_ie_single_container_s<trp_position_direct_accuracy_ext_ies_o>>();
   }
   const ng_ran_access_point_position_s& trp_position() const
   {
-    assert_choice_type(types::trp_position, type_, "TRPPositionDirectAccuracy");
+    assert_choice_type(types::trp_position, c.type, "TRPPositionDirectAccuracy");
     return c.get<ng_ran_access_point_position_s>();
   }
   const ngran_high_accuracy_access_point_position_s& trph_aposition() const
   {
-    assert_choice_type(types::trph_aposition, type_, "TRPPositionDirectAccuracy");
+    assert_choice_type(types::trph_aposition, c.type, "TRPPositionDirectAccuracy");
     return c.get<ngran_high_accuracy_access_point_position_s>();
   }
   const protocol_ie_single_container_s<trp_position_direct_accuracy_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "TRPPositionDirectAccuracy");
+    assert_choice_type(types::choice_ext, c.type, "TRPPositionDirectAccuracy");
     return c.get<protocol_ie_single_container_s<trp_position_direct_accuracy_ext_ies_o>>();
   }
   ng_ran_access_point_position_s&                                         set_trp_position();
@@ -4726,13 +3950,12 @@ struct trp_position_direct_accuracy_c {
   protocol_ie_single_container_s<trp_position_direct_accuracy_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<ng_ran_access_point_position_s,
-                  ngran_high_accuracy_access_point_position_s,
-                  protocol_ie_single_container_s<trp_position_direct_accuracy_ext_ies_o>>
+  asn1::table::choice_storage<trp_position_direct_accuracy_c,
+                              types,
+                              choice_buffer_t<ng_ran_access_point_position_s,
+                                              ngran_high_accuracy_access_point_position_s,
+                                              protocol_ie_single_container_s<trp_position_direct_accuracy_ext_ies_o>>>
       c;
-
-  void destroy_();
 };
 
 // TRPPositionDirect-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -4742,16 +3965,12 @@ using trp_position_direct_ext_ies_container = protocol_ext_container_empty_l;
 
 // TRPPositionDirect ::= SEQUENCE
 struct trp_position_direct_s {
-  bool                                  ext             = false;
   bool                                  ie_exts_present = false;
   trp_position_direct_accuracy_c        accuracy;
   trp_position_direct_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // LocalOrigin-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -4761,7 +3980,6 @@ using local_origin_ext_ies_container = protocol_ext_container_empty_l;
 
 // LocalOrigin ::= SEQUENCE
 struct local_origin_s {
-  bool                                        ext                             = false;
   bool                                        ref_point_coordinate_ha_present = false;
   bool                                        ie_exts_present                 = false;
   uint16_t                                    relative_coordinate_id          = 0;
@@ -4770,10 +3988,7 @@ struct local_origin_s {
   local_origin_ext_ies_container              ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ReferencePoint-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -4783,29 +3998,20 @@ struct ref_point_ext_ies_o {
     struct types_opts {
       enum options { local_origin, nulltype } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    types         type() const { return types::local_origin; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    local_origin_s&       local_origin() { return c; }
-    const local_origin_s& local_origin() const { return c; }
+    types                                 type() const { return types::local_origin; }
+    static const asn1::table::choice_desc desc;
+    local_origin_s&                       local_origin() { return c; }
+    const local_origin_s&                 local_origin() const { return c; }
 
   private:
     local_origin_s c;
   };
 
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static value_c    get_value(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::objset_desc desc;
 };
 
 // ReferencePoint ::= CHOICE
@@ -4813,59 +4019,52 @@ struct ref_point_c {
   struct types_opts {
     enum options { relative_coordinate_id, ref_point_coordinate, ref_point_coordinate_ha, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  ref_point_c() = default;
-  ref_point_c(const ref_point_c& other);
-  ref_point_c& operator=(const ref_point_c& other);
-  ~ref_point_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  uint16_t& relative_coordinate_id()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  uint16_t&                                     relative_coordinate_id()
   {
-    assert_choice_type(types::relative_coordinate_id, type_, "ReferencePoint");
+    assert_choice_type(types::relative_coordinate_id, c.type, "ReferencePoint");
     return c.get<uint16_t>();
   }
   ng_ran_access_point_position_s& ref_point_coordinate()
   {
-    assert_choice_type(types::ref_point_coordinate, type_, "ReferencePoint");
+    assert_choice_type(types::ref_point_coordinate, c.type, "ReferencePoint");
     return c.get<ng_ran_access_point_position_s>();
   }
   ngran_high_accuracy_access_point_position_s& ref_point_coordinate_ha()
   {
-    assert_choice_type(types::ref_point_coordinate_ha, type_, "ReferencePoint");
+    assert_choice_type(types::ref_point_coordinate_ha, c.type, "ReferencePoint");
     return c.get<ngran_high_accuracy_access_point_position_s>();
   }
   protocol_ie_single_container_s<ref_point_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "ReferencePoint");
+    assert_choice_type(types::choice_ext, c.type, "ReferencePoint");
     return c.get<protocol_ie_single_container_s<ref_point_ext_ies_o>>();
   }
   const uint16_t& relative_coordinate_id() const
   {
-    assert_choice_type(types::relative_coordinate_id, type_, "ReferencePoint");
+    assert_choice_type(types::relative_coordinate_id, c.type, "ReferencePoint");
     return c.get<uint16_t>();
   }
   const ng_ran_access_point_position_s& ref_point_coordinate() const
   {
-    assert_choice_type(types::ref_point_coordinate, type_, "ReferencePoint");
+    assert_choice_type(types::ref_point_coordinate, c.type, "ReferencePoint");
     return c.get<ng_ran_access_point_position_s>();
   }
   const ngran_high_accuracy_access_point_position_s& ref_point_coordinate_ha() const
   {
-    assert_choice_type(types::ref_point_coordinate_ha, type_, "ReferencePoint");
+    assert_choice_type(types::ref_point_coordinate_ha, c.type, "ReferencePoint");
     return c.get<ngran_high_accuracy_access_point_position_s>();
   }
   const protocol_ie_single_container_s<ref_point_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "ReferencePoint");
+    assert_choice_type(types::choice_ext, c.type, "ReferencePoint");
     return c.get<protocol_ie_single_container_s<ref_point_ext_ies_o>>();
   }
   uint16_t&                                            set_relative_coordinate_id();
@@ -4874,13 +4073,13 @@ struct ref_point_c {
   protocol_ie_single_container_s<ref_point_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<ng_ran_access_point_position_s,
-                  ngran_high_accuracy_access_point_position_s,
-                  protocol_ie_single_container_s<ref_point_ext_ies_o>>
+  asn1::table::choice_storage<ref_point_c,
+                              types,
+                              choice_buffer_t<ng_ran_access_point_position_s,
+                                              ngran_high_accuracy_access_point_position_s,
+                                              protocol_ie_single_container_s<ref_point_ext_ies_o>,
+                                              uint16_t>>
       c;
-
-  void destroy_();
 };
 
 // TRPReferencePointType-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -4891,49 +4090,42 @@ struct trp_ref_point_type_c {
   struct types_opts {
     enum options { trp_position_relative_geodetic, trp_position_relative_cartesian, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  trp_ref_point_type_c() = default;
-  trp_ref_point_type_c(const trp_ref_point_type_c& other);
-  trp_ref_point_type_c& operator=(const trp_ref_point_type_c& other);
-  ~trp_ref_point_type_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  relative_geodetic_location_s& trp_position_relative_geodetic()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  relative_geodetic_location_s&                 trp_position_relative_geodetic()
   {
-    assert_choice_type(types::trp_position_relative_geodetic, type_, "TRPReferencePointType");
+    assert_choice_type(types::trp_position_relative_geodetic, c.type, "TRPReferencePointType");
     return c.get<relative_geodetic_location_s>();
   }
   relative_cartesian_location_s& trp_position_relative_cartesian()
   {
-    assert_choice_type(types::trp_position_relative_cartesian, type_, "TRPReferencePointType");
+    assert_choice_type(types::trp_position_relative_cartesian, c.type, "TRPReferencePointType");
     return c.get<relative_cartesian_location_s>();
   }
   protocol_ie_single_container_s<trp_ref_point_type_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "TRPReferencePointType");
+    assert_choice_type(types::choice_ext, c.type, "TRPReferencePointType");
     return c.get<protocol_ie_single_container_s<trp_ref_point_type_ext_ies_o>>();
   }
   const relative_geodetic_location_s& trp_position_relative_geodetic() const
   {
-    assert_choice_type(types::trp_position_relative_geodetic, type_, "TRPReferencePointType");
+    assert_choice_type(types::trp_position_relative_geodetic, c.type, "TRPReferencePointType");
     return c.get<relative_geodetic_location_s>();
   }
   const relative_cartesian_location_s& trp_position_relative_cartesian() const
   {
-    assert_choice_type(types::trp_position_relative_cartesian, type_, "TRPReferencePointType");
+    assert_choice_type(types::trp_position_relative_cartesian, c.type, "TRPReferencePointType");
     return c.get<relative_cartesian_location_s>();
   }
   const protocol_ie_single_container_s<trp_ref_point_type_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "TRPReferencePointType");
+    assert_choice_type(types::choice_ext, c.type, "TRPReferencePointType");
     return c.get<protocol_ie_single_container_s<trp_ref_point_type_ext_ies_o>>();
   }
   relative_geodetic_location_s&                                 set_trp_position_relative_geodetic();
@@ -4941,13 +4133,12 @@ struct trp_ref_point_type_c {
   protocol_ie_single_container_s<trp_ref_point_type_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<protocol_ie_single_container_s<trp_ref_point_type_ext_ies_o>,
-                  relative_cartesian_location_s,
-                  relative_geodetic_location_s>
+  asn1::table::choice_storage<trp_ref_point_type_c,
+                              types,
+                              choice_buffer_t<protocol_ie_single_container_s<trp_ref_point_type_ext_ies_o>,
+                                              relative_cartesian_location_s,
+                                              relative_geodetic_location_s>>
       c;
-
-  void destroy_();
 };
 
 // TRPPositionReferenced-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -4957,17 +4148,13 @@ using trp_position_refd_ext_ies_container = protocol_ext_container_empty_l;
 
 // TRPPositionReferenced ::= SEQUENCE
 struct trp_position_refd_s {
-  bool                                ext             = false;
   bool                                ie_exts_present = false;
   ref_point_c                         ref_point;
   trp_ref_point_type_c                ref_point_type;
   trp_position_refd_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRPPositionDefinitionType-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -4978,49 +4165,42 @@ struct trp_position_definition_type_c {
   struct types_opts {
     enum options { direct, refd, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  trp_position_definition_type_c() = default;
-  trp_position_definition_type_c(const trp_position_definition_type_c& other);
-  trp_position_definition_type_c& operator=(const trp_position_definition_type_c& other);
-  ~trp_position_definition_type_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  trp_position_direct_s& direct()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  trp_position_direct_s&                        direct()
   {
-    assert_choice_type(types::direct, type_, "TRPPositionDefinitionType");
+    assert_choice_type(types::direct, c.type, "TRPPositionDefinitionType");
     return c.get<trp_position_direct_s>();
   }
   trp_position_refd_s& refd()
   {
-    assert_choice_type(types::refd, type_, "TRPPositionDefinitionType");
+    assert_choice_type(types::refd, c.type, "TRPPositionDefinitionType");
     return c.get<trp_position_refd_s>();
   }
   protocol_ie_single_container_s<trp_position_definition_type_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "TRPPositionDefinitionType");
+    assert_choice_type(types::choice_ext, c.type, "TRPPositionDefinitionType");
     return c.get<protocol_ie_single_container_s<trp_position_definition_type_ext_ies_o>>();
   }
   const trp_position_direct_s& direct() const
   {
-    assert_choice_type(types::direct, type_, "TRPPositionDefinitionType");
+    assert_choice_type(types::direct, c.type, "TRPPositionDefinitionType");
     return c.get<trp_position_direct_s>();
   }
   const trp_position_refd_s& refd() const
   {
-    assert_choice_type(types::refd, type_, "TRPPositionDefinitionType");
+    assert_choice_type(types::refd, c.type, "TRPPositionDefinitionType");
     return c.get<trp_position_refd_s>();
   }
   const protocol_ie_single_container_s<trp_position_definition_type_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "TRPPositionDefinitionType");
+    assert_choice_type(types::choice_ext, c.type, "TRPPositionDefinitionType");
     return c.get<protocol_ie_single_container_s<trp_position_definition_type_ext_ies_o>>();
   }
   trp_position_direct_s&                                                  set_direct();
@@ -5028,60 +4208,32 @@ struct trp_position_definition_type_c {
   protocol_ie_single_container_s<trp_position_definition_type_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<protocol_ie_single_container_s<trp_position_definition_type_ext_ies_o>,
-                  trp_position_direct_s,
-                  trp_position_refd_s>
+  asn1::table::choice_storage<trp_position_definition_type_c,
+                              types,
+                              choice_buffer_t<protocol_ie_single_container_s<trp_position_definition_type_ext_ies_o>,
+                                              trp_position_direct_s,
+                                              trp_position_refd_s>>
       c;
-
-  void destroy_();
 };
 
 // GeographicalCoordinates-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct geographical_coordinates_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { arp_location_info, nulltype } value;
+struct geographical_coordinates_ext_ies_container {
+  bool                arp_location_info_present = false;
+  arp_location_info_l arp_location_info;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::arp_location_info; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    arp_location_info_l&       arp_location_info() { return c; }
-    const arp_location_info_l& arp_location_info() const { return c; }
-
-  private:
-    arp_location_info_l c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // GeographicalCoordinates ::= SEQUENCE
 struct geographical_coordinates_s {
-  bool                                                         ext                            = false;
-  bool                                                         dl_prs_res_coordinates_present = false;
-  trp_position_definition_type_c                               trp_position_definition_type;
-  dl_prs_res_coordinates_s                                     dl_prs_res_coordinates;
-  protocol_ext_container_l<geographical_coordinates_ext_ies_o> ie_exts;
+  bool                                       dl_prs_res_coordinates_present = false;
+  bool                                       ie_exts_present                = false;
+  trp_position_definition_type_c             trp_position_definition_type;
+  dl_prs_res_coordinates_s                   dl_prs_res_coordinates;
+  geographical_coordinates_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TimeStampSlotIndex-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -5091,106 +4243,88 @@ struct time_stamp_slot_idx_ext_ies_o {
     struct types_opts {
       enum options { scs_480, scs_960, nulltype } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    value_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint16_t&       scs_480();
-    uint16_t&       scs_960();
-    const uint16_t& scs_480() const;
-    const uint16_t& scs_960() const;
+    void                                  set(types::options e = types::nulltype);
+    types                                 type() const { return type_; }
+    static const asn1::table::choice_desc desc;
+    uint16_t&                             scs_480();
+    uint16_t&                             scs_960();
+    const uint16_t&                       scs_480() const;
+    const uint16_t&                       scs_960() const;
 
   private:
     types             type_;
     choice_buffer_ptr c;
   };
 
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static value_c    get_value(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::objset_desc desc;
 };
 
 // TimeStampSlotIndex ::= CHOICE
 struct time_stamp_slot_idx_c {
   struct types_opts {
     enum options { scs_15, scs_30, scs_60, scs_120, choice_ext, nulltype } value;
-    typedef int8_t number_type;
 
-    const char* to_string() const;
-    int8_t      to_number() const;
+    static const asn1::table::enum_desc desc;
+    int8_t                              to_number() const;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  time_stamp_slot_idx_c() = default;
-  time_stamp_slot_idx_c(const time_stamp_slot_idx_c& other);
-  time_stamp_slot_idx_c& operator=(const time_stamp_slot_idx_c& other);
-  ~time_stamp_slot_idx_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  uint8_t& scs_15()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  uint8_t&                                      scs_15()
   {
-    assert_choice_type(types::scs_15, type_, "TimeStampSlotIndex");
+    assert_choice_type(types::scs_15, c.type, "TimeStampSlotIndex");
     return c.get<uint8_t>();
   }
   uint8_t& scs_30()
   {
-    assert_choice_type(types::scs_30, type_, "TimeStampSlotIndex");
+    assert_choice_type(types::scs_30, c.type, "TimeStampSlotIndex");
     return c.get<uint8_t>();
   }
   uint8_t& scs_60()
   {
-    assert_choice_type(types::scs_60, type_, "TimeStampSlotIndex");
+    assert_choice_type(types::scs_60, c.type, "TimeStampSlotIndex");
     return c.get<uint8_t>();
   }
   uint8_t& scs_120()
   {
-    assert_choice_type(types::scs_120, type_, "TimeStampSlotIndex");
+    assert_choice_type(types::scs_120, c.type, "TimeStampSlotIndex");
     return c.get<uint8_t>();
   }
   protocol_ie_single_container_s<time_stamp_slot_idx_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "TimeStampSlotIndex");
+    assert_choice_type(types::choice_ext, c.type, "TimeStampSlotIndex");
     return c.get<protocol_ie_single_container_s<time_stamp_slot_idx_ext_ies_o>>();
   }
   const uint8_t& scs_15() const
   {
-    assert_choice_type(types::scs_15, type_, "TimeStampSlotIndex");
+    assert_choice_type(types::scs_15, c.type, "TimeStampSlotIndex");
     return c.get<uint8_t>();
   }
   const uint8_t& scs_30() const
   {
-    assert_choice_type(types::scs_30, type_, "TimeStampSlotIndex");
+    assert_choice_type(types::scs_30, c.type, "TimeStampSlotIndex");
     return c.get<uint8_t>();
   }
   const uint8_t& scs_60() const
   {
-    assert_choice_type(types::scs_60, type_, "TimeStampSlotIndex");
+    assert_choice_type(types::scs_60, c.type, "TimeStampSlotIndex");
     return c.get<uint8_t>();
   }
   const uint8_t& scs_120() const
   {
-    assert_choice_type(types::scs_120, type_, "TimeStampSlotIndex");
+    assert_choice_type(types::scs_120, c.type, "TimeStampSlotIndex");
     return c.get<uint8_t>();
   }
   const protocol_ie_single_container_s<time_stamp_slot_idx_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "TimeStampSlotIndex");
+    assert_choice_type(types::choice_ext, c.type, "TimeStampSlotIndex");
     return c.get<protocol_ie_single_container_s<time_stamp_slot_idx_ext_ies_o>>();
   }
   uint8_t&                                                       set_scs_15();
@@ -5200,60 +4334,31 @@ struct time_stamp_slot_idx_c {
   protocol_ie_single_container_s<time_stamp_slot_idx_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                          type_;
-  choice_buffer_t<protocol_ie_single_container_s<time_stamp_slot_idx_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<time_stamp_slot_idx_c,
+                              types,
+                              choice_buffer_t<protocol_ie_single_container_s<time_stamp_slot_idx_ext_ies_o>, uint8_t>>
+      c;
 };
 
 // TimeStamp-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct time_stamp_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { symbol_idx, nulltype } value;
-      typedef uint8_t number_type;
+struct time_stamp_ext_ies_container {
+  bool    symbol_idx_present = false;
+  uint8_t symbol_idx;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::symbol_idx; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint8_t&       symbol_idx() { return c; }
-    const uint8_t& symbol_idx() const { return c; }
-
-  private:
-    uint8_t c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // TimeStamp ::= SEQUENCE
 struct time_stamp_s {
-  bool                                           ext               = false;
-  bool                                           meas_time_present = false;
-  uint16_t                                       sys_frame_num     = 0;
-  time_stamp_slot_idx_c                          slot_idx;
-  fixed_bitstring<64, false, true>               meas_time;
-  protocol_ext_container_l<time_stamp_ext_ies_o> ie_ext;
+  bool                             meas_time_present = false;
+  bool                             ie_ext_present    = false;
+  uint16_t                         sys_frame_num     = 0;
+  time_stamp_slot_idx_c            slot_idx;
+  fixed_bitstring<64, false, true> meas_time;
+  time_stamp_ext_ies_container     ie_ext;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Mobile-TRP-LocationInformation-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -5263,7 +4368,6 @@ using mobile_trp_location_info_ext_ies_container = protocol_ext_container_empty_
 
 // Mobile-TRP-LocationInformation ::= SEQUENCE
 struct mobile_trp_location_info_s {
-  bool                                       ext                         = false;
   bool                                       location_time_stamp_present = false;
   bool                                       ie_exts_present             = false;
   unbounded_octstring<true>                  location_info;
@@ -5272,107 +4376,34 @@ struct mobile_trp_location_info_s {
   mobile_trp_location_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MeasuredResultsAssociatedInfoItem-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct measured_results_associated_info_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { dl_ref_sig_ue_rx_tx_td, nulltype } value;
+struct measured_results_associated_info_item_ext_ies_container {
+  bool                     dl_ref_sig_ue_rx_tx_td_present = false;
+  dl_ref_sig_ue_rx_tx_td_e dl_ref_sig_ue_rx_tx_td;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::dl_ref_sig_ue_rx_tx_td; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    dl_ref_sig_ue_rx_tx_td_e&       dl_ref_sig_ue_rx_tx_td() { return c; }
-    const dl_ref_sig_ue_rx_tx_td_e& dl_ref_sig_ue_rx_tx_td() const { return c; }
-
-  private:
-    dl_ref_sig_ue_rx_tx_td_e c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // MeasuredResultsAssociatedInfoItem ::= SEQUENCE
 struct measured_results_associated_info_item_s {
-  bool                                                                      ext                  = false;
-  bool                                                                      time_stamp_present   = false;
-  bool                                                                      meas_quality_present = false;
-  time_stamp_s                                                              time_stamp;
-  trp_meas_quality_c                                                        meas_quality;
-  protocol_ext_container_l<measured_results_associated_info_item_ext_ies_o> ie_exts;
+  bool                                                    time_stamp_present   = false;
+  bool                                                    meas_quality_present = false;
+  bool                                                    ie_exts_present      = false;
+  time_stamp_s                                            time_stamp;
+  trp_meas_quality_c                                      meas_quality;
+  measured_results_associated_info_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MeasuredResultsAssociatedInfoList ::= SEQUENCE (SIZE (1..64)) OF MeasuredResultsAssociatedInfoItem
 using measured_results_associated_info_list_l = dyn_array<measured_results_associated_info_item_s>;
 
 // E-CID-MeasurementResult-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct e_c_id_meas_result_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options {
-        geographical_coordinates,
-        mobile_access_point_location,
-        measured_results_associated_info_list,
-        nulltype
-      } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    geographical_coordinates_s&                    geographical_coordinates();
-    mobile_trp_location_info_s&                    mobile_access_point_location();
-    measured_results_associated_info_list_l&       measured_results_associated_info_list();
-    const geographical_coordinates_s&              geographical_coordinates() const;
-    const mobile_trp_location_info_s&              mobile_access_point_location() const;
-    const measured_results_associated_info_list_l& measured_results_associated_info_list() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct e_c_id_meas_result_ext_ies_container {
   bool                                    geographical_coordinates_present              = false;
   bool                                    mobile_access_point_location_present          = false;
@@ -5381,15 +4412,11 @@ struct e_c_id_meas_result_ext_ies_container {
   mobile_trp_location_info_s              mobile_access_point_location;
   measured_results_associated_info_list_l measured_results_associated_info_list;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // E-CID-MeasurementResult ::= SEQUENCE
 struct e_c_id_meas_result_s {
-  bool                                 ext                                  = false;
   bool                                 ng_ran_access_point_position_present = false;
   bool                                 ie_exts_present                      = false;
   ng_ran_cgi_s                         serving_cell_id;
@@ -5399,10 +4426,7 @@ struct e_c_id_meas_result_s {
   e_c_id_meas_result_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ExtendedAdditionalPathList-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -5412,7 +4436,6 @@ using extended_add_path_list_item_ext_ies_container = protocol_ext_container_emp
 
 // ExtendedAdditionalPathList-Item ::= SEQUENCE
 struct extended_add_path_list_item_s {
-  bool                                          ext                      = false;
   bool                                          path_quality_present     = false;
   bool                                          multiple_ul_ao_a_present = false;
   bool                                          path_pwr_present         = false;
@@ -5424,10 +4447,7 @@ struct extended_add_path_list_item_s {
   extended_add_path_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ExtendedAdditionalPathList ::= SEQUENCE (SIZE (1..8)) OF ExtendedAdditionalPathList-Item
@@ -5448,134 +4468,116 @@ struct gnb_rx_tx_time_diff_meas_ext_ies_o {
         nulltype
       } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    value_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint32_t&       report_granularitykminus1();
-    uint32_t&       report_granularitykminus2();
-    uint32_t&       report_granularitykminus3();
-    uint32_t&       report_granularitykminus4();
-    uint32_t&       report_granularitykminus5();
-    uint32_t&       report_granularitykminus6();
-    const uint32_t& report_granularitykminus1() const;
-    const uint32_t& report_granularitykminus2() const;
-    const uint32_t& report_granularitykminus3() const;
-    const uint32_t& report_granularitykminus4() const;
-    const uint32_t& report_granularitykminus5() const;
-    const uint32_t& report_granularitykminus6() const;
+    void                                  set(types::options e = types::nulltype);
+    types                                 type() const { return type_; }
+    static const asn1::table::choice_desc desc;
+    uint32_t&                             report_granularitykminus1();
+    uint32_t&                             report_granularitykminus2();
+    uint32_t&                             report_granularitykminus3();
+    uint32_t&                             report_granularitykminus4();
+    uint32_t&                             report_granularitykminus5();
+    uint32_t&                             report_granularitykminus6();
+    const uint32_t&                       report_granularitykminus1() const;
+    const uint32_t&                       report_granularitykminus2() const;
+    const uint32_t&                       report_granularitykminus3() const;
+    const uint32_t&                       report_granularitykminus4() const;
+    const uint32_t&                       report_granularitykminus5() const;
+    const uint32_t&                       report_granularitykminus6() const;
 
   private:
     types             type_;
     choice_buffer_ptr c;
   };
 
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static value_c    get_value(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::objset_desc desc;
 };
 
 // GNBRxTxTimeDiffMeas ::= CHOICE
 struct gnb_rx_tx_time_diff_meas_c {
   struct types_opts {
     enum options { k0, k1, k2, k3, k4, k5, choice_ext, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  gnb_rx_tx_time_diff_meas_c() = default;
-  gnb_rx_tx_time_diff_meas_c(const gnb_rx_tx_time_diff_meas_c& other);
-  gnb_rx_tx_time_diff_meas_c& operator=(const gnb_rx_tx_time_diff_meas_c& other);
-  ~gnb_rx_tx_time_diff_meas_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  uint32_t& k0()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  uint32_t&                                     k0()
   {
-    assert_choice_type(types::k0, type_, "GNBRxTxTimeDiffMeas");
+    assert_choice_type(types::k0, c.type, "GNBRxTxTimeDiffMeas");
     return c.get<uint32_t>();
   }
   uint32_t& k1()
   {
-    assert_choice_type(types::k1, type_, "GNBRxTxTimeDiffMeas");
+    assert_choice_type(types::k1, c.type, "GNBRxTxTimeDiffMeas");
     return c.get<uint32_t>();
   }
   uint32_t& k2()
   {
-    assert_choice_type(types::k2, type_, "GNBRxTxTimeDiffMeas");
+    assert_choice_type(types::k2, c.type, "GNBRxTxTimeDiffMeas");
     return c.get<uint32_t>();
   }
   uint32_t& k3()
   {
-    assert_choice_type(types::k3, type_, "GNBRxTxTimeDiffMeas");
+    assert_choice_type(types::k3, c.type, "GNBRxTxTimeDiffMeas");
     return c.get<uint32_t>();
   }
   uint32_t& k4()
   {
-    assert_choice_type(types::k4, type_, "GNBRxTxTimeDiffMeas");
+    assert_choice_type(types::k4, c.type, "GNBRxTxTimeDiffMeas");
     return c.get<uint32_t>();
   }
   uint16_t& k5()
   {
-    assert_choice_type(types::k5, type_, "GNBRxTxTimeDiffMeas");
+    assert_choice_type(types::k5, c.type, "GNBRxTxTimeDiffMeas");
     return c.get<uint16_t>();
   }
   protocol_ie_single_container_s<gnb_rx_tx_time_diff_meas_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "GNBRxTxTimeDiffMeas");
+    assert_choice_type(types::choice_ext, c.type, "GNBRxTxTimeDiffMeas");
     return c.get<protocol_ie_single_container_s<gnb_rx_tx_time_diff_meas_ext_ies_o>>();
   }
   const uint32_t& k0() const
   {
-    assert_choice_type(types::k0, type_, "GNBRxTxTimeDiffMeas");
+    assert_choice_type(types::k0, c.type, "GNBRxTxTimeDiffMeas");
     return c.get<uint32_t>();
   }
   const uint32_t& k1() const
   {
-    assert_choice_type(types::k1, type_, "GNBRxTxTimeDiffMeas");
+    assert_choice_type(types::k1, c.type, "GNBRxTxTimeDiffMeas");
     return c.get<uint32_t>();
   }
   const uint32_t& k2() const
   {
-    assert_choice_type(types::k2, type_, "GNBRxTxTimeDiffMeas");
+    assert_choice_type(types::k2, c.type, "GNBRxTxTimeDiffMeas");
     return c.get<uint32_t>();
   }
   const uint32_t& k3() const
   {
-    assert_choice_type(types::k3, type_, "GNBRxTxTimeDiffMeas");
+    assert_choice_type(types::k3, c.type, "GNBRxTxTimeDiffMeas");
     return c.get<uint32_t>();
   }
   const uint32_t& k4() const
   {
-    assert_choice_type(types::k4, type_, "GNBRxTxTimeDiffMeas");
+    assert_choice_type(types::k4, c.type, "GNBRxTxTimeDiffMeas");
     return c.get<uint32_t>();
   }
   const uint16_t& k5() const
   {
-    assert_choice_type(types::k5, type_, "GNBRxTxTimeDiffMeas");
+    assert_choice_type(types::k5, c.type, "GNBRxTxTimeDiffMeas");
     return c.get<uint16_t>();
   }
   const protocol_ie_single_container_s<gnb_rx_tx_time_diff_meas_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "GNBRxTxTimeDiffMeas");
+    assert_choice_type(types::choice_ext, c.type, "GNBRxTxTimeDiffMeas");
     return c.get<protocol_ie_single_container_s<gnb_rx_tx_time_diff_meas_ext_ies_o>>();
   }
   uint32_t&                                                           set_k0();
@@ -5587,10 +4589,11 @@ struct gnb_rx_tx_time_diff_meas_c {
   protocol_ie_single_container_s<gnb_rx_tx_time_diff_meas_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                               type_;
-  choice_buffer_t<protocol_ie_single_container_s<gnb_rx_tx_time_diff_meas_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      gnb_rx_tx_time_diff_meas_c,
+      types,
+      choice_buffer_t<protocol_ie_single_container_s<gnb_rx_tx_time_diff_meas_ext_ies_o>, uint16_t, uint32_t>>
+      c;
 };
 
 // RxTxTimingErrorMargin ::= ENUMERATED
@@ -5615,11 +4618,10 @@ struct rx_tx_timing_error_margin_opts {
     // ...
     nulltype
   } value;
-  typedef float number_type;
 
-  const char* to_string() const;
-  float       to_number() const;
-  const char* to_number_string() const;
+  static const asn1::table::enum_desc desc;
+  float                               to_number() const;
+  const char*                         to_number_string() const;
 };
 using rx_tx_timing_error_margin_e = enumerated<rx_tx_timing_error_margin_opts, true>;
 
@@ -5630,17 +4632,13 @@ using trp_rx_tx_teg_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // TRP-RxTx-TEGInformation ::= SEQUENCE
 struct trp_rx_tx_teg_info_s {
-  bool                                 ext              = false;
   bool                                 ie_exts_present  = false;
   uint16_t                             trp_rx_tx_teg_id = 0;
   rx_tx_timing_error_margin_e          trp_rx_tx_timing_error_margin;
   trp_rx_tx_teg_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TimingErrorMargin ::= ENUMERATED
@@ -5664,10 +4662,9 @@ struct timing_error_margin_opts {
     tc80,
     /*...*/ nulltype
   } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using timing_error_margin_e = enumerated<timing_error_margin_opts, true>;
 
@@ -5678,17 +4675,13 @@ using trp_tx_teg_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // TRP-Tx-TEGInformation ::= SEQUENCE
 struct trp_tx_teg_info_s {
-  bool                              ext             = false;
   bool                              ie_exts_present = false;
   uint8_t                           trp_tx_teg_id   = 0;
   timing_error_margin_e             trp_tx_timing_error_margin;
   trp_tx_teg_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // RxTxTEG-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -5698,7 +4691,6 @@ using rx_tx_teg_ext_ies_container = protocol_ext_container_empty_l;
 
 // RxTxTEG ::= SEQUENCE
 struct rx_tx_teg_s {
-  bool                        ext                     = false;
   bool                        trp_tx_teg_info_present = false;
   bool                        ie_exts_present         = false;
   trp_rx_tx_teg_info_s        trp_rx_tx_teg_info;
@@ -5706,10 +4698,7 @@ struct rx_tx_teg_s {
   rx_tx_teg_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRP-Rx-TEGInformation-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -5719,17 +4708,13 @@ using trp_rx_teg_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // TRP-Rx-TEGInformation ::= SEQUENCE
 struct trp_rx_teg_info_s {
-  bool                              ext             = false;
   bool                              ie_exts_present = false;
   uint8_t                           trp_rx_teg_id   = 0;
   timing_error_margin_e             trp_rx_timing_error_margin;
   trp_rx_teg_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // RxTEG-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -5739,17 +4724,13 @@ using rx_teg_ext_ies_container = protocol_ext_container_empty_l;
 
 // RxTEG ::= SEQUENCE
 struct rx_teg_s {
-  bool                     ext             = false;
   bool                     ie_exts_present = false;
   trp_rx_teg_info_s        trp_rx_teg_info;
   trp_tx_teg_info_s        trp_tx_teg_info;
   rx_teg_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRPTEGInformation-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -5760,49 +4741,42 @@ struct trpteg_info_c {
   struct types_opts {
     enum options { rx_tx_teg, rx_teg, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  trpteg_info_c() = default;
-  trpteg_info_c(const trpteg_info_c& other);
-  trpteg_info_c& operator=(const trpteg_info_c& other);
-  ~trpteg_info_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  rx_tx_teg_s& rx_tx_teg()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  rx_tx_teg_s&                                  rx_tx_teg()
   {
-    assert_choice_type(types::rx_tx_teg, type_, "TRPTEGInformation");
+    assert_choice_type(types::rx_tx_teg, c.type, "TRPTEGInformation");
     return c.get<rx_tx_teg_s>();
   }
   rx_teg_s& rx_teg()
   {
-    assert_choice_type(types::rx_teg, type_, "TRPTEGInformation");
+    assert_choice_type(types::rx_teg, c.type, "TRPTEGInformation");
     return c.get<rx_teg_s>();
   }
   protocol_ie_single_container_s<trpteg_info_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "TRPTEGInformation");
+    assert_choice_type(types::choice_ext, c.type, "TRPTEGInformation");
     return c.get<protocol_ie_single_container_s<trpteg_info_ext_ies_o>>();
   }
   const rx_tx_teg_s& rx_tx_teg() const
   {
-    assert_choice_type(types::rx_tx_teg, type_, "TRPTEGInformation");
+    assert_choice_type(types::rx_tx_teg, c.type, "TRPTEGInformation");
     return c.get<rx_tx_teg_s>();
   }
   const rx_teg_s& rx_teg() const
   {
-    assert_choice_type(types::rx_teg, type_, "TRPTEGInformation");
+    assert_choice_type(types::rx_teg, c.type, "TRPTEGInformation");
     return c.get<rx_teg_s>();
   }
   const protocol_ie_single_container_s<trpteg_info_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "TRPTEGInformation");
+    assert_choice_type(types::choice_ext, c.type, "TRPTEGInformation");
     return c.get<protocol_ie_single_container_s<trpteg_info_ext_ies_o>>();
   }
   rx_tx_teg_s&                                           set_rx_tx_teg();
@@ -5810,74 +4784,32 @@ struct trpteg_info_c {
   protocol_ie_single_container_s<trpteg_info_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                                         type_;
-  choice_buffer_t<protocol_ie_single_container_s<trpteg_info_ext_ies_o>, rx_teg_s, rx_tx_teg_s> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      trpteg_info_c,
+      types,
+      choice_buffer_t<protocol_ie_single_container_s<trpteg_info_ext_ies_o>, rx_teg_s, rx_tx_teg_s>>
+      c;
 };
 
 // GNB-RxTxTimeDiff-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct gnb_rx_tx_time_diff_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { extended_add_path_list, trpteg_info, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    extended_add_path_list_l&       extended_add_path_list();
-    trpteg_info_c&                  trpteg_info();
-    const extended_add_path_list_l& extended_add_path_list() const;
-    const trpteg_info_c&            trpteg_info() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct gnb_rx_tx_time_diff_ext_ies_container {
   bool                     extended_add_path_list_present = false;
   bool                     trpteg_info_present            = false;
   extended_add_path_list_l extended_add_path_list;
   trpteg_info_c            trpteg_info;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // GNB-RxTxTimeDiff ::= SEQUENCE
 struct gnb_rx_tx_time_diff_s {
-  bool                                  ext             = false;
   bool                                  ie_exts_present = false;
   gnb_rx_tx_time_diff_meas_c            rx_tx_time_diff;
   add_path_list_l                       add_path_list;
   gnb_rx_tx_time_diff_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // LCS-to-GCS-TranslationItem-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -5887,7 +4819,6 @@ using lcs_to_gcs_translation_item_ext_ies_container = protocol_ext_container_emp
 
 // LCS-to-GCS-TranslationItem ::= SEQUENCE
 struct lcs_to_gcs_translation_item_s {
-  bool                                          ext                = false;
   bool                                          alpha_fine_present = false;
   bool                                          beta_fine_present  = false;
   bool                                          gamma_fine_present = false;
@@ -5901,17 +4832,14 @@ struct lcs_to_gcs_translation_item_s {
   lcs_to_gcs_translation_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // LoS-NLoSIndicatorHard ::= ENUMERATED
 struct lo_s_n_lo_si_ndicator_hard_opts {
   enum options { nlos, los, nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using lo_s_n_lo_si_ndicator_hard_e = enumerated<lo_s_n_lo_si_ndicator_hard_opts>;
 
@@ -5923,49 +4851,42 @@ struct lo_s_n_lo_si_nformation_c {
   struct types_opts {
     enum options { lo_s_n_lo_si_ndicator_soft, lo_s_n_lo_si_ndicator_hard, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  lo_s_n_lo_si_nformation_c() = default;
-  lo_s_n_lo_si_nformation_c(const lo_s_n_lo_si_nformation_c& other);
-  lo_s_n_lo_si_nformation_c& operator=(const lo_s_n_lo_si_nformation_c& other);
-  ~lo_s_n_lo_si_nformation_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  uint8_t& lo_s_n_lo_si_ndicator_soft()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  uint8_t&                                      lo_s_n_lo_si_ndicator_soft()
   {
-    assert_choice_type(types::lo_s_n_lo_si_ndicator_soft, type_, "LoS-NLoSInformation");
+    assert_choice_type(types::lo_s_n_lo_si_ndicator_soft, c.type, "LoS-NLoSInformation");
     return c.get<uint8_t>();
   }
   lo_s_n_lo_si_ndicator_hard_e& lo_s_n_lo_si_ndicator_hard()
   {
-    assert_choice_type(types::lo_s_n_lo_si_ndicator_hard, type_, "LoS-NLoSInformation");
+    assert_choice_type(types::lo_s_n_lo_si_ndicator_hard, c.type, "LoS-NLoSInformation");
     return c.get<lo_s_n_lo_si_ndicator_hard_e>();
   }
   protocol_ie_single_container_s<lo_s_n_lo_si_nformation_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "LoS-NLoSInformation");
+    assert_choice_type(types::choice_ext, c.type, "LoS-NLoSInformation");
     return c.get<protocol_ie_single_container_s<lo_s_n_lo_si_nformation_ext_ies_o>>();
   }
   const uint8_t& lo_s_n_lo_si_ndicator_soft() const
   {
-    assert_choice_type(types::lo_s_n_lo_si_ndicator_soft, type_, "LoS-NLoSInformation");
+    assert_choice_type(types::lo_s_n_lo_si_ndicator_soft, c.type, "LoS-NLoSInformation");
     return c.get<uint8_t>();
   }
   const lo_s_n_lo_si_ndicator_hard_e& lo_s_n_lo_si_ndicator_hard() const
   {
-    assert_choice_type(types::lo_s_n_lo_si_ndicator_hard, type_, "LoS-NLoSInformation");
+    assert_choice_type(types::lo_s_n_lo_si_ndicator_hard, c.type, "LoS-NLoSInformation");
     return c.get<lo_s_n_lo_si_ndicator_hard_e>();
   }
   const protocol_ie_single_container_s<lo_s_n_lo_si_nformation_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "LoS-NLoSInformation");
+    assert_choice_type(types::choice_ext, c.type, "LoS-NLoSInformation");
     return c.get<protocol_ie_single_container_s<lo_s_n_lo_si_nformation_ext_ies_o>>();
   }
   uint8_t&                                                           set_lo_s_n_lo_si_ndicator_soft();
@@ -5973,17 +4894,19 @@ struct lo_s_n_lo_si_nformation_c {
   protocol_ie_single_container_s<lo_s_n_lo_si_nformation_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                              type_;
-  choice_buffer_t<protocol_ie_single_container_s<lo_s_n_lo_si_nformation_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<lo_s_n_lo_si_nformation_c,
+                              types,
+                              choice_buffer_t<lo_s_n_lo_si_ndicator_hard_e,
+                                              protocol_ie_single_container_s<lo_s_n_lo_si_nformation_ext_ies_o>,
+                                              uint8_t>>
+      c;
 };
 
 // MeasBasedOnAggregatedResources ::= ENUMERATED
 struct meas_based_on_aggr_res_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using meas_based_on_aggr_res_e = enumerated<meas_based_on_aggr_res_opts, true>;
 
@@ -5991,17 +4914,16 @@ using meas_based_on_aggr_res_e = enumerated<meas_based_on_aggr_res_opts, true>;
 struct measured_freq_hops_opts {
   enum options { single_hop, multi_hop, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using measured_freq_hops_e = enumerated<measured_freq_hops_opts, true>;
 
 // MeasurementAmount ::= ENUMERATED
 struct meas_amount_opts {
   enum options { ma0, ma1, ma2, ma4, ma8, ma16, ma32, ma64, nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using meas_amount_e = enumerated<meas_amount_opts>;
 
@@ -6012,7 +4934,6 @@ using meas_beam_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // MeasurementBeamInfo ::= SEQUENCE
 struct meas_beam_info_s {
-  bool                             ext                    = false;
   bool                             prs_res_id_present     = false;
   bool                             prs_res_set_id_present = false;
   bool                             ssb_idx_present        = false;
@@ -6023,17 +4944,14 @@ struct meas_beam_info_s {
   meas_beam_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MeasurementBeamInfoRequest ::= ENUMERATED
 struct meas_beam_info_request_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using meas_beam_info_request_e = enumerated<meas_beam_info_request_opts, true>;
 
@@ -6059,10 +4977,9 @@ struct meas_periodicity_opts {
     extended,
     nulltype
   } value;
-  typedef uint16_t number_type;
 
-  const char* to_string() const;
-  uint16_t    to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint16_t                            to_number() const;
 };
 using meas_periodicity_e = enumerated<meas_periodicity_opts, true, 3>;
 
@@ -6080,10 +4997,9 @@ struct meas_periodicity_extended_opts {
     ms1843200,
     /*...*/ nulltype
   } value;
-  typedef uint32_t number_type;
 
-  const char* to_string() const;
-  uint32_t    to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint32_t                            to_number() const;
 };
 using meas_periodicity_extended_e = enumerated<meas_periodicity_extended_opts, true>;
 
@@ -6107,10 +5023,9 @@ struct meas_periodicity_nr_ao_a_opts {
     // ...
     nulltype
   } value;
-  typedef uint32_t number_type;
 
-  const char* to_string() const;
-  uint32_t    to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint32_t                            to_number() const;
 };
 using meas_periodicity_nr_ao_a_e = enumerated<meas_periodicity_nr_ao_a_opts, true>;
 
@@ -6133,10 +5048,9 @@ struct meas_quantities_value_opts {
     ue_rx_tx_time_diff,
     nulltype
   } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using meas_quantities_value_e = enumerated<meas_quantities_value_opts, true, 7>;
 
@@ -6147,16 +5061,12 @@ using meas_quantities_value_ext_ies_container = protocol_ext_container_empty_l;
 
 // MeasurementQuantities-Item ::= SEQUENCE
 struct meas_quantities_item_s {
-  bool                                    ext             = false;
   bool                                    ie_exts_present = false;
   meas_quantities_value_e                 meas_quantities_value;
   meas_quantities_value_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // MeasurementQuantities-ItemIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -6166,29 +5076,20 @@ struct meas_quantities_item_ies_o {
     struct types_opts {
       enum options { meas_quantities_item, nulltype } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    types         type() const { return types::meas_quantities_item; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    meas_quantities_item_s&       meas_quantities_item() { return c; }
-    const meas_quantities_item_s& meas_quantities_item() const { return c; }
+    types                                 type() const { return types::meas_quantities_item; }
+    static const asn1::table::choice_desc desc;
+    meas_quantities_item_s&               meas_quantities_item() { return c; }
+    const meas_quantities_item_s&         meas_quantities_item() const { return c; }
 
   private:
     meas_quantities_item_s c;
   };
 
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static value_c    get_value(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::objset_desc desc;
 };
 
 // MeasurementQuantities ::= SEQUENCE (SIZE (1..64)) OF ProtocolIE-Field{NRPPA-PROTOCOL-IES : IEsSetParam}
@@ -6197,64 +5098,34 @@ using meas_quantities_l = dyn_array<protocol_ie_single_container_s<meas_quantiti
 // MeasurementTimeOccasion ::= ENUMERATED
 struct meas_time_occasion_opts {
   enum options { o1, o4, /*...*/ nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using meas_time_occasion_e = enumerated<meas_time_occasion_opts, true>;
 
 // PRSAngleItem-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct prs_angle_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { prs_res_id, nulltype } value;
-      typedef uint8_t number_type;
+struct prs_angle_item_ext_ies_container {
+  bool    prs_res_id_present = false;
+  uint8_t prs_res_id;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::prs_res_id; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint8_t&       prs_res_id() { return c; }
-    const uint8_t& prs_res_id() const { return c; }
-
-  private:
-    uint8_t c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // PRSAngleItem ::= SEQUENCE
 struct prs_angle_item_s {
-  bool                                               ext                           = false;
-  bool                                               nr_prs_azimuth_fine_present   = false;
-  bool                                               nr_prs_elevation_present      = false;
-  bool                                               nr_prs_elevation_fine_present = false;
-  uint16_t                                           nr_prs_azimuth                = 0;
-  uint8_t                                            nr_prs_azimuth_fine           = 0;
-  uint8_t                                            nr_prs_elevation              = 0;
-  uint8_t                                            nr_prs_elevation_fine         = 0;
-  protocol_ext_container_l<prs_angle_item_ext_ies_o> ie_exts;
+  bool                             nr_prs_azimuth_fine_present   = false;
+  bool                             nr_prs_elevation_present      = false;
+  bool                             nr_prs_elevation_fine_present = false;
+  bool                             ie_exts_present               = false;
+  uint16_t                         nr_prs_azimuth                = 0;
+  uint8_t                          nr_prs_azimuth_fine           = 0;
+  uint8_t                          nr_prs_elevation              = 0;
+  uint8_t                          nr_prs_elevation_fine         = 0;
+  prs_angle_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // NR-PRS-Beam-InformationItem-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -6267,17 +5138,13 @@ struct nr_prs_beam_info_item_s {
   using prs_angle_l_ = dyn_array<prs_angle_item_s>;
 
   // member variables
-  bool                                    ext             = false;
   bool                                    ie_exts_present = false;
   uint8_t                                 pr_sres_set_id  = 0;
   prs_angle_l_                            prs_angle;
   nr_prs_beam_info_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // NR-PRS-Beam-Information-IEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -6291,66 +5158,57 @@ struct nr_prs_beam_info_s {
   using lcs_to_gcs_translation_list_l_ = dyn_array<lcs_to_gcs_translation_item_s>;
 
   // member variables
-  bool                           ext             = false;
   bool                           ie_exts_present = false;
   nr_prs_beam_info_list_l_       nr_prs_beam_info_list;
   lcs_to_gcs_translation_list_l_ lcs_to_gcs_translation_list;
   nr_prs_beam_info_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // NumberOfAntennaPorts-EUTRA ::= ENUMERATED
 struct nof_ant_ports_eutra_opts {
   enum options { n1_or_n2, n4, /*...*/ nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using nof_ant_ports_eutra_e = enumerated<nof_ant_ports_eutra_opts, true>;
 
 // NumberOfDlFrames-EUTRA ::= ENUMERATED
 struct nof_dl_frames_eutra_opts {
   enum options { sf1, sf2, sf4, sf6, /*...*/ nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using nof_dl_frames_eutra_e = enumerated<nof_dl_frames_eutra_opts, true>;
 
 // NumberOfFrequencyHoppingBands ::= ENUMERATED
 struct nof_freq_hop_bands_opts {
   enum options { twobands, fourbands, /*...*/ nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using nof_freq_hop_bands_e = enumerated<nof_freq_hop_bands_opts, true>;
 
 // NumberOfTRPRxTEG ::= ENUMERATED
 struct nof_trp_rx_teg_opts {
   enum options { two, three, four, six, eight, /*...*/ nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using nof_trp_rx_teg_e = enumerated<nof_trp_rx_teg_opts, true>;
 
 // NumberOfTRPRxTxTEG ::= ENUMERATED
 struct nof_trp_rx_tx_teg_opts {
   enum options { two, three, four, six, eight, /*...*/ nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using nof_trp_rx_tx_teg_e = enumerated<nof_trp_rx_tx_teg_opts, true>;
 
@@ -6382,17 +5240,16 @@ struct otdoa_info_item_opts {
     nulltype
   } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using otdoa_info_item_e = enumerated<otdoa_info_item_opts, true, 1>;
 
 // PRS-Bandwidth-EUTRA ::= ENUMERATED
 struct prs_bw_eutra_opts {
   enum options { bw6, bw15, bw25, bw50, bw75, bw100, /*...*/ nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using prs_bw_eutra_e = enumerated<prs_bw_eutra_opts, true>;
 
@@ -6417,129 +5274,122 @@ struct prs_muting_cfg_eutra_c {
       nulltype
     } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  prs_muting_cfg_eutra_c() = default;
-  prs_muting_cfg_eutra_c(const prs_muting_cfg_eutra_c& other);
-  prs_muting_cfg_eutra_c& operator=(const prs_muting_cfg_eutra_c& other);
-  ~prs_muting_cfg_eutra_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  fixed_bitstring<2, false, true>& two()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  fixed_bitstring<2, false, true>&              two()
   {
-    assert_choice_type(types::two, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::two, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<2, false, true>>();
   }
   fixed_bitstring<4, false, true>& four()
   {
-    assert_choice_type(types::four, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::four, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<4, false, true>>();
   }
   fixed_bitstring<8, false, true>& eight()
   {
-    assert_choice_type(types::eight, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::eight, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<8, false, true>>();
   }
   fixed_bitstring<16, false, true>& sixteen()
   {
-    assert_choice_type(types::sixteen, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::sixteen, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<16, false, true>>();
   }
   fixed_bitstring<32, false, true>& thirty_two()
   {
-    assert_choice_type(types::thirty_two, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::thirty_two, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<32, false, true>>();
   }
   fixed_bitstring<64, false, true>& sixty_four()
   {
-    assert_choice_type(types::sixty_four, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::sixty_four, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<64, false, true>>();
   }
   fixed_bitstring<128, false, true>& one_hundred_and_twenty_eight()
   {
-    assert_choice_type(types::one_hundred_and_twenty_eight, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::one_hundred_and_twenty_eight, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<128, false, true>>();
   }
   fixed_bitstring<256, false, true>& two_hundred_and_fifty_six()
   {
-    assert_choice_type(types::two_hundred_and_fifty_six, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::two_hundred_and_fifty_six, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<256, false, true>>();
   }
   fixed_bitstring<512, false, true>& five_hundred_and_twelve()
   {
-    assert_choice_type(types::five_hundred_and_twelve, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::five_hundred_and_twelve, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<512, false, true>>();
   }
   fixed_bitstring<1024, false, true>& one_thousand_and_twenty_four()
   {
-    assert_choice_type(types::one_thousand_and_twenty_four, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::one_thousand_and_twenty_four, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<1024, false, true>>();
   }
   protocol_ie_single_container_s<prs_muting_cfg_eutra_ext_ie_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::choice_ext, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<protocol_ie_single_container_s<prs_muting_cfg_eutra_ext_ie_o>>();
   }
   const fixed_bitstring<2, false, true>& two() const
   {
-    assert_choice_type(types::two, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::two, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<2, false, true>>();
   }
   const fixed_bitstring<4, false, true>& four() const
   {
-    assert_choice_type(types::four, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::four, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<4, false, true>>();
   }
   const fixed_bitstring<8, false, true>& eight() const
   {
-    assert_choice_type(types::eight, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::eight, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<8, false, true>>();
   }
   const fixed_bitstring<16, false, true>& sixteen() const
   {
-    assert_choice_type(types::sixteen, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::sixteen, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<16, false, true>>();
   }
   const fixed_bitstring<32, false, true>& thirty_two() const
   {
-    assert_choice_type(types::thirty_two, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::thirty_two, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<32, false, true>>();
   }
   const fixed_bitstring<64, false, true>& sixty_four() const
   {
-    assert_choice_type(types::sixty_four, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::sixty_four, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<64, false, true>>();
   }
   const fixed_bitstring<128, false, true>& one_hundred_and_twenty_eight() const
   {
-    assert_choice_type(types::one_hundred_and_twenty_eight, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::one_hundred_and_twenty_eight, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<128, false, true>>();
   }
   const fixed_bitstring<256, false, true>& two_hundred_and_fifty_six() const
   {
-    assert_choice_type(types::two_hundred_and_fifty_six, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::two_hundred_and_fifty_six, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<256, false, true>>();
   }
   const fixed_bitstring<512, false, true>& five_hundred_and_twelve() const
   {
-    assert_choice_type(types::five_hundred_and_twelve, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::five_hundred_and_twelve, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<512, false, true>>();
   }
   const fixed_bitstring<1024, false, true>& one_thousand_and_twenty_four() const
   {
-    assert_choice_type(types::one_thousand_and_twenty_four, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::one_thousand_and_twenty_four, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<fixed_bitstring<1024, false, true>>();
   }
   const protocol_ie_single_container_s<prs_muting_cfg_eutra_ext_ie_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "PRSMutingConfiguration-EUTRA");
+    assert_choice_type(types::choice_ext, c.type, "PRSMutingConfiguration-EUTRA");
     return c.get<protocol_ie_single_container_s<prs_muting_cfg_eutra_ext_ie_o>>();
   }
   fixed_bitstring<2, false, true>&                               set_two();
@@ -6555,27 +5405,27 @@ struct prs_muting_cfg_eutra_c {
   protocol_ie_single_container_s<prs_muting_cfg_eutra_ext_ie_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<fixed_bitstring<1024, false, true>, protocol_ie_single_container_s<prs_muting_cfg_eutra_ext_ie_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<prs_muting_cfg_eutra_c,
+                              types,
+                              choice_buffer_t<fixed_bitstring<1024, false, true>,
+                                              protocol_ie_single_container_s<prs_muting_cfg_eutra_ext_ie_o>>>
+      c;
 };
 
 // TP-Type-EUTRA ::= ENUMERATED
 struct tp_type_eutra_opts {
   enum options { prs_only_tp, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using tp_type_eutra_e = enumerated<tp_type_eutra_opts, true>;
 
 // PRSOccasionGroup-EUTRA ::= ENUMERATED
 struct prs_occasion_group_eutra_opts {
   enum options { og2, og4, og8, og16, og32, og64, og128, /*...*/ nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using prs_occasion_group_eutra_e = enumerated<prs_occasion_group_eutra_opts, true>;
 
@@ -6589,17 +5439,13 @@ struct prs_freq_hop_cfg_eutra_s {
   using band_positions_l_ = bounded_array<uint8_t, 7>;
 
   // member variables
-  bool                                      ext             = false;
   bool                                      ie_exts_present = false;
   nof_freq_hop_bands_e                      no_of_freq_hop_bands;
   band_positions_l_                         band_positions;
   prs_freq_hop_cfg_eutra_item_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TDD-Config-EUTRA-Item-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -6611,24 +5457,19 @@ using tdd_cfg_eutra_item_item_ext_ies_container = protocol_ext_container_empty_l
 struct tdd_cfg_eutra_item_s {
   struct sf_assign_opts {
     enum options { sa0, sa1, sa2, sa3, sa4, sa5, sa6, /*...*/ nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using sf_assign_e_ = enumerated<sf_assign_opts, true>;
 
   // member variables
-  bool                                      ext             = false;
   bool                                      ie_exts_present = false;
   sf_assign_e_                              sf_assign;
   tdd_cfg_eutra_item_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // OTDOACell-Information-Item-ExtensionIE ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -6638,18 +5479,13 @@ struct otdoa_cell_info_item_ext_ie_o {
     struct types_opts {
       enum options { tdd_cfg_eutra_item, cgi_nr, sfn_initisation_time_nr, nulltype } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    value_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
+    void                                    set(types::options e = types::nulltype);
+    types                                   type() const { return type_; }
+    static const asn1::table::choice_desc   desc;
     tdd_cfg_eutra_item_s&                   tdd_cfg_eutra_item();
     cgi_nr_s&                               cgi_nr();
     fixed_bitstring<64, false, true>&       sfn_initisation_time_nr();
@@ -6662,12 +5498,7 @@ struct otdoa_cell_info_item_ext_ie_o {
     choice_buffer_ptr c;
   };
 
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static value_c    get_value(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::objset_desc desc;
 };
 
 // OTDOACell-Information-Item ::= CHOICE
@@ -6698,229 +5529,222 @@ struct otdoa_cell_info_item_c {
       nulltype
     } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  otdoa_cell_info_item_c() = default;
-  otdoa_cell_info_item_c(const otdoa_cell_info_item_c& other);
-  otdoa_cell_info_item_c& operator=(const otdoa_cell_info_item_c& other);
-  ~otdoa_cell_info_item_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  uint16_t& pci_eutra()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  uint16_t&                                     pci_eutra()
   {
-    assert_choice_type(types::pci_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::pci_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<uint16_t>();
   }
   cgi_eutra_s& cgi_eutra()
   {
-    assert_choice_type(types::cgi_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::cgi_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<cgi_eutra_s>();
   }
   fixed_octstring<3, true>& tac()
   {
-    assert_choice_type(types::tac, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::tac, c.type, "OTDOACell-Information-Item");
     return c.get<fixed_octstring<3, true>>();
   }
   uint32_t& earfcn()
   {
-    assert_choice_type(types::earfcn, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::earfcn, c.type, "OTDOACell-Information-Item");
     return c.get<uint32_t>();
   }
   prs_bw_eutra_e& prs_bw_eutra()
   {
-    assert_choice_type(types::prs_bw_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::prs_bw_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<prs_bw_eutra_e>();
   }
   uint16_t& prs_cfg_idx_eutra()
   {
-    assert_choice_type(types::prs_cfg_idx_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::prs_cfg_idx_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<uint16_t>();
   }
   cp_len_eutra_e& cp_len_eutra()
   {
-    assert_choice_type(types::cp_len_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::cp_len_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<cp_len_eutra_e>();
   }
   nof_dl_frames_eutra_e& nof_dl_frames_eutra()
   {
-    assert_choice_type(types::nof_dl_frames_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::nof_dl_frames_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<nof_dl_frames_eutra_e>();
   }
   nof_ant_ports_eutra_e& nof_ant_ports_eutra()
   {
-    assert_choice_type(types::nof_ant_ports_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::nof_ant_ports_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<nof_ant_ports_eutra_e>();
   }
   fixed_bitstring<64, false, true>& sfn_initisation_time_eutra()
   {
-    assert_choice_type(types::sfn_initisation_time_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::sfn_initisation_time_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<fixed_bitstring<64, false, true>>();
   }
   ng_ran_access_point_position_s& ng_ran_access_point_position()
   {
-    assert_choice_type(types::ng_ran_access_point_position, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::ng_ran_access_point_position, c.type, "OTDOACell-Information-Item");
     return c.get<ng_ran_access_point_position_s>();
   }
   prs_muting_cfg_eutra_c& prs_muting_cfg_eutra()
   {
-    assert_choice_type(types::prs_muting_cfg_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::prs_muting_cfg_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<prs_muting_cfg_eutra_c>();
   }
   uint16_t& prsid_eutra()
   {
-    assert_choice_type(types::prsid_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::prsid_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<uint16_t>();
   }
   uint16_t& tpid_eutra()
   {
-    assert_choice_type(types::tpid_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::tpid_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<uint16_t>();
   }
   tp_type_eutra_e& tp_type_eutra()
   {
-    assert_choice_type(types::tp_type_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::tp_type_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<tp_type_eutra_e>();
   }
-  uint8_t& nof_dl_frames_extended_eutra()
+  uint16_t& nof_dl_frames_extended_eutra()
   {
-    assert_choice_type(types::nof_dl_frames_extended_eutra, type_, "OTDOACell-Information-Item");
-    return c.get<uint8_t>();
+    assert_choice_type(types::nof_dl_frames_extended_eutra, c.type, "OTDOACell-Information-Item");
+    return c.get<uint16_t>();
   }
   cp_len_eutra_e& crs_cp_len_eutra()
   {
-    assert_choice_type(types::crs_cp_len_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::crs_cp_len_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<cp_len_eutra_e>();
   }
   dl_bw_eutra_e& dl_bw_eutra()
   {
-    assert_choice_type(types::dl_bw_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::dl_bw_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<dl_bw_eutra_e>();
   }
   prs_occasion_group_eutra_e& prs_occasion_group_eutra()
   {
-    assert_choice_type(types::prs_occasion_group_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::prs_occasion_group_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<prs_occasion_group_eutra_e>();
   }
   prs_freq_hop_cfg_eutra_s& prs_freq_hop_cfg_eutra()
   {
-    assert_choice_type(types::prs_freq_hop_cfg_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::prs_freq_hop_cfg_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<prs_freq_hop_cfg_eutra_s>();
   }
   protocol_ie_single_container_s<otdoa_cell_info_item_ext_ie_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::choice_ext, c.type, "OTDOACell-Information-Item");
     return c.get<protocol_ie_single_container_s<otdoa_cell_info_item_ext_ie_o>>();
   }
   const uint16_t& pci_eutra() const
   {
-    assert_choice_type(types::pci_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::pci_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<uint16_t>();
   }
   const cgi_eutra_s& cgi_eutra() const
   {
-    assert_choice_type(types::cgi_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::cgi_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<cgi_eutra_s>();
   }
   const fixed_octstring<3, true>& tac() const
   {
-    assert_choice_type(types::tac, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::tac, c.type, "OTDOACell-Information-Item");
     return c.get<fixed_octstring<3, true>>();
   }
   const uint32_t& earfcn() const
   {
-    assert_choice_type(types::earfcn, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::earfcn, c.type, "OTDOACell-Information-Item");
     return c.get<uint32_t>();
   }
   const prs_bw_eutra_e& prs_bw_eutra() const
   {
-    assert_choice_type(types::prs_bw_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::prs_bw_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<prs_bw_eutra_e>();
   }
   const uint16_t& prs_cfg_idx_eutra() const
   {
-    assert_choice_type(types::prs_cfg_idx_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::prs_cfg_idx_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<uint16_t>();
   }
   const cp_len_eutra_e& cp_len_eutra() const
   {
-    assert_choice_type(types::cp_len_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::cp_len_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<cp_len_eutra_e>();
   }
   const nof_dl_frames_eutra_e& nof_dl_frames_eutra() const
   {
-    assert_choice_type(types::nof_dl_frames_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::nof_dl_frames_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<nof_dl_frames_eutra_e>();
   }
   const nof_ant_ports_eutra_e& nof_ant_ports_eutra() const
   {
-    assert_choice_type(types::nof_ant_ports_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::nof_ant_ports_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<nof_ant_ports_eutra_e>();
   }
   const fixed_bitstring<64, false, true>& sfn_initisation_time_eutra() const
   {
-    assert_choice_type(types::sfn_initisation_time_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::sfn_initisation_time_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<fixed_bitstring<64, false, true>>();
   }
   const ng_ran_access_point_position_s& ng_ran_access_point_position() const
   {
-    assert_choice_type(types::ng_ran_access_point_position, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::ng_ran_access_point_position, c.type, "OTDOACell-Information-Item");
     return c.get<ng_ran_access_point_position_s>();
   }
   const prs_muting_cfg_eutra_c& prs_muting_cfg_eutra() const
   {
-    assert_choice_type(types::prs_muting_cfg_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::prs_muting_cfg_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<prs_muting_cfg_eutra_c>();
   }
   const uint16_t& prsid_eutra() const
   {
-    assert_choice_type(types::prsid_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::prsid_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<uint16_t>();
   }
   const uint16_t& tpid_eutra() const
   {
-    assert_choice_type(types::tpid_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::tpid_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<uint16_t>();
   }
   const tp_type_eutra_e& tp_type_eutra() const
   {
-    assert_choice_type(types::tp_type_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::tp_type_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<tp_type_eutra_e>();
   }
-  const uint8_t& nof_dl_frames_extended_eutra() const
+  const uint16_t& nof_dl_frames_extended_eutra() const
   {
-    assert_choice_type(types::nof_dl_frames_extended_eutra, type_, "OTDOACell-Information-Item");
-    return c.get<uint8_t>();
+    assert_choice_type(types::nof_dl_frames_extended_eutra, c.type, "OTDOACell-Information-Item");
+    return c.get<uint16_t>();
   }
   const cp_len_eutra_e& crs_cp_len_eutra() const
   {
-    assert_choice_type(types::crs_cp_len_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::crs_cp_len_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<cp_len_eutra_e>();
   }
   const dl_bw_eutra_e& dl_bw_eutra() const
   {
-    assert_choice_type(types::dl_bw_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::dl_bw_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<dl_bw_eutra_e>();
   }
   const prs_occasion_group_eutra_e& prs_occasion_group_eutra() const
   {
-    assert_choice_type(types::prs_occasion_group_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::prs_occasion_group_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<prs_occasion_group_eutra_e>();
   }
   const prs_freq_hop_cfg_eutra_s& prs_freq_hop_cfg_eutra() const
   {
-    assert_choice_type(types::prs_freq_hop_cfg_eutra, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::prs_freq_hop_cfg_eutra, c.type, "OTDOACell-Information-Item");
     return c.get<prs_freq_hop_cfg_eutra_s>();
   }
   const protocol_ie_single_container_s<otdoa_cell_info_item_ext_ie_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "OTDOACell-Information-Item");
+    assert_choice_type(types::choice_ext, c.type, "OTDOACell-Information-Item");
     return c.get<protocol_ie_single_container_s<otdoa_cell_info_item_ext_ie_o>>();
   }
   uint16_t&                                                      set_pci_eutra();
@@ -6938,7 +5762,7 @@ struct otdoa_cell_info_item_c {
   uint16_t&                                                      set_prsid_eutra();
   uint16_t&                                                      set_tpid_eutra();
   tp_type_eutra_e&                                               set_tp_type_eutra();
-  uint8_t&                                                       set_nof_dl_frames_extended_eutra();
+  uint16_t&                                                      set_nof_dl_frames_extended_eutra();
   cp_len_eutra_e&                                                set_crs_cp_len_eutra();
   dl_bw_eutra_e&                                                 set_dl_bw_eutra();
   prs_occasion_group_eutra_e&                                    set_prs_occasion_group_eutra();
@@ -6946,17 +5770,25 @@ struct otdoa_cell_info_item_c {
   protocol_ie_single_container_s<otdoa_cell_info_item_ext_ie_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<cgi_eutra_s,
-                  fixed_bitstring<64, false, true>,
-                  fixed_octstring<3, true>,
-                  ng_ran_access_point_position_s,
-                  protocol_ie_single_container_s<otdoa_cell_info_item_ext_ie_o>,
-                  prs_freq_hop_cfg_eutra_s,
-                  prs_muting_cfg_eutra_c>
+  asn1::table::choice_storage<otdoa_cell_info_item_c,
+                              types,
+                              choice_buffer_t<cgi_eutra_s,
+                                              cp_len_eutra_e,
+                                              dl_bw_eutra_e,
+                                              fixed_bitstring<64, false, true>,
+                                              fixed_octstring<3, true>,
+                                              ng_ran_access_point_position_s,
+                                              nof_ant_ports_eutra_e,
+                                              nof_dl_frames_eutra_e,
+                                              protocol_ie_single_container_s<otdoa_cell_info_item_ext_ie_o>,
+                                              prs_bw_eutra_e,
+                                              prs_freq_hop_cfg_eutra_s,
+                                              prs_muting_cfg_eutra_c,
+                                              prs_occasion_group_eutra_e,
+                                              tp_type_eutra_e,
+                                              uint16_t,
+                                              uint32_t>>
       c;
-
-  void destroy_();
 };
 
 // OTDOACell-Information ::= SEQUENCE (SIZE (1..63)) OF OTDOACell-Information-Item
@@ -6968,16 +5800,12 @@ using otdoa_cells_ext_ies_o = protocol_ext_empty_o;
 using otdoa_cells_ext_ies_container = protocol_ext_container_empty_l;
 
 struct otdoa_cells_item_s_ {
-  bool                          ext             = false;
   bool                          ie_exts_present = false;
   otdoa_cell_info_l             otdoa_cell_info;
   otdoa_cells_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // OTDOACells ::= SEQUENCE (SIZE (1..3840)) OF OTDOACells-item
@@ -6990,7 +5818,6 @@ using on_demand_prs_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // OnDemandPRS-Info ::= SEQUENCE
 struct on_demand_prs_info_s {
-  bool                                 ext                                        = false;
   bool                                 allowed_res_set_periodicity_values_present = false;
   bool                                 allowed_prs_bw_values_present              = false;
   bool                                 allowed_res_repeat_factor_values_present   = false;
@@ -7006,10 +5833,7 @@ struct on_demand_prs_info_s {
   on_demand_prs_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResultGERAN-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -7019,7 +5843,6 @@ using result_geran_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // ResultGERAN-Item ::= SEQUENCE
 struct result_geran_item_s {
-  bool                                ext             = false;
   bool                                ie_exts_present = false;
   uint16_t                            bcch            = 0;
   uint8_t                             pci_geran       = 0;
@@ -7027,10 +5850,7 @@ struct result_geran_item_s {
   result_geran_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResultGERAN ::= SEQUENCE (SIZE (1..8)) OF ResultGERAN-Item
@@ -7047,67 +5867,53 @@ struct result_utran_item_s {
     struct types_opts {
       enum options { phys_cell_i_du_tra_fdd, phys_cell_i_du_tra_tdd, nulltype } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    pci_utran_c_() = default;
-    pci_utran_c_(const pci_utran_c_& other);
-    pci_utran_c_& operator=(const pci_utran_c_& other);
-    ~pci_utran_c_() { destroy_(); }
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint16_t& phys_cell_i_du_tra_fdd()
+    static const asn1::table::choice_storage_desc storage_desc;
+    void                                          set(types::options e = types::nulltype) { c.set(e); }
+    types                                         type() const { return c.type; }
+    static const asn1::table::choice_desc         desc;
+    uint16_t&                                     phys_cell_i_du_tra_fdd()
     {
-      assert_choice_type(types::phys_cell_i_du_tra_fdd, type_, "physCellIDUTRAN");
+      assert_choice_type(types::phys_cell_i_du_tra_fdd, c.type, "physCellIDUTRAN");
       return c.get<uint16_t>();
     }
-    uint8_t& phys_cell_i_du_tra_tdd()
+    uint16_t& phys_cell_i_du_tra_tdd()
     {
-      assert_choice_type(types::phys_cell_i_du_tra_tdd, type_, "physCellIDUTRAN");
-      return c.get<uint8_t>();
+      assert_choice_type(types::phys_cell_i_du_tra_tdd, c.type, "physCellIDUTRAN");
+      return c.get<uint16_t>();
     }
     const uint16_t& phys_cell_i_du_tra_fdd() const
     {
-      assert_choice_type(types::phys_cell_i_du_tra_fdd, type_, "physCellIDUTRAN");
+      assert_choice_type(types::phys_cell_i_du_tra_fdd, c.type, "physCellIDUTRAN");
       return c.get<uint16_t>();
     }
-    const uint8_t& phys_cell_i_du_tra_tdd() const
+    const uint16_t& phys_cell_i_du_tra_tdd() const
     {
-      assert_choice_type(types::phys_cell_i_du_tra_tdd, type_, "physCellIDUTRAN");
-      return c.get<uint8_t>();
+      assert_choice_type(types::phys_cell_i_du_tra_tdd, c.type, "physCellIDUTRAN");
+      return c.get<uint16_t>();
     }
     uint16_t& set_phys_cell_i_du_tra_fdd();
-    uint8_t&  set_phys_cell_i_du_tra_tdd();
+    uint16_t& set_phys_cell_i_du_tra_tdd();
 
   private:
-    types               type_;
-    pod_choice_buffer_t c;
-
-    void destroy_();
+    asn1::table::choice_storage<pci_utran_c_, types, choice_buffer_t<uint16_t>> c;
   };
 
   // member variables
-  bool                                ext                = false;
   bool                                utra_rs_cp_present = false;
   bool                                utra_ec_n0_present = false;
   bool                                ie_exts_present    = false;
   uint16_t                            uarfcn             = 0;
   pci_utran_c_                        pci_utran;
-  int8_t                              utra_rs_cp = -5;
+  int16_t                             utra_rs_cp = -5;
   uint8_t                             utra_ec_n0 = 0;
   result_utran_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResultUTRAN ::= SEQUENCE (SIZE (1..8)) OF ResultUTRAN-Item
@@ -7120,7 +5926,6 @@ using result_nr_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // ResultNR-Item ::= SEQUENCE
 struct result_nr_item_s {
-  bool                             ext                        = false;
   bool                             value_ss_rsrp_cell_present = false;
   bool                             value_ss_rsrq_cell_present = false;
   bool                             cgi_nr_present             = false;
@@ -7135,10 +5940,7 @@ struct result_nr_item_s {
   result_nr_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResultNR ::= SEQUENCE (SIZE (1..8)) OF ResultNR-Item
@@ -7151,23 +5953,19 @@ using result_eutra_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // ResultEUTRA-Item ::= SEQUENCE
 struct result_eutra_item_s {
-  bool                                ext                      = false;
   bool                                value_rsrp_eutra_present = false;
   bool                                value_rsrq_eutra_present = false;
   bool                                cgi_eutra_present        = false;
   bool                                ie_exts_present          = false;
   uint16_t                            pci_eutra                = 0;
   uint32_t                            earfcn                   = 0;
-  uint8_t                             value_rsrp_eutra         = 0;
+  uint16_t                            value_rsrp_eutra         = 0;
   uint8_t                             value_rsrq_eutra         = 0;
   cgi_eutra_s                         cgi_eutra;
   result_eutra_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResultEUTRA ::= SEQUENCE (SIZE (1..8)) OF ResultEUTRA-Item
@@ -7180,34 +5978,24 @@ struct other_rat_measured_results_value_ext_ie_o {
     struct types_opts {
       enum options { result_nr, result_eutra, nulltype } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    value_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    result_nr_l&          result_nr();
-    result_eutra_l&       result_eutra();
-    const result_nr_l&    result_nr() const;
-    const result_eutra_l& result_eutra() const;
+    void                                  set(types::options e = types::nulltype);
+    types                                 type() const { return type_; }
+    static const asn1::table::choice_desc desc;
+    result_nr_l&                          result_nr();
+    result_eutra_l&                       result_eutra();
+    const result_nr_l&                    result_nr() const;
+    const result_eutra_l&                 result_eutra() const;
 
   private:
     types             type_;
     choice_buffer_ptr c;
   };
 
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static value_c    get_value(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::objset_desc desc;
 };
 
 // OtherRATMeasuredResultsValue ::= CHOICE
@@ -7215,49 +6003,42 @@ struct other_rat_measured_results_value_c {
   struct types_opts {
     enum options { result_geran, result_utran, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  other_rat_measured_results_value_c() = default;
-  other_rat_measured_results_value_c(const other_rat_measured_results_value_c& other);
-  other_rat_measured_results_value_c& operator=(const other_rat_measured_results_value_c& other);
-  ~other_rat_measured_results_value_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  result_geran_l& result_geran()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  result_geran_l&                               result_geran()
   {
-    assert_choice_type(types::result_geran, type_, "OtherRATMeasuredResultsValue");
+    assert_choice_type(types::result_geran, c.type, "OtherRATMeasuredResultsValue");
     return c.get<result_geran_l>();
   }
   result_utran_l& result_utran()
   {
-    assert_choice_type(types::result_utran, type_, "OtherRATMeasuredResultsValue");
+    assert_choice_type(types::result_utran, c.type, "OtherRATMeasuredResultsValue");
     return c.get<result_utran_l>();
   }
   protocol_ie_single_container_s<other_rat_measured_results_value_ext_ie_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "OtherRATMeasuredResultsValue");
+    assert_choice_type(types::choice_ext, c.type, "OtherRATMeasuredResultsValue");
     return c.get<protocol_ie_single_container_s<other_rat_measured_results_value_ext_ie_o>>();
   }
   const result_geran_l& result_geran() const
   {
-    assert_choice_type(types::result_geran, type_, "OtherRATMeasuredResultsValue");
+    assert_choice_type(types::result_geran, c.type, "OtherRATMeasuredResultsValue");
     return c.get<result_geran_l>();
   }
   const result_utran_l& result_utran() const
   {
-    assert_choice_type(types::result_utran, type_, "OtherRATMeasuredResultsValue");
+    assert_choice_type(types::result_utran, c.type, "OtherRATMeasuredResultsValue");
     return c.get<result_utran_l>();
   }
   const protocol_ie_single_container_s<other_rat_measured_results_value_ext_ie_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "OtherRATMeasuredResultsValue");
+    assert_choice_type(types::choice_ext, c.type, "OtherRATMeasuredResultsValue");
     return c.get<protocol_ie_single_container_s<other_rat_measured_results_value_ext_ie_o>>();
   }
   result_geran_l&                                                            set_result_geran();
@@ -7265,20 +6046,19 @@ struct other_rat_measured_results_value_c {
   protocol_ie_single_container_s<other_rat_measured_results_value_ext_ie_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<protocol_ie_single_container_s<other_rat_measured_results_value_ext_ie_o>,
-                  result_geran_l,
-                  result_utran_l>
+  asn1::table::choice_storage<other_rat_measured_results_value_c,
+                              types,
+                              choice_buffer_t<protocol_ie_single_container_s<other_rat_measured_results_value_ext_ie_o>,
+                                              result_geran_l,
+                                              result_utran_l>>
       c;
-
-  void destroy_();
 };
 
 // OtherRATMeasurementQuantitiesValue ::= ENUMERATED
 struct other_rat_meas_quantities_value_opts {
   enum options { geran, utran, /*...*/ nr, eutra, nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using other_rat_meas_quantities_value_e = enumerated<other_rat_meas_quantities_value_opts, true, 2>;
 
@@ -7289,16 +6069,12 @@ using other_rat_meas_quantities_value_ext_ies_container = protocol_ext_container
 
 // OtherRATMeasurementQuantities-Item ::= SEQUENCE
 struct other_rat_meas_quantities_item_s {
-  bool                                              ext             = false;
   bool                                              ie_exts_present = false;
   other_rat_meas_quantities_value_e                 other_rat_meas_quantities_value;
   other_rat_meas_quantities_value_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // OtherRATMeasurementQuantities-ItemIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -7308,16 +6084,12 @@ struct other_rat_meas_quantities_item_ies_o {
     struct types_opts {
       enum options { other_rat_meas_quantities_item, nulltype } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    types         type() const { return types::other_rat_meas_quantities_item; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
+    types                                   type() const { return types::other_rat_meas_quantities_item; }
+    static const asn1::table::choice_desc   desc;
     other_rat_meas_quantities_item_s&       other_rat_meas_quantities_item() { return c; }
     const other_rat_meas_quantities_item_s& other_rat_meas_quantities_item() const { return c; }
 
@@ -7325,12 +6097,7 @@ struct other_rat_meas_quantities_item_ies_o {
     other_rat_meas_quantities_item_s c;
   };
 
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static value_c    get_value(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::objset_desc desc;
 };
 
 // OtherRATMeasurementQuantities ::= SEQUENCE (SIZE (0..64)) OF ProtocolIE-Field{NRPPA-PROTOCOL-IES : IEsSetParam}
@@ -7348,36 +6115,30 @@ using prs_meass_info_list_item_ext_ies_container = protocol_ext_container_empty_
 struct prs_meass_info_list_item_s {
   struct meas_prs_periodicity_opts {
     enum options { ms20, ms40, ms80, ms160, /*...*/ nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using meas_prs_periodicity_e_ = enumerated<meas_prs_periodicity_opts, true>;
   struct meas_prs_len_opts {
     enum options { ms1dot5, ms3, ms3dot5, ms4, ms5dot5, ms6, ms10, ms20, nulltype } value;
-    typedef float number_type;
 
-    const char* to_string() const;
-    float       to_number() const;
-    const char* to_number_string() const;
+    static const asn1::table::enum_desc desc;
+    float                               to_number() const;
+    const char*                         to_number_string() const;
   };
   using meas_prs_len_e_ = enumerated<meas_prs_len_opts>;
 
   // member variables
-  bool                                       ext             = false;
   bool                                       ie_exts_present = false;
   uint32_t                                   point_a         = 0;
   meas_prs_periodicity_e_                    meas_prs_periodicity;
-  uint8_t                                    meas_prs_offset = 0;
+  uint16_t                                   meas_prs_offset = 0;
   meas_prs_len_e_                            meas_prs_len;
   prs_meass_info_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PRS-Measurements-Info-List ::= SEQUENCE (SIZE (1..4)) OF PRS-Measurements-Info-List-Item
@@ -7390,16 +6151,12 @@ using prsbw_aggregation_request_info_item_ext_ies_container = protocol_ext_conta
 
 // PRSBWAggregationRequestInfo-Item ::= SEQUENCE
 struct prsbw_aggregation_request_info_item_s {
-  bool                                                  ext             = false;
   bool                                                  ie_exts_present = false;
   dl_prsbw_aggregation_request_info_list_l              dl_prsbw_aggregation_request_info_list;
   prsbw_aggregation_request_info_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PRSBWAggregationRequestInfoList ::= SEQUENCE (SIZE (1..2)) OF PRSBWAggregationRequestInfo-Item
@@ -7409,7 +6166,7 @@ using prsbw_aggregation_request_info_list_l = dyn_array<prsbw_aggregation_reques
 struct prs_cfg_request_type_opts {
   enum options { cfgure, off, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using prs_cfg_request_type_e = enumerated<prs_cfg_request_type_opts, true>;
 
@@ -7422,25 +6179,20 @@ using prs_muting_option1_ext_ies_container = protocol_ext_container_empty_l;
 struct prs_muting_option1_s {
   struct muting_bit_repeat_factor_opts {
     enum options { n1, n2, n4, n8, /*...*/ nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using muting_bit_repeat_factor_e_ = enumerated<muting_bit_repeat_factor_opts, true>;
 
   // member variables
-  bool                                 ext             = false;
   bool                                 ie_exts_present = false;
   dl_prs_muting_pattern_c              muting_pattern;
   muting_bit_repeat_factor_e_          muting_bit_repeat_factor;
   prs_muting_option1_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PRSMutingOption2-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -7450,16 +6202,12 @@ using prs_muting_option2_ext_ies_container = protocol_ext_container_empty_l;
 
 // PRSMutingOption2 ::= SEQUENCE
 struct prs_muting_option2_s {
-  bool                                 ext             = false;
   bool                                 ie_exts_present = false;
   dl_prs_muting_pattern_c              muting_pattern;
   prs_muting_option2_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PRSMuting-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -7469,7 +6217,6 @@ using prs_muting_ext_ies_container = protocol_ext_container_empty_l;
 
 // PRSMuting ::= SEQUENCE
 struct prs_muting_s {
-  bool                         ext                        = false;
   bool                         prs_muting_option1_present = false;
   bool                         prs_muting_option2_present = false;
   bool                         ie_exts_present            = false;
@@ -7478,10 +6225,7 @@ struct prs_muting_s {
   prs_muting_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PRSResource-QCLSourceSSB-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -7491,7 +6235,6 @@ using prs_res_qcl_source_ssb_ext_ies_container = protocol_ext_container_empty_l;
 
 // PRSResource-QCLSourceSSB ::= SEQUENCE
 struct prs_res_qcl_source_ssb_s {
-  bool                                     ext             = false;
   bool                                     ssb_idx_present = false;
   bool                                     ie_exts_present = false;
   uint16_t                                 pci_nr          = 0;
@@ -7499,10 +6242,7 @@ struct prs_res_qcl_source_ssb_s {
   prs_res_qcl_source_ssb_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PRSResource-QCLSourcePRS-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -7512,7 +6252,6 @@ using prs_res_qcl_source_prs_ext_ies_container = protocol_ext_container_empty_l;
 
 // PRSResource-QCLSourcePRS ::= SEQUENCE
 struct prs_res_qcl_source_prs_s {
-  bool                                     ext                           = false;
   bool                                     qcl_source_prs_res_id_present = false;
   bool                                     ie_exts_present               = false;
   uint8_t                                  qcl_source_prs_res_set_id     = 0;
@@ -7520,10 +6259,7 @@ struct prs_res_qcl_source_prs_s {
   prs_res_qcl_source_prs_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PRSResource-QCLInfo-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -7534,49 +6270,42 @@ struct prs_res_qcl_info_c {
   struct types_opts {
     enum options { qcl_source_ssb, qcl_source_prs, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  prs_res_qcl_info_c() = default;
-  prs_res_qcl_info_c(const prs_res_qcl_info_c& other);
-  prs_res_qcl_info_c& operator=(const prs_res_qcl_info_c& other);
-  ~prs_res_qcl_info_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  prs_res_qcl_source_ssb_s& qcl_source_ssb()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  prs_res_qcl_source_ssb_s&                     qcl_source_ssb()
   {
-    assert_choice_type(types::qcl_source_ssb, type_, "PRSResource-QCLInfo");
+    assert_choice_type(types::qcl_source_ssb, c.type, "PRSResource-QCLInfo");
     return c.get<prs_res_qcl_source_ssb_s>();
   }
   prs_res_qcl_source_prs_s& qcl_source_prs()
   {
-    assert_choice_type(types::qcl_source_prs, type_, "PRSResource-QCLInfo");
+    assert_choice_type(types::qcl_source_prs, c.type, "PRSResource-QCLInfo");
     return c.get<prs_res_qcl_source_prs_s>();
   }
   protocol_ie_single_container_s<prs_res_qcl_info_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "PRSResource-QCLInfo");
+    assert_choice_type(types::choice_ext, c.type, "PRSResource-QCLInfo");
     return c.get<protocol_ie_single_container_s<prs_res_qcl_info_ext_ies_o>>();
   }
   const prs_res_qcl_source_ssb_s& qcl_source_ssb() const
   {
-    assert_choice_type(types::qcl_source_ssb, type_, "PRSResource-QCLInfo");
+    assert_choice_type(types::qcl_source_ssb, c.type, "PRSResource-QCLInfo");
     return c.get<prs_res_qcl_source_ssb_s>();
   }
   const prs_res_qcl_source_prs_s& qcl_source_prs() const
   {
-    assert_choice_type(types::qcl_source_prs, type_, "PRSResource-QCLInfo");
+    assert_choice_type(types::qcl_source_prs, c.type, "PRSResource-QCLInfo");
     return c.get<prs_res_qcl_source_prs_s>();
   }
   const protocol_ie_single_container_s<prs_res_qcl_info_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "PRSResource-QCLInfo");
+    assert_choice_type(types::choice_ext, c.type, "PRSResource-QCLInfo");
     return c.get<protocol_ie_single_container_s<prs_res_qcl_info_ext_ies_o>>();
   }
   prs_res_qcl_source_ssb_s&                                   set_qcl_source_ssb();
@@ -7584,66 +6313,36 @@ struct prs_res_qcl_info_c {
   protocol_ie_single_container_s<prs_res_qcl_info_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<protocol_ie_single_container_s<prs_res_qcl_info_ext_ies_o>,
-                  prs_res_qcl_source_prs_s,
-                  prs_res_qcl_source_ssb_s>
+  asn1::table::choice_storage<prs_res_qcl_info_c,
+                              types,
+                              choice_buffer_t<protocol_ie_single_container_s<prs_res_qcl_info_ext_ies_o>,
+                                              prs_res_qcl_source_prs_s,
+                                              prs_res_qcl_source_ssb_s>>
       c;
-
-  void destroy_();
 };
 
 // PRSResource-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct prs_res_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { extended_res_symbol_offset, nulltype } value;
-      typedef uint8_t number_type;
+struct prs_res_item_ext_ies_container {
+  bool    extended_res_symbol_offset_present = false;
+  uint8_t extended_res_symbol_offset;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::extended_res_symbol_offset; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint8_t&       extended_res_symbol_offset() { return c; }
-    const uint8_t& extended_res_symbol_offset() const { return c; }
-
-  private:
-    uint8_t c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // PRSResource-Item ::= SEQUENCE
 struct prs_res_item_s {
-  bool                                             ext               = false;
-  bool                                             qcl_info_present  = false;
-  uint8_t                                          prs_res_id        = 0;
-  uint16_t                                         seq_id            = 0;
-  uint8_t                                          re_offset         = 0;
-  uint16_t                                         res_slot_offset   = 0;
-  uint8_t                                          res_symbol_offset = 0;
-  prs_res_qcl_info_c                               qcl_info;
-  protocol_ext_container_l<prs_res_item_ext_ies_o> ie_exts;
+  bool                           qcl_info_present  = false;
+  bool                           ie_exts_present   = false;
+  uint8_t                        prs_res_id        = 0;
+  uint16_t                       seq_id            = 0;
+  uint8_t                        re_offset         = 0;
+  uint16_t                       res_slot_offset   = 0;
+  uint8_t                        res_symbol_offset = 0;
+  prs_res_qcl_info_c             qcl_info;
+  prs_res_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PRSResource-List ::= SEQUENCE (SIZE (1..64)) OF PRSResource-Item
@@ -7658,24 +6357,22 @@ using prs_res_set_item_ext_ies_container = protocol_ext_container_empty_l;
 struct prs_res_set_item_s {
   struct subcarrier_spacing_opts {
     enum options { khz15, khz30, khz60, khz120, /*...*/ nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using subcarrier_spacing_e_ = enumerated<subcarrier_spacing_opts, true>;
   struct comb_size_opts {
     enum options { n2, n4, n6, n12, /*...*/ nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using comb_size_e_ = enumerated<comb_size_opts, true>;
   struct cp_type_opts {
     enum options { normal, extended, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using cp_type_e_ = enumerated<cp_type_opts, true>;
   struct res_set_periodicity_opts {
@@ -7706,39 +6403,34 @@ struct prs_res_set_item_s {
       n512,
       nulltype
     } value;
-    typedef uint32_t number_type;
 
-    const char* to_string() const;
-    uint32_t    to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint32_t                            to_number() const;
   };
   using res_set_periodicity_e_ = enumerated<res_set_periodicity_opts, true, 3>;
   struct res_repeat_factor_opts {
     enum options { rf1, rf2, rf4, rf6, rf8, rf16, rf32, /*...*/ nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using res_repeat_factor_e_ = enumerated<res_repeat_factor_opts, true>;
   struct res_time_gap_opts {
     enum options { tg1, tg2, tg4, tg8, tg16, tg32, /*...*/ nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using res_time_gap_e_ = enumerated<res_time_gap_opts, true>;
   struct res_numof_symbols_opts {
     enum options { n2, n4, n6, n12, /*...*/ n1, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using res_numof_symbols_e_ = enumerated<res_numof_symbols_opts, true, 1>;
 
   // member variables
-  bool                               ext                = false;
   bool                               prs_muting_present = false;
   bool                               ie_exts_present    = false;
   uint8_t                            prs_res_set_id     = 0;
@@ -7759,58 +6451,28 @@ struct prs_res_set_item_s {
   prs_res_set_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PRSResourceSet-List ::= SEQUENCE (SIZE (1..8)) OF PRSResourceSet-Item
 using prs_res_set_list_l = dyn_array<prs_res_set_item_s>;
 
 // PRSConfiguration-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct prs_cfg_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { aggr_prs_res_set_list, nulltype } value;
+struct prs_cfg_ext_ies_container {
+  bool                    aggr_prs_res_set_list_present = false;
+  aggr_prs_res_set_list_l aggr_prs_res_set_list;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::aggr_prs_res_set_list; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    aggr_prs_res_set_list_l&       aggr_prs_res_set_list() { return c; }
-    const aggr_prs_res_set_list_l& aggr_prs_res_set_list() const { return c; }
-
-  private:
-    aggr_prs_res_set_list_l c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // PRSConfiguration ::= SEQUENCE
 struct prs_cfg_s {
-  bool                                        ext = false;
-  prs_res_set_list_l                          prs_res_set_list;
-  protocol_ext_container_l<prs_cfg_ext_ies_o> ie_exts;
+  bool                      ie_exts_present = false;
+  prs_res_set_list_l        prs_res_set_list;
+  prs_cfg_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // RequestedDLPRSResource-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -7820,17 +6482,13 @@ using requested_dl_prs_res_item_ext_ies_container = protocol_ext_container_empty
 
 // RequestedDLPRSResource-Item ::= SEQUENCE
 struct requested_dl_prs_res_item_s {
-  bool                                        ext              = false;
   bool                                        qcl_info_present = false;
   bool                                        ie_exts_present  = false;
   prs_res_qcl_info_c                          qcl_info;
   requested_dl_prs_res_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // RequestedDLPRSResource-List ::= SEQUENCE (SIZE (1..64)) OF RequestedDLPRSResource-Item
@@ -7843,7 +6501,6 @@ using start_time_and_dur_ext_ies_container = protocol_ext_container_empty_l;
 
 // StartTimeAndDuration ::= SEQUENCE
 struct start_time_and_dur_s {
-  bool                                 ext                = false;
   bool                                 start_time_present = false;
   bool                                 dur_present        = false;
   bool                                 ie_exts_present    = false;
@@ -7852,10 +6509,7 @@ struct start_time_and_dur_s {
   start_time_and_dur_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // RequestedDLPRSResourceSet-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -7867,10 +6521,9 @@ using requested_dl_prs_res_set_item_ext_ies_container = protocol_ext_container_e
 struct requested_dl_prs_res_set_item_s {
   struct comb_size_opts {
     enum options { n2, n4, n6, n12, /*...*/ nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using comb_size_e_ = enumerated<comb_size_opts, true>;
   struct res_set_periodicity_opts {
@@ -7901,31 +6554,27 @@ struct requested_dl_prs_res_set_item_s {
       n512,
       nulltype
     } value;
-    typedef uint32_t number_type;
 
-    const char* to_string() const;
-    uint32_t    to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint32_t                            to_number() const;
   };
   using res_set_periodicity_e_ = enumerated<res_set_periodicity_opts, true, 3>;
   struct res_repeat_factor_opts {
     enum options { rf1, rf2, rf4, rf6, rf8, rf16, rf32, /*...*/ nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using res_repeat_factor_e_ = enumerated<res_repeat_factor_opts, true>;
   struct res_numof_symbols_opts {
     enum options { n2, n4, n6, n12, /*...*/ n1, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using res_numof_symbols_e_ = enumerated<res_numof_symbols_opts, true, 1>;
 
   // member variables
-  bool                                            ext                                = false;
   bool                                            pr_sbw_present                     = false;
   bool                                            comb_size_present                  = false;
   bool                                            res_set_periodicity_present        = false;
@@ -7943,62 +6592,32 @@ struct requested_dl_prs_res_set_item_s {
   requested_dl_prs_res_set_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // RequestedDLPRSResourceSet-List ::= SEQUENCE (SIZE (1..8)) OF RequestedDLPRSResourceSet-Item
 using requested_dl_prs_res_set_list_l = dyn_array<requested_dl_prs_res_set_item_s>;
 
 // RequestedDLPRSTransmissionCharacteristics-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct requested_dl_prs_tx_characteristics_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { prsbw_aggregation_request_info_list, nulltype } value;
+struct requested_dl_prs_tx_characteristics_ext_ies_container {
+  bool                                  prsbw_aggregation_request_info_list_present = false;
+  prsbw_aggregation_request_info_list_l prsbw_aggregation_request_info_list;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::prsbw_aggregation_request_info_list; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    prsbw_aggregation_request_info_list_l&       prsbw_aggregation_request_info_list() { return c; }
-    const prsbw_aggregation_request_info_list_l& prsbw_aggregation_request_info_list() const { return c; }
-
-  private:
-    prsbw_aggregation_request_info_list_l c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // RequestedDLPRSTransmissionCharacteristics ::= SEQUENCE
 struct requested_dl_prs_tx_characteristics_s {
-  bool                                                                    ext                        = false;
-  bool                                                                    numof_freq_layers_present  = false;
-  bool                                                                    start_time_and_dur_present = false;
-  requested_dl_prs_res_set_list_l                                         requested_dl_prs_res_set_list;
-  uint8_t                                                                 numof_freq_layers = 1;
-  start_time_and_dur_s                                                    start_time_and_dur;
-  protocol_ext_container_l<requested_dl_prs_tx_characteristics_ext_ies_o> ie_exts;
+  bool                                                  numof_freq_layers_present  = false;
+  bool                                                  start_time_and_dur_present = false;
+  bool                                                  ie_exts_present            = false;
+  requested_dl_prs_res_set_list_l                       requested_dl_prs_res_set_list;
+  uint8_t                                               numof_freq_layers = 1;
+  start_time_and_dur_s                                  start_time_and_dur;
+  requested_dl_prs_tx_characteristics_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PRSTransmissionOffPerResourceSet-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -8008,16 +6627,12 @@ using prs_tx_off_per_res_set_item_ext_ies_container = protocol_ext_container_emp
 
 // PRSTransmissionOffPerResourceSet-Item ::= SEQUENCE
 struct prs_tx_off_per_res_set_item_s {
-  bool                                          ext             = false;
   bool                                          ie_exts_present = false;
   uint8_t                                       prs_res_set_id  = 0;
   prs_tx_off_per_res_set_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PRSTransmissionOffPerResourceSet ::= SEQUENCE (SIZE (1..8)) OF PRSTransmissionOffPerResourceSet-Item
@@ -8030,16 +6645,12 @@ using prs_tx_off_ind_per_res_item_ext_ies_container = protocol_ext_container_emp
 
 // PRSTransmissionOffIndicationPerResource-Item ::= SEQUENCE
 struct prs_tx_off_ind_per_res_item_s {
-  bool                                          ext             = false;
   bool                                          ie_exts_present = false;
   uint8_t                                       prs_res_id      = 0;
   prs_tx_off_ind_per_res_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PRSTransmissionOffPerResource-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -8052,17 +6663,13 @@ struct prs_tx_off_per_res_item_s {
   using prs_tx_off_ind_per_res_list_l_ = dyn_array<prs_tx_off_ind_per_res_item_s>;
 
   // member variables
-  bool                                      ext             = false;
   bool                                      ie_exts_present = false;
   uint8_t                                   prs_res_set_id  = 0;
   prs_tx_off_ind_per_res_list_l_            prs_tx_off_ind_per_res_list;
   prs_tx_off_per_res_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PRSTransmissionOffPerResource ::= SEQUENCE (SIZE (1..8)) OF PRSTransmissionOffPerResource-Item
@@ -8076,49 +6683,42 @@ struct prs_tx_off_ind_c {
   struct types_opts {
     enum options { prs_tx_off_per_trp, prs_tx_off_per_res_set, prs_tx_off_per_res, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  prs_tx_off_ind_c() = default;
-  prs_tx_off_ind_c(const prs_tx_off_ind_c& other);
-  prs_tx_off_ind_c& operator=(const prs_tx_off_ind_c& other);
-  ~prs_tx_off_ind_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  prs_tx_off_per_res_set_l& prs_tx_off_per_res_set()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  prs_tx_off_per_res_set_l&                     prs_tx_off_per_res_set()
   {
-    assert_choice_type(types::prs_tx_off_per_res_set, type_, "PRSTransmissionOffIndication");
+    assert_choice_type(types::prs_tx_off_per_res_set, c.type, "PRSTransmissionOffIndication");
     return c.get<prs_tx_off_per_res_set_l>();
   }
   prs_tx_off_per_res_l& prs_tx_off_per_res()
   {
-    assert_choice_type(types::prs_tx_off_per_res, type_, "PRSTransmissionOffIndication");
+    assert_choice_type(types::prs_tx_off_per_res, c.type, "PRSTransmissionOffIndication");
     return c.get<prs_tx_off_per_res_l>();
   }
   protocol_ie_single_container_s<prs_tx_off_ind_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "PRSTransmissionOffIndication");
+    assert_choice_type(types::choice_ext, c.type, "PRSTransmissionOffIndication");
     return c.get<protocol_ie_single_container_s<prs_tx_off_ind_ext_ies_o>>();
   }
   const prs_tx_off_per_res_set_l& prs_tx_off_per_res_set() const
   {
-    assert_choice_type(types::prs_tx_off_per_res_set, type_, "PRSTransmissionOffIndication");
+    assert_choice_type(types::prs_tx_off_per_res_set, c.type, "PRSTransmissionOffIndication");
     return c.get<prs_tx_off_per_res_set_l>();
   }
   const prs_tx_off_per_res_l& prs_tx_off_per_res() const
   {
-    assert_choice_type(types::prs_tx_off_per_res, type_, "PRSTransmissionOffIndication");
+    assert_choice_type(types::prs_tx_off_per_res, c.type, "PRSTransmissionOffIndication");
     return c.get<prs_tx_off_per_res_l>();
   }
   const protocol_ie_single_container_s<prs_tx_off_ind_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "PRSTransmissionOffIndication");
+    assert_choice_type(types::choice_ext, c.type, "PRSTransmissionOffIndication");
     return c.get<protocol_ie_single_container_s<prs_tx_off_ind_ext_ies_o>>();
   }
   void                                                      set_prs_tx_off_per_trp();
@@ -8127,13 +6727,12 @@ struct prs_tx_off_ind_c {
   protocol_ie_single_container_s<prs_tx_off_ind_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<protocol_ie_single_container_s<prs_tx_off_ind_ext_ies_o>,
-                  prs_tx_off_per_res_l,
-                  prs_tx_off_per_res_set_l>
+  asn1::table::choice_storage<prs_tx_off_ind_c,
+                              types,
+                              choice_buffer_t<protocol_ie_single_container_s<prs_tx_off_ind_ext_ies_o>,
+                                              prs_tx_off_per_res_l,
+                                              prs_tx_off_per_res_set_l>>
       c;
-
-  void destroy_();
 };
 
 // PRSTransmissionOffInformation-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -8143,16 +6742,12 @@ using prs_tx_off_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // PRSTransmissionOffInformation ::= SEQUENCE
 struct prs_tx_off_info_s {
-  bool                              ext             = false;
   bool                              ie_exts_present = false;
   prs_tx_off_ind_c                  prs_tx_off_ind;
   prs_tx_off_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PRSTRPItem-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -8162,7 +6757,6 @@ using prstrp_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // PRSTRPItem ::= SEQUENCE
 struct prstrp_item_s {
-  bool                                  ext                                         = false;
   bool                                  requested_dl_prs_tx_characteristics_present = false;
   bool                                  prs_tx_off_info_present                     = false;
   bool                                  ie_exts_present                             = false;
@@ -8172,10 +6766,7 @@ struct prstrp_item_s {
   prstrp_item_ext_ies_container         ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PRSTRPList ::= SEQUENCE (SIZE (1..65535)) OF PRSTRPItem
@@ -8188,17 +6779,13 @@ using prs_tx_trp_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // PRSTransmissionTRPItem ::= SEQUENCE
 struct prs_tx_trp_item_s {
-  bool                              ext             = false;
   bool                              ie_exts_present = false;
   uint32_t                          trp_id          = 1;
   prs_cfg_s                         prs_cfg;
   prs_tx_trp_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PRSTransmissionTRPList ::= SEQUENCE (SIZE (1..65535)) OF PRSTransmissionTRPItem
@@ -8212,49 +6799,42 @@ struct pathloss_ref_sig_c {
   struct types_opts {
     enum options { ssb_ref, dl_prs_ref, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  pathloss_ref_sig_c() = default;
-  pathloss_ref_sig_c(const pathloss_ref_sig_c& other);
-  pathloss_ref_sig_c& operator=(const pathloss_ref_sig_c& other);
-  ~pathloss_ref_sig_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  ssb_s& ssb_ref()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  ssb_s&                                        ssb_ref()
   {
-    assert_choice_type(types::ssb_ref, type_, "PathlossReferenceSignal");
+    assert_choice_type(types::ssb_ref, c.type, "PathlossReferenceSignal");
     return c.get<ssb_s>();
   }
   dl_prs_s& dl_prs_ref()
   {
-    assert_choice_type(types::dl_prs_ref, type_, "PathlossReferenceSignal");
+    assert_choice_type(types::dl_prs_ref, c.type, "PathlossReferenceSignal");
     return c.get<dl_prs_s>();
   }
   protocol_ie_single_container_s<pathloss_ref_sig_ext_ie_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "PathlossReferenceSignal");
+    assert_choice_type(types::choice_ext, c.type, "PathlossReferenceSignal");
     return c.get<protocol_ie_single_container_s<pathloss_ref_sig_ext_ie_o>>();
   }
   const ssb_s& ssb_ref() const
   {
-    assert_choice_type(types::ssb_ref, type_, "PathlossReferenceSignal");
+    assert_choice_type(types::ssb_ref, c.type, "PathlossReferenceSignal");
     return c.get<ssb_s>();
   }
   const dl_prs_s& dl_prs_ref() const
   {
-    assert_choice_type(types::dl_prs_ref, type_, "PathlossReferenceSignal");
+    assert_choice_type(types::dl_prs_ref, c.type, "PathlossReferenceSignal");
     return c.get<dl_prs_s>();
   }
   const protocol_ie_single_container_s<pathloss_ref_sig_ext_ie_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "PathlossReferenceSignal");
+    assert_choice_type(types::choice_ext, c.type, "PathlossReferenceSignal");
     return c.get<protocol_ie_single_container_s<pathloss_ref_sig_ext_ie_o>>();
   }
   ssb_s&                                                     set_ssb_ref();
@@ -8262,10 +6842,11 @@ struct pathloss_ref_sig_c {
   protocol_ie_single_container_s<pathloss_ref_sig_ext_ie_o>& set_choice_ext();
 
 private:
-  types                                                                                       type_;
-  choice_buffer_t<dl_prs_s, protocol_ie_single_container_s<pathloss_ref_sig_ext_ie_o>, ssb_s> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      pathloss_ref_sig_c,
+      types,
+      choice_buffer_t<dl_prs_s, protocol_ie_single_container_s<pathloss_ref_sig_ext_ie_o>, ssb_s>>
+      c;
 };
 
 // PathlossReferenceInformation-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -8275,16 +6856,12 @@ using pathloss_ref_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // PathlossReferenceInformation ::= SEQUENCE
 struct pathloss_ref_info_s {
-  bool                                ext             = false;
   bool                                ie_exts_present = false;
   pathloss_ref_sig_c                  pathloss_ref_sig;
   pathloss_ref_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PeriodicityItem ::= ENUMERATED
@@ -8318,11 +6895,10 @@ struct periodicity_item_opts {
     // ...
     nulltype
   } value;
-  typedef float number_type;
 
-  const char* to_string() const;
-  float       to_number() const;
-  const char* to_number_string() const;
+  static const asn1::table::enum_desc desc;
+  float                               to_number() const;
+  const char*                         to_number_string() const;
 };
 using periodicity_item_e = enumerated<periodicity_item_opts, true>;
 
@@ -8331,14 +6907,10 @@ using periodicity_list_l = bounded_array<periodicity_item_e, 16>;
 
 // PosSRSInfo ::= SEQUENCE
 struct pos_srs_info_s {
-  bool    ext            = false;
   uint8_t pos_srs_res_id = 0;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PosSRSResourceID-List ::= SEQUENCE (SIZE (1..64)) OF INTEGER (0..63)
@@ -8351,7 +6923,6 @@ using pos_validity_area_cell_item_ext_ies_container = protocol_ext_container_emp
 
 // PosValidityAreaCell-Item ::= SEQUENCE
 struct pos_validity_area_cell_item_s {
-  bool                                          ext             = false;
   bool                                          nr_pci_present  = false;
   bool                                          ie_exts_present = false;
   cgi_nr_s                                      nr_cgi;
@@ -8359,10 +6930,7 @@ struct pos_validity_area_cell_item_s {
   pos_validity_area_cell_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PosValidityAreaCellList ::= SEQUENCE (SIZE (1..32)) OF PosValidityAreaCell-Item
@@ -8379,79 +6947,72 @@ struct ref_sig_c {
   struct types_opts {
     enum options { nzp_csi_rs, ssb, srs, positioning_srs, dl_prs, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  ref_sig_c() = default;
-  ref_sig_c(const ref_sig_c& other);
-  ref_sig_c& operator=(const ref_sig_c& other);
-  ~ref_sig_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  uint8_t& nzp_csi_rs()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  uint8_t&                                      nzp_csi_rs()
   {
-    assert_choice_type(types::nzp_csi_rs, type_, "ReferenceSignal");
+    assert_choice_type(types::nzp_csi_rs, c.type, "ReferenceSignal");
     return c.get<uint8_t>();
   }
   ssb_s& ssb()
   {
-    assert_choice_type(types::ssb, type_, "ReferenceSignal");
+    assert_choice_type(types::ssb, c.type, "ReferenceSignal");
     return c.get<ssb_s>();
   }
   uint8_t& srs()
   {
-    assert_choice_type(types::srs, type_, "ReferenceSignal");
+    assert_choice_type(types::srs, c.type, "ReferenceSignal");
     return c.get<uint8_t>();
   }
   uint8_t& positioning_srs()
   {
-    assert_choice_type(types::positioning_srs, type_, "ReferenceSignal");
+    assert_choice_type(types::positioning_srs, c.type, "ReferenceSignal");
     return c.get<uint8_t>();
   }
   dl_prs_s& dl_prs()
   {
-    assert_choice_type(types::dl_prs, type_, "ReferenceSignal");
+    assert_choice_type(types::dl_prs, c.type, "ReferenceSignal");
     return c.get<dl_prs_s>();
   }
   protocol_ie_single_container_s<ref_sig_ext_ie_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "ReferenceSignal");
+    assert_choice_type(types::choice_ext, c.type, "ReferenceSignal");
     return c.get<protocol_ie_single_container_s<ref_sig_ext_ie_o>>();
   }
   const uint8_t& nzp_csi_rs() const
   {
-    assert_choice_type(types::nzp_csi_rs, type_, "ReferenceSignal");
+    assert_choice_type(types::nzp_csi_rs, c.type, "ReferenceSignal");
     return c.get<uint8_t>();
   }
   const ssb_s& ssb() const
   {
-    assert_choice_type(types::ssb, type_, "ReferenceSignal");
+    assert_choice_type(types::ssb, c.type, "ReferenceSignal");
     return c.get<ssb_s>();
   }
   const uint8_t& srs() const
   {
-    assert_choice_type(types::srs, type_, "ReferenceSignal");
+    assert_choice_type(types::srs, c.type, "ReferenceSignal");
     return c.get<uint8_t>();
   }
   const uint8_t& positioning_srs() const
   {
-    assert_choice_type(types::positioning_srs, type_, "ReferenceSignal");
+    assert_choice_type(types::positioning_srs, c.type, "ReferenceSignal");
     return c.get<uint8_t>();
   }
   const dl_prs_s& dl_prs() const
   {
-    assert_choice_type(types::dl_prs, type_, "ReferenceSignal");
+    assert_choice_type(types::dl_prs, c.type, "ReferenceSignal");
     return c.get<dl_prs_s>();
   }
   const protocol_ie_single_container_s<ref_sig_ext_ie_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "ReferenceSignal");
+    assert_choice_type(types::choice_ext, c.type, "ReferenceSignal");
     return c.get<protocol_ie_single_container_s<ref_sig_ext_ie_o>>();
   }
   uint8_t&                                          set_nzp_csi_rs();
@@ -8462,19 +7023,19 @@ struct ref_sig_c {
   protocol_ie_single_container_s<ref_sig_ext_ie_o>& set_choice_ext();
 
 private:
-  types                                                                              type_;
-  choice_buffer_t<dl_prs_s, protocol_ie_single_container_s<ref_sig_ext_ie_o>, ssb_s> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      ref_sig_c,
+      types,
+      choice_buffer_t<dl_prs_s, protocol_ie_single_container_s<ref_sig_ext_ie_o>, ssb_s, uint8_t>>
+      c;
 };
 
 // Remote-UE-Indication ::= ENUMERATED
 struct remote_ue_ind_opts {
   enum options { l2_u2n_remote_ue, /*...*/ nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using remote_ue_ind_e = enumerated<remote_ue_ind_opts, true>;
 
@@ -8482,17 +7043,16 @@ using remote_ue_ind_e = enumerated<remote_ue_ind_opts, true>;
 struct remote_ue_ind_request_opts {
   enum options { true_value, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using remote_ue_ind_request_e = enumerated<remote_ue_ind_request_opts, true>;
 
 // Remote-UE-Status ::= ENUMERATED
 struct remote_ue_status_opts {
   enum options { l2_u2n_remote_ue, no, /*...*/ nulltype } value;
-  typedef uint8_t number_type;
 
-  const char* to_string() const;
-  uint8_t     to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint8_t                             to_number() const;
 };
 using remote_ue_status_e = enumerated<remote_ue_status_opts, true>;
 
@@ -8500,7 +7060,7 @@ using remote_ue_status_e = enumerated<remote_ue_status_opts, true>;
 struct report_characteristics_opts {
   enum options { on_demand, periodic, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using report_characteristics_e = enumerated<report_characteristics_opts, true>;
 
@@ -8508,7 +7068,7 @@ using report_characteristics_e = enumerated<report_characteristics_opts, true>;
 struct request_type_opts {
   enum options { activ, deactiv, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using request_type_e = enumerated<request_type_opts, true>;
 
@@ -8519,16 +7079,12 @@ using spatial_relationfor_res_id_item_ext_ies_container = protocol_ext_container
 
 // SpatialRelationforResourceIDItem ::= SEQUENCE
 struct spatial_relationfor_res_id_item_s {
-  bool                                              ext             = false;
   bool                                              ie_exts_present = false;
   ref_sig_c                                         ref_sig;
   spatial_relationfor_res_id_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SpatialRelationforResourceID ::= SEQUENCE (SIZE (1..64)) OF SpatialRelationforResourceIDItem
@@ -8541,16 +7097,12 @@ using spatial_relation_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // SpatialRelationInfo ::= SEQUENCE
 struct spatial_relation_info_s {
-  bool                                    ext             = false;
   bool                                    ie_exts_present = false;
   spatial_relationfor_res_id_l            spatial_relationfor_res_id;
   spatial_relation_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SpatialRelationPerSRSResourceItem-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -8560,16 +7112,12 @@ using spatial_relation_per_srs_res_item_ext_ies_container = protocol_ext_contain
 
 // SpatialRelationPerSRSResourceItem ::= SEQUENCE
 struct spatial_relation_per_srs_res_item_s {
-  bool                                                ext             = false;
   bool                                                ie_exts_present = false;
   ref_sig_c                                           ref_sig;
   spatial_relation_per_srs_res_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SpatialRelationPerSRSResource-List ::= SEQUENCE (SIZE (1..16)) OF SpatialRelationPerSRSResourceItem
@@ -8582,67 +7130,36 @@ using spatial_relation_per_srs_res_ext_ies_container = protocol_ext_container_em
 
 // SpatialRelationPerSRSResource ::= SEQUENCE
 struct spatial_relation_per_srs_res_s {
-  bool                                           ext             = false;
   bool                                           ie_exts_present = false;
   spatial_relation_per_srs_res_list_l            spatial_relation_per_srs_res_list;
   spatial_relation_per_srs_res_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SRSResourceSet-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct srs_res_set_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { srs_spatial_relation_per_srs_res, nulltype } value;
+struct srs_res_set_item_ext_ies_container {
+  bool                           srs_spatial_relation_per_srs_res_present = false;
+  spatial_relation_per_srs_res_s srs_spatial_relation_per_srs_res;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::srs_spatial_relation_per_srs_res; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    spatial_relation_per_srs_res_s&       srs_spatial_relation_per_srs_res() { return c; }
-    const spatial_relation_per_srs_res_s& srs_spatial_relation_per_srs_res() const { return c; }
-
-  private:
-    spatial_relation_per_srs_res_s c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // SRSResourceSet-Item ::= SEQUENCE
 struct srs_res_set_item_s {
-  bool                                                 ext                           = false;
-  bool                                                 nof_srs_res_per_set_present   = false;
-  bool                                                 spatial_relation_info_present = false;
-  bool                                                 pathloss_ref_info_present     = false;
-  uint8_t                                              nof_srs_res_per_set           = 1;
-  periodicity_list_l                                   periodicity_list;
-  spatial_relation_info_s                              spatial_relation_info;
-  pathloss_ref_info_s                                  pathloss_ref_info;
-  protocol_ext_container_l<srs_res_set_item_ext_ies_o> ie_exts;
+  bool                               nof_srs_res_per_set_present   = false;
+  bool                               spatial_relation_info_present = false;
+  bool                               pathloss_ref_info_present     = false;
+  bool                               ie_exts_present               = false;
+  uint8_t                            nof_srs_res_per_set           = 1;
+  periodicity_list_l                 periodicity_list;
+  spatial_relation_info_s            spatial_relation_info;
+  pathloss_ref_info_s                pathloss_ref_info;
+  srs_res_set_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SSBBurstPosition-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -8653,59 +7170,52 @@ struct ssb_burst_position_c {
   struct types_opts {
     enum options { short_bitmap, medium_bitmap, long_bitmap, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  ssb_burst_position_c() = default;
-  ssb_burst_position_c(const ssb_burst_position_c& other);
-  ssb_burst_position_c& operator=(const ssb_burst_position_c& other);
-  ~ssb_burst_position_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  fixed_bitstring<4, false, true>& short_bitmap()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  fixed_bitstring<4, false, true>&              short_bitmap()
   {
-    assert_choice_type(types::short_bitmap, type_, "SSBBurstPosition");
+    assert_choice_type(types::short_bitmap, c.type, "SSBBurstPosition");
     return c.get<fixed_bitstring<4, false, true>>();
   }
   fixed_bitstring<8, false, true>& medium_bitmap()
   {
-    assert_choice_type(types::medium_bitmap, type_, "SSBBurstPosition");
+    assert_choice_type(types::medium_bitmap, c.type, "SSBBurstPosition");
     return c.get<fixed_bitstring<8, false, true>>();
   }
   fixed_bitstring<64, false, true>& long_bitmap()
   {
-    assert_choice_type(types::long_bitmap, type_, "SSBBurstPosition");
+    assert_choice_type(types::long_bitmap, c.type, "SSBBurstPosition");
     return c.get<fixed_bitstring<64, false, true>>();
   }
   protocol_ie_single_container_s<ssb_burst_position_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "SSBBurstPosition");
+    assert_choice_type(types::choice_ext, c.type, "SSBBurstPosition");
     return c.get<protocol_ie_single_container_s<ssb_burst_position_ext_ies_o>>();
   }
   const fixed_bitstring<4, false, true>& short_bitmap() const
   {
-    assert_choice_type(types::short_bitmap, type_, "SSBBurstPosition");
+    assert_choice_type(types::short_bitmap, c.type, "SSBBurstPosition");
     return c.get<fixed_bitstring<4, false, true>>();
   }
   const fixed_bitstring<8, false, true>& medium_bitmap() const
   {
-    assert_choice_type(types::medium_bitmap, type_, "SSBBurstPosition");
+    assert_choice_type(types::medium_bitmap, c.type, "SSBBurstPosition");
     return c.get<fixed_bitstring<8, false, true>>();
   }
   const fixed_bitstring<64, false, true>& long_bitmap() const
   {
-    assert_choice_type(types::long_bitmap, type_, "SSBBurstPosition");
+    assert_choice_type(types::long_bitmap, c.type, "SSBBurstPosition");
     return c.get<fixed_bitstring<64, false, true>>();
   }
   const protocol_ie_single_container_s<ssb_burst_position_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "SSBBurstPosition");
+    assert_choice_type(types::choice_ext, c.type, "SSBBurstPosition");
     return c.get<protocol_ie_single_container_s<ssb_burst_position_ext_ies_o>>();
   }
   fixed_bitstring<4, false, true>&                              set_short_bitmap();
@@ -8714,10 +7224,11 @@ struct ssb_burst_position_c {
   protocol_ie_single_container_s<ssb_burst_position_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                                                           type_;
-  choice_buffer_t<fixed_bitstring<64, false, true>, protocol_ie_single_container_s<ssb_burst_position_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      ssb_burst_position_c,
+      types,
+      choice_buffer_t<fixed_bitstring<64, false, true>, protocol_ie_single_container_s<ssb_burst_position_ext_ies_o>>>
+      c;
 };
 
 // TF-Configuration-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -8729,23 +7240,20 @@ using tf_cfg_ext_ies_container = protocol_ext_container_empty_l;
 struct tf_cfg_s {
   struct ssb_subcarrier_spacing_opts {
     enum options { khz15, khz30, khz120, khz240, /*...*/ khz60, khz480, khz960, nulltype } value;
-    typedef uint16_t number_type;
 
-    const char* to_string() const;
-    uint16_t    to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint16_t                            to_number() const;
   };
   using ssb_subcarrier_spacing_e_ = enumerated<ssb_subcarrier_spacing_opts, true, 3>;
   struct ssb_periodicity_opts {
     enum options { ms5, ms10, ms20, ms40, ms80, ms160, /*...*/ nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using ssb_periodicity_e_ = enumerated<ssb_periodicity_opts, true>;
 
   // member variables
-  bool                             ext                          = false;
   bool                             ssb_burst_position_present   = false;
   bool                             sfn_initisation_time_present = false;
   bool                             ie_exts_present              = false;
@@ -8760,10 +7268,7 @@ struct tf_cfg_s {
   tf_cfg_ext_ies_container         ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SSBInfoItem-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -8773,17 +7278,13 @@ using ssb_info_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // SSBInfoItem ::= SEQUENCE
 struct ssb_info_item_s {
-  bool                            ext             = false;
   bool                            ie_exts_present = false;
   tf_cfg_s                        ssb_cfg;
   uint16_t                        pci_nr = 0;
   ssb_info_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SSBInfo-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -8796,16 +7297,12 @@ struct ssb_info_s {
   using list_of_ssb_info_l_ = dyn_array<ssb_info_item_s>;
 
   // member variables
-  bool                       ext             = false;
   bool                       ie_exts_present = false;
   list_of_ssb_info_l_        list_of_ssb_info;
   ssb_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ResourceMapping-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -8817,25 +7314,20 @@ using res_map_ext_ies_container = protocol_ext_container_empty_l;
 struct res_map_s {
   struct nrof_sumbols_opts {
     enum options { n1, n2, n4, n8, n12, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using nrof_sumbols_e_ = enumerated<nrof_sumbols_opts>;
 
   // member variables
-  bool                      ext             = false;
   bool                      ie_exts_present = false;
   uint8_t                   start_position  = 0;
   nrof_sumbols_e_           nrof_sumbols;
   res_map_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ValidityAreaSpecificSRSInformation-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -8845,7 +7337,6 @@ using validity_area_specific_srs_info_ext_ies_container = protocol_ext_container
 
 // ValidityAreaSpecificSRSInformation ::= SEQUENCE
 struct validity_area_specific_srs_info_s {
-  bool                                              ext                       = false;
   bool                                              tx_comb_pos_present       = false;
   bool                                              res_map_present           = false;
   bool                                              freq_domain_shift_present = false;
@@ -8862,10 +7353,7 @@ struct validity_area_specific_srs_info_s {
   validity_area_specific_srs_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // ValidityAreaSpecificSRSInformationExtended-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -8875,71 +7363,16 @@ using validity_area_specific_srs_info_extended_ext_ies_container = protocol_ext_
 
 // ValidityAreaSpecificSRSInformationExtended ::= SEQUENCE
 struct validity_area_specific_srs_info_extended_s {
-  bool                                                       ext             = false;
   bool                                                       ie_exts_present = false;
   pos_srs_res_list_l                                         pos_srs_res_list;
   pos_srs_res_set_list_l                                     pos_srs_res_set_list;
   validity_area_specific_srs_info_extended_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // RequestedSRSTransmissionCharacteristics-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct requested_srs_tx_characteristics_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options {
-        srs_freq,
-        bw_aggregation_request_ind,
-        pos_validity_area_cell_list,
-        validity_area_specific_srs_info,
-        validity_area_specific_srs_info_extended,
-        nulltype
-      } value;
-      typedef uint8_t number_type;
-
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint32_t&                                         srs_freq();
-    bw_aggregation_request_ind_e&                     bw_aggregation_request_ind();
-    pos_validity_area_cell_list_l&                    pos_validity_area_cell_list();
-    validity_area_specific_srs_info_s&                validity_area_specific_srs_info();
-    validity_area_specific_srs_info_extended_s&       validity_area_specific_srs_info_extended();
-    const uint32_t&                                   srs_freq() const;
-    const bw_aggregation_request_ind_e&               bw_aggregation_request_ind() const;
-    const pos_validity_area_cell_list_l&              pos_validity_area_cell_list() const;
-    const validity_area_specific_srs_info_s&          validity_area_specific_srs_info() const;
-    const validity_area_specific_srs_info_extended_s& validity_area_specific_srs_info_extended() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct requested_srs_tx_characteristics_ext_ies_container {
   bool                                       srs_freq_present                                 = false;
   bool                                       bw_aggregation_request_ind_present               = false;
@@ -8952,10 +7385,7 @@ struct requested_srs_tx_characteristics_ext_ies_container {
   validity_area_specific_srs_info_s          validity_area_specific_srs_info;
   validity_area_specific_srs_info_extended_s validity_area_specific_srs_info_extended;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // RequestedSRSTransmissionCharacteristics ::= SEQUENCE
@@ -8963,13 +7393,12 @@ struct requested_srs_tx_characteristics_s {
   struct res_type_opts {
     enum options { periodic, semi_persistent, aperiodic, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using res_type_e_            = enumerated<res_type_opts, true>;
   using list_of_srs_res_set_l_ = dyn_array<srs_res_set_item_s>;
 
   // member variables
-  bool                                               ext              = false;
   bool                                               nof_txs_present  = false;
   bool                                               ssb_info_present = false;
   bool                                               ie_exts_present  = false;
@@ -8981,10 +7410,7 @@ struct requested_srs_tx_characteristics_s {
   requested_srs_tx_characteristics_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // RequestedSRSPreconfigurationCharacteristics-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -8994,16 +7420,12 @@ using requested_srs_precfg_characteristics_item_ext_ies_container = protocol_ext
 
 // RequestedSRSPreconfigurationCharacteristics-Item ::= SEQUENCE
 struct requested_srs_precfg_characteristics_item_s {
-  bool                                                        ext             = false;
   bool                                                        ie_exts_present = false;
   requested_srs_tx_characteristics_s                          requested_srs_tx_characteristics;
   requested_srs_precfg_characteristics_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // RequestedSRSPreconfigurationCharacteristics-List ::= SEQUENCE (SIZE (1..16)) OF
@@ -9020,22 +7442,18 @@ struct resp_time_s {
   struct time_unit_opts {
     enum options { second, ten_seconds, ten_milliseconds, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using time_unit_e_ = enumerated<time_unit_opts, true>;
 
   // member variables
-  bool                        ext             = false;
   bool                        ie_exts_present = false;
-  uint8_t                     time            = 1;
+  uint16_t                    time            = 1;
   time_unit_e_                time_unit;
   resp_time_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // UplinkChannelBW-PerSCS-List ::= SEQUENCE (SIZE (1..5)) OF SCS-SpecificCarrier
@@ -9048,7 +7466,6 @@ using srs_carrier_list_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // SRSCarrier-List-Item ::= SEQUENCE
 struct srs_carrier_list_item_s {
-  bool                                    ext             = false;
   bool                                    pci_nr_present  = false;
   bool                                    ie_exts_present = false;
   uint32_t                                point_a         = 0;
@@ -9058,47 +7475,44 @@ struct srs_carrier_list_item_s {
   srs_carrier_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SRSCarrier-List ::= SEQUENCE (SIZE (1..32)) OF SRSCarrier-List-Item
 using srs_carrier_list_l = dyn_array<srs_carrier_list_item_s>;
 
+// SRSConfiguration-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
+struct srs_configuration_ext_ies_container {
+  bool                               pos_srs_res_set_aggregation_list_present = false;
+  pos_srs_res_set_aggregation_list_l pos_srs_res_set_aggregation_list;
+
+  static const asn1::table::ie_container_desc desc;
+};
+
 // SRSConfiguration ::= SEQUENCE
 struct srs_configuration_s {
-  bool                                        ext = false;
-  srs_carrier_list_l                          srs_carrier_list;
-  protocol_ext_container_l<srs_cfg_ext_ies_o> ie_exts;
+  bool                                ie_exts_present = false;
+  srs_carrier_list_l                  srs_carrier_list;
+  srs_configuration_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SRSInfo ::= SEQUENCE
 struct srs_info_s {
-  bool    ext     = false;
   uint8_t srs_res = 0;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SRSPortIndex ::= ENUMERATED
 struct srs_port_idx_opts {
   enum options { id1000, id1001, id1002, id1003, /*...*/ nulltype } value;
-  typedef uint16_t number_type;
 
-  const char* to_string() const;
-  uint16_t    to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint16_t                            to_number() const;
 };
 using srs_port_idx_e = enumerated<srs_port_idx_opts, true>;
 
@@ -9109,17 +7523,13 @@ using srs_precfg_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // SRSPreconfiguration-Item ::= SEQUENCE
 struct srs_precfg_item_s {
-  bool                              ext             = false;
   bool                              ie_exts_present = false;
-  srs_configuration_s               srs_configuration;
+  srs_configuration_s               srs_cfg;
   pos_validity_area_cell_list_l     pos_validity_area_cell_list;
   srs_precfg_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SRSPreconfiguration-List ::= SEQUENCE (SIZE (1..16)) OF SRSPreconfiguration-Item
@@ -9129,7 +7539,7 @@ using srs_precfg_list_l = dyn_array<srs_precfg_item_s>;
 struct srs_reserv_type_opts {
   enum options { reserve, release, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using srs_reserv_type_e = enumerated<srs_reserv_type_opts, true>;
 
@@ -9140,16 +7550,12 @@ using srs_res_id_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // SRSResourceID-Item ::= SEQUENCE
 struct srs_res_id_item_s {
-  bool                              ext             = false;
   bool                              ie_exts_present = false;
   uint8_t                           srs_res_id      = 0;
   srs_res_id_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SRSResourceTrigger-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -9159,16 +7565,12 @@ using srs_res_trigger_ext_ies_container = protocol_ext_container_empty_l;
 
 // SRSResourceTrigger ::= SEQUENCE
 struct srs_res_trigger_s {
-  bool                              ext             = false;
   bool                              ie_exts_present = false;
   aperiodic_srs_res_trigger_list_l  aperiodic_srs_res_trigger_list;
   srs_res_trigger_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SRSResourceTypeChoice ::= CHOICE
@@ -9176,101 +7578,64 @@ struct srs_res_type_choice_c {
   struct types_opts {
     enum options { srs_res_info, pos_srs_res_info, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts, true>;
 
-  // choice methods
-  srs_res_type_choice_c() = default;
-  srs_res_type_choice_c(const srs_res_type_choice_c& other);
-  srs_res_type_choice_c& operator=(const srs_res_type_choice_c& other);
-  ~srs_res_type_choice_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  srs_info_s& srs_res_info()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  srs_info_s&                                   srs_res_info()
   {
-    assert_choice_type(types::srs_res_info, type_, "SRSResourceTypeChoice");
+    assert_choice_type(types::srs_res_info, c.type, "SRSResourceTypeChoice");
     return c.get<srs_info_s>();
   }
   pos_srs_info_s& pos_srs_res_info()
   {
-    assert_choice_type(types::pos_srs_res_info, type_, "SRSResourceTypeChoice");
+    assert_choice_type(types::pos_srs_res_info, c.type, "SRSResourceTypeChoice");
     return c.get<pos_srs_info_s>();
   }
   const srs_info_s& srs_res_info() const
   {
-    assert_choice_type(types::srs_res_info, type_, "SRSResourceTypeChoice");
+    assert_choice_type(types::srs_res_info, c.type, "SRSResourceTypeChoice");
     return c.get<srs_info_s>();
   }
   const pos_srs_info_s& pos_srs_res_info() const
   {
-    assert_choice_type(types::pos_srs_res_info, type_, "SRSResourceTypeChoice");
+    assert_choice_type(types::pos_srs_res_info, c.type, "SRSResourceTypeChoice");
     return c.get<pos_srs_info_s>();
   }
   srs_info_s&     set_srs_res_info();
   pos_srs_info_s& set_pos_srs_res_info();
 
 private:
-  types                                       type_;
-  choice_buffer_t<pos_srs_info_s, srs_info_s> c;
-
-  void destroy_();
+  asn1::table::choice_storage<srs_res_type_choice_c, types, choice_buffer_t<pos_srs_info_s, srs_info_s>> c;
 };
 
 // SRSResourcetype-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct srs_restype_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { srs_port_idx, nulltype } value;
+struct srs_restype_ext_ies_container {
+  bool           srs_port_idx_present = false;
+  srs_port_idx_e srs_port_idx;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::srs_port_idx; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    srs_port_idx_e&       srs_port_idx() { return c; }
-    const srs_port_idx_e& srs_port_idx() const { return c; }
-
-  private:
-    srs_port_idx_e c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // SRSResourcetype ::= SEQUENCE
 struct srs_restype_s {
-  bool                                            ext = false;
-  srs_res_type_choice_c                           srs_res_type_choice;
-  protocol_ext_container_l<srs_restype_ext_ies_o> ie_exts;
+  bool                          ie_exts_present = false;
+  srs_res_type_choice_c         srs_res_type_choice;
+  srs_restype_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SRSTransmissionStatus ::= ENUMERATED
 struct srs_tx_status_opts {
   enum options { stopped, /*...*/ area_specific_srs_activ, nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using srs_tx_status_e = enumerated<srs_tx_status_opts, true, 1>;
 
@@ -9281,17 +7646,13 @@ using search_win_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // Search-window-information ::= SEQUENCE
 struct search_win_info_s {
-  bool                              ext                        = false;
   bool                              ie_exts_present            = false;
   int16_t                           expected_propagation_delay = -3841;
-  uint8_t                           delay_uncertainty          = 1;
+  uint16_t                          delay_uncertainty          = 1;
   search_win_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // SpatialDirectionInformation-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -9301,59 +7662,15 @@ using spatial_direction_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // SpatialDirectionInformation ::= SEQUENCE
 struct spatial_direction_info_s {
-  bool                                     ext             = false;
   bool                                     ie_exts_present = false;
   nr_prs_beam_info_s                       nr_prs_beam_info;
   spatial_direction_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRP-MeasurementRequestItem-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct trp_meas_request_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { cell_id, ao_a_search_win, nof_trp_rx_teg, nof_trp_rx_tx_teg, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    cgi_nr_s&                  cell_id();
-    ao_a_assist_info_s&        ao_a_search_win();
-    nof_trp_rx_teg_e&          nof_trp_rx_teg();
-    nof_trp_rx_tx_teg_e&       nof_trp_rx_tx_teg();
-    const cgi_nr_s&            cell_id() const;
-    const ao_a_assist_info_s&  ao_a_search_win() const;
-    const nof_trp_rx_teg_e&    nof_trp_rx_teg() const;
-    const nof_trp_rx_tx_teg_e& nof_trp_rx_tx_teg() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct trp_meas_request_item_ext_ies_container {
   bool                cell_id_present           = false;
   bool                ao_a_search_win_present   = false;
@@ -9364,15 +7681,11 @@ struct trp_meas_request_item_ext_ies_container {
   nof_trp_rx_teg_e    nof_trp_rx_teg;
   nof_trp_rx_tx_teg_e nof_trp_rx_tx_teg;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // TRP-MeasurementRequestItem ::= SEQUENCE
 struct trp_meas_request_item_s {
-  bool                                    ext                     = false;
   bool                                    search_win_info_present = false;
   bool                                    ie_exts_present         = false;
   uint32_t                                trp_id                  = 1;
@@ -9380,10 +7693,7 @@ struct trp_meas_request_item_s {
   trp_meas_request_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRP-MeasurementRequestList ::= SEQUENCE (SIZE (1..64)) OF TRP-MeasurementRequestItem
@@ -9404,134 +7714,116 @@ struct ul_rtoa_meas_ext_ies_o {
         nulltype
       } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    value_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint32_t&       report_granularitykminus1();
-    uint32_t&       report_granularitykminus2();
-    uint32_t&       report_granularitykminus3();
-    uint32_t&       report_granularitykminus4();
-    uint32_t&       report_granularitykminus5();
-    uint32_t&       report_granularitykminus6();
-    const uint32_t& report_granularitykminus1() const;
-    const uint32_t& report_granularitykminus2() const;
-    const uint32_t& report_granularitykminus3() const;
-    const uint32_t& report_granularitykminus4() const;
-    const uint32_t& report_granularitykminus5() const;
-    const uint32_t& report_granularitykminus6() const;
+    void                                  set(types::options e = types::nulltype);
+    types                                 type() const { return type_; }
+    static const asn1::table::choice_desc desc;
+    uint32_t&                             report_granularitykminus1();
+    uint32_t&                             report_granularitykminus2();
+    uint32_t&                             report_granularitykminus3();
+    uint32_t&                             report_granularitykminus4();
+    uint32_t&                             report_granularitykminus5();
+    uint32_t&                             report_granularitykminus6();
+    const uint32_t&                       report_granularitykminus1() const;
+    const uint32_t&                       report_granularitykminus2() const;
+    const uint32_t&                       report_granularitykminus3() const;
+    const uint32_t&                       report_granularitykminus4() const;
+    const uint32_t&                       report_granularitykminus5() const;
+    const uint32_t&                       report_granularitykminus6() const;
 
   private:
     types             type_;
     choice_buffer_ptr c;
   };
 
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static value_c    get_value(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::objset_desc desc;
 };
 
 // ULRTOAMeas ::= CHOICE
 struct ul_rtoa_meas_c {
   struct types_opts {
     enum options { k0, k1, k2, k3, k4, k5, choice_ext, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  ul_rtoa_meas_c() = default;
-  ul_rtoa_meas_c(const ul_rtoa_meas_c& other);
-  ul_rtoa_meas_c& operator=(const ul_rtoa_meas_c& other);
-  ~ul_rtoa_meas_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  uint32_t& k0()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  uint32_t&                                     k0()
   {
-    assert_choice_type(types::k0, type_, "ULRTOAMeas");
+    assert_choice_type(types::k0, c.type, "ULRTOAMeas");
     return c.get<uint32_t>();
   }
   uint32_t& k1()
   {
-    assert_choice_type(types::k1, type_, "ULRTOAMeas");
+    assert_choice_type(types::k1, c.type, "ULRTOAMeas");
     return c.get<uint32_t>();
   }
   uint32_t& k2()
   {
-    assert_choice_type(types::k2, type_, "ULRTOAMeas");
+    assert_choice_type(types::k2, c.type, "ULRTOAMeas");
     return c.get<uint32_t>();
   }
   uint32_t& k3()
   {
-    assert_choice_type(types::k3, type_, "ULRTOAMeas");
+    assert_choice_type(types::k3, c.type, "ULRTOAMeas");
     return c.get<uint32_t>();
   }
   uint32_t& k4()
   {
-    assert_choice_type(types::k4, type_, "ULRTOAMeas");
+    assert_choice_type(types::k4, c.type, "ULRTOAMeas");
     return c.get<uint32_t>();
   }
   uint16_t& k5()
   {
-    assert_choice_type(types::k5, type_, "ULRTOAMeas");
+    assert_choice_type(types::k5, c.type, "ULRTOAMeas");
     return c.get<uint16_t>();
   }
   protocol_ie_single_container_s<ul_rtoa_meas_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "ULRTOAMeas");
+    assert_choice_type(types::choice_ext, c.type, "ULRTOAMeas");
     return c.get<protocol_ie_single_container_s<ul_rtoa_meas_ext_ies_o>>();
   }
   const uint32_t& k0() const
   {
-    assert_choice_type(types::k0, type_, "ULRTOAMeas");
+    assert_choice_type(types::k0, c.type, "ULRTOAMeas");
     return c.get<uint32_t>();
   }
   const uint32_t& k1() const
   {
-    assert_choice_type(types::k1, type_, "ULRTOAMeas");
+    assert_choice_type(types::k1, c.type, "ULRTOAMeas");
     return c.get<uint32_t>();
   }
   const uint32_t& k2() const
   {
-    assert_choice_type(types::k2, type_, "ULRTOAMeas");
+    assert_choice_type(types::k2, c.type, "ULRTOAMeas");
     return c.get<uint32_t>();
   }
   const uint32_t& k3() const
   {
-    assert_choice_type(types::k3, type_, "ULRTOAMeas");
+    assert_choice_type(types::k3, c.type, "ULRTOAMeas");
     return c.get<uint32_t>();
   }
   const uint32_t& k4() const
   {
-    assert_choice_type(types::k4, type_, "ULRTOAMeas");
+    assert_choice_type(types::k4, c.type, "ULRTOAMeas");
     return c.get<uint32_t>();
   }
   const uint16_t& k5() const
   {
-    assert_choice_type(types::k5, type_, "ULRTOAMeas");
+    assert_choice_type(types::k5, c.type, "ULRTOAMeas");
     return c.get<uint16_t>();
   }
   const protocol_ie_single_container_s<ul_rtoa_meas_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "ULRTOAMeas");
+    assert_choice_type(types::choice_ext, c.type, "ULRTOAMeas");
     return c.get<protocol_ie_single_container_s<ul_rtoa_meas_ext_ies_o>>();
   }
   uint32_t&                                               set_k0();
@@ -9543,74 +7835,32 @@ struct ul_rtoa_meas_c {
   protocol_ie_single_container_s<ul_rtoa_meas_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                   type_;
-  choice_buffer_t<protocol_ie_single_container_s<ul_rtoa_meas_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      ul_rtoa_meas_c,
+      types,
+      choice_buffer_t<protocol_ie_single_container_s<ul_rtoa_meas_ext_ies_o>, uint16_t, uint32_t>>
+      c;
 };
 
 // UL-RTOAMeasurement-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct ul_rtoa_measurement_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { extended_add_path_list, trp_rx_teg_info, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    extended_add_path_list_l&       extended_add_path_list();
-    trp_rx_teg_info_s&              trp_rx_teg_info();
-    const extended_add_path_list_l& extended_add_path_list() const;
-    const trp_rx_teg_info_s&        trp_rx_teg_info() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct ul_rtoa_measurement_ext_ies_container {
   bool                     extended_add_path_list_present = false;
   bool                     trp_rx_teg_info_present        = false;
   extended_add_path_list_l extended_add_path_list;
   trp_rx_teg_info_s        trp_rx_teg_info;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // UL-RTOAMeasurement ::= SEQUENCE
 struct ul_rtoa_measurement_s {
-  bool                                  ext             = false;
   bool                                  ie_exts_present = false;
   ul_rtoa_meas_c                        ul_rto_ameas;
   add_path_list_l                       add_path_list;
   ul_rtoa_measurement_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // UL-RSCPMeas-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -9620,16 +7870,12 @@ using ul_rs_cp_meas_ext_ies_container = protocol_ext_container_empty_l;
 
 // UL-RSCPMeas ::= SEQUENCE
 struct ul_rs_cp_meas_s {
-  bool                            ext             = false;
   bool                            ie_exts_present = false;
   uint16_t                        ul_rs_cp        = 0;
   ul_rs_cp_meas_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TrpMeasuredResultsValue-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -9639,38 +7885,28 @@ struct trp_measured_results_value_ext_ies_o {
     struct types_opts {
       enum options { zo_a, multiple_ul_ao_a, ul_srs_rsrp_p, ul_rs_cp_meas, nulltype } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    value_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    zo_a_s&                   zo_a();
-    multiple_ul_ao_a_s&       multiple_ul_ao_a();
-    ul_srs_rsrp_p_s&          ul_srs_rsrp_p();
-    ul_rs_cp_meas_s&          ul_rs_cp_meas();
-    const zo_a_s&             zo_a() const;
-    const multiple_ul_ao_a_s& multiple_ul_ao_a() const;
-    const ul_srs_rsrp_p_s&    ul_srs_rsrp_p() const;
-    const ul_rs_cp_meas_s&    ul_rs_cp_meas() const;
+    void                                  set(types::options e = types::nulltype);
+    types                                 type() const { return type_; }
+    static const asn1::table::choice_desc desc;
+    zo_a_s&                               zo_a();
+    multiple_ul_ao_a_s&                   multiple_ul_ao_a();
+    ul_srs_rsrp_p_s&                      ul_srs_rsrp_p();
+    ul_rs_cp_meas_s&                      ul_rs_cp_meas();
+    const zo_a_s&                         zo_a() const;
+    const multiple_ul_ao_a_s&             multiple_ul_ao_a() const;
+    const ul_srs_rsrp_p_s&                ul_srs_rsrp_p() const;
+    const ul_rs_cp_meas_s&                ul_rs_cp_meas() const;
 
   private:
     types             type_;
     choice_buffer_ptr c;
   };
 
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static value_c    get_value(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::objset_desc desc;
 };
 
 // TrpMeasuredResultsValue ::= CHOICE
@@ -9678,69 +7914,62 @@ struct trp_measured_results_value_c {
   struct types_opts {
     enum options { ul_angle_of_arrival, ul_srs_rsrp, ul_rtoa, gnb_rx_tx_time_diff, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  trp_measured_results_value_c() = default;
-  trp_measured_results_value_c(const trp_measured_results_value_c& other);
-  trp_measured_results_value_c& operator=(const trp_measured_results_value_c& other);
-  ~trp_measured_results_value_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  ul_ao_a_s& ul_angle_of_arrival()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  ul_ao_a_s&                                    ul_angle_of_arrival()
   {
-    assert_choice_type(types::ul_angle_of_arrival, type_, "TrpMeasuredResultsValue");
+    assert_choice_type(types::ul_angle_of_arrival, c.type, "TrpMeasuredResultsValue");
     return c.get<ul_ao_a_s>();
   }
   uint8_t& ul_srs_rsrp()
   {
-    assert_choice_type(types::ul_srs_rsrp, type_, "TrpMeasuredResultsValue");
+    assert_choice_type(types::ul_srs_rsrp, c.type, "TrpMeasuredResultsValue");
     return c.get<uint8_t>();
   }
   ul_rtoa_measurement_s& ul_rtoa()
   {
-    assert_choice_type(types::ul_rtoa, type_, "TrpMeasuredResultsValue");
+    assert_choice_type(types::ul_rtoa, c.type, "TrpMeasuredResultsValue");
     return c.get<ul_rtoa_measurement_s>();
   }
   gnb_rx_tx_time_diff_s& gnb_rx_tx_time_diff()
   {
-    assert_choice_type(types::gnb_rx_tx_time_diff, type_, "TrpMeasuredResultsValue");
+    assert_choice_type(types::gnb_rx_tx_time_diff, c.type, "TrpMeasuredResultsValue");
     return c.get<gnb_rx_tx_time_diff_s>();
   }
   protocol_ie_single_container_s<trp_measured_results_value_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "TrpMeasuredResultsValue");
+    assert_choice_type(types::choice_ext, c.type, "TrpMeasuredResultsValue");
     return c.get<protocol_ie_single_container_s<trp_measured_results_value_ext_ies_o>>();
   }
   const ul_ao_a_s& ul_angle_of_arrival() const
   {
-    assert_choice_type(types::ul_angle_of_arrival, type_, "TrpMeasuredResultsValue");
+    assert_choice_type(types::ul_angle_of_arrival, c.type, "TrpMeasuredResultsValue");
     return c.get<ul_ao_a_s>();
   }
   const uint8_t& ul_srs_rsrp() const
   {
-    assert_choice_type(types::ul_srs_rsrp, type_, "TrpMeasuredResultsValue");
+    assert_choice_type(types::ul_srs_rsrp, c.type, "TrpMeasuredResultsValue");
     return c.get<uint8_t>();
   }
   const ul_rtoa_measurement_s& ul_rtoa() const
   {
-    assert_choice_type(types::ul_rtoa, type_, "TrpMeasuredResultsValue");
+    assert_choice_type(types::ul_rtoa, c.type, "TrpMeasuredResultsValue");
     return c.get<ul_rtoa_measurement_s>();
   }
   const gnb_rx_tx_time_diff_s& gnb_rx_tx_time_diff() const
   {
-    assert_choice_type(types::gnb_rx_tx_time_diff, type_, "TrpMeasuredResultsValue");
+    assert_choice_type(types::gnb_rx_tx_time_diff, c.type, "TrpMeasuredResultsValue");
     return c.get<gnb_rx_tx_time_diff_s>();
   }
   const protocol_ie_single_container_s<trp_measured_results_value_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "TrpMeasuredResultsValue");
+    assert_choice_type(types::choice_ext, c.type, "TrpMeasuredResultsValue");
     return c.get<protocol_ie_single_container_s<trp_measured_results_value_ext_ies_o>>();
   }
   ul_ao_a_s&                                                            set_ul_angle_of_arrival();
@@ -9750,74 +7979,17 @@ struct trp_measured_results_value_c {
   protocol_ie_single_container_s<trp_measured_results_value_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<gnb_rx_tx_time_diff_s,
-                  protocol_ie_single_container_s<trp_measured_results_value_ext_ies_o>,
-                  ul_ao_a_s,
-                  ul_rtoa_measurement_s>
+  asn1::table::choice_storage<trp_measured_results_value_c,
+                              types,
+                              choice_buffer_t<gnb_rx_tx_time_diff_s,
+                                              protocol_ie_single_container_s<trp_measured_results_value_ext_ies_o>,
+                                              uint8_t,
+                                              ul_ao_a_s,
+                                              ul_rtoa_measurement_s>>
       c;
-
-  void destroy_();
 };
 
 // TrpMeasurementResultItem-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct trp_meas_result_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options {
-        srs_restype,
-        arp_id,
-        lo_s_n_lo_si_nformation,
-        mobile_trp_location_info,
-        measured_freq_hops,
-        aggr_pos_srs_res_id_list,
-        meas_based_on_aggr_res,
-        nulltype
-      } value;
-      typedef uint8_t number_type;
-
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    srs_restype_s&                    srs_restype();
-    uint8_t&                          arp_id();
-    lo_s_n_lo_si_nformation_c&        lo_s_n_lo_si_nformation();
-    mobile_trp_location_info_s&       mobile_trp_location_info();
-    measured_freq_hops_e&             measured_freq_hops();
-    aggr_pos_srs_res_id_list_l&       aggr_pos_srs_res_id_list();
-    meas_based_on_aggr_res_e&         meas_based_on_aggr_res();
-    const srs_restype_s&              srs_restype() const;
-    const uint8_t&                    arp_id() const;
-    const lo_s_n_lo_si_nformation_c&  lo_s_n_lo_si_nformation() const;
-    const mobile_trp_location_info_s& mobile_trp_location_info() const;
-    const measured_freq_hops_e&       measured_freq_hops() const;
-    const aggr_pos_srs_res_id_list_l& aggr_pos_srs_res_id_list() const;
-    const meas_based_on_aggr_res_e&   meas_based_on_aggr_res() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct trp_meas_result_item_ext_ies_container {
   bool                       srs_restype_present              = false;
   bool                       arp_id_present                   = false;
@@ -9834,15 +8006,11 @@ struct trp_meas_result_item_ext_ies_container {
   aggr_pos_srs_res_id_list_l aggr_pos_srs_res_id_list;
   meas_based_on_aggr_res_e   meas_based_on_aggr_res;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // TrpMeasurementResultItem ::= SEQUENCE
 struct trp_meas_result_item_s {
-  bool                                   ext                    = false;
   bool                                   meas_quality_present   = false;
   bool                                   meas_beam_info_present = false;
   bool                                   ie_exts_present        = false;
@@ -9853,116 +8021,46 @@ struct trp_meas_result_item_s {
   trp_meas_result_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TrpMeasurementResult ::= SEQUENCE (SIZE (1..16384)) OF TrpMeasurementResultItem
 using trp_meas_result_l = dyn_array<trp_meas_result_item_s>;
 
 // TRP-MeasurementResponseItem-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct trp_meas_resp_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { cell_id, nulltype } value;
+struct trp_meas_resp_item_ext_ies_container {
+  bool     cell_id_present = false;
+  cgi_nr_s cell_id;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::cell_id; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    cgi_nr_s&       cell_id() { return c; }
-    const cgi_nr_s& cell_id() const { return c; }
-
-  private:
-    cgi_nr_s c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // TRP-MeasurementResponseItem ::= SEQUENCE
 struct trp_meas_resp_item_s {
-  bool                                                   ext    = false;
-  uint32_t                                               trp_id = 1;
-  trp_meas_result_l                                      meas_result;
-  protocol_ext_container_l<trp_meas_resp_item_ext_ies_o> ie_exts;
+  bool                                 ie_exts_present = false;
+  uint32_t                             trp_id          = 1;
+  trp_meas_result_l                    meas_result;
+  trp_meas_resp_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRP-MeasurementResponseList ::= SEQUENCE (SIZE (1..64)) OF TRP-MeasurementResponseItem
 using trp_meas_resp_list_l = dyn_array<trp_meas_resp_item_s>;
 
 // TRP-MeasurementUpdateItem-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct trp_meas_upd_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { nof_trp_rx_teg, nof_trp_rx_tx_teg, nulltype } value;
-
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    ext_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    nof_trp_rx_teg_e&          nof_trp_rx_teg();
-    nof_trp_rx_tx_teg_e&       nof_trp_rx_tx_teg();
-    const nof_trp_rx_teg_e&    nof_trp_rx_teg() const;
-    const nof_trp_rx_tx_teg_e& nof_trp_rx_tx_teg() const;
-
-  private:
-    types             type_;
-    choice_buffer_ptr c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
-};
-
 struct trp_meas_upd_item_ext_ies_container {
   bool                nof_trp_rx_teg_present    = false;
   bool                nof_trp_rx_tx_teg_present = false;
   nof_trp_rx_teg_e    nof_trp_rx_teg;
   nof_trp_rx_tx_teg_e nof_trp_rx_tx_teg;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::ie_container_desc desc;
 };
 
 // TRP-MeasurementUpdateItem ::= SEQUENCE
 struct trp_meas_upd_item_s {
-  bool                                ext                   = false;
   bool                                ao_a_win_info_present = false;
   bool                                ie_exts_present       = false;
   uint32_t                            trp_id                = 1;
@@ -9970,10 +8068,7 @@ struct trp_meas_upd_item_s {
   trp_meas_upd_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRP-MeasurementUpdateList ::= SEQUENCE (SIZE (1..64)) OF TRP-MeasurementUpdateItem
@@ -9986,7 +8081,6 @@ using trp_prs_info_list_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // TRP-PRS-Information-List-Item ::= SEQUENCE
 struct trp_prs_info_list_item_s {
-  bool                                     ext             = false;
   bool                                     cgi_nr_present  = false;
   bool                                     ie_exts_present = false;
   uint32_t                                 trp_id          = 1;
@@ -9996,10 +8090,7 @@ struct trp_prs_info_list_item_s {
   trp_prs_info_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRP-PRS-Information-List ::= SEQUENCE (SIZE (1..256)) OF TRP-PRS-Information-List-Item
@@ -10012,23 +8103,19 @@ using trp_beam_ant_info_ext_ies_container = protocol_ext_container_empty_l;
 
 // TRPBeamAntennaInformation ::= SEQUENCE
 struct trp_beam_ant_info_s {
-  bool                                ext             = false;
   bool                                ie_exts_present = false;
   choice_trp_beam_ant_info_item_c     choice_trp_beam_ant_info_item;
   trp_beam_ant_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRPType ::= ENUMERATED
 struct trp_type_opts {
   enum options { prs_only_tp, srs_only_rp, tp, rp, trp, /*...*/ mobile_trp, nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using trp_type_e = enumerated<trp_type_opts, true, 1>;
 
@@ -10042,7 +8129,6 @@ struct trpteg_item_s {
   using dl_prs_res_id_list_l_ = dyn_array<dl_prs_res_id_item_s>;
 
   // member variables
-  bool                          ext             = false;
   bool                          ie_exts_present = false;
   trp_tx_teg_info_s             trp_tx_teg_info;
   uint8_t                       dl_prs_res_set_id = 0;
@@ -10050,10 +8136,7 @@ struct trpteg_item_s {
   trpteg_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRPTxTEGAssociation ::= SEQUENCE (SIZE (1..8)) OF TRPTEGItem
@@ -10074,42 +8157,32 @@ struct trp_info_type_resp_item_ext_ies_o {
         nulltype
       } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    value_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    trp_type_e&                       trp_type();
-    on_demand_prs_info_s&             on_demand_prs();
-    trp_tx_teg_assoc_l&               trp_tx_teg_assoc();
-    trp_beam_ant_info_s&              trp_beam_ant_info();
-    mobile_trp_location_info_s&       mobile_trp_location_info();
-    common_ta_params_s&               common_ta_params();
-    const trp_type_e&                 trp_type() const;
-    const on_demand_prs_info_s&       on_demand_prs() const;
-    const trp_tx_teg_assoc_l&         trp_tx_teg_assoc() const;
-    const trp_beam_ant_info_s&        trp_beam_ant_info() const;
-    const mobile_trp_location_info_s& mobile_trp_location_info() const;
-    const common_ta_params_s&         common_ta_params() const;
+    void                                  set(types::options e = types::nulltype);
+    types                                 type() const { return type_; }
+    static const asn1::table::choice_desc desc;
+    trp_type_e&                           trp_type();
+    on_demand_prs_info_s&                 on_demand_prs();
+    trp_tx_teg_assoc_l&                   trp_tx_teg_assoc();
+    trp_beam_ant_info_s&                  trp_beam_ant_info();
+    mobile_trp_location_info_s&           mobile_trp_location_info();
+    common_ta_params_s&                   common_ta_params();
+    const trp_type_e&                     trp_type() const;
+    const on_demand_prs_info_s&           on_demand_prs() const;
+    const trp_tx_teg_assoc_l&             trp_tx_teg_assoc() const;
+    const trp_beam_ant_info_s&            trp_beam_ant_info() const;
+    const mobile_trp_location_info_s&     mobile_trp_location_info() const;
+    const common_ta_params_s&             common_ta_params() const;
 
   private:
     types             type_;
     choice_buffer_ptr c;
   };
 
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static value_c    get_value(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::objset_desc desc;
 };
 
 // TRPInformationTypeResponseItem ::= CHOICE
@@ -10128,109 +8201,102 @@ struct trp_info_type_resp_item_c {
       nulltype
     } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  trp_info_type_resp_item_c() = default;
-  trp_info_type_resp_item_c(const trp_info_type_resp_item_c& other);
-  trp_info_type_resp_item_c& operator=(const trp_info_type_resp_item_c& other);
-  ~trp_info_type_resp_item_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  uint16_t& pci_nr()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  uint16_t&                                     pci_nr()
   {
-    assert_choice_type(types::pci_nr, type_, "TRPInformationTypeResponseItem");
+    assert_choice_type(types::pci_nr, c.type, "TRPInformationTypeResponseItem");
     return c.get<uint16_t>();
   }
   cgi_nr_s& cgi_nr()
   {
-    assert_choice_type(types::cgi_nr, type_, "TRPInformationTypeResponseItem");
+    assert_choice_type(types::cgi_nr, c.type, "TRPInformationTypeResponseItem");
     return c.get<cgi_nr_s>();
   }
   uint32_t& arfcn()
   {
-    assert_choice_type(types::arfcn, type_, "TRPInformationTypeResponseItem");
+    assert_choice_type(types::arfcn, c.type, "TRPInformationTypeResponseItem");
     return c.get<uint32_t>();
   }
   prs_cfg_s& prs_cfg()
   {
-    assert_choice_type(types::prs_cfg, type_, "TRPInformationTypeResponseItem");
+    assert_choice_type(types::prs_cfg, c.type, "TRPInformationTypeResponseItem");
     return c.get<prs_cfg_s>();
   }
   ssb_info_s& ss_binfo()
   {
-    assert_choice_type(types::ss_binfo, type_, "TRPInformationTypeResponseItem");
+    assert_choice_type(types::ss_binfo, c.type, "TRPInformationTypeResponseItem");
     return c.get<ssb_info_s>();
   }
   fixed_bitstring<64, false, true>& sfn_initisation_time()
   {
-    assert_choice_type(types::sfn_initisation_time, type_, "TRPInformationTypeResponseItem");
+    assert_choice_type(types::sfn_initisation_time, c.type, "TRPInformationTypeResponseItem");
     return c.get<fixed_bitstring<64, false, true>>();
   }
   spatial_direction_info_s& spatial_direction_info()
   {
-    assert_choice_type(types::spatial_direction_info, type_, "TRPInformationTypeResponseItem");
+    assert_choice_type(types::spatial_direction_info, c.type, "TRPInformationTypeResponseItem");
     return c.get<spatial_direction_info_s>();
   }
   geographical_coordinates_s& geographical_coordinates()
   {
-    assert_choice_type(types::geographical_coordinates, type_, "TRPInformationTypeResponseItem");
+    assert_choice_type(types::geographical_coordinates, c.type, "TRPInformationTypeResponseItem");
     return c.get<geographical_coordinates_s>();
   }
   protocol_ie_single_container_s<trp_info_type_resp_item_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "TRPInformationTypeResponseItem");
+    assert_choice_type(types::choice_ext, c.type, "TRPInformationTypeResponseItem");
     return c.get<protocol_ie_single_container_s<trp_info_type_resp_item_ext_ies_o>>();
   }
   const uint16_t& pci_nr() const
   {
-    assert_choice_type(types::pci_nr, type_, "TRPInformationTypeResponseItem");
+    assert_choice_type(types::pci_nr, c.type, "TRPInformationTypeResponseItem");
     return c.get<uint16_t>();
   }
   const cgi_nr_s& cgi_nr() const
   {
-    assert_choice_type(types::cgi_nr, type_, "TRPInformationTypeResponseItem");
+    assert_choice_type(types::cgi_nr, c.type, "TRPInformationTypeResponseItem");
     return c.get<cgi_nr_s>();
   }
   const uint32_t& arfcn() const
   {
-    assert_choice_type(types::arfcn, type_, "TRPInformationTypeResponseItem");
+    assert_choice_type(types::arfcn, c.type, "TRPInformationTypeResponseItem");
     return c.get<uint32_t>();
   }
   const prs_cfg_s& prs_cfg() const
   {
-    assert_choice_type(types::prs_cfg, type_, "TRPInformationTypeResponseItem");
+    assert_choice_type(types::prs_cfg, c.type, "TRPInformationTypeResponseItem");
     return c.get<prs_cfg_s>();
   }
   const ssb_info_s& ss_binfo() const
   {
-    assert_choice_type(types::ss_binfo, type_, "TRPInformationTypeResponseItem");
+    assert_choice_type(types::ss_binfo, c.type, "TRPInformationTypeResponseItem");
     return c.get<ssb_info_s>();
   }
   const fixed_bitstring<64, false, true>& sfn_initisation_time() const
   {
-    assert_choice_type(types::sfn_initisation_time, type_, "TRPInformationTypeResponseItem");
+    assert_choice_type(types::sfn_initisation_time, c.type, "TRPInformationTypeResponseItem");
     return c.get<fixed_bitstring<64, false, true>>();
   }
   const spatial_direction_info_s& spatial_direction_info() const
   {
-    assert_choice_type(types::spatial_direction_info, type_, "TRPInformationTypeResponseItem");
+    assert_choice_type(types::spatial_direction_info, c.type, "TRPInformationTypeResponseItem");
     return c.get<spatial_direction_info_s>();
   }
   const geographical_coordinates_s& geographical_coordinates() const
   {
-    assert_choice_type(types::geographical_coordinates, type_, "TRPInformationTypeResponseItem");
+    assert_choice_type(types::geographical_coordinates, c.type, "TRPInformationTypeResponseItem");
     return c.get<geographical_coordinates_s>();
   }
   const protocol_ie_single_container_s<trp_info_type_resp_item_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "TRPInformationTypeResponseItem");
+    assert_choice_type(types::choice_ext, c.type, "TRPInformationTypeResponseItem");
     return c.get<protocol_ie_single_container_s<trp_info_type_resp_item_ext_ies_o>>();
   }
   uint16_t&                                                          set_pci_nr();
@@ -10244,66 +8310,40 @@ struct trp_info_type_resp_item_c {
   protocol_ie_single_container_s<trp_info_type_resp_item_ext_ies_o>& set_choice_ext();
 
 private:
-  types type_;
-  choice_buffer_t<cgi_nr_s,
-                  fixed_bitstring<64, false, true>,
-                  geographical_coordinates_s,
-                  protocol_ie_single_container_s<trp_info_type_resp_item_ext_ies_o>,
-                  prs_cfg_s,
-                  spatial_direction_info_s,
-                  ssb_info_s>
+  asn1::table::choice_storage<trp_info_type_resp_item_c,
+                              types,
+                              choice_buffer_t<cgi_nr_s,
+                                              fixed_bitstring<64, false, true>,
+                                              geographical_coordinates_s,
+                                              protocol_ie_single_container_s<trp_info_type_resp_item_ext_ies_o>,
+                                              prs_cfg_s,
+                                              spatial_direction_info_s,
+                                              ssb_info_s,
+                                              uint16_t,
+                                              uint32_t>>
       c;
-
-  void destroy_();
 };
 
 // TRPInformationTypeResponseList ::= SEQUENCE (SIZE (1..64)) OF TRPInformationTypeResponseItem
 using trp_info_type_resp_list_l = dyn_array<trp_info_type_resp_item_c>;
 
 // TRPInformation-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct trp_info_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { mobile_iab_mt_ue_id, nulltype } value;
+struct trp_info_ext_ies_container {
+  bool                      mobile_iab_mt_ue_id_present = false;
+  unbounded_octstring<true> mobile_iab_mt_ue_id;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::mobile_iab_mt_ue_id; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    unbounded_octstring<true>&       mobile_iab_mt_ue_id() { return c; }
-    const unbounded_octstring<true>& mobile_iab_mt_ue_id() const { return c; }
-
-  private:
-    unbounded_octstring<true> c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // TRPInformation ::= SEQUENCE
 struct trp_info_s {
-  bool                                         ext    = false;
-  uint32_t                                     trp_id = 1;
-  trp_info_type_resp_list_l                    trp_info_type_resp_list;
-  protocol_ext_container_l<trp_info_ext_ies_o> ie_exts;
+  bool                       ie_exts_present = false;
+  uint32_t                   trp_id          = 1;
+  trp_info_type_resp_list_l  trp_info_type_resp_list;
+  trp_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRPInformationTRPResp-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -10312,16 +8352,12 @@ using trp_info_trp_resp_ext_ies_o = protocol_ext_empty_o;
 using trp_info_trp_resp_ext_ies_container = protocol_ext_container_empty_l;
 
 struct trp_info_list_trp_resp_item_s_ {
-  bool                                ext             = false;
   bool                                ie_exts_present = false;
   trp_info_s                          trp_info;
   trp_info_trp_resp_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRPInformationListTRPResp ::= SEQUENCE (SIZE (1..65535)) OF TRPInformationListTRPResp-item
@@ -10348,7 +8384,7 @@ struct trp_info_type_item_opts {
     nulltype
   } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using trp_info_type_item_e = enumerated<trp_info_type_item_opts, true, 6>;
 
@@ -10359,29 +8395,20 @@ struct trp_info_type_item_trp_req_o {
     struct types_opts {
       enum options { trp_info_type_item, nulltype } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    types         type() const { return types::trp_info_type_item; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    trp_info_type_item_e&       trp_info_type_item() { return c; }
-    const trp_info_type_item_e& trp_info_type_item() const { return c; }
+    types                                 type() const { return types::trp_info_type_item; }
+    static const asn1::table::choice_desc desc;
+    trp_info_type_item_e&                 trp_info_type_item() { return c; }
+    const trp_info_type_item_e&           trp_info_type_item() const { return c; }
 
   private:
     trp_info_type_item_e c;
   };
 
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static value_c    get_value(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::objset_desc desc;
 };
 
 // TRPInformationTypeListTRPReq ::= SEQUENCE (SIZE (1..64)) OF ProtocolIE-Field{NRPPA-PROTOCOL-IES : IEsSetParam}
@@ -10394,16 +8421,12 @@ using trp_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // TRPItem ::= SEQUENCE
 struct trp_item_s {
-  bool                       ext             = false;
   bool                       ie_exts_present = false;
   uint32_t                   trp_id          = 1;
   trp_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRPList ::= SEQUENCE (SIZE (1..65535)) OF TRPItem
@@ -10423,57 +8446,28 @@ struct trp_meas_type_opts {
     nulltype
   } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using trp_meas_type_e = enumerated<trp_meas_type_opts, true, 3>;
 
 // TRPMeasurementQuantitiesList-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct trp_meas_quantities_list_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { timing_report_granularity_factor_extended, nulltype } value;
-      typedef int8_t number_type;
+struct trp_meas_quantities_list_item_ext_ies_container {
+  bool   timing_report_granularity_factor_extended_present = false;
+  int8_t timing_report_granularity_factor_extended;
 
-      const char* to_string() const;
-      int8_t      to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::timing_report_granularity_factor_extended; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    int8_t&       timing_report_granularity_factor_extended() { return c; }
-    const int8_t& timing_report_granularity_factor_extended() const { return c; }
-
-  private:
-    int8_t c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // TRPMeasurementQuantitiesList-Item ::= SEQUENCE
 struct trp_meas_quantities_list_item_s {
-  bool                                                              ext                                      = false;
-  bool                                                              timing_report_granularity_factor_present = false;
-  trp_meas_type_e                                                   trp_meas_quantities_item;
-  uint8_t                                                           timing_report_granularity_factor = 0;
-  protocol_ext_container_l<trp_meas_quantities_list_item_ext_ies_o> ie_exts;
+  bool                                            timing_report_granularity_factor_present = false;
+  bool                                            ie_exts_present                          = false;
+  trp_meas_type_e                                 trp_meas_quantities_item;
+  uint8_t                                         timing_report_granularity_factor = 0;
+  trp_meas_quantities_list_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TRPMeasurementQuantities ::= SEQUENCE (SIZE (1..16384)) OF TRPMeasurementQuantitiesList-Item
@@ -10486,58 +8480,51 @@ using time_win_dur_meas_ext_ies_o = protocol_ies_empty_o;
 struct time_win_dur_meas_c {
   struct dur_slots_opts {
     enum options { n1, n2, n4, n6, n8, n12, n16, /*...*/ nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using dur_slots_e_ = enumerated<dur_slots_opts, true>;
   struct types_opts {
     enum options { dur_slots, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  time_win_dur_meas_c() = default;
-  time_win_dur_meas_c(const time_win_dur_meas_c& other);
-  time_win_dur_meas_c& operator=(const time_win_dur_meas_c& other);
-  ~time_win_dur_meas_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  dur_slots_e_& dur_slots()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  dur_slots_e_&                                 dur_slots()
   {
-    assert_choice_type(types::dur_slots, type_, "TimeWindowDurationMeasurement");
+    assert_choice_type(types::dur_slots, c.type, "TimeWindowDurationMeasurement");
     return c.get<dur_slots_e_>();
   }
   protocol_ie_single_container_s<time_win_dur_meas_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "TimeWindowDurationMeasurement");
+    assert_choice_type(types::choice_ext, c.type, "TimeWindowDurationMeasurement");
     return c.get<protocol_ie_single_container_s<time_win_dur_meas_ext_ies_o>>();
   }
   const dur_slots_e_& dur_slots() const
   {
-    assert_choice_type(types::dur_slots, type_, "TimeWindowDurationMeasurement");
+    assert_choice_type(types::dur_slots, c.type, "TimeWindowDurationMeasurement");
     return c.get<dur_slots_e_>();
   }
   const protocol_ie_single_container_s<time_win_dur_meas_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "TimeWindowDurationMeasurement");
+    assert_choice_type(types::choice_ext, c.type, "TimeWindowDurationMeasurement");
     return c.get<protocol_ie_single_container_s<time_win_dur_meas_ext_ies_o>>();
   }
   dur_slots_e_&                                                set_dur_slots();
   protocol_ie_single_container_s<time_win_dur_meas_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                        type_;
-  choice_buffer_t<protocol_ie_single_container_s<time_win_dur_meas_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      time_win_dur_meas_c,
+      types,
+      choice_buffer_t<dur_slots_e_, protocol_ie_single_container_s<time_win_dur_meas_ext_ies_o>>>
+      c;
 };
 
 // TimeWindowDurationSRS-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -10547,66 +8534,57 @@ using time_win_dur_srs_ext_ies_o = protocol_ies_empty_o;
 struct time_win_dur_srs_c {
   struct dur_symbols_opts {
     enum options { n1, n2, n4, n8, n12, /*...*/ nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using dur_symbols_e_ = enumerated<dur_symbols_opts, true>;
   struct dur_slots_opts {
     enum options { n1, n2, n4, n6, n8, n12, n16, /*...*/ nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using dur_slots_e_ = enumerated<dur_slots_opts, true>;
   struct types_opts {
     enum options { dur_symbols, dur_slots, choice_ext, nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  time_win_dur_srs_c() = default;
-  time_win_dur_srs_c(const time_win_dur_srs_c& other);
-  time_win_dur_srs_c& operator=(const time_win_dur_srs_c& other);
-  ~time_win_dur_srs_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  dur_symbols_e_& dur_symbols()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  dur_symbols_e_&                               dur_symbols()
   {
-    assert_choice_type(types::dur_symbols, type_, "TimeWindowDurationSRS");
+    assert_choice_type(types::dur_symbols, c.type, "TimeWindowDurationSRS");
     return c.get<dur_symbols_e_>();
   }
   dur_slots_e_& dur_slots()
   {
-    assert_choice_type(types::dur_slots, type_, "TimeWindowDurationSRS");
+    assert_choice_type(types::dur_slots, c.type, "TimeWindowDurationSRS");
     return c.get<dur_slots_e_>();
   }
   protocol_ie_single_container_s<time_win_dur_srs_ext_ies_o>& choice_ext()
   {
-    assert_choice_type(types::choice_ext, type_, "TimeWindowDurationSRS");
+    assert_choice_type(types::choice_ext, c.type, "TimeWindowDurationSRS");
     return c.get<protocol_ie_single_container_s<time_win_dur_srs_ext_ies_o>>();
   }
   const dur_symbols_e_& dur_symbols() const
   {
-    assert_choice_type(types::dur_symbols, type_, "TimeWindowDurationSRS");
+    assert_choice_type(types::dur_symbols, c.type, "TimeWindowDurationSRS");
     return c.get<dur_symbols_e_>();
   }
   const dur_slots_e_& dur_slots() const
   {
-    assert_choice_type(types::dur_slots, type_, "TimeWindowDurationSRS");
+    assert_choice_type(types::dur_slots, c.type, "TimeWindowDurationSRS");
     return c.get<dur_slots_e_>();
   }
   const protocol_ie_single_container_s<time_win_dur_srs_ext_ies_o>& choice_ext() const
   {
-    assert_choice_type(types::choice_ext, type_, "TimeWindowDurationSRS");
+    assert_choice_type(types::choice_ext, c.type, "TimeWindowDurationSRS");
     return c.get<protocol_ie_single_container_s<time_win_dur_srs_ext_ies_o>>();
   }
   dur_symbols_e_&                                             set_dur_symbols();
@@ -10614,10 +8592,11 @@ struct time_win_dur_srs_c {
   protocol_ie_single_container_s<time_win_dur_srs_ext_ies_o>& set_choice_ext();
 
 private:
-  types                                                                       type_;
-  choice_buffer_t<protocol_ie_single_container_s<time_win_dur_srs_ext_ies_o>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<
+      time_win_dur_srs_c,
+      types,
+      choice_buffer_t<dur_slots_e_, dur_symbols_e_, protocol_ie_single_container_s<time_win_dur_srs_ext_ies_o>>>
+      c;
 };
 
 // TimeWindowPeriodicityMeasurement ::= ENUMERATED
@@ -10640,10 +8619,9 @@ struct time_win_periodicity_meas_opts {
     // ...
     nulltype
   } value;
-  typedef uint32_t number_type;
 
-  const char* to_string() const;
-  uint32_t    to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint32_t                            to_number() const;
 };
 using time_win_periodicity_meas_e = enumerated<time_win_periodicity_meas_opts, true>;
 
@@ -10654,7 +8632,6 @@ using time_win_start_ext_ies_container = protocol_ext_container_empty_l;
 
 // TimeWindowStart ::= SEQUENCE
 struct time_win_start_s {
-  bool                             ext            = false;
   bool                             ie_ext_present = false;
   uint16_t                         sys_frame_num  = 0;
   uint8_t                          slot_num       = 0;
@@ -10662,10 +8639,7 @@ struct time_win_start_s {
   time_win_start_ext_ies_container ie_ext;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TimeWindowInformation-Measurement-Item-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
@@ -10678,12 +8652,11 @@ struct time_win_info_meas_item_s {
   struct time_win_type_opts {
     enum options { single, periodic, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using time_win_type_e_ = enumerated<time_win_type_opts, true>;
 
   // member variables
-  bool                                      ext                               = false;
   bool                                      time_win_periodicity_meas_present = false;
   bool                                      ie_ext_present                    = false;
   time_win_dur_meas_c                       time_win_dur_meas;
@@ -10693,10 +8666,7 @@ struct time_win_info_meas_item_s {
   time_win_info_meas_item_ext_ies_container ie_ext;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TimeWindowInformation-Measurement-List ::= SEQUENCE (SIZE (1..16)) OF TimeWindowInformation-Measurement-Item
@@ -10709,7 +8679,6 @@ using time_win_start_srs_ext_ies_container = protocol_ext_container_empty_l;
 
 // TimeWindowStartSRS ::= SEQUENCE
 struct time_win_start_srs_s {
-  bool                                 ext            = false;
   bool                                 ie_ext_present = false;
   uint16_t                             sys_frame_num  = 0;
   uint8_t                              slot_num       = 0;
@@ -10717,10 +8686,7 @@ struct time_win_start_srs_s {
   time_win_start_srs_ext_ies_container ie_ext;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TimeWindowPeriodicitySRS ::= ENUMERATED
@@ -10754,11 +8720,10 @@ struct time_win_periodicity_srs_opts {
     // ...
     nulltype
   } value;
-  typedef float number_type;
 
-  const char* to_string() const;
-  float       to_number() const;
-  const char* to_number_string() const;
+  static const asn1::table::enum_desc desc;
+  float                               to_number() const;
+  const char*                         to_number_string() const;
 };
 using time_win_periodicity_srs_e = enumerated<time_win_periodicity_srs_opts, true>;
 
@@ -10772,12 +8737,11 @@ struct time_win_info_srs_item_s {
   struct time_win_type_opts {
     enum options { single, periodic, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using time_win_type_e_ = enumerated<time_win_type_opts, true>;
 
   // member variables
-  bool                                     ext                              = false;
   bool                                     time_win_periodicity_srs_present = false;
   bool                                     ie_ext_present                   = false;
   time_win_start_srs_s                     time_win_start_srs;
@@ -10787,10 +8751,7 @@ struct time_win_info_srs_item_s {
   time_win_info_srs_item_ext_ies_container ie_ext;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // TimeWindowInformation-SRS-List ::= SEQUENCE (SIZE (1..16)) OF TimeWindowInformation-SRS-Item
@@ -10800,131 +8761,73 @@ using time_win_info_srs_list_l = dyn_array<time_win_info_srs_item_s>;
 struct ue_teg_info_request_opts {
   enum options { on_demand, periodic, stop, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using ue_teg_info_request_e = enumerated<ue_teg_info_request_opts, true>;
 
 // UE-TEG-ReportingPeriodicity ::= ENUMERATED
 struct ue_teg_report_periodicity_opts {
   enum options { ms160, ms320, ms1280, ms2560, ms61440, ms81920, ms368640, ms737280, /*...*/ nulltype } value;
-  typedef uint32_t number_type;
 
-  const char* to_string() const;
-  uint32_t    to_number() const;
+  static const asn1::table::enum_desc desc;
+  uint32_t                            to_number() const;
 };
 using ue_teg_report_periodicity_e = enumerated<ue_teg_report_periodicity_opts, true>;
 
 // UEReportingInformation-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct ue_report_info_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { ue_report_interv_milliseconds, nulltype } value;
-      typedef uint8_t number_type;
+struct ue_report_info_ext_ies_container {
+  bool     ue_report_interv_milliseconds_present = false;
+  uint16_t ue_report_interv_milliseconds;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::ue_report_interv_milliseconds; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    uint16_t&       ue_report_interv_milliseconds() { return c; }
-    const uint16_t& ue_report_interv_milliseconds() const { return c; }
-
-  private:
-    uint16_t c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // UEReportingInformation ::= SEQUENCE
 struct ue_report_info_s {
   struct report_amount_opts {
     enum options { ma0, ma1, ma2, ma4, ma8, ma16, ma32, ma64, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using report_amount_e_ = enumerated<report_amount_opts>;
   struct report_interv_opts {
     enum options { none, one, two, four, eight, ten, sixteen, twenty, thirty_two, sixty_four, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using report_interv_e_ = enumerated<report_interv_opts, true>;
 
   // member variables
-  bool                                               ext = false;
-  report_amount_e_                                   report_amount;
-  report_interv_e_                                   report_interv;
-  protocol_ext_container_l<ue_report_info_ext_ies_o> ie_exts;
+  bool                             ie_exts_present = false;
+  report_amount_e_                 report_amount;
+  report_interv_e_                 report_interv;
+  ue_report_info_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // UETxTEGAssociationItem-ExtIEs ::= OBJECT SET OF NRPPA-PROTOCOL-EXTENSION
-struct ue_tx_teg_assoc_item_ext_ies_o {
-  // Extension ::= OPEN TYPE
-  struct ext_c {
-    struct types_opts {
-      enum options { ue_tx_timing_error_margin, nulltype } value;
+struct ue_tx_teg_assoc_item_ext_ies_container {
+  bool                  ue_tx_timing_error_margin_present = false;
+  timing_error_margin_e ue_tx_timing_error_margin;
 
-      const char* to_string() const;
-    };
-    using types = enumerated<types_opts>;
-
-    // choice methods
-    types         type() const { return types::ue_tx_timing_error_margin; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    timing_error_margin_e&       ue_tx_timing_error_margin() { return c; }
-    const timing_error_margin_e& ue_tx_timing_error_margin() const { return c; }
-
-  private:
-    timing_error_margin_e c;
-  };
-
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static ext_c      get_ext(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::ie_container_desc desc;
 };
 
 // UETxTEGAssociationItem ::= SEQUENCE
 struct ue_tx_teg_assoc_item_s {
-  bool                                                     ext                  = false;
-  bool                                                     carrier_freq_present = false;
-  uint8_t                                                  ue_tx_teg_id         = 0;
-  pos_srs_res_id_list_l                                    pos_srs_res_id_list;
-  time_stamp_s                                             time_stamp;
-  carrier_freq_s                                           carrier_freq;
-  protocol_ext_container_l<ue_tx_teg_assoc_item_ext_ies_o> ie_exts;
+  bool                                   carrier_freq_present = false;
+  bool                                   ie_exts_present      = false;
+  uint8_t                                ue_tx_teg_id         = 0;
+  pos_srs_res_id_list_l                  pos_srs_res_id_list;
+  time_stamp_s                           time_stamp;
+  carrier_freq_s                         carrier_freq;
+  ue_tx_teg_assoc_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // UETxTEGAssociationList ::= SEQUENCE (SIZE (1..256)) OF UETxTEGAssociationItem
@@ -10933,11 +8836,10 @@ using ue_tx_teg_assoc_list_l = dyn_array<ue_tx_teg_assoc_item_s>;
 // WLANBand ::= ENUMERATED
 struct wlan_band_opts {
   enum options { band2dot4, band5, /*...*/ nulltype } value;
-  typedef float number_type;
 
-  const char* to_string() const;
-  float       to_number() const;
-  const char* to_number_string() const;
+  static const asn1::table::enum_desc desc;
+  float                               to_number() const;
+  const char*                         to_number_string() const;
 };
 using wlan_band_e = enumerated<wlan_band_opts, true>;
 
@@ -10948,7 +8850,7 @@ using wlan_ch_list_l = bounded_array<uint16_t, 16>;
 struct wlan_country_code_opts {
   enum options { united_states, europe, japan, global, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using wlan_country_code_e = enumerated<wlan_country_code_opts, true>;
 
@@ -10956,7 +8858,7 @@ using wlan_country_code_e = enumerated<wlan_country_code_opts, true>;
 struct wlan_meas_quantities_value_opts {
   enum options { wlan, /*...*/ nulltype } value;
 
-  const char* to_string() const;
+  static const asn1::table::enum_desc desc;
 };
 using wlan_meas_quantities_value_e = enumerated<wlan_meas_quantities_value_opts, true>;
 
@@ -10967,16 +8869,12 @@ using wlan_meas_quantities_value_ext_ies_container = protocol_ext_container_empt
 
 // WLANMeasurementQuantities-Item ::= SEQUENCE
 struct wlan_meas_quantities_item_s {
-  bool                                         ext             = false;
   bool                                         ie_exts_present = false;
   wlan_meas_quantities_value_e                 wlan_meas_quantities_value;
   wlan_meas_quantities_value_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // WLANMeasurementQuantities-ItemIEs ::= OBJECT SET OF NRPPA-PROTOCOL-IES
@@ -10986,29 +8884,20 @@ struct wlan_meas_quantities_item_ies_o {
     struct types_opts {
       enum options { wlan_meas_quantities_item, nulltype } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    types         type() const { return types::wlan_meas_quantities_item; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    wlan_meas_quantities_item_s&       wlan_meas_quantities_item() { return c; }
-    const wlan_meas_quantities_item_s& wlan_meas_quantities_item() const { return c; }
+    types                                 type() const { return types::wlan_meas_quantities_item; }
+    static const asn1::table::choice_desc desc;
+    wlan_meas_quantities_item_s&          wlan_meas_quantities_item() { return c; }
+    const wlan_meas_quantities_item_s&    wlan_meas_quantities_item() const { return c; }
 
   private:
     wlan_meas_quantities_item_s c;
   };
 
-  // members lookup methods
-  static uint32_t   idx_to_id(uint32_t idx);
-  static bool       is_id_valid(const uint32_t& id);
-  static crit_e     get_crit(const uint32_t& id);
-  static value_c    get_value(const uint32_t& id);
-  static presence_e get_presence(const uint32_t& id);
+  static const asn1::table::objset_desc desc;
 };
 
 // WLANMeasurementQuantities ::= SEQUENCE (SIZE (0..64)) OF ProtocolIE-Field{NRPPA-PROTOCOL-IES : IEsSetParam}
@@ -11021,14 +8910,13 @@ using wlan_meas_result_item_ext_ies_container = protocol_ext_container_empty_l;
 
 // WLANMeasurementResult-Item ::= SEQUENCE
 struct wlan_meas_result_item_s {
-  bool                                    ext                     = false;
   bool                                    bs_si_d_present         = false;
   bool                                    hes_si_d_present        = false;
   bool                                    operating_class_present = false;
   bool                                    country_code_present    = false;
   bool                                    wlan_band_present       = false;
   bool                                    ie_exts_present         = false;
-  uint8_t                                 wlan_rssi               = 0;
+  uint16_t                                wlan_rssi               = 0;
   bounded_octstring<1, 32, true>          ssi_d;
   fixed_octstring<6, true>                bs_si_d;
   fixed_octstring<6, true>                hes_si_d;
@@ -11039,10 +8927,7 @@ struct wlan_meas_result_item_s {
   wlan_meas_result_item_ext_ies_container ie_exts;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // WLANMeasurementResult ::= SEQUENCE (SIZE (1..64)) OF WLANMeasurementResult-Item
@@ -11051,13 +8936,134 @@ using wlan_meas_result_l = dyn_array<wlan_meas_result_item_s>;
 } // namespace nrppa
 } // namespace asn1
 
-extern template struct asn1::protocol_ext_field_s<asn1::nrppa::srs_res_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::nrppa::add_path_list_item_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::nrppa::aggr_pos_srs_res_id_item_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::nrppa::e_c_id_meas_result_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::nrppa::gnb_rx_tx_time_diff_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::nrppa::requested_srs_tx_characteristics_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::nrppa::trp_meas_request_item_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::nrppa::ul_rtoa_measurement_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::nrppa::trp_meas_result_item_ext_ies_o>;
-extern template struct asn1::protocol_ext_field_s<asn1::nrppa::trp_meas_upd_item_ext_ies_o>;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::arp_location_info_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::combined_pos_srs_res_set_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::pos_srs_res_set_aggregation_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::srs_res_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::slot_offset_for_remaining_hops_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::pos_srs_res_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::srs_res_set_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::pos_srs_res_set_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::multiple_ul_ao_a_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::add_path_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::dl_prs_res_set_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::aggr_prs_res_set_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::aggr_pos_srs_res_id_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::pos_sib_segments_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::pos_sibs_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::sys_info_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::assist_info_fail_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::trp_elevation_angle_list_item_s::trp_beam_pwr_list_l_::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::trp_beam_ant_angles_list_item_s::trp_elevation_angle_list_l_::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::trp_beam_ant_angles_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::crit_diagnostics_ie_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::dl_prsbw_aggregation_request_info_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::dl_prs_res_set_arp_s::listof_dl_prs_res_arp_l_::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::dl_prs_res_coordinates_s::listof_dl_prs_res_set_arp_l_::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::result_rsrp_eutra_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::result_rsrq_eutra_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::result_ss_rsrp_per_ssb_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::result_ss_rsrp_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::result_ss_rsrq_per_ssb_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::result_ss_rsrq_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::result_csi_rsrp_per_csi_rs_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::result_csi_rsrp_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::result_csi_rsrq_per_csi_rs_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::result_csi_rsrq_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::measured_results_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::measured_results_associated_info_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::extended_add_path_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::meas_quantities_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::nr_prs_beam_info_item_s::prs_angle_l_::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::nr_prs_beam_info_s::nr_prs_beam_info_list_l_::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::nr_prs_beam_info_s::lcs_to_gcs_translation_list_l_::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::otdoa_cell_info_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::otdoa_cells_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::result_geran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::result_utran_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::result_nr_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::result_eutra_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::other_rat_meas_quantities_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::other_rat_meas_result_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::prs_meass_info_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::prsbw_aggregation_request_info_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::prs_res_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::prs_res_set_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::requested_dl_prs_res_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::requested_dl_prs_res_set_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::prs_tx_off_per_res_set_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::prs_tx_off_per_res_item_s::prs_tx_off_ind_per_res_list_l_::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::prs_tx_off_per_res_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::prstrp_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::prs_tx_trp_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::pos_validity_area_cell_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::positioning_broadcast_cells_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::spatial_relationfor_res_id_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::spatial_relation_per_srs_res_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::requested_srs_tx_characteristics_s::list_of_srs_res_set_l_::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::ssb_info_s::list_of_ssb_info_l_::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::requested_srs_precfg_characteristics_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::ul_ch_bw_per_scs_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::srs_carrier_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::srs_precfg_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::trp_meas_request_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::trp_meas_result_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::trp_meas_resp_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::trp_meas_upd_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::trp_prs_info_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::trpteg_item_s::dl_prs_res_id_list_l_::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::trp_tx_teg_assoc_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::trp_info_type_resp_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::trp_info_list_trp_resp_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::trp_info_type_list_trp_req_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::trp_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::trp_meas_quantities_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::time_win_info_meas_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::nrppa::time_win_info_srs_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::ue_tx_teg_assoc_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::wlan_meas_quantities_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::nrppa::wlan_meas_result_l::value_type>::ops;

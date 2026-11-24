@@ -5,6 +5,7 @@
 
 #include "ntn_sib19_helpers.h"
 #include "ocudu/adt/static_vector.h"
+#include "ocudu/ocudulog/ocudulog.h"
 #include <algorithm>
 #include <chrono>
 
@@ -26,7 +27,16 @@ static void subtract_k_mac_from_ta_common(std::optional<ta_info_t>&             
     return;
   }
   const auto k_mac_us = std::chrono::duration_cast<std::chrono::microseconds>(*k_mac);
-  ta_info->ta_common  = std::max(0.0, ta_info->ta_common - static_cast<double>(k_mac_us.count()));
+  // k_mac is configured while the feeder link round trip comes from the ephemeris, so the two can disagree. Clamping
+  // keeps SIB19 encodable, but the UE then under-compensates the service link.
+  if (static_cast<double>(k_mac_us.count()) > ta_info->ta_common) {
+    ocudulog::fetch_basic_logger("NTN").debug(
+        "ntn.k_mac of {}ms exceeds the computed feeder link round trip of {:.3f}ms, so the signalled Common TA is "
+        "clamped to zero. Check that k_mac matches the reference point placement for this satellite.",
+        k_mac->count(),
+        ta_info->ta_common / 1000.0);
+  }
+  ta_info->ta_common = std::max(0.0, ta_info->ta_common - static_cast<double>(k_mac_us.count()));
 }
 
 /// Two neighbor cell configs yield an identical ntn-Config: same satellite (same ephemeris_info) and same

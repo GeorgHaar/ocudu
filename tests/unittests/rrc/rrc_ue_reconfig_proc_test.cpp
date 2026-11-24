@@ -7,6 +7,7 @@
 #include "rrc_ue_test_messages.h"
 #include "tests/ocudu_test_requirements.h"
 #include "tests/test_doubles/f1ap/f1ap_test_messages.h"
+#include "tests/test_doubles/rrc/rrc_test_messages.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/asn1/rrc_nr/dl_dcch_msg.h"
 #include "ocudu/support/async/async_test_utils.h"
@@ -65,6 +66,70 @@ TEST_F(rrc_ue_reconfig, when_reconfig_complete_received_proc_successful)
   receive_reconfig_complete();
 
   ASSERT_TRUE(t.ready());
+  ASSERT_TRUE(t.get());
+}
+
+TEST_F(rrc_ue_reconfig, when_ue_answers_reconfig_with_another_message_then_proc_fails)
+{
+  static constexpr uint8_t reconfig_transaction_id = 1;
+
+  // Trigger Reconfig
+  rrc_reconfiguration_procedure_request args = generate_rrc_reconfiguration_procedure_request();
+  async_task<bool>         t = get_rrc_ue_control_message_handler()->handle_rrc_reconfiguration_request(args);
+  lazy_task_launcher<bool> t_launcher(t);
+
+  ASSERT_FALSE(t.ready());
+  check_rrc_reconfig_pdu();
+
+  // Receive UE Capability Information with the transaction ID of the RRC Reconfiguration
+  receive_ul_dcch_msg(test_helpers::create_ue_capability_info(reconfig_transaction_id));
+
+  ASSERT_TRUE(t.ready());
+  ASSERT_FALSE(t.get());
+}
+
+/// Test that a connected UE that acknowledges a CHO configuration does not count as a new RRC connection.
+TEST_F(rrc_ue_reconfig, when_connected_ue_sends_handover_reconfig_complete_then_no_new_rrc_connection_is_counted)
+{
+  // The RRC Setup counts the UE as a new RRC connection.
+  ASSERT_EQ(rrc_ue_rrc_du_notifier.nof_new_rrc_connections, 1U);
+
+  // The CHO source UE awaits the RRC Reconfiguration Complete for its conditional reconfiguration.
+  async_task<error_type<protocol_transaction_failure>> t =
+      get_rrc_ue_control_message_handler()->handle_handover_reconfiguration_complete_expected(
+          1, std::chrono::milliseconds{1000});
+  lazy_task_launcher<error_type<protocol_transaction_failure>> t_launcher(t);
+
+  ASSERT_FALSE(t.ready());
+
+  // Receive Reconfig complete with transaction ID 1.
+  receive_reconfig_complete();
+
+  ASSERT_TRUE(t.ready());
+  ASSERT_TRUE(t.get().has_value());
+  ASSERT_EQ(rrc_ue->get_rrc_state(), rrc_state::connected);
+  ASSERT_EQ(rrc_ue_rrc_du_notifier.nof_new_rrc_connections, 1U);
+}
+
+TEST_F(rrc_ue_reconfig, when_ue_answers_handover_reconfig_with_another_message_then_ue_is_released)
+{
+  static constexpr uint8_t ho_transaction_id = 1;
+
+  // The UE awaits the RRC Reconfiguration Complete of the handover.
+  async_task<error_type<protocol_transaction_failure>> t =
+      get_rrc_ue_control_message_handler()->handle_handover_reconfiguration_complete_expected(
+          ho_transaction_id, std::chrono::milliseconds{1000});
+  lazy_task_launcher<error_type<protocol_transaction_failure>> t_launcher(t);
+
+  ASSERT_FALSE(t.ready());
+
+  // Receive UE Capability Information with the transaction ID of the RRC Reconfiguration
+  receive_ul_dcch_msg(test_helpers::create_ue_capability_info(ho_transaction_id));
+
+  ASSERT_TRUE(t.ready());
+  ASSERT_FALSE(t.get().has_value());
+  ASSERT_EQ(t.get().error(), protocol_transaction_failure::abnormal);
+  check_ue_release_requested();
 }
 
 // Test that get_rrc_ue_cond_reconfiguration_context() encodes meas_gap_cfg into the outer CHO
@@ -85,7 +150,7 @@ TEST_F(rrc_ue_reconfig, when_meas_gap_cfg_in_request_then_outer_cho_rrc_message_
   byte_buffer packed_gap;
   {
     asn1::bit_ref bref(packed_gap);
-    ASSERT_EQ(asn1_gap.pack(bref), asn1::OCUDUASN_SUCCESS);
+    ASSERT_EQ(asn1::pack(bref, asn1_gap), asn1::OCUDUASN_SUCCESS);
   }
 
   // Build a CHO RRC Reconfiguration request with the packed gap.
@@ -102,7 +167,7 @@ TEST_F(rrc_ue_reconfig, when_meas_gap_cfg_in_request_then_outer_cho_rrc_message_
   asn1::rrc_nr::dl_dcch_msg_s dl_dcch;
   {
     asn1::cbit_ref bref(raw_pdu);
-    ASSERT_EQ(dl_dcch.unpack(bref), asn1::OCUDUASN_SUCCESS);
+    ASSERT_EQ(asn1::unpack(dl_dcch, bref), asn1::OCUDUASN_SUCCESS);
   }
   const auto& recfg = dl_dcch.msg.c1().rrc_recfg().crit_exts.rrc_recfg();
 
@@ -129,7 +194,7 @@ TEST_F(rrc_ue_reconfig, when_no_meas_gap_cfg_in_request_then_outer_cho_rrc_messa
   asn1::rrc_nr::dl_dcch_msg_s dl_dcch;
   {
     asn1::cbit_ref bref(raw_pdu);
-    ASSERT_EQ(dl_dcch.unpack(bref), asn1::OCUDUASN_SUCCESS);
+    ASSERT_EQ(asn1::unpack(dl_dcch, bref), asn1::OCUDUASN_SUCCESS);
   }
   const auto& recfg = dl_dcch.msg.c1().rrc_recfg().crit_exts.rrc_recfg();
 
@@ -152,7 +217,7 @@ TEST_F(rrc_ue_reconfig, when_meas_gap_cfg_in_request_without_meas_cfg_then_rrc_m
   byte_buffer packed_gap;
   {
     asn1::bit_ref bref(packed_gap);
-    ASSERT_EQ(asn1_gap.pack(bref), asn1::OCUDUASN_SUCCESS);
+    ASSERT_EQ(asn1::pack(bref, asn1_gap), asn1::OCUDUASN_SUCCESS);
   }
 
   // Trigger an RRC Reconfiguration with only the packed gap.
@@ -167,7 +232,7 @@ TEST_F(rrc_ue_reconfig, when_meas_gap_cfg_in_request_without_meas_cfg_then_rrc_m
   asn1::rrc_nr::dl_dcch_msg_s dl_dcch;
   {
     asn1::cbit_ref bref(raw_pdu);
-    ASSERT_EQ(dl_dcch.unpack(bref), asn1::OCUDUASN_SUCCESS);
+    ASSERT_EQ(asn1::unpack(dl_dcch, bref), asn1::OCUDUASN_SUCCESS);
   }
   const auto& recfg = dl_dcch.msg.c1().rrc_recfg().crit_exts.rrc_recfg();
 

@@ -12,22 +12,22 @@ using namespace ocudu;
 namespace fmt {
 
 template <>
-struct formatter<asn1::xnap::xn_ap_pdu_c> : public basic_parser {
+struct formatter<asn1::xnap::xnap_pdu_c> : public basic_parser {
   template <typename FormatContext>
-  auto format(const asn1::xnap::xn_ap_pdu_c& p, FormatContext& ctx) const
+  auto format(const asn1::xnap::xnap_pdu_c& p, FormatContext& ctx) const
   {
     asn1::json_writer js;
-    p.to_json(js);
+    asn1::to_json(js, p);
     return fmt::format_to(ctx.out(), "{}", js.to_string());
   }
 };
 
 } // namespace fmt
 
-void ocudu::ocucp::log_xnap_pdu(ocudulog::basic_logger&        logger,
-                                bool                           json_log,
-                                bool                           is_rx,
-                                const asn1::xnap::xn_ap_pdu_c& pdu)
+void ocudu::ocucp::log_xnap_pdu(ocudulog::basic_logger&       logger,
+                                bool                          json_log,
+                                bool                          is_rx,
+                                const asn1::xnap::xnap_pdu_c& pdu)
 {
   if (not logger.info.enabled()) {
     return;

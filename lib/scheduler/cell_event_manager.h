@@ -119,6 +119,7 @@ public:
   void handle_ul_ta_report_indication(const ul_ta_report_indication_message& ta_report) override;
   void handle_dl_mac_ce_indication(const dl_mac_ce_indication& ce) override;
   void handle_crnti_ce_received(du_ue_index_t ue_index) override;
+  void handle_cg_confirmation_message(const cg_confirmation_indication_message& cg_conf_ind) override;
 
   /// Enqueue a request to reconfigure the slices of the cell.
   void handle_slice_reconfiguration_request(const du_cell_slice_reconfig_request& req);

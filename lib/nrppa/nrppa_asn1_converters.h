@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "ocudu/asn1/asn1_utils.h"
+#include "ocudu/asn1/asn1_dispatch.h"
 #include "ocudu/asn1/nrppa/nrppa_ies.h"
 #include "ocudu/nrppa/nrppa_e_cid.h"
 #include "ocudu/ocudulog/ocudulog.h"
@@ -29,7 +29,7 @@ byte_buffer pack_into_pdu(const T& msg, const char* context_name = nullptr)
   context_name = context_name == nullptr ? __FUNCTION__ : context_name;
   byte_buffer   pdu{};
   asn1::bit_ref bref{pdu};
-  if (msg.pack(bref) == asn1::OCUDUASN_ERROR_ENCODE_FAIL) {
+  if (asn1::pack(bref, msg) == asn1::OCUDUASN_ERROR_ENCODE_FAIL) {
     ocudulog::fetch_basic_logger("NRPPA").error("Failed to pack message in {} - discarding it", context_name);
     pdu.clear();
   }
@@ -198,7 +198,7 @@ inline asn1::nrppa::e_c_id_meas_result_s e_cid_meas_result_to_asn1(const nrppa_e
   asn1::nrppa::e_c_id_meas_result_s asn1_meas_result;
 
   // Serving cell id.
-  asn1_meas_result.serving_cell_id.ng_ra_ncell.set_nr_cell_id().from_number(meas_result.serving_cell_id.nci.value());
+  asn1_meas_result.serving_cell_id.ng_ran_cell.set_nr_cell_id().from_number(meas_result.serving_cell_id.nci.value());
   asn1_meas_result.serving_cell_id.plmn_id = meas_result.serving_cell_id.plmn_id.to_bytes();
 
   // Serving cell tac.
@@ -657,9 +657,9 @@ spatial_direction_info_to_asn1(const spatial_direction_info_t& spatial_direction
         asn1_prs_angle_item.nr_prs_elevation_fine         = prs_angle.nr_prs_elevation_fine.value();
       }
 
-      asn1::protocol_ext_field_s<asn1::nrppa::prs_angle_item_ext_ies_o> asn1_ie_exts_item;
-      asn1_ie_exts_item.value().prs_res_id() = prs_angle.prs_res_id;
-      asn1_prs_angle_item.ie_exts.push_back(asn1_ie_exts_item);
+      asn1_prs_angle_item.ie_exts_present            = true;
+      asn1_prs_angle_item.ie_exts.prs_res_id_present = true;
+      asn1_prs_angle_item.ie_exts.prs_res_id         = prs_angle.prs_res_id;
 
       asn1_nr_prs_beam_info_item.prs_angle.push_back(asn1_prs_angle_item);
     }
@@ -912,7 +912,7 @@ inline asn1::nrppa::trp_beam_ant_info_s trp_beam_ant_info_to_asn1(const trp_beam
         std::get<uint32_t>(trp_beam_ant_info.choice_trp_beam_ant_info_item);
   } else {
     asn1::nrppa::trp_beam_ant_explicit_info_s& asn1_trp_beam_ant_explicit_info =
-        asn1_trp_beam_ant_info.choice_trp_beam_ant_info_item.set_explicit_type();
+        asn1_trp_beam_ant_info.choice_trp_beam_ant_info_item.set_explicit_value();
     const trp_beam_ant_explicit_info_t& trp_beam_ant_explicit_info =
         std::get<trp_beam_ant_explicit_info_t>(trp_beam_ant_info.choice_trp_beam_ant_info_item);
 
@@ -1482,8 +1482,9 @@ asn1_to_trp_meas_request_item(const asn1::nrppa::trp_meas_request_item_s& asn1_t
 
   // Fill search window info.
   if (asn1_trp_meas_request_item.search_win_info_present) {
-    trp_meas_request_item.search_win_info = {asn1_trp_meas_request_item.search_win_info.expected_propagation_delay,
-                                             asn1_trp_meas_request_item.search_win_info.delay_uncertainty};
+    trp_meas_request_item.search_win_info = {
+        asn1_trp_meas_request_item.search_win_info.expected_propagation_delay,
+        static_cast<uint8_t>(asn1_trp_meas_request_item.search_win_info.delay_uncertainty)};
   }
 
   // Fill IE exts.

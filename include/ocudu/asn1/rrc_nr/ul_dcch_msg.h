@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "ocudu/asn1/asn1_utils.h"
+#include "ocudu/asn1/asn1_rrc_utils.h"
 
 namespace asn1 {
 namespace rrc_nr {
@@ -41,7 +41,7 @@ struct ul_info_transfer_irat_r16_s;
 struct iab_other_info_r16_s;
 struct mb_si_nterest_ind_r17_s;
 struct ue_positioning_assist_info_r17_s;
-struct meas_report_app_layer_r17_s;
+struct measurement_report_app_layer_r17_s;
 struct indirect_path_fail_info_r18_s;
 
 /*******************************************************************************
@@ -72,19 +72,14 @@ struct ul_dcch_msg_type_c {
         nulltype
       } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    c1_c_() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    meas_report_s& meas_report()
+    void                                  set(types::options e = types::nulltype);
+    types                                 type() const { return type_; }
+    static const asn1::table::choice_desc desc;
+    meas_report_s&                        meas_report()
     {
       assert_choice_type(types::meas_report, type_, "c1");
       return c.get<meas_report_s>();
@@ -288,19 +283,14 @@ struct ul_dcch_msg_type_c {
           nulltype
         } value;
 
-        const char* to_string() const;
+        static const asn1::table::enum_desc desc;
       };
       using types = enumerated<types_opts>;
 
-      // choice methods
-      c2_c_() = default;
-      void          set(types::options e = types::nulltype);
-      types         type() const { return type_; }
-      OCUDUASN_CODE pack(bit_ref& bref) const;
-      OCUDUASN_CODE unpack(cbit_ref& bref);
-      void          to_json(json_writer& j) const;
-      // getters
-      ul_ded_msg_segment_r16_s& ul_ded_msg_segment_r16()
+      void                                  set(types::options e = types::nulltype);
+      types                                 type() const { return type_; }
+      static const asn1::table::choice_desc desc;
+      ul_ded_msg_segment_r16_s&             ul_ded_msg_segment_r16()
       {
         assert_choice_type(types::ul_ded_msg_segment_r16, type_, "c2");
         return c.get<ul_ded_msg_segment_r16_s>();
@@ -345,10 +335,10 @@ struct ul_dcch_msg_type_c {
         assert_choice_type(types::ue_positioning_assist_info_r17, type_, "c2");
         return c.get<ue_positioning_assist_info_r17_s>();
       }
-      meas_report_app_layer_r17_s& meas_report_app_layer_r17()
+      measurement_report_app_layer_r17_s& meas_report_app_layer_r17()
       {
         assert_choice_type(types::meas_report_app_layer_r17, type_, "c2");
-        return c.get<meas_report_app_layer_r17_s>();
+        return c.get<measurement_report_app_layer_r17_s>();
       }
       indirect_path_fail_info_r18_s& indirect_path_fail_info_r18()
       {
@@ -400,32 +390,32 @@ struct ul_dcch_msg_type_c {
         assert_choice_type(types::ue_positioning_assist_info_r17, type_, "c2");
         return c.get<ue_positioning_assist_info_r17_s>();
       }
-      const meas_report_app_layer_r17_s& meas_report_app_layer_r17() const
+      const measurement_report_app_layer_r17_s& meas_report_app_layer_r17() const
       {
         assert_choice_type(types::meas_report_app_layer_r17, type_, "c2");
-        return c.get<meas_report_app_layer_r17_s>();
+        return c.get<measurement_report_app_layer_r17_s>();
       }
       const indirect_path_fail_info_r18_s& indirect_path_fail_info_r18() const
       {
         assert_choice_type(types::indirect_path_fail_info_r18, type_, "c2");
         return c.get<indirect_path_fail_info_r18_s>();
       }
-      ul_ded_msg_segment_r16_s&         set_ul_ded_msg_segment_r16();
-      ded_sib_request_r16_s&            set_ded_sib_request_r16();
-      mcg_fail_info_r16_s&              set_mcg_fail_info_r16();
-      ue_info_resp_r16_s&               set_ue_info_resp_r16();
-      sidelink_ue_info_nr_r16_s&        set_sidelink_ue_info_nr_r16();
-      ul_info_transfer_irat_r16_s&      set_ul_info_transfer_irat_r16();
-      iab_other_info_r16_s&             set_iab_other_info_r16();
-      mb_si_nterest_ind_r17_s&          set_mbs_interest_ind_r17();
-      ue_positioning_assist_info_r17_s& set_ue_positioning_assist_info_r17();
-      meas_report_app_layer_r17_s&      set_meas_report_app_layer_r17();
-      indirect_path_fail_info_r18_s&    set_indirect_path_fail_info_r18();
-      void                              set_spare5();
-      void                              set_spare4();
-      void                              set_spare3();
-      void                              set_spare2();
-      void                              set_spare1();
+      ul_ded_msg_segment_r16_s&           set_ul_ded_msg_segment_r16();
+      ded_sib_request_r16_s&              set_ded_sib_request_r16();
+      mcg_fail_info_r16_s&                set_mcg_fail_info_r16();
+      ue_info_resp_r16_s&                 set_ue_info_resp_r16();
+      sidelink_ue_info_nr_r16_s&          set_sidelink_ue_info_nr_r16();
+      ul_info_transfer_irat_r16_s&        set_ul_info_transfer_irat_r16();
+      iab_other_info_r16_s&               set_iab_other_info_r16();
+      mb_si_nterest_ind_r17_s&            set_mbs_interest_ind_r17();
+      ue_positioning_assist_info_r17_s&   set_ue_positioning_assist_info_r17();
+      measurement_report_app_layer_r17_s& set_meas_report_app_layer_r17();
+      indirect_path_fail_info_r18_s&      set_indirect_path_fail_info_r18();
+      void                                set_spare5();
+      void                                set_spare4();
+      void                                set_spare3();
+      void                                set_spare2();
+      void                                set_spare1();
 
     private:
       types             type_;
@@ -433,22 +423,16 @@ struct ul_dcch_msg_type_c {
     };
     struct types_opts {
       enum options { c2, msg_class_ext_future_r16, nulltype } value;
-      typedef uint8_t number_type;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
+      static const asn1::table::enum_desc desc;
+      uint8_t                             to_number() const;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    msg_class_ext_c_() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
-    c2_c_& c2()
+    void                                  set(types::options e = types::nulltype);
+    types                                 type() const { return type_; }
+    static const asn1::table::choice_desc desc;
+    c2_c_&                                c2()
     {
       assert_choice_type(types::c2, type_, "messageClassExtension");
       return c;
@@ -467,62 +451,48 @@ struct ul_dcch_msg_type_c {
   };
   struct types_opts {
     enum options { c1, msg_class_ext, nulltype } value;
-    typedef uint8_t number_type;
 
-    const char* to_string() const;
-    uint8_t     to_number() const;
+    static const asn1::table::enum_desc desc;
+    uint8_t                             to_number() const;
   };
   using types = enumerated<types_opts>;
 
-  // choice methods
-  ul_dcch_msg_type_c() = default;
-  ul_dcch_msg_type_c(const ul_dcch_msg_type_c& other);
-  ul_dcch_msg_type_c& operator=(const ul_dcch_msg_type_c& other);
-  ~ul_dcch_msg_type_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  c1_c_& c1()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  c1_c_&                                        c1()
   {
-    assert_choice_type(types::c1, type_, "UL-DCCH-MessageType");
+    assert_choice_type(types::c1, c.type, "UL-DCCH-MessageType");
     return c.get<c1_c_>();
   }
   msg_class_ext_c_& msg_class_ext()
   {
-    assert_choice_type(types::msg_class_ext, type_, "UL-DCCH-MessageType");
+    assert_choice_type(types::msg_class_ext, c.type, "UL-DCCH-MessageType");
     return c.get<msg_class_ext_c_>();
   }
   const c1_c_& c1() const
   {
-    assert_choice_type(types::c1, type_, "UL-DCCH-MessageType");
+    assert_choice_type(types::c1, c.type, "UL-DCCH-MessageType");
     return c.get<c1_c_>();
   }
   const msg_class_ext_c_& msg_class_ext() const
   {
-    assert_choice_type(types::msg_class_ext, type_, "UL-DCCH-MessageType");
+    assert_choice_type(types::msg_class_ext, c.type, "UL-DCCH-MessageType");
     return c.get<msg_class_ext_c_>();
   }
   c1_c_&            set_c1();
   msg_class_ext_c_& set_msg_class_ext();
 
 private:
-  types                                    type_;
-  choice_buffer_t<c1_c_, msg_class_ext_c_> c;
-
-  void destroy_();
+  asn1::table::choice_storage<ul_dcch_msg_type_c, types, choice_buffer_t<c1_c_, msg_class_ext_c_>> c;
 };
 
 // UL-DCCH-Message ::= SEQUENCE
 struct ul_dcch_msg_s {
   ul_dcch_msg_type_c msg;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 } // namespace rrc_nr

@@ -15,7 +15,7 @@
 #include "ue/rrc_asn1_converters.h"
 #include "ue/rrc_measurement_types_asn1_converters.h"
 #include "ocudu/adt/format.h"
-#include "ocudu/asn1/asn1_utils.h"
+#include "ocudu/asn1/asn1_dispatch.h"
 #include "ocudu/asn1/rrc_nr/dl_ccch_msg.h"
 #include "ocudu/asn1/rrc_nr/dl_dcch_msg_ies.h"
 #include "ocudu/asn1/rrc_nr/ul_ccch_msg.h"
@@ -34,7 +34,7 @@ void rrc_ue_impl::handle_ul_ccch_pdu(byte_buffer pdu, rnti_t c_rnti)
   ul_ccch_msg_s ul_ccch_msg;
   {
     asn1::cbit_ref bref(pdu);
-    if (ul_ccch_msg.unpack(bref) != asn1::OCUDUASN_SUCCESS or
+    if (asn1::unpack(ul_ccch_msg, bref) != asn1::OCUDUASN_SUCCESS or
         ul_ccch_msg.msg.type().value != ul_ccch_msg_type_c::types_opts::c1) {
       logger.log_error(pdu.begin(), pdu.end(), "Failed to unpack CCCH UL PDU");
       on_ue_release_required(ngap_cause_radio_network_t::unspecified);
@@ -64,12 +64,11 @@ void rrc_ue_impl::handle_ul_ccch_pdu(byte_buffer pdu, rnti_t c_rnti)
 
 void rrc_ue_impl::handle_rrc_setup_request(const asn1::rrc_nr::rrc_setup_request_s& request_msg)
 {
-  // Notify metrics about attempted RRC connection establishment.
-  metrics_notifier.on_attempted_rrc_connection_establishment(
-      asn1_to_establishment_cause(request_msg.rrc_setup_request.establishment_cause.value));
+  const establishment_cause_t establishment_cause =
+      asn1_to_establishment_cause(request_msg.rrc_setup_request.establishment_cause.value);
 
   // Perform various checks to make sure we can serve the RRC Setup Request.
-  if (not cu_cp_notifier.on_ue_setup_request()) {
+  if (not cu_cp_notifier.on_ue_setup_request(establishment_cause)) {
     logger.log_warning("Sending Connection Reject. Cause: RRC connections not allowed");
     metrics_notifier.on_failed_rrc_connection_establishment(establishment_fail_cause_t::network_reject);
     on_ue_release_required(ngap_cause_radio_network_t::unspecified);
@@ -118,16 +117,15 @@ void rrc_ue_impl::handle_rrc_setup_request(const asn1::rrc_nr::rrc_setup_request
 
 void rrc_ue_impl::handle_rrc_reest_request(const asn1::rrc_nr::rrc_reest_request_s& msg)
 {
-  // Notify metrics about attempted RRC connection reestablishment.
-  metrics_notifier.on_attempted_rrc_connection_reestablishment();
-
   // If the DU to CU container is missing, assume the DU can't serve the UE, so the CU-CP should reject the UE, see
   // TS 38.473 section 8.4.1.2.
   if (du_to_cu_container.empty()) {
     // Notify the CU-CP about the reestablishment. This will return the old RRC UE context if it exists and will also
     // cancel an possibly ongoing handover transaction for the old UE.
-    rrc_ue_reestablishment_context_response old_ue_reest_context = cu_cp_notifier.on_rrc_reestablishment_request(
-        msg.rrc_reest_request.ue_id.pci, to_rnti(msg.rrc_reest_request.ue_id.c_rnti));
+    rrc_ue_reestablishment_context_response old_ue_reest_context =
+        cu_cp_notifier.on_rrc_reestablishment_request(msg.rrc_reest_request.ue_id.pci,
+                                                      to_rnti(msg.rrc_reest_request.ue_id.c_rnti),
+                                                      asn1_to_reest_cause(msg.rrc_reest_request.reest_cause.value));
 
     // Release the old UE.
     logger.log_debug("Requesting UE context release for old_ue={}", old_ue_reest_context.ue_index);
@@ -163,9 +161,6 @@ void rrc_ue_impl::handle_rrc_resume_request(const asn1::rrc_nr::rrc_resume_reque
   if (du_to_cu_container.empty()) {
     // Reject and release the UE.
     logger.log_warning("Sending rrcReject. Cause: DU is not able to serve the UE");
-    // Notify metrics about RRC connection resume followed by network release.
-    metrics_notifier.on_rrc_connection_resume_followed_by_network_release(
-        asn1_to_resume_cause(msg.rrc_resume_request.resume_cause));
 
     on_ue_release_required(ngap_cause_radio_network_t::unspecified);
     return;
@@ -240,7 +235,7 @@ void rrc_ue_impl::handle_pdu(const srb_id_t srb_id, byte_buffer rrc_pdu, bool in
   ul_dcch_msg_s ul_dcch_msg;
   {
     asn1::cbit_ref bref(rrc_pdu);
-    if (ul_dcch_msg.unpack(bref) != asn1::OCUDUASN_SUCCESS or
+    if (asn1::unpack(ul_dcch_msg, bref) != asn1::OCUDUASN_SUCCESS or
         (ul_dcch_msg.msg.type().value != ul_dcch_msg_type_c::types_opts::c1 and
          ul_dcch_msg.msg.type().value != ul_dcch_msg_type_c::types_opts::msg_class_ext)) {
       logger.log_error(rrc_pdu.begin(), rrc_pdu.end(), "Failed to unpack DCCH UL PDU");
@@ -394,9 +389,14 @@ void rrc_ue_impl::handle_security_mode_complete(const asn1::rrc_nr::security_mod
 
 void rrc_ue_impl::handle_ul_info_transfer(const ul_info_transfer_ies_s& ul_info_transfer)
 {
+  on_ul_nas_pdu(ul_info_transfer.ded_nas_msg.copy());
+}
+
+void rrc_ue_impl::on_ul_nas_pdu(byte_buffer nas_pdu)
+{
   cu_cp_ul_nas_transport ul_nas_msg      = {};
   ul_nas_msg.ue_index                    = context.ue_index;
-  ul_nas_msg.nas_pdu                     = ul_info_transfer.ded_nas_msg.copy();
+  ul_nas_msg.nas_pdu                     = std::move(nas_pdu);
   ul_nas_msg.user_location_info.nr_cgi   = {context.plmn_id, context.cell.cgi.nci};
   ul_nas_msg.user_location_info.tai      = {context.plmn_id, context.cell.tac};
   ul_nas_msg.user_location_info.tac_list = context.cell.tac_list;
@@ -405,7 +405,7 @@ void rrc_ue_impl::handle_ul_info_transfer(const ul_info_transfer_ies_s& ul_info_
   if (!ngap_notifier.on_ul_nas_transport_message(ul_nas_msg)) {
     logger.log_info(
         "Requesting UE release. Cause: Received unexpected UL NAS Transport message and failed to forward it to NGAP");
-    cancel_all_transactions();
+    cancel_all_transactions(protocol_transaction_failure::abnormal);
     on_ue_release_required(cause_protocol_t::msg_not_compatible_with_receiver_state);
     return;
   }
@@ -564,21 +564,20 @@ async_task<bool> rrc_ue_impl::handle_security_mode_complete_expected(uint8_t tra
       CORO_EARLY_RETURN(false);
     }
 
-    // A UE may answer with any message carrying this transaction id, including one from the message class extension.
-    if (transaction.response().msg.type().value != ul_dcch_msg_type_c::types_opts::c1) {
-      logger.log_warning("Received an unexpected message in place of RRC Security Mode Complete");
-      CORO_EARLY_RETURN(false);
-    }
-
-    if (transaction.response().msg.c1().type() == ul_dcch_msg_type_c::c1_c_::types_opts::security_mode_fail) {
+    if (is_ul_dcch_c1_msg(transaction.response(), ul_dcch_msg_type_c::c1_c_::types_opts::security_mode_fail)) {
       logger.log_warning("Received RRC Security Mode Failure");
       CORO_EARLY_RETURN(false);
     }
 
-    if (transaction.response().msg.c1().type() == ul_dcch_msg_type_c::c1_c_::types_opts::security_mode_complete) {
-      logger.log_debug("Received RRC Security Mode Complete");
-      handle_security_mode_complete(transaction.response().msg.c1().security_mode_complete());
+    // A UE may answer with any message carrying this transaction id.
+    if (not is_ul_dcch_c1_msg(transaction.response(), ul_dcch_msg_type_c::c1_c_::types_opts::security_mode_complete)) {
+      logger.log_warning("Received an unexpected {} in place of RRC Security Mode Complete",
+                         get_rrc_message_name(transaction.response()));
+      CORO_EARLY_RETURN(false);
     }
+
+    logger.log_debug("Received RRC Security Mode Complete");
+    handle_security_mode_complete(transaction.response().msg.c1().security_mode_complete());
 
     CORO_RETURN(true);
   });
@@ -633,7 +632,9 @@ bool rrc_ue_impl::handle_rrc_handover_preparation_info(byte_buffer pdu)
   asn1::rrc_nr::ho_prep_info_s ho_prep_info;
   asn1::cbit_ref               bref({pdu.begin(), pdu.end()});
 
-  if (ho_prep_info.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(ho_prep_info, bref) != asn1::OCUDUASN_SUCCESS or
+      ho_prep_info.crit_exts.type() != asn1::rrc_nr::ho_prep_info_s::crit_exts_c_::types::c1 or
+      ho_prep_info.crit_exts.c1().type() != asn1::rrc_nr::ho_prep_info_s::crit_exts_c_::c1_c_::types::ho_prep_info) {
     logger.log_error("Couldn't unpack HandoverPreparationInfo RRC container");
     return false;
   }
@@ -641,18 +642,18 @@ bool rrc_ue_impl::handle_rrc_handover_preparation_info(byte_buffer pdu)
   // Store UE capabilities.
   auto& ue_capabilities_list = ho_prep_info.crit_exts.c1().ho_prep_info().ue_cap_rat_list;
 
-  context.capabilities_list.emplace(ue_capabilities_list);
-
-  // Parse UE capabilities, so capability checks work on the target.
-  if (std::optional<rrc_ue_capabilities_t> caps = get_capabilities(ue_capabilities_list, logger); caps.has_value()) {
-    context.capabilities = caps.value();
+  auto capabilities = ocucp::get_capabilities(ue_capabilities_list, logger);
+  if (not capabilities.has_value()) {
+    return false;
   }
+  context.capabilities = *capabilities;
+  context.capabilities_list.emplace(ue_capabilities_list);
 
   if (logger.get_basic_logger().debug.enabled()) {
     logger.log_debug("UE Capabilities:");
     asn1::json_writer json_writer;
     for (const auto& rat_container : ue_capabilities_list) {
-      rat_container.to_json(json_writer);
+      asn1::to_json(json_writer, rat_container);
       logger.log_debug("{}", json_writer.to_string().c_str());
     }
   }
@@ -688,7 +689,7 @@ rrc_ue_impl::get_rrc_ue_handover_reconfiguration_context(const rrc_reconfigurati
     if (request.non_crit_ext.has_value() && !request.non_crit_ext->master_cell_group.empty()) {
       asn1::rrc_nr::cell_group_cfg_s cell_group_cfg;
       asn1::cbit_ref                 bref(request.non_crit_ext->master_cell_group);
-      if (cell_group_cfg.unpack(bref) == asn1::OCUDUASN_SUCCESS && cell_group_cfg.sp_cell_cfg_present &&
+      if (asn1::unpack(cell_group_cfg, bref) == asn1::OCUDUASN_SUCCESS && cell_group_cfg.sp_cell_cfg_present &&
           cell_group_cfg.sp_cell_cfg.recfg_with_sync_present) {
         context.cell.timers.t304 =
             std::chrono::milliseconds{cell_group_cfg.sp_cell_cfg.recfg_with_sync.t304.to_number()};
@@ -756,7 +757,7 @@ rrc_ue_impl::get_rrc_ue_cond_reconfiguration_context(const rrc_reconfiguration_p
     if (!request.meas_gap_cfg.empty()) {
       recfg_ies.meas_cfg.meas_gap_cfg_present = true;
       asn1::cbit_ref bref(request.meas_gap_cfg);
-      if (recfg_ies.meas_cfg.meas_gap_cfg.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+      if (asn1::unpack(recfg_ies.meas_cfg.meas_gap_cfg, bref) != asn1::OCUDUASN_SUCCESS) {
         logger.log_warning("ue={}: Failed to decode measGapConfig for outer CHO RRCReconfiguration", context.ue_index);
         recfg_ies.meas_cfg.meas_gap_cfg_present = false;
       }
@@ -870,12 +871,13 @@ rrc_ue_impl::get_rrc_ue_cond_reconfiguration_context(const rrc_reconfiguration_p
   return cond_reconf_ctxt;
 }
 
-async_task<bool> rrc_ue_impl::handle_handover_reconfiguration_complete_expected(uint8_t transaction_id,
-                                                                                std::chrono::milliseconds timeout_ms,
-                                                                                bool release_on_failure)
+async_task<error_type<protocol_transaction_failure>>
+rrc_ue_impl::handle_handover_reconfiguration_complete_expected(uint8_t                   transaction_id,
+                                                               std::chrono::milliseconds timeout_ms,
+                                                               bool                      release_on_failure)
 {
   return launch_async([this, timeout_ms, transaction_id, release_on_failure, transaction = rrc_transaction{}](
-                          coro_context<async_task<bool>>& ctx) mutable {
+                          coro_context<async_task<error_type<protocol_transaction_failure>>>& ctx) mutable {
     CORO_BEGIN(ctx);
 
     logger.log_debug("Awaiting RRC Reconfiguration Complete (timeout={}ms)", timeout_ms.count());
@@ -884,27 +886,41 @@ async_task<bool> rrc_ue_impl::handle_handover_reconfiguration_complete_expected(
 
     CORO_AWAIT(transaction);
 
-    bool procedure_result = false;
-    if (transaction.has_response()) {
+    if (transaction.has_response() and
+        is_ul_dcch_c1_msg(transaction.response(), ul_dcch_msg_type_c::c1_c_::types_opts::rrc_recfg_complete)) {
       logger.log_debug("Received RRC Reconfiguration Complete after HO");
-      procedure_result = true;
 
-      // The UE in the target cell is in connected state on RRCReconfigurationComplete reception.
-      context.state = rrc_state::connected;
+      // Only a handover target UE enters connected state here. A CHO source UE that acknowledges its conditional
+      // reconfiguration is already in connected state.
+      if (context.state != rrc_state::connected) {
+        // The UE in the target cell is in connected state on RRCReconfigurationComplete reception.
+        context.state = rrc_state::connected;
 
-      // A handover target serves the UE from a new RRC UE, with no coarse location and no Security Mode Command to
-      // ask for one. Security is already active, which TS 38.300 sec. 16.14.8 gates the request on.
-      request_coarse_ue_location();
+        // A handover target serves the UE from a new RRC UE, with no coarse location and no Security Mode Command to
+        // ask for one. Security is already active, which TS 38.300 sec. 16.14.8 gates the request on.
+        request_coarse_ue_location();
 
-      // Notify metrics.
-      metrics_notifier.on_new_rrc_connection();
+        // Notify metrics.
+        metrics_notifier.on_new_rrc_connection();
+      }
 
     } else {
+      // An unexpected message from the UE is an abnormal failure.
+      const protocol_transaction_failure failure =
+          transaction.has_response() ? protocol_transaction_failure::abnormal : transaction.failure_cause();
+
       // A cancellation is an expected outcome of a higher layer aborting the procedure, so it is not logged as a
       // warning.
-      const bool        timed_out = transaction.failure_cause() == protocol_transaction_failure::timeout;
-      const auto        level     = timed_out ? ocudulog::basic_levels::warning : ocudulog::basic_levels::info;
-      const std::string cause_str = timed_out ? fmt::format("timeout ({}ms)", timeout_ms.count()) : "canceled";
+      auto        level = ocudulog::basic_levels::info;
+      std::string cause_str{"canceled"};
+      if (transaction.has_response()) {
+        level     = ocudulog::basic_levels::warning;
+        cause_str = fmt::format("unexpected {}", get_rrc_message_name(transaction.response()));
+      } else if (failure == protocol_transaction_failure::timeout) {
+        level     = ocudulog::basic_levels::warning;
+        cause_str = fmt::format("timeout ({}ms)", timeout_ms.count());
+      }
+
       if (release_on_failure) {
         logger.log(level,
                    "Did not receive RRC Reconfiguration Complete after HO. Cause: {}. Requesting target UE release",
@@ -915,9 +931,10 @@ async_task<bool> rrc_ue_impl::handle_handover_reconfiguration_complete_expected(
                    "Did not receive RRC Reconfiguration Complete after HO. Cause: {}. UE release handled externally",
                    cause_str);
       }
+      CORO_EARLY_RETURN(make_unexpected(failure));
     }
 
-    CORO_RETURN(procedure_result);
+    CORO_RETURN(default_success_t{});
   });
 }
 
@@ -927,7 +944,10 @@ bool rrc_ue_impl::store_ue_capabilities(byte_buffer ue_capabilities)
   asn1::rrc_nr::ue_radio_access_cap_info_s ue_radio_access_cap_info;
   asn1::cbit_ref                           bref({ue_capabilities.begin(), ue_capabilities.end()});
 
-  if (ue_radio_access_cap_info.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(ue_radio_access_cap_info, bref) != asn1::OCUDUASN_SUCCESS or
+      ue_radio_access_cap_info.crit_exts.type() != asn1::rrc_nr::ue_radio_access_cap_info_s::crit_exts_c_::types::c1 or
+      ue_radio_access_cap_info.crit_exts.c1().type() !=
+          asn1::rrc_nr::ue_radio_access_cap_info_s::crit_exts_c_::c1_c_::types::ue_radio_access_cap_info) {
     logger.log_error("Couldn't unpack UERadioAccessCapabilityInfo RRC container");
     return false;
   }
@@ -942,13 +962,18 @@ bool rrc_ue_impl::store_ue_capabilities(byte_buffer ue_capabilities)
     return false;
   }
 
+  auto capabilities = ocucp::get_capabilities(ue_cap_rat_container_list, logger);
+  if (not capabilities.has_value()) {
+    return false;
+  }
+  context.capabilities = capabilities.value();
   context.capabilities_list.emplace(ue_cap_rat_container_list);
 
   if (logger.get_basic_logger().debug.enabled()) {
     logger.log_debug("UE Capabilities:\n");
     asn1::json_writer json_writer;
     for (const auto& rat_container : ue_cap_rat_container_list) {
-      rat_container.to_json(json_writer);
+      asn1::to_json(json_writer, rat_container);
       logger.log_debug("{}\n", json_writer.to_string().c_str());
     }
   }
@@ -1180,7 +1205,7 @@ byte_buffer rrc_ue_impl::get_rrc_handover_command(const rrc_reconfiguration_proc
   // Unpack MasterCellGroup to extract T304.
   asn1::rrc_nr::cell_group_cfg_s cell_group_cfg;
   asn1::cbit_ref                 bref2(request.non_crit_ext->master_cell_group);
-  if (cell_group_cfg.unpack(bref2) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(cell_group_cfg, bref2) != asn1::OCUDUASN_SUCCESS) {
     report_fatal_error("Failed to unpack MasterCellGroupCfg");
   }
   context.cell.timers.t304 = std::chrono::milliseconds{cell_group_cfg.sp_cell_cfg.recfg_with_sync.t304.to_number()};
@@ -1200,7 +1225,7 @@ byte_buffer rrc_ue_impl::get_rrc_handover_command(const rrc_reconfiguration_proc
   logger.log_debug(ho_cmd_pdu.begin(), ho_cmd_pdu.end(), "RRCHandoverCommand ({} B)", ho_cmd_pdu.length());
   if (logger.get_basic_logger().debug.enabled()) {
     asn1::json_writer js;
-    ho_cmd.to_json(js);
+    asn1::to_json(js, ho_cmd);
     logger.log_debug("Containerized RRCHandoverCommand: {}", js.to_string());
   }
 
@@ -1215,7 +1240,7 @@ byte_buffer rrc_ue_impl::handle_rrc_handover_command(byte_buffer cmd)
   asn1::rrc_nr::ho_cmd_s handover_command;
   asn1::cbit_ref         bref({cmd.begin(), cmd.end()});
 
-  if (handover_command.unpack(bref) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(handover_command, bref) != asn1::OCUDUASN_SUCCESS) {
     logger.log_error("Couldn't unpack Handover Command RRC container");
     return ho_reconf_pdu;
   }
@@ -1227,7 +1252,7 @@ byte_buffer rrc_ue_impl::handle_rrc_handover_command(byte_buffer cmd)
   dl_dcch_msg_s dl_dcch_msg;
   auto&         rrc_recfg = dl_dcch_msg.msg.set_c1().set_rrc_recfg();
 
-  if (rrc_recfg.unpack(bref2) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(rrc_recfg, bref2) != asn1::OCUDUASN_SUCCESS) {
     logger.log_error("Couldn't unpack RRC Reconfiguration container");
     return ho_reconf_pdu;
   }

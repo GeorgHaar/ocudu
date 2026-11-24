@@ -10,11 +10,28 @@ using namespace ocudu::cuda;
 
 cuda_result ocudu::cuda::detail::copy_to_device(void* dst, const void* src, std::size_t size)
 {
-  return check_cuda_error(::cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice), "host to device copy");
+  cuda_result status = check_cuda_error(::cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice), "host to device copy");
+  if (!status.has_value()) {
+    return status;
+  }
+
+  // The copy runs on the default stream, which the streams this library creates are exempt from
+  // ordering against. From pageable memory it may also return before the transfer has reached the
+  // device. Waiting here is what lets a kernel queued afterwards on any stream read what was
+  // copied.
+  return check_cuda_error(::cudaDeviceSynchronize(), "host to device copy");
 }
 
 cuda_result ocudu::cuda::detail::copy_to_host(void* dst, const void* src, std::size_t size)
 {
+  // Whatever the streams of this library still hold queued may be writing the block about to be
+  // read, and the copy below would not wait for it: it runs on the default stream, which those
+  // streams are exempt from ordering against.
+  cuda_result status = check_cuda_error(::cudaDeviceSynchronize(), "device to host copy");
+  if (!status.has_value()) {
+    return status;
+  }
+
   return check_cuda_error(::cudaMemcpy(dst, src, size, cudaMemcpyDeviceToHost), "device to host copy");
 }
 

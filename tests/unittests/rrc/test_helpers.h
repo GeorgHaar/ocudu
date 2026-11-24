@@ -55,8 +55,9 @@ class dummy_rrc_ue_cu_cp_adapter : public rrc_ue_context_update_notifier, public
 public:
   void add_ue_context(rrc_ue_reestablishment_context_response context) { reest_context = std::move(context); }
 
-  bool next_ue_setup_response          = true;
-  bool next_ue_setup_complete_response = true;
+  bool                  next_ue_setup_response          = true;
+  bool                  next_ue_setup_complete_response = true;
+  amf_selection_request last_amf_selection_request;
 
   /// Outcome and payload the dummy answers a UE context retrieval with, plus the last request it saw.
   bool                                            context_retrieval_succeeds = false;
@@ -66,11 +67,16 @@ public:
   byte_buffer                                     retrieved_rrc_context;
   std::optional<rrc_ue_context_retrieval_request> last_context_retrieval_request;
 
-  bool on_ue_setup_request() override { return next_ue_setup_response; }
+  bool on_ue_setup_request(establishment_cause_t establishment_cause) override { return next_ue_setup_response; }
 
-  bool on_ue_setup_complete_received(const plmn_identity& plmn) override { return next_ue_setup_complete_response; }
+  bool on_ue_setup_complete_received(const amf_selection_request& request) override
+  {
+    last_amf_selection_request = request;
+    return next_ue_setup_complete_response;
+  }
 
-  rrc_ue_reestablishment_context_response on_rrc_reestablishment_request(pci_t old_pci, rnti_t old_c_rnti) override
+  rrc_ue_reestablishment_context_response
+  on_rrc_reestablishment_request(pci_t old_pci, rnti_t old_c_rnti, reest_cause_t reest_cause) override
   {
     logger.info("old_pci={} old_c-rnti={}: Received RRC Reestablishment Request", old_pci, old_c_rnti);
 
@@ -129,6 +135,7 @@ public:
   async_task<bool> on_ue_transfer_required(cu_cp_ue_index_t old_ue_index) override
   {
     logger.info("Requested a UE context transfer from old_ue={}.", old_ue_index);
+    ++nof_ue_context_transfers;
     return launch_async([](coro_context<async_task<bool>>& ctx) mutable {
       CORO_BEGIN(ctx);
       CORO_RETURN(true);
@@ -146,7 +153,18 @@ public:
     });
   }
 
-  void on_up_context_setup_required(const up_context& ctxt) override { logger.info("UP context setup requested"); }
+  bool on_up_context_validation_required(const up_context& ctxt, const rrc_ue_capabilities_t& capabilities) override
+  {
+    ++nof_up_context_validation_requests;
+    return up_context_validation_succeeds;
+  }
+
+  bool on_up_context_setup_required(const up_context& ctxt, const rrc_ue_capabilities_t& capabilities) override
+  {
+    logger.info("UP context setup requested");
+    ++nof_up_context_setup_requests;
+    return up_context_setup_succeeds;
+  }
 
   void on_ue_location_update() override
   {
@@ -202,6 +220,11 @@ public:
 
   /// Returned by on_up_context_required(); allows tests to inject the UE's active DRBs.
   up_context up_ctxt;
+  unsigned   nof_ue_context_transfers           = 0;
+  unsigned   nof_up_context_validation_requests = 0;
+  bool       up_context_validation_succeeds     = true;
+  bool       up_context_setup_succeeds          = true;
+  unsigned   nof_up_context_setup_requests      = 0;
 
   cu_cp_ue_context_release_request last_cu_cp_ue_context_release_request;
 
@@ -218,18 +241,18 @@ private:
 class dummy_rrc_ue_rrc_du_adapter : public rrc_ue_event_notifier
 {
 public:
-  void on_new_rrc_connection() override {}
-
-  void on_attempted_rrc_connection_establishment(establishment_cause_t cause) override {}
+  void on_new_rrc_connection() override { ++nof_new_rrc_connections; }
 
   void on_successful_rrc_connection_establishment(establishment_cause_t     cause,
                                                   std::chrono::milliseconds setup_time) override
   {
   }
 
-  void on_failed_rrc_connection_establishment(establishment_fail_cause_t cause) override {}
-
-  void on_attempted_rrc_connection_reestablishment() override {}
+  void on_failed_rrc_connection_establishment(establishment_fail_cause_t cause) override
+  {
+    ++nof_failed_rrc_connection_establishments;
+    last_establishment_fail_cause = cause;
+  }
 
   void on_successful_rrc_connection_reestablishment() override {}
 
@@ -241,9 +264,21 @@ public:
 
   void on_successful_rrc_connection_resume_with_fallback(resume_cause_t cause) override {}
 
-  void on_rrc_connection_resume_followed_by_network_release(resume_cause_t cause) override {}
+  void on_rrc_connection_resume_followed_by_network_release(resume_cause_t cause) override
+  {
+    ++nof_resume_followed_by_network_release;
+  }
 
   void on_attempted_rrc_connection_resume_followed_by_rrc_setup(resume_cause_t cause) override {}
+
+  /// Counts the new RRC connections the RRC UE reported.
+  unsigned nof_new_rrc_connections = 0;
+
+  /// Counts the failed RRC connection establishments the RRC UE reported.
+  unsigned                   nof_failed_rrc_connection_establishments = 0;
+  establishment_fail_cause_t last_establishment_fail_cause            = establishment_fail_cause_t::other;
+  /// Counts the RRC connection resumes followed by network release the RRC UE reported.
+  unsigned nof_resume_followed_by_network_release = 0;
 };
 
 } // namespace ocudu::ocucp

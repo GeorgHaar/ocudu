@@ -11,6 +11,7 @@
 #include "ocudu/ran/band_helper.h"
 #include "ocudu/ran/frequency_range.h"
 #include "ocudu/ran/resource_allocation/resource_allocation_frequency.h"
+#include "ocudu/scheduler/config/serving_cell_config_builder.h"
 #include "ocudu/support/enum_utils.h"
 #include "ocudu/support/error_handling.h"
 #include "ocudu/support/math/math_utils.h"
@@ -212,7 +213,6 @@ static rlc_bearer_cfg_s make_asn1_rrc_rlc_bearer(const rlc_bearer_config& cfg)
   // Fill allowedHARQ-mode. An absent mode leaves the mapping unrestricted.
   if (cfg.mac_cfg->allowed_harq_mode.has_value()) {
     auto& ul_params                         = out.mac_lc_ch_cfg.ul_specific_params;
-    ul_params.ext                           = true;
     ul_params.allowed_harq_mode_r17_present = true;
     ul_params.allowed_harq_mode_r17.value =
         *cfg.mac_cfg->allowed_harq_mode == ul_harq_mode::mode_a
@@ -351,7 +351,6 @@ ocudu::odu::make_asn1_rrc_scs_specific_carrier_list(span<const scs_specific_carr
     list[i].subcarrier_spacing.value           = get_asn1_scs(scs_carrier_list[i].scs);
     list[i].carrier_bw                         = scs_carrier_list[i].carrier_bandwidth;
     list[i].tx_direct_current_location_present = scs_carrier_list[i].tx_direct_current_location.has_value();
-    list[i].ext                                = list[i].tx_direct_current_location_present;
     if (list[i].tx_direct_current_location_present) {
       list[i].tx_direct_current_location = scs_carrier_list[i].tx_direct_current_location.value();
     }
@@ -799,7 +798,6 @@ static rach_cfg_common_s make_asn1_rach_cfg_common(const rach_config_common& cfg
   }
 
   if (not cfg.ra_prio_slice_info_list.empty()) {
-    out.ext = true;
     out.ra_prioritization_for_slicing_r17.set_present();
     auto& out_list = out.ra_prioritization_for_slicing_r17->ra_prioritization_slice_info_list_r17;
     out_list.reserve(cfg.ra_prio_slice_info_list.size());
@@ -864,7 +862,6 @@ asn1::rrc_nr::bwp_ul_common_s ocudu::odu::make_asn1_rrc_initial_up_bwp(const ul_
   // > msgA-ConfigCommon-r16 OPTIONAL (extension, 2-step RACH)
   if (rach_cfg.two_step_rach_cfg.has_value()) {
     const rach_config_common_two_step& two_step = *rach_cfg.two_step_rach_cfg;
-    init_ul_bwp.ext                             = true;
     init_ul_bwp.msg_a_cfg_common_r16.set_present();
     msg_a_cfg_common_r16_s& msg_a_cfg = init_ul_bwp.msg_a_cfg_common_r16->set_setup();
 
@@ -973,7 +970,6 @@ static asn1::rrc_nr::tdd_ul_dl_pattern_s make_asn1_rrc_tdd_ul_dl_pattern(subcarr
     if (it != ext_periods.end()) {
       // The non-ext period will be ignored as per TS 38.331, if the extension is enabled.
       out.dl_ul_tx_periodicity.value         = asn1::rrc_nr::tdd_ul_dl_pattern_s::dl_ul_tx_periodicity_opts::ms0p5;
-      out.ext                                = true;
       out.dl_ul_tx_periodicity_v1530_present = true;
       out.dl_ul_tx_periodicity_v1530.value = static_cast<tdd_ul_dl_pattern_s::dl_ul_tx_periodicity_v1530_opts::options>(
           std::distance(ext_periods.begin(), it));
@@ -1026,7 +1022,7 @@ calculate_pdcch_config_diff(asn1::rrc_nr::pdcch_cfg_s& out, const pdcch_config& 
 
 static void make_asn1_rrc_dmrs_dl_for_pdsch(asn1::rrc_nr::dmrs_dl_cfg_s& out, const dmrs_downlink_config& cfg)
 {
-  if (cfg.is_dmrs_type2) {
+  if (cfg.type == dmrs_config_type::type2) {
     out.dmrs_type_present = true;
   }
 
@@ -1047,7 +1043,7 @@ static void make_asn1_rrc_dmrs_dl_for_pdsch(asn1::rrc_nr::dmrs_dl_cfg_s& out, co
     }
   }
 
-  if (cfg.is_max_length_len2) {
+  if (cfg.max_length == dmrs_max_length::len2) {
     out.max_len_present = true;
   }
 
@@ -1248,7 +1244,6 @@ calculate_pdsch_config_diff(asn1::rrc_nr::pdsch_cfg_s& out, const pdsch_config& 
       out.pdsch_time_domain_alloc_list.set_release();
     }
     if (not src_is_r16 || dest.pdsch_td_alloc_list != src.pdsch_td_alloc_list) {
-      out.ext = true;
       out.pdsch_time_domain_alloc_list_r16.set_present();
       auto& alloc_list = out.pdsch_time_domain_alloc_list_r16->set_setup();
       for (const auto& td_alloc : dest.pdsch_td_alloc_list) {
@@ -1258,7 +1253,6 @@ calculate_pdsch_config_diff(asn1::rrc_nr::pdsch_cfg_s& out, const pdsch_config& 
   } else if (not dest.pdsch_td_alloc_list.empty()) {
     // dest is a legacy (non-repetition) list.
     if (src_is_r16) {
-      out.ext = true;
       out.pdsch_time_domain_alloc_list_r16.set_present();
       out.pdsch_time_domain_alloc_list_r16->set_release();
     }
@@ -1270,7 +1264,6 @@ calculate_pdsch_config_diff(asn1::rrc_nr::pdsch_cfg_s& out, const pdsch_config& 
       }
     }
   } else if (src_is_r16) {
-    out.ext = true;
     out.pdsch_time_domain_alloc_list_r16.set_present();
     out.pdsch_time_domain_alloc_list_r16->set_release();
   } else if (not src.pdsch_td_alloc_list.empty()) {
@@ -1282,13 +1275,11 @@ calculate_pdsch_config_diff(asn1::rrc_nr::pdsch_cfg_s& out, const pdsch_config& 
   // repetitionNumber-r16 of the Rel-16 TDRA list. With a single TCI state indicated in the DCI, the TCI mapping and
   // the RV sequence offset are not used; nominal values are signalled.
   if (dest.slot_based_repetition_enabled and not src.slot_based_repetition_enabled) {
-    out.ext = true;
     out.repeat_scheme_cfg_r16.set_present();
     auto& slot_based                 = out.repeat_scheme_cfg_r16->set_setup().set_slot_based_r16().set_setup();
     slot_based.tci_map_r16.value     = slot_based_r16_s::tci_map_r16_opts::cyclic_map;
     slot_based.seq_offset_for_rv_r16 = 1;
   } else if (src.slot_based_repetition_enabled and not dest.slot_based_repetition_enabled) {
-    out.ext = true;
     out.repeat_scheme_cfg_r16.set_present();
     out.repeat_scheme_cfg_r16->set_release();
   }
@@ -1389,7 +1380,6 @@ calculate_pdsch_config_diff(asn1::rrc_nr::pdsch_cfg_s& out, const pdsch_config& 
   // DCI Format 1_1 size.
   if (dest.harq_process_num_size_dci_1_1.has_value() and
       dest.harq_process_num_size_dci_1_1 == pdsch_config::harq_process_num_dci_1_1_size::n5) {
-    out.ext                                       = true;
     out.harq_process_num_size_dci_1_1_r17_present = true;
     out.harq_process_num_size_dci_1_1_r17         = 5;
   }
@@ -1397,7 +1387,6 @@ calculate_pdsch_config_diff(asn1::rrc_nr::pdsch_cfg_s& out, const pdsch_config& 
   // DCI Format 1_2 size.
   if (dest.harq_process_num_size_dci_1_2.has_value() and
       dest.harq_process_num_size_dci_1_2 == pdsch_config::harq_process_num_dci_1_2_size::n5) {
-    out.ext                                         = true;
     out.harq_process_num_size_dci_1_2_v1700_present = true;
     out.harq_process_num_size_dci_1_2_v1700         = 5;
   }
@@ -1490,16 +1479,6 @@ static bool calculate_bwp_dl_dedicated_diff(asn1::rrc_nr::bwp_dl_ded_s&   out,
   return out.pdcch_cfg_present || out.pdsch_cfg_present || out.radio_link_monitoring_cfg_present;
 }
 
-asn1::rrc_nr::pucch_res_set_s ocudu::odu::make_asn1_rrc_pucch_resource_set(const pucch_resource_set& cfg)
-{
-  pucch_res_set_s pucch_res_set;
-  pucch_res_set.pucch_res_set_id = static_cast<uint8_t>(cfg.id);
-  for (const auto& it : cfg.resources) {
-    pucch_res_set.res_list.push_back(it.ded().ue_res_id);
-  }
-  return pucch_res_set;
-}
-
 static void make_asn1_rrc_pucch_formats_common_param(asn1::rrc_nr::pucch_format_cfg_s& out,
                                                      const pucch_common_all_formats&   cfg)
 {
@@ -1557,10 +1536,10 @@ static void make_asn1_rrc_pucch_formats_common_param(asn1::rrc_nr::pucch_format_
   }
 }
 
-asn1::rrc_nr::pucch_res_s ocudu::odu::make_asn1_rrc_pucch_resource(const pucch_resource& cfg)
+asn1::rrc_nr::pucch_res_s ocudu::odu::make_asn1_rrc_pucch_resource(const pucch_resource& cfg, unsigned ue_res_id)
 {
   pucch_res_s pucch_res;
-  pucch_res.pucch_res_id                = cfg.res_id.ded().ue_res_id;
+  pucch_res.pucch_res_id                = ue_res_id;
   pucch_res.start_prb                   = cfg.starting_prb;
   pucch_res.intra_slot_freq_hop_present = cfg.second_hop_prb.has_value();
   pucch_res.second_hop_prb_present      = cfg.second_hop_prb.has_value();
@@ -1640,7 +1619,7 @@ ocudu::odu::make_asn1_rrc_sr_resource(const scheduling_request_resource_config& 
   sr_res_cfg.sched_request_res_id           = cfg.sr_res_id;
   sr_res_cfg.sched_request_id               = cfg.sr_id;
   sr_res_cfg.res_present                    = true;
-  sr_res_cfg.res                            = cfg.pucch_res_id.ded().ue_res_id;
+  sr_res_cfg.res                            = cfg.pucch_res_id;
   sr_res_cfg.periodicity_and_offset_present = true;
   switch (cfg.period) {
     case sr_periodicity::sym_2:
@@ -1706,101 +1685,160 @@ ocudu::odu::make_asn1_rrc_sr_resource(const scheduling_request_resource_config& 
   return sr_res_cfg;
 }
 
-static void
-calculate_pucch_config_diff(asn1::rrc_nr::pucch_cfg_s& out, const pucch_config& src, const pucch_config& dest)
+/// Gets the repetition factor that a UE uses for a PUCCH resource. The UE uses the PUCCH repetition of the resource
+/// only if the repetition is enabled for the format of the resource.
+static pucch_repetition_factor effective_rep_factor(const pucch_resource& cell_res, const ue_pucch_rrm_config& ue_pucch)
 {
-  // PUCCH Resource Set.
-  calculate_addmodremlist_diff(
-      out.res_set_to_add_mod_list,
-      out.res_set_to_release_list,
-      src.pucch_res_set,
-      dest.pucch_res_set,
-      [](const pucch_resource_set& res_set) { return make_asn1_rrc_pucch_resource_set(res_set); },
-      [](const pucch_resource_set& res_set) { return static_cast<uint8_t>(res_set.id); });
+  const bool is_f0_or_f2 = cell_res.format() == pucch_format::FORMAT_0 or cell_res.format() == pucch_format::FORMAT_2;
+  return (is_f0_or_f2 ? ue_pucch.rep_f0_2_enabled : ue_pucch.rep_f1_3_4_enabled) ? cell_res.rep_factor
+                                                                                 : pucch_repetition_factor::n1;
+}
 
-  // PUCCH Resource.
-  calculate_addmodremlist_diff(
-      out.res_to_add_mod_list,
-      out.res_to_release_list,
-      src.pucch_res_list,
-      dest.pucch_res_list,
-      [](const pucch_resource& res) { return make_asn1_rrc_pucch_resource(res); },
-      [](const pucch_resource& res) { return res.res_id.ded().ue_res_id; });
+/// \brief Fills the PUCCH-Config of the UL BWP of a UE, if it changes.
+///
+/// The cell fixes the formats, the PUCCH resource sets and the k1 values. Thus, only the PUCCH resources and the SR
+/// configuration of a UE change.
+/// \param[in] src Resources that the RRM allocated to the UE before the change. Null if the UE has no PUCCH-Config.
+/// \return Whether the PUCCH-Config changes.
+static bool calculate_pucch_config_diff(asn1::rrc_nr::bwp_ul_ded_s&  out,
+                                        const cell_pucch_rrm_config& cell_res,
+                                        const ue_rrm_config*         src,
+                                        const ue_rrm_config&         dest)
+{
+  using config_helpers::ue_pucch_res_layout;
+
+  const ue_pucch_res_layout dest_layout = config_helpers::make_ue_pucch_res_layout(cell_res.res, dest);
+  const ue_pucch_res_layout src_layout =
+      src != nullptr ? config_helpers::make_ue_pucch_res_layout(cell_res.res, *src) : ue_pucch_res_layout{};
+  const unsigned nof_src_res  = src != nullptr ? src_layout.res_list.size() : 0;
+  const unsigned nof_dest_res = dest_layout.res_list.size();
+
+  // Whether the resource with the given UE resource ID is new or different from the one of the UE before the change.
+  const auto res_changed = [&](unsigned ue_res_id) {
+    return ue_res_id >= nof_src_res or src_layout.res_list[ue_res_id] != dest_layout.res_list[ue_res_id] or
+           effective_rep_factor(cell_res.res.get(src_layout.res_list[ue_res_id]), src->pucch) !=
+               effective_rep_factor(cell_res.res.get(dest_layout.res_list[ue_res_id]), dest.pucch);
+  };
+  const bool set_0_changed = src == nullptr or src_layout.res_set_0 != dest_layout.res_set_0;
+  const bool set_1_changed = src == nullptr or src_layout.res_set_1 != dest_layout.res_set_1;
+  const bool sr_changed =
+      src == nullptr or src->pucch.sr_offset != dest.pucch.sr_offset or src_layout.sr_res_id != dest_layout.sr_res_id;
+  bool any_res_changed = nof_src_res > nof_dest_res;
+  for (unsigned ue_res_id = 0; not any_res_changed and ue_res_id != nof_dest_res; ++ue_res_id) {
+    any_res_changed = res_changed(ue_res_id);
+  }
+  if (not(any_res_changed or set_0_changed or set_1_changed or sr_changed)) {
+    return false;
+  }
+
+  out.pucch_cfg_present  = true;
+  pucch_cfg_s& out_pucch = out.pucch_cfg.set_setup();
+
+  // PUCCH Resource Sets. The PUCCH-ResourceSetId of each set is fixed, so the sets never get released.
+  const auto add_res_set = [&out_pucch](pucch_res_set_id id, const auto& ue_res_ids) {
+    pucch_res_set_s res_set;
+    res_set.pucch_res_set_id = static_cast<uint8_t>(id);
+    for (unsigned ue_res_id : ue_res_ids) {
+      res_set.res_list.push_back(ue_res_id);
+    }
+    out_pucch.res_set_to_add_mod_list.push_back(res_set);
+  };
+  if (set_0_changed) {
+    add_res_set(pucch_res_set_id::set_0, dest_layout.res_set_0);
+  }
+  if (set_1_changed) {
+    add_res_set(pucch_res_set_id::set_1, dest_layout.res_set_1);
+  }
+
+  // PUCCH Resources. The PUCCH-ResourceId of each resource is its position in the list.
+  for (unsigned ue_res_id = 0, nof_res = std::max(nof_src_res, nof_dest_res); ue_res_id != nof_res; ++ue_res_id) {
+    if (ue_res_id >= nof_dest_res) {
+      out_pucch.res_to_release_list.push_back(ue_res_id);
+    } else if (res_changed(ue_res_id)) {
+      out_pucch.res_to_add_mod_list.push_back(
+          make_asn1_rrc_pucch_resource(cell_res.res.get(dest_layout.res_list[ue_res_id]), ue_res_id));
+    }
+  }
 
   // PUCCH Resource extension (\c pucch-RepetitionNrofSlots-r17): mirror res_to_add_mod_list in size and order.
-  // Only emit the ext list if at least one resource has a non-default repetition factor.
-  const bool any_repetition = std::any_of(dest.pucch_res_list.begin(), dest.pucch_res_list.end(), [](const auto& r) {
-    return r.rep_factor != pucch_repetition_factor::n1;
-  });
-  if (any_repetition and out.res_to_add_mod_list.size() > 0) {
-    out.res_to_add_mod_list_ext_v1610.set_present();
-    auto* ext_list = out.res_to_add_mod_list_ext_v1610.get();
-    for (const auto& asn1_res : out.res_to_add_mod_list) {
-      const auto* const it =
-          std::find_if(dest.pucch_res_list.begin(), dest.pucch_res_list.end(), [&](const pucch_resource& r) {
-            return r.res_id.ded().ue_res_id == asn1_res.pucch_res_id;
-          });
-      pucch_res_ext_v1610_s ext{};
-      if (it != dest.pucch_res_list.end() and it->rep_factor != pucch_repetition_factor::n1) {
+  // Emit the ext list if a signalled resource has or had a non-default repetition factor. The list is Need N, so
+  // omitting it would leave a previously configured repetition unreleased in the UE.
+  const auto dest_rep_factor_of = [&](unsigned ue_res_id) {
+    return effective_rep_factor(cell_res.res.get(dest_layout.res_list[ue_res_id]), dest.pucch);
+  };
+  const auto has_repetition = [&](unsigned ue_res_id) {
+    const bool src_has_rep = ue_res_id < nof_src_res and
+                             effective_rep_factor(cell_res.res.get(src_layout.res_list[ue_res_id]), src->pucch) !=
+                                 pucch_repetition_factor::n1;
+    return src_has_rep or dest_rep_factor_of(ue_res_id) != pucch_repetition_factor::n1;
+  };
+  const bool any_repetition = std::any_of(out_pucch.res_to_add_mod_list.begin(),
+                                          out_pucch.res_to_add_mod_list.end(),
+                                          [&](const auto& asn1_res) { return has_repetition(asn1_res.pucch_res_id); });
+  if (any_repetition) {
+    // resourceToAddModListExt-v1610 is in an extension addition group of PUCCH-Config (TS 38.331).
+    out_pucch.res_to_add_mod_list_ext_v1610.set_present();
+    auto* ext_list = out_pucch.res_to_add_mod_list_ext_v1610.get();
+    for (const auto& asn1_res : out_pucch.res_to_add_mod_list) {
+      const pucch_repetition_factor rep_factor = dest_rep_factor_of(asn1_res.pucch_res_id);
+      pucch_res_ext_v1610_s         ext{};
+      if (rep_factor != pucch_repetition_factor::n1) {
+        // pucch-RepetitionNrofSlots-r17 is in an extension addition group of PUCCH-ResourceExt-v1610.
         ext.pucch_repeat_nrof_slots_r17_present = true;
         ext.pucch_repeat_nrof_slots_r17.value =
             static_cast<pucch_res_ext_v1610_s::pucch_repeat_nrof_slots_r17_opts::options>(
-                log2_ceil(static_cast<unsigned>(it->rep_factor)));
+                log2_ceil(static_cast<unsigned>(rep_factor)));
       }
       ext_list->push_back(ext);
     }
   }
 
-  if ((dest.format_1_common_param.has_value() && not src.format_1_common_param.has_value()) ||
-      (dest.format_1_common_param.has_value() && src.format_1_common_param.has_value() &&
-       dest.format_1_common_param != src.format_1_common_param)) {
-    out.format1_present = true;
-    make_asn1_rrc_pucch_formats_common_param(out.format1.set_setup(), dest.format_1_common_param.value());
-  } else if (src.format_1_common_param.has_value() && not dest.format_1_common_param.has_value()) {
-    out.format1_present = true;
-    out.format1.set_release();
-  }
-  if ((dest.format_2_common_param.has_value() && not src.format_2_common_param.has_value()) ||
-      (dest.format_2_common_param.has_value() && src.format_2_common_param.has_value() &&
-       dest.format_2_common_param != src.format_2_common_param)) {
-    out.format2_present = true;
-    make_asn1_rrc_pucch_formats_common_param(out.format2.set_setup(), dest.format_2_common_param.value());
-  } else if (src.format_2_common_param.has_value() && not dest.format_2_common_param.has_value()) {
-    out.format2_present = true;
-    out.format2.set_release();
-  }
-  if ((dest.format_3_common_param.has_value() && not src.format_3_common_param.has_value()) ||
-      (dest.format_3_common_param.has_value() && src.format_3_common_param.has_value() &&
-       dest.format_3_common_param != src.format_3_common_param)) {
-    out.format3_present = true;
-    make_asn1_rrc_pucch_formats_common_param(out.format3.set_setup(), dest.format_3_common_param.value());
-  } else if (src.format_3_common_param.has_value() && not dest.format_3_common_param.has_value()) {
-    out.format3_present = true;
-    out.format3.set_release();
-  }
-  if ((dest.format_4_common_param.has_value() && not src.format_4_common_param.has_value()) ||
-      (dest.format_4_common_param.has_value() && src.format_4_common_param.has_value() &&
-       dest.format_4_common_param != src.format_4_common_param)) {
-    out.format4_present = true;
-    make_asn1_rrc_pucch_formats_common_param(out.format4.set_setup(), dest.format_4_common_param.value());
-  } else if (src.format_4_common_param.has_value() && not dest.format_4_common_param.has_value()) {
-    out.format4_present = true;
-    out.format4.set_release();
+  // PUCCH formats. They are the same for all the UEs of the cell, so they are only sent in the initial setup.
+  if (src == nullptr) {
+    const pucch_common_all_formats format_2{.max_c_rate                = cell_res.max_code_rate_234,
+                                            .simultaneous_harq_ack_csi = true};
+    pucch_common_all_formats       format_34 = format_2;
+    // The Format 3 and 4 resources of a cell have the same DM-RS and modulation configuration.
+    for (const pucch_resource& res : cell_res.res.resources) {
+      if (const auto* f3 = std::get_if<pucch_resource::f3_config>(&res.format_params)) {
+        format_34.additional_dmrs = f3->additional_dmrs;
+        format_34.pi_2_bpsk       = f3->pi_2_bpsk;
+        break;
+      }
+      if (const auto* f4 = std::get_if<pucch_resource::f4_config>(&res.format_params)) {
+        format_34.additional_dmrs = f4->additional_dmrs;
+        format_34.pi_2_bpsk       = f4->pi_2_bpsk;
+        break;
+      }
+    }
+    out_pucch.format1_present = true;
+    make_asn1_rrc_pucch_formats_common_param(out_pucch.format1.set_setup(), pucch_common_all_formats{});
+    out_pucch.format2_present = true;
+    make_asn1_rrc_pucch_formats_common_param(out_pucch.format2.set_setup(), format_2);
+    out_pucch.format3_present = true;
+    make_asn1_rrc_pucch_formats_common_param(out_pucch.format3.set_setup(), format_34);
+    out_pucch.format4_present = true;
+    make_asn1_rrc_pucch_formats_common_param(out_pucch.format4.set_setup(), format_34);
   }
 
-  // SR Resource.
-  calculate_addmodremlist_diff(
-      out.sched_request_res_to_add_mod_list,
-      out.sched_request_res_to_release_list,
-      src.sr_res_list,
-      dest.sr_res_list,
-      [](const scheduling_request_resource_config& res) { return make_asn1_rrc_sr_resource(res); },
-      [](const scheduling_request_resource_config& res) { return res.sr_id; });
+  // SR Resource. The UE has a single SR resource, which is never released.
+  static constexpr unsigned ue_sr_res_id = 1;
+  static constexpr unsigned ue_sr_id     = 0;
+  if (sr_changed) {
+    out_pucch.sched_request_res_to_add_mod_list.push_back(
+        make_asn1_rrc_sr_resource(scheduling_request_resource_config{.sr_res_id    = ue_sr_res_id,
+                                                                     .sr_id        = uint_to_sched_req_id(ue_sr_id),
+                                                                     .period       = cell_res.sr_period,
+                                                                     .offset       = dest.pucch.sr_offset,
+                                                                     .pucch_res_id = dest_layout.sr_res_id}));
+  }
 
   // dl-DataToUL-ACK.
-  for (const auto& timing : dest.dl_data_to_ul_ack) {
-    out.dl_data_to_ul_ack.push_back(timing);
+  for (uint8_t timing : cell_res.dl_data_to_ul_ack) {
+    out_pucch.dl_data_to_ul_ack.push_back(timing);
   }
+
+  return true;
 }
 
 static void make_asn1_rrc_ptrs_ul_cfg(asn1::rrc_nr::ptrs_ul_cfg_s& out, const ptrs_uplink_config& cfg)
@@ -1888,7 +1926,7 @@ static void make_asn1_rrc_dmrs_ul_for_pusch(asn1::rrc_nr::dmrs_ul_cfg_s& out,
                                             const dmrs_uplink_config&    src,
                                             const dmrs_uplink_config&    dest)
 {
-  if (dest.is_dmrs_type2) {
+  if (dest.type == dmrs_config_type::type2) {
     out.dmrs_type_present = true;
   }
 
@@ -1918,7 +1956,7 @@ static void make_asn1_rrc_dmrs_ul_for_pusch(asn1::rrc_nr::dmrs_ul_cfg_s& out,
     out.phase_tracking_rs.set_release();
   }
 
-  if (dest.is_max_length_len2) {
+  if (dest.max_length == dmrs_max_length::len2) {
     out.max_len_present = true;
   }
 
@@ -2332,7 +2370,6 @@ calculate_pusch_config_diff(asn1::rrc_nr::pusch_cfg_s& out, const pusch_config& 
     }
     // pusch-RepTypeIndicatorDCI-0-1-r16 is a Cond field, mandatory whenever
     // pusch-TimeDomainAllocationListDCI-0-1-r16 is configured. Only Rel-16 PUSCH repetition Type A is supported.
-    out.ext                                    = true;
     out.pusch_rep_type_ind_dci_0_1_r16_present = true;
     out.pusch_rep_type_ind_dci_0_1_r16.value   = pusch_cfg_s::pusch_rep_type_ind_dci_0_1_r16_opts::pusch_rep_type_a;
     // availableSlotCounting-r17: the scheduler counts occasions over available (fully UL), not consecutive, slots.
@@ -2347,7 +2384,6 @@ calculate_pusch_config_diff(asn1::rrc_nr::pusch_cfg_s& out, const pusch_config& 
   } else if (not dest.pusch_td_alloc_list.empty()) {
     // dest is a legacy (non-repetition) list.
     if (src_is_r16) {
-      out.ext = true;
       out.pusch_time_domain_alloc_list_dci_0_1_r16.set_present();
       out.pusch_time_domain_alloc_list_dci_0_1_r16->set_release();
     }
@@ -2359,7 +2395,6 @@ calculate_pusch_config_diff(asn1::rrc_nr::pusch_cfg_s& out, const pusch_config& 
       }
     }
   } else if (src_is_r16) {
-    out.ext = true;
     out.pusch_time_domain_alloc_list_dci_0_1_r16.set_present();
     out.pusch_time_domain_alloc_list_dci_0_1_r16->set_release();
   } else if (not src.pusch_td_alloc_list.empty()) {
@@ -2422,7 +2457,6 @@ calculate_pusch_config_diff(asn1::rrc_nr::pusch_cfg_s& out, const pusch_config& 
   // DCI Format 0_1 size.
   if (dest.harq_process_num_size_dci_0_1.has_value() and
       dest.harq_process_num_size_dci_0_1 == pusch_config::harq_process_num_dci_0_1_size::n5) {
-    out.ext                                       = true;
     out.harq_process_num_size_dci_0_1_r17_present = true;
     out.harq_process_num_size_dci_0_1_r17         = 5;
   }
@@ -2430,7 +2464,6 @@ calculate_pusch_config_diff(asn1::rrc_nr::pusch_cfg_s& out, const pusch_config& 
   // DCI Format 0_2 size.
   if (dest.harq_process_num_size_dci_0_2.has_value() and
       dest.harq_process_num_size_dci_0_2 == pusch_config::harq_process_num_dci_0_2_size::n5) {
-    out.ext                                         = true;
     out.harq_process_num_size_dci_0_2_v1700_present = true;
     out.harq_process_num_size_dci_0_2_v1700         = 5;
   }
@@ -2997,20 +3030,14 @@ static void make_asn1_rrc_cfg_grant_cfg(asn1::rrc_nr::cfg_grant_cfg_s& out, cons
   }
 }
 
-static bool calculate_bwp_ul_dedicated_diff(asn1::rrc_nr::bwp_ul_ded_s& out,
-                                            const bwp_uplink_dedicated& src,
-                                            const bwp_uplink_dedicated& dest)
+static bool calculate_bwp_ul_dedicated_diff(asn1::rrc_nr::bwp_ul_ded_s&  out,
+                                            const bwp_uplink_dedicated&  src,
+                                            const bwp_uplink_dedicated&  dest,
+                                            const cell_pucch_rrm_config& cell_pucch,
+                                            const ue_rrm_config*         src_rrm,
+                                            const ue_rrm_config&         dest_rrm)
 {
-  if ((dest.pucch_cfg.has_value() && not src.pucch_cfg.has_value()) ||
-      (dest.pucch_cfg.has_value() && src.pucch_cfg.has_value() && dest.pucch_cfg != src.pucch_cfg)) {
-    out.pucch_cfg_present = true;
-    calculate_pucch_config_diff(out.pucch_cfg.set_setup(),
-                                src.pucch_cfg.has_value() ? src.pucch_cfg.value() : pucch_config{},
-                                dest.pucch_cfg.value());
-  } else if (src.pucch_cfg.has_value() && not dest.pucch_cfg.has_value()) {
-    out.pucch_cfg_present = true;
-    out.pucch_cfg.set_release();
-  }
+  calculate_pucch_config_diff(out, cell_pucch, src_rrm, dest_rrm);
 
   if ((dest.pusch_cfg.has_value() && not src.pusch_cfg.has_value()) ||
       (dest.pusch_cfg.has_value() && src.pusch_cfg.has_value() && dest.pusch_cfg != src.pusch_cfg)) {
@@ -3063,15 +3090,18 @@ static void calculate_pusch_serving_cell_cfg_diff(asn1::rrc_nr::pusch_serving_ce
   } else {
     out.ul_harq_mode_r17.reset();
   }
-  out.ext = out.ul_harq_mode_r17.is_present() or out.nrof_harq_processes_for_pusch_r17_present;
-
   // TODO: Remaining.
 }
 
-static bool
-calculate_uplink_config_diff(asn1::rrc_nr::ul_cfg_s& out, const uplink_config& src, const uplink_config& dest)
+static bool calculate_uplink_config_diff(asn1::rrc_nr::ul_cfg_s&      out,
+                                         const uplink_config&         src,
+                                         const uplink_config&         dest,
+                                         const cell_pucch_rrm_config& cell_pucch,
+                                         const ue_rrm_config*         src_rrm,
+                                         const ue_rrm_config&         dest_rrm)
 {
-  out.init_ul_bwp_present = calculate_bwp_ul_dedicated_diff(out.init_ul_bwp, src.init_ul_bwp, dest.init_ul_bwp);
+  out.init_ul_bwp_present = calculate_bwp_ul_dedicated_diff(
+      out.init_ul_bwp, src.init_ul_bwp, dest.init_ul_bwp, cell_pucch, src_rrm, dest_rrm);
 
   if ((dest.pusch_serv_cell_cfg.has_value() && not src.pusch_serv_cell_cfg.has_value()) ||
       (dest.pusch_serv_cell_cfg.has_value() && src.pusch_serv_cell_cfg.has_value() &&
@@ -3165,7 +3195,6 @@ static void calculate_pdsch_serving_cell_cfg_diff(asn1::rrc_nr::pdsch_serving_ce
         break;
       case pdsch_serving_cell_config::nof_harq_proc_for_pdsch::n32:
         out.nrof_harq_processes_for_pdsch_present       = false;
-        out.ext                                         = true;
         out.nrof_harq_processes_for_pdsch_v1700_present = true;
         break;
       default:
@@ -3185,8 +3214,6 @@ static void calculate_pdsch_serving_cell_cfg_diff(asn1::rrc_nr::pdsch_serving_ce
   } else {
     out.dl_harq_feedback_disabled_r17.reset();
   }
-  out.ext = out.dl_harq_feedback_disabled_r17.is_present() or out.nrof_harq_processes_for_pdsch_v1700_present;
-
   if (dest.pucch_cell.has_value()) {
     out.pucch_cell_present = true;
     out.pucch_cell         = dest.pucch_cell.value();
@@ -3203,16 +3230,26 @@ static void calculate_pdsch_serving_cell_cfg_diff(asn1::rrc_nr::pdsch_serving_ce
   }
 }
 
+/// \param[in] src_ue Configuration of the UE cell before the change. Null if the UE has no configuration in the cell.
 static bool calculate_serving_cell_config_diff(asn1::rrc_nr::serving_cell_cfg_s& out,
-                                               const serving_cell_config&        src,
-                                               const serving_cell_config&        dest)
+                                               const ue_cell_config*             src_ue,
+                                               const ue_cell_config&             dest_ue,
+                                               const cell_rrm_config&            cell_rrm)
 {
+  const serving_cell_config  src  = src_ue != nullptr ? src_ue->serv_cell_cfg : serving_cell_config{};
+  const serving_cell_config& dest = dest_ue.serv_cell_cfg;
+
   out.init_dl_bwp_present = calculate_bwp_dl_dedicated_diff(out.init_dl_bwp, src.init_dl_bwp, dest.init_dl_bwp);
 
   // UplinkConfig.
   if (dest.ul_config.has_value()) {
-    out.ul_cfg_present = calculate_uplink_config_diff(
-        out.ul_cfg, src.ul_config.has_value() ? src.ul_config.value() : uplink_config{}, dest.ul_config.value());
+    out.ul_cfg_present =
+        calculate_uplink_config_diff(out.ul_cfg,
+                                     src.ul_config.has_value() ? src.ul_config.value() : uplink_config{},
+                                     dest.ul_config.value(),
+                                     cell_rrm.pucch,
+                                     src_ue != nullptr ? &src_ue->rrm : nullptr,
+                                     dest_ue.rrm);
   }
 
   // PDSCH-ServingCellConfig.
@@ -3799,8 +3836,6 @@ static bool calculate_mac_cell_group_config_diff(asn1::rrc_nr::mac_cell_group_cf
     // Either tar-Config is unchanged, or it was never configured. Nothing to signal.
     out.tar_cfg_r17.reset();
   }
-  out.ext = out.ext or out.tar_cfg_r17.is_present() or out.sched_request_cfg_v1700.is_present();
-
   return out.drx_cfg_present || out.sched_request_cfg_present || out.bsr_cfg_present || out.tag_cfg_present ||
          out.phr_cfg_present || out.tar_cfg_r17.is_present() || out.sched_request_cfg_v1700.is_present();
 }
@@ -3834,7 +3869,8 @@ static static_vector<rlc_bearer_config, MAX_NOF_RB_LCIDS> fill_rlc_bearers(const
 
 void ocudu::odu::calculate_cell_group_config_diff(asn1::rrc_nr::cell_group_cfg_s& out,
                                                   const du_ue_resource_config&    src,
-                                                  const du_ue_resource_config&    dest)
+                                                  const du_ue_resource_config&    dest,
+                                                  const cell_rrm_config&          pcell_rrm)
 {
   static_vector<rlc_bearer_config, MAX_NOF_RB_LCIDS> src_bearers  = fill_rlc_bearers(src);
   static_vector<rlc_bearer_config, MAX_NOF_RB_LCIDS> dest_bearers = fill_rlc_bearers(dest);
@@ -3850,9 +3886,9 @@ void ocudu::odu::calculate_cell_group_config_diff(asn1::rrc_nr::cell_group_cfg_s
   if (dest.cell_group.cells.contains(SERVING_PCELL_IDX)) {
     out.sp_cell_cfg.sp_cell_cfg_ded_present = calculate_serving_cell_config_diff(
         out.sp_cell_cfg.sp_cell_cfg_ded,
-        src.cell_group.cells.contains(SERVING_PCELL_IDX) ? src.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg
-                                                         : serving_cell_config{},
-        dest.cell_group.cells.at(SERVING_PCELL_IDX).serv_cell_cfg);
+        src.cell_group.cells.contains(SERVING_PCELL_IDX) ? &src.cell_group.cells.at(SERVING_PCELL_IDX) : nullptr,
+        dest.cell_group.cells.at(SERVING_PCELL_IDX),
+        pcell_rrm);
 
     out.sp_cell_cfg_present = out.sp_cell_cfg.sp_cell_cfg_ded_present;
   }
@@ -4006,7 +4042,6 @@ bool ocudu::odu::calculate_reconfig_with_sync_diff(asn1::rrc_nr::recfg_with_sync
     // Use rachConfigCommon to get "occasions".
     rach_ded.cfra.occasions_present = false;
     // Note: All RA preambles not used for CBRA are used for CFRA.
-    rach_ded.cfra.ext                          = true;
     rach_ded.cfra.total_nof_ra_preambs_present = true;
     rach_ded.cfra.total_nof_ra_preambs = rach_common.total_nof_ra_preambles - rach_common.nof_cb_preambles_per_ssb;
     // Make CFRA-SSB-Resource.
@@ -4016,14 +4051,11 @@ bool ocudu::odu::calculate_reconfig_with_sync_diff(asn1::rrc_nr::recfg_with_sync
     ssbres.ra_preamb_idx = dest.cfra.value().preamble_id;
     cfra_ssb.ssb_res_list.push_back(ssbres);
   }
-
-  out.ext = true;
   out.smtc.set_present();
   *out.smtc = make_ssb_mtc(du_cell_cfg);
 
   if (du_cell_cfg.ran.ntn_params.has_value() && du_cell_cfg.ran.ntn_params->is_enabled()) {
-    const auto& ntn            = du_cell_cfg.ran.ntn_params.value();
-    out.sp_cell_cfg_common.ext = true;
+    const auto& ntn = du_cell_cfg.ran.ntn_params.value();
     out.sp_cell_cfg_common.ntn_cfg_r17.set_present();
     auto* ntn_cfg_r17 = out.sp_cell_cfg_common.ntn_cfg_r17.get();
     *ntn_cfg_r17      = make_asn1_rrc_cell_ntn_cfg(ntn.ntn_cfg);
@@ -4041,7 +4073,6 @@ static gap_cfg_s make_gap_cfg(const meas_gap_config& cfg)
   if (cfg.mgl == meas_gap_length::ms10 or cfg.mgl == meas_gap_length::ms20) {
     // The UE ignores mgl when mgl-r16 is present, as per TS 38.331.
     gap.mgl.value       = gap_cfg_s::mgl_opts::ms6;
-    gap.ext             = true;
     gap.mgl_r16_present = true;
     gap.mgl_r16.value =
         cfg.mgl == meas_gap_length::ms10 ? gap_cfg_s::mgl_r16_opts::ms10 : gap_cfg_s::mgl_r16_opts::ms20;
@@ -4062,9 +4093,8 @@ void odu::calculate_meas_gap_config_diff(meas_gap_cfg_s&                       o
 {
   out = {};
   out.gap_ue.set_present();
-  out.ext =
-      calculate_setup_release(*out.gap_ue, src, dest, [](const meas_gap_config& cfg) { return make_gap_cfg(cfg); });
-  if (not out.ext) {
+  if (not calculate_setup_release(
+          *out.gap_ue, src, dest, [](const meas_gap_config& cfg) { return make_gap_cfg(cfg); })) {
     out.gap_ue.reset();
   }
 }

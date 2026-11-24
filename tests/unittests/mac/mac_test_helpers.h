@@ -20,7 +20,7 @@
 #include "ocudu/scheduler/config/ran_cell_config_helper.h"
 #include "ocudu/scheduler/config/serving_cell_config_factory.h"
 #include "ocudu/scheduler/mac_scheduler.h"
-#include "ocudu/scheduler/result/sched_result.h"
+#include "ocudu/scheduler/result/sched_result_grid.h"
 #include "ocudu/support/timers.h"
 
 namespace ocudu::test_helpers {
@@ -84,8 +84,8 @@ inline mac_ue_create_request make_default_ue_creation_request(const cell_config_
   pcg_cfg.pdsch_harq_codebook         = pdsch_harq_ack_codebook::dynamic;
 
   msg.sched_cfg.cells.emplace();
-  msg.sched_cfg.cells->push_back(
-      config_helpers::make_default_ue_cell_config(config_helpers::make_default_ran_cell_config(params)));
+  msg.sched_cfg.cells->push_back(make_sched_ue_cell_config(
+      config_helpers::make_default_ue_cell_config(config_helpers::make_default_ran_cell_config(params))));
 
   return msg;
 }
@@ -93,7 +93,8 @@ inline mac_ue_create_request make_default_ue_creation_request(const cell_config_
 class dummy_mac_scheduler : public mac_scheduler
 {
 public:
-  sched_result                           next_sched_result = {};
+  sched_result_grid                      results{sched_result_grid_config{1}};
+  sched_result&                          next_sched_result = results.slot_storage(0);
   std::optional<rach_indication_message> last_rach_ind;
 
   bool handle_cell_configuration_request(const sched_cell_configuration_request_message& msg) override { return true; }
@@ -114,12 +115,13 @@ public:
   void handle_srs_indication(const srs_indication& srs) override {}
   void handle_ul_phr_indication(const ul_phr_indication_message& phr_ind) override {}
   void handle_ul_ta_report_indication(const ul_ta_report_indication_message& ta_report_ind) override {}
+  void handle_cg_confirmation_message(const cg_confirmation_indication_message& cg_conf_ind) override {}
   void handle_dl_mac_ce_indication(const dl_mac_ce_indication& mac_ce) override {}
   void handle_crnti_ce_received(du_ue_index_t ue_index) override {}
   void handle_paging_information(const sched_paging_information& pi) override {}
-  const sched_result& slot_indication(slot_point_extended sl_tx, du_cell_index_t cell_index) override
+  sched_slot_result_reader slot_indication(slot_point_extended sl_tx, du_cell_index_t cell_index) override
   {
-    return next_sched_result;
+    return sched_slot_result_reader{next_sched_result};
   }
   void handle_error_indication(slot_point sl_tx, du_cell_index_t cell_index, error_outcome event) override {}
   void handle_dl_buffer_state_indication(const dl_buffer_state_indication_message& bs) override {}
@@ -169,8 +171,9 @@ public:
 class dummy_mac_scheduler_adapter : public mac_scheduler_cell_info_handler
 {
 public:
-  bool                        active            = false;
-  sched_result                next_sched_result = {};
+  bool                        active = false;
+  sched_result_grid           results{sched_result_grid_config{1}};
+  sched_result&               next_sched_result = results.slot_storage(0);
   dummy_mac_cell_rach_handler rach_handler;
 
   void handle_dl_buffer_state_update(const mac_dl_buffer_state_indication_message& dl_bs) override {}
@@ -179,9 +182,9 @@ public:
 
   void handle_cell_deactivation(du_cell_index_t cell_idx) override { active = false; }
 
-  const sched_result& slot_indication(slot_point_extended slot_tx, du_cell_index_t cell_idx) override
+  sched_slot_result_reader slot_indication(slot_point_extended slot_tx, du_cell_index_t cell_idx) override
   {
-    return next_sched_result;
+    return sched_slot_result_reader{next_sched_result};
   }
   void handle_error_indication(slot_point                         slot_tx,
                                du_cell_index_t                    cell_idx,

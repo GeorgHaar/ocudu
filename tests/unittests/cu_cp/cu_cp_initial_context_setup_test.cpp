@@ -129,6 +129,15 @@ public:
     return true;
   }
 
+  [[nodiscard]] bool send_rrc_reconfiguration_complete_zero_mac_i()
+  {
+    // Inject RRC Reconfiguration Complete with the Security Mode Command transaction ID and zero MAC-I
+    f1ap_message ul_rrc_msg_transfer = test_helpers::generate_ul_rrc_message_transfer(
+        du_ue_id, ue_ctx->cu_ue_id.value(), srb_id_t::srb1, make_byte_buffer("00030a0000000000").value());
+    get_du(du_idx).push_ul_pdu(ul_rrc_msg_transfer);
+    return true;
+  }
+
   [[nodiscard]] bool send_security_mode_complete_bad_mac_i()
   {
     // Inject corrupted Security Mode Complete with bad MAC-I
@@ -360,6 +369,22 @@ TEST_F(cu_cp_initial_context_setup_test, when_security_mode_complete_with_zero_m
   ASSERT_TRUE(await_initial_context_setup_failure());
 }
 
+TEST_F(cu_cp_initial_context_setup_test,
+       when_security_mode_command_is_answered_with_another_message_then_initial_context_setup_fails)
+{
+  // Inject Initial Context Setup Request
+  ASSERT_TRUE(send_initial_context_setup_request());
+
+  // Wait for F1AP UE Context Setup Request (containing Security Mode Command) and inject UE Context Setup Response
+  ASSERT_TRUE(send_ue_context_setup_request_and_await_response());
+
+  // Inject an unprotected RRC Reconfiguration Complete in place of the Security Mode Complete
+  ASSERT_TRUE(send_rrc_reconfiguration_complete_zero_mac_i());
+
+  // Wait for NGAP Initial Context Setup Failure
+  ASSERT_TRUE(await_initial_context_setup_failure());
+}
+
 TEST_F(cu_cp_initial_context_setup_test, when_security_mode_complete_with_bad_mac_i_then_failure_expected)
 {
   // Inject Initial Context Setup Request
@@ -465,7 +490,7 @@ TEST_F(cu_cp_initial_context_setup_with_cho_trigger_test,
   const byte_buffer rrc_container = test_helpers::extract_dl_dcch_msg(test_helpers::get_rrc_container(f1ap_pdu));
   asn1::cbit_ref    bref{rrc_container};
   asn1::rrc_nr::dl_dcch_msg_s dl_dcch_msg;
-  ASSERT_EQ(dl_dcch_msg.unpack(bref), asn1::OCUDUASN_SUCCESS);
+  ASSERT_EQ(asn1::unpack(dl_dcch_msg, bref), asn1::OCUDUASN_SUCCESS);
 
   const auto& recfg = dl_dcch_msg.msg.c1().rrc_recfg().crit_exts.rrc_recfg();
   ASSERT_TRUE(recfg.meas_cfg_present) << "RRC Reconfiguration is expected to carry a measConfig";

@@ -21,7 +21,7 @@ namespace ocudu {
 
 /// \brief Configurable Type-II codebook parameters in a given DU cell.
 ///
-/// The Type-II codebook is described in TS38.214 Section 5.2.2.2.3.
+/// The Type-II codebook is described in TS 38.214 Section 5.2.2.2.3.
 struct du_type2_codebook_params {
   /// Number of beams \f$L\f$ used for the linear combination, given by \e numberOfBeams. Values: {2, 3, 4}.
   unsigned nof_beams = 2;
@@ -37,7 +37,7 @@ struct du_csi_params {
   unsigned zp_csi_ofdm_symbol_index = 8;
   /// \brief Symbol indices within the slot assigned to CSI-RS for tracking resources.
   ///
-  /// The possible sets of values are given in TS38.214 Section 5.1.6.1.1. It must be set to {4, 8, 4, 8}, {5, 9, 5, 9}
+  /// The possible sets of values are given in TS 38.214 Section 5.1.6.1.1. It must be set to {4, 8, 4, 8}, {5, 9, 5, 9}
   /// or {6, 10, 6, 10}.
   std::array<unsigned, 4> tracking_csi_ofdm_symbol_indices = {4, 8, 4, 8};
   /// \brief Period of the CSI-RS resources.
@@ -107,7 +107,7 @@ codebook_config::type1 make_type1_codebook_config(const csi_meas_config_builder_
 /// \remark The cell parameters must enable the Type-II codebook, i.e. \c du_csi_params::type2_codebook must be set.
 codebook_config::type2 make_type2_codebook_config(const csi_meas_config_builder_params& params);
 
-/// \brief Compute default CSI-RS signalling period to use, while constrained by TS38.214, 5.1.6.1.1.
+/// \brief Compute default CSI-RS signalling period to use, while constrained by TS 38.214, 5.1.6.1.1.
 csi_resource_periodicity get_max_csi_rs_period(subcarrier_spacing pdsch_scs);
 
 /// \brief Checks whether a specified CSI-RS period is valid for a given TDD pattern.
@@ -167,6 +167,17 @@ zp_csi_rs_resource_set make_periodic_zp_csi_rs_resource_set(const csi_meas_confi
 /// \brief Generate wideband NZP-CSI-RS Resource List, composed by nzp-CSI-RS resources for tracking and channel
 /// measurements.
 std::vector<nzp_csi_rs_resource> make_nzp_csi_rs_resource_list(const csi_meas_config_builder_params& params);
+
+/// Converts a CSI resource periodicity to a suitable CSI report periodicity. Report peridiocity should be
+/// larger than the resource periodicity.
+csi_report_periodicity convert_csi_resource_period_to_report_period(csi_resource_periodicity res_period);
+
+/// Generate CSI-IM Resource List, one resource for each periodic ZP-CSI-RS resource.
+std::vector<csi_im_resource> make_csi_im_resource_list(const csi_meas_config_builder_params& params);
+
+/// Gets \e reportTriggerSize, the size of the CSI request field in DCI Format 0_1.
+/// \return Zero if the cell configures no aperiodic CSI reports.
+unsigned get_csi_report_trigger_size(const du_csi_params& csi_params);
 
 /// \brief Generate CSI-MeasConfig.
 csi_meas_config make_csi_meas_config(const csi_meas_config_builder_params&                     params,

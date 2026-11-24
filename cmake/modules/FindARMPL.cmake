@@ -10,9 +10,15 @@
 #  ARMPL_LIBRARIES - The libraries needed to use ARMPL
 #  ARMPL_DEFINITIONS - Compiler switches required for using ARMPL
 
+if(NOT "$ENV{ARMPL_DIR}" STREQUAL "")
+  set(_ARMPL_INCLUDE_HINTS      "$ENV{ARMPL_DIR}/include")
+  set(_ARMPL_FFTW_INCLUDE_HINTS "$ENV{ARMPL_DIR}/include/fftw3")
+  set(_ARMPL_LIB_HINTS          "$ENV{ARMPL_DIR}/lib")
+endif()
+
 find_path(ARMPL_INCLUDE_DIR
             NAMES armpl.h
-            HINTS $ENV{ARMPL_DIR}/include
+            HINTS ${_ARMPL_INCLUDE_HINTS}
                   /opt/arm/armpl_*/include/
                   /opt/arm/armpl/include/
                   /usr/inlude/armpl/
@@ -20,17 +26,21 @@ find_path(ARMPL_INCLUDE_DIR
 
 find_path(ARMPL_FFTW_INCLUDE_DIR
             NAMES fftw3.h
-            HINTS $ENV{ARMPL_DIR}/include/fftw3
+            HINTS ${_ARMPL_FFTW_INCLUDE_HINTS}
                   /opt/arm/armpl_*/include/fftw3
                   /opt/arm/armpl/include/fftw3
                   /usr/inlude/armpl/fftw3
             PATHS)
 find_library(ARMPL_LIBRARIES
             NAMES libarmpl_lp64.a
-            HINTS $ENV{ARMPL_DIR}/lib
+            HINTS ${_ARMPL_LIB_HINTS}
                   /opt/arm/armpl_*/lib/
                   /opt/arm/armpl/lib/
             PATHS)
+
+unset(_ARMPL_INCLUDE_HINTS)
+unset(_ARMPL_FFTW_INCLUDE_HINTS)
+unset(_ARMPL_LIB_HINTS)
 
 set(ARMPL_STATIC_LIBRARIES ${ARMPL_LIBRARIES})
 set(ARMPL_INCLUDE_DIRS ${ARMPL_INCLUDE_DIR})

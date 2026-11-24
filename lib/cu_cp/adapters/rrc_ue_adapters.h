@@ -14,7 +14,6 @@
 #include "ocudu/cu_cp/ue_task_scheduler.h"
 #include "ocudu/f1ap/cu_cp/f1ap_rrc_msg_transfer_handling.h"
 #include "ocudu/ngap/ngap.h"
-#include "ocudu/ran/plmn_identity.h"
 #include "ocudu/rrc/rrc_ue.h"
 
 namespace ocudu::ocucp {
@@ -169,22 +168,25 @@ public:
     location_handler     = &location_handler_;
   }
 
-  bool on_ue_setup_request() override
+  bool on_ue_setup_request(establishment_cause_t establishment_cause) override
   {
     ocudu_assert(controller != nullptr, "CU-CP controller must not be nullptr");
-    return controller->request_ue_setup();
+    ocudu_assert(cu_cp_rrc_ue_handler != nullptr, "CU-CP handler must not be nullptr");
+    return controller->request_ue_setup() and
+           cu_cp_rrc_ue_handler->handle_ue_setup_request(ue_index, establishment_cause);
   }
 
-  bool on_ue_setup_complete_received(const plmn_identity& plmn) override
-  {
-    ocudu_assert(controller != nullptr, "CU-CP controller must not be nullptr");
-    return cu_cp_rrc_ue_handler->handle_ue_plmn_selected(ue_index, plmn);
-  }
-
-  rrc_ue_reestablishment_context_response on_rrc_reestablishment_request(pci_t old_pci, rnti_t old_c_rnti) override
+  bool on_ue_setup_complete_received(const amf_selection_request& request) override
   {
     ocudu_assert(cu_cp_rrc_ue_handler != nullptr, "CU-CP handler must not be nullptr");
-    return cu_cp_rrc_ue_handler->handle_rrc_reestablishment_request(old_pci, old_c_rnti, ue_index);
+    return cu_cp_rrc_ue_handler->handle_ue_setup_complete_received(ue_index, request);
+  }
+
+  rrc_ue_reestablishment_context_response
+  on_rrc_reestablishment_request(pci_t old_pci, rnti_t old_c_rnti, reest_cause_t reest_cause) override
+  {
+    ocudu_assert(cu_cp_rrc_ue_handler != nullptr, "CU-CP handler must not be nullptr");
+    return cu_cp_rrc_ue_handler->handle_rrc_reestablishment_request(old_pci, old_c_rnti, reest_cause, ue_index);
   }
 
   async_task<rrc_ue_context_retrieval_response>
@@ -230,10 +232,16 @@ public:
     return cu_cp_rrc_ue_handler->handle_ue_context_release(request);
   }
 
-  void on_up_context_setup_required(const up_context& ctxt) override
+  bool on_up_context_validation_required(const up_context& ctxt, const rrc_ue_capabilities_t& capabilities) override
   {
     ocudu_assert(up_mng != nullptr, "UP resource manager must not be nullptr");
-    up_mng->set_up_context(ctxt);
+    return up_mng->validate_context(ctxt, capabilities);
+  }
+
+  bool on_up_context_setup_required(const up_context& ctxt, const rrc_ue_capabilities_t& capabilities) override
+  {
+    ocudu_assert(up_mng != nullptr, "UP resource manager must not be nullptr");
+    return up_mng->set_up_context(ctxt, capabilities);
   }
 
   void on_ue_location_update() override

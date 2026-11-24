@@ -18,6 +18,8 @@
 #include "ocudu/support/async/async_no_op_task.h"
 #include "ocudu/support/async/async_timer.h"
 #include "ocudu/support/async/coroutine.h"
+#include "ocudu/support/math/math_utils.h"
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -128,42 +130,24 @@ void du_setup_procedure::operator()(coro_context<async_task<void>>& ctx)
 
   proc_logger.log_proc_started();
 
-  // Establish TNL association with the CU-CP.
-  for (; not ctxt.ctxt.stop_command_received and not ctxt.params.f1ap.conn_mng.connect_to_cu_cp(); ++count) {
-    if (count + 1 >= request.max_f1c_tnl_connection_retries) {
-      // No attempt is left, so the failure is final and the gateway already reported its cause.
-      report_error("F1 Setup failed. Cause: F1-C TNL connection failed");
+  while (true) {
+    // Establish TNL association with the CU-CP.
+    CORO_AWAIT(connect_to_cu_cp());
+    if (ctxt.ctxt.stop_command_received) {
+      // DU is being shutdown.
+      CORO_EARLY_RETURN();
     }
-    // Only the first attempt is reported at warning level. The SCTP gateway announces the repetitions periodically, so
-    // reporting each one of them here would flood the log of a DU that is waiting for its CU-CP.
-    if (count == 0) {
-      ctxt.logger.warning("F1-C TNL association with CU-CP attempt {}/{} failed. Retrying in {} ms...",
-                          count + 1,
-                          format_max_retries(request.max_f1c_tnl_connection_retries),
-                          request.f1c_tnl_connection_retry_wait.count());
-    } else {
-      ctxt.logger.debug("F1-C TNL association with CU-CP attempt {}/{} failed. Retrying in {} ms...",
-                        count + 1,
-                        format_max_retries(request.max_f1c_tnl_connection_retries),
-                        request.f1c_tnl_connection_retry_wait.count());
+
+    // Initiate F1 Setup.
+    CORO_AWAIT_VALUE(response_msg, start_f1_setup_request());
+
+    // Handle F1 setup result and activate cells.
+    CORO_AWAIT(handle_f1_setup_response(response_msg));
+    if (response_msg.has_value()) {
+      break;
     }
-    CORO_AWAIT(async_wait_for(timer, request.f1c_tnl_connection_retry_wait));
-  }
-  if (ctxt.ctxt.stop_command_received) {
-    // DU is being shutdown.
-    CORO_EARLY_RETURN();
-  }
 
-  // Initiate F1 Setup.
-  CORO_AWAIT_VALUE(response_msg, start_f1_setup_request());
-
-  // Handle F1 setup result and activate cells.
-  CORO_AWAIT(handle_f1_setup_response(response_msg));
-  if (not response_msg.has_value()) {
-    // The CU-CP rejected the F1 Setup and the TNL association was torn down as a result. Unlike a failed TNL
-    // connection, this is a decision of the CU-CP and not a transient failure, so it is not retried. Close the
-    // application instead of leaving the DU running with no served cell and no way back.
-    report_error("F1 Setup failed. Cause: {}", failure_cause);
+    CORO_AWAIT(wait_for_f1_setup_retry());
   }
 
   // Notify successful setup and deliver packed F1 setup PDU bytes via notifier.
@@ -179,13 +163,76 @@ void du_setup_procedure::operator()(coro_context<async_task<void>>& ctx)
   CORO_RETURN();
 }
 
+async_task<void> du_setup_procedure::connect_to_cu_cp()
+{
+  return launch_async([this](coro_context<async_task<void>>& ctx) {
+    CORO_BEGIN(ctx);
+
+    for (count = 0; not ctxt.ctxt.stop_command_received and not ctxt.params.f1ap.conn_mng.connect_to_cu_cp(); ++count) {
+      if (count + 1 >= request.max_f1c_tnl_connection_retries) {
+        // No attempt is left, so the failure is final and the gateway already reported its cause.
+        report_error("F1 Setup failed. Cause: F1-C TNL connection failed");
+      }
+      // Only the first attempt is reported at warning level. The SCTP gateway announces the repetitions periodically,
+      // so reporting each one of them here would flood the log of a DU that is waiting for its CU-CP.
+      if (count == 0) {
+        ctxt.logger.warning("F1-C TNL association with CU-CP attempt {}/{} failed. Retrying in {} ms...",
+                            count + 1,
+                            format_max_retries(request.max_f1c_tnl_connection_retries),
+                            request.f1c_tnl_connection_retry_wait.count());
+      } else {
+        ctxt.logger.debug("F1-C TNL association with CU-CP attempt {}/{} failed. Retrying in {} ms...",
+                          count + 1,
+                          format_max_retries(request.max_f1c_tnl_connection_retries),
+                          request.f1c_tnl_connection_retry_wait.count());
+      }
+      CORO_AWAIT(async_wait_for(timer, request.f1c_tnl_connection_retry_wait));
+    }
+
+    CORO_RETURN();
+  });
+}
+
+async_task<void> du_setup_procedure::wait_for_f1_setup_retry()
+{
+  // Without retries, close the DU rather than leave it running with no served cell.
+  if (request.max_f1c_tnl_connection_retries != du_start_request::unlimited_retries) {
+    report_error("F1 Setup failed. Cause: {}", failure_cause);
+  }
+
+  // The CU-CP may accept the DU later, e.g. once it is set up with the AMF. Wait at least the Time to Wait, if the
+  // CU-CP commanded one, as per TS 38.473, Section 8.2.3.3.
+  const std::chrono::milliseconds time_to_wait = response_msg.error().time_to_wait.value_or(std::chrono::seconds{0});
+  nof_retry_waits =
+      std::max<unsigned>(1, divide_ceil(time_to_wait.count(), request.f1c_tnl_connection_retry_wait.count()));
+  ctxt.logger.warning("F1 Setup failed. Cause: {}. Retrying in {} ms...",
+                      failure_cause,
+                      nof_retry_waits * request.f1c_tnl_connection_retry_wait.count());
+  if (not setup_failure_reported) {
+    // Only the first failure is announced in STDOUT, so that a lasting rejection does not flood it.
+    fmt::print("F1 Setup failed. Cause: {}. Retrying in the background\n", failure_cause);
+    setup_failure_reported = true;
+  }
+
+  return launch_async([this](coro_context<async_task<void>>& ctx) {
+    CORO_BEGIN(ctx);
+
+    // Wait in steps, so a stop request does not wait for the whole Time to Wait.
+    for (; nof_retry_waits != 0 and not ctxt.ctxt.stop_command_received; --nof_retry_waits) {
+      CORO_AWAIT(async_wait_for(timer, request.f1c_tnl_connection_retry_wait));
+    }
+
+    CORO_RETURN();
+  });
+}
+
 void odu::configure_du_cells(const du_proc_context_view& ctxt)
 {
   ctxt.cell_mng.remove_all_cells();
 
-  // Save cell configurations.
-  for (const du_cell_config& cell : ctxt.params.ran.cells) {
-    ctxt.cell_mng.add_cell(cell);
+  // Save cell configurations and the resources that the RRM allocates to the UEs of each cell.
+  for (unsigned idx = 0, e = ctxt.params.ran.cells.size(); idx != e; ++idx) {
+    ctxt.cell_mng.add_cell(ctxt.params.ran.cells[idx], ctxt.res_mng.get_cell_rrm_config(to_du_cell_index(idx)));
   }
 
   // Configure MAC Cells (without activating them).
@@ -197,8 +244,11 @@ void odu::configure_du_cells(const du_proc_context_view& ctxt)
     const unsigned max_nof_established_ue_ctxts = ctxt.res_mng.get_max_nof_established_ue_contexts(cell_index);
     const unsigned max_nof_rejected_ue_ctxts    = ctxt.res_mng.get_max_nof_rejected_ue_contexts(cell_index);
 
-    auto sched_cfg = make_sched_cell_config_req(
-        cell_index, du_cfg, sys_info.si_sched_cfg, max_nof_established_ue_ctxts + max_nof_rejected_ue_ctxts);
+    auto                    sched_cfg = make_sched_cell_config_req(cell_index,
+                                                du_cfg,
+                                                ctxt.cell_mng.get_cell_rrm_cfg(cell_index),
+                                                sys_info.si_sched_cfg,
+                                                max_nof_established_ue_ctxts + max_nof_rejected_ue_ctxts);
     error_type<std::string> result =
         config_validators::validate_sched_cell_configuration_request_message(sched_cfg, ctxt.params.mac.sched_cfg);
     if (not result.has_value()) {
@@ -229,9 +279,10 @@ async_task<f1_setup_result> du_setup_procedure::start_f1_setup_request()
   // Prepare request to send to F1.
   f1_setup_request_message req = {};
 
-  req.gnb_du_id   = ctxt.params.ran.gnb_du_id;
-  req.gnb_du_name = ctxt.params.ran.gnb_du_name;
-  req.rrc_version = ctxt.params.ran.rrc_version;
+  req.gnb_du_id        = ctxt.params.ran.gnb_du_id;
+  req.gnb_du_name      = ctxt.params.ran.gnb_du_name;
+  req.rrc_version      = ctxt.params.ran.rrc_version;
+  req.response_timeout = ctxt.params.f1ap.f1_setup_response_timeout;
 
   const bool log_si_info = ctxt.logger.info.enabled();
 
@@ -302,7 +353,8 @@ async_task<void> du_setup_procedure::handle_f1_setup_response(const f1_setup_res
     }
 
     // Trigger SCTP association shutdown after failed F1 Setup procedure.
-    ctxt.logger.error("F1 Setup procedure failed, triggering SCTP association shutdown. Cause: {}.", failure_cause);
+    // Note: The caller reports the failure.
+    ctxt.logger.debug("F1 Setup procedure failed, triggering SCTP association shutdown. Cause: {}.", failure_cause);
     return ctxt.params.f1ap.conn_mng.disconnect_from_cu_cp();
   }
 

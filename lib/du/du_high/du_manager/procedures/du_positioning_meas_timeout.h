@@ -12,11 +12,15 @@
 
 namespace ocudu::odu {
 
-/// Number of SRS periods that the MAC waits for a measurement. A second period covers a missed SRS occasion.
+/// \brief Number of SRS periods that the MAC waits for a measurement.
+///
+/// A second period covers a missed SRS occasion, or an occasion that an earlier measurement of the same C-RNTI uses.
 inline constexpr unsigned NOF_SRS_PERIODS_PER_POSITIONING_MEAS = 2;
 
-/// Shortest time that the MAC waits for a measurement, for SRS configurations with a very short period.
-inline constexpr std::chrono::milliseconds MIN_POSITIONING_MEAS_TIMEOUT{20};
+/// \brief [Implementation-defined] Time that the MAC waits for a measurement on top of the SRS periods.
+///
+/// It covers the time for the scheduler to start the measurement on an SRS occasion, and the delay of the PHY report.
+inline constexpr std::chrono::milliseconds POSITIONING_MEAS_TIMEOUT_MARGIN{20};
 
 /// \brief Time that the gNB-DU keeps to answer within the Response Time.
 ///
@@ -51,9 +55,9 @@ inline std::chrono::milliseconds get_positioning_meas_timeout(const srs_config& 
 
   // Slots per millisecond, as per TS 38.211 section 4.3.1.
   const unsigned slots_per_ms = get_nof_slots_per_subframe(scs);
-  const unsigned timeout_ms   = (max_period_slots * NOF_SRS_PERIODS_PER_POSITIONING_MEAS) / slots_per_ms;
+  const unsigned periods_ms   = (max_period_slots * NOF_SRS_PERIODS_PER_POSITIONING_MEAS) / slots_per_ms;
 
-  return std::max(MIN_POSITIONING_MEAS_TIMEOUT, std::chrono::milliseconds{timeout_ms});
+  return std::chrono::milliseconds{periods_ms} + POSITIONING_MEAS_TIMEOUT_MARGIN;
 }
 
 } // namespace ocudu::odu

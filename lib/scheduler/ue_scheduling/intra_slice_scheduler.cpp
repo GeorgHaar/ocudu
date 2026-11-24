@@ -225,8 +225,12 @@ void intra_slice_scheduler::ul_sched(ul_ran_slice_candidate slice, scheduler_pol
     return;
   }
 
-  if (slice.get_slot_tx() != pusch_slot) {
-    pusch_slot = slice.get_slot_tx();
+  // The used VRBs follow from the symbols of the candidate k2, so a candidate reaching the same slot from another k2
+  // needs them computed again.
+  if (slice.get_slot_tx() != pusch_slot or slice.get_k2() != pusch_k2) {
+    pusch_slot        = slice.get_slot_tx();
+    pusch_k2          = slice.get_k2();
+    pusch_ntn_koffset = slice.get_ntn_koffset();
     update_used_ul_vrbs(slice);
   }
 
@@ -329,14 +333,14 @@ unsigned intra_slice_scheduler::schedule_dl_retx_candidates(dl_ran_slice_candida
     }
 
     if (result.has_value()) {
-      vrb_interval alloc_vrbs = result.value().vrbs;
-      used_dl_vrbs.fill(alloc_vrbs.start(), alloc_vrbs.stop());
-      slice.store_grant(alloc_vrbs.length());
+      const vrb_alloc& alloc_vrbs = result.value().vrbs;
+      mark_used_dl_vrbs(alloc_vrbs);
+      slice.store_grant(alloc_vrbs.nof_vrbs());
       // PDSCH repetition occasions land in future slots that are not covered by this slice candidate's own
       // remaining_rbs() budget (scoped to pdsch_slot); register their RB usage against the slice's budget for those
       // slots directly.
       for (slot_point occasion_slot : result.value().repetition_slots) {
-        slice.store_grant(alloc_vrbs.length(), occasion_slot);
+        slice.store_grant(alloc_vrbs.nof_vrbs(), occasion_slot);
       }
       if (++alloc_count >= max_ue_grants_to_alloc or slice.remaining_rbs() == 0) {
         // Maximum number of allocations reached.
@@ -505,14 +509,27 @@ unsigned intra_slice_scheduler::schedule_dl_newtx_candidates(dl_ran_slice_candid
       }
     }
 
+    // A grant with resource allocation type 0 only takes whole RBGs, which may not fit in the RBs left in the slice.
+    // [Implementation-defined] UE DL grants of this scheduler always use SearchSpace 2.
+    static constexpr search_space_id ue_ded_ss_id      = to_search_space_id(2);
+    const unsigned                   min_grant_nof_rbs = sched_helper::get_min_newtx_dl_nof_vrbs(
+        ue_candidate.ue->get_cc().cfg().search_space(ue_ded_ss_id), enable_pdsch_interleaving);
+    if (rbs_to_alloc - rb_count < min_grant_nof_rbs) {
+      continue;
+    }
+
     // Create DL grant builder.
-    auto result =
-        ue_alloc.allocate_dl_grant(ue_newtx_dl_grant_request{*ue_candidate.ue, pdsch_slot, ue_candidate.pending_bytes});
+    const ue_newtx_dl_grant_request request{.user                 = *ue_candidate.ue,
+                                            .pdsch_slot           = pdsch_slot,
+                                            .pending_bytes        = ue_candidate.pending_bytes,
+                                            .interleaving_enabled = enable_pdsch_interleaving,
+                                            .restrictions         = ue_candidate.dl_restrictions};
+    auto                            result = ue_alloc.allocate_dl_grant(request);
 
     if (result.has_value()) {
       // Allocation was successful. Move grant builder to list of pending newTx grants.
       auto& grant_builder = result.value();
-      rb_count += std::min(grant_builder.context().expected_nof_rbs, max_rbs_per_grant);
+      rb_count += std::max(std::min(grant_builder.context().expected_nof_rbs, max_rbs_per_grant), min_grant_nof_rbs);
 
       pending_dl_newtxs.push_back(std::move(grant_builder));
       if (rb_count >= rbs_to_alloc) {
@@ -561,37 +578,38 @@ unsigned intra_slice_scheduler::schedule_dl_newtx_candidates(dl_ran_slice_candid
     } else {
       max_grant_size = max_rbs_per_grant + rbs_missing;
     }
-    ocudu_assert(max_grant_size > 0, "Invalid grant size.");
+    if (max_grant_size <= 0) {
+      // Earlier type 0 grants exceeded their share by more than this grant's share, to fit whole RBGs.
+      logger.debug("ue={} c-rnti={}: Skipping PDSCH grant at slot={}. Cause: RB share taken by earlier RBG grants",
+                   grant_builder.ue().ue_index(),
+                   grant_builder.ue().crnti(),
+                   slice.get_slot_tx());
+      grant_builder.set_pdsch_params(vrb_interval{}, enable_pdsch_interleaving);
+      // The skipped grant takes no RBs, so its share carries over to the next grants.
+      rbs_missing = max_grant_size;
+      continue;
+    }
 
-    // Derive recommended parameters for the DL newTx grant.
-    vrb_interval alloc_vrbs = grant_builder.recommended_vrbs(used_dl_vrbs, max_grant_size);
+    // Derive recommended parameters for the DL newTx grant. A type 0 grant may exceed its share to fit whole RBGs, as
+    // long as it fits in the RBs left in the slice.
+    const vrb_alloc alloc_vrbs = grant_builder.recommended_vrbs(
+        used_dl_vrbs, max_grant_size, rbs_to_alloc - rb_count, enable_pdsch_interleaving);
     if (alloc_vrbs.empty()) {
       logger.warning("ue={} c-rnti={}: Failed to allocate RBs for PDSCH grant at slot={}",
                      grant_builder.ue().ue_index(),
                      grant_builder.ue().crnti(),
                      slice.get_slot_tx());
       // We let the grant be empty. It will be skipped in the post-processing scheduling step.
-      grant_builder.set_pdsch_params({}, {}, enable_pdsch_interleaving);
+      grant_builder.set_pdsch_params(vrb_interval{}, enable_pdsch_interleaving);
       continue;
     }
 
-    // Compute the corresponding CRBs.
-    static constexpr search_space_id      ue_ded_ss_id = to_search_space_id(2);
-    const auto&                           ss_info      = grant_builder.ue().get_cc().cfg().search_space(ue_ded_ss_id);
-    std::pair<crb_interval, crb_interval> alloc_crbs;
-    if (enable_pdsch_interleaving) {
-      const auto prbs = ss_info.interleaved_mapping.value().vrb_to_prb(alloc_vrbs);
-      alloc_crbs      = {prb_to_crb(ss_info.dl_crb_lims, prbs.first), prb_to_crb(ss_info.dl_crb_lims, prbs.second)};
-    } else {
-      alloc_crbs = {prb_to_crb(ss_info.dl_crb_lims, alloc_vrbs.convert_to<prb_interval>()), {}};
-    }
-
     // Save CRBs, MCS and RI.
-    auto committed_repetition_slots = grant_builder.set_pdsch_params(alloc_vrbs, alloc_crbs, enable_pdsch_interleaving);
+    auto committed_repetition_slots = grant_builder.set_pdsch_params(alloc_vrbs, enable_pdsch_interleaving);
 
     // Fill used VRBs.
-    const unsigned nof_rbs_alloc = alloc_vrbs.length();
-    used_dl_vrbs.fill(alloc_vrbs.start(), alloc_vrbs.stop());
+    const unsigned nof_rbs_alloc = alloc_vrbs.nof_vrbs();
+    mark_used_dl_vrbs(alloc_vrbs);
 
     // Update slice state.
     slice.store_grant(nof_rbs_alloc);
@@ -602,7 +620,7 @@ unsigned intra_slice_scheduler::schedule_dl_newtx_candidates(dl_ran_slice_candid
       slice.store_grant(nof_rbs_alloc, occasion_slot);
     }
     rb_count += nof_rbs_alloc;
-    rbs_missing = (max_grant_size - nof_rbs_alloc);
+    rbs_missing = max_grant_size - static_cast<int>(nof_rbs_alloc);
   }
 
   // Clear grant builders.
@@ -610,8 +628,8 @@ unsigned intra_slice_scheduler::schedule_dl_newtx_candidates(dl_ran_slice_candid
   pending_dl_newtxs.clear();
 
   // Update policy with final allocation results.
-  const auto& pdschs = cell_alloc[pdsch_slot].result.dl.ue_grants;
-  dl_policy.save_dl_newtx_grants(span<const dl_msg_alloc>(pdschs.end() - alloc_count, pdschs.end()));
+  const auto pdschs = cell_alloc[pdsch_slot].result_reader().dl().ue_grants();
+  dl_policy.save_dl_newtx_grants(pdschs.last(alloc_count));
 
   return alloc_count;
 }
@@ -639,8 +657,12 @@ unsigned intra_slice_scheduler::schedule_ul_newtx_candidates(ul_ran_slice_candid
     // Create UL grant builder.
     // NOTE: the symbols passed to the grant are the symbols that are available for PUSCH and for which the used VRBs
     // have been computed.
-    auto result = ue_alloc.allocate_ul_grant(ue_newtx_ul_grant_request{
-        *ue_candidate.ue, pusch_slot, ue_candidate.pending_bytes, ofdm_symbol_range{0, min_srs_symbol}});
+    auto result =
+        ue_alloc.allocate_ul_grant(ue_newtx_ul_grant_request{.user            = *ue_candidate.ue,
+                                                             .pusch_slot      = pusch_slot,
+                                                             .pending_bytes   = ue_candidate.pending_bytes,
+                                                             .allowed_symbols = ofdm_symbol_range{0, min_srs_symbol},
+                                                             .restrictions    = ue_candidate.ul_restrictions});
 
     if (result.has_value()) {
       // Allocation was successful. Move grant builder to list of pending newTx grants.
@@ -726,8 +748,8 @@ unsigned intra_slice_scheduler::schedule_ul_newtx_candidates(ul_ran_slice_candid
   pending_ul_newtxs.clear();
 
   // Update policy with allocation results.
-  const auto& puschs = cell_alloc[pusch_slot].result.ul.puschs;
-  ul_policy.save_ul_newtx_grants(span<const ul_sched_info>(puschs.end() - alloc_count, puschs.end()));
+  const auto puschs = cell_alloc[pusch_slot].result_reader().ul().puschs();
+  ul_policy.save_ul_newtx_grants(puschs.last(alloc_count));
 
   return alloc_count;
 }
@@ -743,6 +765,11 @@ bool intra_slice_scheduler::can_allocate_pdsch(const slice_ue& u, const ue_cell&
 
 bool intra_slice_scheduler::can_allocate_pusch(const slice_ue& u, const ue_cell& ue_cc) const
 {
+  // A UE on another Koffset reaches this slot from a different k2, so the used VRBs, computed for the k2 of the
+  // candidate, do not describe the grant it would be given. It waits for the candidate built for its own Koffset.
+  if (ue_cc.ntn_koffset() != pusch_ntn_koffset) {
+    return false;
+  }
   // Check if PDCCH/PUSCH are possible for the provided slots (e.g. not in UL slot or measGap)
   return ue_cc.is_pusch_enabled(pdcch_slot, pusch_slot);
 }
@@ -752,7 +779,9 @@ std::optional<ue_newtx_candidate> intra_slice_scheduler::create_newtx_dl_candida
   ocudu_assert(ue_cc.is_active() and not ue_cc.is_in_fallback_mode(), "Invalid slice UE state");
 
   // Check if the UE has pending data to transmit.
-  units::bytes pending_bytes{u.pending_dl_newtx_bytes()};
+  // The block carries only the channels its restrictions allow, so the grant is sized for those alone.
+  const auto   tb_sel = u.select_dl_transport_block();
+  units::bytes pending_bytes{tb_sel.pending_bytes};
   if (pending_bytes.value() == 0) {
     return std::nullopt;
   }
@@ -763,7 +792,7 @@ std::optional<ue_newtx_candidate> intra_slice_scheduler::create_newtx_dl_candida
 
   // A process is only usable when it carries the feedback the logical channels of the slice need, so the grant is
   // dropped here rather than after a PDCCH and a PUCCH have been booked for it.
-  if (not ue_cc.harqs.has_empty_dl_harqs(harq_utils::to_harq_mode(u.select_normal_dl_harq_mode()))) {
+  if (not ue_cc.harqs.has_empty_dl_harqs(harq_utils::to_harq_mode(tb_sel.restrictions.harq_feedback))) {
     // No available HARQs. A process free in the other mode owes no HARQ-ACK, so the feedback only runs late once no
     // process at all is free.
     if (not ue_cc.harqs.has_empty_dl_harqs() and not ue_cc.harqs.find_pending_dl_retx().has_value()) {
@@ -779,25 +808,32 @@ std::optional<ue_newtx_candidate> intra_slice_scheduler::create_newtx_dl_candida
     return std::nullopt;
   }
 
-  return ue_newtx_candidate{&u, forbid_sched_priority, pending_bytes};
+  return ue_newtx_candidate{.ue              = &u,
+                            .priority        = forbid_sched_priority,
+                            .pending_bytes   = pending_bytes,
+                            .dl_restrictions = tb_sel.restrictions};
 }
 std::optional<ue_newtx_candidate> intra_slice_scheduler::create_newtx_ul_candidate(const slice_ue& u) const
 {
   const ue_cell& ue_cc = u.get_cc();
   ocudu_assert(ue_cc.is_active() and not ue_cc.is_in_fallback_mode(), "Invalid slice UE state");
 
-  units::bytes pending_bytes = u.pending_ul_newtx_bytes();
-  if (pending_bytes.value() == 0) {
-    return std::nullopt;
-  }
-
   if (not can_allocate_pusch(u, ue_cc)) {
     return std::nullopt;
   }
 
-  if (not ue_cc.harqs.has_empty_ul_harqs()) {
-    // No available HARQs.
-    if (not ue_cc.harqs.find_pending_ul_retx().has_value()) {
+  // The grant is built on a process that is free, and the UE only serves the channels that process allows on it, so
+  // the grant is sized for those alone.
+  const auto   grant_sel = u.select_ul_grant();
+  units::bytes pending_bytes{grant_sel.pending_bytes};
+  if (pending_bytes.value() == 0) {
+    return std::nullopt;
+  }
+
+  if (not ue_cc.harqs.has_empty_ul_harqs(harq_utils::to_harq_mode(grant_sel.restrictions.harq_mode))) {
+    // No available HARQs. A process free in the other mode is not waiting for a CRC, so the UE only runs late once
+    // no process at all is free.
+    if (not ue_cc.harqs.has_empty_ul_harqs() and not ue_cc.harqs.find_pending_ul_retx().has_value()) {
       // All HARQs are waiting for their respective CRC. This may be a symptom of a slow PUSCH processing chain.
       logger.info("ue={} rnti={} PUSCH allocation skipped. Cause: All the UE HARQs are busy waiting for "
                   "their respective CRC result. Check if any CRC PDU went missing in the lower layers or is "
@@ -809,7 +845,10 @@ std::optional<ue_newtx_candidate> intra_slice_scheduler::create_newtx_ul_candida
     return std::nullopt;
   }
 
-  return ue_newtx_candidate{&u, forbid_sched_priority, pending_bytes};
+  return ue_newtx_candidate{.ue              = &u,
+                            .priority        = forbid_sched_priority,
+                            .pending_bytes   = pending_bytes,
+                            .ul_restrictions = grant_sel.restrictions};
 }
 
 unsigned intra_slice_scheduler::max_pdschs_to_alloc(const dl_ran_slice_candidate& slice) const
@@ -818,17 +857,18 @@ unsigned intra_slice_scheduler::max_pdschs_to_alloc(const dl_ran_slice_candidate
   int pdschs_to_alloc = slice.get_slice_ues().size();
 
   // Determine how many UE DL PDUs can be allocated in this slot.
-  const auto& pdsch_res = cell_alloc[pdsch_slot].result;
-  pdschs_to_alloc = std::min(pdschs_to_alloc, static_cast<int>(MAX_UE_PDUS_PER_SLOT - pdsch_res.dl.ue_grants.size()));
+  const auto pdsch_res = cell_alloc[pdsch_slot].result_reader();
+  pdschs_to_alloc =
+      std::min(pdschs_to_alloc, static_cast<int>(MAX_UE_PDUS_PER_SLOT - pdsch_res.dl().ue_grants().size()));
   if (pdschs_to_alloc <= 0) {
     return 0;
   }
 
   // Determine how many PDCCHs can be allocated in this slot.
-  const auto& pdcch_res  = cell_alloc[pdcch_slot].result;
-  const int   max_pdcchs = std::min(static_cast<int>(MAX_DL_PDCCH_PDUS_PER_SLOT - pdcch_res.dl.dl_pdcchs.size()),
+  const auto pdcch_res  = cell_alloc[pdcch_slot].result_reader();
+  const int  max_pdcchs = std::min(static_cast<int>(MAX_DL_PDCCH_PDUS_PER_SLOT - pdcch_res.dl().dl_pdcchs().size()),
                                   static_cast<int>(expert_cfg.max_pdcch_alloc_attempts_per_slot - dl_attempts_count));
-  pdschs_to_alloc        = std::min(pdschs_to_alloc, max_pdcchs);
+  pdschs_to_alloc       = std::min(pdschs_to_alloc, max_pdcchs);
   if (pdschs_to_alloc <= 0) {
     return 0;
   }
@@ -836,8 +876,8 @@ unsigned intra_slice_scheduler::max_pdschs_to_alloc(const dl_ran_slice_candidate
   // Determine how many PDSCHs can be allocated in this slot.
   const int max_pdschs =
       std::min(static_cast<int>(MAX_PDSCH_PDUS_PER_SLOT), static_cast<int>(expert_cfg.max_pdschs_per_slot));
-  int allocated_pdschs = pdsch_res.dl.ue_grants.size() + pdsch_res.dl.bc.sibs.size() + pdsch_res.dl.rar_grants.size() +
-                         pdsch_res.dl.paging_grants.size();
+  int allocated_pdschs = pdsch_res.dl().ue_grants().size() + pdsch_res.dl().sibs().size() +
+                         pdsch_res.dl().rar_grants().size() + pdsch_res.dl().paging_grants().size();
   pdschs_to_alloc = std::min(pdschs_to_alloc, max_pdschs - allocated_pdschs);
   if (pdschs_to_alloc <= 0) {
     return 0;
@@ -859,28 +899,28 @@ unsigned intra_slice_scheduler::max_puschs_to_alloc(const ul_ran_slice_candidate
   int puschs_to_alloc = slice.get_slice_ues().size();
 
   // Determine how many PUSCHs can be allocated in this slot.
-  const auto& pusch_res = cell_alloc[pusch_slot].result;
+  const auto pusch_res = cell_alloc[pusch_slot].result_reader();
   // The max PUSCHs-per-slot limit cannot be exceeded.
   // Note: We use signed integer to avoid unsigned overflow.
   const int max_puschs = std::min(static_cast<unsigned>(MAX_PUSCH_PDUS_PER_SLOT), expert_cfg.max_puschs_per_slot);
-  puschs_to_alloc      = std::min(puschs_to_alloc, max_puschs - static_cast<int>(pusch_res.ul.puschs.size()));
+  puschs_to_alloc      = std::min(puschs_to_alloc, max_puschs - static_cast<int>(pusch_res.ul().puschs().size()));
   if (puschs_to_alloc <= 0) {
     return 0;
   }
 
   // The max UL grants-per-slot limit cannot be exceeded.
-  puschs_to_alloc = std::min(
-      puschs_to_alloc,
-      static_cast<int>(expert_cfg.max_ul_grants_per_slot - pusch_res.ul.puschs.size() - pusch_res.ul.pucchs.size()));
+  puschs_to_alloc = std::min(puschs_to_alloc,
+                             static_cast<int>(expert_cfg.max_ul_grants_per_slot - pusch_res.ul().puschs().size() -
+                                              pusch_res.ul().pucchs().size()));
   if (puschs_to_alloc <= 0) {
     return 0;
   }
 
   // Determine how many PDCCHs can be allocated in this slot.
-  const auto& pdcch_res  = cell_alloc[pdcch_slot].result;
-  const auto  max_pdcchs = std::min(static_cast<int>(MAX_UL_PDCCH_PDUS_PER_SLOT - pdcch_res.dl.ul_pdcchs.size()),
+  const auto pdcch_res  = cell_alloc[pdcch_slot].result_reader();
+  const auto max_pdcchs = std::min(static_cast<int>(MAX_UL_PDCCH_PDUS_PER_SLOT - pdcch_res.dl().ul_pdcchs().size()),
                                    static_cast<int>(expert_cfg.max_pdcch_alloc_attempts_per_slot - ul_attempts_count));
-  puschs_to_alloc        = std::min(puschs_to_alloc, max_pdcchs);
+  puschs_to_alloc       = std::min(puschs_to_alloc, max_pdcchs);
   if (puschs_to_alloc <= 0) {
     return 0;
   }
@@ -909,7 +949,7 @@ void intra_slice_scheduler::update_used_dl_vrbs(const dl_ran_slice_candidate& sl
 
   enable_pdsch_interleaving = ss_info.interleaved_mapping.has_value();
   if (enable_pdsch_interleaving) {
-    for (const auto& pdsch : cell_alloc[pdsch_slot].result.dl.ue_grants) {
+    for (const auto& pdsch : cell_alloc[pdsch_slot].result_reader().dl().ue_grants()) {
       // [Implementation defined] Disable interleaving if there are non-interleaved PDSCH grants already allocated on
       // that slot, to avoid wasting resources.
       if (pdsch.pdsch_cfg.vrb_prb_mapping == vrb_to_prb::mapping_type::non_interleaved) {
@@ -939,12 +979,21 @@ void intra_slice_scheduler::update_used_dl_vrbs(const dl_ran_slice_candidate& sl
   }
 }
 
+void intra_slice_scheduler::mark_used_dl_vrbs(const vrb_alloc& vrbs)
+{
+  if (vrbs.is_type0()) {
+    used_dl_vrbs |= vrbs.type0();
+  } else {
+    used_dl_vrbs |= vrbs.type1();
+  }
+}
+
 void intra_slice_scheduler::update_used_ul_vrbs(const ul_ran_slice_candidate& slice)
 {
   // Update the min SRS symbol before checking the used VRBs.
   // NOTE: Reset to max symbol index before looking for the min.
   min_srs_symbol = NOF_OFDM_SYM_PER_SLOT_NORMAL_CP;
-  for (const auto& srs : cell_alloc[pusch_slot - pdcch_slot].result.ul.srss) {
+  for (const auto& srs : cell_alloc[pusch_slot - pdcch_slot].result_reader().ul().srss()) {
     min_srs_symbol = std::min(static_cast<unsigned>(srs.symbols.start()), min_srs_symbol);
   }
 
@@ -959,8 +1008,7 @@ void intra_slice_scheduler::update_used_ul_vrbs(const ul_ran_slice_candidate& sl
   // for PDSCH. This assumes that these resources are not colliding with SRS.
   const auto& init_ul_bwp = cell_alloc.cfg.params.ul_cfg_common.init_ul_bwp;
   ocudu_assert(slice.get_slot_tx() - cell_alloc[0].slot > 0, "PUSCH slot cannot precede its corresponding PDCCH slot");
-  // Note: In NTN mode, the slot offset includes ntn_cs_koffset, but td_res.k2 is the base k2.
-  const unsigned    slice_candidate_k2 = slice.get_slot_tx() - cell_alloc[0].slot - cell_alloc.cfg.ntn_cs_koffset;
+  const unsigned    slice_candidate_k2 = slice.get_k2();
   ofdm_symbol_range symbols_to_check   = {0, 0};
   // Find the max symbols such that symbols.stop() <= min_srs_symbol;
   for (const auto& td_res : init_ul_bwp.pusch_cfg_common->pusch_td_alloc_list) {

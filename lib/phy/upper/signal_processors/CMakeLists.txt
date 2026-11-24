@@ -53,6 +53,7 @@ add_library(ocudu_ptrs_generator STATIC
     ptrs/ptrs_pdsch_generator_factory.cpp
     ptrs/ptrs_pdsch_generator_impl.cpp
 )
+target_link_libraries(ocudu_ptrs_generator ocudu_dmrs_helper)
 
 add_library(ocudu_srs_estimator STATIC
     srs/srs_estimator_factory.cpp

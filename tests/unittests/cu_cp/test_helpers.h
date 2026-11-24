@@ -74,6 +74,8 @@ public:
 
   void on_du_cells_removed(span<const nr_cell_identity> cells) override {}
 
+  bool on_ue_resume_admission_request(cu_cp_ue_index_t ue_index, resume_cause_t resume_cause) override { return true; }
+
   void on_rrc_ue_created(cu_cp_ue_index_t ue_index, rrc_ue_interface& rrc_ue) override
   {
     logger.info("ue={}: Received a RRC UE creation notification", ue_index);
@@ -87,6 +89,19 @@ public:
   {
     return make_byte_buffer("deadbeef").value();
   }
+
+  void on_e_cid_measurement_report(const e_cid_measurement_report_t& report) override
+  {
+    last_e_cid_measurement_report = report;
+  }
+
+  void on_e_cid_measurement_failure_indication(const e_cid_measurement_failure_indication_t& ind) override
+  {
+    last_e_cid_measurement_failure_indication = ind;
+  }
+
+  std::optional<e_cid_measurement_report_t>             last_e_cid_measurement_report;
+  std::optional<e_cid_measurement_failure_indication_t> last_e_cid_measurement_failure_indication;
 
   async_task<void> on_ue_removal_required(cu_cp_ue_index_t ue_index) override
   {
@@ -186,11 +201,18 @@ public:
     return launch_no_op_task(true);
   }
 
+  bool handle_handover_target_ue_amf_binding(cu_cp_ue_index_t source_ue_index,
+                                             cu_cp_ue_index_t target_ue_index) override
+  {
+    return true;
+  }
+
   void initialize_handover_ue_release_timer(cu_cp_ue_index_t                        ue_index,
                                             std::chrono::milliseconds               handover_ue_release_timeout,
                                             const cu_cp_ue_context_release_request& ue_context_release_request) override
   {
     logger.info("ue={}: Initializing UE release timer", ue_index);
+    last_handover_ue_release_timer_ue_index = ue_index;
   }
 
   void initialize_rna_update_timer(cu_cp_ue_index_t ue_index) override
@@ -208,7 +230,8 @@ public:
     return launch_no_op_task();
   }
 
-  unsigned last_transaction_id = 99999;
+  unsigned                        last_transaction_id = 99999;
+  std::optional<cu_cp_ue_index_t> last_handover_ue_release_timer_ue_index;
 
 private:
   ocudulog::basic_logger& logger = ocudulog::fetch_basic_logger("TEST");
@@ -615,8 +638,10 @@ public:
 
   bool next_ue_setup_response = true;
 
-  rrc_ue_reestablishment_context_response
-  handle_rrc_reestablishment_request(pci_t old_pci, rnti_t old_c_rnti, cu_cp_ue_index_t ue_index) override
+  rrc_ue_reestablishment_context_response handle_rrc_reestablishment_request(pci_t            old_pci,
+                                                                             rnti_t           old_c_rnti,
+                                                                             reest_cause_t    reest_cause,
+                                                                             cu_cp_ue_index_t ue_index) override
   {
     logger.info("ue={} old_pci={} old_c-rnti={}: Received RRC Reestablishment Request", ue_index, old_pci, old_c_rnti);
     return reest_context;
@@ -751,13 +776,18 @@ public:
     return {test_transaction_id, byte_buffer{}};
   }
 
-  async_task<bool> handle_handover_reconfiguration_complete_expected(uint8_t                   transaction_id_,
-                                                                     std::chrono::milliseconds timeout_ms,
-                                                                     bool release_on_cancel = true) override
+  async_task<error_type<protocol_transaction_failure>>
+  handle_handover_reconfiguration_complete_expected(uint8_t                   transaction_id_,
+                                                    std::chrono::milliseconds timeout_ms,
+                                                    bool                      release_on_cancel = true) override
   {
     logger.info("Awaiting a RRC Reconfiguration Complete (transaction_id={})", transaction_id_);
     last_transaction_id = transaction_id_;
-    return launch_no_op_task(rrc_reconfiguration_outcome);
+    if (not rrc_reconfiguration_outcome) {
+      return launch_no_op_task(
+          error_type<protocol_transaction_failure>{make_unexpected(protocol_transaction_failure::timeout)});
+    }
+    return launch_no_op_task(error_type<protocol_transaction_failure>{});
   }
 
   bool store_ue_capabilities(byte_buffer ue_capabilities) override
@@ -859,7 +889,10 @@ public:
     logger.info("Received a new request to cancel RRC UE handover reconfiguration transaction");
   }
 
-  void cancel_all_transactions() override { logger.info("Cancelling all ongoing RRC UE transactions"); }
+  void cancel_all_transactions(protocol_transaction_failure cause = protocol_transaction_failure::cancel) override
+  {
+    logger.info("Cancelling all ongoing RRC UE transactions");
+  }
 
   // RRC UE Setup proc notifier.
   void on_new_dl_ccch(const asn1::rrc_nr::dl_ccch_msg_s& dl_ccch_msg) override {}
@@ -896,6 +929,9 @@ public:
   }
 
   // RRC UE capability handler.
+  rrc_ue_capabilities_t        decoded_capabilities;
+  const rrc_ue_capabilities_t& get_capabilities() const override { return decoded_capabilities; }
+
   bool is_rrc_inactive_supported() const override { return rrc_inactive_supported; }
   bool is_conditional_handover_supported() const override { return true; }
   bool is_conditional_handover_two_trigger_events_supported() const override { return true; }
@@ -906,6 +942,7 @@ public:
   // RRC UE Reestablishment proc notifier.
   void on_new_as_security_context(bool security_mode_active) override {}
   void on_as_security_activated() override {}
+  void on_ul_nas_pdu(byte_buffer nas_pdu) override {}
 
   // Interface functions.
   rrc_ue_controller&              get_controller() override { return *this; }
@@ -954,15 +991,20 @@ public:
     return launch_no_op_task(true);
   }
 
-  cu_cp_ue_index_t handle_ue_index_allocation_request(const nr_cell_global_id_t& cgi,
-                                                      const plmn_identity&       plmn) override
+  expected<cu_cp_ue_index_t, xnap_cause_t> handle_ue_index_allocation_request_for_guami(const nr_cell_global_id_t& cgi,
+                                                                                        const guami_t& guami) override
+  {
+    return make_unexpected(xnap_cause_misc_t::not_enough_user_plane_processing_res);
+  }
+
+  cu_cp_ue_index_t handle_ue_index_allocation_request_for_amf(const nr_cell_global_id_t& cgi,
+                                                              const plmn_identity&       plmn,
+                                                              cu_cp_amf_index_t          amf_index) override
   {
     return cu_cp_ue_index_t::invalid;
   }
 
-  bool handle_handover_request(cu_cp_ue_index_t                  ue_index,
-                               const plmn_identity&              selected_plmn,
-                               const security::security_context& sec_ctxt) override
+  bool handle_handover_request(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt) override
   {
     ocudu_assert(ue_mng.find_ue(ue_index) != nullptr, "UE must be present");
     logger.info("Received a handover request");

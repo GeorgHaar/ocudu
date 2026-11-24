@@ -6,7 +6,6 @@
 #include "sch_pdu_builder.h"
 #include "dmrs_helpers.h"
 #include "pdsch/pdsch_default_time_allocation.h"
-#include "ocudu/ran/csi_report/csi_report_config_helpers.h"
 #include "ocudu/ran/csi_report/csi_report_on_pucch_helpers.h"
 #include "ocudu/ran/csi_report/csi_report_on_pusch_helpers.h"
 #include "ocudu/ran/csi_report/csi_report_size.h"
@@ -22,6 +21,17 @@ static unsigned get_pdsch_n_id(pci_t pci, const sched_bwp_config& bwp, dci_dl_fo
     return *bwp.dl.pdsch().ded()->data_scrambling_id_pdsch;
   }
   return pci;
+}
+
+/// Fills the power offsets of a PDSCH that is scheduled without UE-dedicated configuration.
+static void populate_pdsch_pwr_offsets(pdsch_information& pdsch, const cell_configuration& cell_cfg)
+{
+  const auto& csi_cfg = cell_cfg.bwp_res[to_bwp_id(0)].dl().csi;
+  if (csi_cfg.has_value()) {
+    // [Implementation-defined] It is assumed that same powerControlOffset is configured in NZP-CSI-RS-Resource across
+    // all resources. The powerControlOffsetSS is always 0 dB.
+    pdsch.tx_pwr_info.pwr_ctrl_offset = csi_cfg->nzp_csi_rs_list.front().pwr_ctrl_offset;
+  }
 }
 
 pusch_config_params ocudu::get_pusch_config_f0_0_tc_rnti(const cell_configuration&                    cell_cfg,
@@ -96,11 +106,11 @@ pusch_config_params ocudu::get_pusch_config_f0_0_c_rnti(const cell_configuration
   // TODO: verify if this needs to be set depending on some configuration.
   pusch.nof_harq_ack_bits = nof_harq_ack_bits;
   if (is_csi_report_slot and ue_cell_cfg != nullptr) {
-    csi_report_configuration csi_rep_cfg = create_csi_report_configuration(*ue_cell_cfg->csi_meas_cfg());
+    const csi_report_configuration& csi_rep_cfg = ue_cell_cfg->csi_report_cfg();
     // NOTE: The CSI size depends on whether the CSI is configured on PUSCH or PUCCH, as per Section 5.2.3, TS 38.214:
     // "For both Type I and Type II reports configured for PUCCH but transmitted on PUSCH, the determination of the
     // payload for CSI part 1 and CSI part 2 follows that of PUCCH as described in clause 5.2.4."
-    if (not ue_cell_cfg->init_bwp().ul.ue_cfg()->periodic_csi_report.has_value()) {
+    if (not ue_cell_cfg->init_bwp().ul.ue_cfg()->csi.periodic_report.has_value()) {
       csi_report_size csi_size     = get_csi_report_pusch_size(csi_rep_cfg);
       pusch.nof_csi_part1_bits     = csi_size.part1_size.value();
       pusch.max_nof_csi_part2_bits = csi_size.part2_max_size.value();
@@ -124,8 +134,6 @@ pusch_config_params ocudu::get_pusch_config_f0_1_c_rnti(const ue_cell_configurat
   constexpr unsigned tb_scaling_field = 0;
   // Parameter \c tp-pi2BPSK enabled is not supported yet.
   constexpr bool tp_pi2bpsk_present = false;
-  // TODO: Update the value based on nof. CWs enabled.
-  static constexpr bool are_both_cws_enabled = false;
 
   pusch_config_params pusch;
 
@@ -137,8 +145,7 @@ pusch_config_params ocudu::get_pusch_config_f0_1_c_rnti(const ue_cell_configurat
                                         ue_cell_cfg.cell_cfg_common.params.dmrs_typeA_pos,
                                         ue_cell_cfg.init_bwp().ul.ded()->pusch_cfg->pusch_mapping_type_a_dmrs.value(),
                                         nof_layers,
-                                        ue_cell_cfg.cell_cfg_common.params.ul_carrier.nof_ant,
-                                        are_both_cws_enabled);
+                                        ue_cell_cfg.use_pusch_transform_precoding_dci_0_1());
 
   pusch.symbols = pusch_td_cfg.symbols;
 
@@ -157,13 +164,13 @@ pusch_config_params ocudu::get_pusch_config_f0_1_c_rnti(const ue_cell_configurat
   // TODO: verify if this needs to be set depending on some configuration.
   pusch.nof_harq_ack_bits = nof_harq_ack_bits;
   pusch.aperiodic_csi =
-      ue_cell_cfg.csi_meas_cfg() != nullptr and not ue_cell_cfg.init_bwp().ul.ue_cfg()->periodic_csi_report.has_value();
+      ue_cell_cfg.has_csi_cfg() and not ue_cell_cfg.init_bwp().ul.ue_cfg()->csi.periodic_report.has_value();
   if (is_csi_report_slot) {
-    csi_report_configuration csi_rep_cfg = create_csi_report_configuration(*ue_cell_cfg.csi_meas_cfg());
+    const csi_report_configuration& csi_rep_cfg = ue_cell_cfg.csi_report_cfg();
     // NOTE: The CSI size depends on whether the CSI is configured on PUSCH or PUCCH, as per Section 5.2.3, TS 38.214:
     // "For both Type I and Type II reports configured for PUCCH but transmitted on PUSCH, the determination of the
     // payload for CSI part 1 and CSI part 2 follows that of PUCCH as described in clause 5.2.4."
-    if (not ue_cell_cfg.init_bwp().ul.ue_cfg()->periodic_csi_report.has_value()) {
+    if (not ue_cell_cfg.init_bwp().ul.ue_cfg()->csi.periodic_report.has_value()) {
       csi_report_size csi_size     = get_csi_report_pusch_size(csi_rep_cfg);
       pusch.nof_csi_part1_bits     = csi_size.part1_size.value();
       pusch.max_nof_csi_part2_bits = csi_size.part2_max_size.value();
@@ -212,15 +219,7 @@ void ocudu::build_pdsch_f1_0_si_rnti(pdsch_information&                   pdsch,
   // [Implementation-defined] A PDSCH scheduled with DCI format 1_0 is neither precoded nor beamformed.
   pdsch.precoding_and_beamforming = make_default_precoding();
 
-  // Populate power offsets.
-  if (not cell_cfg.nzp_csi_rs_list.empty()) {
-    // [Implementation-defined] It is assumed that same powerControlOffset and powerControlOffsetSS is configured in
-    // NZP-CSI-RS-Resource across all resources.
-    pdsch.tx_pwr_info.pwr_ctrl_offset = cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset;
-    if (cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset_ss_db.has_value()) {
-      pdsch.tx_pwr_info.pwr_ctrl_offset_ss = cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset_ss_db.value();
-    }
-  }
+  populate_pdsch_pwr_offsets(pdsch, cell_cfg);
 }
 
 void ocudu::build_pdsch_f1_0_p_rnti(pdsch_information&                  pdsch,
@@ -262,15 +261,7 @@ void ocudu::build_pdsch_f1_0_p_rnti(pdsch_information&                  pdsch,
   // [Implementation-defined] A PDSCH scheduled with DCI format 1_0 is neither precoded nor beamformed.
   pdsch.precoding_and_beamforming = make_default_precoding();
 
-  // Populate power offsets.
-  if (not cell_cfg.nzp_csi_rs_list.empty()) {
-    // [Implementation-defined] It is assumed that same powerControlOffset and powerControlOffsetSS is configured in
-    // NZP-CSI-RS-Resource across all resources.
-    pdsch.tx_pwr_info.pwr_ctrl_offset = cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset;
-    if (cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset_ss_db.has_value()) {
-      pdsch.tx_pwr_info.pwr_ctrl_offset_ss = cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset_ss_db.value();
-    }
-  }
+  populate_pdsch_pwr_offsets(pdsch, cell_cfg);
 }
 
 void ocudu::build_pdsch_f1_0_ra_rnti(pdsch_information&                   pdsch,
@@ -318,15 +309,7 @@ void ocudu::build_pdsch_f1_0_ra_rnti(pdsch_information&                   pdsch,
   // [Implementation-defined] A PDSCH scheduled with DCI format 1_0 is neither precoded nor beamformed.
   pdsch.precoding_and_beamforming = make_default_precoding();
 
-  // Populate power offsets.
-  if (not cell_cfg.nzp_csi_rs_list.empty()) {
-    // [Implementation-defined] It is assumed that same powerControlOffset and powerControlOffsetSS is configured in
-    // NZP-CSI-RS-Resource across all resources.
-    pdsch.tx_pwr_info.pwr_ctrl_offset = cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset;
-    if (cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset_ss_db.has_value()) {
-      pdsch.tx_pwr_info.pwr_ctrl_offset_ss = cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset_ss_db.value();
-    }
-  }
+  populate_pdsch_pwr_offsets(pdsch, cell_cfg);
 }
 
 void ocudu::build_pdsch_f1_0_tc_rnti(pdsch_information&                   pdsch,
@@ -358,7 +341,7 @@ void ocudu::build_pdsch_f1_0_tc_rnti(pdsch_information&                   pdsch,
   // See TS 38.211, 7.3.1.1. - Scrambling.
   pdsch.n_id            = cell_cfg.params.pci;
   pdsch.vrb_prb_mapping = vrb_to_prb::mapping_type::non_interleaved;
-  // See TS38.213, 10.1. - Type1-PDCCH CSS set for CRC scrambled by a TC-RNTI on the PCell.
+  // See TS 38.213, 10.1. - Type1-PDCCH CSS set for CRC scrambled by a TC-RNTI on the PCell.
   pdsch.ss_set_type = search_space_set_type::type1;
   pdsch.dci_fmt     = dci_dl_format::f1_0;
   pdsch.harq_id     = to_harq_id(dci_cfg.harq_process_number);
@@ -367,15 +350,7 @@ void ocudu::build_pdsch_f1_0_tc_rnti(pdsch_information&                   pdsch,
   // [Implementation-defined] A PDSCH scheduled with DCI format 1_0 is neither precoded nor beamformed.
   pdsch.precoding_and_beamforming = make_default_precoding();
 
-  // Populate power offsets.
-  if (not cell_cfg.nzp_csi_rs_list.empty()) {
-    // [Implementation-defined] It is assumed that same powerControlOffset and powerControlOffsetSS is configured in
-    // NZP-CSI-RS-Resource across all resources.
-    pdsch.tx_pwr_info.pwr_ctrl_offset = cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset;
-    if (cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset_ss_db.has_value()) {
-      pdsch.tx_pwr_info.pwr_ctrl_offset_ss = cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset_ss_db.value();
-    }
-  }
+  populate_pdsch_pwr_offsets(pdsch, cell_cfg);
 
   pdsch.mcs_table = pdsch_cfg.mcs_table;
 
@@ -409,7 +384,7 @@ void ocudu::build_pdsch_f1_0_c_rnti(pdsch_information&                  pdsch,
   pdsch.symbols         = pdsch_cfg.symbols;
   pdsch.dmrs            = pdsch_cfg.dmrs;
   pdsch.vrb_prb_mapping = vrb_to_prb::mapping_type::non_interleaved;
-  // See TS38.213, 10.1.
+  // See TS 38.213, 10.1.
   pdsch.ss_set_type =
       not ss_info.cfg->is_common_search_space() ? search_space_set_type::ue_specific : search_space_set_type::type3;
   pdsch.dci_fmt = dci_dl_format::f1_0;
@@ -422,15 +397,7 @@ void ocudu::build_pdsch_f1_0_c_rnti(pdsch_information&                  pdsch,
   // [Implementation-defined] A PDSCH scheduled with DCI format 1_0 is neither precoded nor beamformed.
   pdsch.precoding_and_beamforming = make_default_precoding();
 
-  // Populate power offsets.
-  if (not cell_cfg.nzp_csi_rs_list.empty()) {
-    // [Implementation-defined] It is assumed that same powerControlOffset and powerControlOffsetSS is configured in
-    // NZP-CSI-RS-Resource across all resources.
-    pdsch.tx_pwr_info.pwr_ctrl_offset = cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset;
-    if (cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset_ss_db.has_value()) {
-      pdsch.tx_pwr_info.pwr_ctrl_offset_ss = cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset_ss_db.value();
-    }
-  }
+  populate_pdsch_pwr_offsets(pdsch, cell_cfg);
 
   pdsch.mcs_table = pdsch_cfg.mcs_table;
 
@@ -450,7 +417,7 @@ void ocudu::build_pdsch_f1_1_c_rnti(pdsch_information&              pdsch,
                                     const ue_cell_configuration&    ue_cell_cfg,
                                     search_space_id                 ss_id,
                                     const dci_1_1_configuration&    dci_cfg,
-                                    const vrb_interval&             vrbs,
+                                    const vrb_alloc&                vrbs,
                                     bool                            is_new_data,
                                     const ue_channel_state_manager& cs_mgr)
 {
@@ -470,14 +437,14 @@ void ocudu::build_pdsch_f1_1_c_rnti(pdsch_information&              pdsch,
   pdsch.vrb_prb_mapping = dci_cfg.vrb_prb_mapping.has_value() and dci_cfg.vrb_prb_mapping.value()
                               ? ue_cell_cfg.init_bwp().dl.pdsch().ded()->vrb_to_prb_interleaving
                               : vrb_to_prb::mapping_type::non_interleaved;
-  // See TS38.213, 10.1.
+  // See TS 38.213, 10.1.
   pdsch.ss_set_type = search_space_set_type::ue_specific;
   pdsch.dci_fmt     = dci_dl_format::f1_1;
   pdsch.harq_id     = to_harq_id(dci_cfg.harq_process_number);
   // See TS 38.211, 7.3.1.1. - Scrambling.
   pdsch.n_id =
       get_pdsch_n_id(cell_cfg.params.pci, active_bwp, dci_dl_format::f1_1, ss_info.cfg->is_common_search_space());
-  pdsch.nof_layers = pdsch_cfg.nof_layers;
+  pdsch.nof_layers = pdsch_cfg.nof_layers();
 
   pdsch.mcs_table = pdsch_cfg.mcs_table;
 
@@ -491,17 +458,9 @@ void ocudu::build_pdsch_f1_1_c_rnti(pdsch_information&              pdsch,
   cw.tb_size_bytes   = mcs_tbs_info.tbs;
 
   // Beamforming and precoding.
-  pdsch.precoding_and_beamforming = cs_mgr.get_precoding(pdsch_cfg.nof_layers);
+  pdsch.precoding_and_beamforming = cs_mgr.get_precoding(pdsch_cfg.nof_layers());
 
-  // Populate power offsets.
-  if (not cell_cfg.nzp_csi_rs_list.empty()) {
-    // [Implementation-defined] It is assumed that same powerControlOffset and powerControlOffsetSS is configured in
-    // NZP-CSI-RS-Resource across all resources.
-    pdsch.tx_pwr_info.pwr_ctrl_offset = cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset;
-    if (cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset_ss_db.has_value()) {
-      pdsch.tx_pwr_info.pwr_ctrl_offset_ss = cell_cfg.nzp_csi_rs_list.front().pwr_ctrl_offset_ss_db.value();
-    }
-  }
+  populate_pdsch_pwr_offsets(pdsch, cell_cfg);
 }
 
 void ocudu::build_pusch_f0_0_tc_rnti(pusch_information&                   pusch,
@@ -693,7 +652,6 @@ void ocudu::build_pusch_cs_rnti(pusch_information&           pusch,
   ocudu_assert(bwp_info.ul.ded() != nullptr and bwp_info.ul.ded()->cg_cfg.has_value(),
                "Configured Grant configuration doesn't exist");
   const cg_configuration& cg_cfg = bwp_info.ul.ded()->cg_cfg.value();
-  ocudu_assert(cg_cfg.rrc_configured_ul_grant_cfg.has_value(), "RRC-ConfiguredUplinkGrant for CG type 1 not set");
 
   pusch.intra_slot_freq_hopping = false;
   pusch.is_cg                   = true;
@@ -706,7 +664,6 @@ void ocudu::build_pusch_cs_rnti(pusch_information&           pusch,
   pusch.bwp_cfg              = &bwp_info.ul.cfg();
   pusch.rbs                  = vrbs;
   pusch.symbols              = pusch_cfg.symbols;
-  pusch.mcs_table            = pusch_cfg.mcs_table;
 
   // Backup to MSG3 transform precode in RACH-ConfigCommon if CG transform precoding is not set.
   pusch.transform_precoding = cg_cfg.trans_precoder.value_or(ue_cell_cfg.cell_cfg_common.use_msg3_transform_precoder());

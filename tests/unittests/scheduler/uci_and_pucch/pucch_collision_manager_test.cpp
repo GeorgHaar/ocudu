@@ -31,6 +31,7 @@ make_test_cell_config_pool(const pucch_resource_builder_params& ded_resources   
   auto       sched_req  = sched_config_helper::make_default_sched_cell_configuration_request(cell_params);
   sched_req.ran.init_bwp.pucch.resources                                                 = ded_resources;
   sched_req.ran.ul_cfg_common.init_ul_bwp.pucch_cfg_common.value().pucch_resource_common = pucch_resource_common;
+  sched_req.rrm = make_cell_rrm_config(sched_req.ran);
   return std::make_unique<du_cell_config_pool>(expert_cfg, sched_req);
 }
 
@@ -143,10 +144,11 @@ TEST(pucch_collision_manager_test, alloc_fails_if_slot_incompatible_with_resourc
 
   auto        cfg_pool = make_test_cell_config_pool(pucch_resource_builder_params{}, 11, cell_params);
   const auto& cell_cfg = cfg_pool->cell_cfg();
-  const auto& ded_res  = cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.dedicated;
+  const auto& ded_res  = cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.dedicated.resources;
 
   pucch_collision_manager      col_manager(cell_cfg);
-  cell_slot_resource_allocator slot_alloc(cell_cfg);
+  sched_result_grid            results(sched_result_grid_config{1});
+  cell_slot_resource_allocator slot_alloc(results, 0, cell_cfg);
 
   const slot_point special_slot{subcarrier_spacing::kHz30, 3};
   col_manager.slot_indication(special_slot);
@@ -167,9 +169,10 @@ protected:
     cell_cfg(cfg_pool->cell_cfg()),
     bwp_cfg(cell_cfg.params.ul_cfg_common.init_ul_bwp.generic_params),
     common_res(cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.common),
-    ded_res(cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.dedicated),
+    ded_res(cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.dedicated.resources),
     col_manager(cell_cfg),
-    slot_alloc(cell_cfg),
+    results(sched_result_grid_config{1}),
+    slot_alloc(results, 0, cell_cfg),
     sl(0, 0)
   {
     col_manager.slot_indication(sl);
@@ -195,6 +198,7 @@ protected:
   const std::vector<pucch_resource>&                                                      ded_res;
 
   pucch_collision_manager      col_manager;
+  sched_result_grid            results;
   cell_slot_resource_allocator slot_alloc;
   slot_point                   sl;
 
@@ -281,11 +285,15 @@ protected:
   pucch_collision_manager_f0_f2_test() :
     cfg_pool(make_test_cell_config_pool(ded_params, 0)),
     cell_cfg(cfg_pool->cell_cfg()),
-    ded_res(cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.dedicated),
-    sr_res(ded_res[ded_params.sr_res_id(pucch_sr_resource_id(0)).ded().cell_res_id]),
-    sr_f2_res(ded_res[ded_params.sr_f2_res_id(pucch_sr_resource_id(0)).ded().cell_res_id]),
+    ded_res(cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.dedicated.resources),
+    sr_res(
+        ded_res[cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.dedicated.get_sr(pucch_sr_resource_id(0)).res_id.ded_id()]),
+    sr_f2_res(
+        ded_res
+            [cell_cfg.bwp_res[to_bwp_id(0)].ul().pucch.dedicated.get_sr(pucch_sr_resource_id(0)).alt_res_id->ded_id()]),
     col_manager(cell_cfg),
-    slot_alloc(cell_cfg),
+    results(sched_result_grid_config{1}),
+    slot_alloc(results, 0, cell_cfg),
     sl(0, 0)
   {
     col_manager.slot_indication(sl);
@@ -307,6 +315,7 @@ protected:
   const pucch_resource&                sr_f2_res;
 
   pucch_collision_manager      col_manager;
+  sched_result_grid            results;
   cell_slot_resource_allocator slot_alloc;
   slot_point                   sl;
 

@@ -8,6 +8,7 @@
 #include "procedures/e2ap_removal_procedure.h"
 #include "procedures/e2ap_setup_procedure.h"
 #include "ocudu/asn1/e2ap/e2ap.h"
+#include "ocudu/asn1/e2ap/e2ap_pdu_contents.h"
 #include "ocudu/e2/e2.h"
 #include <memory>
 

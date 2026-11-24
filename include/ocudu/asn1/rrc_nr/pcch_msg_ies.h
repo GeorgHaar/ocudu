@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "radio_bearer_cfg.h"
+#include "ocudu/asn1/rrc_nr/radio_bearer_cfg.h"
 
 namespace asn1 {
 namespace rrc_nr {
@@ -24,75 +24,57 @@ namespace rrc_nr {
 struct group_paging_r18_s {
   bool inactive_reception_allowed_r18_present = false;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PagingUE-Identity ::= CHOICE
 struct paging_ue_id_c {
   struct types_opts {
     enum options { ng_5_g_s_tmsi, full_i_rnti, /*...*/ nulltype } value;
-    typedef int8_t number_type;
 
-    const char* to_string() const;
-    int8_t      to_number() const;
+    static const asn1::table::enum_desc desc;
+    int8_t                              to_number() const;
   };
   using types = enumerated<types_opts, true>;
 
-  // choice methods
-  paging_ue_id_c() = default;
-  paging_ue_id_c(const paging_ue_id_c& other);
-  paging_ue_id_c& operator=(const paging_ue_id_c& other);
-  ~paging_ue_id_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  fixed_bitstring<48>& ng_5_g_s_tmsi()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  fixed_bitstring<48>&                          ng_5_g_s_tmsi()
   {
-    assert_choice_type(types::ng_5_g_s_tmsi, type_, "PagingUE-Identity");
+    assert_choice_type(types::ng_5_g_s_tmsi, c.type, "PagingUE-Identity");
     return c.get<fixed_bitstring<48>>();
   }
   fixed_bitstring<40>& full_i_rnti()
   {
-    assert_choice_type(types::full_i_rnti, type_, "PagingUE-Identity");
+    assert_choice_type(types::full_i_rnti, c.type, "PagingUE-Identity");
     return c.get<fixed_bitstring<40>>();
   }
   const fixed_bitstring<48>& ng_5_g_s_tmsi() const
   {
-    assert_choice_type(types::ng_5_g_s_tmsi, type_, "PagingUE-Identity");
+    assert_choice_type(types::ng_5_g_s_tmsi, c.type, "PagingUE-Identity");
     return c.get<fixed_bitstring<48>>();
   }
   const fixed_bitstring<40>& full_i_rnti() const
   {
-    assert_choice_type(types::full_i_rnti, type_, "PagingUE-Identity");
+    assert_choice_type(types::full_i_rnti, c.type, "PagingUE-Identity");
     return c.get<fixed_bitstring<40>>();
   }
   fixed_bitstring<48>& set_ng_5_g_s_tmsi();
   fixed_bitstring<40>& set_full_i_rnti();
 
 private:
-  types                                type_;
-  choice_buffer_t<fixed_bitstring<48>> c;
-
-  void destroy_();
+  asn1::table::choice_storage<paging_ue_id_c, types, choice_buffer_t<fixed_bitstring<48>>> c;
 };
 
 // PagingRecord ::= SEQUENCE
 struct paging_record_s {
-  bool           ext                 = false;
   bool           access_type_present = false;
   paging_ue_id_c ue_id;
   // ...
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PagingRecordList ::= SEQUENCE (SIZE (1..32)) OF PagingRecord
@@ -102,10 +84,7 @@ using paging_record_list_l = dyn_array<paging_record_s>;
 struct paging_record_v1700_s {
   bool paging_cause_r17_present = false;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PagingRecordList-v1700 ::= SEQUENCE (SIZE (1..32)) OF PagingRecord-v1700
@@ -118,10 +97,7 @@ using paging_group_list_r17_l = dyn_array<tmgi_r17_s>;
 struct paging_record_v1800_s {
   bool mt_sdt_present = false;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // PagingRecordList-v1800 ::= SEQUENCE (SIZE (1..32)) OF PagingRecord-v1800
@@ -136,10 +112,7 @@ struct paging_v1800_ies_s {
   paging_record_list_v1800_l paging_record_list_v1800;
   paging_group_list_v1800_l  paging_group_list_v1800;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Paging-v1700-IEs ::= SEQUENCE
@@ -149,10 +122,7 @@ struct paging_v1700_ies_s {
   paging_group_list_r17_l    paging_group_list_r17;
   paging_v1800_ies_s         non_crit_ext;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 // Paging ::= SEQUENCE
@@ -162,11 +132,18 @@ struct paging_s {
   dyn_octstring        late_non_crit_ext;
   paging_v1700_ies_s   non_crit_ext;
 
-  // sequence methods
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
+  static const asn1::table::seq_desc desc;
 };
 
 } // namespace rrc_nr
 } // namespace asn1
+
+extern template const asn1::detail::dyn_array_ops asn1::dyn_array<asn1::rrc_nr::paging_record_list_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::rrc_nr::paging_record_list_v1700_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::rrc_nr::paging_group_list_r17_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::rrc_nr::paging_record_list_v1800_l::value_type>::ops;
+extern template const asn1::detail::dyn_array_ops
+    asn1::dyn_array<asn1::rrc_nr::paging_group_list_v1800_l::value_type>::ops;

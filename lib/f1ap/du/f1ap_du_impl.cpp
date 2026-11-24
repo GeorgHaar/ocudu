@@ -31,6 +31,7 @@
 #include "ocudu/f1ap/f1ap_message.h"
 #include "ocudu/ran/nr_cgi.h"
 #include "ocudu/ran/pcch/paging_helper.h"
+#include <algorithm>
 
 using namespace ocudu;
 using namespace asn1::f1ap;
@@ -88,9 +89,9 @@ bool f1ap_du_impl::connect_to_cu_cp()
     return false;
   }
 
-  // Reset Reference Time reporting procedure. It holds a reference to the previous Tx PDU notifier, which is about
-  // to be destroyed, and its periodic reporting (if any) belongs to the previous CU-CP association.
-  ref_time_proc.reset();
+  // Stop the procedures of the previous CU-CP association. They hold a reference to the previous Tx PDU notifier,
+  // which is about to be destroyed.
+  stop_cu_cp_association_procedures();
 
   if (logger.info.enabled()) {
     // Decorate notifier with logging, if the logger is enabled.
@@ -107,21 +108,21 @@ bool f1ap_du_impl::connect_to_cu_cp()
 
 async_task<void> f1ap_du_impl::disconnect_from_cu_cp()
 {
-  // Stop Reference Time reporting procedure; it is tied to the CU-CP association being torn down.
-  ref_time_proc.reset();
+  // Stop the procedures tied to the CU-CP association being torn down.
+  stop_cu_cp_association_procedures();
 
   return connection_handler.handle_tnl_association_removal();
 }
 
 async_task<f1_setup_result> f1ap_du_impl::handle_f1_setup_request(const f1_setup_request_message& request)
 {
-  return launch_async<f1ap_du_setup_procedure>(request, *tx_pdu_notifier, *events, du_mng.get_timer_factory(), ctxt);
+  return launch_async<f1ap_du_setup_procedure>(request, *tx_pdu_notifier, *events, ctxt);
 }
 
 async_task<void> f1ap_du_impl::handle_f1_removal_request()
 {
-  // Stop Reference Time reporting procedure; it is tied to the CU-CP association being removed.
-  ref_time_proc.reset();
+  // Stop the procedures tied to the CU-CP association being removed.
+  stop_cu_cp_association_procedures();
 
   return launch_async<f1ap_du_removal_procedure>(connection_handler, *tx_pdu_notifier, *events, ctxt);
 }
@@ -172,6 +173,7 @@ void f1ap_du_impl::handle_gnb_cu_configuration_update(const gnb_cu_cfg_upd_s& ms
   du_mng.schedule_async_task(launch_async<gnb_cu_configuration_update_procedure>(msg, du_mng, *tx_pdu_notifier));
 }
 
+/// Schedules a UE Context Setup request on the UE task loop for the current CU-CP association.
 void f1ap_du_impl::handle_ue_context_setup_request(const asn1::f1ap::ue_context_setup_request_s& msg)
 {
   du_ue_index_t du_ue_index = INVALID_DU_UE_INDEX;
@@ -190,7 +192,8 @@ void f1ap_du_impl::handle_ue_context_setup_request(const asn1::f1ap::ue_context_
 
   // Schedule UE Context Setup Procedure.
   du_mng.get_ue_handler(du_ue_index)
-      .schedule_async_task(launch_async<f1ap_du_ue_context_setup_procedure>(msg, ues, du_mng, du_ue_index, ctxt));
+      .schedule_async_task(
+          launch_async<f1ap_du_ue_context_setup_procedure>(msg, ues, du_mng, du_ue_index, ctxt, *tx_pdu_notifier));
 }
 
 void f1ap_du_impl::handle_ue_context_release_command(const asn1::f1ap::ue_context_release_cmd_s& msg)
@@ -242,12 +245,12 @@ void f1ap_du_impl::handle_dl_rrc_message_transfer(const asn1::f1ap::dl_rrc_msg_t
 {
   gnb_du_ue_f1ap_id_t gnb_du_ue_f1ap_id = int_to_gnb_du_ue_f1ap_id(msg->gnb_du_ue_f1ap_id);
 
-  // [TS38.473, 8.4.2.2.] If a UE-associated logical F1-connection exists, the DL RRC MESSAGE TRANSFER message shall
+  // [TS 38.473, 8.4.2.2.] If a UE-associated logical F1-connection exists, the DL RRC MESSAGE TRANSFER message shall
   // contain the gNB DU UE F1AP ID IE, which should be used by gNB-DU to lookup the stored UE context.
   f1ap_du_ue* ue = ues.find(gnb_du_ue_f1ap_id);
 
   if (ue == nullptr) {
-    // [TS38.473, 8.4.2.2.] If no UE-associated logical F1-connection exists, the UE-associated logical F1-connection
+    // [TS 38.473, 8.4.2.2.] If no UE-associated logical F1-connection exists, the UE-associated logical F1-connection
     // shall be established at reception of the DL RRC MESSAGE TRANSFER message.
     logger.warning("du_ue={}: Discarding DLRRCMessageTransfer. Cause: No UE found with the provided gNB-DU-UE-F1AP-ID",
                    fmt::underlying(gnb_du_ue_f1ap_id));
@@ -256,10 +259,10 @@ void f1ap_du_impl::handle_dl_rrc_message_transfer(const asn1::f1ap::dl_rrc_msg_t
   }
 
   if (msg->old_gnb_du_ue_f1ap_id_present) {
-    // [TS38.473, 8.4.2.2] The DL RRC MESSAGE TRANSFER message shall include, if available, the old gNB-DU UE F1AP ID
+    // [TS 38.473, 8.4.2.2] The DL RRC MESSAGE TRANSFER message shall include, if available, the old gNB-DU UE F1AP ID
     // IE so that the gNB-DU can retrieve the existing UE context in RRC connection reestablishment procedure, as
     // defined in TS 38.401 [4].
-    // [TS38.473, 8.4.2.2] If the gNB-DU identifies the UE-associated logical F1-connection by the gNB-DU UE F1AP ID IE
+    // [TS 38.473, 8.4.2.2] If the gNB-DU identifies the UE-associated logical F1-connection by the gNB-DU UE F1AP ID IE
     // in the DL RRC MESSAGE TRANSFER message and the old gNB-DU UE F1AP ID IE is included, it shall release the old
     // gNB-DU UE F1AP ID and the related configurations associated with the old gNB-DU UE F1AP ID.
     const gnb_du_ue_f1ap_id_t old_gnb_du_ue_f1ap_id = int_to_gnb_du_ue_f1ap_id(msg->old_gnb_du_ue_f1ap_id);
@@ -452,6 +455,9 @@ void f1ap_du_impl::handle_initiating_message(const init_msg_s& msg)
     case msg_types::e_c_id_meas_initiation_request:
       handle_e_cid_measurement_initiation_request(msg.value.e_c_id_meas_initiation_request());
       break;
+    case msg_types::e_c_id_meas_termination_cmd:
+      handle_e_cid_measurement_termination_command(msg.value.e_c_id_meas_termination_cmd());
+      break;
     case msg_types::positioning_info_request:
       handle_positioning_information_request(msg.value.positioning_info_request());
       break;
@@ -510,7 +516,7 @@ bool f1ap_du_impl::handle_rx_message_gnb_cu_ue_f1ap_id(f1ap_du_ue& ue, gnb_cu_ue
     logger.warning("Discarding message. Cause: gNB-CU UE F1AP ID={} does not match existing context",
                    fmt::underlying(gnb_cu_ue_f1ap_id));
   } else {
-    // [TS38.473, Cause IE] The action failed because the gNB-CU UE F1AP ID is either unknown, or (for a first
+    // [TS 38.473, Cause IE] The action failed because the gNB-CU UE F1AP ID is either unknown, or (for a first
     // message received at the gNB-CU) is known and already allocated to an existing context.
     cause.set_radio_network().value = cause_radio_network_opts::unknown_or_already_allocated_gnb_cu_ue_f1ap_id;
     logger.warning("Discarding message cause=gNB-CU UE F1AP ID={} is known and already allocated to an existing "
@@ -575,7 +581,9 @@ void f1ap_du_impl::handle_write_replace_warning_request(const write_replace_warn
 
 void f1ap_du_impl::handle_positioning_measurement_request(const positioning_meas_request_s& msg)
 {
-  du_mng.schedule_async_task(
+  // TODO: A measurement whose cell stops while it runs ends only at its timeout, as the scheduler drops the pending
+  // positioning requests of a stopped cell.
+  launch_positioning_measurement_procedure(
       launch_async<f1ap_du_positioning_measurement_procedure>(msg, du_mng.get_positioning_handler(), *tx_pdu_notifier));
 }
 
@@ -614,12 +622,57 @@ void f1ap_du_impl::handle_e_cid_measurement_initiation_request(const asn1::f1ap:
     return;
   }
 
-  // The procedure reads the SRS configuration, the C-RNTI and the serving cell of the UE, so it runs on the task
-  // loop of the UE. The other tasks of this UE wait while the measurement waits for the SRS. The MAC also measures
-  // one positioning request at a time, so a request that arrives during a measurement gets a failure.
+  // The first part of the procedure reads the UE configuration and requests the measurement, so it runs on the task
+  // loop of the UE, ordered with the other procedures of the UE. The wait for the SRS continues outside the loop, so
+  // that these procedures do not wait for it. If the UE is removed during the wait, the measurement ends at its timeout
+  // and the procedure sends nothing, as no new UE takes the C-RNTI before then.
+  async_task<void> proc =
+      launch_async<f1ap_du_e_cid_measurement_initiation_procedure>(msg, du_mng.get_positioning_handler(), ues, *this);
   du_mng.get_ue_handler(ue->context.ue_index)
-      .schedule_async_task(
-          launch_async<f1ap_du_e_cid_measurement_initiation_procedure>(msg, du_mng.get_positioning_handler(), ues));
+      .schedule_async_task(start_positioning_measurement_procedure_task(std::move(proc)));
+}
+
+async_task<void> f1ap_du_impl::start_positioning_measurement_procedure_task(async_task<void> proc)
+{
+  // The task starts the procedure when its task loop runs it, and ends right away. It starts the procedure only if the
+  // CU-CP association did not change while the task was queued.
+  return launch_async(
+      [this, assoc_gen = ctxt.cu_cp_assoc_gen, proc = std::move(proc)](coro_context<async_task<void>>& ctx) mutable {
+        CORO_BEGIN(ctx);
+        if (assoc_gen == ctxt.cu_cp_assoc_gen) {
+          launch_positioning_measurement_procedure(std::move(proc));
+        }
+        CORO_RETURN();
+      });
+}
+
+void f1ap_du_impl::stop_cu_cp_association_procedures()
+{
+  // The periodic Reference Time reporting (if any) belongs to the CU-CP association.
+  ref_time_proc.reset();
+
+  // The periodic E-CID measurements (if any) belong to the CU-CP association. Their reports go to the gNB-CU that
+  // asked for them, and the dropped report procedures never clear their state.
+  ues.stop_e_cid_measurements();
+
+  pos_meas_procs.clear();
+  ++ctxt.cu_cp_assoc_gen;
+}
+
+void f1ap_du_impl::launch_positioning_measurement_procedure(async_task<void> proc)
+{
+  // Drop the procedures that have finished.
+  pos_meas_procs.erase(std::remove_if(pos_meas_procs.begin(),
+                                      pos_meas_procs.end(),
+                                      [](const eager_async_task<void>& t) { return t.ready(); }),
+                       pos_meas_procs.end());
+
+  // The procedure runs right away until it waits for the measurement.
+  pos_meas_procs.push_back(launch_async([proc = std::move(proc)](coro_context<eager_async_task<void>>& ctx) mutable {
+    CORO_BEGIN(ctx);
+    CORO_AWAIT(proc);
+    CORO_RETURN();
+  }));
 }
 
 void f1ap_du_impl::send_e_cid_measurement_initiation_failure(
@@ -638,6 +691,34 @@ void f1ap_du_impl::send_e_cid_measurement_initiation_failure(
   fail->cause.set_misc().value = cause_misc_opts::unspecified;
 
   tx_pdu_notifier->on_new_message(f1ap_msg);
+}
+
+void f1ap_du_impl::handle_e_cid_measurement_termination_command(const asn1::f1ap::e_c_id_meas_termination_cmd_s& msg)
+{
+  gnb_du_ue_f1ap_id_t gnb_du_ue_f1ap_id = int_to_gnb_du_ue_f1ap_id(msg->gnb_du_ue_f1ap_id);
+  f1ap_du_ue*         ue                = ues.find(gnb_du_ue_f1ap_id);
+
+  if (ue == nullptr) {
+    logger.error("Discarding ECIDMeasurementTerminationCommand. Cause: Unrecognized gNB-DU UE F1AP ID={}",
+                 fmt::underlying(gnb_du_ue_f1ap_id));
+    return;
+  }
+
+  if (not ue->e_cid_meas.has_value()) {
+    logger.warning("du_ue={}: Discarding ECIDMeasurementTerminationCommand. Cause: No E-CID measurement is running",
+                   fmt::underlying(gnb_du_ue_f1ap_id));
+    return;
+  }
+
+  if (not ue->e_cid_meas->matches(msg->lmf_ue_meas_id, msg->ran_ue_meas_id)) {
+    logger.warning("du_ue={}: Discarding ECIDMeasurementTerminationCommand. Cause: Measurement identifiers do not "
+                   "match the running measurement",
+                   fmt::underlying(gnb_du_ue_f1ap_id));
+    return;
+  }
+
+  // The command needs no answer, as per TS 38.473 section 8.13.15.
+  ue->e_cid_meas.reset();
 }
 
 std::optional<gnb_cu_ue_f1ap_id_t> f1ap_du_impl::get_gnb_cu_ue_f1ap_id(const du_ue_index_t& ue_index) const

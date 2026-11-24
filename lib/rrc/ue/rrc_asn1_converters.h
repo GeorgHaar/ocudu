@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "ocudu/asn1/asn1_utils.h"
+#include "ocudu/asn1/asn1_dispatch.h"
 #include "ocudu/asn1/rrc_nr/dl_dcch_msg_ies.h"
 #include "ocudu/asn1/rrc_nr/radio_bearer_cfg.h"
 #include "ocudu/asn1/rrc_nr/serving_cell.h"
@@ -16,6 +16,7 @@
 #include "ocudu/ran/cu_cp_types.h"
 #include "ocudu/ran/cu_types.h"
 #include "ocudu/ran/five_g_s_tmsi.h"
+#include "ocudu/ran/s_nssai.h"
 #include "ocudu/rrc/rrc_setup.h"
 #include "ocudu/rrc/rrc_types.h"
 #include "ocudu/rrc/rrc_ue_capabilities.h"
@@ -102,6 +103,11 @@ five_g_s_tmsi_t asn1_to_five_g_s_tmsi(const asn1::fixed_bitstring<39>& asn1_five
 /// \return The RRC NR ASN.1 object where the result of the conversion is stored.
 amf_identifier_t asn1_to_amf_identifier(const asn1::fixed_bitstring<24>& asn1_amf_id);
 
+/// \brief Converts an ASN.1 S-NSSAI to the common type.
+/// \param[in] asn1_s_nssai The ASN.1 S-NSSAI.
+/// \return The S-NSSAI.
+s_nssai_t asn1_to_s_nssai(const asn1::rrc_nr::s_nssai_c& asn1_s_nssai);
+
 /// \brief Converts type ASN.1 establishment cause to common type.
 /// \param[in] asn1_cause ASN.1 establishment cause object.
 /// \return The common establishment cause object where the result of the conversion is stored.
@@ -111,6 +117,11 @@ establishment_cause_t asn1_to_establishment_cause(const asn1::rrc_nr::establishm
 /// \param[in] asn1_cause ASN.1 resume cause object.
 /// \return The common resume cause object where the result of the conversion is stored.
 resume_cause_t asn1_to_resume_cause(const asn1::rrc_nr::resume_cause_opts::options& asn1_cause);
+
+/// \brief Converts type ASN.1 reestablishment cause to common type.
+/// \param[in] asn1_cause ASN.1 reestablishment cause object.
+/// \return The common reestablishment cause object where the result of the conversion is stored.
+reest_cause_t asn1_to_reest_cause(const asn1::rrc_nr::reest_cause_opts::options& asn1_cause);
 
 /// \brief Converts type ASN.1 resume cause to common type.
 /// \param[in] asn1_cause ASN.1 resume cause object.
@@ -126,6 +137,13 @@ asn1::enumerated<asn1::rrc_nr::paging_cycle_opts> ran_paging_cycle_to_asn1(uint1
 /// \param[in] plmn plmn identity object.
 /// \return The RRC NR ASN.1 object where the result of the conversion is stored
 asn1::rrc_nr::plmn_id_s plmn_to_asn1(const plmn_identity& plmn);
+
+/// \brief Converts an RRC NR ASN.1 PLMN identity to type \c plmn_identity.
+/// \param[in] asn1_plmn The ASN.1 PLMN identity.
+/// \param[in] plmn_of_absent_mcc The PLMN whose MCC applies if the ASN.1 PLMN identity has no MCC.
+/// \return The PLMN identity, or an error if the digits are not valid.
+expected<plmn_identity> asn1_to_plmn_identity(const asn1::rrc_nr::plmn_id_s& asn1_plmn,
+                                              const plmn_identity&           plmn_of_absent_mcc);
 
 /// \brief Converts type \c rrc_ran_notification_area_info_t to an RRC NR ASN.1 type.
 /// \param[in] ran_notif_area_info ran notification area info object.

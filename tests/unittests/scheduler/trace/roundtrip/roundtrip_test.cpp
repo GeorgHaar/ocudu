@@ -5,6 +5,7 @@
 
 #include "bwp_configuration.h"    // IWYU pragma: keep
 #include "cell_configuration.h"   // IWYU pragma: keep
+#include "crc_event.h"            // IWYU pragma: keep
 #include "csi_report_event.h"     // IWYU pragma: keep
 #include "csi_rs.h"               // IWYU pragma: keep
 #include "dl_paging_allocation.h" // IWYU pragma: keep
@@ -68,6 +69,11 @@ TEST(roundtrip_test, sr_event)
 TEST(roundtrip_test, csi_report_event)
 {
   test_roundtrip<csi_report_event>();
+}
+
+TEST(roundtrip_test, ul_crc_event)
+{
+  test_roundtrip<ul_crc_event>();
 }
 
 TEST(roundtrip_test, pusch)

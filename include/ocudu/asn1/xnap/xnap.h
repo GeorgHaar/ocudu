@@ -96,8 +96,8 @@ struct conditional_ho_cancel_ies_container;
 using conditional_ho_cancel_s = elementary_procedure_option<conditional_ho_cancel_ies_container>;
 struct early_status_transfer_ies_container;
 using early_status_transfer_s = elementary_procedure_option<early_status_transfer_ies_container>;
-struct fail_ind_ies_o;
-using fail_ind_s = elementary_procedure_option<protocol_ie_container_l<fail_ind_ies_o>>;
+struct fail_ind_ies_container;
+using fail_ind_s = elementary_procedure_option<fail_ind_ies_container>;
 struct ho_report_ies_container;
 using ho_report_s = elementary_procedure_option<ho_report_ies_container>;
 struct res_status_upd_ies_container;
@@ -118,8 +118,8 @@ struct retrieve_ue_context_confirm_ies_container;
 using retrieve_ue_context_confirm_s = elementary_procedure_option<retrieve_ue_context_confirm_ies_container>;
 struct cp_c_cancel_ies_container;
 using cp_c_cancel_s = elementary_procedure_option<cp_c_cancel_ies_container>;
-struct rach_ind_ies_o;
-using rach_ind_s = elementary_procedure_option<protocol_ie_container_l<rach_ind_ies_o>>;
+struct rach_ind_ies_container;
+using rach_ind_s = elementary_procedure_option<rach_ind_ies_container>;
 struct data_collection_upd_ies_container;
 using data_collection_upd_s = elementary_procedure_option<data_collection_upd_ies_container>;
 struct ho_request_ack_ies_container;
@@ -204,26 +204,6 @@ using data_collection_fail_s = elementary_procedure_option<data_collection_fail_
  *                              Struct Definitions
  ******************************************************************************/
 
-// ProtocolIE-FieldPair{XNAP-PROTOCOL-IES-PAIR : IEsSetParam} ::= SEQUENCE{{XNAP-PROTOCOL-IES-PAIR}}
-template <class ies_set_paramT_>
-struct protocol_ie_field_pair_s {
-  uint32_t                                 id = 0;
-  crit_e                                   first_crit;
-  typename ies_set_paramT_::first_value_c  first_value;
-  crit_e                                   second_crit;
-  typename ies_set_paramT_::second_value_c second_value;
-
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  bool          load_info_obj(const uint32_t& id_);
-};
-
-// ProtocolIE-ContainerPair{XNAP-PROTOCOL-IES-PAIR : IEsSetParam} ::= SEQUENCE (SIZE (0..65535)) OF
-// ProtocolIE-FieldPair{XNAP-PROTOCOL-IES-PAIR : IEsSetParam}
-template <class ies_set_paramT_>
-using protocol_ie_container_pair_l = dyn_seq_of<protocol_ie_field_pair_s<ies_set_paramT_>, 0, 65535, true>;
-
 // XNAP-ELEMENTARY-PROCEDURES ::= OBJECT SET OF XNAP-ELEMENTARY-PROCEDURE
 struct xnap_elem_procs_o {
   // InitiatingMessage ::= OPEN TYPE
@@ -284,21 +264,15 @@ struct xnap_elem_procs_o {
         data_collection_upd,
         nulltype
       } value;
-      typedef uint8_t number_type;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
+      static const asn1::table::enum_desc desc;
+      uint8_t                             to_number() const;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    init_msg_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
+    void                                                set(types::options e = types::nulltype);
+    types                                               type() const { return type_; }
+    static const asn1::table::choice_desc               desc;
     ho_request_s&                                       ho_request();
     retrieve_ue_context_request_s&                      retrieve_ue_context_request();
     sn_ode_addition_request_s&                          sn_ode_addition_request();
@@ -436,18 +410,13 @@ struct xnap_elem_procs_o {
         nulltype
       } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    successful_outcome_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
+    void                                             set(types::options e = types::nulltype);
+    types                                            type() const { return type_; }
+    static const asn1::table::choice_desc            desc;
     ho_request_ack_s&                                ho_request_ack();
     retrieve_ue_context_resp_s&                      retrieve_ue_context_resp();
     sn_ode_addition_request_ack_s&                   sn_ode_addition_request_ack();
@@ -518,18 +487,13 @@ struct xnap_elem_procs_o {
         nulltype
       } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    unsuccessful_outcome_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
+    void                                               set(types::options e = types::nulltype);
+    types                                              type() const { return type_; }
+    static const asn1::table::choice_desc              desc;
     ho_prep_fail_s&                                    ho_prep_fail();
     retrieve_ue_context_fail_s&                        retrieve_ue_context_fail();
     sn_ode_addition_request_reject_s&                  sn_ode_addition_request_reject();
@@ -568,13 +532,7 @@ struct xnap_elem_procs_o {
     choice_buffer_ptr c;
   };
 
-  // members lookup methods
-  static uint16_t               idx_to_proc_code(uint32_t idx);
-  static bool                   is_proc_code_valid(const uint16_t& proc_code);
-  static init_msg_c             get_init_msg(const uint16_t& proc_code);
-  static successful_outcome_c   get_successful_outcome(const uint16_t& proc_code);
-  static unsuccessful_outcome_c get_unsuccessful_outcome(const uint16_t& proc_code);
-  static crit_e                 get_crit(const uint16_t& proc_code);
+  static const asn1::table::objset_desc desc;
 };
 
 // InitiatingMessage ::= SEQUENCE{{XNAP-ELEMENTARY-PROCEDURE}}
@@ -583,10 +541,8 @@ struct init_msg_s {
   crit_e                        crit;
   xnap_elem_procs_o::init_msg_c value;
 
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  bool          load_info_obj(const uint16_t& proc_code_);
+  static const asn1::table::seq_desc desc;
+  bool                               load_info_obj(const uint16_t& proc_code_);
 };
 
 // SuccessfulOutcome ::= SEQUENCE{{XNAP-ELEMENTARY-PROCEDURE}}
@@ -595,10 +551,8 @@ struct successful_outcome_s {
   crit_e                                  crit;
   xnap_elem_procs_o::successful_outcome_c value;
 
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  bool          load_info_obj(const uint16_t& proc_code_);
+  static const asn1::table::seq_desc desc;
+  bool                               load_info_obj(const uint16_t& proc_code_);
 };
 
 // UnsuccessfulOutcome ::= SEQUENCE{{XNAP-ELEMENTARY-PROCEDURE}}
@@ -607,10 +561,8 @@ struct unsuccessful_outcome_s {
   crit_e                                    crit;
   xnap_elem_procs_o::unsuccessful_outcome_c value;
 
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  bool          load_info_obj(const uint16_t& proc_code_);
+  static const asn1::table::seq_desc desc;
+  bool                               load_info_obj(const uint16_t& proc_code_);
 };
 
 // XNAP-ELEMENTARY-PROCEDURES-CLASS-1 ::= OBJECT SET OF XNAP-ELEMENTARY-PROCEDURE
@@ -643,18 +595,13 @@ struct xnap_elem_procs_class_1_o {
         nulltype
       } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    init_msg_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
+    void                                                set(types::options e = types::nulltype);
+    types                                               type() const { return type_; }
+    static const asn1::table::choice_desc               desc;
     ho_request_s&                                       ho_request();
     retrieve_ue_context_request_s&                      retrieve_ue_context_request();
     sn_ode_addition_request_s&                          sn_ode_addition_request();
@@ -730,18 +677,13 @@ struct xnap_elem_procs_class_1_o {
         nulltype
       } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    successful_outcome_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
+    void                                             set(types::options e = types::nulltype);
+    types                                            type() const { return type_; }
+    static const asn1::table::choice_desc            desc;
     ho_request_ack_s&                                ho_request_ack();
     retrieve_ue_context_resp_s&                      retrieve_ue_context_resp();
     sn_ode_addition_request_ack_s&                   sn_ode_addition_request_ack();
@@ -812,18 +754,13 @@ struct xnap_elem_procs_class_1_o {
         nulltype
       } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    unsuccessful_outcome_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
+    void                                               set(types::options e = types::nulltype);
+    types                                              type() const { return type_; }
+    static const asn1::table::choice_desc              desc;
     ho_prep_fail_s&                                    ho_prep_fail();
     retrieve_ue_context_fail_s&                        retrieve_ue_context_fail();
     sn_ode_addition_request_reject_s&                  sn_ode_addition_request_reject();
@@ -862,13 +799,7 @@ struct xnap_elem_procs_class_1_o {
     choice_buffer_ptr c;
   };
 
-  // members lookup methods
-  static uint16_t               idx_to_proc_code(uint32_t idx);
-  static bool                   is_proc_code_valid(const uint16_t& proc_code);
-  static init_msg_c             get_init_msg(const uint16_t& proc_code);
-  static successful_outcome_c   get_successful_outcome(const uint16_t& proc_code);
-  static unsuccessful_outcome_c get_unsuccessful_outcome(const uint16_t& proc_code);
-  static crit_e                 get_crit(const uint16_t& proc_code);
+  static const asn1::table::objset_desc desc;
 };
 
 // XNAP-ELEMENTARY-PROCEDURES-CLASS-2 ::= OBJECT SET OF XNAP-ELEMENTARY-PROCEDURE
@@ -910,21 +841,15 @@ struct xnap_elem_procs_class_2_o {
         data_collection_upd,
         nulltype
       } value;
-      typedef uint8_t number_type;
 
-      const char* to_string() const;
-      uint8_t     to_number() const;
+      static const asn1::table::enum_desc desc;
+      uint8_t                             to_number() const;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    init_msg_c() = default;
-    void          set(types::options e = types::nulltype);
-    types         type() const { return type_; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
-    // getters
+    void                                     set(types::options e = types::nulltype);
+    types                                    type() const { return type_; }
+    static const asn1::table::choice_desc    desc;
     sn_status_transfer_s&                    sn_status_transfer();
     ho_cancel_s&                             ho_cancel();
     ran_paging_s&                            ran_paging();
@@ -997,89 +922,70 @@ struct xnap_elem_procs_class_2_o {
     struct types_opts {
       enum options { nulltype } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    types         type() const { return types::nulltype; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
+    types                                 type() const { return types::nulltype; }
+    static const asn1::table::choice_desc desc;
   };
   // UnsuccessfulOutcome ::= OPEN TYPE
   struct unsuccessful_outcome_c {
     struct types_opts {
       enum options { nulltype } value;
 
-      const char* to_string() const;
+      static const asn1::table::enum_desc desc;
     };
     using types = enumerated<types_opts>;
 
-    // choice methods
-    types         type() const { return types::nulltype; }
-    OCUDUASN_CODE pack(bit_ref& bref) const;
-    OCUDUASN_CODE unpack(cbit_ref& bref);
-    void          to_json(json_writer& j) const;
+    types                                 type() const { return types::nulltype; }
+    static const asn1::table::choice_desc desc;
   };
 
-  // members lookup methods
-  static uint16_t               idx_to_proc_code(uint32_t idx);
-  static bool                   is_proc_code_valid(const uint16_t& proc_code);
-  static init_msg_c             get_init_msg(const uint16_t& proc_code);
-  static successful_outcome_c   get_successful_outcome(const uint16_t& proc_code);
-  static unsuccessful_outcome_c get_unsuccessful_outcome(const uint16_t& proc_code);
-  static crit_e                 get_crit(const uint16_t& proc_code);
+  static const asn1::table::objset_desc desc;
 };
 
 // XnAP-PDU ::= CHOICE
-struct xn_ap_pdu_c {
+struct xnap_pdu_c {
   struct types_opts {
     enum options { init_msg, successful_outcome, unsuccessful_outcome, /*...*/ nulltype } value;
 
-    const char* to_string() const;
+    static const asn1::table::enum_desc desc;
   };
   using types = enumerated<types_opts, true>;
 
-  // choice methods
-  xn_ap_pdu_c() = default;
-  xn_ap_pdu_c(const xn_ap_pdu_c& other);
-  xn_ap_pdu_c& operator=(const xn_ap_pdu_c& other);
-  ~xn_ap_pdu_c() { destroy_(); }
-  void          set(types::options e = types::nulltype);
-  types         type() const { return type_; }
-  OCUDUASN_CODE pack(bit_ref& bref) const;
-  OCUDUASN_CODE unpack(cbit_ref& bref);
-  void          to_json(json_writer& j) const;
-  // getters
-  init_msg_s& init_msg()
+  static const asn1::table::choice_storage_desc storage_desc;
+  void                                          set(types::options e = types::nulltype) { c.set(e); }
+  types                                         type() const { return c.type; }
+  static const asn1::table::choice_desc         desc;
+  init_msg_s&                                   init_msg()
   {
-    assert_choice_type(types::init_msg, type_, "XnAP-PDU");
+    assert_choice_type(types::init_msg, c.type, "XnAP-PDU");
     return c.get<init_msg_s>();
   }
   successful_outcome_s& successful_outcome()
   {
-    assert_choice_type(types::successful_outcome, type_, "XnAP-PDU");
+    assert_choice_type(types::successful_outcome, c.type, "XnAP-PDU");
     return c.get<successful_outcome_s>();
   }
   unsuccessful_outcome_s& unsuccessful_outcome()
   {
-    assert_choice_type(types::unsuccessful_outcome, type_, "XnAP-PDU");
+    assert_choice_type(types::unsuccessful_outcome, c.type, "XnAP-PDU");
     return c.get<unsuccessful_outcome_s>();
   }
   const init_msg_s& init_msg() const
   {
-    assert_choice_type(types::init_msg, type_, "XnAP-PDU");
+    assert_choice_type(types::init_msg, c.type, "XnAP-PDU");
     return c.get<init_msg_s>();
   }
   const successful_outcome_s& successful_outcome() const
   {
-    assert_choice_type(types::successful_outcome, type_, "XnAP-PDU");
+    assert_choice_type(types::successful_outcome, c.type, "XnAP-PDU");
     return c.get<successful_outcome_s>();
   }
   const unsuccessful_outcome_s& unsuccessful_outcome() const
   {
-    assert_choice_type(types::unsuccessful_outcome, type_, "XnAP-PDU");
+    assert_choice_type(types::unsuccessful_outcome, c.type, "XnAP-PDU");
     return c.get<unsuccessful_outcome_s>();
   }
   init_msg_s&             set_init_msg();
@@ -1087,10 +993,9 @@ struct xn_ap_pdu_c {
   unsuccessful_outcome_s& set_unsuccessful_outcome();
 
 private:
-  types                                                                     type_;
-  choice_buffer_t<init_msg_s, successful_outcome_s, unsuccessful_outcome_s> c;
-
-  void destroy_();
+  asn1::table::
+      choice_storage<xnap_pdu_c, types, choice_buffer_t<init_msg_s, successful_outcome_s, unsuccessful_outcome_s>>
+          c;
 };
 
 } // namespace xnap

@@ -54,9 +54,18 @@ struct dummy_cu_cp_ue_removal_handler : public cu_cp_ue_removal_handler {
 };
 
 struct dummy_cu_cp_rrc_ue_interface : public cu_cp_rrc_ue_interface {
-  bool handle_ue_plmn_selected(cu_cp_ue_index_t ue_index, const plmn_identity& plmn) override { return true; }
-  rrc_ue_reestablishment_context_response
-  handle_rrc_reestablishment_request(pci_t old_pci, rnti_t old_c_rnti, cu_cp_ue_index_t ue_index) override
+  bool handle_ue_setup_request(cu_cp_ue_index_t ue_index, establishment_cause_t establishment_cause) override
+  {
+    return true;
+  }
+  bool handle_ue_setup_complete_received(cu_cp_ue_index_t ue_index, const amf_selection_request& request) override
+  {
+    return true;
+  }
+  rrc_ue_reestablishment_context_response handle_rrc_reestablishment_request(pci_t            old_pci,
+                                                                             rnti_t           old_c_rnti,
+                                                                             reest_cause_t    reest_cause,
+                                                                             cu_cp_ue_index_t ue_index) override
   {
     return {};
   }
@@ -96,6 +105,11 @@ struct dummy_cu_cp_du_event_handler : public cu_cp_du_event_handler {
 public:
   dummy_cu_cp_du_event_handler(ue_manager& ue_mng_) : ue_mng(ue_mng_) {}
 
+  bool handle_ue_resume_admission_request(cu_cp_ue_index_t ue_index, resume_cause_t resume_cause) override
+  {
+    return true;
+  }
+
   void handle_rrc_ue_creation(cu_cp_ue_index_t ue_index, rrc_ue_interface& rrc_ue) override
   {
     ue_mng.get_rrc_ue_cu_cp_adapter(ue_index).connect_cu_cp(rrc_ue_handler,
@@ -120,9 +134,11 @@ public:
     return activate;
   }
 
-  void             handle_du_cells_removed(span<const nr_cell_identity> cells) override {}
-  void             handle_du_added(cu_cp_du_index_t du_index) override {}
-  void             handle_du_removed(cu_cp_du_index_t du_index) override {}
+  void handle_du_cells_removed(span<const nr_cell_identity> cells) override {}
+  void handle_du_added(cu_cp_du_index_t du_index) override {}
+  void handle_e_cid_measurement_report(const e_cid_measurement_report_t& report) override {}
+  void handle_e_cid_measurement_failure_indication(const e_cid_measurement_failure_indication_t& ind) override {}
+  void handle_du_removed(cu_cp_du_index_t du_index) override {}
   async_task<void> handle_transaction_info_loss(const ue_transaction_info_loss_event& ev) override
   {
     return launch_no_op_task();
@@ -194,6 +210,7 @@ du_processor_test::du_processor_test() :
                                 .f1ap_pdu_notifier        = f1ap_pdu_notifier,
                                 .common_task_sched        = *common_task_sched,
                                 .ue_mng                   = ue_mng,
+                                .cu_ue_f1ap_id_alloc      = cu_ue_f1ap_id_alloc,
                                 .ref_time_report_notifier = ref_time_report_notifier,
                                 .logger                   = cu_cp_logger});
 

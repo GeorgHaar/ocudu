@@ -612,8 +612,6 @@ static bool validate_qos_appconfig(span<const cu_cp_unit_qos_config> config)
 static bool validate_amf_appconfig(const cu_cp_unit_amf_config&                   amf_config,
                                    const std::vector<cu_cp_unit_amf_config_item>& extra_amfs)
 {
-  std::vector<std::string> plmns;
-
   std::vector<cu_cp_unit_amf_config_item> amfs;
 
   amfs.push_back(amf_config.amf);
@@ -662,28 +660,15 @@ static bool validate_amf_appconfig(const cu_cp_unit_amf_config&                 
       }
     }
 
-    // One AMF may serve a PLMN across several tracking areas; only a PLMN shared with another AMF is an error.
-    std::vector<std::string> amf_plmns;
+    // Several AMFs may serve the same PLMN. The CU-CP then selects the AMF of each UE.
     for (const auto& ta : config.supported_tas) {
       for (const auto& plmn_item : ta.plmn_list) {
         if (plmn_item.tai_slice_support_list.empty()) {
           fmt::print("TAI slice support list for PLMN={} and TAC={} is empty\n", plmn_item.plmn_id, ta.tac);
           return false;
         }
-
-        if (std::find(amf_plmns.begin(), amf_plmns.end(), plmn_item.plmn_id) == amf_plmns.end()) {
-          amf_plmns.push_back(plmn_item.plmn_id);
-        }
       }
     }
-
-    for (const auto& plmn : amf_plmns) {
-      if (std::find(plmns.begin(), plmns.end(), plmn) != plmns.end()) {
-        fmt::print("PLMN={} is already supported by another AMF\n", plmn);
-        return false;
-      }
-    }
-    plmns.insert(plmns.end(), amf_plmns.begin(), amf_plmns.end());
   }
 
   return true;

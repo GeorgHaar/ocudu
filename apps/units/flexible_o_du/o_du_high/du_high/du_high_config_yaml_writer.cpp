@@ -291,6 +291,19 @@ static YAML::Node build_du_high_pdcch_section(const du_high_unit_pdcch_config& c
   return node;
 }
 
+static std::string to_string(pdsch_config::resource_allocation res_alloc)
+{
+  switch (res_alloc) {
+    case pdsch_config::resource_allocation::resource_allocation_type_0:
+      return "type0";
+    case pdsch_config::resource_allocation::resource_allocation_type_1:
+      return "type1";
+    case pdsch_config::resource_allocation::dynamic_switch:
+      return "dynamic_switch";
+  }
+  return "";
+}
+
 static std::string to_string(dc_offset_t dc_offset)
 {
   switch (dc_offset) {
@@ -340,6 +353,8 @@ static YAML::Node build_du_high_pdsch_section(const du_high_unit_pdsch_config& c
   node["harq_la_ri_drop_threshold"]        = static_cast<unsigned>(config.harq_la_ri_drop_threshold);
   node["dmrs_additional_position"]         = config.dmrs_add_pos;
   node["interleaving_bundle_size"]         = static_cast<unsigned>(config.interleaving_bundle_size);
+  node["resource_allocation"]              = to_string(config.res_alloc);
+  node["rbg_size"]                         = config.rbg_sz == rbg_size::config1 ? "config1" : "config2";
   node["enable_csi_rs_pdsch_multiplexing"] = config.enable_csi_rs_pdsch_multiplexing;
 
   if (config.max_rank.has_value()) {
@@ -748,6 +763,26 @@ static YAML::Node build_du_high_drx_section(const du_high_unit_drx_config& confi
   return node;
 }
 
+static YAML::Node build_du_high_cg_section(const du_high_configured_grants& config)
+{
+  YAML::Node node;
+
+  if (config.periodicity_slots.has_value()) {
+    node["periodicity_slots"] = config.periodicity_slots.value();
+  }
+  node["type2"]              = config.type2;
+  node["mcs"]                = config.mcs;
+  node["nof_harq_processes"] = config.nof_harq_processes;
+  node["max_nof_cg_rbs"]     = config.max_nof_cell_cg_rbs;
+  node["grant_size"]         = config.grant_size;
+  if (config.requested_bitrate.has_value()) {
+    node["requested_bitrate"] = config.requested_bitrate.value();
+  }
+  node["sinr_threshold"] = config.sinr_threshold_dB;
+
+  return node;
+}
+
 static YAML::Node build_du_high_slice(const du_high_unit_cell_slice_config& config)
 {
   YAML::Node node;
@@ -865,6 +900,9 @@ static YAML::Node build_cell_entry(const du_high_unit_base_cell_config& config)
   node["srs"] = build_du_high_srs_section(config.srs_cfg);
   if (config.drx_cfg.long_cycle != 0) {
     node["drx"] = build_du_high_drx_section(config.drx_cfg);
+  }
+  if (config.cg_cfg.periodicity_slots.has_value()) {
+    node["cg"] = build_du_high_cg_section(config.cg_cfg);
   }
   fill_du_high_sched_expert_section(node, config.scheduler_cfg);
 

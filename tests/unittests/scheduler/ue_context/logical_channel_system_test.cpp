@@ -62,7 +62,7 @@ static unsigned add_ul_header_bytes(lcg_id_t lcgid, unsigned payload_bytes)
 
 TEST(mac_ce_size_test, derivation_of_mac_ce_size)
 {
-  // Note: see TS38.321, Section 6.1.3.
+  // Note: see TS 38.321, Section 6.1.3.
   ASSERT_EQ(lcid_dl_sch_t{lcid_dl_sch_t::UE_CON_RES_ID}.sizeof_ce(), 6);
   ASSERT_EQ(lcid_dl_sch_t{lcid_dl_sch_t::TA_CMD}.sizeof_ce(), 1);
   ASSERT_EQ(lcid_dl_sch_t{lcid_dl_sch_t::DRX_CMD}.sizeof_ce(), 0);
@@ -1080,16 +1080,23 @@ protected:
 class dl_harq_feedback_logical_channel_system_test : public logical_channel_system_test, public ::testing::Test
 {
 protected:
-  void create_ue(std::optional<dl_harq_feedback> srb_feedback,
-                 std::optional<dl_harq_feedback> drb_feedback,
-                 bool                            one_slice = false)
+  logical_channel_config_list_ptr create_config(std::optional<dl_harq_feedback> srb_feedback,
+                                                std::optional<dl_harq_feedback> drb_feedback)
   {
     std::vector<logical_channel_config> configs;
     configs.push_back(config_helpers::create_default_logical_channel_config(LCID_SRB1));
     configs.back().allowed_dl_harq_feedback = srb_feedback;
     configs.push_back(config_helpers::create_default_logical_channel_config(LCID_MIN_DRB));
     configs.back().allowed_dl_harq_feedback = drb_feedback;
-    ue_lchs = lch_system.create_ue(to_du_ue_index(0), subcarrier_spacing::kHz30, false, cfg_pool.create(configs));
+    return cfg_pool.create(configs);
+  }
+
+  void create_ue(std::optional<dl_harq_feedback> srb_feedback,
+                 std::optional<dl_harq_feedback> drb_feedback,
+                 bool                            one_slice = false)
+  {
+    ue_lchs = lch_system.create_ue(
+        to_du_ue_index(0), subcarrier_spacing::kHz30, false, create_config(srb_feedback, drb_feedback));
     ue_lchs.set_lcid_ran_slice(LCID_SRB1, srb_slice);
     ue_lchs.set_lcid_ran_slice(LCID_MIN_DRB, one_slice ? srb_slice : drb_slice);
   }
@@ -1105,7 +1112,7 @@ TEST_F(dl_harq_feedback_logical_channel_system_test, unrestricted_channels_requi
   create_ue(std::nullopt, std::nullopt);
   ue_lchs.handle_dl_buffer_status_indication(LCID_SRB1, 100);
 
-  ASSERT_FALSE(ue_lchs.required_dl_harq_feedback(srb_slice).has_value());
+  ASSERT_FALSE(ue_lchs.select_dl_transport_block(srb_slice).restrictions.harq_feedback.has_value());
 }
 
 /// The restriction only applies to a channel the UE has data for, since a grant is scheduled against the buffer status.
@@ -1114,9 +1121,10 @@ TEST_F(dl_harq_feedback_logical_channel_system_test, a_restricted_channel_with_p
   create_ue(dl_harq_feedback::enabled, std::nullopt);
   ue_lchs.handle_dl_buffer_status_indication(LCID_SRB1, 100);
 
-  ASSERT_TRUE(ue_lchs.required_dl_harq_feedback(srb_slice).has_value());
-  EXPECT_EQ(*ue_lchs.required_dl_harq_feedback(srb_slice), dl_harq_feedback::enabled);
-  EXPECT_FALSE(ue_lchs.required_dl_harq_feedback(drb_slice).has_value()) << "the other slice has no restricted data";
+  ASSERT_TRUE(ue_lchs.select_dl_transport_block(srb_slice).restrictions.harq_feedback.has_value());
+  EXPECT_EQ(*ue_lchs.select_dl_transport_block(srb_slice).restrictions.harq_feedback, dl_harq_feedback::enabled);
+  EXPECT_FALSE(ue_lchs.select_dl_transport_block(drb_slice).restrictions.harq_feedback.has_value())
+      << "the other slice has no restricted data";
 }
 
 /// A transport block can be built without buffer status, and then the configuration decides.
@@ -1124,8 +1132,8 @@ TEST_F(dl_harq_feedback_logical_channel_system_test, a_restricted_channel_withou
 {
   create_ue(dl_harq_feedback::enabled, std::nullopt);
 
-  ASSERT_TRUE(ue_lchs.required_dl_harq_feedback(srb_slice).has_value());
-  EXPECT_EQ(*ue_lchs.required_dl_harq_feedback(srb_slice), dl_harq_feedback::enabled);
+  ASSERT_TRUE(ue_lchs.select_dl_transport_block(srb_slice).restrictions.harq_feedback.has_value());
+  EXPECT_EQ(*ue_lchs.select_dl_transport_block(srb_slice).restrictions.harq_feedback, dl_harq_feedback::enabled);
 }
 
 TEST_F(dl_harq_feedback_logical_channel_system_test, disabled_feedback_is_required_the_same_way_as_enabled)
@@ -1133,19 +1141,19 @@ TEST_F(dl_harq_feedback_logical_channel_system_test, disabled_feedback_is_requir
   create_ue(std::nullopt, dl_harq_feedback::disabled);
   ue_lchs.handle_dl_buffer_status_indication(LCID_MIN_DRB, 100);
 
-  ASSERT_TRUE(ue_lchs.required_dl_harq_feedback(drb_slice).has_value());
-  EXPECT_EQ(*ue_lchs.required_dl_harq_feedback(drb_slice), dl_harq_feedback::disabled);
+  ASSERT_TRUE(ue_lchs.select_dl_transport_block(drb_slice).restrictions.harq_feedback.has_value());
+  EXPECT_EQ(*ue_lchs.select_dl_transport_block(drb_slice).restrictions.harq_feedback, dl_harq_feedback::disabled);
 }
 
-/// No block serves two channels that disagree, so the one the block serves first decides, whatever the volumes are.
+/// No single block serves two channels that disagree, so the one the block serves first decides, SRB1 here.
 TEST_F(dl_harq_feedback_logical_channel_system_test, channels_of_one_slice_that_disagree_take_the_highest_priority)
 {
   create_ue(dl_harq_feedback::enabled, dl_harq_feedback::disabled, /* one_slice */ true);
   ue_lchs.handle_dl_buffer_status_indication(LCID_SRB1, 100);
   ue_lchs.handle_dl_buffer_status_indication(LCID_MIN_DRB, 200);
 
-  ASSERT_TRUE(ue_lchs.required_dl_harq_feedback(srb_slice).has_value());
-  EXPECT_EQ(*ue_lchs.required_dl_harq_feedback(srb_slice), dl_harq_feedback::enabled) << "SRB1 outranks the DRB";
+  ASSERT_TRUE(ue_lchs.select_dl_transport_block(srb_slice).restrictions.harq_feedback.has_value());
+  EXPECT_EQ(*ue_lchs.select_dl_transport_block(srb_slice).restrictions.harq_feedback, dl_harq_feedback::enabled);
 }
 
 /// Priority decides on its own, so the channel served first is followed even where it asks for no feedback.
@@ -1155,18 +1163,91 @@ TEST_F(dl_harq_feedback_logical_channel_system_test, the_highest_priority_channe
   ue_lchs.handle_dl_buffer_status_indication(LCID_SRB1, 100);
   ue_lchs.handle_dl_buffer_status_indication(LCID_MIN_DRB, 200);
 
-  ASSERT_TRUE(ue_lchs.required_dl_harq_feedback(srb_slice).has_value());
-  EXPECT_EQ(*ue_lchs.required_dl_harq_feedback(srb_slice), dl_harq_feedback::disabled);
+  ASSERT_TRUE(ue_lchs.select_dl_transport_block(srb_slice).restrictions.harq_feedback.has_value());
+  EXPECT_EQ(*ue_lchs.select_dl_transport_block(srb_slice).restrictions.harq_feedback, dl_harq_feedback::disabled);
 }
 
-/// A channel only decides while it has something to send, so an idle one does not hold back the other.
+/// Priority holds without buffer status, so a block no data restricts still carries what the first channel asks.
+TEST_F(dl_harq_feedback_logical_channel_system_test,
+       channels_without_pending_data_that_disagree_take_the_highest_priority)
+{
+  create_ue(dl_harq_feedback::enabled, dl_harq_feedback::disabled, /* one_slice */ true);
+
+  ASSERT_TRUE(ue_lchs.select_dl_transport_block(srb_slice).restrictions.harq_feedback.has_value());
+  EXPECT_EQ(*ue_lchs.select_dl_transport_block(srb_slice).restrictions.harq_feedback, dl_harq_feedback::enabled);
+}
+
+/// A grant sized for the whole slice would be padded, as the block leaves the channels of the other feedback out.
+TEST_F(dl_harq_feedback_logical_channel_system_test, the_selection_drops_the_bytes_the_feedback_cannot_carry)
+{
+  create_ue(dl_harq_feedback::enabled, dl_harq_feedback::disabled, /* one_slice */ true);
+  ue_lchs.handle_dl_buffer_status_indication(LCID_SRB1, 100);
+  ue_lchs.handle_dl_buffer_status_indication(LCID_MIN_DRB, 200);
+
+  const auto selection = ue_lchs.select_dl_transport_block(srb_slice);
+  EXPECT_EQ(selection.pending_bytes, ue_lchs.pending_bytes(LCID_SRB1));
+  EXPECT_LT(selection.pending_bytes, ue_lchs.dl_pending_bytes(srb_slice)) << "the other channel is left out";
+}
+
+/// Nothing is dropped from a slice no channel restricts.
+TEST_F(dl_harq_feedback_logical_channel_system_test, an_unrestricted_slice_keeps_all_of_its_pending_bytes)
+{
+  create_ue(std::nullopt, std::nullopt, /* one_slice */ true);
+  ue_lchs.handle_dl_buffer_status_indication(LCID_SRB1, 100);
+  ue_lchs.handle_dl_buffer_status_indication(LCID_MIN_DRB, 200);
+
+  const auto selection = ue_lchs.select_dl_transport_block(srb_slice);
+  EXPECT_FALSE(selection.restrictions.harq_feedback.has_value());
+  EXPECT_EQ(selection.pending_bytes, ue_lchs.dl_pending_bytes(srb_slice));
+}
+
+/// The feedback only goes first while the channel needing it has something to send.
 TEST_F(dl_harq_feedback_logical_channel_system_test, an_idle_enabled_channel_leaves_the_feedback_to_the_one_with_data)
 {
   create_ue(dl_harq_feedback::enabled, dl_harq_feedback::disabled, /* one_slice */ true);
   ue_lchs.handle_dl_buffer_status_indication(LCID_MIN_DRB, 200);
 
-  ASSERT_TRUE(ue_lchs.required_dl_harq_feedback(srb_slice).has_value());
-  EXPECT_EQ(*ue_lchs.required_dl_harq_feedback(srb_slice), dl_harq_feedback::disabled);
+  ASSERT_TRUE(ue_lchs.select_dl_transport_block(srb_slice).restrictions.harq_feedback.has_value());
+  EXPECT_EQ(*ue_lchs.select_dl_transport_block(srb_slice).restrictions.harq_feedback, dl_harq_feedback::disabled);
+}
+
+/// The gNB fills the block, so an idle channel does not put the data of an unrestricted one on its feedback.
+TEST_F(dl_harq_feedback_logical_channel_system_test, an_idle_enabled_channel_leaves_unrestricted_data_unrestricted)
+{
+  create_ue(dl_harq_feedback::enabled, std::nullopt, /* one_slice */ true);
+  ue_lchs.handle_dl_buffer_status_indication(LCID_MIN_DRB, 200);
+
+  const auto selection = ue_lchs.select_dl_transport_block(srb_slice);
+  EXPECT_FALSE(selection.restrictions.harq_feedback.has_value());
+  EXPECT_EQ(selection.pending_bytes, ue_lchs.dl_pending_bytes(srb_slice)) << "no channel is left out";
+}
+
+/// The restriction belongs to the channel, so it binds the slice the channel is mapped to at the time.
+TEST_F(dl_harq_feedback_logical_channel_system_test, a_remapped_channel_restricts_the_slice_it_moves_to)
+{
+  create_ue(dl_harq_feedback::enabled, std::nullopt);
+  ue_lchs.handle_dl_buffer_status_indication(LCID_SRB1, 100);
+  ASSERT_TRUE(ue_lchs.select_dl_transport_block(srb_slice).restrictions.harq_feedback.has_value());
+
+  ue_lchs.set_lcid_ran_slice(LCID_SRB1, drb_slice);
+
+  EXPECT_FALSE(ue_lchs.select_dl_transport_block(srb_slice).restrictions.harq_feedback.has_value())
+      << "the channel that restricted this slice left it";
+  ASSERT_TRUE(ue_lchs.select_dl_transport_block(drb_slice).restrictions.harq_feedback.has_value());
+  EXPECT_EQ(*ue_lchs.select_dl_transport_block(drb_slice).restrictions.harq_feedback, dl_harq_feedback::enabled);
+}
+
+/// A reconfiguration decides the restrictions of the blocks built after it.
+TEST_F(dl_harq_feedback_logical_channel_system_test, a_reconfigured_channel_restricts_its_slice)
+{
+  create_ue(std::nullopt, std::nullopt);
+  ue_lchs.handle_dl_buffer_status_indication(LCID_SRB1, 100);
+  ASSERT_FALSE(ue_lchs.select_dl_transport_block(srb_slice).restrictions.harq_feedback.has_value());
+
+  ue_lchs.configure(create_config(dl_harq_feedback::disabled, std::nullopt));
+
+  ASSERT_TRUE(ue_lchs.select_dl_transport_block(srb_slice).restrictions.harq_feedback.has_value());
+  EXPECT_EQ(*ue_lchs.select_dl_transport_block(srb_slice).restrictions.harq_feedback, dl_harq_feedback::disabled);
 }
 
 TEST_F(ul_harq_mode_logical_channel_system_test, unrestricted_channels_require_no_mode)
@@ -1174,7 +1255,7 @@ TEST_F(ul_harq_mode_logical_channel_system_test, unrestricted_channels_require_n
   create_ue(std::nullopt, std::nullopt);
   ue_lchs.handle_bsr_indication(make_sbsr(srb_lcg, 100));
 
-  ASSERT_FALSE(ue_lchs.required_ul_harq_mode(srb_slice).has_value());
+  ASSERT_FALSE(ue_lchs.select_ul_grant(srb_slice).restrictions.harq_mode.has_value());
 }
 
 /// The restriction only applies to a group the UE has data in, since a grant is scheduled against the buffer status.
@@ -1183,9 +1264,10 @@ TEST_F(ul_harq_mode_logical_channel_system_test, a_restricted_group_with_pending
   create_ue(ul_harq_mode::mode_a, std::nullopt);
   ue_lchs.handle_bsr_indication(make_sbsr(srb_lcg, 100));
 
-  ASSERT_TRUE(ue_lchs.required_ul_harq_mode(srb_slice).has_value());
-  EXPECT_EQ(*ue_lchs.required_ul_harq_mode(srb_slice), ul_harq_mode::mode_a);
-  EXPECT_FALSE(ue_lchs.required_ul_harq_mode(drb_slice).has_value()) << "the other slice has no restricted data";
+  ASSERT_TRUE(ue_lchs.select_ul_grant(srb_slice).restrictions.harq_mode.has_value());
+  EXPECT_EQ(*ue_lchs.select_ul_grant(srb_slice).restrictions.harq_mode, ul_harq_mode::mode_a);
+  EXPECT_FALSE(ue_lchs.select_ul_grant(drb_slice).restrictions.harq_mode.has_value())
+      << "the other slice has no restricted data";
 }
 
 /// A grant can be scheduled without buffer status, as the one an SR earns, and then the configuration decides.
@@ -1193,8 +1275,8 @@ TEST_F(ul_harq_mode_logical_channel_system_test, a_restricted_group_without_pend
 {
   create_ue(ul_harq_mode::mode_a, std::nullopt);
 
-  ASSERT_TRUE(ue_lchs.required_ul_harq_mode(srb_slice).has_value());
-  EXPECT_EQ(*ue_lchs.required_ul_harq_mode(srb_slice), ul_harq_mode::mode_a);
+  ASSERT_TRUE(ue_lchs.select_ul_grant(srb_slice).restrictions.harq_mode.has_value());
+  EXPECT_EQ(*ue_lchs.select_ul_grant(srb_slice).restrictions.harq_mode, ul_harq_mode::mode_a);
 }
 
 /// Mode A keeps its priority without buffer status, so a grant no data restricts still serves it first.
@@ -1202,8 +1284,8 @@ TEST_F(ul_harq_mode_logical_channel_system_test, groups_without_pending_data_tha
 {
   create_ue(ul_harq_mode::mode_a, ul_harq_mode::mode_b, /* one_slice */ true);
 
-  ASSERT_TRUE(ue_lchs.required_ul_harq_mode(srb_slice).has_value());
-  EXPECT_EQ(*ue_lchs.required_ul_harq_mode(srb_slice), ul_harq_mode::mode_a);
+  ASSERT_TRUE(ue_lchs.select_ul_grant(srb_slice).restrictions.harq_mode.has_value());
+  EXPECT_EQ(*ue_lchs.select_ul_grant(srb_slice).restrictions.harq_mode, ul_harq_mode::mode_a);
 }
 
 TEST_F(ul_harq_mode_logical_channel_system_test, mode_b_is_required_the_same_way_as_mode_a)
@@ -1211,8 +1293,8 @@ TEST_F(ul_harq_mode_logical_channel_system_test, mode_b_is_required_the_same_way
   create_ue(std::nullopt, ul_harq_mode::mode_b);
   ue_lchs.handle_bsr_indication(make_sbsr(drb_lcg, 100));
 
-  ASSERT_TRUE(ue_lchs.required_ul_harq_mode(drb_slice).has_value());
-  EXPECT_EQ(*ue_lchs.required_ul_harq_mode(drb_slice), ul_harq_mode::mode_b);
+  ASSERT_TRUE(ue_lchs.select_ul_grant(drb_slice).restrictions.harq_mode.has_value());
+  EXPECT_EQ(*ue_lchs.select_ul_grant(drb_slice).restrictions.harq_mode, ul_harq_mode::mode_b);
 }
 
 /// No single grant serves two groups that ask for different modes, so mode A goes first, whatever the volumes are.
@@ -1222,8 +1304,8 @@ TEST_F(ul_harq_mode_logical_channel_system_test, groups_of_one_slice_that_disagr
   ue_lchs.handle_bsr_indication(make_sbsr(srb_lcg, 100));
   ue_lchs.handle_bsr_indication(make_sbsr(drb_lcg, 200));
 
-  ASSERT_TRUE(ue_lchs.required_ul_harq_mode(srb_slice).has_value());
-  EXPECT_EQ(*ue_lchs.required_ul_harq_mode(srb_slice), ul_harq_mode::mode_a);
+  ASSERT_TRUE(ue_lchs.select_ul_grant(srb_slice).restrictions.harq_mode.has_value());
+  EXPECT_EQ(*ue_lchs.select_ul_grant(srb_slice).restrictions.harq_mode, ul_harq_mode::mode_a);
 }
 
 /// Mode A only goes first while it has something to send, so an idle group does not hold back the other one.
@@ -1232,8 +1314,20 @@ TEST_F(ul_harq_mode_logical_channel_system_test, an_idle_mode_a_group_leaves_the
   create_ue(ul_harq_mode::mode_a, ul_harq_mode::mode_b, /* one_slice */ true);
   ue_lchs.handle_bsr_indication(make_sbsr(drb_lcg, 200));
 
-  ASSERT_TRUE(ue_lchs.required_ul_harq_mode(srb_slice).has_value());
-  EXPECT_EQ(*ue_lchs.required_ul_harq_mode(srb_slice), ul_harq_mode::mode_b);
+  ASSERT_TRUE(ue_lchs.select_ul_grant(srb_slice).restrictions.harq_mode.has_value());
+  EXPECT_EQ(*ue_lchs.select_ul_grant(srb_slice).restrictions.harq_mode, ul_harq_mode::mode_b);
+}
+
+/// A grant a restricted group cannot be served on strands whatever it buffers next, so an idle group still binds one.
+TEST_F(ul_harq_mode_logical_channel_system_test, an_idle_mode_a_group_still_binds_a_grant_for_unrestricted_data)
+{
+  create_ue(ul_harq_mode::mode_a, std::nullopt, /* one_slice */ true);
+  ue_lchs.handle_bsr_indication(make_sbsr(drb_lcg, 200));
+
+  const auto selection = ue_lchs.select_ul_grant(srb_slice);
+  ASSERT_TRUE(selection.restrictions.harq_mode.has_value());
+  EXPECT_EQ(*selection.restrictions.harq_mode, ul_harq_mode::mode_a);
+  EXPECT_EQ(selection.pending_bytes, ue_lchs.ul_pending_bytes(srb_slice)) << "no group is left out";
 }
 
 /// A grant serves the whole group, so an unrestricted channel sharing it does not lift the restriction.
@@ -1242,8 +1336,8 @@ TEST_F(ul_harq_mode_logical_channel_system_test, an_unrestricted_channel_does_no
   create_ue_with_one_lcg(ul_harq_mode::mode_a, std::nullopt);
   ue_lchs.handle_bsr_indication(make_sbsr(drb_lcg, 100));
 
-  ASSERT_TRUE(ue_lchs.required_ul_harq_mode(drb_slice).has_value());
-  EXPECT_EQ(*ue_lchs.required_ul_harq_mode(drb_slice), ul_harq_mode::mode_a);
+  ASSERT_TRUE(ue_lchs.select_ul_grant(drb_slice).restrictions.harq_mode.has_value());
+  EXPECT_EQ(*ue_lchs.select_ul_grant(drb_slice).restrictions.harq_mode, ul_harq_mode::mode_a);
 }
 
 /// The channels of a group are all read, so a restriction behind an unrestricted channel still binds the group.
@@ -1252,6 +1346,6 @@ TEST_F(ul_harq_mode_logical_channel_system_test, a_restriction_after_an_unrestri
   create_ue_with_one_lcg(std::nullopt, ul_harq_mode::mode_b);
   ue_lchs.handle_bsr_indication(make_sbsr(drb_lcg, 100));
 
-  ASSERT_TRUE(ue_lchs.required_ul_harq_mode(drb_slice).has_value());
-  EXPECT_EQ(*ue_lchs.required_ul_harq_mode(drb_slice), ul_harq_mode::mode_b);
+  ASSERT_TRUE(ue_lchs.select_ul_grant(drb_slice).restrictions.harq_mode.has_value());
+  EXPECT_EQ(*ue_lchs.select_ul_grant(drb_slice).restrictions.harq_mode, ul_harq_mode::mode_b);
 }

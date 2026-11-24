@@ -37,6 +37,7 @@ variables:
   variables:
     TEST_EXECUTION_TIMEOUT: 0
     ENABLE_SPLIT_DWARF: "True"
+    UBSAN_OPTIONS: "print_stacktrace=1"
   script:
     - &script_functions |
       build_ocudu_extended() {
@@ -63,6 +64,10 @@ variables:
             ret=0
             exit $ret
           fi
+        fi
+        # Shard tests by stride across `parallel: N` jobs
+        if [[ "${CTEST_SHARDED}" == "True" && "${CI_NODE_TOTAL:-1}" -gt 1 ]]; then
+          CTEST_ARGS="${CTEST_ARGS} -I ${CI_NODE_INDEX},,${CI_NODE_TOTAL}"
         fi
         export -f launch_tests_ocudu
         status_file=$(mktemp)
@@ -372,6 +377,9 @@ variables:
     ASSERT_LEVEL: NONE
     TEST_MODE: default
     MARCH: x86-64-v3
+    # Also builds the fuzz harnesses, which no other MR build job compiles, so that changes to the
+    # APIs they use are caught before they break the OSS-Fuzz and OSS Scanner builds.
+    BUILD_ARGS: "-DENABLE_FUZZTESTS=True"
 
 .smoke cuda:
   extends: .build_and_unit
@@ -508,13 +516,18 @@ smoke cuda cached:
     - if: $ON_MR
       changes: &cuda_changes
         paths:
-          - lib/cuda/**/*
-          - include/ocudu/cuda/**/*
-          - tests/unittests/cuda/**/*
-          - lib/phy/support/*cuda_visible*
-          - tests/unittests/phy/support/*cuda_visible*
-          - lib/phy/upper/channel_processors/prach/*cuda*
-          - tests/unittests/phy/upper/channel_processors/prach/*cuda*
+          # Any directory named cuda, which is where the kernels and the CUDA layer live.
+          - "**/cuda/**/*"
+          # The accelerated implementations outside those directories. They are named after
+          # the technology, either cuda or gpu, wherever they sit beside their CPU siblings.
+          - "lib/**/*cuda*"
+          - "lib/**/*gpu*"
+          - "include/**/*cuda*"
+          - "include/**/*gpu*"
+          - "tests/**/*cuda*"
+          - "tests/**/*gpu*"
+          - "apps/**/*cuda*"
+          - "apps/**/*gpu*"
           - cmake/modules/add_cuda_test.cmake
           - cmake/modules/FindVkFFT.cmake
     - if: $ON_MR
@@ -708,8 +721,11 @@ smoke asan:
 smoke valgrind:
   extends: .smoke valgrind
   timeout: 4 hours
+  parallel: 2
   rules:
     - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Nightly/
+  variables:
+    CTEST_SHARDED: "True"
 
 smoke rtsan:
   extends: .smoke rtsan
@@ -763,7 +779,6 @@ package:
       export DEB_BUILD_OPTIONS="parallel=${CPU_JOBS}"
   parallel:
     matrix:
-      - OS_VERSION: "22.04"
       - OS_VERSION: "24.04"
       - OS_VERSION: "26.04"
       - OS_VERSION: "26.10"
@@ -783,7 +798,6 @@ install-package:
     - gnb --version
   parallel:
     matrix:
-      - OS_VERSION: "22.04"
       - OS_VERSION: "24.04"
       - OS_VERSION: "26.04"
       - OS_VERSION: "26.10"
@@ -802,8 +816,8 @@ export on amd64:
     ENABLE_EXPORT: "True"
   parallel:
     matrix:
-      - OS: [ubuntu-26.04, ubuntu-24.04, ubuntu-22.04]
-      - OS: [ubuntu-26.04, ubuntu-24.04, ubuntu-22.04]
+      - OS: [ubuntu-26.04, ubuntu-24.04]
+      - OS: [ubuntu-26.04, ubuntu-24.04]
         MARCH: x86-64-v3
 
 export on avx512:
@@ -816,7 +830,7 @@ export on avx512:
     - sctp
   parallel:
     matrix:
-      - OS: [ubuntu-26.04, ubuntu-24.04, ubuntu-22.04]
+      - OS: [ubuntu-26.04, ubuntu-24.04]
         MARCH: x86-64-v4
 
 # Nightly Sanitizers
@@ -838,19 +852,6 @@ ubsan avx2:
     KUBERNETES_EPHEMERAL_STORAGE_LIMIT: "100G"
 
 # Build + unit tests combinations
-
-ubuntu-22.04 avx2:
-  extends: .build_and_unit
-  rules:
-    - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Nightly/
-      when: delayed
-      start_in: 1 hour
-  variables:
-    OS: ubuntu-22.04
-    MARCH: x86-64-v3
-  parallel:
-    matrix:
-      - <<: *basic_combinations
 
 ubuntu-24.04 avx2:
   extends: .build_and_unit
@@ -1103,7 +1104,7 @@ check builders ubuntu versions:
       when: delayed
       start_in: 15 minutes
   variables:
-    VERSIONS_TO_IGNORE: "20.04"
+    VERSIONS_TO_IGNORE: "22.04"
   script:
     - check_if_image_exists ${CI_REGISTRY_IMAGE}/builder-ubuntu- :${DOCKER_BUILDER_VERSION}
 
@@ -1123,7 +1124,7 @@ sanitizers avx2:
     - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Weekly/
       when: delayed
       start_in: 1 hour
-  timeout: 4 hours
+  timeout: 6 hours
   variables:
     MARCH: x86-64-v3
   tags:
@@ -1131,7 +1132,6 @@ sanitizers avx2:
     - sctp
   parallel:
     matrix:
-      # ubuntu-22.04 disabled due to https://github.com/google/sanitizers/issues/1259#issuecomment-642312392
       # TSAN Ubuntu 24.04 disabled - TSAN requires an ASLR config of 28 bits (instead of 32 bit as is by default on Ubuntu 24.04)
       - OS: [ubuntu-26.04]
         SANITIZER: tsan
@@ -1170,7 +1170,6 @@ sanitizers avx512:
     - sctp
   parallel:
     matrix:
-      # ubuntu-22.04 disabled due to https://github.com/google/sanitizers/issues/1259#issuecomment-642312392
       # TSAN Ubuntu 24.04 disabled - TSAN requires an ASLR config of 28 bits (instead of 32 bit as is by default on Ubuntu 24.04)
       - OS: [ubuntu-26.04]
         SANITIZER: tsan
@@ -1196,12 +1195,11 @@ sanitizers arm neon:
   extends: .weekly sanitizers
   tags:
     - ${OCUDU_RUNNER_TAG}-arm64
-  timeout: 4 hours
+  timeout: 6 hours
   variables:
     MCPU: neoverse-n1+crc+crypto+ssbs
   parallel:
     matrix:
-      # ubuntu-22.04 disabled due to https://github.com/google/sanitizers/issues/1259#issuecomment-642312392
       # TSAN Ubuntu 24.04 disabled - TSAN requires an ASLR config of 28 bits (instead of 32 bit as is by default on Ubuntu 24.04)
       - OS: [ubuntu-26.04]
         SANITIZER: tsan
@@ -1240,18 +1238,6 @@ build uhd alt:
     MARCH: x86-64-v3
   parallel:
     matrix:
-      - OS: ubuntu-22.04
-        COMPILER: [gcc, clang]
-        UHD_VERSION:
-          [
-            "4.9.0.0",
-            "4.8.0.0",
-            "4.7.0.0",
-            "4.6.0.0",
-            "4.4.0.0",
-            "4.3.0.0",
-            "4.1.0.5",
-          ]
       - OS: ubuntu-24.04
         COMPILER: [gcc, clang]
         UHD_VERSION: ["4.9.0.0", "4.8.0.0", "4.7.0.0", "4.6.0.0"]
@@ -1274,39 +1260,6 @@ gdb pretty printers:
     <<: *gdb_printers_variables
 
 # Build + unit tests combinations
-
-ubuntu-22.04 avx512:
-  extends: .build_and_unit
-  rules:
-    - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Weekly/
-      when: delayed
-      start_in: 2 hours
-  variables:
-    OS: ubuntu-22.04
-    MARCH: x86-64-v4
-    TEST_MODE: full
-  tags:
-    - ${OCUDU_RUNNER_TAG}-amd64
-    - avx512
-    - sctp
-  parallel:
-    matrix:
-      - <<: *basic_combinations
-
-ubuntu-22.04 arm neon:
-  extends: .build_and_unit
-  rules:
-    - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Weekly/
-      when: delayed
-      start_in: 1 hour
-  variables:
-    OS: ubuntu-22.04
-    MCPU: neoverse-n1+crc+crypto+ssbs
-  tags:
-    - ${OCUDU_RUNNER_TAG}-arm64
-  parallel:
-    matrix:
-      - <<: *basic_combinations
 
 ubuntu-24.04 amd64 native:
   extends: .build_and_unit
@@ -1453,138 +1406,6 @@ ubuntu-26.04 arm neon:
       - <<: *basic_combinations
 
 # DPDK
-
-ubuntu-22.04 avx2 dpdk 22.11:
-  extends: .build_and_unit
-  rules:
-    - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Weekly/
-      when: delayed
-      start_in: 8 hours
-  variables:
-    OS: ubuntu-22.04
-    MARCH: x86-64-v3
-    DPDK_VERSION: "22.11.8_avx2"
-  parallel:
-    matrix:
-      - <<: *basic_combinations_dpdk
-
-ubuntu-22.04 avx2 dpdk 23.11:
-  extends: .build_and_unit
-  rules:
-    - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Weekly/
-      when: delayed
-      start_in: 9 hours
-  variables:
-    OS: ubuntu-22.04
-    MARCH: x86-64-v3
-    DPDK_VERSION: "23.11.4_avx2"
-  parallel:
-    matrix:
-      - <<: *basic_combinations_dpdk
-
-ubuntu-22.04 avx2 dpdk 24.11:
-  extends: .build_and_unit
-  rules:
-    - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Weekly/
-      when: delayed
-      start_in: 10 hours
-  variables:
-    OS: ubuntu-22.04
-    MARCH: x86-64-v3
-    DPDK_VERSION: "24.11.2_avx2"
-  parallel:
-    matrix:
-      - <<: *basic_combinations_dpdk
-
-ubuntu-22.04 avx2 dpdk 25.11:
-  extends: .build_and_unit
-  rules:
-    - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Weekly/
-      when: delayed
-      start_in: 11 hours
-  variables:
-    OS: ubuntu-22.04
-    MARCH: x86-64-v3
-    DPDK_VERSION: "25.11.3_avx2"
-  parallel:
-    matrix:
-      - <<: *basic_combinations_dpdk
-
-ubuntu-22.04 avx512 dpdk 22.11:
-  extends: .build_and_unit
-  rules:
-    - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Weekly/
-      when: delayed
-      start_in: 12 hours
-  variables:
-    OS: ubuntu-22.04
-    MARCH: x86-64-v4
-    TEST_MODE: full
-    DPDK_VERSION: "22.11.8_avx512"
-  tags:
-    - ${OCUDU_RUNNER_TAG}-amd64
-    - avx512
-    - sctp
-  parallel:
-    matrix:
-      - <<: *basic_combinations_dpdk
-
-ubuntu-22.04 avx512 dpdk 23.11:
-  extends: .build_and_unit
-  rules:
-    - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Weekly/
-      when: delayed
-      start_in: 13 hours
-  variables:
-    OS: ubuntu-22.04
-    MARCH: x86-64-v4
-    TEST_MODE: full
-    DPDK_VERSION: "23.11.4_avx512"
-  tags:
-    - ${OCUDU_RUNNER_TAG}-amd64
-    - avx512
-    - sctp
-  parallel:
-    matrix:
-      - <<: *basic_combinations_dpdk
-
-ubuntu-22.04 avx512 dpdk 24.11:
-  extends: .build_and_unit
-  rules:
-    - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Weekly/
-      when: delayed
-      start_in: 14 hours
-  variables:
-    OS: ubuntu-22.04
-    MARCH: x86-64-v4
-    TEST_MODE: full
-    DPDK_VERSION: "24.11.2_avx512"
-  tags:
-    - ${OCUDU_RUNNER_TAG}-amd64
-    - avx512
-    - sctp
-  parallel:
-    matrix:
-      - <<: *basic_combinations_dpdk
-
-ubuntu-22.04 avx512 dpdk 25.11:
-  extends: .build_and_unit
-  rules:
-    - if: $CI_PIPELINE_SCHEDULE_DESCRIPTION =~ /Weekly/
-      when: delayed
-      start_in: 15 hours
-  variables:
-    OS: ubuntu-22.04
-    MARCH: x86-64-v4
-    TEST_MODE: full
-    DPDK_VERSION: "25.11.3_avx512"
-  tags:
-    - ${OCUDU_RUNNER_TAG}-amd64
-    - avx512
-    - sctp
-  parallel:
-    matrix:
-      - <<: *basic_combinations_dpdk
 
 ubuntu-24.04 avx2 dpdk 23.11:
   extends: .build_and_unit

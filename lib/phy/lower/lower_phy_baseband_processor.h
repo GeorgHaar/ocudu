@@ -83,7 +83,10 @@ public:
   void start(baseband_gateway_timestamp init_time, baseband_gateway_timestamp sfn0_ref_time) override;
 
   // See interface for documentation.
-  void stop() override;
+  void request_stop() override;
+
+  // See interface for documentation.
+  void wait_stop() override;
 
 private:
   /// Internal finite state machine to control the internal state.

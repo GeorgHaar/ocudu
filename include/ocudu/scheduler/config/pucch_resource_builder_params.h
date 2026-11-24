@@ -157,19 +157,6 @@ struct pucch_f4_params {
   bool operator!=(const pucch_f4_params& other) const { return not(*this == other); }
 };
 
-struct pucch_resource_set_config_id_tag;
-/// PUCCH Resource Set configuration ID. Range: 0 to \ref pucch_resource_builder_params::nof_cell_res_set_configs - 1.
-using pucch_resource_set_config_id =
-    strong_type<uint8_t, struct pucch_res_set_cfg_id_tag, strong_equality, strong_increment_decrement>;
-struct pucch_sr_resource_id_tag;
-/// ID for a PUCCH resource used for SR. Range: 0 to \ref pucch_resource_builder_params::nof_cell_sr_resources - 1.
-using pucch_sr_resource_id =
-    strong_type<uint8_t, struct pucch_sr_resource_id_tag, strong_equality, strong_increment_decrement>;
-struct pucch_csi_resource_id_tag;
-/// ID for a PUCCH resource used for CSI. Range: 0 to \ref pucch_resource_builder_params::nof_cell_sr_resources - 1.
-using pucch_csi_resource_id =
-    strong_type<uint8_t, struct pucch_csi_resource_id_tag, strong_equality, strong_increment_decrement>;
-
 /// PUCCH HARQ-ACK repetition configuration for a cell.
 struct pucch_harq_ack_rep_params {
   /// SINR thresholds (in dB) used to map UE SINR to PUCCH HARQ-ACK repetition factor. Up to 3 entries, in order:
@@ -187,15 +174,8 @@ struct pucch_harq_ack_rep_params {
 ///
 /// [Implementation-defined] The cell PUCCH resource list will contain all resources in the cell ordered by type:
 ///   | HARQ Resource Set ID 0 | SR | HARQ Resource Set ID 1 | CSI | (SR_F2) | (CSI_F0) |
-/// [Implementation-defined] The UE PUCCH resource list will contain the resources in the following order:
-///   | HARQ Resource Set ID 0 | SR | HARQ Resource Set ID 1 | CSI | (SR_F2) | (CSI_F0) |
 /// Where SR_F2 and CSI_F0 only exist when using Format 0 and Format 2 together.
 struct pucch_resource_builder_params {
-  /// Number of PUCCH resources for SR configured per UE.
-  static constexpr unsigned nof_sr_res_per_ue = 1U;
-  /// Number of PUCCH resources for CSI configured per UE (when periodic CSI reporting is configured).
-  static constexpr unsigned nof_csi_res_per_ue = 1U;
-
   static constexpr unsigned max_res_set_size = 8;
   using resource_set_size                    = bounded_integer<unsigned, 1, max_res_set_size>;
 
@@ -251,92 +231,6 @@ struct pucch_resource_builder_params {
       return pucch_format::FORMAT_3;
     }
     return pucch_format::FORMAT_4;
-  }
-
-  // \brief Get the ID of a given Resource Set ID 0/1 resource.
-  //
-  // \param res_set_id The Resource Set ID (0 or 1).
-  // \param res_set_cfg_id The resource set configuration index.
-  // \param pri the index of the resource within the resource set (PUCCH Resource Indicator).
-  // \return The ID of the PUCCH resource.
-  template <unsigned ResourceSetId>
-  pucch_res_id_t harq_res_id(pucch_resource_set_config_id res_set_cfg_id, unsigned pri) const
-  {
-    static_assert(ResourceSetId == 0 or ResourceSetId == 1, "Only Resource Sets ID 0 and 1 are supported");
-    ocudu_assert(res_set_cfg_id.value() < nof_cell_res_set_configs,
-                 "Resource set config index={} exceeds configured number of resource set configs={}",
-                 res_set_cfg_id.value(),
-                 nof_cell_res_set_configs);
-    ocudu_assert(pri < res_set_size.value(),
-                 "Resource index={} exceeds configured resource set size={}",
-                 pri,
-                 res_set_size.value());
-    if constexpr (ResourceSetId == 0) {
-      return pucch_res_id_t::make_ded(res_set_cfg_id.value() * res_set_size.value() + pri, pri);
-    }
-    return pucch_res_id_t::make_ded(nof_cell_res_set_configs * res_set_size.value() + nof_cell_sr_resources +
-                                        res_set_cfg_id.value() * res_set_size.value() + pri,
-                                    res_set_size.value() + nof_sr_res_per_ue + pri);
-  }
-
-  // \brief Get the ID of a given PUCCH resource for SR.
-  //
-  // \param sr_res_id The SR PUCCH resource configuration index.
-  // \return The ID of the PUCCH resource.
-  pucch_res_id_t sr_res_id(pucch_sr_resource_id sr_res_id) const
-  {
-    ocudu_assert(sr_res_id.value() < nof_cell_sr_resources,
-                 "SR resource index={} exceeds configured number of SR resources={}",
-                 sr_res_id.value(),
-                 nof_cell_sr_resources);
-    return pucch_res_id_t::make_ded(nof_cell_res_set_configs * res_set_size.value() + sr_res_id.value(),
-                                    res_set_size.value());
-  }
-
-  // \brief Get the ID of a given PUCCH resource for CSI.
-  //
-  // \param csi_res_id The CSI PUCCH resource configuration index.
-  // \return The ID of the PUCCH resource.
-  pucch_res_id_t csi_res_id(pucch_csi_resource_id csi_res_id) const
-  {
-    ocudu_assert(nof_cell_csi_resources != 0 and csi_res_id.value() < nof_cell_csi_resources,
-                 "CSI resource index={} exceeds configured number of CSI resources={}",
-                 csi_res_id.value(),
-                 nof_cell_csi_resources);
-    return pucch_res_id_t::make_ded(nof_cell_res_set_configs * res_set_size.value() + nof_cell_sr_resources +
-                                        nof_cell_res_set_configs * res_set_size.value() + csi_res_id.value(),
-                                    res_set_size.value() + nof_sr_res_per_ue + res_set_size.value());
-  }
-
-  /// \brief Get the ID of the SR_F2 resource associated to a given SR resource.
-  ///
-  /// \param sr_res_id The SR PUCCH resource configuration index.
-  /// \return The ID of the PUCCH resource.
-  pucch_res_id_t sr_f2_res_id(pucch_sr_resource_id sr_res_id) const
-  {
-    ocudu_assert(format_01() == pucch_format::FORMAT_0 and format_234() == pucch_format::FORMAT_2,
-                 "SR_F2 resource is only present in the F0+F2 case");
-    return pucch_res_id_t::make_ded(nof_cell_res_set_configs * res_set_size.value() + nof_cell_sr_resources +
-                                        nof_cell_res_set_configs * res_set_size.value() + nof_cell_csi_resources +
-                                        sr_res_id.value(),
-                                    res_set_size.value() + nof_sr_res_per_ue + res_set_size.value() +
-                                        (nof_cell_csi_resources != 0 ? nof_csi_res_per_ue : 0U));
-  }
-
-  /// \brief Get the ID of the CSI_F0 resource associated to a given CSI resource.
-  ///
-  /// \param csi_res_id The CSI PUCCH resource configuration index.
-  /// \return The ID of the PUCCH resource.
-  pucch_res_id_t csi_f0_res_id(pucch_csi_resource_id csi_res_id) const
-  {
-    ocudu_assert(nof_cell_csi_resources != 0 and format_01() == pucch_format::FORMAT_0 and
-                     format_234() == pucch_format::FORMAT_2,
-                 "CSI_F0 resource is only present in the F0+F2 case");
-    return pucch_res_id_t::make_ded(nof_cell_res_set_configs * res_set_size.value() + nof_cell_sr_resources +
-                                        nof_cell_res_set_configs * res_set_size.value() + nof_cell_csi_resources +
-                                        nof_cell_sr_resources + csi_res_id.value(),
-                                    res_set_size.value() + nof_sr_res_per_ue + res_set_size.value() +
-                                        nof_csi_res_per_ue + 1U);
   }
 
   /// Get the number of symbols configured for the Format 0 or 1 resources.

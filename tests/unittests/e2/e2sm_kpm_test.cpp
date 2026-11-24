@@ -26,7 +26,7 @@ static byte_buffer pack_f1ap_pdu(const f1ap_message& msg)
 {
   byte_buffer   packed{byte_buffer::fallback_allocation_tag{}};
   asn1::bit_ref bref(packed);
-  report_error_if_not(msg.pdu.pack(bref) == asn1::OCUDUASN_SUCCESS, "Failed to pack F1AP PDU");
+  report_error_if_not(asn1::pack(bref, msg.pdu) == asn1::OCUDUASN_SUCCESS, "Failed to pack F1AP PDU");
   return packed;
 }
 
@@ -206,7 +206,7 @@ TEST(e2sm_kpm_report_service_style2_test, readiness_and_record_order_are_indepen
       byte_buffer        ind_msg_bytes = report_service.get_indication_message();
       e2sm_kpm_ind_msg_s ric_ind_msg;
       asn1::cbit_ref     ric_ind_bref(ind_msg_bytes);
-      ASSERT_EQ(ric_ind_msg.unpack(ric_ind_bref), asn1::OCUDUASN_SUCCESS);
+      ASSERT_EQ(asn1::unpack(ric_ind_msg, ric_ind_bref), asn1::OCUDUASN_SUCCESS);
 
       const auto& meas_records = ric_ind_msg.ind_msg_formats.ind_msg_format1().meas_data[0].meas_record;
       ASSERT_EQ(meas_records.size(), metric_names.size());
@@ -292,6 +292,51 @@ TEST_P(e2_entity_test_with_pcap, e2sm_kpm_generates_ran_func_desc)
   e2agent->get_e2_interface().handle_message(e2_setup_response);
 }
 
+TEST_P(e2sm_kpm_indication, measurement_name_action_is_admitted)
+{
+  e2sm_kpm_action_definition_s definition;
+  definition.ric_style_type = 1;
+  auto& format              = definition.action_definition_formats.set_action_definition_format1();
+  format.granul_period      = 10;
+  format.meas_info_list.resize(1);
+  auto& measurement = format.meas_info_list[0];
+  measurement.meas_type.set_meas_name().from_string("DRB.UEThpUl");
+  measurement.label_info_list.resize(1);
+  measurement.label_info_list[0].meas_label.no_label_present = true;
+  measurement.label_info_list[0].meas_label.no_label         = meas_label_s::no_label_opts::true_value;
+  EXPECT_TRUE(e2sm_kpm_iface->action_supported(generate_e2sm_kpm_ric_action(definition)));
+}
+
+TEST_P(e2sm_kpm_indication, measurement_id_action_is_not_admitted)
+{
+  e2sm_kpm_action_definition_s definition;
+  definition.ric_style_type = 1;
+  auto& format              = definition.action_definition_formats.set_action_definition_format1();
+  format.granul_period      = 10;
+  format.meas_info_list.resize(1);
+  auto& measurement                   = format.meas_info_list[0];
+  measurement.meas_type.set_meas_id() = 1;
+  measurement.label_info_list.resize(1);
+  measurement.label_info_list[0].meas_label.no_label_present = true;
+  measurement.label_info_list[0].meas_label.no_label         = meas_label_s::no_label_opts::true_value;
+  EXPECT_FALSE(e2sm_kpm_iface->action_supported(generate_e2sm_kpm_ric_action(definition)));
+}
+
+TEST_P(e2sm_kpm_indication, measurement_id_action_with_test_condition_is_not_admitted)
+{
+  e2sm_kpm_action_definition_s definition;
+  definition.ric_style_type = 3;
+  auto& format              = definition.action_definition_formats.set_action_definition_format3();
+  format.granul_period      = 10;
+  format.meas_cond_list.resize(1);
+  auto& measurement                   = format.meas_cond_list[0];
+  measurement.meas_type.set_meas_id() = 1;
+  measurement.matching_cond.resize(1);
+  measurement.matching_cond[0].matching_cond_choice.set_test_cond_info().test_type.set_ul_r_srp() =
+      test_cond_type_c::ul_r_srp_opts::true_value;
+  EXPECT_FALSE(e2sm_kpm_iface->action_supported(generate_e2sm_kpm_ric_action(definition)));
+}
+
 TEST_P(e2sm_kpm_indication, e2sm_kpm_generates_ric_indication_style1)
 {
   // Measurement values in 5 time slot.
@@ -355,7 +400,7 @@ TEST_P(e2sm_kpm_indication, e2sm_kpm_generates_ric_indication_style1)
   // Decode RIC Indication and check the content.
   e2sm_kpm_ind_msg_s ric_ind_msg;
   asn1::cbit_ref     ric_ind_bref(ind_msg_bytes);
-  if (ric_ind_msg.unpack(ric_ind_bref) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(ric_ind_msg, ric_ind_bref) != asn1::OCUDUASN_SUCCESS) {
     test_logger.debug("e2sm_kpm: RIC indication msg could not be unpacked");
     return;
   }
@@ -451,7 +496,7 @@ TEST_P(e2sm_kpm_indication, e2sm_kpm_generates_ric_indication_style2)
   // Decode RIC Indication and check the content.
   e2sm_kpm_ind_msg_s ric_ind_msg;
   asn1::cbit_ref     ric_ind_bref(ind_msg_bytes);
-  if (ric_ind_msg.unpack(ric_ind_bref) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(ric_ind_msg, ric_ind_bref) != asn1::OCUDUASN_SUCCESS) {
     test_logger.debug("e2sm_kpm: RIC indication msg could not be unpacked");
     return;
   }
@@ -597,7 +642,7 @@ TEST_P(e2sm_kpm_indication, e2sm_kpm_generates_ric_indication_style3)
   // Decode RIC Indication and check the content.
   e2sm_kpm_ind_msg_s ric_ind_msg;
   asn1::cbit_ref     ric_ind_bref(ind_msg_bytes);
-  if (ric_ind_msg.unpack(ric_ind_bref) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(ric_ind_msg, ric_ind_bref) != asn1::OCUDUASN_SUCCESS) {
     test_logger.debug("e2sm_kpm: RIC indication msg could not be unpacked");
     return;
   }
@@ -741,7 +786,7 @@ TEST_P(e2sm_kpm_indication, e2sm_kpm_generates_ric_indication_style4)
   // Decode RIC Indication and check the content.
   e2sm_kpm_ind_msg_s ric_ind_msg;
   asn1::cbit_ref     ric_ind_bref(ind_msg_bytes);
-  if (ric_ind_msg.unpack(ric_ind_bref) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(ric_ind_msg, ric_ind_bref) != asn1::OCUDUASN_SUCCESS) {
     test_logger.debug("e2sm_kpm: RIC indication msg could not be unpacked");
     return;
   }
@@ -867,7 +912,7 @@ TEST_P(e2sm_kpm_indication, e2sm_kpm_generates_ric_indication_style5)
   // Decode RIC Indication and check the content.
   e2sm_kpm_ind_msg_s ric_ind_msg;
   asn1::cbit_ref     ric_ind_bref(ind_msg_bytes);
-  if (ric_ind_msg.unpack(ric_ind_bref) != asn1::OCUDUASN_SUCCESS) {
+  if (asn1::unpack(ric_ind_msg, ric_ind_bref) != asn1::OCUDUASN_SUCCESS) {
     test_logger.debug("e2sm_kpm: RIC indication msg could not be unpacked");
     return;
   }

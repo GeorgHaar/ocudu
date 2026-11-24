@@ -41,6 +41,7 @@ public:
 
     BIT_RATE_QUERY = 0b110101,
 
+    CG_CONFIRMATION = 0b110111,
     SE_PHR          = 0b111001, // Single Entry PHR
     CRNTI           = 0b111010,
     SHORT_TRUNC_BSR = 0b111011,
@@ -133,6 +134,9 @@ public:
         return 2;
       case TIMING_ADVANCE_REPORT:
         return 2;
+      // The CG Confirmation MAC CE has zero size, see TS 38.321, 6.1.3.7.
+      case CG_CONFIRMATION:
+        return 0;
       // NOTE: LONG_BSR and LONG_TRUNC_BSR are variable-sized MAC CE, not fixed-sized. Right now this function is not
       // called for these two cases.
       // TODO: Verify if these two cases will be used in the future by this function.

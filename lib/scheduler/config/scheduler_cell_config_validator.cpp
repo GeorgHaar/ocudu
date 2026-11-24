@@ -5,15 +5,20 @@
 
 #include "ocudu/scheduler/config/scheduler_cell_config_validator.h"
 #include "../support/dmrs_helpers.h"
+#include "../support/pdcch/search_space_helper.h"
 #include "../support/pdsch/pdsch_default_time_allocation.h"
 #include "../support/prbs_calculator.h"
 #include "ocudu/adt/format.h"
 #include "ocudu/ran/band_helper.h"
+#include "ocudu/ran/csi_report/csi_report_config_helpers.h"
+#include "ocudu/ran/csi_report/csi_report_on_pucch_helpers.h"
 #include "ocudu/ran/duplex_mode.h"
+#include "ocudu/ran/pdsch/pdsch_constants.h"
 #include "ocudu/ran/prach/prach_configuration.h"
 #include "ocudu/ran/prach/prach_helper.h"
 #include "ocudu/ran/prach/prach_time_mapping.h"
 #include "ocudu/ran/tdd/tdd_ul_dl_config.h"
+#include "ocudu/scheduler/config/csi_helper.h"
 #include "ocudu/scheduler/config/ran_cell_config_helper.h"
 #include "ocudu/scheduler/config/serving_cell_config_factory.h"
 #include "ocudu/scheduler/config/serving_cell_config_validator.h"
@@ -200,6 +205,23 @@ static error_type<std::string> validate_pucch_cfg_common(const sched_cell_config
   VERIFY(msg.ran.ul_cfg_common.init_ul_bwp.pucch_cfg_common.has_value(),
          "Cells without PUCCH-ConfigCommon are not supported");
 
+  // [Implementation defined] The scheduler expects the resources from the common resource set and Resource Set ID 0 to
+  // use the same format. The formats from the common resource sets are expressed in TS 38.213 Table 9.2.1-1.
+  const unsigned pucch_res_common = msg.ran.ul_cfg_common.init_ul_bwp.pucch_cfg_common->pucch_resource_common;
+  VERIFY(pucch_res_common <= 15, "pucch_resource_common={} exceeds the maximum value 15.", pucch_res_common);
+  if (msg.ran.init_bwp.pucch.resources.format_01() == pucch_format::FORMAT_0) {
+    VERIFY(pucch_res_common <= 2,
+           "When using PUCCH Format 0, the valid values for pucch_resource_common are {{0, 1, 2}}.");
+  } else {
+    VERIFY(pucch_res_common > 2,
+           "When using PUCCH Format 1, the valid values for pucch_resource_common are {{3, ..., 15}}.");
+  }
+
+  for (uint8_t k1 : msg.rrm.pucch.dl_data_to_ul_ack) {
+    VERIFY(k1 <= SCHEDULER_MAX_K1, "k1={} value exceeds maximum supported k1", k1);
+    VERIFY(k1 >= 1, "k1={} value below minimum supported k1", k1);
+  }
+
   return {};
 }
 
@@ -216,7 +238,7 @@ static error_type<std::string> validate_sib1_cfg(const sched_cell_configuration_
       get_si_rnti_pdsch_time_domain_list(msg.ran.dl_cfg_common.init_dl_bwp.generic_params.cp, msg.ran.dmrs_typeA_pos);
   const ofdm_symbol_range sib1_symbols = pdsch_td_res_alloc_list[time_resource].symbols;
 
-  // Mapping type B is not supported yet, so a mapping type A resource must fit after CORESET#0 for every SSB beam.
+  // A PDSCH resource must fit after CORESET#0 for every transmitted SSB beam.
   const auto&    pdcch_common      = msg.ran.dl_cfg_common.init_dl_bwp.pdcch_common;
   const auto&    sib1_ss_cfg       = pdcch_common.search_spaces[pdcch_common.sib1_search_space_id];
   const unsigned coreset0_duration = pdcch_common.coreset0->duration();
@@ -228,12 +250,9 @@ static error_type<std::string> validate_sib1_cfg(const sched_cell_configuration_
     const unsigned required_start = sib1_ss_cfg.get_first_symbol_index(ssb_idx) + coreset0_duration;
     const bool     has_valid_resource =
         std::any_of(pdsch_td_res_alloc_list.begin(), pdsch_td_res_alloc_list.end(), [required_start](const auto& r) {
-          return r.map_type != sch_mapping_type::typeB and r.symbols.start() >= required_start;
+          return r.symbols.start() >= required_start;
         });
-    VERIFY(has_valid_resource,
-           "No valid PDSCH time-domain resource to schedule SIB1 for SSB beam {} (PDSCH mapping type B not "
-           "supported)",
-           ssb_idx);
+    VERIFY(has_valid_resource, "No valid PDSCH time-domain resource to schedule SIB1 for SSB beam {}", ssb_idx);
   }
 
   const dmrs_information dmrs_info =
@@ -267,13 +286,28 @@ static error_type<std::string> validate_cg_cfg(const sched_cell_configuration_re
     return {};
   }
 
+  // A Type 2 CG is activated by a DCI format 0_1 scrambled with the CS-RNTI, which needs a UE-specific SearchSpace
+  // monitored with that format. The UE dedicated PDCCH configuration is taken from the cell one, so without such a
+  // SearchSpace here, every UE given the CG would be rejected by the UE configuration validator.
+  if (msg.ran.init_bwp.cg_cfg->is_type2()) {
+    const auto& pdcch_cfg = msg.ran.init_bwp.pdcch_cfg;
+    VERIFY(pdcch_cfg.has_value() and std::any_of(pdcch_cfg->search_spaces.begin(),
+                                                 pdcch_cfg->search_spaces.end(),
+                                                 [](const search_space_configuration& ss) {
+                                                   return not ss.is_common_search_space() and
+                                                          pdcch_helper::get_ul_dci_format(ss) == dci_ul_format::f0_1;
+                                                 }),
+           "Configured Grant type 2 requires a UE-specific SearchSpace monitored with DCI format 0_1, to carry the "
+           "activation DCI");
+  }
+
   // The CG PUSCH must leave the SRS region at the end of the slot free, so at least one PUSCH time domain resource has
   // to end before it. This is checked ahead of the CG configuration below, which picks that resource and cannot fall
   // back to one overlapping the SRS.
   VERIFY(config_helpers::find_cg_pusch_td_res_idx(msg.ran).has_value(),
-         "No PUSCH time domain resource of the cell ends before the {} symbols reserved for SRS at the end of the "
-         "slot, so a Configured Grant PUSCH would always collide with the SRS",
-         msg.ran.init_bwp.srs_cfg.max_nof_symbols);
+         "No PUSCH time domain resource of the cell ends at or before symbol {}, where the SRS region starts, so a "
+         "Configured Grant PUSCH would always collide with the SRS",
+         config_helpers::compute_last_non_srs_symbol(msg.ran));
 
   // Verify that the CG parameters are consistent, i.e. the number of RBs required per UE (derived from the CG grant
   // size or bitrate and the MCS) does not exceed the maximum number of RBs reserved for CG in the cell. Otherwise, no
@@ -316,6 +350,17 @@ error_type<std::string> config_validators::validate_sched_cell_configuration_req
          msg.max_nof_ue_contexts,
          msg.cell_index);
 
+  // The scheduler transmits a single codeword, which carries at most four layers (see TS 38.211 Table 7.3.1.3-1).
+  const unsigned max_dl_layers = msg.ran.init_bwp.pdsch.max_nof_layers;
+  VERIFY(max_dl_layers > 0 and max_dl_layers <= pdsch_constants::MAX_NOF_LAYERS_PER_CODEWORD,
+         "Maximum number of DL layers={} is not supported, it must be in [1, {}]",
+         max_dl_layers,
+         pdsch_constants::MAX_NOF_LAYERS_PER_CODEWORD);
+  VERIFY(max_dl_layers <= msg.ran.dl_carrier.nof_ant,
+         "Maximum number of DL layers={} exceeds the number of DL antenna ports={}",
+         max_dl_layers,
+         msg.ran.dl_carrier.nof_ant);
+
   const auto& dl_lst = msg.ran.dl_cfg_common.init_dl_bwp.pdsch_common.pdsch_td_alloc_list;
   for (const auto& pdsch : dl_lst) {
     VERIFY(pdsch.k0 <= SCHEDULER_MAX_K0, "k0={} value exceeds maximum supported k0", pdsch.k0);
@@ -339,6 +384,19 @@ error_type<std::string> config_validators::validate_sched_cell_configuration_req
     const auto csi_helper          = config_helpers::make_csi_meas_config_builder_params(msg.ran);
     const auto nzp_csi_rs_res_list = csi_helper::make_nzp_csi_rs_resource_list(csi_helper);
     HANDLE_CODE(validate_nzp_csi_rs_list(nzp_csi_rs_res_list, msg.ran.tdd_cfg));
+
+    // A periodic CSI report is sent in the PUCCH Format 2, 3 or 4 resource of the UE.
+    const auto csi_meas = csi_helper::make_csi_meas_config(
+        csi_helper, msg.ran.ul_cfg_common.init_ul_bwp.pusch_cfg_common->pusch_td_alloc_list);
+    if (not is_pusch_configured(csi_meas)) {
+      const unsigned csi_report_size =
+          get_csi_report_pucch_size(create_csi_report_configuration(csi_meas)).part1_size.value();
+      const unsigned max_payload = msg.ran.init_bwp.pucch.resources.max_payload_234();
+      VERIFY(csi_report_size <= max_payload,
+             "The periodic CSI report of {} bits exceeds the maximum PUCCH Format 2/3/4 payload of {} bits",
+             csi_report_size,
+             max_payload);
+    }
   }
 
   // TODO: Validate other parameters.

@@ -6,8 +6,8 @@
 #pragma once
 
 #include "ocudu/phy/generic_functions/dft_processor.h"
-#include "ocudu/phy/generic_functions/dft_processor_ci16.h"
 #include <memory>
+#include <string>
 
 namespace ocudu {
 
@@ -80,44 +80,40 @@ create_dft_processor_factory_fftw_fast(bool avoid_wisdom = false, const std::str
 /// \return A valid pointer to a DFT processor factory if FFTW is available. Otherwise, \c nullptr.
 std::shared_ptr<dft_processor_factory> create_dft_processor_factory_fftw();
 
-/// \brief Factory helper that automatically selects the best available DFT processor.
+/// \brief Creates a factory for DFT processors based on Google Highway.
 ///
-/// This function attempts to create a concrete @ref dft_processor_factory implementation according to the following
-/// priority list:
-/// 1. Fastest FFT in the West (FFTW);
-/// 2. AMD Optimized Computing Library FFT for Zen (AOCL-FFTZ); and
-/// 3. Generic DFT which might not support all DFT sizes.
-inline std::shared_ptr<dft_processor_factory> create_dft_processor_factory()
-{
-  std::shared_ptr<dft_processor_factory> dft_proc_factory;
-
-  if ((dft_proc_factory = create_dft_processor_factory_fftw())) {
-    return dft_proc_factory;
-  }
-
-  if ((dft_proc_factory = create_dft_processor_factory_fftz())) {
-    return dft_proc_factory;
-  }
-
-  return create_dft_processor_factory_generic();
-}
-
-/// Factory for the Discrete Fourier Transform (DFT) processor for 16-bit complex integer values.
-class dft_processor_ci16_factory
-{
-public:
-  /// Default destructor.
-  virtual ~dft_processor_ci16_factory() = default;
-
-  /// \brief Creates a DFT processor.
-  /// \param[in] config Configuration parameters.
-  /// \return A unique pointer to a DFT processor if the configuration is valid. Otherwise, \c nullptr.
-  virtual std::unique_ptr<dft_processor_ci16> create(const dft_processor_ci16::configuration& config) = 0;
-};
-
-/// \brief Creates a factory for DFT processors for 16-bit complex integer values.
+/// The processors carry out internal computations in single precision floating point, for DFT sizes that factor into 2,
+/// 3 and 5. They round the 16-bit integer output once.
 ///
-/// \return A DFT processor factory.
-std::shared_ptr<dft_processor_ci16_factory> create_dft_processor_ci16_factory_avx2();
+/// \param[in] arch Architecture of the processors. On x86: avx2 or avx512. On ARM: neon. The name native selects the
+///                 architecture of the project compiler options, and the default, auto, selects the best architecture
+///                 that the CPU supports.
+/// \return A DFT processor factory if the library is built with Google Highway, and the architecture is known and
+/// supported by the CPU. Otherwise, \c nullptr.
+std::shared_ptr<dft_processor_factory> create_dft_processor_factory_hwy(const std::string& arch = "auto");
+
+/// \brief Factory helper that creates a DFT processor factory of a given type.
+///
+/// The default type, auto, selects the best available DFT processor according to the following priority list:
+/// 1. Google Highway;
+/// 2. Fastest FFT in the West (FFTW);
+/// 3. AMD Optimized Computing Library FFT for Zen (AOCL-FFTZ); and
+/// 4. Generic DFT which might not support all DFT sizes.
+///
+/// \param[in] type DFT processor type. The types are:
+///                 - auto: the best available, as above;
+///                 - hwy: Google Highway, with the best architecture that the CPU supports;
+///                 - hwy:<arch>: Google Highway, with an architecture of create_dft_processor_factory_hwy();
+///                 - fftw: FFTW, with the build-dependent profile of create_dft_processor_factory_fftw();
+///                 - fftw_fast: FFTW, with the optimal profile;
+///                 - fftw_slow: FFTW, with the suboptimal profile;
+///                 - fftz: AOCL-FFTZ; and
+///                 - generic: generic DFT.
+/// \return A valid pointer to a DFT processor factory if the type is known and available. Otherwise, \c nullptr.
+std::shared_ptr<dft_processor_factory> create_dft_processor_factory(const std::string& type = "auto");
+
+/// \brief Gets the architectures of the Highway DFT processors that the CPU supports.
+/// \return The architecture names, separated by commas, or an empty string if Highway is not available.
+std::string get_dft_processor_hwy_architectures();
 
 } // namespace ocudu

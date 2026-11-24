@@ -357,9 +357,9 @@ void cu_cp_impl::stop()
   logger.info("CU-CP stopped successfully");
 }
 
-ngap_message_handler* cu_cp_impl::get_ngap_message_handler(const plmn_identity& plmn)
+ngap_message_handler* cu_cp_impl::get_ngap_message_handler(cu_cp_amf_index_t amf_index)
 {
-  return ngap_db.find_ngap(plmn);
+  return ngap_db.find_ngap(amf_index);
 }
 
 bool cu_cp_impl::amfs_are_connected()
@@ -407,11 +407,11 @@ void cu_cp_impl::handle_bearer_context_inactivity_notification(const e1ap_inacti
       return;
     }
 
-    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
     if (ngap == nullptr) {
-      logger.warning("ue={}: Dropping Bearer Context Inactivity Notification. NGAP not found for plmn={}",
+      logger.warning("ue={}: Dropping Bearer Context Inactivity Notification. NGAP not found for amf_index={}",
                      msg.ue_index,
-                     ue->get_ue_context().plmn);
+                     ue->get_ue_context().amf_index);
       return;
     }
 
@@ -454,7 +454,6 @@ void cu_cp_impl::handle_bearer_context_inactivity_notification(const e1ap_inacti
             std::move(release_context),
             cu_up_db.find_cu_up_processor(ue->get_cu_up_index())->get_e1ap_bearer_context_manager(),
             du_db.get_du_processor(ue->get_du_index()).get_f1ap_handler(),
-            get_cu_cp_ngap_handler(),
             du_db.get_du_processor(ue->get_du_index()).get_rrc_du_handler().get_rrc_du_connection_event_handler(),
             ngap->get_ngap_control_message_handler(),
             get_cu_cp_ue_context_handler(),
@@ -496,27 +495,118 @@ void cu_cp_impl::handle_e1_release_request(cu_cp_cu_up_index_t cu_up_index)
   // TODO
 }
 
-bool cu_cp_impl::handle_ue_plmn_selected(cu_cp_ue_index_t ue_index, const plmn_identity& plmn)
+bool cu_cp_impl::handle_ue_setup_request(cu_cp_ue_index_t ue_index, establishment_cause_t establishment_cause)
 {
-  if (!controller.is_supported_plmn(plmn)) {
-    logger.warning("ue={}: PLMN {} not supported, rejecting UE", ue_index, plmn);
+  cu_cp_ue* ue = ue_mng.find_ue(ue_index);
+  if (ue == nullptr) {
+    logger.warning("ue={}: Could not find UE", ue_index);
     return false;
   }
 
-  if (!ue_mng.set_plmn(ue_index, plmn)) {
-    logger.error("ue={}: Could not set PLMN {}", ue_index, plmn);
+  // The overload of an AMF rejects RRC connection establishments (TS 38.413 section 8.7.7.2).
+  std::optional<std::vector<cu_cp_amf_index_t>> rejecting_amfs = controller.admit_ue_setup(establishment_cause);
+  if (not rejecting_amfs.has_value()) {
+    logger.info("ue={}: Rejecting UE. Cause: Every connected AMF rejects the UE because of an overload", ue_index);
     return false;
   }
-
-  // Connect NGAP to RRC UE to NGAP adapter.
-  logger.debug("ue={}: Connecting NGAP (plmn={}) to RRC UE adapter", ue_index, plmn);
-  ue_mng.get_rrc_ue_ngap_adapter(ue_index).connect_ngap(ngap_db.find_ngap(plmn));
-
+  ue->get_ue_context().overload_rejecting_amfs = std::move(rejecting_amfs);
   return true;
 }
 
-rrc_ue_reestablishment_context_response
-cu_cp_impl::handle_rrc_reestablishment_request(pci_t old_pci, rnti_t old_c_rnti, cu_cp_ue_index_t ue_index)
+bool cu_cp_impl::handle_ue_setup_complete_received(cu_cp_ue_index_t ue_index, const amf_selection_request& request)
+{
+  amf_selection_request selection_request = request;
+  if (cu_cp_ue* ue = ue_mng.find_ue(ue_index); ue != nullptr) {
+    selection_request.overload_rejecting_amfs = ue->get_ue_context().overload_rejecting_amfs;
+  }
+  std::optional<cu_cp_amf_index_t> amf_index = controller.select_amf(selection_request);
+  if (not amf_index.has_value()) {
+    logger.warning("ue={}: No connected AMF for PLMN {} accepts the UE, rejecting UE", ue_index, request.plmn);
+    return false;
+  }
+
+  if (!ue_mng.set_plmn(ue_index, request.plmn)) {
+    logger.error("ue={}: Could not set PLMN {}", ue_index, request.plmn);
+    return false;
+  }
+
+  logger.debug("ue={}: Selected amf_index={}", ue_index, amf_index.value());
+  return bind_ue_to_amf(ue_index, amf_index.value());
+}
+
+bool cu_cp_impl::bind_ue_to_amf(cu_cp_ue_index_t ue_index, cu_cp_amf_index_t amf_index)
+{
+  ngap_interface* ngap = ngap_db.find_ngap(amf_index);
+  if (ngap == nullptr) {
+    logger.warning("ue={}: Could not bind UE to amf_index={}. NGAP not found", ue_index, amf_index);
+    return false;
+  }
+  cu_cp_ue* ue = ue_mng.find_ue(ue_index);
+  if (ue == nullptr) {
+    logger.warning("ue={}: Could not bind UE to amf_index={}. UE not found", ue_index, amf_index);
+    return false;
+  }
+
+  ue->get_ue_context().amf_index = amf_index;
+
+  // Connect NGAP to RRC UE to NGAP adapter.
+  logger.debug("ue={}: Connecting NGAP (amf_index={}) to RRC UE adapter", ue_index, amf_index);
+  ue_mng.get_rrc_ue_ngap_adapter(ue_index).connect_ngap(ngap);
+  return true;
+}
+
+bool cu_cp_impl::handle_handover_target_ue_amf_binding(cu_cp_ue_index_t source_ue_index,
+                                                       cu_cp_ue_index_t target_ue_index)
+{
+  cu_cp_ue* source_ue = ue_mng.find_ue(source_ue_index);
+  if (source_ue == nullptr) {
+    logger.warning("ue={}: Could not find source UE", source_ue_index);
+    return false;
+  }
+
+  if (not ue_mng.set_plmn(target_ue_index, source_ue->get_ue_context().plmn)) {
+    return false;
+  }
+  return bind_ue_to_amf(target_ue_index, source_ue->get_ue_context().amf_index);
+}
+
+bool cu_cp_impl::bind_retrieved_ue_to_amf(cu_cp_ue_index_t ue_index)
+{
+  cu_cp_ue* ue = ue_mng.find_du_ue(ue_index);
+  if (ue == nullptr) {
+    logger.warning("ue={}: Could not bind retrieved UE to an AMF. UE not found", ue_index);
+    return false;
+  }
+  if (not ue->get_context_retrieval_context().has_value()) {
+    logger.warning("ue={}: Could not bind retrieved UE to an AMF. Retrieved context not found", ue_index);
+    return false;
+  }
+
+  // The UE keeps the AMF of its GUAMI, or gets another AMF of the same AMF Set (TS 23.501 section 5.21.2.3). The
+  // retrieval fails if no AMF of the AMF Set serves the UE (TS 38.300 section 9.2.2.1).
+  const guami_t&                   guami     = ue->get_context_retrieval_context()->guami;
+  std::optional<cu_cp_amf_index_t> amf_index = controller.select_amf_for_guami(guami);
+  if (not amf_index.has_value()) {
+    logger.warning(
+        "ue={}: No AMF found for the retrieved GUAMI (plmn={} amf_region_id={} amf_set_id={} amf_pointer={})",
+        ue_index,
+        guami.plmn,
+        guami.amf_region_id,
+        guami.amf_set_id,
+        guami.amf_pointer);
+    return false;
+  }
+
+  if (not ue_mng.set_plmn(ue_index, guami.plmn)) {
+    return false;
+  }
+  return bind_ue_to_amf(ue_index, amf_index.value());
+}
+
+rrc_ue_reestablishment_context_response cu_cp_impl::handle_rrc_reestablishment_request(pci_t            old_pci,
+                                                                                       rnti_t           old_c_rnti,
+                                                                                       reest_cause_t    reest_cause,
+                                                                                       cu_cp_ue_index_t ue_index)
 {
   rrc_ue_reestablishment_context_response reest_context{};
 
@@ -539,7 +629,12 @@ cu_cp_impl::handle_rrc_reestablishment_request(pci_t old_pci, rnti_t old_c_rnti,
 
   // Cancel any ongoing handover transaction for the UE.
   if (old_ue->get_ho_context().has_value()) {
-    logger.debug("ue={}: Cancelling handover transaction", old_ue_index);
+    logger.warning("ue={}: Cancelling handover to target ue={}. Cause: RRC Reestablishment Request on ue={} with "
+                   "reest_cause={}",
+                   old_ue_index,
+                   old_ue->get_ho_context()->target_ue_index,
+                   ue_index,
+                   reest_cause);
 
     auto* const target_ue = ue_mng.find_du_ue(old_ue->get_ho_context()->target_ue_index);
     if (target_ue == nullptr) {
@@ -555,7 +650,10 @@ cu_cp_impl::handle_rrc_reestablishment_request(pci_t old_pci, rnti_t old_c_rnti,
   if (old_ue->get_cho_context().has_value() &&
       old_ue->get_cho_context()->role == cu_cp_ue_cho_context::role_t::source &&
       !old_ue->get_cho_context()->candidates.empty()) {
-    logger.debug("ue={}: Cancelling CHO on reestablishment", old_ue_index);
+    logger.warning("ue={}: Cancelling CHO. Cause: RRC Reestablishment Request on ue={} with reest_cause={}",
+                   old_ue_index,
+                   ue_index,
+                   reest_cause);
     cancel_cho_candidates(*old_ue, ue_mng, &xnap_db);
     old_ue->get_cho_context()->clear();
   }
@@ -593,7 +691,31 @@ async_task<rrc_ue_context_retrieval_response>
 cu_cp_impl::handle_ue_context_retrieval_required(cu_cp_ue_index_t                        ue_index,
                                                  const rrc_ue_context_retrieval_request& request)
 {
-  return launch_async<ue_context_retrieval_new_node_routine>(request, ue_index, xnap_db, ue_mng, logger);
+  return launch_async([this, ue_index, request, response = rrc_ue_context_retrieval_response{}](
+                          coro_context<async_task<rrc_ue_context_retrieval_response>>& ctx) mutable {
+    CORO_BEGIN(ctx);
+
+    CORO_AWAIT_VALUE(response,
+                     launch_async<ue_context_retrieval_new_node_routine>(request, ue_index, xnap_db, ue_mng, logger));
+
+    // Bind the UE before the RRC answers it, so that the UE falls back to RRC Setup if no AMF of the retrieved GUAMI is
+    // connected.
+    if (response.success and not bind_retrieved_ue_to_amf(ue_index)) {
+      cu_cp_ue* ue = ue_mng.find_du_ue(ue_index);
+      if (ue != nullptr) {
+        // The UE falls back to RRC Setup, so it leaves the peer that holds its context.
+        xnap_interface* xnap = xnap_db.find_xnap(ue->get_xnc_peer_index());
+        if (xnap != nullptr) {
+          xnap->get_xnap_ue_context_removal_handler().remove_ue_context(ue_index);
+        }
+        ue->set_xnc_peer_index(xnc_peer_index_t::invalid);
+        ue->get_context_retrieval_context().reset();
+      }
+      response = rrc_ue_context_retrieval_response{};
+    }
+
+    CORO_RETURN(std::move(response));
+  });
 }
 
 async_task<bool> cu_cp_impl::handle_rrc_reestablishment_context_modification_required(cu_cp_ue_index_t ue_index)
@@ -613,9 +735,9 @@ async_task<bool> cu_cp_impl::handle_rrc_reestablishment_context_modification_req
       return launch_no_op_task(false);
     }
 
-    ngap_interface* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+    ngap_interface* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
     if (ngap == nullptr) {
-      logger.warning("ue={}: Could not find NGAP for the UE's PLMN", ue_index);
+      logger.warning("ue={}: Could not find NGAP for the UE's AMF", ue_index);
       return launch_no_op_task(false);
     }
 
@@ -712,12 +834,11 @@ async_task<bool> cu_cp_impl::handle_ue_context_transfer(cu_cp_ue_index_t ue_inde
 
     auto* ue = ue_mng.find_du_ue(ue_index);
 
-    // Check the NGAP and the PLMN of the old UE before the transfer starts.
-    auto* ngap = ngap_db.find_ngap(source_ue->get_ue_context().plmn);
+    // Check the NGAP and the PLMN of the old UE before the transfer starts. The new UE keeps the AMF of the old UE.
+    const cu_cp_amf_index_t amf_index = source_ue->get_ue_context().amf_index;
+    auto*                   ngap      = ngap_db.find_ngap(amf_index);
     if (ngap == nullptr) {
-      logger.warning("ue={}: Can't transfer UE context. Cause: NGAP not found for plmn={}",
-                     ue_index,
-                     source_ue->get_ue_context().plmn);
+      logger.warning("ue={}: Can't transfer UE context. Cause: NGAP not found for amf_index={}", ue_index, amf_index);
       return false;
     }
 
@@ -748,9 +869,9 @@ async_task<bool> cu_cp_impl::handle_ue_context_transfer(cu_cp_ue_index_t ue_inde
       return false;
     }
 
-    // Connect NGAP to RRC UE to NGAP adapter.
-    logger.debug("ue={}: Connecting NGAP (plmn={}) to RRC UE adapter", ue_index, ue->get_ue_context().plmn);
-    ue_mng.get_rrc_ue_ngap_adapter(ue_index).connect_ngap(ngap);
+    if (not bind_ue_to_amf(ue_index, amf_index)) {
+      return false;
+    }
 
     // Transfer E1AP UE Context to new UE and remove old context.
     cu_up_db.find_cu_up_processor(source_ue->get_cu_up_index())->update_ue_index(ue_index, old_ue_index);
@@ -860,10 +981,11 @@ async_task<bool> cu_cp_impl::handle_handover_ue_context_push(cu_cp_ue_index_t so
       return false;
     }
 
-    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
     if (ngap == nullptr) {
-      logger.warning(
-          "ue={}: could not find NGAP of the target UE for plmn={}", target_ue_index, ue->get_ue_context().plmn);
+      logger.warning("ue={}: could not find NGAP of the target UE for amf_index={}",
+                     target_ue_index,
+                     ue->get_ue_context().amf_index);
       return false;
     }
 
@@ -950,7 +1072,7 @@ async_task<void> cu_cp_impl::handle_ue_context_release(const cu_cp_ue_context_re
   // responds to the NGAP UE Context Release Request (NGAP has no field for redirectedCarrierInfo).
   ue->get_ue_context().pending_redirect_nr_info = request.redirect_nr_info;
 
-  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
 
   return launch_async<ue_amf_context_release_request_routine>(
       request, ngap ? &ngap->get_ngap_control_message_handler() : nullptr, *this, logger);
@@ -1026,9 +1148,9 @@ async_task<bool> cu_cp_impl::handle_retrieved_context_path_switch_required(cu_cp
     return launch_no_op_task(false);
   }
 
-  ngap_interface* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  ngap_interface* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   if (ngap == nullptr) {
-    logger.warning("ue={}: Could not find NGAP for the UE's PLMN", ue_index);
+    logger.warning("ue={}: Could not find NGAP for the UE's AMF", ue_index);
     return launch_no_op_task(false);
   }
 
@@ -1068,18 +1190,11 @@ void cu_cp_impl::handle_location_measurement_indication(cu_cp_ue_index_t ue_inde
       ue_index, du_db.get_du_processor(ue->get_du_index()).get_f1ap_handler(), *ue->get_rrc_ue(), logger));
 }
 
-bool cu_cp_impl::handle_handover_request(cu_cp_ue_index_t                  ue_index,
-                                         const plmn_identity&              selected_plmn,
-                                         const security::security_context& sec_ctxt)
+bool cu_cp_impl::handle_handover_request(cu_cp_ue_index_t ue_index, const security::security_context& sec_ctxt)
 {
   cu_cp_ue* ue = ue_mng.find_ue(ue_index);
   if (ue == nullptr) {
     logger.debug("ue={}: Could not find UE", ue_index);
-    return false;
-  }
-
-  if (!handle_ue_plmn_selected(ue_index, selected_plmn)) {
-    logger.info("ue={}: PLMN selection failed", ue_index);
     return false;
   }
 
@@ -1099,11 +1214,11 @@ cu_cp_impl::handle_new_initial_context_setup_request(const ngap_init_context_set
   rrc_ue_interface* rrc_ue = ue->get_rrc_ue();
   ocudu_assert(rrc_ue != nullptr, "ue={}: Could not find RRC UE", request.ue_index);
 
-  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   if (ngap == nullptr) {
-    logger.warning("ue={}: Initial context setup failed. Cause: NGAP not found for plmn={}",
+    logger.warning("ue={}: Initial context setup failed. Cause: NGAP not found for amf_index={}",
                    request.ue_index,
-                   ue->get_ue_context().plmn);
+                   ue->get_ue_context().amf_index);
     return launch_async(
         [](coro_context<async_task<expected<ngap_init_context_setup_response, ngap_init_context_setup_failure>>>& ctx) {
           CORO_BEGIN(ctx);
@@ -1130,11 +1245,11 @@ cu_cp_impl::handle_new_ue_context_modification_request(const ngap_ue_context_mod
   rrc_ue_interface* rrc_ue = ue->get_rrc_ue();
   ocudu_assert(rrc_ue != nullptr, "ue={}: Could not find RRC UE", request.ue_index);
 
-  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   if (ngap == nullptr) {
-    logger.warning("ue={}: UE context modification failed. Cause: NGAP not found for plmn={}",
+    logger.warning("ue={}: UE context modification failed. Cause: NGAP not found for amf_index={}",
                    request.ue_index,
-                   ue->get_ue_context().plmn);
+                   ue->get_ue_context().amf_index);
     return launch_async(
         [](coro_context<
             async_task<expected<ngap_ue_context_modification_response, ngap_ue_context_modification_failure>>>& ctx) {
@@ -1319,9 +1434,9 @@ void cu_cp_impl::handle_inter_cu_target_handover_execution(
                "cu_up_index={}: could not find CU-UP",
                uint_to_cu_cp_cu_up_index(0));
 
-  ngap_interface* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  ngap_interface* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   if (ngap == nullptr) {
-    logger.warning("ue={}: NGAP not found for PLMN={}", ue_index, ue->get_ue_context().plmn);
+    logger.warning("ue={}: NGAP not found for amf_index={}", ue_index, ue->get_ue_context().amf_index);
     return;
   }
 
@@ -1381,9 +1496,9 @@ async_task<bool> cu_cp_impl::handle_new_rrc_handover_command(cu_cp_rrc_handover_
     logger.warning("ue={}: UE not found for handover command handling", ue_index);
     return launch_no_op_task(false);
   }
-  ngap_interface* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  ngap_interface* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   if (ngap == nullptr) {
-    logger.warning("ue={}: NGAP not found for PLMN={}", ue_index, ue->get_ue_context().plmn);
+    logger.warning("ue={}: NGAP not found for amf_index={}", ue_index, ue->get_ue_context().amf_index);
     return launch_no_op_task(false);
   }
 
@@ -1565,7 +1680,7 @@ cu_cp_impl::handle_xnap_retrieve_ue_context_request(const xnap_retrieve_ue_conte
     return reject(xnap_cause_radio_network_t::unknown_local_ng_ran_node_ue_xn_ap_id);
   }
 
-  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   if (ngap == nullptr) {
     logger.warning("ue={}: Couldn't find NGAP for UE context retrieval", request.ue_index);
     return reject(xnap_cause_radio_network_t::non_relocation_of_context);
@@ -1597,8 +1712,7 @@ cu_cp_impl::handle_xnap_retrieve_ue_context_request(const xnap_retrieve_ue_conte
                                                             logger));
 }
 
-cu_cp_ue_index_t cu_cp_impl::handle_ue_index_allocation_request(const nr_cell_global_id_t& cgi,
-                                                                const plmn_identity&       plmn)
+cu_cp_ue_index_t cu_cp_impl::add_handover_target_ue(const nr_cell_global_id_t& cgi)
 {
   cu_cp_du_index_t du_index = du_db.find_du(cgi);
   if (du_index == cu_cp_du_index_t::invalid) {
@@ -1619,8 +1733,46 @@ cu_cp_ue_index_t cu_cp_impl::handle_ue_index_allocation_request(const nr_cell_gl
     return cu_cp_ue_index_t::invalid;
   }
 
-  if (!handle_ue_plmn_selected(ue_index, plmn)) {
-    logger.warning("ue={}: PLMN selection failed", ue_index);
+  return ue_index;
+}
+
+expected<cu_cp_ue_index_t, xnap_cause_t>
+cu_cp_impl::handle_ue_index_allocation_request_for_guami(const nr_cell_global_id_t& cgi, const guami_t& guami)
+{
+  // An Xn handover keeps the AMF of the UE, and the Path Switch Request goes to this AMF (TS 38.300 section
+  // 9.2.3.2.1).
+  std::optional<cu_cp_amf_index_t> amf_index = controller.select_amf_for_guami(guami);
+  if (not amf_index.has_value()) {
+    logger.warning("No AMF found for the GUAMI of the handover target UE (plmn={} amf_region_id={} amf_set_id={} "
+                   "amf_pointer={})",
+                   guami.plmn,
+                   guami.amf_region_id,
+                   guami.amf_set_id,
+                   guami.amf_pointer);
+    return make_unexpected(xnap_cause_radio_network_t::unknown_guami_id);
+  }
+
+  cu_cp_ue_index_t ue_index = handle_ue_index_allocation_request_for_amf(cgi, guami.plmn, amf_index.value());
+  if (ue_index == cu_cp_ue_index_t::invalid) {
+    return make_unexpected(xnap_cause_misc_t::not_enough_user_plane_processing_res);
+  }
+  return ue_index;
+}
+
+cu_cp_ue_index_t cu_cp_impl::handle_ue_index_allocation_request_for_amf(const nr_cell_global_id_t& cgi,
+                                                                        const plmn_identity&       plmn,
+                                                                        cu_cp_amf_index_t          amf_index)
+{
+  cu_cp_ue_index_t ue_index = add_handover_target_ue(cgi);
+  if (ue_index == cu_cp_ue_index_t::invalid) {
+    return cu_cp_ue_index_t::invalid;
+  }
+
+  if (!ue_mng.set_plmn(ue_index, plmn) || !bind_ue_to_amf(ue_index, amf_index)) {
+    logger.warning("ue={}: Removing the handover target UE. Cause: The UE cannot use plmn={} or amf_index={}",
+                   ue_index,
+                   plmn,
+                   amf_index);
     ue_mng.remove_ue(ue_index);
     return cu_cp_ue_index_t::invalid;
   }
@@ -1654,9 +1806,9 @@ void cu_cp_impl::handle_location_reporting_control_message(cu_cp_ue_index_t     
   if (msg.location_reporting_type == event_type::nulltype) {
     logger.error("ue={}: received NGAP Location Reporting Control message with nulltype event type, rejecting",
                  ue_index);
-    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
     if (ngap == nullptr) {
-      logger.warning("ue={}: NGAP not found for PLMN={}", ue_index, ue->get_ue_context().plmn);
+      logger.warning("ue={}: NGAP not found for amf_index={}", ue_index, ue->get_ue_context().amf_index);
       return;
     }
     ngap->handle_location_reporting_failure_indication_transmission(
@@ -1669,9 +1821,9 @@ void cu_cp_impl::handle_location_reporting_control_message(cu_cp_ue_index_t     
   if (msg.location_reporting_type != event_type::direct) {
     auto failure_cause = ue->get_location_manager().configure_location_reporting(msg);
     if (failure_cause.has_value()) {
-      auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+      auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
       if (ngap == nullptr) {
-        logger.warning("ue={}: NGAP not found for PLMN={}", ue_index, ue->get_ue_context().plmn);
+        logger.warning("ue={}: NGAP not found for amf_index={}", ue_index, ue->get_ue_context().amf_index);
         return;
       }
       ngap->handle_location_reporting_failure_indication_transmission({ue_index, failure_cause.value()});
@@ -1698,9 +1850,9 @@ void cu_cp_impl::handle_location_reporting_control_message(cu_cp_ue_index_t     
     ue->get_rrc_ue()->fill_ue_derived_location(user_location_info);
     auto report = ue->get_location_manager().get_direct_location_report(ue_index, user_location_info, msg);
 
-    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
     if (ngap == nullptr) {
-      logger.warning("ue={}: NGAP not found for PLMN={}", ue_index, ue->get_ue_context().plmn);
+      logger.warning("ue={}: NGAP not found for amf_index={}", ue_index, ue->get_ue_context().amf_index);
       return;
     }
 
@@ -1733,9 +1885,9 @@ void cu_cp_impl::handle_location_update(cu_cp_ue_index_t ue_index)
     return;
   }
 
-  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   if (ngap == nullptr) {
-    logger.warning("ue={}: NGAP not found for PLMN={}", ue_index, ue->get_ue_context().plmn);
+    logger.warning("ue={}: NGAP not found for amf_index={}", ue_index, ue->get_ue_context().amf_index);
     return;
   }
 
@@ -1764,9 +1916,9 @@ void cu_cp_impl::handle_ul_nrppa_pdu(const byte_buffer&                         
 
     auto* ue = ue_mng.find_du_ue(ue_index);
 
-    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+    auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
     if (ngap == nullptr) {
-      logger.warning("NGAP not found for PLMN={}", ue->get_ue_context().plmn);
+      logger.warning("NGAP not found for amf_index={}", ue->get_ue_context().amf_index);
       return;
     }
 
@@ -1800,7 +1952,7 @@ void cu_cp_impl::handle_n2_disconnection(cu_cp_amf_index_t amf_index)
 {
   std::vector<plmn_identity> plmns = ngap_db.find_ngap(amf_index)->get_ngap_context().get_supported_plmns();
 
-  logger.warning("Handling N2 disconnection. Lost PLMNs: {}", fmt::format("{}", fmt::join(plmns, " ")));
+  logger.warning("Handling N2 disconnection of amf_index={}", amf_index);
 
   common_task_sched.schedule(launch_async<amf_connection_loss_routine>(
       amf_index, cfg, std::move(plmns), du_db, cell_ctrl.cells(), *this, ue_mng, controller, logger));
@@ -1947,7 +2099,7 @@ async_task<void> cu_cp_impl::handle_ue_removal_request(cu_cp_ue_index_t ue_index
     }
   }
 
-  ngap_interface*                  ngap                 = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  ngap_interface*                  ngap                 = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   ngap_ue_context_removal_handler* ngap_removal_handler = nullptr;
   if (ngap != nullptr) {
     ngap_removal_handler = &ngap->get_ngap_ue_context_removal_handler();
@@ -1978,6 +2130,7 @@ async_task<void> cu_cp_impl::handle_ue_removal_request(cu_cp_ue_index_t ue_index
 void cu_cp_impl::handle_pending_ue_task_cancellation(cu_cp_ue_index_t ue_index)
 {
   ocudu_assert(ue_mng.find_du_ue(ue_index) != nullptr, "ue={}: Could not find DU UE", ue_index);
+  const cu_cp_cu_up_index_t cu_up_index = ue_mng.find_du_ue(ue_index)->get_cu_up_index();
 
   // Clear all enqueued tasks for this UE.
   ue_mng.get_task_sched().clear_pending_tasks(ue_index);
@@ -1986,6 +2139,14 @@ void cu_cp_impl::handle_pending_ue_task_cancellation(cu_cp_ue_index_t ue_index)
   rrc_ue_interface* rrc_ue = ue_mng.find_du_ue(ue_index)->get_rrc_ue();
   if (rrc_ue != nullptr) {
     rrc_ue->get_controller().stop();
+  }
+
+  // Cancel running E1AP transactions for the UE. A cancelled procedure can remove the UE in-line, so this goes last.
+  if (cu_up_index != cu_cp_cu_up_index_t::invalid) {
+    cu_up_processor* cu_up = cu_up_db.find_cu_up_processor(cu_up_index);
+    if (cu_up != nullptr) {
+      cu_up->stop(ue_index);
+    }
   }
 }
 
@@ -1997,6 +2158,11 @@ void cu_cp_impl::handle_amf_reconnection(cu_cp_amf_index_t amf_index)
   }
 
   std::vector<plmn_identity> served_plmns = ngap_db.find_ngap(amf_index)->get_ngap_context().get_supported_plmns();
+
+  // The AMF serves its PLMNs again, so accept new UEs for them. This runs after every successful reconnection,
+  // including an AMF that connects for the first time through the background retry (e.g. an AMF of the pool that was
+  // down on startup) while its PLMN is blocked because another AMF serving it was lost.
+  ue_mng.remove_blocked_plmns(served_plmns);
 
   // The common task scheduler takes a void task, so wrap the bool-returning activation routine.
   // Administratively locked cells are filtered by the resolver: an AMF reconnection must not unlock them.
@@ -2120,6 +2286,17 @@ void cu_cp_impl::initialize_cho_execution_timer(cu_cp_ue_index_t ue_index, std::
 
 // private
 
+bool cu_cp_impl::handle_ue_resume_admission_request(cu_cp_ue_index_t ue_index, resume_cause_t resume_cause)
+{
+  cu_cp_ue* ue = ue_mng.find_ue(ue_index);
+  if (ue == nullptr or ue->get_ue_context().amf_index == cu_cp_amf_index_t::invalid) {
+    return true;
+  }
+  ngap_interface*        ngap          = ngap_db.find_ngap(ue->get_ue_context().amf_index);
+  std::vector<s_nssai_t> allowed_nssai = ngap != nullptr ? ngap->get_allowed_nssai(ue_index) : std::vector<s_nssai_t>{};
+  return controller.request_ue_resume(ue->get_ue_context().amf_index, resume_cause, allowed_nssai);
+}
+
 void cu_cp_impl::handle_rrc_ue_creation(cu_cp_ue_index_t ue_index, rrc_ue_interface& rrc_ue)
 {
   // Store the RRC UE in the UE manager.
@@ -2160,6 +2337,62 @@ ngap_cu_cp_ue_notifier* cu_cp_impl::handle_new_ngap_ue(cu_cp_ue_index_t ue_index
     return nullptr;
   }
   return &ue->get_ngap_cu_cp_ue_notifier();
+}
+
+cu_cp_ue_index_t cu_cp_impl::handle_ue_association_transfer(ran_ue_id_t ran_ue_id, cu_cp_amf_index_t amf_index)
+{
+  // The RAN UE NGAP ID is unique within the CU-CP, so at most one other NGAP holds the UE association.
+  cu_cp_ue_index_t ue_index = cu_cp_ue_index_t::invalid;
+  for (const auto& [other_amf_index, ngap] : ngap_db.get_ngaps()) {
+    if (other_amf_index == amf_index) {
+      continue;
+    }
+    ue_index = ngap->remove_ue_association(ran_ue_id);
+    if (ue_index != cu_cp_ue_index_t::invalid) {
+      logger.info("ue={}: amf_index={} takes over the UE from amf_index={}", ue_index, amf_index, other_amf_index);
+      break;
+    }
+  }
+  if (ue_index == cu_cp_ue_index_t::invalid) {
+    return cu_cp_ue_index_t::invalid;
+  }
+
+  if (not bind_ue_to_amf(ue_index, amf_index)) {
+    return cu_cp_ue_index_t::invalid;
+  }
+  return ue_index;
+}
+
+bool cu_cp_impl::handle_reroute_nas_request(const ngap_reroute_nas_request& request, cu_cp_amf_index_t amf_index)
+{
+  cu_cp_ue* ue = ue_mng.find_ue(request.ue_index);
+  if (ue == nullptr) {
+    logger.warning("ue={}: Could not find UE to reroute", request.ue_index);
+    return false;
+  }
+
+  std::optional<cu_cp_amf_index_t> new_amf_index =
+      controller.select_amf_for_amf_set(ue->get_ue_context().plmn, request.amf_set_id, amf_index);
+  if (not new_amf_index.has_value()) {
+    logger.warning("ue={}: Cannot reroute the UE. Cause: No other connected AMF of AMF Set {} supports plmn={}",
+                   request.ue_index,
+                   request.amf_set_id,
+                   ue->get_ue_context().plmn);
+    return false;
+  }
+
+  if (not bind_ue_to_amf(request.ue_index, new_amf_index.value())) {
+    return false;
+  }
+  if (not ngap_db.find_ngap(new_amf_index.value())->handle_rerouted_initial_ue_message(request)) {
+    // The UE stays with the AMF that requested the rerouting.
+    bind_ue_to_amf(request.ue_index, amf_index);
+    return false;
+  }
+
+  logger.info(
+      "ue={}: Rerouted the UE from amf_index={} to amf_index={}", request.ue_index, amf_index, new_amf_index.value());
+  return true;
 }
 
 bool cu_cp_impl::schedule_ue_task(cu_cp_ue_index_t ue_index, async_task<void> task)
@@ -2207,9 +2440,10 @@ void cu_cp_impl::send_ran_paging(cu_cp_ue_index_t ue_index, full_i_rnti_t full_i
     return;
   }
 
-  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().plmn);
+  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
   if (ngap == nullptr) {
-    logger.warning("ue={}: Can't initiate RAN paging. NGAP not found for plmn={}", ue_index, ue->get_ue_context().plmn);
+    logger.warning(
+        "ue={}: Can't initiate RAN paging. NGAP not found for amf_index={}", ue_index, ue->get_ue_context().amf_index);
     return;
   }
 
@@ -2294,8 +2528,9 @@ cu_cp_impl::handle_inter_cu_handover_request(const cu_cp_inter_cu_handover_reque
                "ue={}: could not find a CU-UP to serve the UE",
                request.ue_index);
 
-  auto* ngap = ngap_db.find_ngap(request.guami.plmn);
-  ocudu_assert(ngap != nullptr, "ue={}: NGAP not found for PLMN={}", request.ue_index, request.guami.plmn);
+  auto* ngap = ngap_db.find_ngap(ue->get_ue_context().amf_index);
+  ocudu_assert(
+      ngap != nullptr, "ue={}: NGAP not found for amf_index={}", request.ue_index, ue->get_ue_context().amf_index);
 
   async_task<cu_cp_handover_resource_allocation_response> target_routine =
       launch_async<inter_cu_handover_target_routine>(
@@ -2369,6 +2604,16 @@ void cu_cp_impl::handle_du_cells_removed(span<const nr_cell_identity> cells)
   for (nr_cell_identity nci : cells) {
     cell_ctrl.cells().derealize_cell(nci);
   }
+}
+
+void cu_cp_impl::handle_e_cid_measurement_report(const e_cid_measurement_report_t& report)
+{
+  nrppa_entity->get_nrppa_e_cid_report_handler().handle_e_cid_measurement_report(report);
+}
+
+void cu_cp_impl::handle_e_cid_measurement_failure_indication(const e_cid_measurement_failure_indication_t& ind)
+{
+  nrppa_entity->get_nrppa_e_cid_report_handler().handle_e_cid_measurement_failure_indication(ind);
 }
 
 void cu_cp_impl::handle_du_added(cu_cp_du_index_t du_index)

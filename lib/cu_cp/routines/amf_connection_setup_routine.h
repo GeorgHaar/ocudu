@@ -29,7 +29,6 @@ public:
 private:
   void handle_connection_setup_result();
 
-  ngap_repository&                                          ngap_db;
   std::unordered_map<cu_cp_amf_index_t, std::atomic<bool>>& amfs_connected;
   cu_cp_ng_setup_complete_notifier*                         ng_setup_notifier;
   std::map<cu_cp_amf_index_t, ngap_interface*>              ngaps;
@@ -41,6 +40,8 @@ private:
 
   ngap_ng_setup_result result_msg = {};
   bool                 success    = false;
+  /// True if every AMF is connected.
+  bool all_connected = true;
 };
 
 } // namespace ocudu::ocucp
